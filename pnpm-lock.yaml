@@ -193,9 +193,6 @@ importers:
       google-auth-library:
         specifier: ^10.6.2
         version: 10.6.2
-      http-proxy-middleware:
-        specifier: ^3.0.5
-        version: 3.0.5
       nanoid:
         specifier: ^5.1.7
         version: 5.1.7

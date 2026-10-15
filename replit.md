@@ -11,7 +11,7 @@ A full-featured Tennis League Manager web app with Clerk authentication and a Po
 - No emojis anywhere in the UI
 
 ## Authentication
-- Clerk auth with white-label proxy setup
+- Clerk auth (standard setup, no proxy)
 - Home route (/) is a public landing page for unauthenticated users
 - After sign-in, users are redirected to /dashboard
 - Protected user routes: /dashboard, /leagues, /my-matches, /availability, /profile
