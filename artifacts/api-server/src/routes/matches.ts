@@ -3,12 +3,13 @@ import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { matchesTable, playersTable, leaguesTable, leagueRoundsTable, ballBoiSessionsTable } from "@workspace/db";
 import { CreateMatchBody, UpdateMatchBody } from "@workspace/api-zod";
-import { eq, desc, inArray } from "drizzle-orm";
+import { eq, desc, inArray, and, or, sql, type SQL } from "drizzle-orm";
 import { sendPushToUsers } from "./notifications";
 import { advancePlayoffWinner } from "../services/playoffBracket";
 import { logger } from "../lib/logger";
 import { getAutoSeason } from "../services/seasonService.js";
 import { parseSet } from "../lib/scoringUtils.js";
+import { getPlayerNameMap, getLeagueNameMap, getRoundMap, matchPlayerIds } from "../lib/lookups.js";
 
 const router = Router();
 
@@ -24,23 +25,27 @@ function validateScoreFormat(score: string): string | null {
   return null;
 }
 
-async function buildMatchResponse(m: typeof matchesTable.$inferSelect) {
-  const allPlayers = await db.select().from(playersTable);
-  const allLeagues = await db.select().from(leaguesTable);
-  const playerMap: Record<number, string> = {};
-  for (const p of allPlayers) playerMap[p.id] = p.name;
-  const leagueMap: Record<number, string> = {};
-  for (const l of allLeagues) leagueMap[l.id] = l.name;
+// Atomic win/loss tally. Increments happen in the database in one transaction,
+// so two results saved at the same moment can't overwrite each other.
+async function recordResult(winnerIds: number[], loserIds: number[]) {
+  await db.transaction(async (tx) => {
+    if (winnerIds.length) {
+      await tx.update(playersTable).set({ wins: sql`${playersTable.wins} + 1` }).where(inArray(playersTable.id, winnerIds));
+    }
+    if (loserIds.length) {
+      await tx.update(playersTable).set({ losses: sql`${playersTable.losses} + 1` }).where(inArray(playersTable.id, loserIds));
+    }
+  });
+}
 
-  let roundNumber: number | null = null;
-  let roundEndDate: string | null = null;
-  if (m.roundId) {
-    const [round] = await db.select({ roundNumber: leagueRoundsTable.roundNumber, endDate: leagueRoundsTable.endDate })
-      .from(leagueRoundsTable)
-      .where(eq(leagueRoundsTable.id, m.roundId));
-    roundNumber = round?.roundNumber ?? null;
-    roundEndDate = round?.endDate ?? null;
-  }
+async function buildMatchResponse(m: typeof matchesTable.$inferSelect) {
+  const [playerMap, leagueMap, roundMap] = await Promise.all([
+    getPlayerNameMap(matchPlayerIds(m)),
+    getLeagueNameMap([m.leagueId]),
+    getRoundMap([m.roundId]),
+  ]);
+  const roundNumber = m.roundId ? (roundMap[m.roundId]?.roundNumber ?? null) : null;
+  const roundEndDate = m.roundId ? (roundMap[m.roundId]?.endDate ?? null) : null;
 
   return {
     ...m,
@@ -79,28 +84,36 @@ router.get("/matches", async (req, res) => {
   const playerId = req.query.playerId ? parseInt(req.query.playerId as string) : null;
   const status = (req.query.status as string) ?? null;
 
-  let rows = await db.select().from(matchesTable).orderBy(desc(matchesTable.createdAt));
+  const filters: SQL[] = [];
+  if (leagueId && !isNaN(leagueId)) filters.push(eq(matchesTable.leagueId, leagueId));
+  if (playerId && !isNaN(playerId)) {
+    filters.push(
+      or(
+        eq(matchesTable.player1Id, playerId),
+        eq(matchesTable.player2Id, playerId),
+        eq(matchesTable.player3Id, playerId),
+        eq(matchesTable.player4Id, playerId),
+      )!,
+    );
+  }
+  if (status) filters.push(eq(matchesTable.status, status));
 
-  if (leagueId && !isNaN(leagueId)) rows = rows.filter((m) => m.leagueId === leagueId);
-  if (playerId && !isNaN(playerId)) rows = rows.filter((m) => m.player1Id === playerId || m.player2Id === playerId || m.player3Id === playerId || m.player4Id === playerId);
-  if (status) rows = rows.filter((m) => m.status === status);
+  const rows = await db
+    .select()
+    .from(matchesTable)
+    .where(filters.length ? and(...filters) : undefined)
+    .orderBy(desc(matchesTable.createdAt));
 
   const matchIds = rows.map((m) => m.id);
 
-  const [allPlayers, allLeagues, allRounds, allSessions] = await Promise.all([
-    db.select().from(playersTable),
-    db.select().from(leaguesTable),
-    db.select({ id: leagueRoundsTable.id, roundNumber: leagueRoundsTable.roundNumber, endDate: leagueRoundsTable.endDate }).from(leagueRoundsTable),
+  const [playerMap, leagueMap, roundMap, allSessions] = await Promise.all([
+    getPlayerNameMap(rows.flatMap(matchPlayerIds)),
+    getLeagueNameMap(rows.map((m) => m.leagueId)),
+    getRoundMap(rows.map((m) => m.roundId)),
     matchIds.length > 0
       ? db.select({ matchId: ballBoiSessionsTable.matchId }).from(ballBoiSessionsTable).where(inArray(ballBoiSessionsTable.matchId, matchIds))
       : Promise.resolve([]),
   ]);
-  const playerMap: Record<number, string> = {};
-  for (const p of allPlayers) playerMap[p.id] = p.name;
-  const leagueMap: Record<number, string> = {};
-  for (const l of allLeagues) leagueMap[l.id] = l.name;
-  const roundMap: Record<number, { roundNumber: number; endDate: string }> = {};
-  for (const r of allRounds) roundMap[r.id] = { roundNumber: r.roundNumber, endDate: r.endDate };
   const ballBoiMatchIds = new Set(allSessions.map((s) => s.matchId));
 
   return res.json(
@@ -233,8 +246,12 @@ router.post("/matches", async (req, res) => {
 
   // Push notifications — fire and forget
   if (match.scheduledAt) {
-    const [p1] = await db.select().from(playersTable).where(eq(playersTable.id, match.player1Id));
-    const [p2] = await db.select().from(playersTable).where(eq(playersTable.id, match.player2Id));
+    const recipients = await db
+      .select({ id: playersTable.id, clerkUserId: playersTable.clerkUserId })
+      .from(playersTable)
+      .where(inArray(playersTable.id, [match.player1Id, match.player2Id]));
+    const p1 = recipients.find((p) => p.id === match.player1Id);
+    const p2 = recipients.find((p) => p.id === match.player2Id);
     const dateStr = new Date(match.scheduledAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
     const clerkIds = [p1?.clerkUserId, p2?.clerkUserId].filter(Boolean) as string[];
     const matchTitle = match.player3Id
@@ -374,11 +391,10 @@ router.patch("/matches/:matchId", async (req, res) => {
       existingMatch.player4Id,
     ].filter((id): id is number => id != null);
 
-    const allParticipantPlayers = await Promise.all(
-      allParticipantIds.map((id) =>
-        db.select().from(playersTable).where(eq(playersTable.id, id)).then((rows) => rows[0] ?? null)
-      )
-    );
+    const allParticipantPlayers = await db
+      .select()
+      .from(playersTable)
+      .where(inArray(playersTable.id, allParticipantIds));
 
     const updaterName = callerPlayer?.name ?? "Your opponent";
 
@@ -432,11 +448,10 @@ router.patch("/matches/:matchId", async (req, res) => {
       existingMatch.player4Id,
     ].filter((id): id is number => id != null);
 
-    const allParticipantPlayers = await Promise.all(
-      allParticipantIds.map((id) =>
-        db.select().from(playersTable).where(eq(playersTable.id, id)).then((rows) => rows[0] ?? null)
-      )
-    );
+    const allParticipantPlayers = await db
+      .select()
+      .from(playersTable)
+      .where(inArray(playersTable.id, allParticipantIds));
 
     // The setter's player record (may be null if not linked)
     const setterPlayer = callerPlayer;
@@ -497,18 +512,14 @@ router.patch("/matches/:matchId", async (req, res) => {
         ? [existingMatch.player2Id, ...(existingMatch.player4Id ? [existingMatch.player4Id] : [])]
         : [existingMatch.player1Id, ...(existingMatch.player3Id ? [existingMatch.player3Id] : [])];
 
-      for (const id of winnerIds) {
-        const [p] = await db.select().from(playersTable).where(eq(playersTable.id, id));
-        if (p) await db.update(playersTable).set({ wins: p.wins + 1 }).where(eq(playersTable.id, id));
-      }
-      for (const id of loserIds) {
-        const [p] = await db.select().from(playersTable).where(eq(playersTable.id, id));
-        if (p) await db.update(playersTable).set({ losses: p.losses + 1 }).where(eq(playersTable.id, id));
-      }
+      await recordResult(winnerIds, loserIds);
 
-      const allPlayers = await db.select().from(playersTable);
-      const pMap: Record<number, typeof allPlayers[0]> = {};
-      for (const p of allPlayers) pMap[p.id] = p;
+      const teamPlayers = await db
+        .select()
+        .from(playersTable)
+        .where(inArray(playersTable.id, [...winnerIds, ...loserIds]));
+      const pMap: Record<number, typeof teamPlayers[0]> = {};
+      for (const p of teamPlayers) pMap[p.id] = p;
       const clerkIds = [...winnerIds, ...loserIds].map((id) => pMap[id]?.clerkUserId).filter(Boolean) as string[];
       const winTeamNames = winnerIds.map((id) => pMap[id]?.name ?? "Unknown").join(" & ");
       const loseTeamNames = loserIds.map((id) => pMap[id]?.name ?? "Unknown").join(" & ");
@@ -520,14 +531,13 @@ router.patch("/matches/:matchId", async (req, res) => {
     } else {
       // Singles
       const loserId = existingMatch.player1Id === winnerId ? existingMatch.player2Id : existingMatch.player1Id;
-      const [winnerPlayer] = await db.select().from(playersTable).where(eq(playersTable.id, winnerId));
-      const [loserPlayer] = await db.select().from(playersTable).where(eq(playersTable.id, loserId));
-      if (winnerPlayer) {
-        await db.update(playersTable).set({ wins: winnerPlayer.wins + 1 }).where(eq(playersTable.id, winnerId));
-      }
-      if (loserPlayer) {
-        await db.update(playersTable).set({ losses: loserPlayer.losses + 1 }).where(eq(playersTable.id, loserId));
-      }
+      await recordResult([winnerId], [loserId]);
+      const pair = await db
+        .select()
+        .from(playersTable)
+        .where(inArray(playersTable.id, [winnerId, loserId]));
+      const winnerPlayer = pair.find((p) => p.id === winnerId);
+      const loserPlayer = pair.find((p) => p.id === loserId);
 
       const scoreStr = updates.score ?? "";
       const winnerName = winnerPlayer?.name ?? "Unknown";

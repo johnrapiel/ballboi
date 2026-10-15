@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, jsonb, timestamp, index } from "drizzle-orm/pg-core";
 import { leaguesTable } from "./leagues";
 
 export interface PlayoffSeeding {
@@ -15,4 +15,6 @@ export const playoffBracketsTable = pgTable("playoff_brackets", {
   seedings: jsonb("seedings").notNull().default([]).$type<PlayoffSeeding[]>(),
   generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_playoff_brackets_league_id").on(table.leagueId),
+]);

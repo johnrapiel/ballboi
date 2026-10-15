@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { leaguesTable } from "./leagues";
@@ -11,7 +11,9 @@ export const leagueRoundsTable = pgTable("league_rounds", {
   endDate: text("end_date").notNull(),
   status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_league_rounds_league_id_status").on(table.leagueId, table.status),
+]);
 
 export const insertLeagueRoundSchema = createInsertSchema(leagueRoundsTable).omit({ id: true, createdAt: true });
 export type InsertLeagueRound = z.infer<typeof insertLeagueRoundSchema>;

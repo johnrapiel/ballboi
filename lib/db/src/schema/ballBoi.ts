@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, real, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, real, jsonb, index } from "drizzle-orm/pg-core";
 import { matchesTable } from "./matches";
 import { playersTable } from "./players";
 
@@ -19,7 +19,9 @@ export const ballBoiSessionsTable = pgTable("ball_boi_sessions", {
   metadata: jsonb("metadata").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  index("idx_ball_boi_sessions_match_id").on(table.matchId),
+]);
 
 export const matchShotsTable = pgTable("match_shots", {
   id: serial("id").primaryKey(),
@@ -47,7 +49,10 @@ export const matchShotsTable = pgTable("match_shots", {
   clipEndSeconds: real("clip_end_seconds"),
   rawMlData: jsonb("raw_ml_data").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_match_shots_session_id").on(table.sessionId),
+  index("idx_match_shots_match_id").on(table.matchId),
+]);
 
 export const matchStatisticsTable = pgTable("match_statistics", {
   id: serial("id").primaryKey(),
@@ -71,7 +76,10 @@ export const matchStatisticsTable = pgTable("match_statistics", {
   playerComparisons: jsonb("player_comparisons").$type<Record<string, unknown>>().notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  index("idx_match_statistics_session_id").on(table.sessionId),
+  index("idx_match_statistics_match_id").on(table.matchId),
+]);
 
 export type BallBoiSession = typeof ballBoiSessionsTable.$inferSelect;
 export type MatchShot = typeof matchShotsTable.$inferSelect;

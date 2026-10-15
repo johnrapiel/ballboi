@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, json, index } from "drizzle-orm/pg-core";
 import { leaguesTable } from "./leagues";
 
 export const scheduleGenerationLogsTable = pgTable("schedule_generation_logs", {
@@ -20,7 +20,9 @@ export const scheduleGenerationLogsTable = pgTable("schedule_generation_logs", {
   }>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  index("idx_schedule_generation_logs_league_id_week_of").on(table.leagueId, table.weekOf),
+]);
 
 export type ScheduleGenerationLog = typeof scheduleGenerationLogsTable.$inferSelect;
 export type InsertScheduleGenerationLog = typeof scheduleGenerationLogsTable.$inferInsert;

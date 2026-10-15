@@ -3,7 +3,8 @@ import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { requireAdmin } from "../middlewares/requireAdmin";
 import { matchesTable, playersTable, leaguesTable, scheduleGenerationLogsTable, ballBoiSessionsTable, matchStatisticsTable, leagueRoundsTable } from "@workspace/db";
-import { eq, and, or, desc, inArray } from "drizzle-orm";
+import { eq, and, or, desc, inArray, ne, isNull } from "drizzle-orm";
+import { getPlayerNameMap, getLeagueNameMap, matchPlayerIds } from "../lib/lookups.js";
 
 const router = Router();
 
@@ -73,28 +74,34 @@ router.get("/stats/top-players", async (req, res) => {
   const leagueId = req.query.leagueId ? parseInt(req.query.leagueId as string) : null;
   const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
 
-  let players = await db.select().from(playersTable);
-  if (leagueId && !isNaN(leagueId)) players = players.filter((p) => p.leagueId === leagueId);
+  const filterByLeague = leagueId != null && !isNaN(leagueId);
+  const players = await db
+    .select()
+    .from(playersTable)
+    .where(filterByLeague ? eq(playersTable.leagueId, leagueId!) : undefined);
 
-  const leagues = await db.select().from(leaguesTable);
-  const leagueMap: Record<number, string> = {};
-  for (const l of leagues) leagueMap[l.id] = l.name;
+  const leagueMap = await getLeagueNameMap(players.map((p) => p.leagueId));
 
   const playerIds = players.map((p) => p.id);
+  const notExhibition = or(isNull(matchesTable.season), ne(matchesTable.season, "Spring Exhibition"));
   const completedMatches = playerIds.length
     ? await db
         .select()
         .from(matchesTable)
-        .where(and(eq(matchesTable.status, "completed")))
-        .then((rows) =>
-          rows.filter(
-            (m) =>
-              m.season !== "Spring Exhibition" &&
-              (playerIds.includes(m.player1Id) ||
-                playerIds.includes(m.player2Id) ||
-                (m.player3Id != null && playerIds.includes(m.player3Id)) ||
-                (m.player4Id != null && playerIds.includes(m.player4Id)))
-          )
+        .where(
+          and(
+            eq(matchesTable.status, "completed"),
+            notExhibition,
+            // Without a league filter every player is in scope, so skip the participant check.
+            filterByLeague
+              ? or(
+                  inArray(matchesTable.player1Id, playerIds),
+                  inArray(matchesTable.player2Id, playerIds),
+                  inArray(matchesTable.player3Id, playerIds),
+                  inArray(matchesTable.player4Id, playerIds),
+                )
+              : undefined,
+          ),
         )
     : [];
 
@@ -143,12 +150,10 @@ router.get("/stats/recent-activity", async (req, res) => {
     .orderBy(desc(matchesTable.updatedAt))
     .limit(limit);
 
-  const players = await db.select().from(playersTable);
-  const leagues = await db.select().from(leaguesTable);
-  const playerMap: Record<number, string> = {};
-  for (const p of players) playerMap[p.id] = p.name;
-  const leagueMap: Record<number, string> = {};
-  for (const l of leagues) leagueMap[l.id] = l.name;
+  const [playerMap, leagueMap] = await Promise.all([
+    getPlayerNameMap(matches.flatMap(matchPlayerIds)),
+    getLeagueNameMap(matches.map((m) => m.leagueId)),
+  ]);
 
   return res.json(
     matches.map((m) => ({
@@ -190,9 +195,7 @@ router.get("/stats/head-to-head", async (req, res) => {
     )
     .orderBy(desc(matchesTable.completedAt));
 
-  const leagues = await db.select().from(leaguesTable);
-  const leagueMap: Record<number, string> = {};
-  for (const l of leagues) leagueMap[l.id] = l.name;
+  const leagueMap = await getLeagueNameMap(matches.map((m) => m.leagueId));
 
   const player1Wins = matches.filter((m) => m.winnerId === player1Id).length;
   const player2Wins = matches.filter((m) => m.winnerId === player2Id).length;
@@ -254,11 +257,11 @@ router.get("/stats/my-matches", async (req, res) => {
       .orderBy(desc(matchesTable.scheduledAt));
 
     const [allLeagues, allPlayers, ballBoiSessions, ballBoiStats, allRounds] = await Promise.all([
-      db.select().from(leaguesTable),
-      db.select().from(playersTable),
+      db.select().from(leaguesTable).where(inArray(leaguesTable.id, allMatches.flatMap((m) => (m.leagueId != null ? [m.leagueId] : [])))),
+      db.select().from(playersTable).where(inArray(playersTable.id, allMatches.flatMap((m) => [m.player1Id, m.player2Id]))),
       allMatches.length ? db.select().from(ballBoiSessionsTable).where(inArray(ballBoiSessionsTable.matchId, allMatches.map((m) => m.id))) : Promise.resolve([]),
       allMatches.length ? db.select().from(matchStatisticsTable).where(inArray(matchStatisticsTable.matchId, allMatches.map((m) => m.id))) : Promise.resolve([]),
-      db.select().from(leagueRoundsTable),
+      db.select().from(leagueRoundsTable).where(inArray(leagueRoundsTable.id, allMatches.flatMap((m) => (m.roundId != null ? [m.roundId] : [])))),
     ]);
 
     const leagueMap: Record<number, string> = {};
@@ -411,7 +414,17 @@ router.get("/stats/my-schedule", async (req, res) => {
       const allActiveThisWeek = await db
         .select()
         .from(matchesTable)
-        .where(inArray(matchesTable.status, ["scheduled", "in_progress"]))
+        .where(
+          and(
+            inArray(matchesTable.status, ["scheduled", "in_progress"]),
+            or(
+              inArray(matchesTable.player1Id, playerIds),
+              inArray(matchesTable.player2Id, playerIds),
+              inArray(matchesTable.player3Id, playerIds),
+              inArray(matchesTable.player4Id, playerIds),
+            ),
+          ),
+        )
         .orderBy(matchesTable.scheduledAt);
 
       upcoming = allActiveThisWeek.find(
@@ -432,8 +445,10 @@ router.get("/stats/my-schedule", async (req, res) => {
 
     // Load related data
     const [allLeagues, allPlayers] = await Promise.all([
-      db.select().from(leaguesTable),
-      db.select().from(playersTable),
+      db.select().from(leaguesTable).where(inArray(leaguesTable.id, upcoming.leagueId != null ? [upcoming.leagueId] : [])),
+      db.select().from(playersTable).where(
+        inArray(playersTable.id, [upcoming.player1Id, upcoming.player2Id, upcoming.player3Id, upcoming.player4Id].filter((id): id is number => id != null)),
+      ),
     ]);
 
     const leagueMap: Record<number, string> = {};

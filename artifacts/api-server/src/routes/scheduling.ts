@@ -5,6 +5,7 @@ import { eq, and, or, desc } from "drizzle-orm";
 import { generateWeeklyMatches, saveGeneratedMatches } from "../services/matchGeneration";
 import { sendPushToUsers } from "./notifications";
 import { requireAdmin } from "../middlewares/requireAdmin";
+import { getPlayerNameMap } from "../lib/lookups.js";
 
 const router = Router();
 
@@ -31,11 +32,13 @@ function getWeekOf(dateStr?: string): string {
   return monday.toISOString().slice(0, 10);
 }
 
-async function buildMatchResponse(m: typeof matchesTable.$inferSelect) {
-  const allPlayers = await db.select().from(playersTable);
-  const playerMap: Record<number, string> = {};
-  for (const p of allPlayers) playerMap[p.id] = p.name;
+// Decorates a batch of matches with player names using one targeted query.
+async function buildMatchResponses(matches: Array<typeof matchesTable.$inferSelect>) {
+  const playerMap = await getPlayerNameMap(matches.flatMap((m) => [m.player1Id, m.player2Id]));
+  return matches.map((m) => formatMatch(m, playerMap));
+}
 
+function formatMatch(m: typeof matchesTable.$inferSelect, playerMap: Record<number, string>) {
   return {
     ...m,
     player1Name: playerMap[m.player1Id] ?? "Unknown",
@@ -165,7 +168,7 @@ router.get("/scheduling/:leagueId/:weekOf", requireAuth, async (req, res) => {
       .from(matchesTable)
       .where(and(eq(matchesTable.leagueId, leagueId), eq(matchesTable.weekOf, weekOf)));
 
-    const matchesWithDetails = await Promise.all(matchRows.map(buildMatchResponse));
+    const matchesWithDetails = await buildMatchResponses(matchRows);
 
     res.json({
       log: log[0] ?? null,

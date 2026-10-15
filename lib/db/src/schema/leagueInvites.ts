@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { leaguesTable } from "./leagues";
@@ -13,7 +13,9 @@ export const leagueInvitesTable = pgTable("league_invites", {
   usageCount: integer("usage_count").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_league_invites_league_id").on(table.leagueId),
+]);
 
 export const insertLeagueInviteSchema = createInsertSchema(leagueInvitesTable).omit({ id: true, createdAt: true, usageCount: true });
 export type InsertLeagueInvite = z.infer<typeof insertLeagueInviteSchema>;

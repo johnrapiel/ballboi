@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { leaguesTable } from "./leagues";
@@ -11,7 +11,9 @@ export const seasonsTable = pgTable("seasons", {
   endDate: text("end_date").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  index("idx_seasons_league_id").on(table.leagueId),
+]);
 
 export const insertSeasonSchema = createInsertSchema(seasonsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertSeason = z.infer<typeof insertSeasonSchema>;

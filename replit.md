@@ -11,7 +11,7 @@ A full-featured Tennis League Manager web app with Clerk authentication and a Po
 - No emojis anywhere in the UI
 
 ## Authentication
-- Clerk auth with white-label proxy setup
+- Clerk auth (standard setup, no proxy)
 - Home route (/) is a public landing page for unauthenticated users
 - After sign-in, users are redirected to /dashboard
 - Protected user routes: /dashboard, /leagues, /my-matches, /availability, /profile
@@ -134,10 +134,9 @@ A full-featured Tennis League Manager web app with Clerk authentication and a Po
 ## Workflows
 - `artifacts/api-server: API Server` — runs on port 8080
 - `artifacts/tennis-league: web` — frontend dev server
-- `artifacts/mockup-sandbox: Component Preview Server` — design tool
 - `ML Server` — FastAPI Ball Boi analysis service (`artifacts/ml-server/main.py`), runs on port 8000
 
-All four services are independently startable from the services panel. The Run button launches the `Project` workflow which currently starts the ML Server; the frontend and API workflows can be started separately alongside it. `ML_SERVICE_URL=http://localhost:8000` (shared env var) connects the API to the ML server.
+All three services are independently startable from the services panel. The Run button launches the `Project` workflow which currently starts the ML Server; the frontend and API workflows can be started separately alongside it. `ML_SERVICE_URL=http://localhost:8000` (shared env var) connects the API to the ML server.
 
 ## Season Tagging & Management
 - Matches have a `season` TEXT nullable column.

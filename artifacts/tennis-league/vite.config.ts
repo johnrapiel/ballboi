@@ -4,27 +4,18 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
-const rawPort = process.env.PORT;
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
+// Defaults let `pnpm dev` run locally with no extra setup.
+const rawPort = process.env.PORT ?? "5173";
 const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH;
+const basePath = process.env.BASE_PATH ?? "/";
 
-if (!basePath) {
-  throw new Error(
-    "BASE_PATH environment variable is required but was not provided.",
-  );
-}
+// The app calls the API at relative /api paths. Locally, forward those to the API server.
+const apiProxyTarget = process.env.API_PROXY_TARGET ?? `http://localhost:${process.env.API_PORT ?? "8080"}`;
 
 export default defineConfig({
   base: basePath,
@@ -65,6 +56,9 @@ export default defineConfig({
     port,
     host: "0.0.0.0",
     allowedHosts: true,
+    proxy: {
+      "/api": { target: apiProxyTarget, changeOrigin: true },
+    },
     fs: {
       strict: true,
       deny: ["**/.*"],

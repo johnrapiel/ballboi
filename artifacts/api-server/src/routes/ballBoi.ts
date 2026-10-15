@@ -108,7 +108,10 @@ async function saveBatchResults(sessionId: number, matchId: number, result: unkn
 
   const inserted = await db.insert(matchShotsTable).values(shots).returning();
   const stats = computeStats(inserted, players);
-  const allPlayers = await db.select().from(playersTable);
+  const allPlayers = await db
+    .select({ id: playersTable.id, name: playersTable.name })
+    .from(playersTable)
+    .where(inArray(playersTable.id, match ? [match.player1Id, match.player2Id] : []));
   const pMap: Record<number, string> = {};
   for (const p of allPlayers) pMap[p.id] = p.name;
   const matchTitle = match ? `${pMap[match.player1Id] ?? "Player 1"} vs ${pMap[match.player2Id] ?? "Player 2"}` : "The match";

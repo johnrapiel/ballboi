@@ -191,7 +191,8 @@ router.get("/players/:playerId/stats", async (req, res) => {
   }
 
   const leagueMap: Record<number, string> = {};
-  const allLeagues = await db.select().from(leaguesTable);
+  const recentLeagueIds = recentMatches.flatMap((m) => (m.leagueId != null ? [m.leagueId] : []));
+  const allLeagues = await db.select().from(leaguesTable).where(inArray(leaguesTable.id, recentLeagueIds));
   for (const l of allLeagues) leagueMap[l.id] = l.name;
 
   return res.json({
