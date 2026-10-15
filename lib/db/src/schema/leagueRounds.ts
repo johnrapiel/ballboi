@@ -1,0 +1,18 @@
+import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod/v4";
+import { leaguesTable } from "./leagues";
+
+export const leagueRoundsTable = pgTable("league_rounds", {
+  id: serial("id").primaryKey(),
+  leagueId: integer("league_id").notNull().references(() => leaguesTable.id, { onDelete: "cascade" }),
+  roundNumber: integer("round_number").notNull(),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertLeagueRoundSchema = createInsertSchema(leagueRoundsTable).omit({ id: true, createdAt: true });
+export type InsertLeagueRound = z.infer<typeof insertLeagueRoundSchema>;
+export type LeagueRound = typeof leagueRoundsTable.$inferSelect;

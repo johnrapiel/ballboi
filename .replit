@@ -1,0 +1,122 @@
+modules = ["nodejs-24", "python-3.11", "python3.11", "postgresql-16"]
+
+[[artifacts]]
+id = "artifacts/api-server"
+
+[[artifacts]]
+id = "artifacts/mockup-sandbox"
+
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "ML Server"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "ml-heatmap-tests"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "test-api-server"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "test-tennis-league"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "ball-boi-video-tests"
+
+[[workflows.workflow]]
+name = "ML Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=8000 python artifacts/ml-server/main.py"
+waitForPort = 8000
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "ml-heatmap-tests"
+author = "agent"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3.11 -m pip install -r artifacts/ml-server/requirements-dev.txt && python3.11 -m pytest artifacts/ml-server/tests/ -v"
+
+[[workflows.workflow]]
+name = "test-api-server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/api-server test"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "test-tennis-league"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/tennis-league test"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "ball-boi-video-tests"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/api-server exec vitest run src/__tests__/ballBoiRoutes.test.ts && pnpm --filter @workspace/tennis-league exec vitest run src/__tests__/ballBoiSession.test.ts"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[agent]
+stack = "PNPM_WORKSPACE"
+expertMode = true
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
+
+[nix]
+channel = "stable-25_05"
+packages = ["freetype", "glibcLocales", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "tcl", "tk", "zlib"]
+
+[userenv]
+
+[userenv.shared]
+VITE_VAPID_PUBLIC_KEY = "BH7k7jb8z9FsXyNN1MEdoMgV6wFReDsAIJyGUAAdm-dw0ErOqQtK_YCw8pYJvSadTTSUjHzqJZsxYg4a7jKbTTM"
+VAPID_SUBJECT = "mailto:admin@hudsonvalleytennis.app"
+ML_SERVICE_URL = "http://localhost:8000"
+ADMIN_EMAIL = "jr@johnrapiel.com"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-cac7fb50-f017-49a9-90c8-54d81dd610aa"

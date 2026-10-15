@@ -1,0 +1,2870 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Tennis League Manager API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: leagues
+    description: League management
+  - name: players
+    description: Player management
+  - name: matches
+    description: Match scheduling and results
+  - name: availability
+    description: Player availability and reminder operations
+  - name: stats
+    description: Statistics and analytics
+  - name: users
+    description: User profile management
+  - name: ball-boi
+    description: Ball Boi match recording and replay analysis
+  - name: rounds
+    description: Round-based match scheduling
+  - name: seasons
+    description: Season management
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /leagues:
+    get:
+      operationId: getLeagues
+      tags: [leagues]
+      summary: List all leagues
+      parameters:
+        - name: clerkUserId
+          in: query
+          required: false
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: List of leagues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/League"
+    post:
+      operationId: createLeague
+      tags: [leagues]
+      summary: Create a new league
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLeagueBody"
+      responses:
+        "201":
+          description: Created league
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/League"
+
+  /leagues/{leagueId}:
+    get:
+      operationId: getLeague
+      tags: [leagues]
+      summary: Get league by ID
+      parameters:
+        - name: leagueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: League
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/League"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateLeague
+      tags: [leagues]
+      summary: Update league
+      parameters:
+        - name: leagueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLeagueBody"
+      responses:
+        "200":
+          description: Updated league
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/League"
+    delete:
+      operationId: deleteLeague
+      tags: [leagues]
+      summary: Delete league
+      parameters:
+        - name: leagueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /leagues/{leagueId}/reset:
+    post:
+      operationId: resetLeagueRecords
+      tags: [leagues]
+      summary: Reset round scheduling history for a league (admin only). Match history is preserved.
+      parameters:
+        - name: leagueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Rounds reset
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: object
+                    properties:
+                      rounds:
+                        type: integer
+                    required: [rounds]
+                required: [deleted]
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /leagues/{leagueId}/playoffs/generate:
+    post:
+      operationId: generateLeaguePlayoffs
+      tags: [leagues]
+      summary: Generate a playoff bracket for a league (admin only)
+      parameters:
+        - name: leagueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "201":
+          description: Bracket generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayoffBracketResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /leagues/{leagueId}/playoffs:
+    get:
+      operationId: getLeaguePlayoffs
+      tags: [leagues]
+      summary: Get the playoff bracket and eligibility status for a league
+      parameters:
+        - name: leagueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Playoff status including bracket (or null) and eligibility
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayoffsStatusResponse"
+
+  /leagues/{leagueId}/rounds/generate:
+    post:
+      operationId: generateLeagueRound
+      tags: [rounds]
+      summary: Generate next round of matchups for a league (admin only)
+      parameters:
+        - name: leagueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                force:
+                  type: boolean
+                  description: Force generation even if a round is still active
+      responses:
+        "201":
+          description: Round generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueRoundWithMatchups"
+        "409":
+          description: A round is already active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /leagues/{leagueId}/rounds/current:
+    get:
+      operationId: getCurrentLeagueRound
+      tags: [rounds]
+      summary: Get the current active round for a league
+      parameters:
+        - name: leagueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Current round or null if no active round
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/LeagueRoundWithMatchups"
+                  - type: "null"
+
+  /leagues/{leagueId}/rounds:
+    get:
+      operationId: getLeagueRounds
+      tags: [rounds]
+      summary: List all rounds for a league
+      parameters:
+        - name: leagueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of rounds
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeagueRoundWithMatchups"
+
+  /leagues/{leagueId}/seasons:
+    get:
+      operationId: getLeagueSeasons
+      tags: [seasons]
+      summary: List seasons visible to a league (own + global)
+      parameters:
+        - name: leagueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of seasons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Season"
+    post:
+      operationId: createLeagueSeason
+      tags: [seasons]
+      summary: Create a season for a league (admin only)
+      parameters:
+        - name: leagueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSeasonBody"
+      responses:
+        "201":
+          description: Created season
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Season"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /leagues/{leagueId}/seasons/active:
+    get:
+      operationId: getActiveLeagueSeason
+      tags: [seasons]
+      summary: Get the currently active season for a league
+      parameters:
+        - name: leagueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Active season or null
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/Season"
+                  - type: "null"
+
+  /seasons/{id}:
+    patch:
+      operationId: updateSeason
+      tags: [seasons]
+      summary: Update a season (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSeasonBody"
+      responses:
+        "200":
+          description: Updated season
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Season"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteSeason
+      tags: [seasons]
+      summary: Delete a season (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /leagues/{leagueId}/standings:
+    get:
+      operationId: getLeagueStandings
+      tags: [leagues]
+      summary: Get standings for a league
+      parameters:
+        - name: leagueId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: season
+          in: query
+          required: false
+          description: Filter by season name, or "all" for all-time aggregate
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Standings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Standing"
+
+  /players:
+    get:
+      operationId: getPlayers
+      tags: [players]
+      summary: List all players
+      parameters:
+        - name: leagueId
+          in: query
+          required: false
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: List of players
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Player"
+
+  /players/me:
+    get:
+      operationId: getMyPlayers
+      tags: [players]
+      summary: List player records linked to the current user
+      responses:
+        "200":
+          description: Current user's player records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Player"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /players/{playerId}:
+    get:
+      operationId: getPlayer
+      tags: [players]
+      summary: Get player by ID
+      parameters:
+        - name: playerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Player
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updatePlayer
+      tags: [players]
+      summary: Update player
+      parameters:
+        - name: playerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePlayerBody"
+      responses:
+        "200":
+          description: Updated player
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+    delete:
+      operationId: deletePlayer
+      tags: [players]
+      summary: Delete player
+      parameters:
+        - name: playerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /players/{playerId}/stats:
+    get:
+      operationId: getPlayerStats
+      tags: [players]
+      summary: Get detailed stats for a player
+      parameters:
+        - name: playerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Player stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerStats"
+
+  /matches:
+    get:
+      operationId: getMatches
+      tags: [matches]
+      summary: List matches
+      parameters:
+        - name: leagueId
+          in: query
+          required: false
+          schema:
+            type: ["integer", "null"]
+        - name: playerId
+          in: query
+          required: false
+          schema:
+            type: ["integer", "null"]
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: ["string", "null"]
+            enum: ["scheduled", "in_progress", "completed", "cancelled", null]
+      responses:
+        "200":
+          description: List of matches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Match"
+    post:
+      operationId: createMatch
+      tags: [matches]
+      summary: Schedule a new match
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMatchBody"
+      responses:
+        "201":
+          description: Created match
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+
+  /matches/{matchId}:
+    get:
+      operationId: getMatch
+      tags: [matches]
+      summary: Get match by ID
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Match
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateMatch
+      tags: [matches]
+      summary: Update match (including recording score)
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMatchBody"
+      responses:
+        "200":
+          description: Updated match
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+    delete:
+      operationId: deleteMatch
+      tags: [matches]
+      summary: Delete match
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /users/me:
+    get:
+      operationId: getMyProfile
+      tags: [users]
+      summary: Get current user profile
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "404":
+          description: Profile not found
+    post:
+      operationId: upsertMyProfile
+      tags: [users]
+      summary: Create or update current user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertUserProfileBody"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "201":
+          description: Created profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+    put:
+      operationId: updateMyProfile
+      tags: [users]
+      summary: Update current user profile fields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertUserProfileBody"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  /availability/participation/{leagueId}/{weekOf}:
+    get:
+      operationId: getAvailabilityParticipation
+      tags: [availability]
+      summary: Get availability participation and reminder status for a league week
+      parameters:
+        - name: leagueId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: weekOf
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Participation and reminder summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityParticipationResponse"
+        "403":
+          description: League admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /availability/remind/{leagueId}/{weekOf}:
+    post:
+      operationId: remindMissingAvailabilityPlayers
+      tags: [availability]
+      summary: Send availability reminders to players who have not submitted
+      parameters:
+        - name: leagueId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: weekOf
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Reminder batch sent and logged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityReminderResponse"
+        "403":
+          description: League admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Reminder recently sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityReminderCooldownResponse"
+
+  /leagues/{leagueId}/invites:
+    get:
+      operationId: getLeagueInvites
+      tags: [leagues]
+      summary: Get active invites for a league
+      parameters:
+        - name: leagueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of invites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeagueInvite"
+    post:
+      operationId: createLeagueInvite
+      tags: [leagues]
+      summary: Create an invite link for a league
+      parameters:
+        - name: leagueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLeagueInviteBody"
+      responses:
+        "201":
+          description: Created invite
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueInvite"
+
+  /invites/{code}:
+    get:
+      operationId: getInvite
+      tags: [leagues]
+      summary: Get invite info by code
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invite info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueInvite"
+        "404":
+          description: Not found
+    delete:
+      operationId: deactivateInvite
+      tags: [leagues]
+      summary: Deactivate an invite
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deactivated
+
+  /invites/{code}/join:
+    post:
+      operationId: joinLeagueViaInvite
+      tags: [leagues]
+      summary: Join a league using an invite code
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinLeagueBody"
+      responses:
+        "201":
+          description: Successfully joined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JoinLeagueResponse"
+
+  /stats/dashboard:
+    get:
+      operationId: getDashboardStats
+      tags: [stats]
+      summary: Get dashboard overview stats
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /stats/top-players:
+    get:
+      operationId: getTopPlayers
+      tags: [stats]
+      summary: Get top performing players
+      parameters:
+        - name: leagueId
+          in: query
+          required: false
+          schema:
+            type: ["integer", "null"]
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: Top players list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TopPlayer"
+
+  /stats/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [stats]
+      summary: Get recent match activity feed
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /stats/my-matches:
+    get:
+      operationId: getMyMatches
+      tags: [stats]
+      summary: Get all matches (upcoming and past) for the current player
+      responses:
+        "200":
+          description: The player's upcoming and past matches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyMatchesResponse"
+
+  /stats/my-schedule:
+    get:
+      operationId: getMySchedule
+      tags: [stats]
+      summary: Get the current player's upcoming match for the week
+      responses:
+        "200":
+          description: The player's upcoming match details, or null if not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyScheduleResponse"
+
+  /stats/head-to-head:
+    get:
+      operationId: getHeadToHead
+      tags: [stats]
+      summary: Get head-to-head record between two players
+      parameters:
+        - name: player1Id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: player2Id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Head-to-head record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HeadToHeadStats"
+
+  /ball-boi/matches/{matchId}/sessions/start:
+    post:
+      operationId: startBallBoiSession
+      tags: [ball-boi]
+      summary: Start a Ball Boi match recording session
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartBallBoiSessionBody"
+      responses:
+        "201":
+          description: Started session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BallBoiSession"
+
+  /matches/{matchId}/ball-boi/sessions/start:
+    post:
+      operationId: startMatchScopedBallBoiSession
+      tags: [ball-boi]
+      summary: Start a Ball Boi match recording session
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartBallBoiSessionBody"
+      responses:
+        "201":
+          description: Started session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BallBoiSession"
+
+  /ball-boi/sessions/{sessionId}/upload-url:
+    post:
+      operationId: requestBallBoiUploadUrl
+      tags: [ball-boi]
+      summary: Request a presigned video upload URL
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BallBoiUploadUrl"
+
+  /ball-boi/sessions/{sessionId}/live-shot:
+    post:
+      operationId: createBallBoiLiveShot
+      tags: [ball-boi]
+      summary: Record a live Ball Boi shot detection
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BallBoiLiveShotBody"
+      responses:
+        "201":
+          description: Created shot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchShot"
+
+  /ball-boi/sessions/{sessionId}/complete:
+    post:
+      operationId: completeBallBoiSession
+      tags: [ball-boi]
+      summary: Complete a Ball Boi session and start batch processing
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteBallBoiSessionBody"
+      responses:
+        "200":
+          description: Updated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BallBoiSession"
+
+  /ball-boi/matches/{matchId}/replay:
+    get:
+      operationId: getBallBoiReplay
+      tags: [ball-boi]
+      summary: Get the latest Ball Boi replay for a match
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Replay package
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BallBoiReplay"
+
+  /matches/{matchId}/ball-boi/replay:
+    get:
+      operationId: getMatchScopedBallBoiReplay
+      tags: [ball-boi]
+      summary: Get the latest Ball Boi replay for a match
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Replay package
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BallBoiReplay"
+
+  /matches/{matchId}/ball-boi/status:
+    get:
+      operationId: getMatchBallBoiStatus
+      tags: [ball-boi]
+      summary: Get latest Ball Boi status for a match
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Match Ball Boi status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BallBoiStatus"
+
+  /matches/{matchId}/ball-boi/end:
+    post:
+      operationId: endMatchBallBoi
+      tags: [ball-boi]
+      summary: End latest Ball Boi recording for a match
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                objectPath:
+                  type: string
+                contentType:
+                  type: string
+                sizeBytes:
+                  type: integer
+                durationSeconds:
+                  type: integer
+                chunks:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        "200":
+          description: Ended Ball Boi session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BallBoiSession"
+
+  /matches/{matchId}/ball-boi/shot-callback:
+    post:
+      operationId: matchBallBoiShotCallback
+      tags: [ball-boi]
+      summary: Receive ML shot analysis callback for a match
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Callback accepted
+
+  /matches/{matchId}/narrative:
+    get:
+      operationId: getMatchNarrative
+      tags: [ball-boi]
+      summary: Get latest Ball Boi narrative for a match
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Narrative
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  matchId:
+                    type: integer
+                  sessionId:
+                    type: ["integer", "null"]
+                  narrative:
+                    type: ["string", "null"]
+
+  /matches/{matchId}/ball-boi/replay-metadata:
+    get:
+      operationId: getMatchBallBoiReplayMetadata
+      tags: [ball-boi]
+      summary: Get latest Ball Boi replay seeking metadata for a match
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Replay metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session:
+                    anyOf:
+                      - $ref: "#/components/schemas/BallBoiSession"
+                      - type: "null"
+                  match:
+                    type: object
+                  shotMarkers:
+                    type: array
+                    items:
+                      type: object
+                  chapters:
+                    type: array
+                    items:
+                      type: object
+
+  /matches/{matchId}/shots:
+    get:
+      operationId: getMatchShots
+      tags: [ball-boi]
+      summary: Get latest Ball Boi shot detections for a match
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Match shots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MatchShot"
+
+  /matches/{matchId}/statistics:
+    get:
+      operationId: getMatchStatistics
+      tags: [ball-boi]
+      summary: Get latest Ball Boi statistics for a match
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Match statistics
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/MatchStatistics"
+                  - type: "null"
+
+  /ball-boi/sessions/{sessionId}/status:
+    get:
+      operationId: getBallBoiSessionStatus
+      tags: [ball-boi]
+      summary: Get Ball Boi processing status and progress
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Processing status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BallBoiStatus"
+
+  /ball-boi/sessions/{sessionId}/shots:
+    get:
+      operationId: getBallBoiSessionShots
+      tags: [ball-boi]
+      summary: Get Ball Boi shot detections
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Shot detections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MatchShot"
+
+  /ball-boi/sessions/{sessionId}/statistics:
+    get:
+      operationId: getBallBoiSessionStatistics
+      tags: [ball-boi]
+      summary: Get Ball Boi match statistics
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Session statistics
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/MatchStatistics"
+                  - type: "null"
+
+  /ball-boi/sessions/{sessionId}/replay-metadata:
+    get:
+      operationId: getBallBoiReplayMetadata
+      tags: [ball-boi]
+      summary: Get Ball Boi replay metadata
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Replay metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BallBoiReplayMetadata"
+
+  /ball-boi/sessions/{sessionId}/narrative:
+    get:
+      operationId: getBallBoiNarrative
+      tags: [ball-boi]
+      summary: Get Ball Boi narrative summary
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Narrative summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BallBoiNarrative"
+
+components:
+  schemas:
+    Season:
+      type: object
+      properties:
+        id:
+          type: integer
+        leagueId:
+          type: ["integer", "null"]
+        name:
+          type: string
+        startDate:
+          type: string
+          description: ISO date YYYY-MM-DD
+        endDate:
+          type: string
+          description: ISO date YYYY-MM-DD
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - leagueId
+        - name
+        - startDate
+        - endDate
+        - isActive
+        - createdAt
+        - updatedAt
+
+    CreateSeasonBody:
+      type: object
+      properties:
+        name:
+          type: string
+        startDate:
+          type: string
+          description: ISO date YYYY-MM-DD
+        endDate:
+          type: string
+          description: ISO date YYYY-MM-DD
+      required:
+        - name
+        - startDate
+        - endDate
+
+    UpdateSeasonBody:
+      type: object
+      properties:
+        name:
+          type: string
+        startDate:
+          type: string
+          description: ISO date YYYY-MM-DD
+        endDate:
+          type: string
+          description: ISO date YYYY-MM-DD
+
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    AvailabilityReminder:
+      type: object
+      properties:
+        id:
+          type: integer
+        sentAt:
+          type: string
+        countSent:
+          type: integer
+        missingCount:
+          type: integer
+      required:
+        - id
+        - sentAt
+        - countSent
+        - missingCount
+
+    AvailabilityParticipationPlayer:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        skillLevel:
+          type: string
+        hasSubmitted:
+          type: boolean
+        slotCount:
+          type: integer
+      required:
+        - id
+        - name
+        - skillLevel
+        - hasSubmitted
+        - slotCount
+
+    AvailabilityParticipationResponse:
+      type: object
+      properties:
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/AvailabilityParticipationPlayer"
+        lastReminder:
+          type: ["object", "null"]
+          oneOf:
+            - $ref: "#/components/schemas/AvailabilityReminder"
+            - type: "null"
+        reminderCooldownHours:
+          type: integer
+      required:
+        - players
+        - lastReminder
+        - reminderCooldownHours
+
+    AvailabilityReminderResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        missingCount:
+          type: integer
+        notified:
+          type: integer
+        lastReminder:
+          $ref: "#/components/schemas/AvailabilityReminder"
+        reminderCooldownHours:
+          type: integer
+      required:
+        - success
+        - missingCount
+        - notified
+        - lastReminder
+        - reminderCooldownHours
+
+    AvailabilityReminderCooldownResponse:
+      allOf:
+        - $ref: "#/components/schemas/ErrorResponse"
+        - type: object
+          properties:
+            lastReminder:
+              $ref: "#/components/schemas/AvailabilityReminder"
+            reminderCooldownHours:
+              type: integer
+          required:
+            - lastReminder
+            - reminderCooldownHours
+
+    League:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        format:
+          type: string
+          enum: ["round_robin", "elimination", "swiss"]
+        status:
+          type: string
+          enum: ["active", "completed", "upcoming"]
+        leagueType:
+          type: ["string", "null"]
+        startDate:
+          type: ["string", "null"]
+        endDate:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        createdByClerkUserId:
+          type: ["string", "null"]
+        playerCount:
+          type: integer
+        matchCount:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - name
+        - format
+        - status
+        - playerCount
+        - matchCount
+        - createdAt
+        - updatedAt
+
+    CreateLeagueBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        format:
+          type: string
+          enum: ["round_robin", "elimination", "swiss"]
+        status:
+          type: string
+          enum: ["active", "completed", "upcoming"]
+        leagueType:
+          type: ["string", "null"]
+        startDate:
+          type: ["string", "null"]
+        endDate:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        createdByClerkUserId:
+          type: ["string", "null"]
+      required:
+        - name
+        - format
+        - status
+
+    UpdateLeagueBody:
+      type: object
+      properties:
+        name:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        format:
+          type: ["string", "null"]
+          enum: ["round_robin", "elimination", "swiss", null]
+        status:
+          type: ["string", "null"]
+          enum: ["active", "completed", "upcoming", null]
+        startDate:
+          type: ["string", "null"]
+        endDate:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+
+    Standing:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        playerName:
+          type: string
+        rank:
+          type: integer
+        wins:
+          type: integer
+        losses:
+          type: integer
+        matchesPlayed:
+          type: integer
+        points:
+          type: integer
+        winRate:
+          type: number
+        setsWon:
+          type: integer
+        setsLost:
+          type: integer
+        gamesWon:
+          type: integer
+        gamesLost:
+          type: integer
+      required:
+        - playerId
+        - playerName
+        - rank
+        - wins
+        - losses
+        - matchesPlayed
+        - points
+        - winRate
+        - setsWon
+        - setsLost
+        - gamesWon
+        - gamesLost
+
+    Player:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        skillLevel:
+          type: string
+          enum: ["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"]
+        dominantHand:
+          type: string
+          enum: ["left", "right"]
+        bio:
+          type: ["string", "null"]
+        dayBeforeMatchReminderEnabled:
+          type: boolean
+        leagueId:
+          type: ["integer", "null"]
+        wins:
+          type: integer
+        losses:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - name
+        - skillLevel
+        - dominantHand
+        - dayBeforeMatchReminderEnabled
+        - wins
+        - losses
+        - createdAt
+        - updatedAt
+
+    UpdatePlayerBody:
+      type: object
+      properties:
+        name:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        skillLevel:
+          type: ["string", "null"]
+          enum: ["2.5", "3.0", "3.5", "4.0", "4.5", "5.0", null]
+        dominantHand:
+          type: ["string", "null"]
+          enum: ["left", "right", null]
+        bio:
+          type: ["string", "null"]
+        dayBeforeMatchReminderEnabled:
+          type: boolean
+        leagueId:
+          type: ["integer", "null"]
+
+    PlayerStats:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        name:
+          type: string
+        totalMatches:
+          type: integer
+        wins:
+          type: integer
+        losses:
+          type: integer
+        winRate:
+          type: number
+        setsWon:
+          type: integer
+        setsLost:
+          type: integer
+        gamesWon:
+          type: integer
+        gamesLost:
+          type: integer
+        currentStreak:
+          type: integer
+        longestWinStreak:
+          type: integer
+        recentMatches:
+          type: array
+          items:
+            $ref: "#/components/schemas/Match"
+      required:
+        - playerId
+        - name
+        - totalMatches
+        - wins
+        - losses
+        - winRate
+        - setsWon
+        - setsLost
+        - gamesWon
+        - gamesLost
+        - currentStreak
+        - longestWinStreak
+        - recentMatches
+
+    Match:
+      type: object
+      properties:
+        id:
+          type: integer
+        leagueId:
+          type: ["integer", "null"]
+        leagueName:
+          type: ["string", "null"]
+        player1Id:
+          type: integer
+        player1Name:
+          type: string
+        player2Id:
+          type: integer
+        player2Name:
+          type: string
+        player3Id:
+          type: ["integer", "null"]
+        player3Name:
+          type: ["string", "null"]
+        player4Id:
+          type: ["integer", "null"]
+        player4Name:
+          type: ["string", "null"]
+        winnerId:
+          type: ["integer", "null"]
+        status:
+          type: string
+          enum: ["scheduled", "in_progress", "completed", "cancelled"]
+        scheduledAt:
+          type: ["string", "null"]
+        startedAt:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        score:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        durationMinutes:
+          type: ["integer", "null"]
+        recordedByClerkUserId:
+          type: ["string", "null"]
+        recordedAt:
+          type: ["string", "null"]
+        roundId:
+          type: ["integer", "null"]
+        roundNumber:
+          type: ["integer", "null"]
+        roundEndDate:
+          type: ["string", "null"]
+        playoffBracketId:
+          type: ["integer", "null"]
+        playoffRound:
+          type: ["string", "null"]
+        playoffSlot:
+          type: ["integer", "null"]
+        season:
+          type: ["string", "null"]
+        hasBallBoi:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - player1Id
+        - player1Name
+        - player2Id
+        - player2Name
+        - status
+        - hasBallBoi
+        - createdAt
+        - updatedAt
+
+    CreateMatchBody:
+      type: object
+      properties:
+        leagueId:
+          type: ["integer", "null"]
+        player1Id:
+          type: integer
+        player2Id:
+          type: integer
+        player3Id:
+          type: ["integer", "null"]
+        player4Id:
+          type: ["integer", "null"]
+        scheduledAt:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        score:
+          type: ["string", "null"]
+        winnerId:
+          type: ["integer", "null"]
+      required:
+        - player1Id
+        - player2Id
+
+    UpdateMatchBody:
+      type: object
+      properties:
+        status:
+          type: ["string", "null"]
+          enum: ["scheduled", "in_progress", "completed", "cancelled", null]
+        winnerId:
+          type: ["integer", "null"]
+        score:
+          type: ["string", "null"]
+        scheduledAt:
+          type: ["string", "null"]
+        startedAt:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        durationMinutes:
+          type: ["integer", "null"]
+        recordedByClerkUserId:
+          type: ["string", "null"]
+        recordedAt:
+          type: ["string", "null"]
+
+    BallBoiSession:
+      type: object
+      properties:
+        id:
+          type: integer
+        matchId:
+          type: integer
+        recordedByClerkUserId:
+          type: string
+        status:
+          type: string
+        recordingStartedAt:
+          type: string
+        recordingStoppedAt:
+          type: ["string", "null"]
+        videoObjectPath:
+          type: ["string", "null"]
+        videoContentType:
+          type: ["string", "null"]
+        videoSizeBytes:
+          type: ["integer", "null"]
+        durationSeconds:
+          type: ["integer", "null"]
+        processingStatus:
+          type: string
+        processingError:
+          type: ["string", "null"]
+        aiNarrative:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - matchId
+        - recordedByClerkUserId
+        - status
+        - recordingStartedAt
+        - processingStatus
+        - createdAt
+        - updatedAt
+
+    StartBallBoiSessionBody:
+      type: object
+      properties:
+        metadata:
+          type: object
+          additionalProperties: true
+
+    BallBoiUploadUrl:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+      required:
+        - uploadURL
+        - objectPath
+
+    BallBoiLiveShotBody:
+      type: object
+      properties:
+        timestampSeconds:
+          type: number
+        frameImage:
+          type: ["string", "null"]
+      required:
+        - timestampSeconds
+
+    CompleteBallBoiSessionBody:
+      type: object
+      properties:
+        objectPath:
+          type: string
+        contentType:
+          type: string
+        sizeBytes:
+          type: integer
+        durationSeconds:
+          type: integer
+      required:
+        - objectPath
+        - contentType
+        - sizeBytes
+        - durationSeconds
+
+    MatchShot:
+      type: object
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        matchId:
+          type: integer
+        sequenceNumber:
+          type: integer
+        rallyNumber:
+          type: integer
+        playerId:
+          type: ["integer", "null"]
+        timestampSeconds:
+          type: number
+        shotType:
+          type: string
+        shotTypeConfidence:
+          type: ["number", "null"]
+        outcome:
+          type: ["string", "null"]
+        outcomeConfidence:
+          type: ["number", "null"]
+        courtZoneName:
+          type: ["string", "null"]
+        courtZoneX:
+          type: ["number", "null"]
+        courtZoneY:
+          type: ["number", "null"]
+        contactX:
+          type: ["number", "null"]
+        contactY:
+          type: ["number", "null"]
+        speedMph:
+          type: ["number", "null"]
+        spinType:
+          type: ["string", "null"]
+        depth:
+          type: ["string", "null"]
+        angleDegrees:
+          type: ["number", "null"]
+        playerStance:
+          type: ["string", "null"]
+        clipStartSeconds:
+          type: ["number", "null"]
+        clipEndSeconds:
+          type: ["number", "null"]
+      required:
+        - id
+        - sessionId
+        - matchId
+        - sequenceNumber
+        - rallyNumber
+        - timestampSeconds
+        - shotType
+
+    MatchStatistics:
+      type: object
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        matchId:
+          type: integer
+        totalShots:
+          type: integer
+        totalRallies:
+          type: integer
+        avgRallyLength:
+          type: number
+        avgShotSpeedMph:
+          type: number
+        fastestShotMph:
+          type: number
+        winners:
+          type: integer
+        errors:
+          type: integer
+        serves:
+          type: integer
+        forehands:
+          type: integer
+        backhands:
+          type: integer
+        volleys:
+          type: integer
+        overheads:
+          type: integer
+        heatmapData:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        shotTypeBreakdown:
+          type: object
+          additionalProperties:
+            type: integer
+        outcomeBreakdown:
+          type: object
+          additionalProperties:
+            type: integer
+        playerComparisons:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: true
+      required:
+        - id
+        - sessionId
+        - matchId
+        - totalShots
+        - totalRallies
+        - avgRallyLength
+        - avgShotSpeedMph
+        - fastestShotMph
+        - winners
+        - errors
+        - serves
+        - forehands
+        - backhands
+        - volleys
+        - overheads
+        - heatmapData
+        - shotTypeBreakdown
+        - outcomeBreakdown
+        - playerComparisons
+
+    BallBoiStatus:
+      type: object
+      properties:
+        sessionId:
+          type: integer
+        status:
+          type: string
+        processingStatus:
+          type: string
+        processingError:
+          type: ["string", "null"]
+        shotCount:
+          type: integer
+        progress:
+          type: integer
+      required:
+        - sessionId
+        - status
+        - processingStatus
+        - shotCount
+        - progress
+
+    BallBoiReplayMetadata:
+      type: object
+      properties:
+        session:
+          $ref: "#/components/schemas/BallBoiSession"
+        match:
+          anyOf:
+            - $ref: "#/components/schemas/Match"
+            - type: "null"
+      required:
+        - session
+        - match
+
+    BallBoiNarrative:
+      type: object
+      properties:
+        sessionId:
+          type: integer
+        narrative:
+          type: ["string", "null"]
+      required:
+        - sessionId
+        - narrative
+
+    BallBoiReplay:
+      type: object
+      properties:
+        match:
+          $ref: "#/components/schemas/Match"
+        session:
+          anyOf:
+            - $ref: "#/components/schemas/BallBoiSession"
+            - type: "null"
+        shots:
+          type: array
+          items:
+            $ref: "#/components/schemas/MatchShot"
+        statistics:
+          anyOf:
+            - $ref: "#/components/schemas/MatchStatistics"
+            - type: "null"
+        videoUrl:
+          type: ["string", "null"]
+          description: Signed URL to stream the recorded match video, if available
+      required:
+        - match
+        - session
+        - shots
+        - statistics
+        - videoUrl
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        clerkUserId:
+          type: string
+        displayName:
+          type: string
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        skillLevel:
+          type: string
+          enum: ["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"]
+        dominantHand:
+          type: string
+          enum: ["left", "right"]
+        bio:
+          type: ["string", "null"]
+        onboardingComplete:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - clerkUserId
+        - displayName
+        - skillLevel
+        - dominantHand
+        - onboardingComplete
+        - createdAt
+        - updatedAt
+
+    UpsertUserProfileBody:
+      type: object
+      properties:
+        displayName:
+          type: string
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        skillLevel:
+          type: string
+          enum: ["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"]
+        dominantHand:
+          type: string
+          enum: ["left", "right"]
+        bio:
+          type: ["string", "null"]
+        onboardingComplete:
+          type: boolean
+      required:
+        - displayName
+
+    LeagueInvite:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        leagueId:
+          type: integer
+        leagueName:
+          type: ["string", "null"]
+        leagueSport:
+          type: ["string", "null"]
+        playerCount:
+          type: ["integer", "null"]
+        createdByClerkUserId:
+          type: string
+        expiresAt:
+          type: ["string", "null"]
+        maxUses:
+          type: ["integer", "null"]
+        usageCount:
+          type: integer
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - code
+        - leagueId
+        - createdByClerkUserId
+        - usageCount
+        - isActive
+        - createdAt
+
+    CreateLeagueInviteBody:
+      type: object
+      properties:
+        maxUses:
+          type: ["integer", "null"]
+        expiresAt:
+          type: ["string", "null"]
+
+    JoinLeagueBody:
+      type: object
+      properties:
+        playerName:
+          type: string
+        skillLevel:
+          type: ["string", "null"]
+      required:
+        - playerName
+
+    JoinLeagueResponse:
+      type: object
+      properties:
+        player:
+          $ref: "#/components/schemas/Player"
+        league:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        message:
+          type: string
+      required:
+        - player
+        - league
+        - message
+
+    DashboardStats:
+      type: object
+      properties:
+        totalLeagues:
+          type: integer
+        activeLeagues:
+          type: integer
+        totalPlayers:
+          type: integer
+        totalMatches:
+          type: integer
+        completedMatches:
+          type: integer
+        scheduledMatches:
+          type: integer
+        matchesThisWeek:
+          type: integer
+        upcomingMatches:
+          type: array
+          items:
+            $ref: "#/components/schemas/Match"
+      required:
+        - totalLeagues
+        - activeLeagues
+        - totalPlayers
+        - totalMatches
+        - completedMatches
+        - scheduledMatches
+        - matchesThisWeek
+        - upcomingMatches
+
+    TopPlayer:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        name:
+          type: string
+        wins:
+          type: integer
+        losses:
+          type: integer
+        winRate:
+          type: number
+        skillLevel:
+          type: string
+        leagueName:
+          type: ["string", "null"]
+      required:
+        - playerId
+        - name
+        - wins
+        - losses
+        - winRate
+        - skillLevel
+
+    ActivityItem:
+      type: object
+      properties:
+        matchId:
+          type: integer
+        player1Name:
+          type: string
+        player2Name:
+          type: string
+        winnerName:
+          type: ["string", "null"]
+        score:
+          type: ["string", "null"]
+        leagueName:
+          type: ["string", "null"]
+        status:
+          type: string
+        completedAt:
+          type: ["string", "null"]
+        scheduledAt:
+          type: ["string", "null"]
+      required:
+        - matchId
+        - player1Name
+        - player2Name
+        - status
+
+    MyScheduleMatch:
+      type: object
+      properties:
+        matchId:
+          type: integer
+        playerId:
+          type: integer
+        player1Id:
+          type: integer
+        player1Name:
+          type: string
+        player2Id:
+          type: integer
+        player2Name:
+          type: string
+        opponentId:
+          type: integer
+        opponentName:
+          type: string
+        scheduledAt:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: ["scheduled", "in_progress", "completed", "cancelled"]
+        leagueId:
+          type: ["integer", "null"]
+        leagueName:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        score:
+          type: ["string", "null"]
+        winnerId:
+          type: ["integer", "null"]
+        hasBallBoiReplay:
+          type: boolean
+        ballBoiProcessingStatus:
+          type: ["string", "null"]
+        ballBoiShotCount:
+          type: ["integer", "null"]
+        ballBoiAvgShotSpeedMph:
+          type: ["number", "null"]
+      required:
+        - matchId
+        - playerId
+        - player1Id
+        - player1Name
+        - player2Id
+        - player2Name
+        - opponentId
+        - opponentName
+        - status
+        - hasBallBoiReplay
+
+    MyMatchItem:
+      type: object
+      properties:
+        matchId:
+          type: integer
+        playerId:
+          type: integer
+        player1Id:
+          type: integer
+        player1Name:
+          type: string
+        player2Id:
+          type: integer
+        player2Name:
+          type: string
+        opponentId:
+          type: integer
+        opponentName:
+          type: string
+        scheduledAt:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: ["scheduled", "in_progress", "completed", "cancelled"]
+        leagueId:
+          type: ["integer", "null"]
+        leagueName:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        score:
+          type: ["string", "null"]
+        winnerId:
+          type: ["integer", "null"]
+        roundId:
+          type: ["integer", "null"]
+        roundNumber:
+          type: ["integer", "null"]
+        playoffBracketId:
+          type: ["integer", "null"]
+        playoffRound:
+          type: ["string", "null"]
+        season:
+          type: ["string", "null"]
+      required:
+        - matchId
+        - playerId
+        - player1Id
+        - player1Name
+        - player2Id
+        - player2Name
+        - opponentId
+        - opponentName
+        - status
+
+    MyMatchesResponse:
+      type: object
+      properties:
+        playerId:
+          type: ["integer", "null"]
+        playerIds:
+          type: array
+          items:
+            type: integer
+        upcoming:
+          type: array
+          items:
+            $ref: "#/components/schemas/MyMatchItem"
+        past:
+          type: array
+          items:
+            $ref: "#/components/schemas/MyMatchItem"
+      required:
+        - playerId
+        - playerIds
+        - upcoming
+        - past
+
+    MyScheduleResponse:
+      type: object
+      properties:
+        playerId:
+          type: ["integer", "null"]
+        playerIds:
+          type: array
+          items:
+            type: integer
+        match:
+          oneOf:
+            - $ref: "#/components/schemas/MyScheduleMatch"
+            - type: "null"
+      required:
+        - playerId
+        - playerIds
+        - match
+
+    HeadToHeadStats:
+      type: object
+      properties:
+        player1Id:
+          type: integer
+        player1Name:
+          type: string
+        player2Id:
+          type: integer
+        player2Name:
+          type: string
+        player1Wins:
+          type: integer
+        player2Wins:
+          type: integer
+        totalMatches:
+          type: integer
+        matches:
+          type: array
+          items:
+            $ref: "#/components/schemas/Match"
+      required:
+        - player1Id
+        - player1Name
+        - player2Id
+        - player2Name
+        - player1Wins
+        - player2Wins
+        - totalMatches
+        - matches
+
+    RoundMatchup:
+      type: object
+      properties:
+        matchId:
+          type: integer
+        player1Id:
+          type: integer
+        player1Name:
+          type: string
+        player2Id:
+          type: integer
+        player2Name:
+          type: string
+        status:
+          type: string
+        score:
+          type: ["string", "null"]
+        winnerId:
+          type: ["integer", "null"]
+        scheduledAt:
+          type: ["string", "null"]
+      required:
+        - matchId
+        - player1Id
+        - player1Name
+        - player2Id
+        - player2Name
+        - status
+
+    LeagueRoundWithMatchups:
+      type: object
+      properties:
+        roundId:
+          type: integer
+        roundNumber:
+          type: integer
+        startDate:
+          type: string
+        endDate:
+          type: string
+        status:
+          type: string
+        leagueId:
+          type: integer
+        matchups:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoundMatchup"
+      required:
+        - roundId
+        - roundNumber
+        - startDate
+        - endDate
+        - status
+        - leagueId
+        - matchups
+
+    PlayoffSeeding:
+      type: object
+      properties:
+        seed:
+          type: integer
+        playerId:
+          type: integer
+        playerName:
+          type: string
+        winRate:
+          type: number
+      required:
+        - seed
+        - playerId
+        - playerName
+        - winRate
+
+    PlayoffQFSlot:
+      type: object
+      properties:
+        slot:
+          type: integer
+        topSeed:
+          type: integer
+        topPlayerId:
+          type: ["integer", "null"]
+        topPlayerName:
+          type: ["string", "null"]
+        bottomSeed:
+          type: integer
+        bottomPlayerId:
+          type: ["integer", "null"]
+        bottomPlayerName:
+          type: ["string", "null"]
+        isBye:
+          type: boolean
+        matchId:
+          type: ["integer", "null"]
+        matchStatus:
+          type: ["string", "null"]
+        score:
+          type: ["string", "null"]
+        winnerId:
+          type: ["integer", "null"]
+      required:
+        - slot
+        - topSeed
+        - bottomSeed
+        - isBye
+
+    PlayoffAdvancedSlot:
+      type: object
+      properties:
+        slot:
+          type: integer
+        topPlayerId:
+          type: ["integer", "null"]
+        topPlayerName:
+          type: ["string", "null"]
+        bottomPlayerId:
+          type: ["integer", "null"]
+        bottomPlayerName:
+          type: ["string", "null"]
+        matchId:
+          type: ["integer", "null"]
+        matchStatus:
+          type: ["string", "null"]
+        score:
+          type: ["string", "null"]
+        winnerId:
+          type: ["integer", "null"]
+      required:
+        - slot
+
+    PlayoffChampion:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        playerName:
+          type: string
+      required:
+        - playerId
+        - playerName
+
+    PlayoffsStatusResponse:
+      type: object
+      properties:
+        bracket:
+          oneOf:
+            - $ref: "#/components/schemas/PlayoffBracketResponse"
+            - type: "null"
+        eligibleForPlayoffs:
+          type: boolean
+        completedRoundCount:
+          type: integer
+      required:
+        - bracket
+        - eligibleForPlayoffs
+        - completedRoundCount
+
+    PlayoffBracketResponse:
+      type: object
+      properties:
+        bracketId:
+          type: integer
+        leagueId:
+          type: integer
+        status:
+          type: string
+        generatedAt:
+          type: string
+        seedings:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlayoffSeeding"
+        quarterfinals:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlayoffQFSlot"
+        semifinals:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlayoffAdvancedSlot"
+        final:
+          $ref: "#/components/schemas/PlayoffAdvancedSlot"
+        champion:
+          oneOf:
+            - $ref: "#/components/schemas/PlayoffChampion"
+            - type: "null"
+      required:
+        - bracketId
+        - leagueId
+        - status
+        - generatedAt
+        - seedings
+        - quarterfinals
+        - semifinals
+        - final

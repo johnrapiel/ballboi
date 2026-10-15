@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Tennis League Manager"
+version = "1.0.0"
+id = "artifacts/tennis-league"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21669
+
+[services.development]
+run = "pnpm --filter @workspace/tennis-league run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/tennis-league", "run", "build" ]
+publicDir = "artifacts/tennis-league/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21669"
+BASE_PATH = "/"

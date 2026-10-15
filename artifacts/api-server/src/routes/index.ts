@@ -1,0 +1,42 @@
+import { Router, type IRouter } from "express";
+import healthRouter from "./health";
+import leaguesRouter from "./leagues";
+import playersRouter from "./players";
+import matchesRouter from "./matches";
+import statsRouter from "./stats";
+import usersRouter from "./users";
+import invitesRouter from "./invites";
+import notificationsRouter from "./notifications";
+import availabilityRouter from "./availability";
+import schedulingRouter from "./scheduling";
+import storageRouter from "./storage";
+import shotsRouter from "./shots";
+import drillsRouter from "./drills";
+import shotLeaderboardsRouter from "./shotLeaderboards";
+import ballBoiRouter from "./ballBoi";
+import roundsRouter from "./rounds";
+import playoffsRouter from "./playoffs";
+import seasonsRouter from "./seasons";
+
+const router: IRouter = Router();
+
+router.use(healthRouter);
+router.use(leaguesRouter);
+router.use(playersRouter);
+router.use(matchesRouter);
+router.use(statsRouter);
+router.use(usersRouter);
+router.use(invitesRouter);
+router.use(notificationsRouter);
+router.use(availabilityRouter);
+router.use(schedulingRouter);
+router.use(storageRouter);
+router.use(shotsRouter);
+router.use(drillsRouter);
+router.use(shotLeaderboardsRouter);
+router.use(ballBoiRouter);
+router.use(roundsRouter);
+router.use(playoffsRouter);
+router.use(seasonsRouter);
+
+export default router;
