@@ -26,6 +26,7 @@ const mockDb = {
   insert: vi.fn(),
   update: vi.fn(),
   delete: vi.fn(),
+  transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(mockDb)),
 };
 
 const EXISTING_MATCH = {
@@ -69,6 +70,8 @@ vi.mock("drizzle-orm", () => ({
   and: (...args: unknown[]) => args,
   desc: (a: unknown) => a,
   inArray: (a: unknown, b: unknown) => ({ a, b }),
+  or: (...args: unknown[]) => args,
+  sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }),
 }));
 
 vi.mock("@workspace/api-zod", () => ({

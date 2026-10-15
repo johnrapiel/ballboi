@@ -34,15 +34,16 @@ router.get("/leagues", async (req, res) => {
     );
   }
 
-  const playerCounts = await db
-    .select({ leagueId: playersTable.leagueId, count: count() })
-    .from(playersTable)
-    .groupBy(playersTable.leagueId);
-
-  const matchCounts = await db
-    .select({ leagueId: matchesTable.leagueId, count: count() })
-    .from(matchesTable)
-    .groupBy(matchesTable.leagueId);
+  const [playerCounts, matchCounts] = await Promise.all([
+    db
+      .select({ leagueId: playersTable.leagueId, count: count() })
+      .from(playersTable)
+      .groupBy(playersTable.leagueId),
+    db
+      .select({ leagueId: matchesTable.leagueId, count: count() })
+      .from(matchesTable)
+      .groupBy(matchesTable.leagueId),
+  ]);
 
   const pcMap: Record<number, number> = {};
   for (const pc of playerCounts) {

@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, index } from "drizzle-orm/pg-core";
 
 export const pushSubscriptionsTable = pgTable("push_subscriptions", {
   id: serial("id").primaryKey(),
@@ -10,4 +10,6 @@ export const pushSubscriptionsTable = pgTable("push_subscriptions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   lastUsed: timestamp("last_used"),
   status: text("status").default("active").notNull(),
-});
+}, (table) => [
+  index("idx_push_subscriptions_user_id").on(table.userId),
+]);

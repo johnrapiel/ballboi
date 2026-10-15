@@ -1,5 +1,5 @@
 import { db, matchesTable, playersTable, leagueRoundsTable } from "@workspace/db";
-import { eq, and, max, asc } from "drizzle-orm";
+import { eq, and, max, asc, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getAutoSeason } from "./seasonService.js";
 
@@ -315,7 +315,10 @@ export async function buildRoundResponse(
     .from(matchesTable)
     .where(eq(matchesTable.roundId, round.id));
 
-  const players = await db.select().from(playersTable);
+  const players = await db
+    .select({ id: playersTable.id, name: playersTable.name })
+    .from(playersTable)
+    .where(inArray(playersTable.id, roundMatches.flatMap((m) => [m.player1Id, m.player2Id, m.player3Id, m.player4Id].filter((id): id is number => id != null))));
   const playerMap: Record<number, string> = {};
   for (const p of players) playerMap[p.id] = p.name;
 
