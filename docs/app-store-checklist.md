@@ -11,13 +11,13 @@ _Last updated: 2026-10-16_
 
 | Item | Guideline | Status | Notes |
 |---|---|---|---|
-| Choose native stack (Expo recommended) | 4.2 Minimum Functionality | ⚠️ | Web-wrapper builds risk 4.2 rejection |
-| Built with Xcode 26 / iOS 26 SDK | Required since Apr 28, 2026 | ❌ | |
-| Native camera capture for Ball Boi | 4.2, 2.5 | ❌ | AVFoundation or VisionCamera |
+| Native stack: Expo SDK 58 (`artifacts/ios-app`) | 4.2 Minimum Functionality | 🟡 | Scaffolded: auth, tabs, Ball Boi recorder |
+| Built with Xcode 26 / iOS 26 SDK | Required since Apr 28, 2026 | 🟡 | EAS `production` profile uses latest image |
+| Native camera capture for Ball Boi | 4.2, 2.5 | 🟡 | expo-camera recorder, no corner tapping. Background upload still TODO |
 | APNs push (replace web push / VAPID) | 4.5.4 | ❌ | `expo_push_tokens` table already exists |
-| Dynamic Type support | HIG / WCAG 1.4.4 | ❌ | |
-| VoiceOver labels on icon buttons, charts, heatmap, replay controls | HIG / WCAG 1.1.1, 4.1.2 | ❌ | |
-| 44×44pt minimum tap targets | HIG / WCAG 2.5.8 | ❌ | |
+| Dynamic Type support | HIG / WCAG 1.4.4 | 🟡 | Font scaling on everywhere in the native app |
+| VoiceOver labels on icon buttons, charts, heatmap, replay controls | HIG / WCAG 1.1.1, 4.1.2 | 🟡 | Done for built screens; replay/heatmap not built yet |
+| 44×44pt minimum tap targets | HIG / WCAG 2.5.8 | 🟡 | `MIN_TAP` enforced in shared Button |
 | Reduce Motion respected | HIG / WCAG 2.3.3 | 🟡 | Web: global CSS guard added |
 
 ## 2. Backend readiness
@@ -37,7 +37,7 @@ _Last updated: 2026-10-16_
 | Report a player or content | 1.2 | ❌ | |
 | Block a player | 1.2 | ❌ | |
 | Published support contact | 1.2, 1.5 | ❌ | |
-| Sign in with Apple (if any third-party social login is offered) | 4.8 | ⚠️ | Check Clerk social providers |
+| Sign in with Apple (Google is offered, so required) | 4.8 | 🟡 | Apple + Google + email code in native sign-in. Enable Apple in Clerk |
 | Consent notice for recording other players on video | 5.1.1 / 5.1.2 | ❌ | |
 | Paid Ball Boi features use In-App Purchase | 3.1.1 | ⚠️ | Decide pricing model first |
 
@@ -46,8 +46,8 @@ _Last updated: 2026-10-16_
 | Item | Guideline | Status | Notes |
 |---|---|---|---|
 | Privacy nutrition labels | 5.1.1 | ❌ | Clerk, analytics, video, location |
-| Privacy manifest (incl. third-party SDKs) | Required since May 2024 | ❌ | |
-| Camera, microphone, photo library purpose strings | 5.1.1 | ❌ | Specific, plain-language reasons |
+| Privacy manifest (incl. third-party SDKs) | Required since May 2024 | 🟡 | App manifest in `app.config.ts`; verify SDK manifests at build |
+| Camera, microphone, photo library purpose strings | 5.1.1 | ✅ | In `app.config.ts` |
 | Location purpose string (if "players near you" ships) | 5.1.1 | ❌ | |
 | New age rating questionnaire | Required since Jan 31, 2026 | ❌ | |
 | Screenshots, description, keywords, support URL | 2.3 | ❌ | |
