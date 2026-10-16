@@ -1,4 +1,4 @@
-# Local Postgres for development. Start with `pnpm db:up`.
+# Local Postgres + S3-compatible storage (MinIO) for development. Start with `pnpm db:up`.
 services:
   db:
     image: postgres:16
@@ -16,5 +16,23 @@ services:
       timeout: 3s
       retries: 15
 
+  storage:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ballboi
+      MINIO_ROOT_PASSWORD: ballboi-dev-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - objectdata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
 volumes:
   pgdata:
+  objectdata:

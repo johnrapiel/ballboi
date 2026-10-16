@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { ensureLocalBucket } from "./lib/objectStorage";
 import { startScheduler } from "./services/scheduler";
 import { seedGlobalData } from "./services/seasonService";
 
@@ -19,6 +20,9 @@ if (Number.isNaN(port) || port <= 0) {
 
 async function bootstrap(): Promise<void> {
   await seedGlobalData();
+  await ensureLocalBucket(logger).catch((err) =>
+    logger.warn({ err }, "Local storage bucket not ready; is `pnpm db:up` running?"),
+  );
 
   await new Promise<void>((resolve, reject) => {
     app.listen(port, (err) => {

@@ -24,7 +24,7 @@ _Last updated: 2026-10-16_
 
 | Item | Guideline | Status | Notes |
 |---|---|---|---|
-| Move video upload/replay off Replit storage to S3 or R2 | 2.1 App Completeness | ❌ | Replays break outside Replit today |
+| Move video upload/replay off Replit storage to S3 or R2 | 2.1 App Completeness | 🟡 | R2 code + local MinIO in PR. Create bucket, set CORS, run migration script |
 | Reviewer demo account with seeded league, matches, sample replay | 2.1 | ❌ | Goes in App Review notes |
 
 ## 3. Compliance features
