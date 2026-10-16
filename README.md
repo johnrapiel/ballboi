@@ -9,7 +9,7 @@ You need Node 22+, pnpm 10, and Docker Desktop.
 ```sh
 pnpm install
 cp .env.example .env      # then add your Clerk development keys
-pnpm db:up                # starts Postgres in Docker
+pnpm db:up                # starts Postgres + MinIO (video storage) in Docker
 pnpm db:push              # creates the tables (first run, and after schema changes)
 pnpm dev                  # API on :8080, app on :5173
 ```
@@ -30,9 +30,17 @@ pnpm test
 pnpm typecheck
 ```
 
+## Video storage
+
+Match video lives in S3-compatible storage. Locally that's MinIO (console at http://localhost:9001, login `ballboi` / `ballboi-dev-secret`). Production uses Cloudflare R2:
+
+1. Create an R2 bucket and an API token with Object Read & Write on it.
+2. Set `R2_ACCOUNT_ID`, `STORAGE_BUCKET`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`. Leave `STORAGE_ENDPOINT` unset.
+3. Add a CORS rule on the bucket allowing `PUT` and `GET` from your web app origin, with `Content-Type` as an allowed header.
+4. Copy existing Replit videos once with `scripts/migrate-replit-storage.mjs` (run it on Replit, where the old storage is reachable).
+
 ## Known local gaps
 
-- **Video upload and replay** still use Replit's object storage, which only works on Replit. Everything else runs locally. Moving storage to S3 or Cloudflare R2 fixes this.
 - **Push notifications** need VAPID keys in `.env` (see `.env.example`).
 
 ## Layout
