@@ -7,6 +7,8 @@ Update the status column in the same PR that changes it.
 
 _Last updated: 2026-10-16_
 
+**Moderation:** a human must review reports within 24 hours. Reports log a warning and list at `GET /api/admin/reports`.
+
 ## 1. Native app
 
 | Item | Guideline | Status | Notes |
@@ -25,32 +27,32 @@ _Last updated: 2026-10-16_
 | Item | Guideline | Status | Notes |
 |---|---|---|---|
 | Move video upload/replay off Replit storage to S3 or R2 | 2.1 App Completeness | 🟡 | R2 code + local MinIO in PR. Create bucket, set CORS, run migration script |
-| Reviewer demo account with seeded league, matches, sample replay | 2.1 | ❌ | Goes in App Review notes |
+| Reviewer demo account with seeded league, matches, sample replay | 2.1 | ⚠️ | Template in `docs/app-store-connect.md`. Decide password sign-in for reviewer |
 
 ## 3. Compliance features
 
 | Item | Guideline | Status | Notes |
 |---|---|---|---|
-| In-app account deletion (deletes user data, not just deactivates) | 5.1.1(v) | ❌ | Must also revoke Sign in with Apple token |
-| Privacy policy page, linked in-app and in App Store Connect | 5.1.1(i) | ❌ | |
-| Terms of use / EULA with zero-tolerance UGC language | 1.2 | ❌ | |
-| Report a player or content | 1.2 | ❌ | |
-| Block a player | 1.2 | ❌ | |
-| Published support contact | 1.2, 1.5 | ❌ | |
+| In-app account deletion (deletes user data, not just deactivates) | 5.1.1(v) | 🟡 | Web + iOS + `DELETE /api/users/me`. Verify Clerk revokes the Apple token on delete |
+| Privacy policy page, linked in-app and in App Store Connect | 5.1.1(i) | 🟡 | Draft at `/privacy`. Needs legal review + your real support email |
+| Terms of use / EULA with zero-tolerance UGC language | 1.2 | 🟡 | Draft at `/terms`. Needs legal review |
+| Report a player or content | 1.2 | 🟡 | Web player profile + `/api/reports`. iOS player screen still needed |
+| Block a player | 1.2 | 🟡 | Hides from player search + weekly auto-scheduling. Round-robin pairing and iOS UI still needed |
+| Published support contact | 1.2, 1.5 | 🟡 | `support@ballboi.app` placeholder in app + legal pages |
 | Sign in with Apple (Google is offered, so required) | 4.8 | 🟡 | Apple + Google + email code in native sign-in. Enable Apple in Clerk |
-| Consent notice for recording other players on video | 5.1.1 / 5.1.2 | ❌ | |
+| Consent notice for recording other players on video | 5.1.1 / 5.1.2 | 🟡 | Covered in privacy policy + terms; add an in-app notice before first recording |
 | Paid Ball Boi features use In-App Purchase | 3.1.1 | ⚠️ | Decide pricing model first |
 
 ## 4. App Store Connect
 
 | Item | Guideline | Status | Notes |
 |---|---|---|---|
-| Privacy nutrition labels | 5.1.1 | ❌ | Clerk, analytics, video, location |
+| Privacy nutrition labels | 5.1.1 | 🟡 | Answers drafted in `docs/app-store-connect.md` |
 | Privacy manifest (incl. third-party SDKs) | Required since May 2024 | 🟡 | App manifest in `app.config.ts`; verify SDK manifests at build |
 | Camera, microphone, photo library purpose strings | 5.1.1 | ✅ | In `app.config.ts` |
 | Location purpose string (if "players near you" ships) | 5.1.1 | ❌ | |
-| New age rating questionnaire | Required since Jan 31, 2026 | ❌ | |
-| Screenshots, description, keywords, support URL | 2.3 | ❌ | |
+| New age rating questionnaire | Required since Jan 31, 2026 | 🟡 | Answers drafted; expect 13+ |
+| Screenshots, description, keywords, support URL | 2.3 | 🟡 | Shot list + subtitle drafted |
 | EU trader status (if distributing in the EU) | DSA | ❌ | |
 
 ## 5. WCAG 2.2 AA (web app, carries into native)

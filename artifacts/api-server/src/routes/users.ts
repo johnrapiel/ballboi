@@ -5,6 +5,7 @@ import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import pino from "pino";
 import { autoLinkPlayersForUser } from "../lib/autoLinkPlayer.js";
+import { deleteAccount } from "../lib/accountDeletion.js";
 
 const logger = pino({ name: "users" });
 
@@ -97,4 +98,24 @@ router.put("/users/me", requireAuth, async (req, res) => {
 });
 
 export { requireAuth };
+/**
+ * DELETE /users/me
+ * Permanently deletes the signed-in user's account and personal data
+ * (App Store guideline 5.1.1(v)). Requires { "confirm": "DELETE" } in the body
+ * so a stray request can't wipe an account.
+ */
+router.delete("/users/me", requireAuth, async (req, res) => {
+  const { userId } = getAuth(req);
+  if (req.body?.confirm !== "DELETE") {
+    return res.status(400).json({ error: 'Send { "confirm": "DELETE" } to delete your account.' });
+  }
+  try {
+    const summary = await deleteAccount(userId!, logger);
+    return res.json({ deleted: true, ...summary });
+  } catch (err) {
+    logger.error({ err, userId }, "Account deletion failed");
+    return res.status(500).json({ error: "We couldn't delete your account. Please try again or contact support." });
+  }
+});
+
 export default router;
