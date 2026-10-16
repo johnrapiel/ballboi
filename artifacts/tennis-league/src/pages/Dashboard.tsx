@@ -60,7 +60,7 @@ export default function Dashboard() {
                   </Link>
                   <div className="text-right">
                     <div className="text-xs font-bold text-primary tabular-nums">{Math.round(player.winRate * 100)}%</div>
-                    <div className="text-[10px] text-muted-foreground">{player.wins}W {player.losses}L</div>
+                    <div className="text-[11px] text-muted-foreground">{player.wins}W {player.losses}L</div>
                   </div>
                 </motion.div>
               ))
@@ -114,7 +114,7 @@ export default function Dashboard() {
                       <div className="mt-2 text-xs font-mono text-muted-foreground">{item.score}</div>
                     )}
                     <div className="mt-2">
-                      <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", statusColor(item.status))}>
+                      <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-full", statusColor(item.status))}>
                         {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
                       </span>
                     </div>

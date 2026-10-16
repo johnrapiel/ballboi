@@ -174,7 +174,7 @@ export default function Availability() {
 
       {/* Frozen warning */}
       {isFrozen && (
-        <div className="px-4 py-3 rounded-lg bg-yellow-400/10 border border-yellow-400/20 text-yellow-400 text-sm">
+        <div className="px-4 py-3 rounded-lg bg-warning/10 border border-warning/20 text-warning text-sm">
           Availability window has closed for this week (Wed 11:59 PM deadline). You can update next week's availability.
         </div>
       )}
@@ -198,7 +198,7 @@ export default function Availability() {
               {/* Time rows */}
               {HOURS.map((hour) => (
                 <div key={hour} className="grid border-b border-border/50" style={{ gridTemplateColumns: "56px repeat(7, 1fr)" }}>
-                  <div className="px-2 py-1.5 text-[10px] text-muted-foreground text-right pr-3 flex items-center justify-end shrink-0">
+                  <div className="px-2 py-1.5 text-[11px] text-muted-foreground text-right pr-3 flex items-center justify-end shrink-0">
                     {hourLabel(hour)}
                   </div>
                   {DAYS.map((_, d) => {
@@ -226,7 +226,7 @@ export default function Availability() {
               ))}
             </div>
           </div>
-          <p className="px-3 py-1.5 text-[10px] text-muted-foreground/60 md:hidden border-t border-border/30">
+          <p className="px-3 py-1.5 text-[11px] text-muted-foreground/60 md:hidden border-t border-border/30">
             Swipe left to see all days
           </p>
         </div>

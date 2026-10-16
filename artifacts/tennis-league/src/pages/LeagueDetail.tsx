@@ -477,7 +477,7 @@ export default function LeagueDetail() {
                       </Link>
                     </td>
                     <td className="px-2 sm:px-3 py-3 text-center text-primary font-bold tabular-nums">{s.wins}</td>
-                    <td className="px-2 sm:px-3 py-3 text-center text-red-400 font-medium tabular-nums">{s.losses}</td>
+                    <td className="px-2 sm:px-3 py-3 text-center text-destructive font-medium tabular-nums">{s.losses}</td>
                     <td className="hidden sm:table-cell px-2 sm:px-3 py-3 text-center text-muted-foreground tabular-nums">{s.matchesPlayed}</td>
                     <td className="px-2 sm:px-3 py-3 text-center font-bold text-foreground tabular-nums">
                       {/* Desktop: hover tooltip */}
@@ -511,7 +511,7 @@ export default function LeagueDetail() {
                       {/* Mobile: always-visible inline breakdown */}
                       <div className="sm:hidden flex flex-col items-center gap-0.5">
                         <span>{s.points}</span>
-                        <div className="flex flex-col items-center gap-px text-[10px] font-normal text-muted-foreground leading-tight">
+                        <div className="flex flex-col items-center gap-px text-[11px] font-normal text-muted-foreground leading-tight">
                           <span>{(s.setsWon ?? 0)}S·{s.gamesWon}G</span>
                         </div>
                       </div>
@@ -824,7 +824,7 @@ export default function LeagueDetail() {
                   <span className="text-xs text-muted-foreground">— schedule by {displayRound!.endDate}</span>
                 )}
                 {myRoundMatchup.status !== "completed" && !myRoundMatchup.scheduledAt && displayRound?.status === "completed" && (
-                  <span className="text-xs text-amber-500/80">— round ended, arrange anytime</span>
+                  <span className="text-xs text-warning">— round ended, arrange anytime</span>
                 )}
               </div>
               <div className="shrink-0">

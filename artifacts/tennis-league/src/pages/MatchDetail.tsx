@@ -173,7 +173,7 @@ function SetScoreInput({
   return (
     <div className="space-y-5">
       {/* Column headers */}
-      <div className="grid grid-cols-[56px_1fr_20px_1fr] gap-x-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+      <div className="grid grid-cols-[56px_1fr_20px_1fr] gap-x-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
         <span />
         <span className="text-center truncate">{p1Short}</span>
         <span />
@@ -194,7 +194,7 @@ function SetScoreInput({
             </div>
             {showTb && (
               <div className="grid grid-cols-[56px_1fr_20px_1fr] gap-x-2 items-center">
-                <span className="text-[10px] text-primary font-semibold pl-1">Tiebreak</span>
+                <span className="text-[11px] text-primary font-semibold pl-1">Tiebreak</span>
                 <NumInput value={set.tb1 ?? ""} onChange={(v) => updateSet(idx, "tb1", v)} placeholder="—" />
                 <span className="text-muted-foreground text-xs text-center">-</span>
                 <NumInput value={set.tb2 ?? ""} onChange={(v) => updateSet(idx, "tb2", v)} placeholder="—" />
@@ -209,7 +209,7 @@ function SetScoreInput({
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <div className="flex-1 border-t border-dashed border-border" />
-            <span className="text-[10px] font-semibold text-primary uppercase tracking-wider px-2">
+            <span className="text-[11px] font-semibold text-primary uppercase tracking-wider px-2">
               Match Tiebreak — first to 10
             </span>
             <div className="flex-1 border-t border-dashed border-border" />
@@ -223,7 +223,7 @@ function SetScoreInput({
         </div>
       )}
 
-      <p className="text-[10px] text-muted-foreground leading-relaxed">
+      <p className="text-[11px] text-muted-foreground leading-relaxed">
         Enter 6-6 in a set to unlock the tiebreak fields (7-pt). If sets are split, a 10-pt match tiebreak appears automatically.
       </p>
     </div>
@@ -869,7 +869,7 @@ export default function MatchDetail() {
         )}
         {(match as any).season && (
           <span className={cn(
-            "text-[10px] font-semibold px-2 py-0.5 rounded uppercase tracking-wider border",
+            "text-[11px] font-semibold px-2 py-0.5 rounded uppercase tracking-wider border",
             (match as any).season === "Summer League"
               ? "border-primary/40 text-primary/80"
               : "border-border text-muted-foreground"
@@ -887,11 +887,11 @@ export default function MatchDetail() {
       >
         {/* Status */}
         <div className="flex justify-center gap-2 mb-3 flex-wrap">
-          <span className={cn("text-[10px] font-medium px-2.5 py-1 rounded-full", statusBadge(match.status))}>
+          <span className={cn("text-[11px] font-medium px-2.5 py-1 rounded-full", statusBadge(match.status))}>
             {statusLabel(match.status)}
           </span>
           {(match as any).playoffRound && (
-            <span className="text-[10px] font-semibold border border-primary/40 text-primary px-2.5 py-1 rounded-full uppercase tracking-wider">
+            <span className="text-[11px] font-semibold border border-primary/40 text-primary px-2.5 py-1 rounded-full uppercase tracking-wider">
               {(match as any).playoffRound === "quarterfinal"
                 ? "Quarterfinal"
                 : (match as any).playoffRound === "semifinal"
@@ -926,7 +926,7 @@ export default function MatchDetail() {
         {isEditingSchedule && (
           <div className="mb-5 p-4 rounded-lg border border-primary/25 bg-card/60 space-y-3 overflow-hidden">
             {roundHasEnded && (
-              <p className="text-xs text-amber-500/90">
+              <p className="text-xs text-warning">
                 Round ended {roundEndDate} — you can reschedule to any future date.
               </p>
             )}
@@ -1086,10 +1086,10 @@ export default function MatchDetail() {
         <div className="mt-5 pt-4 border-t border-border flex flex-col gap-2">
           {isInProgress && (
             <>
-              <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-md bg-yellow-400/10 border border-yellow-400/30 text-yellow-400 text-sm font-bold cursor-default select-none">
+              <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-md bg-warning/10 border border-warning/30 text-warning text-sm font-bold cursor-default select-none">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-400" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-warning opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-warning" />
                 </span>
                 In Progress
               </div>
@@ -1149,7 +1149,7 @@ export default function MatchDetail() {
               Arrange this match
             </h2>
             {roundHasEnded ? (
-              <p className="text-xs text-amber-500/90 mt-1">
+              <p className="text-xs text-warning mt-1">
                 The round window ended {roundEndDate} — you can still schedule this match for any future date.
               </p>
             ) : (
@@ -1265,7 +1265,7 @@ export default function MatchDetail() {
           </div>
         </div>
         {mlOffline && !ballBoiRecording && (
-          <div className="flex items-start gap-2 border-b border-yellow-500/20 bg-yellow-500/10 px-5 py-3 text-sm text-yellow-400">
+          <div className="flex items-start gap-2 border-b border-warning/20 bg-warning/10 px-5 py-3 text-sm text-warning">
             <span className="mt-0.5 shrink-0">⚠</span>
             <span>Analysis service is offline — recording will still be saved but video analysis will be delayed.</span>
           </div>
@@ -1341,16 +1341,16 @@ export default function MatchDetail() {
                     <div className={cn("grid gap-2 text-center", ballBoiDensity === "minimal" ? "grid-cols-2" : "grid-cols-3")}>
                       <div className="rounded-lg bg-white/10 px-2 py-2">
                         <div className="text-lg font-extrabold">{ballBoiShots.length}</div>
-                        <div className="text-[10px] uppercase text-white/60">Shots</div>
+                        <div className="text-[11px] uppercase text-white/60">Shots</div>
                       </div>
                       <div className="rounded-lg bg-white/10 px-2 py-2">
                         <div className="text-lg font-extrabold text-primary">{Math.round(ballBoiShots.at(-1)?.speedMph ?? 0)}</div>
-                        <div className="text-[10px] uppercase text-white/60">MPH</div>
+                        <div className="text-[11px] uppercase text-white/60">MPH</div>
                       </div>
                       {ballBoiDensity !== "minimal" && (
                         <div className="rounded-lg bg-white/10 px-2 py-2">
                           <div className="text-lg font-extrabold">{ballBoiRecording ? "Live" : "Ready"}</div>
-                          <div className="text-[10px] uppercase text-white/60">Status</div>
+                          <div className="text-[11px] uppercase text-white/60">Status</div>
                         </div>
                       )}
                     </div>
@@ -1383,7 +1383,7 @@ export default function MatchDetail() {
                   ))}
                 </div>
                 {autoDetectError && (
-                  <p className={cn("mt-2 rounded border px-2 py-1.5 text-xs", autoDetectLowConfidence ? "border-amber-500/40 bg-amber-500/10 text-amber-400" : "border-destructive/40 bg-destructive/10 text-destructive")}>{autoDetectError}</p>
+                  <p className={cn("mt-2 rounded border px-2 py-1.5 text-xs", autoDetectLowConfidence ? "border-warning/40 bg-warning/10 text-warning" : "border-destructive/40 bg-destructive/10 text-destructive")}>{autoDetectError}</p>
                 )}
                 {autoDetected && !autoDetectLowConfidence && calibrationPoints.length === 4 && (
                   <p className="mt-2 rounded border border-primary/30 bg-primary/10 px-2 py-1.5 text-xs text-primary">Corners detected — verify they look right, then start or tap to adjust.</p>
@@ -1409,15 +1409,15 @@ export default function MatchDetail() {
                   <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                     <div>
                       <div className="text-xl font-extrabold text-foreground">{ballBoiShots.length}</div>
-                      <div className="text-[10px] uppercase text-muted-foreground">Shots</div>
+                      <div className="text-[11px] uppercase text-muted-foreground">Shots</div>
                     </div>
                     <div>
                       <div className="text-xl font-extrabold text-primary">{Math.round(ballBoiShots.at(-1)?.speedMph ?? 0)}</div>
-                      <div className="text-[10px] uppercase text-muted-foreground">Top MPH</div>
+                      <div className="text-[11px] uppercase text-muted-foreground">Top MPH</div>
                     </div>
                     <div>
                       <div className="text-xl font-extrabold text-foreground">{ballBoiSession?.processingStatus === "completed" ? "Done" : "Processing"}</div>
-                      <div className="text-[10px] uppercase text-muted-foreground">Status</div>
+                      <div className="text-[11px] uppercase text-muted-foreground">Status</div>
                     </div>
                   </div>
                 </div>
@@ -1438,7 +1438,7 @@ export default function MatchDetail() {
                 </div>
               </>
             )}
-            {cameraError && <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">{cameraError}</div>}
+            {cameraError && <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">{cameraError}</div>}
           </div>
         </div>
       </motion.div>
@@ -1508,7 +1508,7 @@ export default function MatchDetail() {
                   onClick={handleSaveProgress}
                   disabled={updateMatch.isPending || !saveReason}
                   variant="outline"
-                  className="w-full h-12 border-yellow-400/40 text-yellow-400 hover:bg-yellow-400/10"
+                  className="w-full h-12 border-warning/40 text-warning hover:bg-warning/10"
                 >
                   <PauseCircle className="w-4 h-4 mr-1.5" />
                   {updateMatch.isPending ? "Saving..." : "Save Progress"}
@@ -1586,7 +1586,7 @@ export default function MatchDetail() {
                   onClick={handleSaveProgress}
                   disabled={updateMatch.isPending || !saveReason}
                   variant="outline"
-                  className="w-full border-yellow-400/40 text-yellow-400 hover:bg-yellow-400/10"
+                  className="w-full border-warning/40 text-warning hover:bg-warning/10"
                 >
                   <PauseCircle className="w-4 h-4 mr-1.5" />
                   {updateMatch.isPending ? "Saving..." : "Save Progress"}
@@ -1639,7 +1639,7 @@ export default function MatchDetail() {
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-card-border rounded-lg overflow-hidden">
             <div className="px-5 py-3 border-b border-border flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Points Earned</h2>
-              <span className="text-[10px] text-muted-foreground">1 pt/game · 3 pts/set · 6 pts/match win</span>
+              <span className="text-[11px] text-muted-foreground">1 pt/game · 3 pts/set · 6 pts/match win</span>
             </div>
             <div className="grid grid-cols-2 divide-x divide-border">
               {teams.map(({ name, p, isWinner }) => (

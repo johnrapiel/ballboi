@@ -67,7 +67,7 @@ function CourtHeatmap({ shots, selectedShot, onSelect }: { shots: MatchShot[]; s
             key={shot.id}
             className={cn(
               "absolute -translate-x-1/2 -translate-y-1/2 rounded-full border shadow-lg transition-transform hover:scale-150",
-              selectedShot?.id === shot.id ? "h-5 w-5 bg-white border-primary shadow-primary/70" : winner ? "h-4 w-4 bg-primary border-primary shadow-primary/50" : error ? "h-3.5 w-3.5 bg-red-500 border-red-300 shadow-red-500/30" : "h-3 w-3 bg-blue-400 border-blue-200 shadow-blue-500/30"
+              selectedShot?.id === shot.id ? "h-5 w-5 bg-white border-primary shadow-primary/70" : winner ? "h-4 w-4 bg-primary border-primary shadow-primary/50" : error ? "h-3.5 w-3.5 bg-destructive border-destructive shadow-destructive/30" : "h-3 w-3 bg-info border-info shadow-info/30"
             )}
             style={{ left: `${x}%`, top: `${y}%` }}
             title={`${label(shot.shotType)} at ${fmtTime(shot.timestampSeconds)}`}
@@ -227,7 +227,7 @@ export default function BallBoiReplay() {
     const errMsg = error instanceof Error ? error.message : String(error);
     const isServiceDown = isMlUnavailableError(errMsg);
     return (
-      <div className={cn("rounded-lg border p-5 text-sm", isServiceDown ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-200" : "border-red-500/30 bg-red-500/10 text-red-200")}>
+      <div className={cn("rounded-lg border p-5 text-sm", isServiceDown ? "border-warning/30 bg-warning/10 text-warning" : "border-destructive/30 bg-destructive/10 text-destructive")}>
         <div className="flex items-center gap-2 font-semibold">
           {isServiceDown ? <Clock className="h-4 w-4 shrink-0" /> : <AlertTriangle className="h-4 w-4 shrink-0" />}
           {isServiceDown ? "Analysis service is warming up — try again in a moment." : "Replay failed to load."}
@@ -301,7 +301,7 @@ export default function BallBoiReplay() {
           ) : (
             <span className="text-xs text-muted-foreground">No video recorded</span>
           )}
-          <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider", session.processingStatus === "completed" ? "border-primary/40 bg-primary/10 text-primary" : session.processingStatus === "failed" && !hasPendingRetry ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-yellow-500/30 bg-yellow-500/10 text-yellow-300")}>
+          <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider", session.processingStatus === "completed" ? "border-primary/40 bg-primary/10 text-primary" : session.processingStatus === "failed" && !hasPendingRetry ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-warning/30 bg-warning/10 text-warning")}>
             {session.processingStatus === "failed" && hasPendingRetry ? "Retrying" : label(session.processingStatus)}
           </span>
         </div>
@@ -309,7 +309,7 @@ export default function BallBoiReplay() {
 
       {session.processingError && (
         isMlUnavailableError(session.processingError) ? (
-          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-200">
+          <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning">
             <div className="flex items-center gap-2 font-semibold">
               <Clock className="h-4 w-4 shrink-0" />
               {hasPendingRetry && retryCount != null
@@ -323,7 +323,7 @@ export default function BallBoiReplay() {
             </p>
           </div>
         ) : (
-          <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
             <div className="flex items-center gap-2 font-semibold">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               {session.processingError}
@@ -333,7 +333,7 @@ export default function BallBoiReplay() {
       )}
 
       {downloadError && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           <div className="flex items-center gap-2 font-semibold">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             {downloadError}
@@ -371,7 +371,7 @@ export default function BallBoiReplay() {
         <TabsContent value="video" className="space-y-4">
           <div className="overflow-hidden rounded-xl border border-card-border bg-black">
             {videoLoading ? (
-              <div className="flex aspect-video items-center justify-center gap-2 text-muted-foreground">
+              <div className="flex aspect-video items-center justify-center gap-2 text-neutral-300">
                 <Loader2 className="h-5 w-5 animate-spin" />
                 <span>Fetching video…</span>
               </div>
@@ -404,7 +404,7 @@ export default function BallBoiReplay() {
             </div>
             <div className="relative h-8 rounded-full bg-muted">
               {sortedFilteredShots.map((shot) => (
-                <button key={shot.id} type="button" onClick={() => seekTo(shot)} className={cn("absolute top-1/2 h-5 w-1 -translate-y-1/2 rounded-full", shot.outcome === "winner" ? "bg-primary" : shot.outcome?.includes("error") ? "bg-red-400" : "bg-blue-400")} style={{ left: `${Math.min(99, Math.max(0, ((shot.timestampSeconds ?? 0) / durationSeconds) * 100))}%` }} title={`${fmtTime(shot.timestampSeconds)} ${label(shot.shotType)}`} />
+                <button key={shot.id} type="button" onClick={() => seekTo(shot)} className={cn("absolute top-1/2 h-5 w-1 -translate-y-1/2 rounded-full", shot.outcome === "winner" ? "bg-primary" : shot.outcome?.includes("error") ? "bg-destructive" : "bg-info")} style={{ left: `${Math.min(99, Math.max(0, ((shot.timestampSeconds ?? 0) / durationSeconds) * 100))}%` }} title={`${fmtTime(shot.timestampSeconds)} ${label(shot.shotType)}`} />
               ))}
             </div>
             <div className="mt-3 flex gap-2">
@@ -488,8 +488,8 @@ export default function BallBoiReplay() {
           <CourtHeatmap shots={heatmapShots} selectedShot={selectedShot} onSelect={seekTo} />
           <div className="flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-primary" />Winner</span>
-            <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-red-500" />Error</span>
-            <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-blue-400" />Rally ball</span>
+            <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-destructive" />Error</span>
+            <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-info" />Rally ball</span>
           </div>
           {selectedShot && <div className="mx-auto max-w-lg rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">{label(selectedShot.shotType)} · {label(selectedShot.outcome)} · {label(selectedShot.courtZoneName)} · {fmtTime(selectedShot.timestampSeconds)}</div>}
         </TabsContent>
@@ -509,7 +509,7 @@ export default function BallBoiReplay() {
           </div>
           <div className="mt-4 flex flex-wrap gap-1">
             {timeline.map((point, index) => (
-              <button key={`${point.time}-${index}`} type="button" onClick={() => seekTo(point.raw)} className={cn("h-3 flex-1 min-w-4 rounded-full", point.momentum >= 0 ? "bg-primary/70" : "bg-red-400/70")} title={`${point.time} ${point.shot}`} />
+              <button key={`${point.time}-${index}`} type="button" onClick={() => seekTo(point.raw)} className={cn("h-3 flex-1 min-w-4 rounded-full", point.momentum >= 0 ? "bg-primary/70" : "bg-destructive/70")} title={`${point.time} ${point.shot}`} />
             ))}
           </div>
         </TabsContent>
@@ -560,7 +560,7 @@ export default function BallBoiReplay() {
               <div className="mt-4 space-y-3 text-sm text-muted-foreground">
                 <div className="flex justify-between"><span>Tracked shots</span><span className="font-mono text-primary">{player.totalShots}</span></div>
                 <div className="flex justify-between"><span>Winners</span><span className="font-mono text-primary">{player.winners}</span></div>
-                <div className="flex justify-between"><span>Errors</span><span className="font-mono text-red-300">{player.errors}</span></div>
+                <div className="flex justify-between"><span>Errors</span><span className="font-mono text-destructive">{player.errors}</span></div>
                 <div className="flex justify-between"><span>Average speed</span><span className="font-mono text-foreground">{Math.round(player.avgSpeedMph)} mph</span></div>
               </div>
               <div className="mt-5 space-y-2">
@@ -570,7 +570,7 @@ export default function BallBoiReplay() {
                   ["Control", Math.max(0, player.totalShots - player.errors), Math.max(player.totalShots, 1)],
                 ].map(([name, value, max]) => (
                   <div key={String(name)}>
-                    <div className="mb-1 flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground"><span>{name}</span><span>{Math.round(Number(value))}</span></div>
+                    <div className="mb-1 flex justify-between text-[11px] uppercase tracking-wider text-muted-foreground"><span>{name}</span><span>{Math.round(Number(value))}</span></div>
                     <div className="h-2 rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, (Number(value) / Math.max(Number(max), 1)) * 100)}%` }} /></div>
                   </div>
                 ))}
@@ -588,7 +588,7 @@ export default function BallBoiReplay() {
                       <td className="py-2 font-semibold text-foreground">{player.name}</td>
                       <td className="text-right font-mono text-primary">{player.totalShots}</td>
                       <td className="text-right font-mono text-primary">{player.winners}</td>
-                      <td className="text-right font-mono text-red-300">{player.errors}</td>
+                      <td className="text-right font-mono text-destructive">{player.errors}</td>
                       <td className="text-right font-mono text-foreground">{Math.round(player.avgSpeedMph)}</td>
                     </tr>
                   ))}
@@ -600,7 +600,7 @@ export default function BallBoiReplay() {
             <h3 className="flex items-center gap-2 font-bold text-foreground"><Trophy className="h-4 w-4 text-primary" />Winning Patterns</h3>
             <div className="mt-4 space-y-3 text-sm text-muted-foreground">
               <div className="flex justify-between"><span>Winners</span><span className="font-mono text-primary">{stats?.winners ?? 0}</span></div>
-              <div className="flex justify-between"><span>Errors</span><span className="font-mono text-red-300">{stats?.errors ?? 0}</span></div>
+              <div className="flex justify-between"><span>Errors</span><span className="font-mono text-destructive">{stats?.errors ?? 0}</span></div>
               <div className="flex justify-between"><span>Winner/Error ratio</span><span className="font-mono text-foreground">{((stats?.winners ?? 0) / Math.max(stats?.errors ?? 0, 1)).toFixed(2)}</span></div>
             </div>
           </div>
