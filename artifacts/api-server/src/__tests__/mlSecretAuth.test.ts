@@ -35,8 +35,7 @@ vi.mock("../lib/logger", () => ({
 
 vi.mock("../lib/objectStorage", () => ({
   ObjectStorageService: class {
-    getObjectEntityUploadURL = vi.fn().mockResolvedValue("https://storage.example.com/upload");
-    normalizeObjectEntityPath = vi.fn().mockReturnValue("/objects/test-path");
+    createUploadURL = vi.fn().mockResolvedValue({ uploadURL: "https://storage.example.com/upload", objectPath: "/objects/test-path" });
     getObjectEntityViewURL = vi.fn().mockResolvedValue("https://storage.example.com/signed-view-url");
   },
 }));

@@ -28,7 +28,7 @@ router.post("/shots/upload-url", requireAuth, async (req: any, res: any) => {
       return res.status(400).json({ error: "fileName and contentType required" });
     }
 
-    const uploadURL = await storage.getObjectEntityUploadURL();
+    const { uploadURL, objectPath } = await storage.createUploadURL();
 
     // Pre-create the recording row
     const result = await db.execute(sql`
@@ -38,7 +38,7 @@ router.post("/shots/upload-url", requireAuth, async (req: any, res: any) => {
     `);
     const recordingId = (result.rows[0] as any).id;
 
-    res.json({ uploadURL, recordingId });
+    res.json({ uploadURL, objectPath, recordingId });
   } catch (err) {
     logger.error({ err }, "Failed to create upload URL");
     res.status(500).json({ error: "Failed to create upload URL" });

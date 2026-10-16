@@ -50,7 +50,7 @@ pnpm monorepo (`pnpm-workspace.yaml`): deployable apps in `artifacts/*`, shared 
   - `lib/api-zod/src/generated`: Zod schemas used by the API for validation
 
   Generated code is committed. After editing the spec, run `pnpm --filter @workspace/api-spec run codegen`, then `pnpm typecheck`. Don't hand-edit `generated/`.
-- **`lib/object-storage-web`**: upload components and hooks for the web app. Object storage (`api-server/src/lib/objectStorage.ts`) uses Replit's GCS sidecar, so video upload and replay don't work locally.
+- **Object storage** (`api-server/src/lib/objectStorage.ts`) is S3-compatible: SeaweedFS from docker-compose locally (`pnpm db:up` also creates the bucket), R2 or S3 in production, configured with `S3_*` env vars. Clients upload and play video through presigned URLs. The ML server downloads through `/api/storage/objects/*` with `X-ML-Secret`. The database stores `/objects/<key>` paths. Presigned PUTs need `requestChecksumCalculation: "WHEN_REQUIRED"`; without it every upload fails with BadDigest. `lib/object-storage-web` is currently unused.
 
 ### Schema changes
 

@@ -9,7 +9,7 @@ You need Node 22+, pnpm 10, and Docker Desktop.
 ```sh
 pnpm install
 cp .env.example .env      # then add your Clerk development keys
-pnpm db:up                # starts Postgres in Docker
+pnpm db:up                # starts Postgres and S3 storage (SeaweedFS) in Docker, creates the bucket
 pnpm db:push              # creates the tables (first run, and after schema changes)
 pnpm dev                  # API on :8080, app on :5173
 ```
@@ -46,9 +46,14 @@ pnpm typecheck
 cd artifacts/ml-server && .venv/bin/python -m pytest tests
 ```
 
+## Video storage
+
+Ball Boi videos go to any S3-compatible bucket, configured with the `S3_*` variables in `.env`. Locally that's the SeaweedFS container. Browsers and the iOS app upload and play video through presigned URLs, so in production the bucket needs a CORS rule that allows `GET` and `PUT` from the web app's origin. For Cloudflare R2, set `S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com` and `S3_REGION=auto`. For AWS S3, leave `S3_ENDPOINT` empty.
+
+Videos recorded on Replit are still in Replit's bucket. The database stores paths like `/objects/uploads/<id>`, which map to the key `uploads/<id>` in the new bucket. Copy those objects over to keep old replays working.
+
 ## Known local gaps
 
-- **Video upload and replay** still use Replit's object storage, which only works on Replit. Everything else runs locally. Moving storage to S3 or Cloudflare R2 fixes this.
 - **iOS push notifications** don't work in the Simulator, and Expo push tokens also need an Expo account and EAS project ID. The rest of the app works without them.
 - **Push notifications** need VAPID keys in `.env` (see `.env.example`). Without them the app runs and skips sending.
 - **`pnpm typecheck`** fails on errors that came over from Replit (duplicate exports in `lib/api-zod`, plus type errors in the API and web packages). Tests and builds pass.
