@@ -1,0 +1,11 @@
+# Runtime dependencies for the Ball Boi ML server. Requires Python 3.10+.
+fastapi>=0.115
+uvicorn>=0.30
+pydantic>=2.7
+numpy>=1.26
+opencv-python-headless>=4.10,<5  # court line detection fails on 5.x
+
+# Optional, for better detection. Without them the analyzer falls back to
+# color-based ball detection and skips pose estimation. Both are large installs.
+#   ultralytics   # YOLOv8 ball detection; downloads yolov8n.pt on first run
+#   mediapipe     # player pose estimation

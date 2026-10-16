@@ -8,11 +8,14 @@ import { logger } from "../lib/logger";
 
 const router = Router();
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT ?? "mailto:admin@hudsonvalleytennis.app",
-  process.env.VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
+// Web push is optional locally; sendWebPushToUsers skips sending when keys are missing.
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT ?? "mailto:admin@hudsonvalleytennis.app",
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+}
 
 async function sendExpoPushToUsers(
   userIds: string[],
