@@ -27,7 +27,7 @@ _Last updated: 2026-10-16_
 | Item | Guideline | Status | Notes |
 |---|---|---|---|
 | Move video upload/replay off Replit storage to S3 or R2 | 2.1 App Completeness | 🟡 | R2 code + local MinIO in PR. Create bucket, set CORS, run migration script |
-| Reviewer demo account with seeded league, matches, sample replay | 2.1 | ❌ | Goes in App Review notes |
+| Reviewer demo account with seeded league, matches, sample replay | 2.1 | ⚠️ | Template in `docs/app-store-connect.md`. Decide password sign-in for reviewer |
 
 ## 3. Compliance features
 
@@ -47,12 +47,12 @@ _Last updated: 2026-10-16_
 
 | Item | Guideline | Status | Notes |
 |---|---|---|---|
-| Privacy nutrition labels | 5.1.1 | ❌ | Clerk, analytics, video, location |
+| Privacy nutrition labels | 5.1.1 | 🟡 | Answers drafted in `docs/app-store-connect.md` |
 | Privacy manifest (incl. third-party SDKs) | Required since May 2024 | 🟡 | App manifest in `app.config.ts`; verify SDK manifests at build |
 | Camera, microphone, photo library purpose strings | 5.1.1 | ✅ | In `app.config.ts` |
 | Location purpose string (if "players near you" ships) | 5.1.1 | ❌ | |
-| New age rating questionnaire | Required since Jan 31, 2026 | ❌ | |
-| Screenshots, description, keywords, support URL | 2.3 | ❌ | |
+| New age rating questionnaire | Required since Jan 31, 2026 | 🟡 | Answers drafted; expect 13+ |
+| Screenshots, description, keywords, support URL | 2.3 | 🟡 | Shot list + subtitle drafted |
 | EU trader status (if distributing in the EU) | DSA | ❌ | |
 
 ## 5. WCAG 2.2 AA (web app, carries into native)
