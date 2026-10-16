@@ -1,5 +1,5 @@
-import { db, matchesTable, playerAvailabilityTable, scheduleGenerationLogsTable } from "@workspace/db";
-import { eq, and, or } from "drizzle-orm";
+import { db, matchesTable, playerAvailabilityTable, playersTable, scheduleGenerationLogsTable, userBlocksTable } from "@workspace/db";
+import { eq, and, or, inArray } from "drizzle-orm";
 
 const REMATCH_DAYS = 21;
 
@@ -29,6 +29,33 @@ interface PlayerWithAvail {
   slots: Array<{ dayOfWeek: number; hour: number }>;
 }
 
+/** Pair keys ("<lowId>-<highId>", same shape as recentPairs) for blocked player pairs. */
+async function blockedPlayerPairs(playerIds: number[]): Promise<Set<string>> {
+  const pairs = new Set<string>();
+  if (playerIds.length < 2) return pairs;
+  const linked = await db
+    .select({ id: playersTable.id, clerkUserId: playersTable.clerkUserId })
+    .from(playersTable)
+    .where(inArray(playersTable.id, playerIds));
+  const playerIdsByAccount = new Map<string, number[]>();
+  for (const p of linked) {
+    if (!p.clerkUserId) continue;
+    playerIdsByAccount.set(p.clerkUserId, [...(playerIdsByAccount.get(p.clerkUserId) ?? []), p.id]);
+  }
+  const accounts = [...playerIdsByAccount.keys()];
+  if (accounts.length < 2) return pairs;
+  const blocks = await db
+    .select({ a: userBlocksTable.blockerClerkUserId, b: userBlocksTable.blockedClerkUserId })
+    .from(userBlocksTable)
+    .where(inArray(userBlocksTable.blockerClerkUserId, accounts));
+  for (const { a, b } of blocks) {
+    for (const x of playerIdsByAccount.get(a) ?? []) {
+      for (const y of playerIdsByAccount.get(b) ?? []) pairs.add([x, y].sort().join("-"));
+    }
+  }
+  return pairs;
+}
+
 export async function generateWeeklyMatches(leagueId: number, weekOf: string) {
   // Get all player availabilities for this week
   const availabilities = await db
@@ -55,6 +82,9 @@ export async function generateWeeklyMatches(leagueId: number, weekOf: string) {
       recentPairs.add(key);
     }
   }
+
+  // Never auto-schedule two players when either has blocked the other.
+  const blockedPairs = await blockedPlayerPairs(availabilities.map((a) => a.playerId));
 
   // Build player data structures
   const players: PlayerWithAvail[] = availabilities.map((a) => {
@@ -100,6 +130,7 @@ export async function generateWeeklyMatches(leagueId: number, weekOf: string) {
         // Check rematch prevention
         const pairKey = [p1Id, p2Id].sort().join("-");
         if (recentPairs.has(pairKey)) { rematchesSkipped++; continue; }
+        if (blockedPairs.has(pairKey)) continue;
 
         // Check neither player already scheduled in this slot
         if (matchedInSlot.has(`${slot.key}:${p1Id}`) || matchedInSlot.has(`${slot.key}:${p2Id}`)) continue;

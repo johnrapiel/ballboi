@@ -5,6 +5,7 @@ import { ArrowLeft, Swords, Zap } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { ReportBlockMenu } from "@/components/ReportBlockMenu";
 
 function skillBadge(level: string) {
   if (level === "5.0") return "bg-secondary text-secondary-foreground border border-secondary";
@@ -57,8 +58,8 @@ export default function PlayerDetail() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link href="/players" className="p-1.5 rounded hover:bg-accent text-muted-foreground transition-colors">
-          <ArrowLeft className="w-4 h-4" />
+        <Link href="/players" aria-label="Back to players" className="inline-flex h-11 w-11 items-center justify-center rounded hover:bg-accent text-muted-foreground transition-colors">
+          <ArrowLeft className="w-4 h-4" aria-hidden />
         </Link>
         <div>
           <h1 className="page-heading text-foreground">{player.name}</h1>
@@ -70,6 +71,7 @@ export default function PlayerDetail() {
           </div>
           {player.bio && <p className="text-sm text-muted-foreground mt-1">{player.bio}</p>}
         </div>
+        <ReportBlockMenu playerId={player.id} playerName={player.name} />
       </div>
 
       {/* Stats overview */}

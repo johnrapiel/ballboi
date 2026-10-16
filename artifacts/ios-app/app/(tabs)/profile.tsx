@@ -1,7 +1,8 @@
-import { Linking, Pressable, View } from "react-native";
+import { useState } from "react";
+import { Alert, Linking, Pressable, View } from "react-native";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
-import { useGetMyProfile } from "@workspace/api-client-react";
+import { customFetch, useGetMyProfile } from "@workspace/api-client-react";
 import { Button, Card, Screen, Text } from "@/components/ui";
 import { config } from "@/lib/config";
 import { MIN_TAP, space, useTheme } from "@/theme";
@@ -27,6 +28,32 @@ export default function ProfileScreen() {
   const { user } = useUser();
   const profile = useGetMyProfile();
   const name = profile.data?.displayName ?? user?.fullName ?? "Player";
+  const [deleting, setDeleting] = useState(false);
+
+  // App Store guideline 5.1.1(v): account deletion must be available in the app.
+  function confirmDelete() {
+    Alert.alert(
+      "Delete your account?",
+      "This permanently deletes your profile and every Ball Boi video you recorded. Past league results stay as \"Deleted player.\" This can't be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete account",
+          style: "destructive",
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await customFetch("/api/users/me", { method: "DELETE", body: JSON.stringify({ confirm: "DELETE" }) });
+              await signOut();
+            } catch {
+              setDeleting(false);
+              Alert.alert("Account not deleted", `Please try again or email ${config.supportEmail}.`);
+            }
+          },
+        },
+      ],
+    );
+  }
 
   return (
     <Screen>
@@ -44,6 +71,7 @@ export default function ProfileScreen() {
 
       <View style={{ gap: space.md }}>
         <Button tone="secondary" label="Sign out" onPress={() => signOut()} />
+        <Button tone="destructive" label="Delete account" loading={deleting} onPress={confirmDelete} />
       </View>
     </Screen>
   );

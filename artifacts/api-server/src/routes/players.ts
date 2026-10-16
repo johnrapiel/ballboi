@@ -6,6 +6,7 @@ import { UpdatePlayerBody } from "@workspace/api-zod";
 import { eq, and, or, desc, inArray } from "drizzle-orm";
 import { calculateStreaks } from "../lib/streakUtils.js";
 import { accumulateScoreTotals, calculatePoints } from "../lib/scoringUtils.js";
+import { blockedAccountsFor } from "../lib/blocks.js";
 
 const router = Router();
 
@@ -37,7 +38,13 @@ router.get("/players", async (req, res) => {
   }
 
   const rows = await db.select().from(playersTable).orderBy(desc(playersTable.wins));
-  return res.json(rows.map((p) => formatPlayer(p)));
+  // Player discovery hides anyone the viewer blocked or was blocked by.
+  // League rosters above stay complete so standings remain accurate.
+  const { userId } = getAuth(req);
+  const hidden = userId ? await blockedAccountsFor(userId) : new Set<string>();
+  return res.json(
+    rows.filter((p) => !p.clerkUserId || !hidden.has(p.clerkUserId)).map((p) => formatPlayer(p)),
+  );
 });
 
 router.get("/players/me", requireAuth, async (req, res) => {

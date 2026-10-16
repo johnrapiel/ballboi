@@ -1,5 +1,6 @@
 import {
   CreateBucketCommand,
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
@@ -178,6 +179,11 @@ export class ObjectStorageService {
     const privatePrefix = `${this.getPrivateObjectDir()}/`;
     if (!key.startsWith(privatePrefix)) return rawPath;
     return `/objects/${key.slice(privatePrefix.length)}`;
+  }
+
+  /** Permanently deletes a private object. Missing objects are not an error. */
+  async deleteObjectEntity(objectPath: string): Promise<void> {
+    await storageClient().send(new DeleteObjectCommand({ Bucket: this.bucket(), Key: this.keyForEntityPath(objectPath) }));
   }
 
   /** Presigned GET for streaming a private object, e.g. a match replay. */

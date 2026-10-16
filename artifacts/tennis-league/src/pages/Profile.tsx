@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
+import { Link } from "wouter";
 import { useAuth, useUser } from "@clerk/react";
 import { useUpsertMyProfile, UpsertUserProfileBodySkillLevel } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { apiFetch } from "@/lib/scheduleApi";
-import { Bell, User, Check } from "lucide-react";
+import { Bell, User, Check, ShieldCheck, Trash2 } from "lucide-react";
+import { BlockedPlayersSection, DeleteAccountSection } from "@/components/AccountSafety";
 import NotificationToggle from "@/components/PushNotificationPrompt";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -294,6 +296,23 @@ export default function Profile() {
         </div>
       </Section>
 
+      <Section icon={ShieldCheck} title="Privacy & Safety" id="safety">
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+            <Link href="/privacy" className="text-primary underline underline-offset-2">Privacy Policy</Link>
+            <Link href="/terms" className="text-primary underline underline-offset-2">Terms of Use</Link>
+            <a href="mailto:support@ballboi.app" className="text-primary underline underline-offset-2">Contact support</a>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground mb-2">Blocked players</p>
+            <BlockedPlayersSection />
+          </div>
+        </div>
+      </Section>
+
+      <Section icon={Trash2} title="Delete Account" id="delete-account">
+        <DeleteAccountSection />
+      </Section>
     </div>
   );
 }
