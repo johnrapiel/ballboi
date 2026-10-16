@@ -77,7 +77,7 @@ interface MatchSummaryCardProps {
 function MatchSummaryCard({ label, value, detail }: MatchSummaryCardProps) {
   return (
     <div className="rounded-lg border border-card-border bg-card px-4 py-3">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
       <p className="mt-1 text-2xl font-extrabold tracking-tight text-foreground">{value}</p>
       {detail && <p className="mt-0.5 text-xs text-muted-foreground">{detail}</p>}
     </div>
@@ -154,12 +154,12 @@ function MatchRow({
           )}
           {!match.scheduledAt && match.roundId != null && !isCompleted && !isCancelled && (
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-semibold border border-amber-500/40 text-amber-400/80 px-2 py-0.5 rounded uppercase tracking-wider">
+              <span className="text-[11px] font-semibold border border-warning/40 text-warning px-2 py-0.5 rounded uppercase tracking-wider">
                 Needs scheduling
               </span>
               <Link
                 href={`/matches/${match.matchId}`}
-                className="text-[10px] text-primary hover:underline font-semibold"
+                className="text-[11px] text-primary hover:underline font-semibold"
               >
                 Arrange
               </Link>
@@ -171,12 +171,12 @@ function MatchRow({
               <span className="text-xs text-muted-foreground">{match.leagueName}</span>
             )}
             {match.roundNumber != null && (match as any).playoffRound == null && (
-              <span className="text-[10px] font-semibold border border-border text-muted-foreground px-1.5 py-0.5 rounded uppercase tracking-wider">
+              <span className="text-[11px] font-semibold border border-border text-muted-foreground px-1.5 py-0.5 rounded uppercase tracking-wider">
                 Round {match.roundNumber}
               </span>
             )}
             {(match as any).playoffRound != null && (
-              <span className="text-[10px] font-semibold border border-primary/40 text-primary/80 px-1.5 py-0.5 rounded uppercase tracking-wider">
+              <span className="text-[11px] font-semibold border border-primary/40 text-primary/80 px-1.5 py-0.5 rounded uppercase tracking-wider">
                 {(match as any).playoffRound === "quarterfinal"
                   ? "Playoff — QF"
                   : (match as any).playoffRound === "semifinal"
@@ -189,7 +189,7 @@ function MatchRow({
           {(match as any).season && (
             <div>
               <span className={cn(
-                "text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider border",
+                "text-[11px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider border",
                 (match as any).season === "Summer League"
                   ? "border-primary/40 text-primary/80"
                   : "border-border text-muted-foreground"
@@ -228,7 +228,7 @@ function MatchRow({
 
         <div className="flex flex-col items-end gap-2 shrink-0">
           {canLogResult && emphasizeUnlogged && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground border border-white/20 px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground border border-white/20 px-2 py-0.5 rounded-full">
               <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
               Needs result
             </span>
@@ -277,7 +277,7 @@ function MatchRow({
 
           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(180px,0.8fr)_auto] md:items-end">
             <div>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Who won?</p>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Who won?</p>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -311,7 +311,7 @@ function MatchRow({
             </div>
 
             <div>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Score</p>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Score</p>
               <Input
                 placeholder="6-4, 3-6, 7-5"
                 value={score}
@@ -645,7 +645,7 @@ export default function MyMatches() {
                             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                               {seasonName}
                             </h2>
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-border text-muted-foreground uppercase tracking-wider">
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full border border-border text-muted-foreground uppercase tracking-wider">
                               archived
                             </span>
                             <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground tabular-nums">

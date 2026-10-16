@@ -144,7 +144,7 @@ export default function MyScheduleCard() {
           <CalendarDays className="w-4 h-4 text-primary" />
           <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">My Schedule</h2>
           {isCompleted ? (
-            <span className="ml-auto flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase tracking-wider">
+            <span className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase tracking-wider">
               <CheckCircle2 className="w-3 h-3" /> Completed
             </span>
           ) : (
@@ -160,8 +160,8 @@ export default function MyScheduleCard() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="flex items-center gap-1.5">
-                  <div className="p-1.5 rounded-full bg-blue-400/10">
-                    <User className="w-3.5 h-3.5 text-blue-400" />
+                  <div className="p-1.5 rounded-full bg-info/10">
+                    <User className="w-3.5 h-3.5 text-info" />
                   </div>
                   <span className="text-base font-bold text-foreground">You</span>
                 </div>
@@ -183,10 +183,10 @@ export default function MyScheduleCard() {
                   <Trophy className="w-3.5 h-3.5 text-primary" />
                   <span className="text-sm font-semibold text-primary">{formatDisplayScore(match.score)}</span>
                   {didMySideWin && (
-                    <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Won</span>
+                    <span className="text-[11px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Won</span>
                   )}
                   {match.winnerId != null && !didMySideWin && (
-                    <span className="text-[10px] font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full uppercase tracking-wider">Lost</span>
+                    <span className="text-[11px] font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full uppercase tracking-wider">Lost</span>
                   )}
                 </div>
               )}
@@ -205,7 +205,7 @@ export default function MyScheduleCard() {
             <div className="flex items-start gap-2.5 p-3 rounded-md bg-muted/40">
               <CalendarDays className="w-4 h-4 text-primary mt-0.5 shrink-0" />
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">When</p>
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">When</p>
                 <p className="text-sm font-medium text-foreground mt-0.5">{formatDate(match.scheduledAt)}</p>
               </div>
             </div>
@@ -214,7 +214,7 @@ export default function MyScheduleCard() {
             <div className="flex items-start gap-2.5 p-3 rounded-md bg-muted/40">
               <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Where</p>
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Where</p>
                 {match.location ? (
                   <p className="text-sm font-medium text-foreground mt-0.5">{match.location}</p>
                 ) : (
