@@ -1,0 +1,47 @@
+{
+  "name": "@workspace/ios-app",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo run:ios",
+    "align": "expo install --fix",
+    "doctor": "expo-doctor",
+    "typecheck": "tsc --noEmit",
+    "build:ios": "eas build --platform ios --profile production",
+    "submit:ios": "eas submit --platform ios --profile production"
+  },
+  "dependencies": {
+    "@clerk/clerk-expo": "^2.19.0",
+    "@expo-google-fonts/dm-mono": "^0.4.1",
+    "@expo-google-fonts/dm-sans": "^0.4.1",
+    "@expo-google-fonts/playfair-display": "^0.4.1",
+    "@expo/vector-icons": "^15.0.2",
+    "@tanstack/react-query": "catalog:",
+    "@workspace/api-client-react": "workspace:*",
+    "expo": "~58.0.0",
+    "expo-apple-authentication": "~58.0.2",
+    "expo-auth-session": "~58.0.9",
+    "expo-camera": "~58.0.9",
+    "expo-constants": "~58.0.10",
+    "expo-crypto": "~58.0.5",
+    "expo-font": "~58.0.7",
+    "expo-haptics": "~58.0.5",
+    "expo-linking": "~58.0.11",
+    "expo-notifications": "~58.1.1",
+    "expo-router": "~58.0.16",
+    "expo-secure-store": "~58.0.2",
+    "expo-splash-screen": "~58.0.6",
+    "expo-status-bar": "~58.0.3",
+    "expo-web-browser": "~58.0.6",
+    "react": "19.3.0",
+    "react-native": "0.88.0-rc.3",
+    "react-native-safe-area-context": "~5.9.1",
+    "react-native-screens": "~4.28.0"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "typescript": "~5.9.2"
+  }
+}
