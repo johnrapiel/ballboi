@@ -14,7 +14,7 @@ cp .env.example .env        # add Clerk dev keys; ADMIN_EMAIL controls who is ad
 pnpm db:up                  # Postgres 16 in Docker (db:down to stop)
 pnpm db:push                # drizzle-kit push of lib/db schema to local DB
 pnpm dev                    # API :8080 + web :5173 (scripts/dev.sh; loads .env)
-pnpm dev:ios                # Expo app in the iOS Simulator (needs Xcode; run alongside pnpm dev)
+pnpm dev:mobile             # Expo app in Expo Go on a phone (run alongside pnpm dev)
 pnpm dev:ml                 # optional FastAPI ML server on :8000
 
 pnpm test                   # api-server + tennis-league vitest suites
@@ -42,7 +42,7 @@ pnpm monorepo (`pnpm-workspace.yaml`): deployable apps in `artifacts/*`, shared 
 
 - **`artifacts/api-server`**: Express 5 API. All routes are mounted under `/api` in `src/routes/index.ts`, one router per domain. `clerkMiddleware()` runs globally. Routes call `getAuth(req)` themselves, and admin-only routes use `middlewares/requireAdmin.ts`, which compares the Clerk primary email to `ADMIN_EMAIL`. Business logic lives in `src/services/` (round pairing, match generation, playoff brackets, seasons, Ball Boi retry), and pure helpers live in `src/lib/`. It is bundled with esbuild (`build.mjs`). `pnpm dev` builds and then starts the server, so there is no hot reload. Startup runs the SQL migrations, seeds global seasons, then starts `node-cron` jobs in `services/scheduler.ts` (round generation, schedule generation, availability and match reminders, and web/Expo push).
 - **`artifacts/tennis-league`**: React 19 + Vite web app using Wouter routing, TanStack Query, Tailwind v4, shadcn/ui (`src/components/ui`), and Clerk. The Vite dev server proxies `/api` to the API (`API_PORT` / `API_PROXY_TARGET`). `@/` aliases `src/`.
-- **`artifacts/mobile`**: Expo SDK 54 app using expo-router (`app/`), `@clerk/expo` with email/password sign-in, and the same generated React Query hooks as the web app. The API base URL comes from `EXPO_PUBLIC_API_URL` via `setBaseUrl`, and Clerk session tokens are sent as `Authorization: Bearer` through `setAuthTokenGetter`. Keep Expo packages on SDK 54 versions: check with `pnpm --filter @workspace/mobile exec expo install --check`.
+- **`artifacts/mobile`**: Expo SDK 58 app using expo-router (`app/`), `@clerk/expo` with email/password sign-in, and the same generated React Query hooks as the web app. The API base URL comes from `EXPO_PUBLIC_API_URL` via `setBaseUrl`, and Clerk session tokens are sent as `Authorization: Bearer` through `setAuthTokenGetter`. Keep Expo packages on SDK 58 versions (Expo Go only runs the latest SDK; `expo` is pinned to 58.0.10 because newer patches needed a CLI younger than `minimumReleaseAge`): check with `pnpm --filter @workspace/mobile exec expo install --check`.
 - **`artifacts/ml-server`**: FastAPI service (`main.py`, `services/analyzer.py`) for ball and shot detection, court-line detection, and perspective mapping. All analysis endpoints require an `X-ML-Secret` header matching `ML_SECRET`. The API calls it at `ML_SERVICE_URL` (`/analyze-match-live` for live frames, `/analyze-match-batch` for post-match video), and the ML server posts results back to the API's shot-callback route.
 - **`lib/db`**: Drizzle ORM schema (`src/schema/*.ts`, one file per table group) and the shared `db` client, imported as `@workspace/db`.
 - **`lib/api-spec`**: `openapi.yaml` is the API contract. Orval generates two packages from it:

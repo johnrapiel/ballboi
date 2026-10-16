@@ -361,7 +361,9 @@ export default function MatchesScreen() {
           refreshControl={
             <RefreshControl
               refreshing={false}
-              onRefresh={() => refetch()}
+              onRefresh={() => {
+                refetch();
+              }}
               tintColor={colors.primary}
             />
           }

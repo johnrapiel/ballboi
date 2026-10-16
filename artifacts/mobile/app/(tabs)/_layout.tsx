@@ -3,7 +3,7 @@ import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { BlurView } from "expo-blur";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Redirect, Tabs } from "expo-router";
-import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
+import { NativeTabs } from "expo-router/native-tabs";
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React, { useEffect } from "react";
@@ -15,12 +15,12 @@ function NativeTabLayout() {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "tennis.racket", selected: "tennis.racket" }} />
-        <Label>Matches</Label>
+        <NativeTabs.Trigger.Icon sf={{ default: "tennis.racket", selected: "tennis.racket" }} />
+        <NativeTabs.Trigger.Label>Matches</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
-        <Icon sf={{ default: "person", selected: "person.fill" }} />
-        <Label>Profile</Label>
+        <NativeTabs.Trigger.Icon sf={{ default: "person", selected: "person.fill" }} />
+        <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -72,7 +72,7 @@ function ClassicTabLayout() {
             isIOS ? (
               <SymbolView name="tennis.racket" tintColor={color} size={22} />
             ) : (
-              <Feather name="activity" size={22} color={color} />
+              <Feather name="activity" size={22} color={color as string} />
             ),
         }}
       />
@@ -84,7 +84,7 @@ function ClassicTabLayout() {
             isIOS ? (
               <SymbolView name="person.fill" tintColor={color} size={22} />
             ) : (
-              <Feather name="user" size={22} color={color} />
+              <Feather name="user" size={22} color={color as string} />
             ),
         }}
       />

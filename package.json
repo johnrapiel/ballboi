@@ -13,7 +13,7 @@
     "db:down": "docker compose down",
     "db:push": "sh scripts/with-env.sh pnpm --filter @workspace/db run push",
     "dev": "sh scripts/dev.sh",
-    "dev:ios": "sh scripts/with-env.sh pnpm --filter @workspace/mobile exec expo start --ios",
+    "dev:mobile": "sh scripts/dev-mobile.sh",
     "dev:ml": "sh scripts/with-env.sh sh -c 'cd artifacts/ml-server && PY=python3 && [ -x .venv/bin/python ] && PY=.venv/bin/python; PORT=8000 $PY main.py'",
     "test": "pnpm --filter @workspace/api-server test && pnpm --filter @workspace/tennis-league test"
   },
