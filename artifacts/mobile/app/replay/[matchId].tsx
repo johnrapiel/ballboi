@@ -289,7 +289,7 @@ function VideoTab({
       fontWeight: "600" as const,
       color: "#ffffff",
       textTransform: "capitalize",
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     shotOverlayBadge: {
       borderRadius: 10,
@@ -300,18 +300,18 @@ function VideoTab({
       fontSize: 11,
       fontWeight: "600" as const,
       textTransform: "capitalize",
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     shotOverlaySpeed: {
       fontSize: 13,
       fontWeight: "700" as const,
       color: "#ffffff",
-      fontFamily: "Inter_700Bold",
+      fontFamily: "DMSans_700Bold",
     },
     shotOverlaySpeedUnit: {
       fontSize: 10,
       color: "rgba(255,255,255,0.7)",
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
     noVideo: {
       alignItems: "center",
@@ -323,7 +323,7 @@ function VideoTab({
       color: colors.mutedForeground,
       marginTop: 12,
       textAlign: "center",
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
     heatmapSection: {
       padding: 20,
@@ -335,7 +335,7 @@ function VideoTab({
       letterSpacing: 0.8,
       textTransform: "uppercase",
       marginBottom: 12,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     activeShotCard: {
       marginTop: 16,
@@ -362,7 +362,7 @@ function VideoTab({
       fontSize: 13,
       fontWeight: "700" as const,
       color: colors.primary,
-      fontFamily: "Inter_700Bold",
+      fontFamily: "DMSans_700Bold",
     },
     activeShotInfo: {
       flex: 1,
@@ -372,19 +372,19 @@ function VideoTab({
       fontWeight: "600" as const,
       color: colors.foreground,
       textTransform: "capitalize",
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     activeShotMeta: {
       fontSize: 12,
       color: colors.mutedForeground,
       marginTop: 2,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
     activeShotOutcome: {
       fontSize: 12,
       fontWeight: "600" as const,
       textTransform: "capitalize",
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     miniCourtStrip: {
       flexDirection: "row",
@@ -399,14 +399,14 @@ function VideoTab({
     miniCourtLabel: {
       fontSize: 11,
       color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
       flex: 1,
     },
     miniCourtZone: {
       fontSize: 11,
       fontWeight: "600" as const,
       color: colors.foreground,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     noShotCard: {
       marginTop: 16,
@@ -418,7 +418,7 @@ function VideoTab({
     noShotText: {
       fontSize: 12,
       color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
     legend: {
       flexDirection: "row",
@@ -439,7 +439,7 @@ function VideoTab({
     legendText: {
       fontSize: 12,
       color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
   });
 
@@ -632,7 +632,7 @@ function HeatmapTab({ data, colors }: { data: any; colors: any }) {
     legendText: {
       fontSize: 12,
       color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
     empty: {
       alignItems: "center",
@@ -643,7 +643,7 @@ function HeatmapTab({ data, colors }: { data: any; colors: any }) {
       fontSize: 14,
       color: colors.mutedForeground,
       marginTop: 12,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
   });
 
@@ -713,7 +713,7 @@ function ShotItem({
       fontSize: 12,
       fontWeight: "600" as const,
       color: colors.mutedForeground,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     info: {
       flex: 1,
@@ -723,30 +723,30 @@ function ShotItem({
       fontWeight: "600" as const,
       color: colors.foreground,
       textTransform: "capitalize",
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     meta: {
       fontSize: 12,
       color: colors.mutedForeground,
       marginTop: 2,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
     outcome: {
       fontSize: 12,
       fontWeight: "600" as const,
       textTransform: "capitalize",
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     speed: {
       fontSize: 13,
       fontWeight: "600" as const,
       color: colors.foreground,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     speedUnit: {
       fontSize: 11,
       color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
   });
 
@@ -799,7 +799,7 @@ function ShotsTab({ data, colors }: { data: any; colors: any }) {
             fontSize: 14,
             color: colors.mutedForeground,
             marginTop: 12,
-            fontFamily: "Inter_400Regular",
+            fontFamily: "DMSans_400Regular",
           }}
         >
           No shots recorded
@@ -841,13 +841,13 @@ function StatRow({
     label: {
       fontSize: 14,
       color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
     value: {
       fontSize: 15,
       fontWeight: "600" as const,
       color: colors.foreground,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
   });
   return (
@@ -876,7 +876,7 @@ function StatsTab({ data, colors }: { data: any; colors: any }) {
       textTransform: "uppercase",
       marginBottom: 4,
       marginTop: 20,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     card: {
       backgroundColor: colors.card,
@@ -901,14 +901,14 @@ function StatsTab({ data, colors }: { data: any; colors: any }) {
       fontSize: 28,
       fontWeight: "700" as const,
       color: colors.foreground,
-      fontFamily: "Inter_700Bold",
+      fontFamily: "DMSans_700Bold",
     },
     bigStatLabel: {
       fontSize: 11,
       color: colors.mutedForeground,
       marginTop: 4,
       textAlign: "center",
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
     breakdownRow: {
       flexDirection: "row",
@@ -922,13 +922,13 @@ function StatsTab({ data, colors }: { data: any; colors: any }) {
       fontSize: 13,
       color: colors.foreground,
       textTransform: "capitalize",
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
     breakdownCount: {
       fontSize: 14,
       fontWeight: "600" as const,
       color: colors.foreground,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     empty: {
       alignItems: "center",
@@ -939,7 +939,7 @@ function StatsTab({ data, colors }: { data: any; colors: any }) {
       fontSize: 14,
       color: colors.mutedForeground,
       marginTop: 12,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
   });
 
@@ -1107,12 +1107,12 @@ export default function ReplayScreen() {
       fontSize: 17,
       fontWeight: "700" as const,
       color: colors.foreground,
-      fontFamily: "Inter_700Bold",
+      fontFamily: "DMSans_700Bold",
     },
     headerSub: {
       fontSize: 12,
       color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
       marginTop: 2,
     },
     ballBoiChip: {
@@ -1130,7 +1130,7 @@ export default function ReplayScreen() {
       fontSize: 12,
       fontWeight: "600" as const,
       color: colors.primary,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     tabs: {
       flexDirection: "row",
@@ -1154,12 +1154,12 @@ export default function ReplayScreen() {
       fontSize: 13,
       fontWeight: "500" as const,
       color: colors.mutedForeground,
-      fontFamily: "Inter_500Medium",
+      fontFamily: "DMSans_500Medium",
     },
     tabTextActive: {
       color: colors.primary,
       fontWeight: "600" as const,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     centered: {
       flex: 1,
@@ -1172,14 +1172,14 @@ export default function ReplayScreen() {
       fontWeight: "600" as const,
       color: colors.foreground,
       marginTop: 16,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     errorSub: {
       fontSize: 14,
       color: colors.mutedForeground,
       marginTop: 8,
       textAlign: "center",
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
     retryBtn: {
       marginTop: 20,
@@ -1192,7 +1192,7 @@ export default function ReplayScreen() {
       fontSize: 14,
       fontWeight: "600" as const,
       color: colors.primaryForeground,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
   });
 
@@ -1289,7 +1289,7 @@ export default function ReplayScreen() {
                 fontSize: 14,
                 fontWeight: "600" as const,
                 color: colors.foreground,
-                fontFamily: "Inter_600SemiBold",
+                fontFamily: "DMSans_600SemiBold",
               }}
             >
               Go back

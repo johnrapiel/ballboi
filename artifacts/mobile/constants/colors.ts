@@ -1,45 +1,40 @@
+import { color, radius, type ColorTokens } from "@/constants/tokens";
+
+// Maps the app's palette keys onto the Ball Boi design system tokens
+// (constants/tokens.ts, generated from docs/design-system/tokens.json).
+// New code should read design system names directly via useColors():
+// paper, linen, sand, ink, inkMuted, onInk, hairline, hairlineStrong,
+// pool, clay, sun (never text), danger, focus.
+
+function palette(t: ColorTokens) {
+  return {
+    ...t,
+    // Legacy keys used by screens that haven't been rebuilt yet.
+    text: t.ink,
+    tint: t.pool,
+    background: t.paper,
+    foreground: t.ink,
+    card: t.linen,
+    cardForeground: t.ink,
+    primary: t.ink,
+    primaryForeground: t.onInk,
+    secondary: t.pool,
+    secondaryForeground: t.onInk,
+    muted: t.sand,
+    mutedForeground: t.inkMuted,
+    accent: t.sand,
+    accentForeground: t.ink,
+    destructive: t.danger,
+    destructiveForeground: t.onInk,
+    border: t.hairline,
+    input: t.hairlineStrong,
+  };
+}
+
 const colors = {
-  dark: {
-    text: "#f2f2f2",
-    tint: "#06b6d4",
-    background: "#0c0d14",
-    foreground: "#f2f2f2",
-    card: "#121221",
-    cardForeground: "#f2f2f2",
-    primary: "#06b6d4",
-    primaryForeground: "#0c0d14",
-    secondary: "#3b82f6",
-    secondaryForeground: "#0c0d14",
-    muted: "#1c1c2b",
-    mutedForeground: "#838399",
-    accent: "#1d1d2c",
-    accentForeground: "#f2f2f2",
-    destructive: "#dc2626",
-    destructiveForeground: "#f2f2f2",
-    border: "#272738",
-    input: "#303042",
-  },
-  light: {
-    text: "#0a0a0a",
-    tint: "#06b6d4",
-    background: "#ffffff",
-    foreground: "#0a0a0a",
-    card: "#f9f9f9",
-    cardForeground: "#0a0a0a",
-    primary: "#06b6d4",
-    primaryForeground: "#ffffff",
-    secondary: "#3b82f6",
-    secondaryForeground: "#ffffff",
-    muted: "#f0f0f0",
-    mutedForeground: "#737373",
-    accent: "#f0f0f0",
-    accentForeground: "#1a1a1a",
-    destructive: "#ef4444",
-    destructiveForeground: "#ffffff",
-    border: "#e5e5e5",
-    input: "#e5e5e5",
-  },
-  radius: 6,
+  light: palette(color.light),
+  dark: palette(color.dark),
+  radius: radius.radiusMd,
 };
 
 export default colors;
