@@ -80,7 +80,7 @@ function UserSection() {
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-xs font-semibold text-foreground truncate">{user.fullName || user.firstName || "Player"}</div>
-          <div className="text-[10px] text-muted-foreground truncate">{user.primaryEmailAddress?.emailAddress}</div>
+          <div className="text-[11px] text-muted-foreground truncate">{user.primaryEmailAddress?.emailAddress}</div>
         </div>
       </div>
       <button
@@ -137,7 +137,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </div>
               <div>
                 <div className="brand-name text-foreground">TennisLeague</div>
-                <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-mono">Manager</div>
+                <div className="text-[11px] text-muted-foreground uppercase tracking-widest font-mono">Manager</div>
               </div>
             </div>
             <ThemeToggle />
@@ -209,7 +209,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <div className="px-3 py-3 border-t border-sidebar-border">
                 <div className="flex items-center gap-2 px-2 py-1.5 mb-1">
                   <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                    <span className="text-[10px] font-bold text-primary">
+                    <span className="text-[11px] font-bold text-primary">
                       {(user.fullName || user.firstName || "U")[0].toUpperCase()}
                     </span>
                   </div>

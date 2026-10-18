@@ -89,17 +89,17 @@ export default function AllLeagues() {
               </div>
               <div className="flex flex-wrap gap-2 mb-4">
                 <span className={cn(
-                  "text-[10px] font-medium px-2 py-0.5 rounded-full",
+                  "text-[11px] font-medium px-2 py-0.5 rounded-full",
                   league.leagueType === "doubles"
                     ? "border border-border text-muted-foreground"
                     : "border border-white/20 text-muted-foreground"
                 )}>
                   {league.leagueType === "doubles" ? "Doubles" : "Singles"}
                 </span>
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full text-muted-foreground border border-border">
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full text-muted-foreground border border-border">
                   {formatLabel(league.format)}
                 </span>
-                <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", statusBadge(league.status))}>
+                <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-full", statusBadge(league.status))}>
                   {league.status.charAt(0).toUpperCase() + league.status.slice(1)}
                 </span>
               </div>

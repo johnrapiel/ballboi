@@ -25,7 +25,7 @@ function SlotRow({ playerId, playerName, winnerId, seed, isTbd }: SlotRowProps) 
     return (
       <div className="flex items-center gap-2 px-3 py-1.5 opacity-40">
         {seed != null && (
-          <span className="text-[10px] w-4 text-center font-bold text-muted-foreground shrink-0">
+          <span className="text-[11px] w-4 text-center font-bold text-muted-foreground shrink-0">
             {seed}
           </span>
         )}
@@ -41,7 +41,7 @@ function SlotRow({ playerId, playerName, winnerId, seed, isTbd }: SlotRowProps) 
       )}
     >
       {seed != null && (
-        <span className={cn("text-[10px] w-4 text-center font-bold shrink-0", isWinner ? "text-primary" : "text-muted-foreground")}>
+        <span className={cn("text-[11px] w-4 text-center font-bold shrink-0", isWinner ? "text-primary" : "text-muted-foreground")}>
           {seed}
         </span>
       )}
@@ -65,12 +65,12 @@ function QFCard({ slot }: QFCardProps) {
   return (
     <div className="bg-card border border-card-border rounded-lg overflow-hidden min-w-[180px]">
       <div className="px-3 py-1 border-b border-border flex items-center justify-between gap-2">
-        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">QF {slot.slot}</span>
+        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">QF {slot.slot}</span>
         {slot.isBye && (
-          <span className="text-[9px] font-semibold text-muted-foreground border border-border px-1.5 py-0.5 rounded uppercase tracking-wider">Bye</span>
+          <span className="text-[11px] font-semibold text-muted-foreground border border-border px-1.5 py-0.5 rounded uppercase tracking-wider">Bye</span>
         )}
         {slot.matchId && !slot.isBye && (
-          <Link href={`/matches/${slot.matchId}`} className="text-[9px] text-primary hover:underline">
+          <Link href={`/matches/${slot.matchId}`} className="text-[11px] text-primary hover:underline">
             View
           </Link>
         )}
@@ -85,8 +85,8 @@ function QFCard({ slot }: QFCardProps) {
         {slot.isBye ? (
           <div className="px-3 py-1.5 opacity-30">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] w-4 text-center font-bold text-muted-foreground">{slot.bottomSeed}</span>
-              <span className="text-[9px] text-muted-foreground italic">— bye —</span>
+              <span className="text-[11px] w-4 text-center font-bold text-muted-foreground">{slot.bottomSeed}</span>
+              <span className="text-[11px] text-muted-foreground italic">— bye —</span>
             </div>
           </div>
         ) : (
@@ -100,7 +100,7 @@ function QFCard({ slot }: QFCardProps) {
       </div>
       {isCompleted && slot.score && (
         <div className="px-3 py-1 border-t border-border">
-          <span className="text-[10px] font-mono text-muted-foreground">{formatDisplayScore(slot.score)}</span>
+          <span className="text-[11px] font-mono text-muted-foreground">{formatDisplayScore(slot.score)}</span>
         </div>
       )}
     </div>
@@ -124,9 +124,9 @@ function AdvancedCard({ slot, roundLabel, seedings = [] }: AdvancedCardProps) {
   return (
     <div className="bg-card border border-card-border rounded-lg overflow-hidden min-w-[180px]">
       <div className="px-3 py-1 border-b border-border flex items-center justify-between gap-2">
-        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">{roundLabel}</span>
+        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{roundLabel}</span>
         {slot.matchId && (
-          <Link href={`/matches/${slot.matchId}`} className="text-[9px] text-primary hover:underline">
+          <Link href={`/matches/${slot.matchId}`} className="text-[11px] text-primary hover:underline">
             View
           </Link>
         )}
@@ -149,7 +149,7 @@ function AdvancedCard({ slot, roundLabel, seedings = [] }: AdvancedCardProps) {
       </div>
       {isCompleted && slot.score && (
         <div className="px-3 py-1 border-t border-border">
-          <span className="text-[10px] font-mono text-muted-foreground">{formatDisplayScore(slot.score)}</span>
+          <span className="text-[11px] font-mono text-muted-foreground">{formatDisplayScore(slot.score)}</span>
         </div>
       )}
     </div>
@@ -203,7 +203,7 @@ export default function PlayoffBracket({ bracket }: PlayoffBracketProps) {
         <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-primary/10 border border-primary/30">
           <Crown className="w-5 h-5 text-primary shrink-0" />
           <div>
-            <p className="text-[10px] font-bold text-primary uppercase tracking-wider">Champion</p>
+            <p className="text-[11px] font-bold text-primary uppercase tracking-wider">Champion</p>
             <p className="text-lg font-extrabold text-foreground">{bracket.champion.playerName}</p>
           </div>
         </div>
@@ -227,7 +227,7 @@ export default function PlayoffBracket({ bracket }: PlayoffBracketProps) {
           {hasQF && (
             <>
               <div className="flex flex-col gap-3 flex-1">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-center mb-1">Quarterfinals</p>
+                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-center mb-1">Quarterfinals</p>
                 <div className="flex flex-col gap-2">
                   {bracket.quarterfinals.map((slot) => (
                     <QFCard key={slot.slot} slot={slot} />
@@ -255,8 +255,8 @@ export default function PlayoffBracket({ bracket }: PlayoffBracketProps) {
 
           {/* SF Column */}
           <div className={cn("flex flex-col flex-1", hasQF && "mt-7")}>
-            {!hasQF && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-center mb-1">Semifinals</p>}
-            {hasQF && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-center mb-1">Semifinals</p>}
+            {!hasQF && <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-center mb-1">Semifinals</p>}
+            {hasQF && <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-center mb-1">Semifinals</p>}
             <div className="flex flex-col gap-2 justify-around h-full">
               {bracket.semifinals.map((slot) => (
                 <AdvancedCard
@@ -278,8 +278,8 @@ export default function PlayoffBracket({ bracket }: PlayoffBracketProps) {
 
           {/* Final Column */}
           <div className={cn("flex flex-col flex-1 justify-center", hasQF && "mt-7")}>
-            {hasQF && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-center mb-1">Final</p>}
-            {!hasQF && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-center mb-1">Final</p>}
+            {hasQF && <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-center mb-1">Final</p>}
+            {!hasQF && <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-center mb-1">Final</p>}
             <div className="flex flex-col justify-center flex-1">
               <AdvancedCard
                 slot={bracket.final}

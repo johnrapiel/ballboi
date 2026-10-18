@@ -40,6 +40,13 @@
   --color-destructive-foreground: hsl(var(--destructive-foreground));
   --color-destructive-border: var(--destructive-border);
 
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+  --color-info: hsl(var(--info));
+  --color-info-foreground: hsl(var(--info-foreground));
+
   --color-chart-1: hsl(var(--chart-1));
   --color-chart-2: hsl(var(--chart-2));
   --color-chart-3: hsl(var(--chart-3));
@@ -83,11 +90,11 @@
   --ink-navy:          #1A2744;
   --ink-navy-mid:      #2E3F6B;
   --teal-ace:          #00B4A0;
-  --teal-ace-deep:     #008F7E;
+  --teal-ace-deep:     #00766A; /* AA: 4.87:1 on cream */
   --teal-ace-pale:     #D0F3EE;
   --clay-tan:          #C8A882;
   --clay-tan-pale:     #EDD9C0;
-  --warm-gray:         #8C8780;
+  --warm-gray:         #67625A; /* AA: 5.33:1 on cream */
   --fault-red:         #D94F3D;
   --fault-red-pale:    #FBDDD9;
   --match-green:       #3BAF78;
@@ -119,7 +126,7 @@
   --foreground:          222 45% 18%;  /* ink-navy */
   --border:              40 15% 85%;
   --input:               40 15% 82%;
-  --ring:                174 100% 35%; /* teal-ace */
+  --ring:                174 100% 23%; /* teal-ace-deep */
 
   --card:                0 0% 100%;    /* net-white */
   --card-foreground:     222 45% 18%;
@@ -129,22 +136,30 @@
   --popover-foreground:  222 45% 18%;
   --popover-border:      40 15% 88%;
 
-  --primary:             174 100% 35%; /* teal-ace */
+  --primary:             174 100% 23%; /* teal-ace-deep: 5.53:1 with white, 4.87:1 as text on cream */
   --primary-foreground:  0 0% 100%;
 
   --secondary:           222 40% 30%;  /* ink-navy-mid */
   --secondary-foreground: 0 0% 100%;
 
   --muted:               40 29% 90%;   /* court-ivory */
-  --muted-foreground:    35 5% 53%;    /* warm-gray */
+  --muted-foreground:    37 7% 38%;    /* warm-gray, AA */
 
   --accent:              40 29% 90%;
   --accent-foreground:   222 45% 18%;
 
-  --destructive:         6 63% 54%;    /* fault-red */
+  --destructive:         7 64% 42%;    /* fault-red-deep, AA */
+
+  /* Status colors (AA as text on cream, white, and their own 15% tints) */
+  --warning:             39 100% 27%;
+  --warning-foreground:  0 0% 100%;
+  --success:             152 61% 27%;
+  --success-foreground:  0 0% 100%;
+  --info:                217 64% 40%;
+  --info-foreground:     0 0% 100%;
   --destructive-foreground: 0 0% 100%;
 
-  --chart-1:             174 100% 35%;
+  --chart-1:             174 100% 23%;
   --chart-2:             222 40% 30%;
   --chart-3:             149 49% 46%;
   --chart-4:             35 38% 65%;
@@ -153,11 +168,11 @@
   --sidebar:             0 0% 100%;
   --sidebar-foreground:  222 45% 18%;
   --sidebar-border:      40 15% 88%;
-  --sidebar-primary:     174 100% 35%;
+  --sidebar-primary:     174 100% 23%;
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent:      40 29% 90%;
   --sidebar-accent-foreground:  222 45% 18%;
-  --sidebar-ring:        174 100% 35%;
+  --sidebar-ring:        174 100% 23%;
 
   --app-font-sans:   'DM Sans', sans-serif;
   --app-font-serif:  'Playfair Display', serif;
@@ -197,7 +212,7 @@
   --bg-subtle:      #1E2840;
   --bg-invert:      var(--court-cream);
   --text-primary:   #EEE9DF;
-  --text-secondary: #7A8BA8;
+  --text-secondary: #8A99B5; /* AA on all dark surfaces */
   --text-invert:    var(--ink-navy);
   --text-accent:    var(--teal-ace);
   --border-base:    rgba(255, 255, 255, 0.07);
@@ -224,20 +239,27 @@
   --primary:             174 100% 35%;
   --primary-foreground:  218 35% 9%;
 
-  --secondary:           217 19% 57%;
+  --secondary:           219 23% 63%;
   --secondary-foreground: 218 35% 9%;
 
   --muted:               218 33% 18%;  /* #1E2840 */
-  --muted-foreground:    217 19% 57%;  /* #7A8BA8 */
+  --muted-foreground:    219 23% 63%;  /* #8A99B5, AA */
 
   --accent:              218 33% 18%;
   --accent-foreground:   40 24% 89%;
 
-  --destructive:         6 63% 54%;
-  --destructive-foreground: 40 24% 89%;
+  --destructive:         6 82% 71%;
+  --destructive-foreground: 218 35% 9%;
+
+  --warning:             42 86% 63%;
+  --warning-foreground:  218 35% 9%;
+  --success:             151 50% 53%;
+  --success-foreground:  218 35% 9%;
+  --info:                217 72% 73%;
+  --info-foreground:     218 35% 9%;
 
   --chart-1:             174 100% 35%;
-  --chart-2:             217 19% 57%;
+  --chart-2:             219 23% 63%;
   --chart-3:             149 49% 46%;
   --chart-4:             35 38% 65%;
   --chart-5:             6 63% 54%;
@@ -338,7 +360,7 @@
   input:focus,
   select:focus,
   textarea:focus {
-    border-color: var(--teal-ace);
+    border-color: hsl(var(--ring));
     box-shadow: 0 0 0 3px rgba(0, 180, 160, 0.15);
   }
 
@@ -679,5 +701,15 @@
   }
   .icon-btn:hover {
     background: var(--bg-base);
+  }
+}
+
+/* Respect iOS/macOS Reduce Motion (WCAG 2.3.3, Apple HIG) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

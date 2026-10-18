@@ -10,11 +10,11 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 function skillBadge(level: string) {
-  if (level === "5.0") return "bg-yellow-400/15 text-yellow-400 border border-yellow-400/25";
-  if (level === "4.5") return "bg-amber-400/15 text-amber-400 border border-amber-400/25";
+  if (level === "5.0") return "bg-secondary text-secondary-foreground border border-secondary";
+  if (level === "4.5") return "bg-warning/15 text-warning border border-warning/25";
   if (level === "4.0") return "bg-primary/15 text-primary border border-primary/25";
-  if (level === "3.5") return "bg-blue-400/15 text-blue-400 border border-blue-400/25";
-  if (level === "3.0") return "bg-green-400/15 text-green-400 border border-green-400/25";
+  if (level === "3.5") return "bg-info/15 text-info border border-info/25";
+  if (level === "3.0") return "bg-success/15 text-success border border-success/25";
   return "bg-muted text-muted-foreground border border-border";
 }
 
@@ -114,16 +114,16 @@ export default function Players() {
                           {player.name}
                         </Link>
                         {player.dominantHand === "left" && (
-                          <span className="ml-2 text-[10px] text-muted-foreground/60">(L)</span>
+                          <span className="ml-2 text-[11px] text-muted-foreground/60">(L)</span>
                         )}
                       </td>
                       <td className="px-4 py-3.5 text-center hidden sm:table-cell">
-                        <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider", skillBadge(player.skillLevel))}>
+                        <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider", skillBadge(player.skillLevel))}>
                           {player.skillLevel}
                         </span>
                       </td>
                       <td className="px-4 py-3.5 text-center text-primary font-bold tabular-nums">{player.wins}</td>
-                      <td className="px-4 py-3.5 text-center text-red-400 font-medium tabular-nums">{player.losses}</td>
+                      <td className="px-4 py-3.5 text-center text-destructive font-medium tabular-nums">{player.losses}</td>
                       <td className="px-4 py-3.5 hidden md:table-cell">
                         <div className="flex items-center gap-2">
                           <div className="flex-1 bg-muted rounded-full h-1.5 max-w-[80px]">

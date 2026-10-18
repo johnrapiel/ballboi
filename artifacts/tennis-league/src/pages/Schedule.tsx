@@ -27,8 +27,8 @@ type FormData = z.infer<typeof schema>;
 
 function statusBadge(status: string) {
   if (status === "completed") return "bg-primary/10 text-primary border border-primary/20";
-  if (status === "scheduled") return "bg-blue-400/10 text-blue-400 border border-blue-400/20";
-  return "bg-red-400/10 text-red-400 border border-red-400/20";
+  if (status === "scheduled") return "bg-info/10 text-info border border-info/20";
+  return "bg-destructive/10 text-destructive border border-destructive/20";
 }
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -119,21 +119,21 @@ export default function Schedule() {
         </div>
         <div className="flex items-center gap-4 px-5 py-2 border-b border-border bg-muted/20">
           <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-blue-400" />
-            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Scheduled</span>
+            <div className="w-2 h-2 rounded-full bg-info" />
+            <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Scheduled</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full bg-primary" />
-            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Completed</span>
+            <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Completed</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-red-400" />
-            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Cancelled</span>
+            <div className="w-2 h-2 rounded-full bg-destructive" />
+            <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Cancelled</span>
           </div>
         </div>
         <div className="grid grid-cols-7">
           {DAYS.map((d) => (
-            <div key={d} className="text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wider py-2.5 border-b border-border">
+            <div key={d} className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-2.5 border-b border-border">
               {d}
             </div>
           ))}
@@ -171,13 +171,13 @@ export default function Schedule() {
                         className={cn(
                           "w-1.5 h-1.5 rounded-full shrink-0",
                           m.status === "completed" ? "bg-primary" :
-                          m.status === "scheduled" ? "bg-blue-400" :
-                          "bg-red-400"
+                          m.status === "scheduled" ? "bg-info" :
+                          "bg-destructive"
                         )}
                       />
                     ))}
                     {dayMatches.length > 4 && (
-                      <span className="text-[8px] text-muted-foreground leading-none self-center">+{dayMatches.length - 4}</span>
+                      <span className="text-[11px] text-muted-foreground leading-none self-center">+{dayMatches.length - 4}</span>
                     )}
                   </div>
                 )}
@@ -188,19 +188,19 @@ export default function Schedule() {
                       key={m.id}
                       href={`/matches/${m.id}`}
                       className={cn(
-                        "block text-[10px] font-medium px-1 py-0.5 rounded truncate leading-tight transition-opacity hover:opacity-80",
+                        "block text-[11px] font-medium px-1 py-0.5 rounded truncate leading-tight transition-opacity hover:opacity-80",
                         m.status === "completed"
                           ? "bg-primary/15 text-primary"
                           : m.status === "scheduled"
-                          ? "bg-blue-400/15 text-blue-400"
-                          : "bg-red-400/15 text-red-400"
+                          ? "bg-info/15 text-info"
+                          : "bg-destructive/15 text-destructive"
                       )}
                     >
                       {m.player1Name.split(" ")[0]} v {m.player2Name.split(" ")[0]}
                     </Link>
                   ))}
                   {dayMatches.length > 2 && (
-                    <div className="text-[10px] text-muted-foreground/60 pl-1">+{dayMatches.length - 2} more</div>
+                    <div className="text-[11px] text-muted-foreground/60 pl-1">+{dayMatches.length - 2} more</div>
                   )}
                 </div>
               </div>
@@ -242,7 +242,7 @@ export default function Schedule() {
                         {match.scheduledAt && (
                           <>
                             <div className="text-xs font-bold text-primary">{new Date(match.scheduledAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
-                            <div className="text-[10px] text-muted-foreground">{new Date(match.scheduledAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</div>
+                            <div className="text-[11px] text-muted-foreground">{new Date(match.scheduledAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</div>
                           </>
                         )}
                       </div>
@@ -255,7 +255,7 @@ export default function Schedule() {
                           {match.location && <span> · {match.location}</span>}
                         </div>
                       </div>
-                      <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0", statusBadge(match.status))}>
+                      <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0", statusBadge(match.status))}>
                         {match.status}
                       </span>
                     </Link>

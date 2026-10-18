@@ -7,18 +7,18 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 function skillBadge(level: string) {
-  if (level === "5.0") return "bg-yellow-400/15 text-yellow-400 border border-yellow-400/25";
-  if (level === "4.5") return "bg-amber-400/15 text-amber-400 border border-amber-400/25";
+  if (level === "5.0") return "bg-secondary text-secondary-foreground border border-secondary";
+  if (level === "4.5") return "bg-warning/15 text-warning border border-warning/25";
   if (level === "4.0") return "bg-primary/15 text-primary border border-primary/25";
-  if (level === "3.5") return "bg-blue-400/15 text-blue-400 border border-blue-400/25";
-  if (level === "3.0") return "bg-green-400/15 text-green-400 border border-green-400/25";
+  if (level === "3.5") return "bg-info/15 text-info border border-info/25";
+  if (level === "3.0") return "bg-success/15 text-success border border-success/25";
   return "bg-muted text-muted-foreground border border-border";
 }
 
 function statusColor(status: string) {
   if (status === "completed") return "text-primary bg-primary/10";
-  if (status === "scheduled") return "text-blue-400 bg-blue-400/10";
-  return "text-red-400 bg-red-400/10";
+  if (status === "scheduled") return "text-info bg-info/10";
+  return "text-destructive bg-destructive/10";
 }
 
 export default function PlayerDetail() {
@@ -63,7 +63,7 @@ export default function PlayerDetail() {
         <div>
           <h1 className="page-heading text-foreground">{player.name}</h1>
           <div className="flex items-center gap-2 mt-1">
-            <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider border", skillBadge(player.skillLevel))}>
+            <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider border", skillBadge(player.skillLevel))}>
               {player.skillLevel}
             </span>
             <span className="text-xs text-muted-foreground">{player.dominantHand === "left" ? "Left-handed" : "Right-handed"}</span>
@@ -82,14 +82,14 @@ export default function PlayerDetail() {
             { label: "Best Streak", value: `${stats.longestWinStreak}W` },
           ].map(({ label, value, highlight }) => (
             <motion.div key={label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-card-border rounded-lg p-4">
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">{label}</div>
+              <div className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">{label}</div>
               <div className={cn("text-2xl font-extrabold mt-1 tabular-nums", highlight ? "text-primary" : "text-foreground")}>{value}</div>
             </motion.div>
           ))}
           {/* Points card with breakdown tooltip */}
           <div ref={pointsBreakdownRef}>
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-card-border rounded-lg p-4">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Points</div>
+            <div className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Points</div>
             <div className="relative inline-block group mt-1">
               <span
                 className="text-2xl font-extrabold tabular-nums text-foreground underline decoration-dotted decoration-muted-foreground/50 cursor-help"
@@ -193,7 +193,7 @@ export default function PlayerDetail() {
                 >
                   <span className="text-muted-foreground text-xs">{m.completedAt ? new Date(m.completedAt).toLocaleDateString() : ""}</span>
                   <span className="font-medium">{m.score ?? "-"}</span>
-                  <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider", statusColor(m.status))}>{m.status}</span>
+                  <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider", statusColor(m.status))}>{m.status}</span>
                 </Link>
               ))}
             </motion.div>
@@ -225,7 +225,7 @@ export default function PlayerDetail() {
                   data-testid={`recent-match-${m.id}`}
                   className="flex items-center gap-4 px-5 py-3.5 hover:bg-accent/30 transition-colors"
                 >
-                  <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold shrink-0", won ? "bg-primary/15 text-primary" : "bg-red-400/10 text-red-400")}>
+                  <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold shrink-0", won ? "bg-primary/15 text-primary" : "bg-destructive/10 text-destructive")}>
                     {won ? "W" : "L"}
                   </div>
                   <div className="flex-1 min-w-0">

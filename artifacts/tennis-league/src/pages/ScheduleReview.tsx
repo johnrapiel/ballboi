@@ -64,10 +64,10 @@ function StatusBadge({ status }: { status: string }) {
   const cls = status === "confirmed"
     ? "bg-primary/10 text-primary border-primary/20"
     : status === "pending_review"
-    ? "bg-yellow-400/10 text-yellow-400 border-yellow-400/20"
+    ? "bg-warning/10 text-warning border-warning/20"
     : "bg-muted/30 text-muted-foreground border-border";
   return (
-    <span className={cn("text-[10px] font-semibold px-2.5 py-0.5 rounded-full border uppercase tracking-wider", cls)}>
+    <span className={cn("text-[11px] font-semibold px-2.5 py-0.5 rounded-full border uppercase tracking-wider", cls)}>
       {status === "pending_review" ? "Pending Review" : status}
     </span>
   );
@@ -81,8 +81,8 @@ function getSlotCountSummary(slotCount: number) {
   if (slotCount >= RECOMMENDED_SLOT_COUNT) {
     return {
       label: "Strong",
-      badgeClass: "bg-emerald-400/10 text-emerald-300 border-emerald-400/30",
-      barClass: "bg-emerald-400",
+      badgeClass: "bg-success/10 text-success border-success/30",
+      barClass: "bg-success",
       progress,
     };
   }
@@ -90,16 +90,16 @@ function getSlotCountSummary(slotCount: number) {
   if (slotCount >= 3) {
     return {
       label: "Moderate",
-      badgeClass: "bg-yellow-400/10 text-yellow-300 border-yellow-400/30",
-      barClass: "bg-yellow-400",
+      badgeClass: "bg-warning/10 text-warning border-warning/30",
+      barClass: "bg-warning",
       progress,
     };
   }
 
   return {
     label: "Very few",
-    badgeClass: "bg-red-400/10 text-red-300 border-red-400/30",
-    barClass: "bg-red-400",
+    badgeClass: "bg-destructive/10 text-destructive border-destructive/30",
+    barClass: "bg-destructive",
     progress,
   };
 }
@@ -340,7 +340,7 @@ export default function ScheduleReview() {
             ].map(({ label, value }) => (
               <div key={label} className="text-center">
                 <div className="text-xl font-extrabold text-foreground">{value}</div>
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</div>
+                <div className="text-[11px] text-muted-foreground uppercase tracking-wider">{label}</div>
               </div>
             ))}
           </div>
@@ -398,7 +398,7 @@ export default function ScheduleReview() {
                     )}
                   </div>
                   <Link href={`/matches/${match.id}`}
-                    className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full border uppercase tracking-wider bg-blue-400/10 text-blue-400 border-blue-400/20 shrink-0 hover:bg-blue-400/20 transition-colors">
+                    className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full border uppercase tracking-wider bg-info/10 text-info border-info/20 shrink-0 hover:bg-info/20 transition-colors">
                     View
                   </Link>
                 </div>
@@ -447,7 +447,7 @@ export default function ScheduleReview() {
             {missingCount > 0 && (
               <div className="flex items-center gap-2 flex-wrap justify-end">
                 {lastReminder && (
-                  <span className={cn("text-xs", reminderInCooldown ? "text-yellow-400" : "text-muted-foreground")}>
+                  <span className={cn("text-xs", reminderInCooldown ? "text-warning" : "text-muted-foreground")}>
                     Last reminded {formatRelativeTime(lastReminder.sentAt)}
                   </span>
                 )}
@@ -494,7 +494,7 @@ export default function ScheduleReview() {
                         {player.name}
                       </span>
                       {player.skillLevel && (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground shrink-0">
+                        <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground shrink-0">
                           {player.skillLevel}
                         </span>
                       )}
@@ -514,7 +514,7 @@ export default function ScheduleReview() {
                               style={{ width: `${slotSummary.progress}%` }}
                             />
                           </div>
-                          <span className="text-[10px] text-muted-foreground">{slotSummary.label}</span>
+                          <span className="text-[11px] text-muted-foreground">{slotSummary.label}</span>
                         </div>
                       ) : (
                         <span className="text-xs text-muted-foreground italic">Not submitted</span>
