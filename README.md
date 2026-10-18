@@ -1,6 +1,8 @@
 # Ball Boi
 
-Tennis league app: leagues, scheduling, standings, score recording, and Ball Boi match analysis.
+iOS tennis app: find local players, run leagues, and record matches with Ball Boi shot analysis.
+
+Product spec, design system, and App Store checklist live in `docs/`. Start with `CLAUDE.md`.
 
 ## Run locally
 
@@ -32,13 +34,13 @@ pnpm typecheck
 
 ## Known local gaps
 
-- **Video upload and replay** still use Replit's object storage, which only works on Replit. Everything else runs locally. Moving storage to S3 or Cloudflare R2 fixes this.
+- **Video upload** doesn't work locally until the move to Cloudflare R2 lands.
 - **Push notifications** need VAPID keys in `.env` (see `.env.example`).
 
 ## Layout
 
 - `artifacts/api-server`: Express API (`/api/*`)
-- `artifacts/tennis-league`: React + Vite web app
+- `artifacts/tennis-league`: retired web app, slated for removal
 - `artifacts/ml-server`: FastAPI service for Ball Boi analysis
 - `lib/db`: Postgres schema (Drizzle)
 - `lib/api-spec`: OpenAPI spec; generates `lib/api-zod` and `lib/api-client-react`
