@@ -1,4 +1,4 @@
-import { useAuth } from "@clerk/expo";
+import { useAuth, useUser } from "@clerk/expo";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { BlurView } from "expo-blur";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
@@ -10,6 +10,7 @@ import React, { useEffect } from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
+import { isAgeCheckPassed } from "@/lib/ageCheck";
 
 function NativeTabLayout() {
   return (
@@ -94,13 +95,16 @@ function ClassicTabLayout() {
 
 export default function TabLayout() {
   const { isSignedIn, isLoaded, getToken } = useAuth();
+  const { user } = useUser();
 
   useEffect(() => {
     setAuthTokenGetter(() => getToken());
   }, [getToken]);
 
   if (!isLoaded) return null;
-  if (!isSignedIn) return <Redirect href="/(auth)/sign-in" />;
+  if (!isSignedIn) return <Redirect href="/(auth)/welcome" />;
+  if (!user) return null;
+  if (!isAgeCheckPassed(user.unsafeMetadata)) return <Redirect href="/age-check" />;
 
   if (isLiquidGlassAvailable()) {
     return <NativeTabLayout />;

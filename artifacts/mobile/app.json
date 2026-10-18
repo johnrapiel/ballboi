@@ -5,13 +5,13 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
-    "userInterfaceStyle": "dark",
+    "scheme": "ballboi",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/icon.png",
+      "image": "./assets/images/roundel.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0c0d14"
+      "backgroundColor": "#ECDFC8"
     },
     "ios": {
       "supportsTablet": false
@@ -29,7 +29,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#0c0d14",
+          "color": "#0A2447",
           "sounds": []
         }
       ]
