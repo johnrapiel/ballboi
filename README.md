@@ -51,7 +51,7 @@ Match video goes to an S3-compatible bucket, configured with the `S3_*` variable
 ## Known gaps
 
 - **iOS push notifications** need an Expo account and EAS project ID. The rest of the app works without them.
-- **`pnpm typecheck`** may report errors carried over from the original build. Check that a change doesn't add new ones.
+- **`pnpm typecheck`**: shared libraries, the iOS app, and scripts pass. The API still has 98 type errors carried over from the original build (mostly loose request typing in `routes/ballBoi.ts`). Check that a change doesn't add new ones.
 
 ## Layout
 
