@@ -179,8 +179,7 @@ router.post("/ball-boi/sessions/:sessionId/upload-url", requireAuth, async (req:
     const [session] = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, sessionId));
     if (!session) return res.status(404).json({ error: "Session not found" });
     if (session.recordedByClerkUserId !== userId) return res.status(403).json({ error: "Forbidden" });
-    const uploadURL = await storage.getObjectEntityUploadURL();
-    const objectPath = storage.normalizeObjectEntityPath(uploadURL);
+    const { uploadURL, objectPath } = await storage.createUploadURL();
     res.json({ uploadURL, objectPath });
   } catch (err) {
     logger.error({ err }, "Failed to create Ball Boi upload URL");
