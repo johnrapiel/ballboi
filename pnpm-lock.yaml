@@ -149,7 +149,10 @@ importers:
       '@clerk/expo':
         specifier: ^4.0.0
         version: 4.12.0(@types/react@19.3.0)(expo-auth-session@58.0.12(expo@58.0.10)(react-native@0.88.0(@babel/core@7.29.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@5.9.3))(expo-constants@58.0.12)(expo-crypto@58.0.6(expo@58.0.10))(expo-secure-store@58.0.2(expo@58.0.10))(expo-web-browser@58.0.6(expo@58.0.10)(react-native@0.88.0(@babel/core@7.29.0)(@types/react@19.3.0)(react@19.3.0)))(expo@58.0.10)(react-dom@19.3.0(react@19.3.0))(react-native@0.88.0(@babel/core@7.29.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@5.9.3)(use-sync-external-store@1.6.0(react@19.3.0))(zod@3.25.76)
-      '@expo-google-fonts/inter':
+      '@expo-google-fonts/cormorant-garamond':
+        specifier: ^0.4.0
+        version: 0.4.1
+      '@expo-google-fonts/dm-sans':
         specifier: ^0.4.0
         version: 0.4.2
       '@expo/ngrok':
@@ -1129,8 +1132,11 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@expo-google-fonts/inter@0.4.2':
-    resolution: {integrity: sha512-syfiImMaDmq7cFi0of+waE2M4uSCyd16zgyWxdPOY7fN2VBmSLKEzkfbZgeOjJq61kSqPBNNtXjggiQiSD6gMQ==}
+  '@expo-google-fonts/cormorant-garamond@0.4.1':
+    resolution: {integrity: sha512-e8J4Cn13K1txygamg50n3odLUsYP7Ck28XOGobMi7uDsWvFmp/jgK0qcALqJTlmi9NczSWUNdERxcLauHCBa/Q==}
+
+  '@expo-google-fonts/dm-sans@0.4.2':
+    resolution: {integrity: sha512-e/fLH5aCJzkEenz7axvEn8N7IJAKhUwNjIxS75h9j+Ip1M9S7d22M19gJN3A7QW4egVkBJRyQh1hQFhngQn9yA==}
 
   '@expo-google-fonts/material-symbols@0.4.50':
     resolution: {integrity: sha512-XNSgSfd+1p6wqRAzzhrckGngHJQ1/z+oCMdI5FN+x/VnDeMMFGkXsuRNPYcZTYYff1GwVwx4u6Gqnb30aALysw==}
@@ -6370,7 +6376,9 @@ snapshots:
   '@esbuild/win32-x64@0.27.3':
     optional: true
 
-  '@expo-google-fonts/inter@0.4.2': {}
+  '@expo-google-fonts/cormorant-garamond@0.4.1': {}
+
+  '@expo-google-fonts/dm-sans@0.4.2': {}
 
   '@expo-google-fonts/material-symbols@0.4.50': {}
 
