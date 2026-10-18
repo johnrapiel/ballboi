@@ -1,32 +1,30 @@
 # Ball Boi
 
-Tennis league app: leagues, scheduling, standings, score recording, and Ball Boi match analysis.
+iOS tennis app: find local players, run leagues, and record matches with Ball Boi shot analysis.
+
+Start with `CLAUDE.md`. The product spec, design system, and App Store checklist live in `docs/`.
 
 ## Run locally
 
-You need Node 22+, pnpm 10, and Docker Desktop.
+You need Node 22+, pnpm 10, Docker Desktop, and the Expo Go app on your iPhone.
 
 ```sh
 pnpm install
 cp .env.example .env      # then add your Clerk development keys
 pnpm db:up                # starts Postgres and S3 storage (SeaweedFS) in Docker, creates the bucket
 pnpm db:push              # creates the tables (first run, and after schema changes)
-pnpm dev                  # API on :8080, app on :5173
+pnpm dev                  # API on :8080
 ```
 
-Open http://localhost:5173. Sign up, and use the email you set as `ADMIN_EMAIL` to get admin access.
-
-### iOS app (Expo Go on your iPhone)
-
-Install **Expo Go** from the App Store. Your iPhone and Mac must be on the same network. With `pnpm dev` running in another terminal:
+In a second terminal:
 
 ```sh
 pnpm dev:mobile           # prints a QR code; scan it with the iPhone camera
 ```
 
-The script points the app at this Mac's network address, because the phone can't reach `localhost`. If the phone can't connect, allow incoming connections for Node in macOS's firewall settings. Video replay on the phone also needs `S3_ENDPOINT` set to the Mac's address (e.g. `http://192.168.1.20:8333`) instead of `localhost`.
+Your iPhone and Mac must be on the same network. The script points the app at this Mac's network address, because the phone can't reach `localhost`. If the phone can't connect, allow incoming connections for Node in macOS's firewall settings.
 
-In Clerk, enable the Native API for your instance and turn on email + password sign-in.
+In Clerk, enable the Native API for your instance.
 
 Optional, for Ball Boi video analysis (needs Python 3.10+; macOS's built-in `python3` is too old):
 
@@ -48,22 +46,19 @@ cd artifacts/ml-server && .venv/bin/python -m pytest tests
 
 ## Video storage
 
-Ball Boi videos go to any S3-compatible bucket, configured with the `S3_*` variables in `.env`. Locally that's the SeaweedFS container. Browsers and the iOS app upload and play video through presigned URLs, so in production the bucket needs a CORS rule that allows `GET` and `PUT` from the web app's origin. For Cloudflare R2, set `S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com` and `S3_REGION=auto`. For AWS S3, leave `S3_ENDPOINT` empty.
+Match video goes to an S3-compatible bucket, configured with the `S3_*` variables in `.env`: SeaweedFS locally, Cloudflare R2 in production (`S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com`, `S3_REGION=auto`). Video is input to shot analysis only and is never played back in the app.
 
-Videos recorded on Replit are still in Replit's bucket. The database stores paths like `/objects/uploads/<id>`, which map to the key `uploads/<id>` in the new bucket. Copy those objects over to keep old replays working.
-
-## Known local gaps
+## Known gaps
 
 - **iOS push notifications** need an Expo account and EAS project ID. The rest of the app works without them.
-- **Push notifications** need VAPID keys in `.env` (see `.env.example`). Without them the app runs and skips sending.
-- **`pnpm typecheck`** fails on errors that came over from Replit (duplicate exports in `lib/api-zod`, plus type errors in the API and web packages). Tests and builds pass.
+- **`pnpm typecheck`** may report errors carried over from the original build. Check that a change doesn't add new ones.
 
 ## Layout
 
-- `artifacts/api-server`: Express API (`/api/*`)
-- `artifacts/tennis-league`: React + Vite web app
 - `artifacts/mobile`: Expo (SDK 58) iOS app
+- `artifacts/api-server`: Express API (`/api/*`)
 - `artifacts/ml-server`: FastAPI service for Ball Boi analysis
 - `lib/db`: Postgres schema (Drizzle)
 - `lib/api-spec`: OpenAPI spec; generates `lib/api-zod` and `lib/api-client-react`
 - `scripts/migrations`: SQL migrations, applied automatically when the API starts
+- `docs/`: product spec, design system, App Store checklist, backend notes

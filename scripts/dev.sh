@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs the API server and web app together for local development.
+# Runs the API server for local development. Start the iOS app with: pnpm dev:mobile
 # Usage: pnpm dev
 set -e
 cd "$(dirname "$0")/.."
@@ -14,15 +14,12 @@ set -a
 set +a
 
 API_PORT="${API_PORT:-8080}"
-WEB_PORT="${WEB_PORT:-5173}"
 
 trap 'kill 0' INT TERM EXIT
 
 PORT="$API_PORT" pnpm --filter @workspace/api-server run dev &
-PORT="$WEB_PORT" BASE_PATH=/ API_PORT="$API_PORT" pnpm --filter @workspace/tennis-league run dev &
 
 echo ""
-echo "  App: http://localhost:$WEB_PORT"
 echo "  API: http://localhost:$API_PORT/api"
 echo ""
 wait

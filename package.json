@@ -7,7 +7,6 @@
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
-    "db:sync-prod": "node scripts/sync-prod-snapshot.mjs",
     "db:up": "docker compose up -d --wait && pnpm run storage:setup",
     "storage:setup": "sh scripts/with-env.sh node scripts/setup-storage.mjs",
     "db:down": "docker compose down",
@@ -15,7 +14,7 @@
     "dev": "sh scripts/dev.sh",
     "dev:mobile": "sh scripts/dev-mobile.sh",
     "dev:ml": "sh scripts/with-env.sh sh -c 'cd artifacts/ml-server && PY=python3 && [ -x .venv/bin/python ] && PY=.venv/bin/python; PORT=8000 $PY main.py'",
-    "test": "pnpm --filter @workspace/api-server test && pnpm --filter @workspace/tennis-league test"
+    "test": "pnpm --filter @workspace/api-server test"
   },
   "private": true,
   "devDependencies": {
