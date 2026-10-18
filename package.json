@@ -14,7 +14,8 @@
     "dev": "sh scripts/dev.sh",
     "dev:mobile": "sh scripts/dev-mobile.sh",
     "dev:ml": "sh scripts/with-env.sh sh -c 'cd artifacts/ml-server && PY=python3 && [ -x .venv/bin/python ] && PY=.venv/bin/python; PORT=8000 $PY main.py'",
-    "test": "pnpm --filter @workspace/api-server test"
+    "test": "node scripts/check-contrast.mjs && pnpm --filter @workspace/api-server test",
+    "tokens": "node scripts/sync-design-tokens.mjs"
   },
   "private": true,
   "devDependencies": {

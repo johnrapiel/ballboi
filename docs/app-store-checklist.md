@@ -30,7 +30,7 @@ _Last updated: 2026-10-18. Synced with the launch-blocking items in `docs/produc
 | VoiceOver labels on icon buttons, charts, heatmap, replay controls | HIG / WCAG 1.1.1, 4.1.2 | 🟡 | Done for built screens; replay/heatmap not built yet |
 | 44×44pt minimum tap targets | HIG / WCAG 2.5.8 | 🟡 | `MIN_TAP` enforced in shared Button |
 | Reduce Motion respected | HIG / WCAG 2.3.3 | 🟡 | Web: global CSS guard added. Also applies to the replay animation |
-| Design system applied | HIG, WCAG 1.4.3 | ❌ | iOS tokens move from the old Ink Navy / Court Cream / Teal Ace palette to the Ball Boi design system (Paper, Linen, Ink, Pool, Clay; Cormorant Garamond + DM Sans). See `CLAUDE.md` |
+| Design system applied | HIG, WCAG 1.4.3 | 🟡 | Tokens generated from `docs/design-system/tokens.json` (`pnpm tokens`); app palette and fonts switched to Paper, Linen, Ink, Pool, Clay, DM Sans, and Cormorant Garamond; core components in `components/ui.tsx`. Screens restyle as each flow is rebuilt |
 
 ## 2. Backend readiness
 
@@ -121,7 +121,7 @@ The web-app rows below were completed in PR #2 before the web app was retired. T
 
 | Item | Criterion | Status | Notes |
 |---|---|---|---|
-| Light-mode text contrast ≥ 4.5:1 | 1.4.3 | 🟡 | Web done in PR #2. Native: every pair in the design system clears 4.5:1 in both themes |
+| Text contrast ≥ 4.5:1, borders and focus ≥ 3:1 | 1.4.3, 1.4.11 | ✅ | `scripts/check-contrast.mjs` checks 40 token pairs in Day and Night on every `pnpm test`. Day `hairline-strong` raised to 0.52 opacity to reach 3:1 |
 | Primary button contrast | 1.4.3 | 🟡 | Native primary is `ink` on `paper` with `on-ink` text |
 | Status colors (warning/success/info/error) | 1.4.3 | 🟡 | Design system uses `pool`, `clay`, `danger`; `sun` is never text |
 | Focus indicator contrast ≥ 3:1 | 1.4.11 | 🟡 | `focus` token = `pool`, 2px ring |

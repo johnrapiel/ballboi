@@ -84,7 +84,7 @@ function MatchCard({
     dateText: {
       fontSize: 13,
       color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
     badges: {
       flexDirection: "row",
@@ -98,7 +98,7 @@ function MatchCard({
     badgeText: {
       fontSize: 12,
       fontWeight: "600" as const,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     ballBoiBadge: {
       backgroundColor: colors.primary + "22",
@@ -109,12 +109,12 @@ function MatchCard({
       color: colors.primary,
     },
     completedBadge: {
-      backgroundColor: "#16a34a22",
+      backgroundColor: colors.pool + "22",
       borderWidth: 1,
-      borderColor: "#16a34a55",
+      borderColor: colors.pool + "55",
     },
     completedBadgeText: {
-      color: "#22c55e",
+      color: colors.pool,
     },
     scheduledBadge: {
       backgroundColor: colors.muted,
@@ -135,17 +135,17 @@ function MatchCard({
       fontSize: 15,
       fontWeight: "600" as const,
       color: colors.foreground,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     vsText: {
       fontSize: 13,
       color: colors.mutedForeground,
-      fontFamily: "Inter_500Medium",
+      fontFamily: "DMSans_500Medium",
     },
     score: {
       fontSize: 14,
       color: colors.mutedForeground,
-      fontFamily: "Inter_500Medium",
+      fontFamily: "DMSans_500Medium",
       marginTop: 4,
     },
     replayRow: {
@@ -161,7 +161,7 @@ function MatchCard({
       fontSize: 13,
       color: colors.primary,
       fontWeight: "600" as const,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
   });
 
@@ -235,14 +235,14 @@ function EmptyState({ colors }: { colors: ReturnType<typeof useColors> }) {
       color: colors.foreground,
       marginBottom: 8,
       textAlign: "center",
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     subtitle: {
       fontSize: 14,
       color: colors.mutedForeground,
       textAlign: "center",
       lineHeight: 20,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
   });
   return (
@@ -311,13 +311,13 @@ export default function MatchesScreen() {
       fontSize: 22,
       fontWeight: "700" as const,
       color: colors.foreground,
-      fontFamily: "Inter_700Bold",
+      fontFamily: "DMSans_700Bold",
     },
     headerSubtitle: {
       fontSize: 13,
       color: colors.mutedForeground,
       marginTop: 4,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
     loadingContainer: {
       flex: 1,

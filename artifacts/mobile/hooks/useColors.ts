@@ -3,16 +3,9 @@ import { useColorScheme } from "react-native";
 import colors from "@/constants/colors";
 
 /**
- * Returns the design tokens for the current color scheme.
- *
- * The returned object contains all color tokens for the active palette
- * plus scheme-independent values like `radius`.
- *
- * Falls back to the light palette when no dark key is defined in
- * constants/colors.ts (the scaffold ships light-only by default).
- * When a sibling web artifact's dark tokens are synced into a `dark`
- * key, this hook will automatically switch palettes based on the
- * device's appearance setting.
+ * Returns the Ball Boi design system colors for the device's appearance:
+ * Day session (light) or Night session (dark). Includes the design system
+ * names (paper, ink, pool...) plus legacy keys for screens not yet rebuilt.
  */
 export function useColors() {
   const scheme = useColorScheme();

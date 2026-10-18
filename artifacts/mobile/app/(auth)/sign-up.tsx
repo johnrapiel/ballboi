@@ -82,27 +82,27 @@ export default function SignUpScreen() {
       fontSize: 22,
       fontWeight: "700" as const,
       color: colors.foreground,
-      fontFamily: "Inter_700Bold",
+      fontFamily: "DMSans_700Bold",
     },
     heading: {
       fontSize: 28,
       fontWeight: "700" as const,
       color: colors.foreground,
       marginBottom: 8,
-      fontFamily: "Inter_700Bold",
+      fontFamily: "DMSans_700Bold",
     },
     subheading: {
       fontSize: 15,
       color: colors.mutedForeground,
       marginBottom: 32,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
     label: {
       fontSize: 13,
       fontWeight: "600" as const,
       color: colors.foreground,
       marginBottom: 8,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     inputRow: {
       flexDirection: "row",
@@ -119,7 +119,7 @@ export default function SignUpScreen() {
       paddingVertical: 14,
       fontSize: 15,
       color: colors.foreground,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
     eyeBtn: {
       padding: 14,
@@ -128,7 +128,7 @@ export default function SignUpScreen() {
       fontSize: 13,
       color: colors.destructive,
       marginBottom: 8,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
     btn: {
       backgroundColor: colors.primary,
@@ -144,7 +144,7 @@ export default function SignUpScreen() {
       fontSize: 16,
       fontWeight: "700" as const,
       color: colors.primaryForeground,
-      fontFamily: "Inter_700Bold",
+      fontFamily: "DMSans_700Bold",
     },
     linkRow: {
       flexDirection: "row",
@@ -155,13 +155,13 @@ export default function SignUpScreen() {
     linkText: {
       fontSize: 14,
       color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
     link: {
       fontSize: 14,
       color: colors.primary,
       fontWeight: "600" as const,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
   });
 

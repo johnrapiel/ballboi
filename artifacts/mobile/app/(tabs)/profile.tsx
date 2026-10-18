@@ -185,7 +185,7 @@ export default function ProfileScreen() {
       fontSize: 22,
       fontWeight: "700" as const,
       color: colors.foreground,
-      fontFamily: "Inter_700Bold",
+      fontFamily: "DMSans_700Bold",
     },
     scroll: {
       flex: 1,
@@ -213,7 +213,7 @@ export default function ProfileScreen() {
       fontSize: 28,
       fontWeight: "700" as const,
       color: colors.primaryForeground,
-      fontFamily: "Inter_700Bold",
+      fontFamily: "DMSans_700Bold",
     },
     userInfo: {
       flex: 1,
@@ -222,13 +222,13 @@ export default function ProfileScreen() {
       fontSize: 18,
       fontWeight: "700" as const,
       color: colors.foreground,
-      fontFamily: "Inter_700Bold",
+      fontFamily: "DMSans_700Bold",
     },
     userEmail: {
       fontSize: 14,
       color: colors.mutedForeground,
       marginTop: 4,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
     section: {
       marginBottom: 24,
@@ -240,7 +240,7 @@ export default function ProfileScreen() {
       letterSpacing: 0.8,
       textTransform: "uppercase",
       marginBottom: 12,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
     card: {
       backgroundColor: colors.card,
@@ -270,12 +270,12 @@ export default function ProfileScreen() {
       flex: 1,
       fontSize: 15,
       color: colors.foreground,
-      fontFamily: "Inter_500Medium",
+      fontFamily: "DMSans_500Medium",
     },
     rowSubtext: {
       fontSize: 13,
       color: colors.mutedForeground,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "DMSans_400Regular",
     },
     signOutBtn: {
       backgroundColor: colors.destructive + "22",
@@ -293,7 +293,7 @@ export default function ProfileScreen() {
       fontSize: 15,
       fontWeight: "600" as const,
       color: colors.destructive,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "DMSans_600SemiBold",
     },
   });
 
