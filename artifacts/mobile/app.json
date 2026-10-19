@@ -41,6 +41,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "75bc5ac9-dfef-4a20-8677-b19f8851eff0"
+      }
+    },
+    "owner": "ballbois-team"
   }
 }
