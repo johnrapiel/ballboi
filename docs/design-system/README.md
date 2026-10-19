@@ -70,7 +70,9 @@ Thin 1.5px line icons, round caps, drawn in `ink`. Lucide at stroke-width 1.5 is
 
 ## Logo
 
-The roundel (`assets/Logos/ball-boi-roundel.png`) is the mark. Show it on `paper` or `linen` only, at 40px minimum. In the nav, crop to the circle at 52px. Do not recolor, outline or place it on photos.
+The roundel is the mark. The master file is `artifacts/mobile/assets/images/roundel.png` (1024×1024, the original upload, also in the design system artifact under Logos). Show it on `paper` or `linen` only, at 40px minimum. In the nav, crop to the circle at 52px. Do not recolor, outline or place it on photos.
+
+Always use it with its watercolor paper texture. Never cut the brush out onto a transparent or flat background, never redraw it, and never upscale a smaller copy. Where the texture meets a flat fill (the splash screen, a site background), use `#E2CEB0`, the paper's median color.
 
 ## Applying it to the app
 
