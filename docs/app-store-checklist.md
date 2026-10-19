@@ -14,7 +14,7 @@ _Last updated: 2026-10-18. Synced with the launch-blocking items in `docs/produc
 | Item | Guideline | Status | Notes |
 |---|---|---|---|
 | Native stack: Expo SDK 58 (`artifacts/ios-app`) | 4.2 Minimum Functionality | 🟡 | Scaffolded: auth, tabs, Ball Boi recorder |
-| Built with Xcode 26 / iOS 26 SDK | Required since Apr 28, 2026 | 🟡 | EAS `production` profile uses latest image |
+| Built with Xcode 26 / iOS 26 SDK | Required since Apr 28, 2026 | 🟡 | `artifacts/mobile/eas.json` `production` profile uses the latest build image. Confirm on the first production build |
 | Age gate at onboarding | Age rating, 1.2 | ❌ | Declared Age Range API, self-attested birth date fallback. Under 18s see "Ball Boi is 18+ for now" and no account is created. Store only a pass/fail flag |
 | Native camera capture for Ball Boi | 4.2, 2.5 | 🟡 | expo-camera recorder, rear camera, no corner tapping. Background upload tracked below |
 | Match-first recording and Quick match | 2.1, 4.2 | ❌ | Every recording starts from a match. "Record with Ball Boi" is the primary action on a singles match card on match day; Enter score takes over once played. Ball Boi tab's "Record a match" lists today's matches, then Quick match: format first (singles default), then any opponent. Non-users become placeholders with an invite link; solo controls; nothing counts toward standings until they join |

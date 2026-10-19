@@ -6,7 +6,7 @@ Start with `CLAUDE.md`. The product spec, design system, and App Store checklist
 
 ## Run locally
 
-You need Node 22+, pnpm 10, Docker Desktop, and the Expo Go app on your iPhone.
+You need Node 22+, pnpm 10, Docker Desktop, and the Ball Boi development build on your iPhone (see "Install Ball Boi on your iPhone" below). The App Store's Expo Go app can't run Ball Boi: it lacks Sign in with Apple, push, and the native modules the app needs.
 
 ```sh
 pnpm install
@@ -19,7 +19,7 @@ pnpm dev                  # API on :8080
 In a second terminal:
 
 ```sh
-pnpm dev:mobile           # prints a QR code; scan it with the iPhone camera
+pnpm dev:mobile           # starts Metro; open the Ball Boi dev build on your iPhone
 ```
 
 Your iPhone and Mac must be on the same network. The script points the app at this Mac's network address, because the phone can't reach `localhost`. If the phone can't connect, allow incoming connections for Node in macOS's firewall settings.
@@ -35,6 +35,25 @@ pnpm dev:ml               # ML server on :8000; uses the .venv if present
 ```
 
 `ultralytics` and `mediapipe` improve detection but are optional and large; see `artifacts/ml-server/requirements.txt`.
+
+## Install Ball Boi on your iPhone
+
+Ball Boi runs as a development build: your own copy of the app, built by EAS in the cloud. You need a paid Apple Developer account and a free Expo account. Do this once, then again only when native code or `app.json` changes.
+
+```sh
+pnpm add -g eas-cli
+eas login                 # your Expo account
+cd artifacts/mobile
+eas init                  # links the app to your Expo account (first time only)
+eas device:create         # open the link on your iPhone and install the profile
+eas build --profile development --platform ios
+```
+
+When the build asks, sign in with your Apple ID and let EAS manage certificates. When it finishes, scan the QR code with the iPhone camera and install. Then turn on Developer Mode (Settings > Privacy & Security > Developer Mode) and restart the phone.
+
+After that, `pnpm dev:mobile` and open Ball Boi on the phone. JavaScript changes reload instantly.
+
+For the iOS Simulator instead of a phone: `eas build --profile development-simulator --platform ios`.
 
 ## Tests
 

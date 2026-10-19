@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Ball Boi",
-    "slug": "mobile",
+    "slug": "ballboi",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/roundel.png",
@@ -14,7 +14,11 @@
       "backgroundColor": "#E2CEB0"
     },
     "ios": {
-      "supportsTablet": false
+      "bundleIdentifier": "tennis.ballboi",
+      "supportsTablet": false,
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {},
     "web": {
