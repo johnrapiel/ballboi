@@ -6,12 +6,13 @@ export default function AuthLayout() {
   const { isSignedIn, isLoaded } = useAuth();
 
   if (!isLoaded) return null;
-  if (isSignedIn) return <Redirect href="/(tabs)" />;
+  // Signed-in players continue to the age check, then the app.
+  if (isSignedIn) return <Redirect href="/age-check" />;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="sign-in" />
-      <Stack.Screen name="sign-up" />
+      <Stack.Screen name="welcome" />
+      <Stack.Screen name="email" />
     </Stack>
   );
 }
