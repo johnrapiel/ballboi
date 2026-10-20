@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Ball Boi",
-    "slug": "mobile",
+    "slug": "ballboi",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/roundel.png",
@@ -14,7 +14,11 @@
       "backgroundColor": "#E2CEB0"
     },
     "ios": {
-      "supportsTablet": false
+      "bundleIdentifier": "tennis.ballboi",
+      "supportsTablet": false,
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {},
     "web": {
@@ -37,6 +41,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "75bc5ac9-dfef-4a20-8677-b19f8851eff0"
+      }
+    },
+    "owner": "ballbois-team"
   }
 }

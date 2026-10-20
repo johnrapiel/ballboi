@@ -1,5 +1,5 @@
 #!/bin/sh
-# Starts Metro for the Expo app so Expo Go on a phone (same Wi-Fi/network) can load it.
+# Starts Metro so the Ball Boi development build on a phone (same Wi-Fi/network) can load it.
 # Usage: pnpm dev:mobile   (run `pnpm dev` in another terminal for the API)
 set -e
 cd "$(dirname "$0")/.."
@@ -23,6 +23,6 @@ fi
 
 echo ""
 echo "  App will call the API at $EXPO_PUBLIC_API_URL"
-echo "  Scan the QR code below with your iPhone camera to open it in Expo Go."
+echo "  Open the Ball Boi development build on your iPhone; it finds this Mac on the same Wi-Fi."
 echo ""
 exec pnpm --filter @workspace/mobile exec expo start
