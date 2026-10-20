@@ -7,11 +7,15 @@ import {
   ActivityIndicator,
   Pressable,
   Text as RNText,
+  TextInput,
   View,
   type PressableProps,
   type TextProps as RNTextProps,
   type ViewProps,
 } from "react-native";
+
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Circle, G, Rect } from "react-native-svg";
 
 import { useColors } from "@/hooks/useColors";
 import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
@@ -138,5 +142,89 @@ export function Chip({ label, tone = "quiet", style, ...rest }: ChipProps) {
     >
       <RNText style={[type.label, { color: textColor }]}>{label}</RNText>
     </View>
+  );
+}
+
+export interface FieldProps extends React.ComponentProps<typeof TextInput> {
+  /** Visible label, also read by VoiceOver. */
+  label: string;
+  /** Helper or error text under the field. */
+  hint?: string;
+  error?: boolean;
+}
+
+/** Labeled text input: linen well, hairline-strong border (3:1), 48pt tall. */
+export function Field({ label, hint, error = false, style, ...rest }: FieldProps) {
+  const c = useColors();
+  return (
+    <View style={{ gap: spacing.space2 }}>
+      <RNText style={[type.label, { color: c.ink }]} importantForAccessibility="no" accessibilityElementsHidden>
+        {label}
+      </RNText>
+      <TextInput
+        {...rest}
+        accessibilityLabel={label}
+        accessibilityHint={hint}
+        placeholderTextColor={c.inkMuted}
+        style={[
+          type.body,
+          {
+            minHeight: 48,
+            paddingHorizontal: 14,
+            borderRadius: radius.radiusSm,
+            borderWidth: 1,
+            borderColor: error ? c.danger : c.hairlineStrong,
+            backgroundColor: c.linen,
+            color: c.ink,
+          },
+          style,
+        ]}
+      />
+      {hint ? (
+        <RNText style={[type.small, { color: error ? c.danger : c.inkMuted }]} accessibilityLiveRegion={error ? "polite" : "none"}>
+          {hint}
+        </RNText>
+      ) : null}
+    </View>
+  );
+}
+
+/** Page background (paper) with safe-area padding and the page gutter. */
+export function Screen({ style, children, ...rest }: ViewProps) {
+  const c = useColors();
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      {...rest}
+      style={[
+        {
+          flex: 1,
+          backgroundColor: c.paper,
+          paddingTop: insets.top + spacing.space4,
+          paddingBottom: insets.bottom + spacing.space4,
+          paddingHorizontal: spacing.space4,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+/** Cabana awning: navy and linen stripes with a scalloped hem. Decorative. */
+export function Awning({ height = 18 }: { height?: number }) {
+  const c = useColors();
+  const stripe = 14;
+  const count = 40;
+  return (
+    <Svg width="100%" height={height} viewBox={`0 0 ${stripe * count} ${height}`} preserveAspectRatio="xMinYMin slice" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {Array.from({ length: count }, (_, i) => (
+        <G key={i}>
+          <Rect x={i * stripe} y={0} width={stripe} height={height - 7} fill={i % 2 === 0 ? c.ink : c.linen} />
+          <Circle cx={i * stripe + stripe / 2} cy={height - 7} r={stripe / 2} fill={i % 2 === 0 ? c.ink : c.linen} />
+        </G>
+      ))}
+    </Svg>
   );
 }

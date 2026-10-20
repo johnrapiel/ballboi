@@ -5,8 +5,8 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/roundel.png",
-    "scheme": "mobile",
-    "userInterfaceStyle": "dark",
+    "scheme": "ballboi",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/roundel.png",
