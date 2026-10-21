@@ -132,7 +132,7 @@ The web-app rows below were completed in PR #2 before the web app was retired. T
 | Rating badges, admin post labels, reliability not color-only | 1.4.1 | ❌ | Icon + text for Verified vs Self-rated, admin posts in league chat, and "Played 12 · 1 no-show" |
 | Charts have text alternatives | 1.1.1, 1.3.1 | ❌ | One-line text summary for VoiceOver plus an accessible data table on every trend chart |
 | Player card reads as one element | 1.3.1, 4.1.2 | ❌ | e.g. "Alex Kim, 3.5 Verified, 14 and 6, 22 aces this season" |
-| Tab bar labels and badge counts | 1.4.1, 4.1.2 | ❌ | Icon + text label on all five tabs; badge counts read by VoiceOver |
+| Tab bar labels and badge counts | 1.4.1, 4.1.2 | 🟡 | Icon + text label on all five tabs (done: Home, Leagues, Ball Boi, Discover, Messages). Badge counts read by VoiceOver still to do, once tabs have counts |
 | Radius and rating range controls | 2.5.8, 1.4.4 | ❌ | 44×44pt targets, Dynamic Type safe, step count announced |
 | New messages announced to screen readers | 4.1.3 | ❌ | `AccessibilityInfo.announceForAccessibility` on iOS |
 | Message bubbles read sender, text, time in one swipe | 1.3.1, 4.1.2 | ❌ | Group each bubble as one accessible element |

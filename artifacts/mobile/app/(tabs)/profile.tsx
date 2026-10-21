@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { TabScreen } from "@/components/TabHeader";
 import { useColors } from "@/hooks/useColors";
 
 const API_BASE = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
@@ -54,7 +55,6 @@ export default function ProfileScreen() {
   const { user } = useUser();
   const router = useRouter();
 
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
   const [pushEnabled, setPushEnabled] = useState(false);
@@ -174,26 +174,13 @@ export default function ProfileScreen() {
       flex: 1,
       backgroundColor: colors.background,
     },
-    header: {
-      paddingTop: topPad + 16,
-      paddingHorizontal: 20,
-      paddingBottom: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    headerTitle: {
-      fontSize: 22,
-      fontWeight: "700" as const,
-      color: colors.foreground,
-      fontFamily: "DMSans_700Bold",
-    },
     scroll: {
       flex: 1,
     },
     scrollContent: {
       paddingHorizontal: 20,
-      paddingTop: 24,
-      paddingBottom: bottomPad + 20,
+      paddingTop: 8,
+      paddingBottom: bottomPad + 96,
     },
     avatarRow: {
       flexDirection: "row",
@@ -306,10 +293,7 @@ export default function ProfileScreen() {
     : "Player";
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profile</Text>
-      </View>
+    <TabScreen title="Profile">
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -391,6 +375,6 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
       </ScrollView>
-    </View>
+    </TabScreen>
   );
 }

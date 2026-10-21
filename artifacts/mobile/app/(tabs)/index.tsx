@@ -19,6 +19,8 @@ import {
   useGetMyPlayers,
 } from "@workspace/api-client-react";
 
+import { EmptyState } from "@/components/EmptyState";
+import { TabScreen } from "@/components/TabHeader";
 import { useColors } from "@/hooks/useColors";
 
 type Match = {
@@ -212,58 +214,11 @@ function MatchCard({
   );
 }
 
-function EmptyState({ colors }: { colors: ReturnType<typeof useColors> }) {
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      padding: 40,
-    },
-    iconWrap: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      backgroundColor: colors.muted,
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 20,
-    },
-    title: {
-      fontSize: 18,
-      fontWeight: "600" as const,
-      color: colors.foreground,
-      marginBottom: 8,
-      textAlign: "center",
-      fontFamily: "DMSans_600SemiBold",
-    },
-    subtitle: {
-      fontSize: 14,
-      color: colors.mutedForeground,
-      textAlign: "center",
-      lineHeight: 20,
-      fontFamily: "DMSans_400Regular",
-    },
-  });
-  return (
-    <View style={styles.container}>
-      <View style={styles.iconWrap}>
-        <Ionicons name="tennisball-outline" size={36} color={colors.mutedForeground} />
-      </View>
-      <Text style={styles.title}>No matches yet</Text>
-      <Text style={styles.subtitle}>
-        Your matches will appear here once you join a league and play.
-      </Text>
-    </View>
-  );
-}
-
-export default function MatchesScreen() {
+export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
   const { data: myPlayers, isLoading: playersLoading } = useGetMyPlayers();
@@ -291,34 +246,6 @@ export default function MatchesScreen() {
   const isLoading = playersLoading || matchesLoading;
 
   const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    header: {
-      paddingTop: topPad + 16,
-      paddingHorizontal: 20,
-      paddingBottom: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    headerRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-    },
-    headerTitle: {
-      fontSize: 22,
-      fontWeight: "700" as const,
-      color: colors.foreground,
-      fontFamily: "DMSans_700Bold",
-    },
-    headerSubtitle: {
-      fontSize: 13,
-      color: colors.mutedForeground,
-      marginTop: 4,
-      fontFamily: "DMSans_400Regular",
-    },
     loadingContainer: {
       flex: 1,
       alignItems: "center",
@@ -331,19 +258,7 @@ export default function MatchesScreen() {
   });
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <Ionicons name="tennisball" size={20} color={colors.primary} />
-          <Text style={styles.headerTitle}>My Matches</Text>
-        </View>
-        {myPlayers && myPlayers.length > 0 && (
-          <Text style={styles.headerSubtitle}>
-            {matches.length} {matches.length === 1 ? "match" : "matches"} found
-          </Text>
-        )}
-      </View>
-
+    <TabScreen title="Home">
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -354,7 +269,7 @@ export default function MatchesScreen() {
           keyExtractor={(m) => String(m.id)}
           contentContainerStyle={[
             styles.listContent,
-            matches.length === 0 && { flex: 1 },
+            matches.length === 0 && { flex: 1, paddingTop: 0, paddingBottom: 0 },
           ]}
           showsVerticalScrollIndicator={false}
           scrollEnabled={!!matches.length}
@@ -367,7 +282,13 @@ export default function MatchesScreen() {
               tintColor={colors.primary}
             />
           }
-          ListEmptyComponent={<EmptyState colors={colors} />}
+          ListEmptyComponent={
+            <EmptyState
+              symbol="tennisball"
+              title="No matches yet"
+              message="Your matches show up here once you join a league and play."
+            />
+          }
           renderItem={({ item }) => (
             <MatchCard
               match={item as Match}
@@ -382,6 +303,6 @@ export default function MatchesScreen() {
           )}
         />
       )}
-    </View>
+    </TabScreen>
   );
 }
