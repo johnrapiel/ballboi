@@ -54,7 +54,8 @@ jobs:
         run: |
           set -o pipefail
           pnpm test 2>&1 | tee test.log
-          # Post the totals as a note on the PR's checks.
-          files=$(grep -E "^ *Test Files" test.log | tail -1 | sed -E 's/\x1b\[[0-9;]*m//g' | xargs)
-          tests=$(grep -E "^ *Tests " test.log | tail -1 | sed -E 's/\x1b\[[0-9;]*m//g' | xargs)
+          # Post the totals as a note on the PR's checks (colors stripped first).
+          sed -E 's/\x1b\[[0-9;]*m//g' test.log > test.txt
+          files=$(grep -E "Test Files" test.txt | tail -1 | xargs || true)
+          tests=$(grep -E "^ *Tests " test.txt | tail -1 | xargs || true)
           echo "::notice title=API tests::$files | $tests"
