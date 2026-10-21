@@ -43,6 +43,7 @@ jobs:
           pnpm --filter @workspace/api-server run typecheck > api-tsc.log 2>&1
           count=$(grep -c "error TS" api-tsc.log)
           echo "API type errors: $count (baseline 98)"
+          echo "::notice title=API type errors::$count (baseline 98)"
           if [ "$count" -gt 98 ]; then
             grep "error TS" api-tsc.log | tail -40
             echo "::error::This PR adds API type errors ($count, baseline 98)."
@@ -50,4 +51,10 @@ jobs:
           fi
 
       - name: Tests (contrast check + API)
-        run: pnpm test
+        run: |
+          set -o pipefail
+          pnpm test 2>&1 | tee test.log
+          # Post the totals as a note on the PR's checks.
+          files=$(grep -E "^ *Test Files" test.log | tail -1 | sed -E 's/\x1b\[[0-9;]*m//g' | xargs)
+          tests=$(grep -E "^ *Tests " test.log | tail -1 | sed -E 's/\x1b\[[0-9;]*m//g' | xargs)
+          echo "::notice title=API tests::$files | $tests"
