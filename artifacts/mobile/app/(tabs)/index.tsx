@@ -19,6 +19,7 @@ import {
   useGetMyPlayers,
 } from "@workspace/api-client-react";
 
+import { TabHeader } from "@/components/TabHeader";
 import { useColors } from "@/hooks/useColors";
 
 type Match = {
@@ -252,13 +253,13 @@ function EmptyState({ colors }: { colors: ReturnType<typeof useColors> }) {
       </View>
       <Text style={styles.title}>No matches yet</Text>
       <Text style={styles.subtitle}>
-        Your matches will appear here once you join a league and play.
+        Your matches show up here once you join a league and play.
       </Text>
     </View>
   );
 }
 
-export default function MatchesScreen() {
+export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -296,28 +297,7 @@ export default function MatchesScreen() {
       backgroundColor: colors.background,
     },
     header: {
-      paddingTop: topPad + 16,
-      paddingHorizontal: 20,
-      paddingBottom: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    headerRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-    },
-    headerTitle: {
-      fontSize: 22,
-      fontWeight: "700" as const,
-      color: colors.foreground,
-      fontFamily: "DMSans_700Bold",
-    },
-    headerSubtitle: {
-      fontSize: 13,
-      color: colors.mutedForeground,
-      marginTop: 4,
-      fontFamily: "DMSans_400Regular",
+      paddingTop: topPad + 8,
     },
     loadingContainer: {
       flex: 1,
@@ -333,15 +313,7 @@ export default function MatchesScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <Ionicons name="tennisball" size={20} color={colors.primary} />
-          <Text style={styles.headerTitle}>My Matches</Text>
-        </View>
-        {myPlayers && myPlayers.length > 0 && (
-          <Text style={styles.headerSubtitle}>
-            {matches.length} {matches.length === 1 ? "match" : "matches"} found
-          </Text>
-        )}
+        <TabHeader title="Home" />
       </View>
 
       {isLoading ? (

@@ -1,4 +1,4 @@
-<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (exported 2026-10-18, rev 32). The live doc wins if they differ. Refresh this file when the live doc changes. -->
+<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (exported 2026-10-18, rev 32; Discover rename added 2026-10-21). The live doc wins if they differ. Refresh this file when the live doc changes. -->
 
 # Ball Boi: Flows and Feature Spec
 
@@ -10,7 +10,7 @@ Ball Boi launches in the US as one app for finding local players, running league
 
 **v1 launch scope**
 
-- **Find a Matchup:** local-only discovery of players and Open leagues, nationwide availability
+- **Discover:** local-only discovery of players and Open leagues, nationwide availability
 - **Leagues:** Flex and Round robin formats, singles and doubles, one league chat with pins
 - **Ball Boi:** recording, core shot stats, simulated replay, and trends (singles analysis only)
 - **Ball Boi Rating:** one NTRP-scale rating used everywhere for matching
@@ -47,7 +47,7 @@ Everyone has the same account type. Admin is a role on a specific league, so one
 
 - **Run a league:** name, format, Private or Open, season dates, then a share link
 - **Join a league:** paste an invite code, or browse Open leagues nearby
-- **Find matches:** set weekly availability, then land on Find a Matchup
+- **Find matches:** set weekly availability, then land on Discover
 - **Record my play:** 30-second phone mounting guide, camera and mic permission asked here
 
 **Permissions are asked only when needed**
@@ -65,7 +65,7 @@ Five tabs, with Ball Boi in the center. Profile opens from your avatar in the to
 | Home | Upcoming matches, pending requests, this week's pairings, recent results |
 | Leagues | Your leagues, each with chat, schedule, standings, and Manage for admins; Start a league |
 | Ball Boi | Start a recording, past matches, replays, trends |
-| Find a Matchup | Players near you, Open leagues near you, your Open Match posts |
+| Discover | Players near you, Open leagues, Open matches (including your own) |
 | Messages | Direct chats, Message Requests, match threads |
 
 **Profile (avatar):** player card, career stats, linked UTR, subscription, settings (including training data), account deletion.
@@ -82,9 +82,9 @@ One in-app rating on the NTRP scale (2.5 to 5.0+) drives all matching. It avoids
 - **Match range:** ±0.5 by default, widenable to ±1.0
 - **Rating history:** shown as a trend line on the profile
 
-## Find a Matchup
+## Discover
 
-Find a Matchup is always local: results are bounded by distance, never a national feed. The app is available across the US, but each user only sees players and leagues near their home area.
+Discover is always local: results are bounded by distance, never a national feed. The app is available across the US, but each user only sees players and leagues near their home area.
 
 **Location and privacy**
 
@@ -99,10 +99,10 @@ Find a Matchup is always local: results are bounded by distance, never a nationa
 **What the page shows**
 
 - **Players near you:** filtered by rating range, singles or doubles, availability
-- **Open leagues near you:** distance, rating range, format, start date, spots left
-- **Open Match posts:** post date, time window, court, skill range, and format; nearby matching players get notified
+- **Open leagues:** distance, rating range, format, start date, spots left
+- **Open matches:** post date, time window, court, skill range, and format; nearby matching players get notified
 - **Need 1 / Need 2:** fill a spot in an existing doubles game
-- **Empty state:** widen radius, post an Open Match, or invite a friend by link
+- **Empty state:** widen radius, post an open match, or invite a friend by link
 
 **From found to playing**
 
@@ -153,7 +153,7 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 
 **Setup (admin)**
 
-- **Visibility:** Private (default, invite link or code) or Open (listed in Find a Matchup, request to join)
+- **Visibility:** Private (default, invite link or code) or Open (listed in Discover, request to join)
 - **Eligibility:** rating range and roster cap for Open leagues
 - **Format:** Flex or Round robin; Ladder comes later
 - **Play type:** singles, fixed-partner doubles, or rotating-partner doubles
@@ -164,7 +164,7 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 
 1. App pairs players Monday morning by rating, availability, and who hasn't played whom
 2. Admin can swap pairings, mark a bye, or lock a match before publishing
-3. Players schedule inside the match thread using the same request flow as Find a Matchup
+3. Players schedule inside the match thread using the same request flow as Discover
 4. Scores logged and confirmed; standings update
 5. Unplayed matches resolve by the admin's rule after Sunday night
 
@@ -271,11 +271,11 @@ The player card is a brag sheet, never a scouting report: it shows strengths and
 
 **Shareable match recap:** auto-generated after each confirmed match with score, aces, and winners, sized for Instagram Stories and texts, carrying the Ball Boi logo.
 
-**Court directory:** public and club courts with surface, lights, and court count; players can add missing courts. Feeds home court, match requests, and Open Match posts.
+**Court directory:** public and club courts with surface, lights, and court count; players can add missing courts. Feeds home court, match requests, and open matches.
 
 ## Pricing
 
-Only Ball Boi is paid: $5/month or $40/year after 3 free months that start at the first recording. Leagues, Find a Matchup, messaging, and player cards stay free so no non-payer can stall a league.
+Only Ball Boi is paid: $5/month or $40/year after 3 free months that start at the first recording. Leagues, Discover, messaging, and player cards stay free so no non-payer can stall a league.
 
 - **3 free months from the first recording:** full simulated replay and stats, no paywall and no trial sheet. Tracked server-side by account so reinstalling doesn't reset it
 - **Paywall appears after the free period,** the next time the user sets up a recording or opens stats ("Your 3 free months are up"), during setup and never at the fence
@@ -299,7 +299,7 @@ These decisions add launch-blocking items to the submission checklist. Strangers
 | UTR linking | Disclose shared data and unlink path in privacy policy and labels; no partner logos without approval | 5.1.1, 5.2.1 |
 | User-to-user messaging | Re-answer age rating questionnaire; set 18+ | Age rating |
 | Account deletion | Deletes messages, video, ratings, removes footage from future training; revokes UTR link and Apple token | 5.1.1(v) |
-| Reviewer demo account | Password sign-in for that account only; seeded league, two Ball Boi matches, message thread, Message Request, Open Match post; free match already used so the paywall is live; 60-second on-court recording in review notes | 2.1 |
+| Reviewer demo account | Password sign-in for that account only; seeded league, two Ball Boi matches, message thread, Message Request, open match; free match already used so the paywall is live; 60-second on-court recording in review notes | 2.1 |
 | Opponent recording notification and remote controls | APNs push-to-start Live Activities with interactive Start / Stop buttons; connections only | 4.5.4 |
 | Filming other players and training on video | Opponent recording notification, first-recording consent screen with training toggle, both-players rule, no training on non-users until they join; microphone purpose string for analysis-only audio | 5.1.1, 5.1.2 |
 | Third-party processors | Stream (messaging), Anthropic (moderation agent), Cloudflare (video storage) listed in privacy policy and SDK privacy manifests | 5.1.1, 5.1.2 |
@@ -343,3 +343,5 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 15 | No in-app notice for non-users; their footage stays out of training until they join |
 | 16 | Audio recorded for analysis only, never played back; the test set decides whether it stays |
 | 17 | Partner phone optional; live preview in v1.1; voice start command and solo visual cues post-MVP |
+| 18 | Find a Matchup is now **Discover** (Oct 21): a familiar, short tab label that covers players, Open leagues, and open matches. Sections: Players near you, Open leagues, Open matches. "Open Match posts" are now "open matches" |
+| 19 | Familiar over novel (Oct 21): standard iOS patterns, one name per thing everywhere, plain words over branded ones, same action in the same place. Tab order: Home, Leagues, Ball Boi (center), Discover, Messages |

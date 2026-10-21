@@ -22,6 +22,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { setBaseUrl } from "@workspace/api-client-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { useColors } from "@/hooks/useColors";
 
 const apiUrl = process.env.EXPO_PUBLIC_API_URL;
 if (apiUrl) setBaseUrl(apiUrl);
@@ -33,12 +34,25 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
+  const colors = useColors();
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="age-check" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="eighteen-plus" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="profile"
+        options={{
+          headerShown: true,
+          title: "Profile",
+          headerBackButtonDisplayMode: "minimal",
+          headerShadowVisible: false,
+          headerTintColor: colors.ink,
+          headerStyle: { backgroundColor: colors.paper },
+          headerTitleStyle: { fontFamily: "DMSans_600SemiBold", color: colors.ink },
+        }}
+      />
       <Stack.Screen
         name="replay/[matchId]"
         options={{ headerShown: false, presentation: "card" }}

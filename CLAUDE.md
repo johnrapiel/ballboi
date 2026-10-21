@@ -19,6 +19,11 @@ The mobile app's current screens came over from the original Replit build. They'
 
 ## Design rules
 
+- Familiar over novel: nothing should need explaining.
+  - Standard iOS patterns: tab bar at the bottom, back at the top left, swipe back, pull to refresh, native sheets, alerts, and share. No custom gestures or new navigation patterns.
+  - One name per thing, everywhere: a screen's title matches its tab label, and buttons, notifications, and empty states use the same word. Never mix synonyms (Messages, not Inbox or Chat).
+  - Plain, familiar words over branded ones: Sign in, Settings, Profile, Record, Score. "Ball Boi" is the feature name; "Replay" is its output.
+  - Same action, same place: the primary action sits in the same spot on every screen; destructive actions are red and confirmed.
 - Colors, type, spacing, and radii come from the design system tokens only: `paper`, `linen`, `sand`, `ink`, `ink-muted`, `on-ink`, `pool`, `clay`, `sun`, `danger`. Cormorant Garamond for display and scores, DM Sans for everything else.
 - Retired, don't add new uses: the old palette (Ink Navy, Court Cream, Teal Ace), the generic cyan palette in `constants/colors.ts`, and the Inter, Playfair Display, and DM Mono fonts.
 - Every text pair clears 4.5:1 (3:1 for 24px+ text, focus rings, and control borders) in both Day and Night themes. `sun` is never text.
