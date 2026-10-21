@@ -3,6 +3,8 @@ import type { League } from "@workspace/api-client-react";
 /** Plain-English label for a league's format. */
 export function formatLabel(format: League["format"]): string {
   switch (format) {
+    case "flex":
+      return "Flex";
     case "round_robin":
       return "Round robin";
     case "swiss":

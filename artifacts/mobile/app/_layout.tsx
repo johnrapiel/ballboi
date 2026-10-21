@@ -54,6 +54,30 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="league/new"
+        options={{
+          headerShown: true,
+          presentation: "modal",
+          title: "New league",
+          headerShadowVisible: false,
+          headerTintColor: colors.ink,
+          headerStyle: { backgroundColor: colors.paper },
+          headerTitleStyle: { fontFamily: "DMSans_600SemiBold", color: colors.ink },
+        }}
+      />
+      <Stack.Screen
+        name="league/invite/[leagueId]"
+        options={{
+          headerShown: true,
+          presentation: "modal",
+          title: "",
+          gestureEnabled: false,
+          headerShadowVisible: false,
+          headerTintColor: colors.ink,
+          headerStyle: { backgroundColor: colors.paper },
+        }}
+      />
+      <Stack.Screen
         name="league/[leagueId]"
         options={{
           headerShown: true,

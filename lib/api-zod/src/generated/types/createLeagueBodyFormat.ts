@@ -10,6 +10,7 @@ export type CreateLeagueBodyFormat =
   (typeof CreateLeagueBodyFormat)[keyof typeof CreateLeagueBodyFormat];
 
 export const CreateLeagueBodyFormat = {
+  flex: "flex",
   round_robin: "round_robin",
   elimination: "elimination",
   swiss: "swiss",

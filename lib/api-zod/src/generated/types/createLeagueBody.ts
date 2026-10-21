@@ -6,22 +6,58 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CreateLeagueBodyFormat } from "./createLeagueBodyFormat";
+import type { CreateLeagueBodyLeagueType } from "./createLeagueBodyLeagueType";
+import type { CreateLeagueBodyPartnerMode } from "./createLeagueBodyPartnerMode";
+import type { CreateLeagueBodyPlayoffSize } from "./createLeagueBodyPlayoffSize";
 import type { CreateLeagueBodyStatus } from "./createLeagueBodyStatus";
+import type { CreateLeagueBodyUnplayedRule } from "./createLeagueBodyUnplayedRule";
+import type { CreateLeagueBodyVisibility } from "./createLeagueBodyVisibility";
 
+/**
+ * Start a league (spec: Leagues > Setup). Anyone signed in can start one and becomes its admin. With playing true, the admin also joins as a player.
+ */
 export interface CreateLeagueBody {
+  /**
+   * @minLength 1
+   * @maxLength 60
+   */
   name: string;
   /** @nullable */
   description?: string | null;
   format: CreateLeagueBodyFormat;
-  status: CreateLeagueBodyStatus;
+  status?: CreateLeagueBodyStatus;
+  leagueType?: CreateLeagueBodyLeagueType;
   /** @nullable */
-  leagueType?: string | null;
+  partnerMode?: CreateLeagueBodyPartnerMode;
+  visibility?: CreateLeagueBodyVisibility;
   /** @nullable */
-  startDate?: string | null;
+  minRating?: string | null;
   /** @nullable */
-  endDate?: string | null;
+  maxRating?: string | null;
+  /**
+   * @minimum 2
+   * @maximum 64
+   * @nullable
+   */
+  rosterCap?: number | null;
+  /** First day of the season, YYYY-MM-DD */
+  startDate: string;
+  /**
+   * @minimum 6
+   * @maximum 12
+   */
+  seasonWeeks: number;
+  playoffSize?: CreateLeagueBodyPlayoffSize;
+  unplayedRule?: CreateLeagueBodyUnplayedRule;
   /** @nullable */
   location?: string | null;
+  /** The admin plays in the league too (default true) */
+  playing?: boolean;
+  /**
+   * The admin's name in the league, when playing
+   * @nullable
+   */
+  playerName?: string | null;
   /** @nullable */
-  createdByClerkUserId?: string | null;
+  skillLevel?: string | null;
 }

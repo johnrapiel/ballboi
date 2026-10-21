@@ -8,6 +8,7 @@ import { autoLinkPlayer } from "../lib/autoLinkPlayer.js";
 import { requireAdmin } from "../middlewares/requireAdmin.js";
 import { getPastSeasonNames } from "../services/seasonService.js";
 import { accumulateScoreTotals, calculatePoints } from "../lib/scoringUtils.js";
+import { SKILL_LEVELS, seasonDates, validateLeagueSetup } from "../lib/leagueSetup.js";
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   const { userId } = getAuth(req);
@@ -71,17 +72,61 @@ router.get("/leagues", async (req, res) => {
   );
 });
 
-router.post("/leagues", requireAdmin, async (req, res) => {
+// Start a league (spec: Leagues > Setup). Anyone signed in can start one and is
+// its admin. With `playing` (the default), the admin also joins as a player.
+router.post("/leagues", requireAuth, async (req, res) => {
+  const { userId } = getAuth(req);
   const parsed = CreateLeagueBody.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.message });
   }
-  const insertData = {
-    ...parsed.data,
-    leagueType: parsed.data.leagueType ?? "singles",
-    createdByClerkUserId: parsed.data.createdByClerkUserId ?? undefined,
-  };
-  const [league] = await db.insert(leaguesTable).values(insertData).returning();
+  const body = parsed.data;
+  const problem = validateLeagueSetup(body);
+  if (problem) return res.status(400).json({ error: problem });
+
+  const playing = body.playing !== false;
+  const { endDate, status } = seasonDates(body.startDate, body.seasonWeeks);
+  const doubles = body.leagueType === "doubles";
+  const open = body.visibility === "open";
+  const skillLevel = (SKILL_LEVELS as readonly string[]).includes(body.skillLevel ?? "") ? body.skillLevel! : "3.0";
+
+  const { league, playerCount } = await db.transaction(async (tx) => {
+    const [league] = await tx
+      .insert(leaguesTable)
+      .values({
+        name: body.name.trim(),
+        description: body.description ?? undefined,
+        format: body.format,
+        status,
+        leagueType: doubles ? "doubles" : "singles",
+        partnerMode: doubles ? body.partnerMode ?? undefined : undefined,
+        visibility: open ? "open" : "private",
+        minRating: open ? body.minRating ?? undefined : undefined,
+        maxRating: open ? body.maxRating ?? undefined : undefined,
+        rosterCap: body.rosterCap ?? undefined,
+        startDate: body.startDate,
+        endDate,
+        seasonWeeks: body.seasonWeeks,
+        playoffSize: body.playoffSize ?? 0,
+        unplayedRule: body.unplayedRule ?? "no_result",
+        location: body.location?.trim() || undefined,
+        createdByClerkUserId: userId!,
+      })
+      .returning();
+
+    if (playing) {
+      await tx.insert(playersTable).values({
+        name: body.playerName!.trim(),
+        clerkUserId: userId!,
+        leagueId: league.id,
+        skillLevel,
+        wins: 0,
+        losses: 0,
+      });
+    }
+    return { league, playerCount: playing ? 1 : 0 };
+  });
+
   return res.status(201).json({
     ...league,
     startDate: league.startDate ?? null,
@@ -90,7 +135,7 @@ router.post("/leagues", requireAdmin, async (req, res) => {
     description: league.description ?? null,
     leagueType: league.leagueType ?? "singles",
     createdByClerkUserId: league.createdByClerkUserId ?? null,
-    playerCount: 0,
+    playerCount,
     matchCount: 0,
     createdAt: league.createdAt.toISOString(),
     updatedAt: league.updatedAt.toISOString(),
