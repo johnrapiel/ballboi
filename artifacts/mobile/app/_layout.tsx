@@ -42,10 +42,10 @@ function RootLayoutNav() {
       <Stack.Screen name="eighteen-plus" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
-        name="profile"
+        name="messages"
         options={{
           headerShown: true,
-          title: "Profile",
+          title: "Messages",
           headerBackButtonDisplayMode: "minimal",
           headerShadowVisible: false,
           headerTintColor: colors.ink,

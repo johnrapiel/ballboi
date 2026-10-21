@@ -1,6 +1,5 @@
-import { useUser } from "@clerk/expo";
-import { Image } from "expo-image";
 import { useRouter } from "expo-router";
+import { SymbolView } from "expo-symbols";
 import React from "react";
 import { Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,28 +8,20 @@ import { Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 
-/** Initials for the avatar, from the signed-in user's name or email. */
-export function useInitials() {
-  const { user } = useUser();
-  if (user?.firstName) {
-    return `${user.firstName[0]}${user.lastName?.[0] ?? ""}`.toUpperCase();
-  }
-  return user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ?? "?";
-}
-
-/** Your photo, or your initials, in a 44pt circle. Opens Profile. */
-export function ProfileButton() {
+/**
+ * Messages, in a 44pt circle in the top-right corner of every tab.
+ * Shows an unread count when there is one, and VoiceOver reads it.
+ */
+export function MessagesButton({ unread = 0 }: { unread?: number }) {
   const c = useColors();
   const router = useRouter();
-  const { user } = useUser();
-  const initials = useInitials();
-  const photo = user?.hasImage ? user.imageUrl : null;
+  const label = unread > 0 ? `Messages, ${unread} unread` : "Messages";
 
   return (
     <Pressable
-      onPress={() => router.push("/profile")}
+      onPress={() => router.push("/messages")}
       accessibilityRole="button"
-      accessibilityLabel="Profile"
+      accessibilityLabel={label}
       hitSlop={4}
       style={({ pressed }) => ({
         width: MIN_TAP,
@@ -41,16 +32,31 @@ export function ProfileButton() {
         borderColor: c.hairline,
         alignItems: "center",
         justifyContent: "center",
-        overflow: "hidden",
         opacity: pressed ? 0.7 : 1,
       })}
     >
-      {photo ? (
-        <Image source={{ uri: photo }} style={{ width: MIN_TAP, height: MIN_TAP }} accessibilityIgnoresInvertColors />
-      ) : (
-        <Text variant="bodyStrong" importantForAccessibility="no" accessibilityElementsHidden>
-          {initials}
-        </Text>
+      <SymbolView name="message" size={20} tintColor={c.ink} />
+      {unread > 0 && (
+        <View
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
+          style={{
+            position: "absolute",
+            top: -2,
+            right: -2,
+            minWidth: 20,
+            height: 20,
+            paddingHorizontal: 5,
+            borderRadius: radius.radiusPill,
+            backgroundColor: c.ink,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Text variant="label" tone="onInk" maxFontSizeMultiplier={1.4}>
+            {unread > 99 ? "99+" : unread}
+          </Text>
+        </View>
       )}
     </Pressable>
   );
@@ -69,8 +75,8 @@ export function TabScreen({ title, children }: { title: string; children: React.
 }
 
 /**
- * Top of every tab: the tab's name as a large title, with your Profile
- * button in the top-right corner. The title always matches the tab label.
+ * Top of every tab: the tab's name as a large title, with Messages
+ * in the top-right corner. The title always matches the tab label.
  */
 export function TabHeader({ title }: { title: string }) {
   return (
@@ -87,7 +93,7 @@ export function TabHeader({ title }: { title: string }) {
       <Text variant="displayL" accessibilityRole="header" style={{ flexShrink: 1 }}>
         {title}
       </Text>
-      <ProfileButton />
+      <MessagesButton />
     </View>
   );
 }

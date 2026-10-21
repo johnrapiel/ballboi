@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { TabScreen } from "@/components/TabHeader";
 import { useColors } from "@/hooks/useColors";
 
 const API_BASE = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
@@ -178,8 +179,8 @@ export default function ProfileScreen() {
     },
     scrollContent: {
       paddingHorizontal: 20,
-      paddingTop: 24,
-      paddingBottom: bottomPad + 20,
+      paddingTop: 8,
+      paddingBottom: bottomPad + 96,
     },
     avatarRow: {
       flexDirection: "row",
@@ -292,7 +293,7 @@ export default function ProfileScreen() {
     : "Player";
 
   return (
-    <View style={styles.container}>
+    <TabScreen title="Profile">
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -374,6 +375,6 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
       </ScrollView>
-    </View>
+    </TabScreen>
   );
 }

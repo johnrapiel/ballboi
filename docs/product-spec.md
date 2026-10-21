@@ -58,7 +58,7 @@ Everyone has the same account type. Admin is a role on a specific league, so one
 
 ## Navigation
 
-Five tabs, with Ball Boi in the center. Profile opens from your avatar in the top corner of every tab.
+Five tabs, with Ball Boi in the center. Messages opens from the button in the top corner of every tab.
 
 | Tab | What lives there |
 | --- | --- |
@@ -66,9 +66,9 @@ Five tabs, with Ball Boi in the center. Profile opens from your avatar in the to
 | Leagues | Your leagues, each with chat, schedule, standings, and Manage for admins; Start a league |
 | Ball Boi | Start a recording, past matches, replays, trends |
 | Discover | Players near you, Open leagues, Open matches (including your own) |
-| Messages | Direct chats, Message Requests, match threads |
+| Profile | Player card, career stats, linked UTR, subscription, settings (including training data), account deletion |
 
-**Profile (avatar):** player card, career stats, linked UTR, subscription, settings (including training data), account deletion.
+**Messages (top corner):** direct chats, Message Requests, and match threads, with an unread count VoiceOver reads.
 
 League chat lives inside each league, not in Messages, so busy leagues never bury direct conversations. Every tab has an icon plus a text label, and badge counts are read by VoiceOver.
 
@@ -345,3 +345,4 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 17 | Partner phone optional; live preview in v1.1; voice start command and solo visual cues post-MVP |
 | 18 | Find a Matchup is now **Discover** (Oct 21): a familiar, short tab label that covers players, Open leagues, and open matches. Sections: Players near you, Open leagues, Open matches. "Open Match posts" are now "open matches" |
 | 19 | Familiar over novel (Oct 21): standard iOS patterns, one name per thing everywhere, plain words over branded ones, same action in the same place. Tab order: Home, Leagues, Ball Boi (center), Discover, Messages |
+| 20 | Profile is the fifth tab and Messages moves to the top corner of every tab, with an unread count (Oct 21). Tab order: Home, Leagues, Ball Boi (center), Discover, Profile |

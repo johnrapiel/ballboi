@@ -14,7 +14,7 @@ import { isAgeCheckPassed } from "@/lib/ageCheck";
 
 // The five tabs, in order, with Ball Boi in the center (spec: Navigation).
 // Labels are the words used everywhere else in the app for these places.
-// Profile isn't a tab: it opens from your photo in the top corner of every tab.
+// Messages isn't a tab: it opens from the button in the top corner of every tab.
 const TABS: {
   name: string;
   label: string;
@@ -26,7 +26,7 @@ const TABS: {
   { name: "leagues", label: "Leagues", symbol: "trophy", selected: "trophy.fill", feather: "award" },
   { name: "ballboi", label: "Ball Boi", symbol: "tennisball", selected: "tennisball.fill", feather: "circle" },
   { name: "discover", label: "Discover", symbol: "safari", selected: "safari.fill", feather: "compass" },
-  { name: "messages", label: "Messages", symbol: "message", selected: "message.fill", feather: "message-circle" },
+  { name: "profile", label: "Profile", symbol: "person.crop.circle", selected: "person.crop.circle.fill", feather: "user" },
 ];
 
 /** iOS 26+: the system Liquid Glass tab bar. */
