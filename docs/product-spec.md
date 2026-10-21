@@ -38,6 +38,10 @@ Everyone has the same account type. Admin is a role on a specific league, so one
 
 1. **Sign in:** Apple, Google, or email code
 2. **Age check:** Apple's Declared Age Range API, with a self-attested birth date as the fallback. Under 18s see a friendly "Ball Boi is 18+ for now" screen and no account is created. Only a pass/fail flag is stored, never the birth date
+   - **Birthday picker:** the native iOS date picker in wheels style, in a bottom sheet with a Done button. No calendar grid, no typed fields
+   - **Neutral prompt:** "What's your birthday?" with no mention of 18+ on this screen
+   - **Neutral start:** the field stays empty until confirmed, and the wheel never starts at exactly 18 years ago
+   - **No future dates:** the latest selectable date is today
 3. **Name and photo:** name required, photo skippable with an initials avatar
 4. **Home area:** zip code, with an optional "Use my location" shortcut
 5. **Rating quiz:** 4 to 5 plain-language descriptions that set a starting Ball Boi Rating, or "Link UTR instead"
@@ -291,7 +295,7 @@ These decisions add launch-blocking items to the submission checklist. Strangers
 
 | Decision | Requirement | Guideline |
 | --- | --- | --- |
-| Adults only | Declared Age Range API with birth-date fallback, 18+ age rating, block screen for under 18s | Age rating |
+| Adults only | Declared Age Range API with birth-date fallback (native wheels picker, neutral prompt), 18+ age rating, block screen for under 18s | Age rating |
 | Strangers can message and meet | Report, block, filtering, action within 24 hours (John, Claude agent after 6 hours, instant auto-restrict), EULA covering messages | 1.2 |
 | Messaging and match alerts | APNs push with preview-hiding option; provisional notifications from sign-in | 4.5.4 |
 | Home area and travel mode | Location purpose string, While Using only | 5.1.1 |
@@ -306,6 +310,7 @@ These decisions add launch-blocking items to the submission checklist. Strangers
 
 **WCAG 2.2 AA additions**
 
+- **Birthday picker:** visible and accessible "Birthday" label, VoiceOver announces each wheel change, Done button at 44×44pt, label and button scale at the largest Dynamic Type sizes. Test the year wheel with VoiceOver before locking the starting date (1.3.1, 4.1.2, 2.5.8, 1.4.4)
 - **Rating badges, admin labels, reliability:** icon plus text, never color alone (1.4.1)
 - **Heatmaps and replay markers:** labels and patterns (1.4.1)
 - **Simulated replay:** the court animation is decorative; each shot's type, player, outcome, and time is in the accessible shot list (1.1.1, 1.3.1)
@@ -346,3 +351,4 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 18 | Find a Matchup is now **Discover** (Oct 21): a familiar, short tab label that covers players, Open leagues, and open matches. Sections: Players near you, Open leagues, Open matches. "Open Match posts" are now "open matches" |
 | 19 | Familiar over novel (Oct 21): standard iOS patterns, one name per thing everywhere, plain words over branded ones, same action in the same place. Tab order: Home, Leagues, Ball Boi (center), Discover, Messages |
 | 20 | Profile is the fifth tab and Messages moves to the top corner of every tab, with an unread count (Oct 21). Tab order: Home, Leagues, Ball Boi (center), Discover, Profile |
+| 21 | Birth-date fallback uses the native iOS date picker in wheels style, with a neutral prompt and starting date (Oct 21) |

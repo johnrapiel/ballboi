@@ -15,7 +15,8 @@ _Last updated: 2026-10-18. Synced with the launch-blocking items in `docs/produc
 |---|---|---|---|
 | Native stack: Expo SDK 58 (`artifacts/ios-app`) | 4.2 Minimum Functionality | 🟡 | Scaffolded: auth, tabs, Ball Boi recorder |
 | Built with Xcode 26 / iOS 26 SDK | Required since Apr 28, 2026 | 🟡 | `artifacts/mobile/eas.json` `production` profile uses the latest build image. Confirm on the first production build |
-| Age gate at onboarding | Age rating, 1.2 | 🟡 | Birth-date check after first sign-in (`app/age-check.tsx`); only a pass flag is stored, on the Clerk user. Under 18: account deleted, "Ball Boi is 18+ for now" screen. Still to do: Declared Age Range API first (needs a native build) |
+| Age gate at onboarding | Age rating, 1.2 | 🟡 | Birth-date check after first sign-in (`app/age-check.tsx`, birthday wheels picker); only a pass flag is stored, on the Clerk user. Under 18: account deleted, "Ball Boi is 18+ for now" screen. Still to do: Declared Age Range API first (needs a native build) |
+| Birthday picker (birth-date fallback) | Age rating, HIG | 🟡 | Built in `app/age-check.tsx`: native iOS date picker in wheels style (`@react-native-community/datetimepicker`, `display="spinner"`) in a bottom sheet with Cancel and Done. No calendar grid, no typed fields. Prompt reads "What's your birthday?" with no 18+ mention. Field empty until Done; wheels start on Jan 1, 30 years ago, never exactly 18 years ago; `maximumDate` is today. Date discarded after the check. Still to do: new development build and on-phone test |
 | Native camera capture for Ball Boi | 4.2, 2.5 | 🟡 | expo-camera recorder, rear camera, no corner tapping. Background upload tracked below |
 | Match-first recording and Quick match | 2.1, 4.2 | ❌ | Every recording starts from a match. "Record with Ball Boi" is the primary action on a singles match card on match day; Enter score takes over once played. Ball Boi tab's "Record a match" lists today's matches, then Quick match: format first (singles default), then any opponent. Non-users become placeholders with an invite link; solo controls; nothing counts toward standings until they join |
 | Doubles disabled state | 2.1, HIG | ❌ | Ball Boi shows disabled on doubles matches with "Ball Boi analyzes singles for now. Doubles is coming." Message is visible text and read by VoiceOver, not just a dimmed button. Log views as a demand signal |
@@ -122,6 +123,7 @@ The web-app rows below were completed in PR #2 before the web app was retired. T
 
 | Item | Criterion | Status | Notes |
 |---|---|---|---|
+| Birthday picker accessible | 1.3.1, 4.1.2, 2.5.8, 1.4.4 | 🟡 | Built: visible "Birthday" label, field reads "Birthday, Not set" or the chosen date to VoiceOver, Cancel and Done at 44×44pt, sheet traps VoiceOver focus. Still to do: test with VoiceOver and the largest Dynamic Type sizes on a phone; the year wheel moves one year per swipe, so confirm the starting date is workable |
 | Text contrast ≥ 4.5:1, borders and focus ≥ 3:1 | 1.4.3, 1.4.11 | ✅ | `scripts/check-contrast.mjs` checks 40 token pairs in Day and Night on every `pnpm test`. Day `hairline-strong` raised to 0.52 opacity to reach 3:1 |
 | Primary button contrast | 1.4.3 | 🟡 | Native primary is `ink` on `paper` with `on-ink` text |
 | Status colors (warning/success/info/error) | 1.4.3 | 🟡 | Design system uses `pool`, `clay`, `danger`; `sun` is never text |
