@@ -2,7 +2,7 @@
 
 Answers to paste into App Store Connect. Keep them matched to what the shipped build actually does, and re-check this file whenever data collection changes. Where this file and `docs/product-spec.md` disagree, the spec wins.
 
-_Ported from `feat/compliance` (#5) on Oct 21, 2026 and updated for the current spec: 18+, `tennis.ballboi`, ballboi.tennis, messaging, training on match video._
+_Ported from `feat/compliance` (#5) on Oct 21, 2026 and updated for the current spec: 18+, `tennis.ballboi`, ballboi.tennis, messaging, training on match video. The privacy policy and terms live on ballboi.tennis; the nutrition label below must match them._
 
 ## App information
 
@@ -13,9 +13,9 @@ _Ported from `feat/compliance` (#5) on Oct 21, 2026 and updated for the current 
 | Bundle ID | `tennis.ballboi` |
 | Primary category | Sports |
 | Secondary category | Health & Fitness |
-| Privacy Policy URL | https://ballboi.tennis/privacy (publish `docs/legal/privacy-policy.md` there first) |
-| Terms of Use (EULA) | https://ballboi.tennis/terms (from `docs/legal/terms-of-use.md`); also link it in the description, since subscriptions need it |
-| Support URL | https://ballboi.tennis/support, or a mailto page for the support address |
+| Privacy Policy URL | https://ballboi.tennis/privacy (live, last updated Oct 18, 2026) |
+| Terms of Use (EULA) | https://ballboi.tennis/terms (live). Also link it in the description, since subscriptions need it |
+| Support URL | A ballboi.tennis page with support@ballboi.tennis (the address the live policy and terms use) |
 | Encryption | Standard HTTPS only. `ios.config.usesNonExemptEncryption: false` is set in `artifacts/mobile/app.json` |
 
 ## App Privacy (nutrition label)
@@ -61,7 +61,7 @@ Ball Boi is an 18+ tennis app: local players, leagues, and Ball Boi, which
 records a match and builds a simulated replay with shot stats.
 
 Demo account (password sign-in is enabled for this account only):
-  Email: review@ballboi.tennis
+  Email: review@ballboi.tennis (create this account)
   Password: <set in Clerk>
 
 Seeded data: a league with a scheduled and a completed match, two Ball Boi
