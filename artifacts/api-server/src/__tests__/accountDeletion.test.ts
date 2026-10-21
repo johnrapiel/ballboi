@@ -35,6 +35,8 @@ const tables = {
   pushSubscriptionsTable: table("push_subscriptions", ["userId"]),
   expoPushTokensTable: table("expo_push_tokens", ["userId"]),
   usersTable: table("users", ["clerkUserId"]),
+  userBlocksTable: table("user_blocks", ["blockerClerkUserId", "blockedClerkUserId"]),
+  contentReportsTable: table("content_reports", ["reporterClerkUserId"]),
 };
 
 const tx = {
@@ -74,6 +76,7 @@ vi.mock("@workspace/db", () => ({
 vi.mock("drizzle-orm", () => ({
   eq: (a: unknown, b: unknown) => ({ a, b }),
   inArray: (a: unknown, b: unknown) => ({ a, b }),
+  or: (...args: unknown[]) => args,
   sql: (strings: TemplateStringsArray) => ({ text: strings.join("?") }),
 }));
 
@@ -117,9 +120,12 @@ describe("deleteAccount", () => {
         "player_locations",
         "push_subscriptions",
         "expo_push_tokens",
+        "user_blocks",
         "users",
       ]),
     );
+    const reports = calls.find((c) => c.op === "update" && c.table === "content_reports");
+    expect(reports?.values).toEqual({ reporterClerkUserId: null });
     expect(deleted).not.toContain("players");
 
     const anonymize = calls.find((c) => c.op === "update" && c.table === "players");
