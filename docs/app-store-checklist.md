@@ -112,6 +112,7 @@ _Last updated: 2026-10-18. Synced with the launch-blocking items in `docs/produc
 | Age rating questionnaire | Required since Jan 31, 2026 | 🟡 | Decided: 18+ for the MVP, so Screen Time blocks the download for minors. Re-answer for user-to-user messaging and real-world meetups |
 | Subscription metadata | 3.1.2 | ❌ | Terms of Use (EULA) and privacy policy links in the App Store description or custom EULA field. Subscription products submitted with the build |
 | App Review notes | 2.1 | ❌ | Demo account credentials, 60-second on-court recording, note that the free period is used so the paywall is reachable |
+| App icon: hand-painted ball on paper, no wordmark | HIG, 2.3.8 | 🟡 | 1024×1024 opaque PNG at `assets/images/icon.png`. Wordmark roundel stays on the splash and Welcome screen. Next: layered Icon Composer version for dark, clear, and tinted modes |
 | Screenshots, description, keywords, support URL | 2.3 | 🟡 | Shot list + subtitle drafted. Show the simulated replay, not video. No partner logos until cleared |
 | EU trader status (if distributing in the EU) | DSA | ❌ | US-only launch; needed before any EU expansion |
 
