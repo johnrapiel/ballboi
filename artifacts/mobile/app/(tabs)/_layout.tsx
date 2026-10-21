@@ -79,7 +79,7 @@ function ClassicTabLayout() {
               isIOS ? (
                 <SymbolView name={focused ? t.selected : t.symbol} tintColor={color} size={24} />
               ) : (
-                <Feather name={t.feather} size={22} color={color} />
+                <Feather name={t.feather} size={22} color={color as string} />
               ),
           }}
         />
