@@ -17,6 +17,7 @@ import {
   type Standing,
 } from "@workspace/api-client-react";
 
+import { IconButton } from "@/components/Choice";
 import { EmptyState } from "@/components/EmptyState";
 import { TabScreen } from "@/components/TabHeader";
 import { Awning, Button, Card, Chip, Field, Text } from "@/components/ui";
@@ -26,7 +27,7 @@ import { formatLabel, ordinal, playersLabel, playTypeLabel, statusLabel } from "
 
 // Leagues tab (spec: Leagues; canvas: Leagues). Your current leagues as cards
 // with your rank, past seasons as a list, and joining with an invite code.
-// Starting a league comes in its own PR.
+// Start a league opens from the + button and from the empty state.
 
 type MyStanding = { rank: number; points: number; behind: number } | null;
 
@@ -245,8 +246,10 @@ export default function LeaguesScreen() {
     standingsQs.forEach((q) => void q.refetch());
   };
 
+  const startLeague = () => router.push("/league/new");
+
   return (
-    <TabScreen title="Leagues">
+    <TabScreen title="Leagues" action={<IconButton symbol="plus" label="Start a league" onPress={startLeague} />}>
       {leaguesQ.isLoading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <ActivityIndicator color={c.ink} accessibilityLabel="Loading your leagues" />
@@ -271,8 +274,9 @@ export default function LeaguesScreen() {
           ) : null}
 
           {!leaguesQ.isError && leagues.length === 0 ? (
-            <View style={{ minHeight: 240 }}>
+            <View style={{ minHeight: 240, gap: spacing.space4 }}>
               <EmptyState symbol="trophy" title="No leagues yet" message="Leagues you start or join show up here." />
+              <Button label="Start a league" onPress={startLeague} />
             </View>
           ) : null}
 
