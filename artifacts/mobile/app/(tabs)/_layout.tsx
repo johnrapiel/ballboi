@@ -7,7 +7,7 @@ import { Redirect, Tabs } from "expo-router";
 import { NativeTabs } from "expo-router/native-tabs";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import React, { useEffect } from "react";
-import { Platform, StyleSheet, useColorScheme } from "react-native";
+import { Image, Platform, StyleSheet, useColorScheme, type ImageSourcePropType } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
 import { isAgeCheckPassed } from "@/lib/ageCheck";
@@ -21,10 +21,20 @@ const TABS: {
   symbol: SFSymbol;
   selected: SFSymbol;
   feather: React.ComponentProps<typeof Feather>["name"];
+  /** A full-color image instead of an SF Symbol. */
+  image?: ImageSourcePropType;
 }[] = [
   { name: "index", label: "Home", symbol: "house", selected: "house.fill", feather: "home" },
   { name: "leagues", label: "Leagues", symbol: "trophy", selected: "trophy.fill", feather: "award" },
-  { name: "ballboi", label: "Ball Boi", symbol: "tennisball", selected: "tennisball.fill", feather: "circle" },
+  // The hand-painted ball from the logo and ballboi.tennis, in its own colors.
+  {
+    name: "ballboi",
+    label: "Ball Boi",
+    symbol: "tennisball",
+    selected: "tennisball.fill",
+    feather: "circle",
+    image: require("@/assets/images/tab-ballboi.png"),
+  },
   { name: "discover", label: "Discover", symbol: "safari", selected: "safari.fill", feather: "compass" },
   { name: "profile", label: "Profile", symbol: "person.crop.circle", selected: "person.crop.circle.fill", feather: "user" },
 ];
@@ -36,7 +46,11 @@ function NativeTabLayout() {
     <NativeTabs tintColor={c.ink}>
       {TABS.map((t) => (
         <NativeTabs.Trigger key={t.name} name={t.name}>
-          <NativeTabs.Trigger.Icon sf={{ default: t.symbol, selected: t.selected }} />
+          {t.image ? (
+            <NativeTabs.Trigger.Icon src={t.image} renderingMode="original" />
+          ) : (
+            <NativeTabs.Trigger.Icon sf={{ default: t.symbol, selected: t.selected }} />
+          )}
           <NativeTabs.Trigger.Label>{t.label}</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
       ))}
@@ -76,7 +90,9 @@ function ClassicTabLayout() {
             title: t.label,
             tabBarAccessibilityLabel: t.label,
             tabBarIcon: ({ color, focused }) =>
-              isIOS ? (
+              t.image ? (
+                <Image source={t.image} style={{ width: 26, height: 26 }} accessibilityIgnoresInvertColors />
+              ) : isIOS ? (
                 <SymbolView name={focused ? t.selected : t.symbol} tintColor={color} size={24} />
               ) : (
                 <Feather name={t.feather} size={22} color={color as string} />
