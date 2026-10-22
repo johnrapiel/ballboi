@@ -66,6 +66,17 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="league/join"
+        options={{
+          headerShown: false,
+          presentation: "formSheet",
+          sheetAllowedDetents: "fitToContents",
+          sheetGrabberVisible: true,
+          sheetCornerRadius: 18,
+          contentStyle: { backgroundColor: colors.linen },
+        }}
+      />
+      <Stack.Screen
         name="league/invite/[leagueId]"
         options={{
           headerShown: true,
