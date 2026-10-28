@@ -18,6 +18,9 @@ vi.mock("../lib/autoLinkPlayer.js", () => ({ autoLinkPlayersForUser: vi.fn().moc
 type Call = { op: string; table: string; values?: unknown };
 const calls: Call[] = [];
 const selectResults: Record<string, unknown[]> = {};
+// Optional results for a table's second select (players: first "mine", then "opponents").
+const secondSelectResults: Record<string, unknown[]> = {};
+const selectCounts: Record<string, number> = {};
 let legacyTableExists = false;
 let legacyRows: { video_object_path: string | null }[] = [];
 
@@ -40,7 +43,13 @@ const tables = {
 
 const tx = {
   select: () => ({
-    from: (t: { __name: string }) => ({ where: async () => selectResults[t.__name] ?? [] }),
+    from: (t: { __name: string }) => ({
+      where: async () => {
+        const n = (selectCounts[t.__name] = (selectCounts[t.__name] ?? 0) + 1);
+        if (n > 1 && secondSelectResults[t.__name]) return secondSelectResults[t.__name];
+        return selectResults[t.__name] ?? [];
+      },
+    }),
   }),
   delete: (t: { __name: string }) => ({
     where: async () => {
@@ -83,6 +92,8 @@ const log = { warn: vi.fn(), info: vi.fn() };
 beforeEach(() => {
   calls.length = 0;
   for (const k of Object.keys(selectResults)) delete selectResults[k];
+  for (const k of Object.keys(secondSelectResults)) delete secondSelectResults[k];
+  for (const k of Object.keys(selectCounts)) delete selectCounts[k];
   legacyTableExists = false;
   legacyRows = [];
   mockUserId = "user_delete_me";
@@ -94,9 +105,12 @@ beforeEach(() => {
 describe("deleteAccount", () => {
   it("deletes personal data, anonymizes league players, removes videos, then deletes the Clerk user", async () => {
     const { deleteAccount, DELETED_PLAYER_NAME, DELETED_RECORDER_ID } = await import("../lib/accountDeletion.js");
-    // The players select serves both "my players" and "opponents": 7 and 9 are mine,
-    // 20 is an opponent with an account. 21 has no row, so it counts as no account.
-    selectResults.players = [{ id: 7 }, { id: 9 }, { id: 20, clerkUserId: "user_opponent" }];
+    // 7 and 9 are mine. Opponent 20 has an account; 21 has no linked account.
+    selectResults.players = [{ id: 7 }, { id: 9 }];
+    secondSelectResults.players = [
+      { id: 20, clerkUserId: "user_opponent" },
+      { id: 21, clerkUserId: null },
+    ];
     selectResults.ball_boi_sessions = [
       { id: 1, matchId: 100, videoObjectPath: "/objects/uploads/a" },
       { id: 2, matchId: 101, videoObjectPath: null },
@@ -156,7 +170,8 @@ describe("deleteAccount", () => {
 
   it("deletes a recording outright when the opponent has no account", async () => {
     const { deleteAccount } = await import("../lib/accountDeletion.js");
-    selectResults.players = [{ id: 7 }, { id: 30, clerkUserId: null }];
+    selectResults.players = [{ id: 7 }];
+    secondSelectResults.players = [{ id: 30, clerkUserId: null }];
     selectResults.ball_boi_sessions = [{ id: 5, matchId: 200, videoObjectPath: "/objects/uploads/c" }];
     selectResults.matches = [{ id: 200, player1Id: 7, player2Id: 30 }];
 
