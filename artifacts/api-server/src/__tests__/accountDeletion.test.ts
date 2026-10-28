@@ -28,7 +28,8 @@ function table(name: string, cols: string[]) {
 }
 
 const tables = {
-  ballBoiSessionsTable: table("ball_boi_sessions", ["id", "videoObjectPath", "recordedByClerkUserId"]),
+  ballBoiSessionsTable: table("ball_boi_sessions", ["id", "matchId", "videoObjectPath", "recordedByClerkUserId"]),
+  matchesTable: table("matches", ["id", "player1Id", "player2Id"]),
   playersTable: table("players", ["id", "clerkUserId", "name", "email", "phone", "bio"]),
   playerAvailabilityTable: table("player_availability", ["playerId"]),
   playerLocationsTable: table("player_locations", ["playerId"]),
@@ -92,11 +93,17 @@ beforeEach(() => {
 
 describe("deleteAccount", () => {
   it("deletes personal data, anonymizes league players, removes videos, then deletes the Clerk user", async () => {
-    const { deleteAccount, DELETED_PLAYER_NAME } = await import("../lib/accountDeletion.js");
-    selectResults.players = [{ id: 7 }, { id: 9 }];
+    const { deleteAccount, DELETED_PLAYER_NAME, DELETED_RECORDER_ID } = await import("../lib/accountDeletion.js");
+    // The players select serves both "my players" and "opponents": 7 and 9 are mine,
+    // 20 is an opponent with an account. 21 has no row, so it counts as no account.
+    selectResults.players = [{ id: 7 }, { id: 9 }, { id: 20, clerkUserId: "user_opponent" }];
     selectResults.ball_boi_sessions = [
-      { id: 1, videoObjectPath: "/objects/uploads/a" },
-      { id: 2, videoObjectPath: null },
+      { id: 1, matchId: 100, videoObjectPath: "/objects/uploads/a" },
+      { id: 2, matchId: 101, videoObjectPath: null },
+    ];
+    selectResults.matches = [
+      { id: 100, player1Id: 7, player2Id: 20 },
+      { id: 101, player1Id: 21, player2Id: 9 },
     ];
     legacyTableExists = true;
     legacyRows = [{ video_object_path: "/objects/uploads/b" }, { video_object_path: "/objects/uploads/a" }];
@@ -122,13 +129,46 @@ describe("deleteAccount", () => {
     );
     expect(deleted).not.toContain("players");
 
+    // Match 100's opponent still has an account, so that recording is kept without its video.
+    const kept = calls.find((c) => c.op === "update" && c.table === "ball_boi_sessions");
+    expect(kept?.values).toEqual({
+      recordedByClerkUserId: DELETED_RECORDER_ID,
+      videoObjectPath: null,
+      videoContentType: null,
+      videoSizeBytes: null,
+      aiNarrative: null,
+    });
+
     const anonymize = calls.find((c) => c.op === "update" && c.table === "players");
     expect(anonymize?.values).toEqual({ name: DELETED_PLAYER_NAME, email: null, phone: null, bio: null, clerkUserId: null });
 
     // Each video once, even when listed twice; Clerk last.
     expect(order).toEqual(["video:/objects/uploads/a", "video:/objects/uploads/b", "clerk"]);
     expect(deleteClerkUser).toHaveBeenCalledWith("user_delete_me");
-    expect(summary).toEqual({ playersAnonymized: 2, recordingsDeleted: 2, videosDeleted: 2, videoDeleteFailures: 0 });
+    expect(summary).toEqual({
+      playersAnonymized: 2,
+      recordingsDeleted: 1,
+      recordingsKeptForOpponents: 1,
+      videosDeleted: 2,
+      videoDeleteFailures: 0,
+    });
+  });
+
+  it("deletes a recording outright when the opponent has no account", async () => {
+    const { deleteAccount } = await import("../lib/accountDeletion.js");
+    selectResults.players = [{ id: 7 }, { id: 30, clerkUserId: null }];
+    selectResults.ball_boi_sessions = [{ id: 5, matchId: 200, videoObjectPath: "/objects/uploads/c" }];
+    selectResults.matches = [{ id: 200, player1Id: 7, player2Id: 30 }];
+
+    const summary = await deleteAccount("user_delete_me", log, {
+      storage: { deleteObject: vi.fn() },
+      deleteClerkUser: vi.fn(),
+    });
+
+    expect(calls.find((c) => c.op === "update" && c.table === "ball_boi_sessions")).toBeUndefined();
+    expect(calls.filter((c) => c.op === "delete").map((c) => c.table)).toContain("ball_boi_sessions");
+    expect(summary.recordingsDeleted).toBe(1);
+    expect(summary.recordingsKeptForOpponents).toBe(0);
   });
 
   it("skips player cleanup when the account has no league players", async () => {
@@ -146,7 +186,7 @@ describe("deleteAccount", () => {
 
   it("still deletes the account when a video file can't be removed", async () => {
     const { deleteAccount } = await import("../lib/accountDeletion.js");
-    selectResults.ball_boi_sessions = [{ id: 1, videoObjectPath: "/objects/uploads/a" }];
+    selectResults.ball_boi_sessions = [{ id: 1, matchId: 100, videoObjectPath: "/objects/uploads/a" }];
     const deleteClerkUser = vi.fn();
 
     const summary = await deleteAccount("user_delete_me", log, {
@@ -165,7 +205,13 @@ describe("deleteAccount", () => {
 describe("DELETE /api/users/me", () => {
   async function buildApp() {
     vi.doMock("../lib/accountDeletion.js", () => ({
-      deleteAccount: vi.fn().mockResolvedValue({ playersAnonymized: 1, recordingsDeleted: 0, videosDeleted: 0, videoDeleteFailures: 0 }),
+      deleteAccount: vi.fn().mockResolvedValue({
+        playersAnonymized: 1,
+        recordingsDeleted: 0,
+        recordingsKeptForOpponents: 0,
+        videosDeleted: 0,
+        videoDeleteFailures: 0,
+      }),
     }));
     vi.resetModules();
     const { default: usersRouter } = await import("../routes/users.js");

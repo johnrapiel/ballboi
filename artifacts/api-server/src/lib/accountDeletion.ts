@@ -3,6 +3,7 @@ import {
   ballBoiSessionsTable,
   db,
   expoPushTokensTable,
+  matchesTable,
   playerAvailabilityTable,
   playerLocationsTable,
   playersTable,
@@ -18,7 +19,11 @@ import { ObjectStorageService } from "./objectStorage";
  *
  * What happens:
  * - Personal data is deleted: profile, push tokens, availability, locations, and
- *   every Ball Boi recording they made (database rows and the video files).
+ *   the video file of every Ball Boi recording they made.
+ * - Recordings shared with an opponent who still has an account keep their shot
+ *   data and stats, so the opponent keeps their replay (the same rule as scores).
+ *   The video, the AI write-up, and the recorder's ID are removed. Recordings
+ *   with no remaining opponent are deleted outright.
  * - League player records are anonymized, not deleted, so opponents' match
  *   history and standings stay correct. The name becomes "Deleted player";
  *   email, phone and bio are cleared and the account link is removed.
@@ -30,10 +35,13 @@ import { ObjectStorageService } from "./objectStorage";
  */
 
 export const DELETED_PLAYER_NAME = "Deleted player";
+/** Stands in for the recorder's Clerk ID on recordings kept for the opponent. */
+export const DELETED_RECORDER_ID = "deleted";
 
 export interface DeletionSummary {
   playersAnonymized: number;
   recordingsDeleted: number;
+  recordingsKeptForOpponents: number;
   videosDeleted: number;
   videoDeleteFailures: number;
 }
@@ -49,7 +57,7 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
   const storage = deps.storage ?? new ObjectStorageService();
   const deleteClerkUser = deps.deleteClerkUser ?? ((id: string) => clerkClient.users.deleteUser(id));
 
-  const { videoPaths, playersAnonymized, recordingsDeleted } = await db.transaction(async (tx) => {
+  const { videoPaths, playersAnonymized, recordingsDeleted, recordingsKept } = await db.transaction(async (tx) => {
     const players = await tx
       .select({ id: playersTable.id })
       .from(playersTable)
@@ -57,12 +65,60 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
     const playerIds = players.map((p) => p.id);
 
     const sessions = await tx
-      .select({ id: ballBoiSessionsTable.id, videoObjectPath: ballBoiSessionsTable.videoObjectPath })
+      .select({
+        id: ballBoiSessionsTable.id,
+        matchId: ballBoiSessionsTable.matchId,
+        videoObjectPath: ballBoiSessionsTable.videoObjectPath,
+      })
       .from(ballBoiSessionsTable)
       .where(eq(ballBoiSessionsTable.recordedByClerkUserId, clerkUserId));
+
+    // Which recordings have an opponent who still has an account?
+    const keepIds = new Set<number>();
     if (sessions.length) {
+      const matchIds = [...new Set(sessions.map((s) => s.matchId))];
+      const matches = await tx
+        .select({ id: matchesTable.id, player1Id: matchesTable.player1Id, player2Id: matchesTable.player2Id })
+        .from(matchesTable)
+        .where(inArray(matchesTable.id, matchIds));
+      const mine = new Set(playerIds);
+      const opponentByMatch = new Map<number, number>();
+      for (const m of matches) {
+        const opponent = mine.has(m.player1Id) ? m.player2Id : m.player1Id;
+        if (!mine.has(opponent)) opponentByMatch.set(m.id, opponent);
+      }
+      const opponentIds = [...new Set(opponentByMatch.values())];
+      const opponents = opponentIds.length
+        ? await tx
+            .select({ id: playersTable.id, clerkUserId: playersTable.clerkUserId })
+            .from(playersTable)
+            .where(inArray(playersTable.id, opponentIds))
+        : [];
+      const opponentsWithAccounts = new Set(opponents.filter((o) => o.clerkUserId).map((o) => o.id));
+      for (const s of sessions) {
+        const opponent = opponentByMatch.get(s.matchId);
+        if (opponent !== undefined && opponentsWithAccounts.has(opponent)) keepIds.add(s.id);
+      }
+    }
+
+    const keep = sessions.filter((s) => keepIds.has(s.id));
+    const drop = sessions.filter((s) => !keepIds.has(s.id));
+    if (keep.length) {
+      // The opponent keeps the replay and stats; the video and the recorder's details go.
+      await tx
+        .update(ballBoiSessionsTable)
+        .set({
+          recordedByClerkUserId: DELETED_RECORDER_ID,
+          videoObjectPath: null,
+          videoContentType: null,
+          videoSizeBytes: null,
+          aiNarrative: null,
+        })
+        .where(inArray(ballBoiSessionsTable.id, keep.map((s) => s.id)));
+    }
+    if (drop.length) {
       // Cascades to match_shots and match_statistics for these sessions.
-      await tx.delete(ballBoiSessionsTable).where(inArray(ballBoiSessionsTable.id, sessions.map((s) => s.id)));
+      await tx.delete(ballBoiSessionsTable).where(inArray(ballBoiSessionsTable.id, drop.map((s) => s.id)));
     }
 
     // Legacy uploads table, created outside the Drizzle schema. Only touch it if it exists.
@@ -94,7 +150,8 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
     return {
       videoPaths: [...new Set([...sessionPaths, ...legacyPaths])],
       playersAnonymized: playerIds.length,
-      recordingsDeleted: sessions.length,
+      recordingsDeleted: drop.length,
+      recordingsKept: keep.length,
     };
   });
 
@@ -115,6 +172,7 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
   const summary: DeletionSummary = {
     playersAnonymized,
     recordingsDeleted,
+    recordingsKeptForOpponents: recordingsKept,
     videosDeleted: videoPaths.length - videoDeleteFailures,
     videoDeleteFailures,
   };
