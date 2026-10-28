@@ -71,7 +71,7 @@ export function useReportBlock(opts: { onBlocked?: (player: ReportablePlayer) =>
       .then(async (res) => {
         if (!res.ok) throw new Error(await apiErrorMessage(res, "We couldn't block this player. Try again."));
         onBlocked?.(player);
-        Alert.alert(`${player.name} is blocked`, "You won't see each other in search, and Ball Boi won't pair you.");
+        Alert.alert(`${player.name} is blocked`, "You won't see each other in search, and we won't pair you.");
       })
       .catch((e: Error) => Alert.alert("Not blocked", e.message || "Check your connection and try again."));
   }
@@ -79,7 +79,7 @@ export function useReportBlock(opts: { onBlocked?: (player: ReportablePlayer) =>
   function confirmBlock(player: ReportablePlayer) {
     Alert.alert(
       `Block ${player.name}?`,
-      "You won't see each other in search, and Ball Boi won't pair you. They aren't told.",
+      "You won't see each other in search, and we won't pair you. They aren't told.",
       [
         { text: "Cancel", style: "cancel" },
         { text: "Block", style: "destructive", onPress: () => block(player) },
