@@ -9,7 +9,7 @@ _Ported from `feat/compliance` (#5) on Oct 21, 2026 and updated for the current 
 | Field | Value |
 | --- | --- |
 | Name | Ball Boi |
-| Subtitle (30 chars max) | Tennis leagues + shot tracking |
+| Subtitle (30 chars max) | Find players, leagues, replays |
 | Bundle ID | `tennis.ballboi` |
 | Primary category | Sports |
 | Secondary category | Health & Fitness |
@@ -28,8 +28,7 @@ Answer for what the submitted build collects. Rows marked _at launch_ come with 
 | --- | --- | --- | --- |
 | Name | Yes | Yes | App Functionality |
 | Email Address | Yes | Yes | App Functionality |
-| Phone Number | Optional | Yes | App Functionality |
-| Photos or Videos (profile photo, match video) | Yes | Yes | App Functionality; Product Improvement (model training, on by default) |
+| Photos or Videos (profile photo, match video) | Yes | Yes | App Functionality; Other Purposes (model training, on by default; matches the privacy manifest) |
 | Audio Data (shot detection only, deleted after processing) | _At launch_, if the test set keeps audio | Yes | App Functionality |
 | Gameplay Content (scores, stats, shot data, ratings) | Yes | Yes | App Functionality |
 | Other User Content (bio, reports, messages) | Yes (messages _at launch_) | Yes | App Functionality |
