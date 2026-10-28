@@ -4,12 +4,19 @@
 
 import { useSignIn, useSignUp } from "@clerk/expo";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, View } from "react-native";
+import React, { useRef, useState } from "react";
+import { Pressable, View } from "react-native";
 
-import { Button, Field, Screen, Text } from "@/components/ui";
+import { Button, Field, KeyboardScreen, Screen, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { clerkErrorCode, friendlyAuthError } from "@/lib/authErrors";
+
+const CODE_LENGTH = 6;
+
+/** Prints the real Clerk cause to the Metro terminal in development builds. */
+function logAuthIssue(step: string, detail: unknown) {
+  if (__DEV__) console.warn(`[auth] ${step}:`, clerkErrorCode(detail) ?? detail);
+}
 
 type Step = "email" | "code";
 type Mode = "signIn" | "signUp";
@@ -25,11 +32,14 @@ export default function EmailScreen() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Stops a code from being checked twice (auto-submit plus a tap on Continue).
+  const verifying = useRef(false);
 
   const emailLooksValid = /\S+@\S+\.\S+/.test(email.trim());
 
   async function sendCode() {
     setError(null);
+    setCode("");
     setBusy(true);
     const emailAddress = email.trim();
     try {
@@ -57,29 +67,50 @@ export default function EmailScreen() {
     }
   }
 
-  async function verifyCode() {
+  async function verifyCode(value: string = code) {
+    if (verifying.current || value.length !== CODE_LENGTH) return;
+    verifying.current = true;
     setError(null);
     setBusy(true);
     try {
       const resource = mode === "signIn" ? signIn : signUp;
       const { error: verifyError } =
         mode === "signIn"
-          ? await signIn.emailCode.verifyCode({ code: code.trim() })
-          : await signUp.verifications.verifyEmailCode({ code: code.trim() });
-      if (verifyError) return setError(friendlyAuthError(verifyError));
-      if (resource.status !== "complete") return setError("Something went wrong. Try again.");
+          ? await signIn.emailCode.verifyCode({ code: value })
+          : await signUp.verifications.verifyEmailCode({ code: value });
+      if (verifyError) {
+        logAuthIssue("verify", verifyError);
+        return setError(friendlyAuthError(verifyError));
+      }
+      if (resource.status !== "complete") {
+        logAuthIssue("status after verify", resource.status);
+        return setError("Something went wrong. Try again.");
+      }
       // The auth layout moves signed-in players on to the age check.
       const { error: finalizeError } = await resource.finalize();
-      if (finalizeError) setError(friendlyAuthError(finalizeError));
+      if (finalizeError) {
+        logAuthIssue("finalize", finalizeError);
+        setError(friendlyAuthError(finalizeError));
+      }
     } catch (err) {
+      logAuthIssue("unexpected", err);
       setError(friendlyAuthError(err));
     } finally {
+      verifying.current = false;
       setBusy(false);
     }
   }
 
+  // Checks the code as soon as all six digits are in, typed or autofilled.
+  function onCodeChange(text: string) {
+    const next = text.replace(/\D/g, "").slice(0, CODE_LENGTH);
+    setCode(next);
+    if (error) setError(null);
+    if (next.length === CODE_LENGTH) void verifyCode(next);
+  }
+
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardScreen>
       <Screen style={{ gap: spacing.space6 }}>
         <Pressable
           onPress={() => (step === "code" ? setStep("email") : router.back())}
@@ -126,21 +157,21 @@ export default function EmailScreen() {
             <Field
               label="Code"
               value={code}
-              onChangeText={(t) => setCode(t.replace(/\D/g, "").slice(0, 6))}
+              onChangeText={onCodeChange}
               keyboardType="number-pad"
               autoComplete="one-time-code"
               textContentType="oneTimeCode"
-              maxLength={6}
+              maxLength={CODE_LENGTH}
               returnKeyType="done"
-              onSubmitEditing={() => code.length === 6 && void verifyCode()}
+              onSubmitEditing={() => void verifyCode()}
               hint={error ?? undefined}
               error={!!error}
             />
             <Button label="Resend code" variant="secondary" disabled={busy} onPress={sendCode} />
-            <Button label="Continue" loading={busy} disabled={code.length !== 6} onPress={verifyCode} style={{ marginTop: "auto" }} />
+            <Button label="Continue" loading={busy} disabled={code.length !== CODE_LENGTH} onPress={() => void verifyCode()} style={{ marginTop: "auto" }} />
           </>
         )}
       </Screen>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   );
 }

@@ -10,9 +10,9 @@
 import { useAuth, useUser } from "@clerk/expo";
 import { Redirect, useRouter } from "expo-router";
 import React, { useState } from "react";
-import { KeyboardAvoidingView, Platform, View } from "react-native";
+import { View } from "react-native";
 
-import { Button, Field, Screen, Text } from "@/components/ui";
+import { Button, Field, KeyboardScreen, Screen, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { AGE_CHECK_PASSED, ageOn, isAgeCheckPassed, parseBirthDate } from "@/lib/ageCheck";
 
@@ -59,7 +59,7 @@ export default function AgeCheckScreen() {
   const digits = (set: (v: string) => void, max: number) => (t: string) => set(t.replace(/\D/g, "").slice(0, max));
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardScreen>
       <Screen style={{ gap: spacing.space6 }}>
         <View style={{ gap: spacing.space2, marginTop: spacing.space8 }}>
           <Text variant="label" tone="inkMuted">
@@ -91,6 +91,6 @@ export default function AgeCheckScreen() {
 
         <Button label="Continue" loading={busy} disabled={!complete} onPress={submit} style={{ marginTop: "auto" }} />
       </Screen>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   );
 }
