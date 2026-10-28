@@ -113,7 +113,7 @@ router.delete("/users/me", requireAuth, async (req, res) => {
     return res.json({ deleted: true, ...summary });
   } catch (err) {
     logger.error({ err, userId }, "Account deletion failed");
-    return res.status(500).json({ error: "We couldn't delete your account. Try again, or email support." });
+    return res.status(500).json({ error: "We couldn't delete your account. Try again, or email support@ballboi.tennis." });
   }
 });
 

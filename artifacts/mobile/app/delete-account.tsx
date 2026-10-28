@@ -16,13 +16,15 @@ import { useColors } from "@/hooks/useColors";
 import { apiErrorMessage, apiFetch } from "@/lib/api";
 
 const DELETED = [
+  "Your sign-in, so you can't sign back in to this account",
   "Your profile, photo, and contact details",
-  "Every match you recorded with Ball Boi, including the video",
+  "The video of every match you recorded with Ball Boi",
   "Your availability, location, and notification settings",
 ];
 
 const KEPT = [
   "Scores from league matches you played stay in your opponents' history, listed as \"Deleted player.\"",
+  "Opponents keep their replay and stats from matches you recorded. Your video is still deleted.",
 ];
 
 function List({ title, items }: { title: string; items: string[] }) {

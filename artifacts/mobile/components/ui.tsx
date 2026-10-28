@@ -5,6 +5,8 @@
 import React from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   Text as RNText,
   TextInput,
@@ -209,6 +211,22 @@ export function Screen({ style, children, ...rest }: ViewProps) {
     >
       {children}
     </View>
+  );
+}
+
+/**
+ * Wrap a Screen that has text fields. Lifts the content above the keyboard and
+ * paints the space it adds in `paper`, so no white strip shows above the keys.
+ */
+export function KeyboardScreen({ children }: { children: React.ReactNode }) {
+  const c = useColors();
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: c.paper }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      {children}
+    </KeyboardAvoidingView>
   );
 }
 
