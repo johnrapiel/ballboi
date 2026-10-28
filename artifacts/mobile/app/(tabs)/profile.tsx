@@ -276,6 +276,17 @@ export default function ProfileScreen() {
       gap: 10,
       marginTop: 8,
     },
+    deleteRow: {
+      minHeight: 44,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: 12,
+    },
+    deleteText: {
+      fontSize: 15,
+      color: colors.destructive,
+      fontFamily: "DMSans_500Medium",
+    },
     signOutText: {
       fontSize: 15,
       fontWeight: "600" as const,
@@ -372,6 +383,14 @@ export default function ProfileScreen() {
           >
             <Ionicons name="log-out-outline" size={20} color={colors.destructive} />
             <Text style={styles.signOutText}>Sign out</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.deleteRow, { opacity: pressed ? 0.7 : 1 }]}
+            onPress={() => router.push("/delete-account")}
+            accessibilityRole="button"
+            accessibilityLabel="Delete account"
+          >
+            <Text style={styles.deleteText}>Delete account</Text>
           </Pressable>
         </View>
       </ScrollView>
