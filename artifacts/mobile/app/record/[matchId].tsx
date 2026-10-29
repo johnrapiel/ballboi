@@ -198,7 +198,7 @@ export default function RecordScreen() {
     setPhase("saving");
     const durationSeconds = Math.max(1, Math.round((Date.now() - startedAt.current) / 1000));
     const id = `match-${matchId}-${Date.now()}`;
-    const saved = keepRecording(cacheUri, id);
+    const saved = await keepRecording(cacheUri, id);
     // Into the upload queue: Wi-Fi by default, kept on the phone until the server confirms.
     await enqueue({
       id,
