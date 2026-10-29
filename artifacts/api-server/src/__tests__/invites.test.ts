@@ -3,7 +3,7 @@ import express from "express";
 import supertest from "supertest";
 
 const mockUserId = "user_invitetest";
-let mockGetAuth = () => ({ userId: mockUserId });
+let mockGetAuth: () => { userId: string | null } = () => ({ userId: mockUserId });
 
 vi.mock("@clerk/express", () => ({
   getAuth: (_req: unknown) => mockGetAuth(),
@@ -331,6 +331,6 @@ describe("POST /api/invites/:code/join", () => {
       .set("Authorization", "Bearer token")
       .send({ playerName: "Alice", skillLevel: "9.9" });
 
-    expect(capturedInsertValues?.skillLevel).toBe("3.0");
+    expect((capturedInsertValues as Record<string, unknown> | null)?.skillLevel).toBe("3.0");
   });
 });

@@ -26,7 +26,7 @@ function todayStr(): string {
  */
 router.post("/leagues/:leagueId/rounds/generate", requireAdmin, async (req, res) => {
   try {
-    const leagueId = parseInt(req.params.leagueId);
+    const leagueId = parseInt(String(req.params.leagueId));
     if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid league ID" });
 
     const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
@@ -130,7 +130,7 @@ router.post("/leagues/:leagueId/rounds/generate", requireAdmin, async (req, res)
 
 router.get("/leagues/:leagueId/rounds/current", requireAuth, async (req, res) => {
   try {
-    const leagueId = parseInt(req.params.leagueId);
+    const leagueId = parseInt(String(req.params.leagueId));
     if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid league ID" });
 
     const today = todayStr();
@@ -191,7 +191,7 @@ router.get("/leagues/:leagueId/rounds/current", requireAuth, async (req, res) =>
 
 router.get("/leagues/:leagueId/rounds", requireAuth, async (req, res) => {
   try {
-    const leagueId = parseInt(req.params.leagueId);
+    const leagueId = parseInt(String(req.params.leagueId));
     if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid league ID" });
 
     // Auto-generate any missing rounds so all 6 exist without requiring admin action

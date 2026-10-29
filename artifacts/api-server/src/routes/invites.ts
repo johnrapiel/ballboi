@@ -15,7 +15,7 @@ function requireAuth(req: any, res: any, next: any) {
 
 // Create invite for a league
 router.post("/leagues/:leagueId/invites", requireAuth, async (req, res) => {
-  const leagueId = parseInt(req.params.leagueId);
+  const leagueId = parseInt(String(req.params.leagueId));
   if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid league ID" });
 
   const { userId } = getAuth(req);
@@ -49,7 +49,7 @@ router.post("/leagues/:leagueId/invites", requireAuth, async (req, res) => {
 
 // Get all invites for a league
 router.get("/leagues/:leagueId/invites", requireAuth, async (req, res) => {
-  const leagueId = parseInt(req.params.leagueId);
+  const leagueId = parseInt(String(req.params.leagueId));
   if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid league ID" });
 
   const { userId } = getAuth(req);
@@ -80,7 +80,7 @@ router.get("/invites/:code", async (req, res) => {
   return res.json({
     ...invite,
     leagueName: league?.name ?? "Unknown",
-    leagueSport: league?.sport ?? null,
+    leagueSport: null, // leagues have no sport column; kept for the API contract
     playerCount: playerCount.length,
   });
 });

@@ -18,7 +18,7 @@ function isScheduleStatus() {
 
 function requireAuth(req: any, res: any, next: any) {
   const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
   next();
 }
 
@@ -52,7 +52,7 @@ function formatMatch(m: typeof matchesTable.$inferSelect, playerMap: Record<numb
 // POST /scheduling/:leagueId/generate — trigger generation
 router.post("/scheduling/:leagueId/generate", requireAdmin, async (req, res) => {
   try {
-    const leagueId = parseInt(req.params.leagueId);
+    const leagueId = parseInt(String(req.params.leagueId));
     const weekOf = getWeekOf(req.body?.weekOf);
 
     const { matches, stats } = await generateWeeklyMatches(leagueId, weekOf);
@@ -72,24 +72,24 @@ router.post("/scheduling/:leagueId/generate", requireAdmin, async (req, res) => 
 // GET /scheduling/:leagueId/suggestions — matchup suggestions ranked by time since last played
 router.get("/scheduling/:leagueId/suggestions", requireAuth, async (req, res) => {
   try {
-    const leagueId = parseInt(req.params.leagueId);
-    if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid league" });
+    const leagueId = parseInt(String(req.params.leagueId));
+    if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid league" }); return; }
 
     const { userId } = getAuth(req);
 
     // Require league creator or league member
     const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
-    if (!league) return res.status(404).json({ error: "League not found" });
+    if (!league) { res.status(404).json({ error: "League not found" }); return; }
 
     const isCreator = league.createdByClerkUserId === userId;
     if (!isCreator) {
       const memberRows = await db.select().from(playersTable)
         .where(and(eq(playersTable.leagueId, leagueId), eq(playersTable.clerkUserId, userId!)));
-      if (!memberRows.length) return res.status(403).json({ error: "Forbidden" });
+      if (!memberRows.length) { res.status(403).json({ error: "Forbidden" }); return; }
     }
 
     const players = await db.select().from(playersTable).where(eq(playersTable.leagueId, leagueId));
-    if (players.length < 2) return res.json([]);
+    if (players.length < 2) { res.json([]); return; }
 
     const completedMatches = await db
       .select()
@@ -100,7 +100,7 @@ router.get("/scheduling/:leagueId/suggestions", requireAuth, async (req, res) =>
     const pairLastPlayed = new Map<string, Date>();
     for (const m of completedMatches) {
       const pairKey = [m.player1Id, m.player2Id].sort().join("-");
-      const matchDate = m.completedAt ?? m.updatedAt;
+      const matchDate = new Date(m.completedAt ?? m.updatedAt);
       if (!pairLastPlayed.has(pairKey)) pairLastPlayed.set(pairKey, matchDate);
     }
 
@@ -141,7 +141,7 @@ router.get("/scheduling/:leagueId/suggestions", requireAuth, async (req, res) =>
 // GET /scheduling/:leagueId/log — get generation log history (must stay before :weekOf)
 router.get("/scheduling/:leagueId/log", requireAuth, async (req, res) => {
   try {
-    const leagueId = parseInt(req.params.leagueId);
+    const leagueId = parseInt(String(req.params.leagueId));
     const logs = await db
       .select()
       .from(scheduleGenerationLogsTable)
@@ -155,7 +155,7 @@ router.get("/scheduling/:leagueId/log", requireAuth, async (req, res) => {
 // GET /scheduling/:leagueId/:weekOf — view proposed schedule
 router.get("/scheduling/:leagueId/:weekOf", requireAuth, async (req, res) => {
   try {
-    const leagueId = parseInt(req.params.leagueId);
+    const leagueId = parseInt(String(req.params.leagueId));
     const weekOf = req.params.weekOf;
 
     const log = await db
@@ -183,7 +183,7 @@ router.get("/scheduling/:leagueId/:weekOf", requireAuth, async (req, res) => {
 // POST /scheduling/:leagueId/confirm — confirm schedule + send notifications
 router.post("/scheduling/:leagueId/confirm", requireAdmin, async (req, res) => {
   try {
-    const leagueId = parseInt(req.params.leagueId);
+    const leagueId = parseInt(String(req.params.leagueId));
     const weekOf = getWeekOf(req.body?.weekOf);
     const { userId } = getAuth(req);
 
@@ -192,7 +192,7 @@ router.post("/scheduling/:leagueId/confirm", requireAdmin, async (req, res) => {
       .from(scheduleGenerationLogsTable)
       .where(and(eq(scheduleGenerationLogsTable.leagueId, leagueId), eq(scheduleGenerationLogsTable.weekOf, weekOf), isScheduleStatus()));
 
-    if (!log.length) return res.status(404).json({ error: "No schedule found for this week" });
+    if (!log.length) { res.status(404).json({ error: "No schedule found for this week" }); return; }
 
     await db.update(scheduleGenerationLogsTable)
       .set({ status: "confirmed", confirmedAt: new Date(), confirmedByClerkUserId: userId })
@@ -238,7 +238,7 @@ router.post("/scheduling/:leagueId/confirm", requireAdmin, async (req, res) => {
 // POST /scheduling/:leagueId/regenerate — delete and re-generate
 router.post("/scheduling/:leagueId/regenerate", requireAdmin, async (req, res) => {
   try {
-    const leagueId = parseInt(req.params.leagueId);
+    const leagueId = parseInt(String(req.params.leagueId));
     const weekOf = getWeekOf(req.body?.weekOf);
 
     const existingLog = await db

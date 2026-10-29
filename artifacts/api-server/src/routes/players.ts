@@ -12,7 +12,7 @@ const router = Router();
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
   next();
 }
 
@@ -34,7 +34,7 @@ router.get("/players", async (req, res) => {
 
   if (leagueId && !isNaN(leagueId)) {
     const rows = await db.select().from(playersTable).where(eq(playersTable.leagueId, leagueId)).orderBy(desc(playersTable.wins));
-    return res.json(rows.map((p) => formatPlayer(p)));
+    { res.json(rows.map((p) => formatPlayer(p))); return; }
   }
 
   const rows = await db.select().from(playersTable).orderBy(desc(playersTable.wins));
@@ -42,7 +42,7 @@ router.get("/players", async (req, res) => {
   // League rosters above stay complete so standings remain accurate.
   const { userId } = getAuth(req);
   const hidden = userId ? await blockedAccountsFor(userId) : new Set<string>();
-  return res.json(rows.filter((p) => !p.clerkUserId || !hidden.has(p.clerkUserId)).map((p) => formatPlayer(p)));
+  { res.json(rows.filter((p) => !p.clerkUserId || !hidden.has(p.clerkUserId)).map((p) => formatPlayer(p))); return; }
 });
 
 router.get("/players/me", requireAuth, async (req, res) => {
@@ -52,30 +52,30 @@ router.get("/players/me", requireAuth, async (req, res) => {
     .from(playersTable)
     .where(eq(playersTable.clerkUserId, userId!))
     .orderBy(desc(playersTable.wins));
-  return res.json(rows.map((p) => formatPlayer(p)));
+  { res.json(rows.map((p) => formatPlayer(p))); return; }
 });
 
 router.get("/players/:playerId", async (req, res) => {
-  const playerId = parseInt(req.params.playerId);
-  if (isNaN(playerId)) return res.status(400).json({ error: "Invalid id" });
+  const playerId = parseInt(String(req.params.playerId));
+  if (isNaN(playerId)) { res.status(400).json({ error: "Invalid id" }); return; }
   const [player] = await db.select().from(playersTable).where(eq(playersTable.id, playerId));
-  if (!player) return res.status(404).json({ error: "Player not found" });
-  return res.json(formatPlayer(player));
+  if (!player) { res.status(404).json({ error: "Player not found" }); return; }
+  { res.json(formatPlayer(player)); return; }
 });
 
 router.patch("/players/:playerId", requireAuth, async (req, res) => {
   const { userId } = getAuth(req);
-  const playerId = parseInt(req.params.playerId);
-  if (isNaN(playerId)) return res.status(400).json({ error: "Invalid id" });
+  const playerId = parseInt(String(req.params.playerId));
+  if (isNaN(playerId)) { res.status(400).json({ error: "Invalid id" }); return; }
   const parsed = UpdatePlayerBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const [existingPlayer] = await db.select().from(playersTable).where(eq(playersTable.id, playerId));
-  if (!existingPlayer) return res.status(404).json({ error: "Player not found" });
+  if (!existingPlayer) { res.status(404).json({ error: "Player not found" }); return; }
 
   const updatesReminderPreference = parsed.data.dayBeforeMatchReminderEnabled !== undefined;
   if (updatesReminderPreference && existingPlayer.clerkUserId !== userId) {
-    return res.status(403).json({ error: "Only the linked player can update match reminder preferences" });
+    { res.status(403).json({ error: "Only the linked player can update match reminder preferences" }); return; }
   }
 
   let canUpdate = existingPlayer.clerkUserId === userId;
@@ -85,7 +85,7 @@ router.patch("/players/:playerId", requireAuth, async (req, res) => {
   }
 
   if (!canUpdate) {
-    return res.status(403).json({ error: "You can only update your own player profile" });
+    { res.status(403).json({ error: "You can only update your own player profile" }); return; }
   }
 
   const updates: Partial<typeof playersTable.$inferInsert> = {};
@@ -99,17 +99,17 @@ router.patch("/players/:playerId", requireAuth, async (req, res) => {
   if (parsed.data.leagueId !== undefined) updates.leagueId = parsed.data.leagueId ?? undefined;
 
   const [player] = await db.update(playersTable).set(updates).where(eq(playersTable.id, playerId)).returning();
-  if (!player) return res.status(404).json({ error: "Player not found" });
-  return res.json(formatPlayer(player));
+  if (!player) { res.status(404).json({ error: "Player not found" }); return; }
+  { res.json(formatPlayer(player)); return; }
 });
 
 router.delete("/players/:playerId", requireAuth, async (req, res) => {
   const { userId } = getAuth(req);
-  const playerId = parseInt(req.params.playerId);
-  if (isNaN(playerId)) return res.status(400).json({ error: "Invalid id" });
+  const playerId = parseInt(String(req.params.playerId));
+  if (isNaN(playerId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const [existingPlayer] = await db.select().from(playersTable).where(eq(playersTable.id, playerId));
-  if (!existingPlayer) return res.status(404).json({ error: "Player not found" });
+  if (!existingPlayer) { res.status(404).json({ error: "Player not found" }); return; }
 
   let canDelete = existingPlayer.clerkUserId === userId;
   if (!canDelete && existingPlayer.leagueId) {
@@ -118,19 +118,19 @@ router.delete("/players/:playerId", requireAuth, async (req, res) => {
   }
 
   if (!canDelete) {
-    return res.status(403).json({ error: "You can only remove your own player profile or players in leagues you created" });
+    { res.status(403).json({ error: "You can only remove your own player profile or players in leagues you created" }); return; }
   }
 
   await db.delete(playersTable).where(eq(playersTable.id, playerId));
-  return res.status(204).send();
+  { res.status(204).send(); return; }
 });
 
 router.get("/players/:playerId/stats", async (req, res) => {
-  const playerId = parseInt(req.params.playerId);
-  if (isNaN(playerId)) return res.status(400).json({ error: "Invalid id" });
+  const playerId = parseInt(String(req.params.playerId));
+  if (isNaN(playerId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const [player] = await db.select().from(playersTable).where(eq(playersTable.id, playerId));
-  if (!player) return res.status(404).json({ error: "Player not found" });
+  if (!player) { res.status(404).json({ error: "Player not found" }); return; }
 
   const matches = await db
     .select()
@@ -200,7 +200,7 @@ router.get("/players/:playerId/stats", async (req, res) => {
   const allLeagues = await db.select().from(leaguesTable).where(inArray(leaguesTable.id, recentLeagueIds));
   for (const l of allLeagues) leagueMap[l.id] = l.name;
 
-  return res.json({
+  { res.json({
     playerId: player.id,
     name: player.name,
     totalMatches: matches.length,
@@ -230,7 +230,7 @@ router.get("/players/:playerId/stats", async (req, res) => {
       createdAt: m.createdAt.toISOString(),
       updatedAt: m.updatedAt.toISOString(),
     })),
-  });
+  }); return; }
 });
 
 export default router;
