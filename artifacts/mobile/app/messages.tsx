@@ -30,6 +30,10 @@ export default function MessagesScreen() {
 
   const open = (id: number) => router.push({ pathname: "/conversation/[id]", params: { id: String(id) } });
 
+  const onRefresh = () => {
+    void query.refetch();
+  };
+
   const addSamples = () => {
     setAddingSamples(true);
     actions
@@ -64,7 +68,7 @@ export default function MessagesScreen() {
           data={conversations}
           keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => <ConversationRow conversation={item} onPress={() => open(item.id)} />}
-          refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => query.refetch()} tintColor={c.ink} />}
+          refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={onRefresh} tintColor={c.ink} />}
           contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + spacing.space6 }}
           ListHeaderComponent={
             box === "requests" && conversations.length ? (
