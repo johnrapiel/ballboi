@@ -72,7 +72,7 @@ export default function MessagesScreen() {
                 First messages from players outside your leagues. They can't send more until you reply, and they don't see if
                 you've read them.
               </Text>
-            ) : null
+            ) : undefined
           }
           ListEmptyComponent={
             <View style={{ flex: 1, minHeight: 360 }}>

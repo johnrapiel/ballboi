@@ -54,7 +54,7 @@ export default function NewMessageScreen() {
               <Text variant="label" tone="inkMuted" accessibilityRole="header" style={{ padding: spacing.space4, paddingBottom: spacing.space2 }}>
                 League mates
               </Text>
-            ) : null
+            ) : undefined
           }
           renderItem={({ item }) => (
             <Pressable
