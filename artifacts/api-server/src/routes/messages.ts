@@ -105,6 +105,16 @@ export function createMessagesRouter(getService: () => MessagingService = getMes
     }),
   );
 
+  router.post(
+    "/messages/:id/report",
+    requireAuth,
+    handle(async (svc, me, req, res) => {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const report = await svc.reportMessage(me, idParam(req), { messageId: body.messageId, reason: body.reason, details: body.details });
+      res.status(201).json({ ...report, status: "open" });
+    }),
+  );
+
   // Development only: sample conversations so every screen can be tried on one phone.
   router.post(
     "/dev/messages/samples",
