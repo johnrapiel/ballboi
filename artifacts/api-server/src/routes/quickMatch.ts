@@ -8,10 +8,10 @@ import {
   recordingConsentTable,
   usersTable,
 } from "@workspace/db";
-import { and, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import pino from "pino";
 import { blockedAccountsFor } from "../lib/blocks";
-import { inviteUrl, newInviteCode, parseQuickMatch, pickableOpponents } from "../lib/quickMatch";
+import { flipScore, inviteUrl, newInviteCode, parseQuickMatch, parseSideScore, pickableOpponents } from "../lib/quickMatch";
 
 // Quick match: record a casual hit or a match outside a league, against a
 // league mate, a past opponent, or someone not on Ball Boi yet (a
@@ -152,6 +152,66 @@ router.post("/recording/quick-matches", requireAuth, async (req: Request, res: R
   } catch (err) {
     logger.error({ err }, "Failed to create a Quick match");
     res.status(500).json({ error: "Couldn't start the match. Try again." });
+  }
+});
+
+/**
+ * POST /recording/quick-matches/:matchId/score { score }
+ * The post-stop score prompt for a Quick match. Written from the caller's
+ * side ("6-3, 6-4" means they won both sets). The first score entered
+ * stands. Quick matches have no league, so nothing here touches standings
+ * or league win-loss records. League matches use Session C's
+ * POST /leagues/:leagueId/matches/:matchId/score instead.
+ */
+router.post("/recording/quick-matches/:matchId/score", requireAuth, async (req: Request, res: Response) => {
+  const userId = getAuth(req).userId!;
+  const matchId = Number(req.params.matchId);
+  if (!Number.isInteger(matchId) || matchId <= 0) {
+    res.status(400).json({ error: "Invalid match id" });
+    return;
+  }
+  const parsed = parseSideScore(req.body?.score);
+  if (!parsed.ok) {
+    res.status(400).json({ error: parsed.error });
+    return;
+  }
+  try {
+    const [match] = await db.select().from(matchesTable).where(eq(matchesTable.id, matchId));
+    if (!match || match.leagueId != null) {
+      res.status(404).json({ error: "Match not found" });
+      return;
+    }
+    const mine = await db.select({ id: playersTable.id }).from(playersTable).where(eq(playersTable.clerkUserId, userId));
+    const myIds = new Set(mine.map((p) => p.id));
+    const side: 1 | 2 | null = myIds.has(match.player1Id) ? 1 : myIds.has(match.player2Id) ? 2 : null;
+    if (!side) {
+      res.status(403).json({ error: "Only the players in this match can enter its score." });
+      return;
+    }
+    // Stored from player 1's side, like every other match.
+    const stored = side === 1 ? parsed.score : flipScore(parsed.score);
+    const winnerSide = side === 1 ? parsed.winnerSide : parsed.winnerSide === 1 ? 2 : 1;
+    const now = new Date().toISOString();
+    const [saved] = await db
+      .update(matchesTable)
+      .set({
+        status: "completed",
+        score: stored,
+        winnerId: winnerSide === 1 ? match.player1Id : match.player2Id,
+        completedAt: now,
+        recordedAt: now,
+        recordedByClerkUserId: userId,
+      })
+      .where(and(eq(matchesTable.id, matchId), ne(matchesTable.status, "completed")))
+      .returning({ id: matchesTable.id });
+    if (!saved) {
+      res.status(409).json({ error: "A score is already in for this match. The first score entered stands." });
+      return;
+    }
+    res.json({ matchId, score: parsed.score });
+  } catch (err) {
+    logger.error({ err }, "Failed to save a Quick match score");
+    res.status(500).json({ error: "Couldn't save the score. Try again." });
   }
 });
 
