@@ -19,6 +19,7 @@ import playoffsRouter from "./playoffs";
 import seasonsRouter from "./seasons";
 import safetyRouter from "./safety";
 import recordingRouter from "./recording";
+import trainingConsentRouter from "./trainingConsent";
 
 const router: IRouter = Router();
 
@@ -42,5 +43,6 @@ router.use(playoffsRouter);
 router.use(seasonsRouter);
 router.use(safetyRouter);
 router.use(recordingRouter);
+router.use(trainingConsentRouter);
 
 export default router;
