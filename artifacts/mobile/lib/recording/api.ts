@@ -102,3 +102,54 @@ export function recordedDay(iso: string, now = new Date()): string {
   if (diff === 1) return "Yesterday";
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
+
+export interface RecordingConsent {
+  consented: boolean;
+  consentedAt: string | null;
+  trainingEnabled: boolean;
+}
+
+export const consentKey = ["recording", "consent"] as const;
+
+/** Has this account agreed to the first-recording screen, and is training on? */
+export function useRecordingConsent() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: consentKey,
+    queryFn: async (): Promise<RecordingConsent> => {
+      const res = await apiFetch("/api/recording/consent", getToken);
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't load your recording settings."));
+      return (await res.json()) as RecordingConsent;
+    },
+    staleTime: Infinity,
+  });
+}
+
+/** Saves the first-recording screen's answer. */
+export async function saveRecordingConsent(
+  trainingEnabled: boolean,
+  getToken: () => Promise<string | null>,
+): Promise<RecordingConsent> {
+  const res = await apiFetch("/api/recording/consent", getToken, {
+    method: "POST",
+    body: JSON.stringify({ trainingEnabled }),
+  });
+  if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't save your choice. Try again."));
+  return (await res.json()) as RecordingConsent;
+}
+
+/**
+ * The training toggle on its own (Settings > Privacy).
+ * Hand-off to Session H: bind the Settings switch to this and useRecordingConsent().
+ */
+export async function saveTrainingEnabled(
+  trainingEnabled: boolean,
+  getToken: () => Promise<string | null>,
+): Promise<RecordingConsent> {
+  const res = await apiFetch("/api/recording/training", getToken, {
+    method: "PUT",
+    body: JSON.stringify({ trainingEnabled }),
+  });
+  if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't save your choice. Try again."));
+  return (await res.json()) as RecordingConsent;
+}
