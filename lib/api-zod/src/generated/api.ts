@@ -880,6 +880,64 @@ export const GetLeagueBracketResponse = zod.union([
 ]);
 
 /**
+ * @summary Home tab's league section - this week's matches and byes, playoff matches, drafts to review, recent results
+ */
+export const GetMyLeagueWeekResponse = zod.object({
+  today: zod.string(),
+  thisWeek: zod.array(
+    zod.object({
+      leagueId: zod.number(),
+      leagueName: zod.string(),
+      roundId: zod.number(),
+      roundNumber: zod.number(),
+      phase: zod.enum(["upcoming", "open", "grace"]),
+      startDate: zod.string(),
+      deadline: zod.string(),
+      graceEnd: zod.string(),
+      bye: zod.boolean(),
+      matchId: zod.number().nullable(),
+      myPlayerId: zod.number(),
+      opponentName: zod.string().nullable(),
+      singles: zod.boolean(),
+      scheduledAt: zod.string().nullable(),
+      location: zod.string().nullable(),
+    }),
+  ),
+  playoffs: zod.array(
+    zod.object({
+      leagueId: zod.number(),
+      leagueName: zod.string(),
+      matchId: zod.number(),
+      round: zod.string(),
+      opponentName: zod.string(),
+      singles: zod.boolean(),
+    }),
+  ),
+  drafts: zod.array(
+    zod.object({
+      leagueId: zod.number(),
+      leagueName: zod.string(),
+      roundId: zod.number(),
+      roundNumber: zod.number(),
+      startDate: zod.string(),
+    }),
+  ),
+  recent: zod.array(
+    zod.object({
+      leagueId: zod.number(),
+      leagueName: zod.string(),
+      matchId: zod.number(),
+      opponentName: zod.string(),
+      score: zod.string().describe("From the viewer's side, their games first"),
+      won: zod.boolean(),
+      inGrace: zod.boolean(),
+      playoff: zod.boolean(),
+      completedAt: zod.string().nullable(),
+    }),
+  ),
+});
+
+/**
  * @summary Enter a league match score from your own side. The first score entered stands.
  */
 export const EnterLeagueScoreParams = zod.object({

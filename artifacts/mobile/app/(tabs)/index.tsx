@@ -1,307 +1,154 @@
-import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import React, { useMemo } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Platform,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import React from "react";
+import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import {
-  useGetMatches,
-  useGetMyPlayers,
-} from "@workspace/api-client-react";
+import { useGetMyLeagueWeek, type LeagueWeekItem, type LeagueWeekResult } from "@workspace/api-client-react";
 
 import { EmptyState } from "@/components/EmptyState";
+import { ROUND_SINGULAR } from "@/components/league/Bracket";
+import { ListRow } from "@/components/league/ListRow";
+import { MatchCard } from "@/components/MatchCard";
 import { TabScreen } from "@/components/TabHeader";
+import { Button, Card, Text } from "@/components/ui";
+import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { dateRange, shortDate } from "@/lib/leagueSchedule";
 
-type Match = {
-  id: number;
-  player1Id: number;
-  player2Id: number;
-  player1Name?: string | null;
-  player2Name?: string | null;
-  scheduledAt?: string | null;
-  status: string;
-  score?: string | null;
-  winnerId?: number | null;
-  season?: string | null;
-  hasBallBoi?: boolean;
-};
+// Home (spec: Navigation > Home: upcoming matches, this week's pairings,
+// recent results). Pending match requests join this tab with Discover.
 
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return "Unknown date";
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+function weekDetail(i: LeagueWeekItem): string {
+  if (i.phase === "upcoming") return `Starts ${shortDate(i.startDate)}. Play by ${shortDate(i.deadline)}.`;
+  if (i.phase === "grace") return `Grace week until ${shortDate(i.graceEnd)}.`;
+  return `Play by ${shortDate(i.deadline)}.`;
 }
 
-function MatchCard({
-  match,
-  myPlayerIds,
-  onPress,
-}: {
-  match: Match;
-  myPlayerIds: number[];
-  onPress: () => void;
-}) {
-  const colors = useColors();
-
-  const isMyMatch =
-    myPlayerIds.includes(match.player1Id) ||
-    myPlayerIds.includes(match.player2Id);
-
-  const p1 = match.player1Name ?? `Player ${match.player1Id}`;
-  const p2 = match.player2Name ?? `Player ${match.player2Id}`;
-  const status = match.status;
-  const isCompleted = status === "completed";
-
-  const styles = StyleSheet.create({
-    card: {
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: colors.radius + 4,
-      padding: 16,
-      marginHorizontal: 20,
-      marginBottom: 12,
-    },
-    topRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      marginBottom: 12,
-    },
-    dateText: {
-      fontSize: 13,
-      color: colors.mutedForeground,
-      fontFamily: "DMSans_400Regular",
-    },
-    badges: {
-      flexDirection: "row",
-      gap: 6,
-    },
-    badge: {
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 100,
-    },
-    badgeText: {
-      fontSize: 12,
-      fontWeight: "600" as const,
-      fontFamily: "DMSans_600SemiBold",
-    },
-    ballBoiBadge: {
-      backgroundColor: colors.primary + "22",
-      borderWidth: 1,
-      borderColor: colors.primary + "55",
-    },
-    ballBoiBadgeText: {
-      color: colors.primary,
-    },
-    completedBadge: {
-      backgroundColor: colors.court + "22",
-      borderWidth: 1,
-      borderColor: colors.court + "55",
-    },
-    completedBadgeText: {
-      color: colors.court,
-    },
-    scheduledBadge: {
-      backgroundColor: colors.muted,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    scheduledBadgeText: {
-      color: colors.mutedForeground,
-    },
-    matchup: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      marginBottom: 8,
-    },
-    playerName: {
-      flex: 1,
-      fontSize: 15,
-      fontWeight: "600" as const,
-      color: colors.foreground,
-      fontFamily: "DMSans_600SemiBold",
-    },
-    vsText: {
-      fontSize: 13,
-      color: colors.mutedForeground,
-      fontFamily: "DMSans_500Medium",
-    },
-    score: {
-      fontSize: 14,
-      color: colors.mutedForeground,
-      fontFamily: "DMSans_500Medium",
-      marginTop: 4,
-    },
-    replayRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      marginTop: 12,
-      paddingTop: 12,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    replayText: {
-      fontSize: 13,
-      color: colors.primary,
-      fontWeight: "600" as const,
-      fontFamily: "DMSans_600SemiBold",
-    },
-  });
-
+function ResultRow({ r, last, onPress }: { r: LeagueWeekResult; last: boolean; onPress: () => void }) {
+  const outcome = r.won ? "Won" : "Lost";
+  const sub = [`vs. ${r.opponentName}`, r.leagueName, r.playoff ? "Playoffs" : null, r.inGrace ? "Grace week, not in standings" : null]
+    .filter(Boolean)
+    .join(" · ");
   return (
-    <Pressable
-      style={({ pressed }) => [styles.card, { opacity: pressed ? 0.8 : 1 }]}
-      onPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onPress();
-      }}
-    >
-      <View style={styles.topRow}>
-        <Text style={styles.dateText}>{formatDate(match.scheduledAt)}</Text>
-        <View style={styles.badges}>
-          {isCompleted ? (
-            <View style={[styles.badge, styles.completedBadge]}>
-              <Text style={[styles.badgeText, styles.completedBadgeText]}>Completed</Text>
-            </View>
-          ) : (
-            <View style={[styles.badge, styles.scheduledBadge]}>
-              <Text style={[styles.badgeText, styles.scheduledBadgeText]}>
-                {status === "in_progress" ? "In Progress" : "Scheduled"}
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.matchup}>
-        <Text style={styles.playerName} numberOfLines={1}>{p1}</Text>
-        <Text style={styles.vsText}>vs</Text>
-        <Text style={[styles.playerName, { textAlign: "right" }]} numberOfLines={1}>{p2}</Text>
-      </View>
-
-      {match.score && <Text style={styles.score}>{match.score}</Text>}
-      {match.season && (
-        <Text style={[styles.score, { marginTop: 2 }]}>{match.season}</Text>
-      )}
-
-      {match.hasBallBoi && (
-        <View style={styles.replayRow}>
-          <Ionicons name="videocam" size={14} color={colors.primary} />
-          <Text style={styles.replayText}>Ball Boi Replay available</Text>
-          <Ionicons name="chevron-forward" size={14} color={colors.primary} style={{ marginLeft: "auto" }} />
-        </View>
-      )}
-    </Pressable>
+    <ListRow
+      title={`${outcome} ${r.score}`}
+      subtitle={sub}
+      symbol={r.won ? "checkmark.circle" : "xmark.circle"}
+      onPress={onPress}
+      accessibilityHint="Opens the league"
+      last={last}
+    />
   );
 }
 
 export default function HomeScreen() {
-  const colors = useColors();
+  const c = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const weekQ = useGetMyLeagueWeek();
+  const week = weekQ.data;
 
-  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+  const openLeague = (leagueId: number) => router.push(`/league/${leagueId}`);
+  const enterScore = (leagueId: number, matchId: number) => router.push(`/league/${leagueId}/score/${matchId}`);
 
-  const { data: myPlayers, isLoading: playersLoading } = useGetMyPlayers();
-
-  const myPlayerIds = useMemo(
-    () => (myPlayers ?? []).map((p) => p.id),
-    [myPlayers]
-  );
-
-  const primaryPlayerId = myPlayerIds[0];
-
-  const { data: matchesRaw, isLoading: matchesLoading, refetch } = useGetMatches(
-    primaryPlayerId ? { playerId: primaryPlayerId } : undefined
-  );
-
-  const matches = useMemo(() => {
-    if (!matchesRaw) return [];
-    return [...matchesRaw].sort((a, b) => {
-      const dateA = a.scheduledAt ? new Date(a.scheduledAt).getTime() : 0;
-      const dateB = b.scheduledAt ? new Date(b.scheduledAt).getTime() : 0;
-      return dateB - dateA;
-    });
-  }, [matchesRaw]);
-
-  const isLoading = playersLoading || matchesLoading;
-
-  const styles = StyleSheet.create({
-    loadingContainer: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    listContent: {
-      paddingTop: 16,
-      paddingBottom: bottomPad + 20,
-    },
-  });
+  const nothing =
+    !!week && week.thisWeek.length === 0 && week.playoffs.length === 0 && week.drafts.length === 0 && week.recent.length === 0;
 
   return (
     <TabScreen title="Home">
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+      {weekQ.isLoading ? (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator color={c.ink} accessibilityLabel="Loading" />
+        </View>
+      ) : nothing ? (
+        <View style={{ flex: 1, paddingBottom: insets.bottom }}>
+          <EmptyState symbol="tennisball" title="No league matches yet" message="Start or join a league, and your matches show up here each week." />
+          <View style={{ paddingHorizontal: spacing.space4, paddingBottom: spacing.space8 }}>
+            <Button label="Go to Leagues" variant="secondary" onPress={() => router.push("/(tabs)/leagues")} />
+          </View>
         </View>
       ) : (
-        <FlatList
-          data={matches}
-          keyExtractor={(m) => String(m.id)}
-          contentContainerStyle={[
-            styles.listContent,
-            matches.length === 0 && { flex: 1, paddingTop: 0, paddingBottom: 0 },
-          ]}
-          showsVerticalScrollIndicator={false}
-          scrollEnabled={!!matches.length}
-          refreshControl={
-            <RefreshControl
-              refreshing={false}
-              onRefresh={() => {
-                refetch();
-              }}
-              tintColor={colors.primary}
-            />
-          }
-          ListEmptyComponent={
-            <EmptyState
-              symbol="tennisball"
-              title="No matches yet"
-              message="Your matches show up here once you join a league and play."
-            />
-          }
-          renderItem={({ item }) => (
+        <ScrollView
+          contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space3 }}
+          refreshControl={<RefreshControl refreshing={weekQ.isRefetching} onRefresh={() => void weekQ.refetch()} tintColor={c.ink} />}
+        >
+          {weekQ.isError ? (
+            <Card style={{ gap: spacing.space2 }}>
+              <Text variant="bodyStrong">Couldn't load your matches</Text>
+              <Text variant="small" tone="inkMuted">
+                Pull down to try again.
+              </Text>
+            </Card>
+          ) : null}
+
+          {week?.drafts.map((d) => (
             <MatchCard
-              match={item as Match}
-              myPlayerIds={myPlayerIds}
-              onPress={() =>
-                router.push({
-                  pathname: "/replay/[matchId]",
-                  params: { matchId: String(item.id) },
-                })
-              }
+              key={`draft-${d.roundId}`}
+              eyebrow={`${d.leagueName} · Admin`}
+              title={`Round ${d.roundNumber} pairings are ready to review`}
+              detail={`They go out to players ${shortDate(d.startDate)} at 7am.`}
+              primary={{ label: "Review pairings", onPress: () => router.push(`/league/${d.leagueId}/round/${d.roundId}`) }}
             />
+          ))}
+
+          {week && (week.playoffs.length > 0 || week.thisWeek.length > 0) ? (
+            <Text variant="label" tone="inkMuted" accessibilityRole="header" style={{ marginTop: spacing.space2 }}>
+              This week
+            </Text>
+          ) : null}
+
+          {week?.playoffs.map((p) => (
+            <MatchCard
+              key={`po-${p.matchId}`}
+              eyebrow={`${p.leagueName} · Playoffs · ${ROUND_SINGULAR[p.round as keyof typeof ROUND_SINGULAR] ?? "Playoff"}`}
+              title={`You vs. ${p.opponentName}`}
+              onOpen={() => openLeague(p.leagueId)}
+              primary={{ label: "Enter score", onPress: () => enterScore(p.leagueId, p.matchId), hint: `For your match against ${p.opponentName}` }}
+            />
+          ))}
+
+          {week?.thisWeek.map((i) =>
+            i.bye ? (
+              <MatchCard
+                key={`bye-${i.roundId}`}
+                eyebrow={`${i.leagueName} · Round ${i.roundNumber} · ${dateRange(i.startDate, i.deadline)}`}
+                title="You have a bye this week"
+                onOpen={() => openLeague(i.leagueId)}
+              />
+            ) : (
+              <MatchCard
+                key={`m-${i.matchId}`}
+                eyebrow={`${i.leagueName} · Round ${i.roundNumber}`}
+                title={`You vs. ${i.opponentName ?? "your opponent"}`}
+                detail={weekDetail(i)}
+                note={i.phase === "grace" ? "A score now counts for Ball Boi stats, not standings." : null}
+                onOpen={() => openLeague(i.leagueId)}
+                primary={
+                  i.phase !== "upcoming" && i.matchId != null
+                    ? {
+                        label: "Enter score",
+                        onPress: () => enterScore(i.leagueId, i.matchId!),
+                        hint: `For your match against ${i.opponentName ?? "your opponent"}`,
+                      }
+                    : null
+                }
+              />
+            ),
           )}
-        />
+
+          {week && week.recent.length > 0 ? (
+            <>
+              <Text variant="label" tone="inkMuted" accessibilityRole="header" style={{ marginTop: spacing.space2 }}>
+                Recent results
+              </Text>
+              <Card style={{ padding: 0, overflow: "hidden" }}>
+                {week.recent.map((r, n) => (
+                  <ResultRow key={r.matchId} r={r} last={n === week.recent.length - 1} onPress={() => openLeague(r.leagueId)} />
+                ))}
+              </Card>
+            </>
+          ) : null}
+        </ScrollView>
       )}
     </TabScreen>
   );
