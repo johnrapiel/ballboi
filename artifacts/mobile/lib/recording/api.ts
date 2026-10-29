@@ -153,3 +153,76 @@ export async function saveTrainingEnabled(
   if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't save your choice. Try again."));
   return (await res.json()) as RecordingConsent;
 }
+
+export interface Opponent {
+  playerId: number;
+  name: string;
+}
+
+/** League mates and past opponents you can pick for a Quick match. */
+export function useQuickMatchOpponents() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ["recording", "opponents"],
+    queryFn: async (): Promise<Opponent[]> => {
+      const res = await apiFetch("/api/recording/opponents", getToken);
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't load players."));
+      return (await res.json()) as Opponent[];
+    },
+  });
+}
+
+export interface QuickMatchCreated {
+  matchId: number;
+  opponentName: string;
+  /** Set when the opponent isn't on Ball Boi: share this link with them. */
+  invite: { code: string; url: string } | null;
+}
+
+export async function createQuickMatch(
+  opponent: { opponentPlayerId: number } | { opponentName: string },
+  getToken: () => Promise<string | null>,
+): Promise<QuickMatchCreated> {
+  const res = await apiFetch("/api/recording/quick-matches", getToken, {
+    method: "POST",
+    body: JSON.stringify({ format: "singles", ...opponent }),
+  });
+  if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't start the match. Try again."));
+  return (await res.json()) as QuickMatchCreated;
+}
+
+export interface MatchInvite {
+  code: string;
+  recorderName: string;
+  yourName: string;
+  recordedAt: string;
+  claimed: boolean;
+  claimedByYou: boolean;
+  isYourInvite: boolean;
+}
+
+export function useMatchInvite(code: string, enabled: boolean) {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ["recording", "invite", code],
+    enabled,
+    queryFn: async (): Promise<MatchInvite> => {
+      const res = await apiFetch(`/api/recording/invites/${encodeURIComponent(code)}`, getToken);
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't load this invite."));
+      return (await res.json()) as MatchInvite;
+    },
+  });
+}
+
+export async function claimMatchInvite(
+  code: string,
+  trainingEnabled: boolean,
+  getToken: () => Promise<string | null>,
+): Promise<{ matchId: number }> {
+  const res = await apiFetch(`/api/recording/invites/${encodeURIComponent(code)}/claim`, getToken, {
+    method: "POST",
+    body: JSON.stringify({ trainingEnabled }),
+  });
+  if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't add the match. Try again."));
+  return (await res.json()) as { matchId: number };
+}
