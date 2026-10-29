@@ -12,6 +12,7 @@ import {
   getGetLeaguesQueryKey,
   getGetMyPlayersQueryKey,
   useGetLeague,
+  useGetLeagueBracket,
   useGetLeagueMembership,
   useLeaveLeague,
   useGetLeagueSchedule,
@@ -23,6 +24,7 @@ import { RoundCard, UpcomingWeekRow } from "@/components/league/RoundCard";
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
 import { IconButton } from "@/components/Choice";
 import { StandingsTable } from "@/components/league/StandingsTable";
+import { BracketView, myPlayoffMatch, ROUND_SINGULAR } from "@/components/league/Bracket";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -102,12 +104,15 @@ export default function LeagueScreen() {
   const membershipQ = useGetLeagueMembership(leagueId);
   const standingsQ = useGetLeagueStandings(leagueId);
   const scheduleQ = useGetLeagueSchedule(leagueId);
+  const bracketQ = useGetLeagueBracket(leagueId);
 
   const league = leagueQ.data;
   const myPlayerId = membershipQ.data?.playerId ?? null;
   const schedule = scheduleQ.data;
   const standings = standingsQ.data ?? [];
   const week = myWeek(schedule, myPlayerId);
+  const bracket = bracketQ.data ?? null;
+  const playoff = myPlayoffMatch(bracket, myPlayerId);
   const rounds = (schedule?.rounds ?? []).filter((r) => r.phase !== "draft").slice().reverse();
 
   const refreshing = leagueQ.isRefetching || standingsQ.isRefetching || scheduleQ.isRefetching;
@@ -116,6 +121,7 @@ export default function LeagueScreen() {
     void membershipQ.refetch();
     void standingsQ.refetch();
     void scheduleQ.refetch();
+    void bracketQ.refetch();
   };
 
   const enterScore = (m: ScheduleMatch) => router.push(`/league/${leagueId}/score/${m.matchId}`);
@@ -215,7 +221,27 @@ export default function LeagueScreen() {
             </Text>
           </View>
 
-          {week && myPlayerId != null ? <YourWeek leagueId={leagueId} week={week} myPlayerId={myPlayerId} /> : null}
+          {playoff ? (
+            <Card style={{ gap: spacing.space3 }}>
+              <View
+                accessible
+                accessibilityLabel={`Your ${ROUND_SINGULAR[playoff.slot.round].toLowerCase()}. You versus ${playoff.opponent?.playerName ?? "to be decided"}.`}
+                style={{ gap: spacing.space1 }}
+              >
+                <Text variant="label" tone="inkMuted">
+                  {`Playoffs · ${ROUND_SINGULAR[playoff.slot.round]}`}
+                </Text>
+                <Text variant="title">{`You vs. ${playoff.opponent?.playerName ?? "to be decided"}`}</Text>
+              </View>
+              <Button
+                label="Enter score"
+                accessibilityHint={`For your ${ROUND_SINGULAR[playoff.slot.round].toLowerCase()}`}
+                onPress={() => router.push(`/league/${leagueId}/score/${playoff.slot.matchId}`)}
+              />
+            </Card>
+          ) : week && myPlayerId != null ? (
+            <YourWeek leagueId={leagueId} week={week} myPlayerId={myPlayerId} />
+          ) : null}
 
           {draft && membershipQ.data?.isAdmin ? (
             <Card style={{ gap: spacing.space3 }}>
@@ -296,15 +322,19 @@ export default function LeagueScreen() {
             </View>
           ) : null}
 
-          {tab === "playoffs" ? (
+          {tab === "playoffs" && bracket ? (
+            <BracketView bracket={bracket} myPlayerId={myPlayerId} onEnterScore={(id) => router.push(`/league/${leagueId}/score/${id}`)} />
+          ) : null}
+
+          {tab === "playoffs" && !bracket ? (
             <Card style={{ gap: spacing.space2 }}>
               {league.playoffSize ? (
                 <>
                   <Text variant="bodyStrong">{`Top ${league.playoffSize} make the playoffs`}</Text>
                   <Text tone="inkMuted">
                     {league.endDate
-                      ? `The bracket is set after the regular season ends ${shortDate(league.endDate)}.`
-                      : "The bracket is set after the regular season."}
+                      ? `Seeds are set from the standings the day after the regular season ends ${shortDate(league.endDate)}. Ties on wins go to head-to-head, then sets, then games.`
+                      : "Seeds are set from the standings after the regular season."}
                   </Text>
                 </>
               ) : (
