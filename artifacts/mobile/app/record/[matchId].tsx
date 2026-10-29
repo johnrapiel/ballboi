@@ -1,8 +1,10 @@
 // Ball Boi recorder (spec: Ball Boi > Recording).
 //
 // Rear camera only, phone mounted on the fence, screen facing away from the
-// court. Ported from the old `feat/ios-expo-app` recorder and rebuilt on the
-// design system. The video is analysis input only: it is never played back.
+// court. Nobody touches the fence after mounting: start now or after a
+// spoken countdown, stop by holding anywhere for 2 seconds, and the safety
+// cap stops and saves on low battery, low storage, or at 4 hours.
+// The video is analysis input only: it is never played back.
 
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
@@ -10,20 +12,28 @@ import { useKeepAwake } from "expo-keep-awake";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import React, { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Linking, Pressable, StyleSheet, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, Linking, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ChromeButton, ChromeChoice } from "@/components/record/ChromeControls";
+import { HoldToStop } from "@/components/record/HoldToStop";
 import { Button, Screen, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { chrome } from "@/lib/recording/chrome";
+import { countdownClock, cueAt, START_DELAYS, type StartDelayMinutes } from "@/lib/recording/countdown";
 import { keepRecording } from "@/lib/recording/files";
 import { formatElapsed, spokenDuration } from "@/lib/recording/format";
+import {
+  hasRoomToStart,
+  MAX_RECORDING_SECONDS,
+  STOP_MESSAGES,
+  useSafetyCap,
+  type StopReason,
+} from "@/lib/recording/safety";
 import { ensureSession, uploadRecording } from "@/lib/recording/upload";
+import { prepareVoice, say, stopVoice } from "@/lib/recording/voice";
 
-/** Spec safety cap: a recording never runs past 4 hours. */
-const MAX_SECONDS = 4 * 60 * 60;
-
-type Phase = "ready" | "recording" | "saving" | "uploading" | "done" | "error";
+type Phase = "ready" | "countdown" | "recording" | "saving" | "uploading" | "done" | "error";
 
 export default function RecordScreen() {
   const router = useRouter();
@@ -37,18 +47,57 @@ export default function RecordScreen() {
   const camera = useRef<CameraView>(null);
   const [cameraReady, setCameraReady] = useState(false);
   const [phase, setPhase] = useState<Phase>("ready");
+  const [delay, setDelay] = useState<StartDelayMinutes>(0);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [caption, setCaption] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [stopReason, setStopReason] = useState<StopReason>("user");
   const startedAt = useRef(0);
+  const startAt = useRef(0);
+  const reasonRef = useRef<StopReason>("user");
 
   // The mounted phone must never auto-lock: iOS stops the camera when it does.
   useKeepAwake();
 
   useEffect(() => {
+    prepareVoice();
+    return () => stopVoice();
+  }, []);
+
+  // Recording clock.
+  useEffect(() => {
     if (phase !== "recording") return;
     const t = setInterval(() => setElapsed(Math.round((Date.now() - startedAt.current) / 1000)), 1000);
     return () => clearInterval(t);
   }, [phase]);
+
+  // Countdown: a cue at each whole minute, 30 s, 10 s, then 5 to 1, each spoken and captioned.
+  useEffect(() => {
+    if (phase !== "countdown") return;
+    const total = delay * 60;
+    let last = -1;
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((startAt.current - Date.now()) / 1000));
+      if (left === last) return;
+      last = left;
+      setSecondsLeft(left);
+      const cue = cueAt(left, total);
+      if (cue) {
+        setCaption(cue);
+        say(cue);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      }
+      if (left === 0) beginRecording();
+    };
+    tick();
+    const t = setInterval(tick, 250);
+    return () => clearInterval(t);
+    // beginRecording reads refs only; the countdown restarts only on a new phase or delay.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, delay]);
+
+  useSafetyCap(phase === "recording", (reason) => stop(reason));
 
   if (!camPerm) {
     return <View style={{ flex: 1, backgroundColor: chrome.ground }} />;
@@ -80,31 +129,71 @@ export default function RecordScreen() {
     );
   }
 
-  async function start() {
-    if (!camera.current || !cameraReady) return;
+  function pressStart() {
+    if (!cameraReady) return;
+    if (!hasRoomToStart()) {
+      Alert.alert("Not enough space", "Free up at least 3 GB on your phone to record a match.");
+      return;
+    }
     setError(null);
+    if (delay === 0) {
+      beginRecording();
+      return;
+    }
+    startAt.current = Date.now() + delay * 60 * 1000;
+    setPhase("countdown");
+  }
+
+  function cancelCountdown() {
+    stopVoice();
+    setCaption(null);
+    setPhase("ready");
+    AccessibilityInfo.announceForAccessibility("Countdown cancelled");
+  }
+
+  async function beginRecording() {
+    if (!camera.current) return;
+    reasonRef.current = "user";
     startedAt.current = Date.now();
     setElapsed(0);
+    setCaption(null);
     setPhase("recording");
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     AccessibilityInfo.announceForAccessibility("Recording started");
     try {
-      const video = await camera.current.recordAsync({ maxDuration: MAX_SECONDS });
+      const video = await camera.current.recordAsync({ maxDuration: MAX_RECORDING_SECONDS });
       if (!video?.uri) throw new Error("No video was saved.");
-      await finish(video.uri);
+      // Reaching maxDuration ends the recording without a stop call.
+      if (reasonRef.current === "user" && Date.now() - startedAt.current >= (MAX_RECORDING_SECONDS - 5) * 1000) {
+        reasonRef.current = "time";
+      }
+      await finish(video.uri, reasonRef.current);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Recording failed.");
       setPhase("error");
     }
   }
 
-  function stop() {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    AccessibilityInfo.announceForAccessibility("Recording stopped");
+  function stop(reason: StopReason = "user") {
+    reasonRef.current = reason;
+    Haptics.notificationAsync(
+      reason === "user" ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning,
+    ).catch(() => {});
+    const message = reason === "user" ? "Recording stopped" : STOP_MESSAGES[reason];
+    say(message);
+    AccessibilityInfo.announceForAccessibility(message);
     camera.current?.stopRecording();
   }
 
-  async function finish(cacheUri: string) {
+  function confirmStop() {
+    Alert.alert("Stop recording?", "Your match so far is saved.", [
+      { text: "Keep recording", style: "cancel" },
+      { text: "Stop", style: "destructive", onPress: () => stop("user") },
+    ]);
+  }
+
+  async function finish(cacheUri: string, reason: StopReason) {
+    setStopReason(reason);
     setPhase("saving");
     const durationSeconds = Math.max(1, Math.round((Date.now() - startedAt.current) / 1000));
     const saved = await keepRecording(cacheUri, `match-${matchId}-${Date.now()}`);
@@ -117,7 +206,13 @@ export default function RecordScreen() {
   }
 
   const recording = phase === "recording";
-  const status = recording ? `Recording, ${spokenDuration(elapsed)}` : `Match vs ${opponent}`;
+  const counting = phase === "countdown";
+  const status = recording
+    ? `Recording, ${spokenDuration(elapsed)}`
+    : counting
+      ? `Recording starts in ${spokenDuration(secondsLeft)}`
+      : `Match vs ${opponent}`;
+  const pillText = recording ? formatElapsed(elapsed) : counting ? `Starts in ${countdownClock(secondsLeft)}` : `vs ${opponent}`;
 
   return (
     <View style={{ flex: 1, backgroundColor: chrome.ground }}>
@@ -137,7 +232,10 @@ export default function RecordScreen() {
         accessibilityElementsHidden
       />
 
+      {recording ? <HoldToStop onStop={() => stop("user")} bottomInset={insets.bottom} /> : null}
+
       <View
+        pointerEvents="box-none"
         style={{
           position: "absolute",
           top: insets.top + spacing.space2,
@@ -149,7 +247,7 @@ export default function RecordScreen() {
           gap: spacing.space3,
         }}
       >
-        {recording ? (
+        {recording || counting ? (
           <View style={{ width: MIN_TAP }} />
         ) : (
           <Pressable
@@ -162,21 +260,17 @@ export default function RecordScreen() {
             <SymbolView name="xmark" size={18} tintColor={chrome.text} />
           </Pressable>
         )}
-        <View
-          accessible
-          accessibilityRole="text"
-          accessibilityLabel={status}
-          style={[styles.pill, { flexShrink: 1 }]}
-        >
+        <View accessible accessibilityRole="text" accessibilityLabel={status} style={[styles.pill, { flexShrink: 1 }]}>
           {recording ? <SymbolView name="record.circle" size={14} tintColor={chrome.danger} /> : null}
           <Text variant="bodyStrong" numberOfLines={1} style={{ color: chrome.text }}>
-            {recording ? formatElapsed(elapsed) : `vs ${opponent}`}
+            {pillText}
           </Text>
         </View>
         <View style={{ width: MIN_TAP }} />
       </View>
 
       <View
+        pointerEvents="box-none"
         style={{
           position: "absolute",
           bottom: insets.bottom + spacing.space6,
@@ -187,26 +281,75 @@ export default function RecordScreen() {
         }}
       >
         {phase === "ready" ? (
-          <View style={[styles.panel, { backgroundColor: chrome.scrim }]}>
-            <Text style={{ color: chrome.text, textAlign: "center" }}>
-              Mount your phone on the fence behind the baseline, turned sideways, with the whole court in view.
+          <>
+            <View style={[styles.panel, { backgroundColor: chrome.scrim, alignSelf: "stretch", gap: spacing.space4 }]}>
+              <Text style={{ color: chrome.text, textAlign: "center" }}>
+                Mount your phone on the fence behind the baseline, turned sideways, with the whole court in view.
+              </Text>
+              <ChromeChoice
+                label="Start in"
+                options={START_DELAYS.map((d) => ({ value: d.minutes, label: d.label }))}
+                value={delay}
+                onChange={setDelay}
+              />
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={delay === 0 ? "Record" : `Start ${delay} minute countdown`}
+              accessibilityState={{ disabled: !cameraReady }}
+              disabled={!cameraReady}
+              onPress={pressStart}
+              style={({ pressed }) => [styles.shutter, { opacity: !cameraReady ? 0.5 : pressed ? 0.8 : 1 }]}
+            >
+              <View style={styles.shutterRecord} />
+            </Pressable>
+          </>
+        ) : null}
+
+        {counting ? (
+          <View style={[styles.panel, { backgroundColor: chrome.scrim, alignSelf: "stretch", alignItems: "center" }]}>
+            <Text
+              variant="score"
+              style={{ color: chrome.text }}
+              accessibilityElementsHidden
+              importantForAccessibility="no"
+            >
+              {countdownClock(secondsLeft)}
             </Text>
+            {caption ? (
+              <Text
+                variant="bodyStrong"
+                style={{ color: chrome.text, textAlign: "center" }}
+                accessibilityLiveRegion="polite"
+              >
+                {caption}
+              </Text>
+            ) : null}
+            <ChromeButton variant="secondary" label="Cancel" accessibilityLabel="Cancel countdown" onPress={cancelCountdown} />
           </View>
         ) : null}
 
-        {phase === "ready" || phase === "recording" ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={recording ? "Stop recording" : "Record"}
-            accessibilityState={{ disabled: !cameraReady }}
-            disabled={!cameraReady}
-            onPress={recording ? stop : start}
-            style={({ pressed }) => [styles.shutter, { opacity: !cameraReady ? 0.5 : pressed ? 0.8 : 1 }]}
-          >
-            <View style={recording ? styles.shutterStop : styles.shutterRecord} />
-          </Pressable>
-        ) : (
+        {recording ? (
+          <View style={{ alignItems: "center", gap: spacing.space3 }} pointerEvents="box-none">
+            <View style={[styles.pill]} pointerEvents="none">
+              <Text variant="small" style={{ color: chrome.text }}>
+                Press and hold anywhere for 2 seconds to stop
+              </Text>
+            </View>
+            <ChromeButton variant="secondary" label="Stop" accessibilityLabel="Stop recording" onPress={confirmStop} />
+          </View>
+        ) : null}
+
+        {phase === "saving" || phase === "uploading" || phase === "done" || phase === "error" ? (
           <View style={[styles.panel, { backgroundColor: chrome.panel, alignSelf: "stretch" }]}>
+            {stopReason !== "user" && phase !== "error" ? (
+              <View style={{ flexDirection: "row", gap: spacing.space2, alignItems: "center" }} accessible>
+                <SymbolView name="exclamationmark.triangle" size={16} tintColor={chrome.text} />
+                <Text variant="bodyStrong" style={{ color: chrome.text, flex: 1 }}>
+                  {STOP_MESSAGES[stopReason]}
+                </Text>
+              </View>
+            ) : null}
             {phase === "saving" || phase === "uploading" ? (
               <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3 }} accessible>
                 <ActivityIndicator color={chrome.text} />
@@ -236,33 +379,9 @@ export default function RecordScreen() {
               </>
             ) : null}
           </View>
-        )}
+        ) : null}
       </View>
     </View>
-  );
-}
-
-/** Primary button on the dark camera screen. */
-function ChromeButton({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => ({
-        minHeight: MIN_TAP,
-        borderRadius: radius.radiusPill,
-        backgroundColor: chrome.button,
-        alignItems: "center",
-        justifyContent: "center",
-        paddingHorizontal: spacing.space6,
-        opacity: pressed ? 0.85 : 1,
-      })}
-    >
-      <Text variant="button" style={{ color: chrome.onButton }}>
-        {label}
-      </Text>
-    </Pressable>
   );
 }
 
@@ -299,5 +418,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   shutterRecord: { width: 64, height: 64, borderRadius: 32, backgroundColor: chrome.danger },
-  shutterStop: { width: 32, height: 32, borderRadius: radius.radiusSm, backgroundColor: chrome.danger },
 });
