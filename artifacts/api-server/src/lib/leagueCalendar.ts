@@ -53,6 +53,17 @@ export function hasSeasonStarted(seasonStart: string | null | undefined, today: 
   return !!seasonStart && today >= seasonStart;
 }
 
+export type RoundPhase = "draft" | "upcoming" | "open" | "grace" | "closed";
+
+/** Where a round is in its week: not out yet, coming up, open, in the grace week, or closed. */
+export function roundPhase(round: { publishedAt: Date | null; startDate: string; endDate: string }, today: string): RoundPhase {
+  if (!round.publishedAt) return "draft";
+  if (today < round.startDate) return "upcoming";
+  if (today <= round.endDate) return "open";
+  if (today <= graceEndFor(round.endDate)) return "grace";
+  return "closed";
+}
+
 /** "Mon, Nov 2" for a YYYY-MM-DD date. */
 export function shortDate(date: string): string {
   return new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {
