@@ -6,6 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Ignored. Every league has a fixed 1-week grace period (decision 25).
+ * @deprecated
+ */
 export type CreateLeagueBodyUnplayedRule =
   (typeof CreateLeagueBodyUnplayedRule)[keyof typeof CreateLeagueBodyUnplayedRule];
 

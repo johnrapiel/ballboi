@@ -125,7 +125,12 @@ describe("POST /api/leagues", () => {
     expect(res.body.status).toBe("upcoming");
     expect(res.body.endDate).toBe("2099-12-27");
     expect(res.body.playoffSize).toBe(4);
-    expect(res.body.unplayedRule).toBe("forfeit");
+  });
+
+  it("ignores the retired unplayed-match rule (decision 25)", async () => {
+    await supertest(app).post("/api/leagues").send({ ...valid, unplayedRule: "forfeit" });
+    const league = inserted.find((i) => i.table === "leagues");
+    expect(league?.values).not.toHaveProperty("unplayedRule");
   });
 
   it("records the creator as the league's owner", async () => {

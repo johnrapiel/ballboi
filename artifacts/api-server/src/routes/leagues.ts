@@ -118,7 +118,8 @@ router.post("/leagues", requireAuth, async (req, res) => {
         endDate,
         seasonWeeks: body.seasonWeeks,
         playoffSize: body.playoffSize ?? 0,
-        unplayedRule: body.unplayedRule ?? "no_result",
+        // Unplayed matches follow the fixed 1-week grace period (decision 25); the
+        // old per-league rule is no longer set.
         location: body.location?.trim() || undefined,
         createdByClerkUserId: userId!,
       })
