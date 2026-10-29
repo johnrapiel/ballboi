@@ -5,23 +5,35 @@
 import React from "react";
 import {
   ActivityIndicator,
+  StyleSheet,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   Text as RNText,
   TextInput,
   View,
+  useColorScheme,
   type PressableProps,
   type TextProps as RNTextProps,
   type ViewProps,
 } from "react-native";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Path } from "react-native-svg";
 
+import { useAccessibilitySettings } from "@/hooks/useAccessibilitySettings";
 import { useColors } from "@/hooks/useColors";
-import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
+import {
+  MIN_TAP,
+  displayFaces,
+  heavierFace,
+  maxScale,
+  radius,
+  spacing,
+  type,
+  type TypeStyle,
+} from "@/constants/tokens";
 
-type TypeStyle = keyof typeof type;
 type Tone = "ink" | "inkMuted" | "court" | "danger" | "onInk";
 
 export interface TextProps extends RNTextProps {
@@ -31,10 +43,55 @@ export interface TextProps extends RNTextProps {
   tone?: Tone;
 }
 
-/** Text in a design system style. Dynamic Type stays on. */
+/**
+ * The font face for a style after the user's settings: one step heavier with
+ * iOS Bold Text, and Cormorant one step heavier on Night session, where its
+ * hairline strokes thin out as light text on navy.
+ */
+export function useTypeStyle(variant: TypeStyle) {
+  const scheme = useColorScheme();
+  const { boldText } = useAccessibilitySettings();
+  const base = type[variant];
+  const isDisplay = displayFaces.includes(base.fontFamily);
+  const heavier = boldText || (isDisplay && scheme === "dark");
+  const fontFamily = heavier ? (heavierFace[base.fontFamily] ?? base.fontFamily) : base.fontFamily;
+  return { style: { ...base, fontFamily }, maxFontSizeMultiplier: maxScale[variant] };
+}
+
+/**
+ * Text in a design system style. Dynamic Type stays on: text styles scale
+ * fully, display styles stop at 1.5x so heroes and scores never clip.
+ */
 export function Text({ variant = "body", tone = "ink", style, ...rest }: TextProps) {
   const c = useColors();
-  return <RNText {...rest} style={[type[variant], { color: c[tone] }, style]} />;
+  const t = useTypeStyle(variant);
+  return (
+    <RNText
+      maxFontSizeMultiplier={t.maxFontSizeMultiplier}
+      {...rest}
+      style={[t.style, { color: c[tone] }, style]}
+    />
+  );
+}
+
+export interface TextLinkProps extends Omit<TextProps, "tone"> {
+  onPress: () => void;
+}
+
+/**
+ * A link inside a sentence. Always underlined: `court` is only 2:1 against
+ * ink text, so color alone can't mark it (WCAG 1.4.1). Nest it in a Text.
+ */
+export function TextLink({ style, ...rest }: TextLinkProps) {
+  return (
+    <Text
+      accessibilityRole="link"
+      suppressHighlighting={false}
+      {...rest}
+      tone="court"
+      style={[{ textDecorationLine: "underline" }, style]}
+    />
+  );
 }
 
 export interface ButtonProps extends Omit<PressableProps, "children"> {
@@ -87,7 +144,9 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={textColor} />
       ) : (
-        <RNText style={[type.button, { color: textColor }]}>{label}</RNText>
+        <Text variant="button" style={{ color: textColor }}>
+          {label}
+        </Text>
       )}
     </Pressable>
   );
@@ -115,11 +174,15 @@ export function Card({ style, ...rest }: ViewProps) {
 
 export interface ChipProps extends ViewProps {
   label: string;
-  /** quiet: sand chip. live: filled court, the one thing happening now. win: court outline. */
+  /**
+   * quiet: sand chip. live: filled court with a dot, the one thing happening
+   * now. win: court outline with a check. Each has a shape cue, so live, wins
+   * and errors never differ by color alone.
+   */
   tone?: "quiet" | "live" | "win";
 }
 
-/** Small uppercase tag. Carries its meaning in text, never color alone. */
+/** Small uppercase tag. Carries its meaning in text and shape, never color alone. */
 export function Chip({ label, tone = "quiet", style, ...rest }: ChipProps) {
   const c = useColors();
   const textColor = tone === "live" ? c.onInk : tone === "win" ? c.court : c.ink;
@@ -137,11 +200,20 @@ export function Chip({ label, tone = "quiet", style, ...rest }: ChipProps) {
           borderRadius: radius.radiusPill,
           paddingHorizontal: spacing.space3,
           paddingVertical: spacing.space1,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: spacing.space1,
         },
         style,
       ]}
     >
-      <RNText style={[type.label, { color: textColor }]}>{label}</RNText>
+      {tone === "live" ? (
+        <View style={[styles.liveDot, { backgroundColor: c.onInk }]} importantForAccessibility="no" />
+      ) : null}
+      {tone === "win" ? <CheckGlyph color={c.court} /> : null}
+      <Text variant="chip" style={{ color: textColor }}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -154,21 +226,44 @@ export interface FieldProps extends React.ComponentProps<typeof TextInput> {
   error?: boolean;
 }
 
+/** Check: the cue for wins and confirmations. Errors use a hollow cross. */
+export function CheckGlyph({ color, size = 12 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 12 12" accessibilityElementsHidden importantForAccessibility="no">
+      <Path d="M2 6.5 4.75 9 10 3" stroke={color} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </Svg>
+  );
+}
+
+/** Cross: the cue for errors and losses, always beside text. */
+export function CrossGlyph({ color, size = 12 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 12 12" accessibilityElementsHidden importantForAccessibility="no">
+      <Path d="M3 3 9 9M9 3 3 9" stroke={color} strokeWidth={1.75} strokeLinecap="round" fill="none" />
+    </Svg>
+  );
+}
+
+const styles = StyleSheet.create({
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
+});
+
 /** Labeled text input: linen well, hairline-strong border (3:1), 48pt tall. */
 export function Field({ label, hint, error = false, style, ...rest }: FieldProps) {
   const c = useColors();
+  const body = useTypeStyle("body");
   return (
     <View style={{ gap: spacing.space2 }}>
-      <RNText style={[type.label, { color: c.ink }]} importantForAccessibility="no" accessibilityElementsHidden>
+      <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
         {label}
-      </RNText>
+      </Text>
       <TextInput
         {...rest}
         accessibilityLabel={label}
         accessibilityHint={hint}
         placeholderTextColor={c.inkMuted}
         style={[
-          type.body,
+          body.style,
           {
             minHeight: 48,
             paddingHorizontal: 14,
@@ -182,9 +277,9 @@ export function Field({ label, hint, error = false, style, ...rest }: FieldProps
         ]}
       />
       {hint ? (
-        <RNText style={[type.small, { color: error ? c.danger : c.inkMuted }]} accessibilityLiveRegion={error ? "polite" : "none"}>
+        <Text variant="small" tone={error ? "danger" : "inkMuted"} accessibilityLiveRegion={error ? "polite" : "none"}>
           {hint}
-        </RNText>
+        </Text>
       ) : null}
     </View>
   );

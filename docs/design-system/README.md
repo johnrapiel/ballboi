@@ -1,4 +1,4 @@
-<!-- Snapshot of the Ball Boi design system: https://claude.ai/artifact/XRuxb1uAfy18AQ1irQCkrf (2026-10-29). The live design system wins if they differ. -->
+<!-- Snapshot of the Ball Boi design system: https://claude.ai/artifact/XRuxb1uAfy18AQ1irQCkrf (2026-10-29, accessibility pass). The live design system wins if they differ. -->
 
 # Ball Boi
 
@@ -46,13 +46,50 @@ Night session (dark) inverts to harbor navy with cream ink. Same rules apply. Ev
 
 Retired in this refresh: `pool` (teal), `clay` (terracotta) and `sun` (yellow). Live matches move to `court`, links and wins to `court`, the focus ring to `ink`.
 
+### Every color job has a shape
+
+`court` is only 2.0:1 against `ink` text, and `court` and `danger` share a lightness (a red-green pair). So color never carries a meaning alone:
+
+| Job | Cue besides color |
+| --- | --- |
+| Link in a sentence | Underlined (`TextLink`). Standalone links on rows and buttons need no underline |
+| Live | The filled `court` chip with its dot |
+| Win or confirmation | A check, and the word ("Won", "W") |
+| Error or loss | A cross, and the word ("Not sent", "L") |
+
+Never put `court` and `danger` side by side as the only difference between two things.
+
+### Increase Contrast
+
+When iOS Increase Contrast is on, `ink-muted`, `hairline` and `hairline-strong` switch to their `-hc` tokens. Every screen gets this through `useColors`; nothing to do per screen.
+
 ## Type
 
-- **Display:** Cormorant Garamond 500/600, italic 500. Titles, scores, rank numerals.
+- **Display:** Cormorant Garamond 500/600, italic 500. Titles, scores, rank numerals. Never below 20px: its hairline strokes vanish at small sizes.
 - **Text:** DM Sans 400/600. Body, buttons, labels.
+- **Body is 17px**, the iOS body size. Small is 15px, buttons 16px.
 - **Scores always use** `font-variant-numeric: lining-nums tabular-nums` so sets line up.
-- **Labels** are 11px uppercase with 0.16em tracking: the heritage tag on a racquet throat.
+- **Labels** are 11px uppercase with 0.16em tracking: the heritage tag on a racquet throat. 11px is the iOS floor, so it's for eyebrows and table headers only. Chips use `chip`, 12px.
 - Never set the logo's brush script as a font. The brush lives in the logo and the ring.
+
+### Dynamic Type and display settings
+
+- **Text styles scale fully** with the user's text size. Layouts reflow; nothing truncates.
+- **Display styles stop at 1.5x**, so heroes and scores never clip.
+- **Bold Text:** every style goes one weight heavier (DM Sans 400 to 600, 600 to 700; Cormorant 500 to 600, 600 to 700).
+- **Night session:** Cormorant goes one weight heavier, because light hairlines thin out on navy.
+
+## Charts and replay
+
+The replay and stats stay inside the one-ink palette. No literal grass green, no rainbows.
+
+- **Court surface:** `sand`, with `ink` lines at 1.5px.
+- **Players:** you are a solid `ink` circle, your opponent a hollow `ink` ring. Shape tells them apart, never color.
+- **Shot outcomes:** winners get a check in `court`, errors a cross in `danger`. Rally shots are small `ink-muted` dots.
+- **Close call:** a dashed `ink` ring plus the words "Close call". Never a color on its own.
+- **Heatmaps:** `heat-1` to `heat-5`, one ink in five steps on `sand`. Every bin shows its count or percent as text: `ink` on `heat-1` and `heat-2`, `on-ink` from `heat-3` up.
+- **Trend lines:** `ink` at 2px. A second series is a dashed `ink-muted` line with its label at the line's end.
+- **Every chart** has a one-line text summary for VoiceOver and an accessible table behind it.
 
 ## Signature motifs
 
