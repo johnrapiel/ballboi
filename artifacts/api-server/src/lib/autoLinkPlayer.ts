@@ -1,5 +1,5 @@
 import { db } from "@workspace/db";
-import { usersTable, playersTable } from "@workspace/db";
+import { usersTable, playersTable, matchInvitesTable } from "@workspace/db";
 import { and, eq, isNull } from "drizzle-orm";
 import pino from "pino";
 
@@ -41,6 +41,16 @@ export async function findMatchingClerkUserId(
 }
 
 /**
+ * Quick match placeholders (players someone typed in by name) join only
+ * through their invite link, never by a name or email match, so a stranger
+ * with the same name never gets someone else's match.
+ */
+async function placeholderPlayerIds(): Promise<Set<number>> {
+  const rows = await db.select({ id: matchInvitesTable.placeholderPlayerId }).from(matchInvitesTable);
+  return new Set(rows.map((r) => r.id));
+}
+
+/**
  * Attempt to auto-link a single player record that has no clerkUserId.
  * The update predicate includes `clerkUserId IS NULL` so an already-linked
  * player is never overwritten, even under concurrent requests.
@@ -53,6 +63,7 @@ export async function autoLinkPlayer(player: {
   clerkUserId?: string | null;
 }): Promise<string | null> {
   if (player.clerkUserId) return player.clerkUserId;
+  if ((await placeholderPlayerIds()).has(player.id)) return null;
   const clerkUserId = await findMatchingClerkUserId(player.name, player.email);
   if (!clerkUserId) return null;
   await db
@@ -88,9 +99,11 @@ export async function autoLinkPlayersForUser(user: {
 
   if (unlinked.length === 0) return 0;
 
+  const placeholders = await placeholderPlayerIds();
   let linked = 0;
 
   for (const player of unlinked) {
+    if (placeholders.has(player.id)) continue;
     const resolvedId = await findMatchingClerkUserId(player.name, player.email);
     if (resolvedId !== user.clerkUserId) continue;
 

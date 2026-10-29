@@ -20,6 +20,7 @@ import seasonsRouter from "./seasons";
 import safetyRouter from "./safety";
 import recordingRouter from "./recording";
 import trainingConsentRouter from "./trainingConsent";
+import quickMatchRouter from "./quickMatch";
 
 const router: IRouter = Router();
 
@@ -44,5 +45,6 @@ router.use(seasonsRouter);
 router.use(safetyRouter);
 router.use(recordingRouter);
 router.use(trainingConsentRouter);
+router.use(quickMatchRouter);
 
 export default router;

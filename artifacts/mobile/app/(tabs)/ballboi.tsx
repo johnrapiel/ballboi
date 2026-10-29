@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 
 import { DoublesMatchCard } from "@/components/record/DoublesMatchCard";
@@ -10,6 +10,7 @@ import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useServerRecordings, useTodaysMatches } from "@/lib/recording/api";
+import { takePendingInvite } from "@/lib/recording/pendingInvite";
 import { useQueue } from "@/lib/recording/queue";
 import { openRecorder } from "@/lib/recording/start";
 
@@ -26,6 +27,13 @@ export default function BallBoiScreen() {
   const onPhone = new Set(queued.map((r) => r.sessionId).filter((id) => id != null));
   const onServer = (server.data ?? []).filter((r) => !onPhone.has(r.sessionId));
   const refreshing = today.isRefetching || server.isRefetching;
+
+  // An invite link opened before signing in opens now.
+  useEffect(() => {
+    takePendingInvite().then((code) => {
+      if (code) router.push({ pathname: "/record/invite/[code]", params: { code } });
+    });
+  }, [router]);
   const refresh = () => {
     today.refetch();
     server.refetch();
@@ -66,6 +74,16 @@ export default function BallBoiScreen() {
               ),
             )
           )}
+
+          <Card style={{ gap: spacing.space3 }}>
+            <View accessible style={{ gap: spacing.space1 }}>
+              <Text variant="bodyStrong">Quick match</Text>
+              <Text variant="small" tone="inkMuted">
+                A casual hit, or a match outside your leagues. Play anyone, even if they're not on Ball Boi yet.
+              </Text>
+            </View>
+            <Button variant="secondary" label="Quick match" onPress={() => router.push("/record/quick")} />
+          </Card>
         </View>
 
         {queued.length > 0 || onServer.length > 0 ? (
