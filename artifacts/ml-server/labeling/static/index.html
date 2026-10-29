@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ball Boi Labeling</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --paper: #ECDFC8; --linen: #F7F0E3; --sand: #E1CDAF; --ink: #0A2447; --ink-muted: #4A5670;
+    --on-ink: #F7F0E3; --hairline: rgba(10, 36, 71, 0.16); --hairline-strong: rgba(10, 36, 71, 0.52);
+    --court: #255C60; --danger: #9B2C1F;
+    --overlay-line: #FFFFFF; --overlay-shadow: rgba(0, 0, 0, 0.75);
+    --radius: 10px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #071A33; --linen: #0F2646; --sand: #1B3458; --ink: #F1E6D2; --ink-muted: #B8AD9B;
+      --on-ink: #071A33; --hairline: rgba(241, 230, 210, 0.16); --hairline-strong: rgba(241, 230, 210, 0.42);
+      --court: #86C2BC; --danger: #F2A08F;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+         font: 15px/1.45 "DM Sans", system-ui, -apple-system, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; padding: 12px 20px;
+           background: var(--linen); border-bottom: 1px solid var(--hairline); }
+  h1 { font: 600 20px/1.2 "Cormorant Garamond", Georgia, serif; margin: 0; }
+  label.inline { display: inline-flex; gap: 6px; align-items: center; }
+  select, input[type="text"] { font: inherit; color: var(--ink); background: var(--linen);
+           border: 1px solid var(--hairline-strong); border-radius: 8px; padding: 8px 10px; min-height: 44px; }
+  button { font: inherit; color: var(--ink); background: var(--linen); border: 1px solid var(--hairline-strong);
+           border-radius: 8px; padding: 8px 12px; min-height: 44px; min-width: 44px; cursor: pointer; }
+  button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+  button[aria-pressed="true"] kbd, button.primary kbd { background: transparent; color: inherit; border-color: currentColor; }
+  button.primary { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+  button.danger { color: var(--danger); border-color: var(--danger); }
+  :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  kbd { font: 12px/1 ui-monospace, monospace; border: 1px solid var(--hairline-strong); border-bottom-width: 2px;
+        border-radius: 4px; padding: 2px 5px; background: var(--paper); }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; padding: 16px 20px; }
+  @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+  .stage { position: relative; background: #000; border-radius: var(--radius); overflow: hidden; }
+  .stage video { display: block; width: 100%; height: 100%; object-fit: fill; }
+  .stage canvas.overlay { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+  .loupe { position: absolute; top: 8px; right: 8px; width: 180px; height: 180px; border: 2px solid #fff;
+           border-radius: 8px; pointer-events: none; display: none; box-shadow: 0 0 0 1px #000; }
+  /* Top of the frame, and click-through: near court corners sit at the bottom and must stay clickable. */
+  .banner { position: absolute; left: 8px; top: 8px; right: 200px; background: rgba(0,0,0,.78); color: #fff;
+            padding: 8px 12px; border-radius: 8px; font-weight: 600; display: none; pointer-events: none; }
+  .transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+  .time { font-variant-numeric: tabular-nums; min-width: 150px; }
+  .panel { background: var(--linen); border: 1px solid var(--hairline); border-radius: var(--radius); padding: 14px;
+           margin-bottom: 16px; }
+  .panel h2 { font-size: 15px; margin: 0 0 10px; }
+  fieldset { border: 0; padding: 0; margin: 0 0 12px; }
+  legend { font-size: 13px; color: var(--ink-muted); font-weight: 600; margin-bottom: 4px; padding: 0; }
+  .group { display: flex; flex-wrap: wrap; gap: 6px; }
+  .muted { color: var(--ink-muted); font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 6px 6px; border-bottom: 1px solid var(--hairline); }
+  th { color: var(--ink-muted); font-weight: 600; }
+  tr.selected td { background: var(--sand); font-weight: 600; }
+  tr.selected td:first-child { box-shadow: inset 4px 0 0 var(--ink); }
+  td button { min-height: 32px; padding: 4px 8px; font-size: 13px; }
+  .shots-wrap { max-height: 420px; overflow: auto; }
+  .status { min-height: 1.4em; }
+  .status.error { color: var(--danger); font-weight: 600; }
+  dl.keys { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; font-size: 13px; }
+  dl.keys dt { white-space: nowrap; }
+  dl.keys dd { margin: 0; }
+  .conditions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .conditions label { display: flex; flex-direction: column; font-size: 13px; color: var(--ink-muted); gap: 2px; }
+  .empty { padding: 40px; text-align: center; color: #fff; }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Ball Boi Labeling</h1>
+  <label class="inline">Match
+    <select id="matchSelect" aria-describedby="matchHelp"></select>
+  </label>
+  <span id="matchHelp" class="muted"></span>
+  <label class="inline"><input type="checkbox" id="doneToggle"> Labeling done</label>
+  <span id="saveStatus" class="status muted" role="status" aria-live="polite"></span>
+</header>
+
+<main>
+  <section aria-label="Video">
+    <div class="stage" id="stage">
+      <video id="video" preload="auto" playsinline muted></video>
+      <canvas class="overlay" id="overlay" role="img"
+              aria-label="Video frame. Click to mark the bounce of the selected shot, or a court corner while calibrating."></canvas>
+      <canvas class="loupe" id="loupe" aria-hidden="true"></canvas>
+      <div class="banner" id="banner" role="status" aria-live="assertive"></div>
+    </div>
+    <div class="transport" role="group" aria-label="Playback">
+      <button id="backSecond" aria-label="Back 1 second">-1s</button>
+      <button id="backFrame" aria-label="Back 1 frame">-1 frame</button>
+      <button id="playPause" class="primary" aria-label="Play">Play</button>
+      <button id="fwdFrame" aria-label="Forward 1 frame">+1 frame</button>
+      <button id="fwdSecond" aria-label="Forward 1 second">+1s</button>
+      <label class="inline">Speed
+        <select id="speed">
+          <option value="0.25">0.25x</option><option value="0.5">0.5x</option>
+          <option value="1" selected>1x</option><option value="2">2x</option>
+        </select>
+      </label>
+      <span class="time" id="timeReadout" aria-live="off">0:00.000</span>
+      <button id="calibrate">Calibrate court</button>
+    </div>
+    <p class="muted" id="calibrationNote"></p>
+
+    <div class="panel">
+      <h2>Shots in this match</h2>
+      <div class="shots-wrap">
+        <table>
+          <caption class="muted" style="text-align:left">Select a row to edit that shot and jump to it.</caption>
+          <thead><tr><th scope="col">Time</th><th scope="col">Hitter</th><th scope="col">Type</th>
+            <th scope="col">Serve</th><th scope="col">Result</th><th scope="col">Close</th>
+            <th scope="col">Point ending</th></tr></thead>
+          <tbody id="shotRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <aside aria-label="Labeling controls">
+    <div class="panel">
+      <h2>Add a shot at the current frame</h2>
+      <p class="muted">Pause on the moment of contact, then pick the type.</p>
+      <div class="group" role="group" aria-label="Add shot">
+        <button data-add="serve">Serve <kbd>S</kbd></button>
+        <button data-add="forehand">Forehand <kbd>F</kbd></button>
+        <button data-add="backhand">Backhand <kbd>B</kbd></button>
+        <button data-add="volley">Volley <kbd>V</kbd></button>
+        <button data-add="overhead">Overhead <kbd>O</kbd></button>
+      </div>
+    </div>
+
+    <div class="panel" id="editor">
+      <h2 id="editorTitle">Selected shot</h2>
+      <p class="muted" id="editorEmpty">No shot selected.</p>
+      <div id="editorBody" hidden>
+        <fieldset><legend>Hitter <kbd>H</kbd></legend>
+          <div class="group">
+            <button data-field="hitter" data-value="near">Near side</button>
+            <button data-field="hitter" data-value="far">Far side</button>
+          </div></fieldset>
+        <fieldset><legend>Type</legend>
+          <div class="group">
+            <button data-field="type" data-value="serve">Serve</button>
+            <button data-field="type" data-value="forehand">Forehand</button>
+            <button data-field="type" data-value="backhand">Backhand</button>
+            <button data-field="type" data-value="volley">Volley</button>
+            <button data-field="type" data-value="overhead">Overhead</button>
+          </div></fieldset>
+        <fieldset id="serveField"><legend>Serve number</legend>
+          <div class="group">
+            <button data-field="serveNumber" data-value="1">First</button>
+            <button data-field="serveNumber" data-value="2">Second</button>
+          </div></fieldset>
+        <fieldset><legend>Bounce</legend>
+          <p class="muted" id="bounceText">Not marked. Find the frame where the ball lands, then click the bounce on the video.</p>
+          <button id="clearBounce">Clear bounce</button>
+        </fieldset>
+        <fieldset><legend>Result</legend>
+          <div class="group">
+            <button data-field="result" data-value="in">In <kbd>I</kbd></button>
+            <button data-field="result" data-value="out">Out <kbd>X</kbd></button>
+            <button data-field="result" data-value="net">Net <kbd>N</kbd></button>
+            <button data-field="result" data-value="none">No bounce <kbd>Z</kbd></button>
+          </div></fieldset>
+        <fieldset><legend>Close call <kbd>C</kbd></legend>
+          <div class="group">
+            <button data-field="closeCall" data-value="true">Close call</button>
+            <button data-field="closeCall" data-value="false">Clear</button>
+          </div></fieldset>
+        <fieldset><legend>Point ending (last shot of the point only)</legend>
+          <div class="group">
+            <button data-field="pointEnd" data-value="">None <kbd>0</kbd></button>
+            <button data-field="pointEnd" data-value="winner">Winner <kbd>W</kbd></button>
+            <button data-field="pointEnd" data-value="forced_error">Forced error <kbd>E</kbd></button>
+            <button data-field="pointEnd" data-value="unforced_error">Unforced error <kbd>U</kbd></button>
+          </div></fieldset>
+        <div class="group">
+          <button id="jumpShot">Jump to contact <kbd>Enter</kbd></button>
+          <button id="jumpBounce">Jump to bounce</button>
+          <button id="deleteShot" class="danger">Delete shot</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Match details</h2>
+      <div class="conditions">
+        <label>Venue<input type="text" id="cond-venue" placeholder="public courts, indoor bubble"></label>
+        <label>Surface<input type="text" id="cond-surface" placeholder="hard, clay"></label>
+        <label>Lighting<input type="text" id="cond-lighting" placeholder="day, night, overcast"></label>
+        <label>Level<input type="text" id="cond-level" placeholder="3.5"></label>
+        <label>Labeler<input type="text" id="labeler"></label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Keyboard</h2>
+      <dl class="keys">
+        <dt><kbd>Space</kbd></dt><dd>Play or pause</dd>
+        <dt><kbd>,</kbd> <kbd>.</kbd></dt><dd>Back or forward 1 frame</dd>
+        <dt><kbd>Shift</kbd> + <kbd>,</kbd> <kbd>.</kbd></dt><dd>Back or forward 1 second</dd>
+        <dt><kbd>S F B V O</kbd></dt><dd>Add a serve, forehand, backhand, volley, overhead</dd>
+        <dt><kbd>Up</kbd> <kbd>Down</kbd></dt><dd>Previous or next shot</dd>
+        <dt><kbd>H</kbd></dt><dd>Switch hitter</dd>
+        <dt><kbd>I X N Z</kbd></dt><dd>In, out, net, no bounce</dd>
+        <dt><kbd>C</kbd></dt><dd>Toggle close call</dd>
+        <dt><kbd>W E U 0</kbd></dt><dd>Winner, forced error, unforced error, none</dd>
+        <dt><kbd>K</kbd></dt><dd>Calibrate the court from this frame</dd>
+        <dt><kbd>Delete</kbd></dt><dd>Delete the selected shot</dd>
+        <dt>Click video</dt><dd>Mark the selected shot's bounce</dd>
+      </dl>
+    </div>
+  </aside>
+</main>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const video = $("video"), overlay = $("overlay"), loupe = $("loupe"), stage = $("stage");
+const ctx = overlay.getContext("2d"), lctx = loupe.getContext("2d");
+
+let court = null;           // court lines and corners in meters, from the server
+let label = null;           // current label file
+let selectedId = null;
+let calibrating = null;     // array of clicked corners while calibrating
+let saveTimer = null, saving = false, dirty = false;
+let mouse = null;
+
+// ─── Geometry (mirrors services/court_model.py) ────────────────────────────
+function solve(A, b) {
+  const n = b.length, M = A.map((row, i) => [...row, b[i]]);
+  for (let c = 0; c < n; c++) {
+    let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    [M[c], M[p]] = [M[p], M[c]];
+    if (Math.abs(M[c][c]) < 1e-12) return null;
+    for (let r = 0; r < n; r++) if (r !== c) {
+      const f = M[r][c] / M[c][c]; for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k];
+    }
+  }
+  return M.map((row, i) => row[n] / row[i]);
+}
+function homography(src, dst) {
+  const A = [], b = [];
+  for (let i = 0; i < 4; i++) {
+    const [x, y] = src[i], [u, v] = dst[i];
+    A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); b.push(u);
+    A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); b.push(v);
+  }
+  const h = solve(A, b); if (!h) return null;
+  return [[h[0], h[1], h[2]], [h[3], h[4], h[5]], [h[6], h[7], 1]];
+}
+function apply(H, [x, y]) {
+  const w = H[2][0] * x + H[2][1] * y + H[2][2];
+  return [(H[0][0] * x + H[0][1] * y + H[0][2]) / w, (H[1][0] * x + H[1][1] * y + H[1][2]) / w];
+}
+const HALF = 11.885, SW = 4.115, SL = 6.40;
+function rectDist(x, y, x0, x1, y0, y1) {           // signed, ignores the net edge (y = 0)
+  const lo = Math.min(y0, y1), hi = Math.max(y0, y1);
+  const inside = x >= x0 && x <= x1 && y >= lo && y <= hi;
+  const ds = [];
+  for (const ex of [x0, x1]) ds.push(Math.hypot(x - ex, (y >= lo && y <= hi) ? 0 : Math.min(Math.abs(y - lo), Math.abs(y - hi))));
+  for (const ey of [y0, y1]) if (ey !== 0) ds.push(Math.hypot((x >= x0 && x <= x1) ? 0 : Math.min(Math.abs(x - x0), Math.abs(x - x1)), y - ey));
+  const d = Math.min(...ds); return inside ? d : -d;
+}
+function lineCall([x, y], hitter, isServe) {
+  const far = hitter === "near";
+  if (!isServe) return far ? rectDist(x, y, -SW, SW, 0, HALF) : rectDist(x, y, -SW, SW, -HALF, 0);
+  const s = far ? 1 : -1;
+  return Math.max(rectDist(x, y, -SW, 0, 0, s * SL), rectDist(x, y, 0, SW, 0, s * SL));
+}
+
+// ─── Calibration ───────────────────────────────────────────────────────────
+function activeCalibration(t) {
+  const cals = (label?.calibrations || []).filter(c => c.corners?.length === 4)
+    .sort((a, b) => a.fromTime - b.fromTime);
+  let active = cals[0] || null;
+  for (const c of cals) if (c.fromTime <= t + 1e-6) active = c;
+  return active;
+}
+function toCourt(point, t) {
+  const cal = activeCalibration(t); if (!cal) return null;
+  const H = homography(cal.corners, court.corners); return H ? apply(H, point) : null;
+}
+
+// ─── Saving ────────────────────────────────────────────────────────────────
+function setStatus(text, isError = false) {
+  const el = $("saveStatus"); el.textContent = text; el.classList.toggle("error", isError);
+}
+function scheduleSave() {
+  dirty = true; setStatus("Saving…");
+  clearTimeout(saveTimer); saveTimer = setTimeout(save, 700);
+}
+async function save() {
+  if (!label || saving) { if (saving) saveTimer = setTimeout(save, 400); return; }
+  saving = true; dirty = false;
+  try {
+    const res = await fetch(`/api/labels/${encodeURIComponent(label.matchId)}`, {
+      method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(label)});
+    const body = await res.json();
+    if (!res.ok) { setStatus(`Not saved: ${body.error}`, true); return; }
+    // Take the server's court positions without overwriting edits made meanwhile.
+    const byId = new Map(body.shots.map(s => [s.id, s]));
+    for (const s of label.shots) {
+      const saved = byId.get(s.id);
+      if (saved?.bounce && s.bounce && saved.bounce.image?.[0] === s.bounce.image?.[0]) s.bounce.court = saved.bounce.court;
+    }
+    setStatus(dirty ? "Saving…" : `Saved at ${new Date().toLocaleTimeString()}`);
+    renderShots(); renderEditor(); refreshMatchList(false);
+  } catch (e) {
+    setStatus(`Not saved: ${e.message}. Changes are kept on this page; it will retry.`, true);
+    dirty = true; saveTimer = setTimeout(save, 3000);
+  } finally { saving = false; }
+}
+window.addEventListener("beforeunload", (e) => { if (dirty || saving) { e.preventDefault(); e.returnValue = ""; } });
+
+// ─── Matches ───────────────────────────────────────────────────────────────
+const STATUS_TEXT = {not_started: "not started", in_progress: "in progress", done: "done", unreadable: "file can't be read"};
+async function refreshMatchList(selectFirst = true) {
+  const data = await (await fetch("/api/videos")).json();
+  const sel = $("matchSelect"), current = sel.value;
+  sel.innerHTML = "";
+  for (const v of data.videos) {
+    const o = document.createElement("option"); o.value = v.matchId;
+    o.textContent = `${v.matchId} (${STATUS_TEXT[v.status] || v.status}, ${v.shots} shots)`; sel.append(o);
+  }
+  $("matchHelp").textContent = data.videos.length ? "" : `No videos in ${data.videosDir}`;
+  if (current) sel.value = current;
+  if (selectFirst && data.videos.length && !label) loadMatch(sel.value);
+}
+async function loadMatch(id) {
+  if (dirty) await save();
+  const res = await fetch(`/api/labels/${encodeURIComponent(id)}`);
+  label = await res.json(); selectedId = null; calibrating = null;
+  label.calibrations ||= []; label.shots ||= []; label.conditions ||= {};
+  video.src = `/video/${encodeURIComponent(id)}`;
+  const {width, height} = label.video || {};
+  if (width && height) stage.style.aspectRatio = `${width} / ${height}`;
+  for (const k of ["venue", "surface", "lighting", "level"]) $(`cond-${k}`).value = label.conditions[k] || "";
+  $("labeler").value = label.labeler || "";
+  $("doneToggle").checked = label.status === "done";
+  setStatus(""); renderAll();
+}
+
+// ─── Shots ─────────────────────────────────────────────────────────────────
+const fps = () => label?.video?.fps || 30;
+const selected = () => label?.shots.find(s => s.id === selectedId) || null;
+function nextId() {
+  const n = Math.max(0, ...label.shots.map(s => parseInt(String(s.id).replace(/\D/g, ""), 10) || 0)) + 1;
+  return "s" + String(n).padStart(4, "0");
+}
+function addShot(type) {
+  if (!label) return;
+  const t = +video.currentTime.toFixed(3);
+  const before = label.shots.filter(s => s.time < t).sort((a, b) => a.time - b.time);
+  const prev = before[before.length - 1];
+  let hitter = prev ? (prev.hitter === "near" ? "far" : "near") : "near";
+  let serveNumber = null;
+  if (type === "serve") {
+    const lastServe = [...before].reverse().find(s => s.type === "serve");
+    const fault = prev && prev.type === "serve" && ["out", "net"].includes(prev.result) && !prev.pointEnd;
+    hitter = fault ? prev.hitter : (lastServe ? lastServe.hitter : "near");
+    serveNumber = fault && prev.serveNumber === 1 ? 2 : 1;
+  }
+  const shot = {id: nextId(), time: t, hitter, type, serveNumber, bounce: null, result: "none",
+                closeCall: false, pointEnd: null};
+  label.shots.push(shot); label.shots.sort((a, b) => a.time - b.time);
+  selectedId = shot.id; announce(`Added ${type} at ${fmt(t)}, ${hitter} side`);
+  scheduleSave(); renderAll();
+}
+function setField(field, value) {
+  const s = selected(); if (!s) return;
+  if (field === "serveNumber") value = Number(value);
+  if (field === "closeCall") value = value === true || value === "true";
+  if (field === "pointEnd") value = value || null;
+  s[field] = value;
+  if (field === "type") s.serveNumber = value === "serve" ? (s.serveNumber || 1) : null;
+  scheduleSave(); renderAll();
+}
+function markBounce(point) {
+  const s = selected(); if (!s) { announce("Select or add a shot first, then click its bounce."); return; }
+  const t = +video.currentTime.toFixed(3);
+  const c = toCourt(point, t);
+  s.bounce = {time: t, image: point.map(v => +v.toFixed(4)), court: c ? c.map(v => +v.toFixed(3)) : null};
+  if (c) {
+    const d = lineCall(c, s.hitter, s.type === "serve");
+    s.result = d >= 0 ? "in" : "out";
+    announce(`Bounce marked, looks ${s.result}, ${Math.abs(d * 100).toFixed(0)} cm ${d >= 0 ? "inside" : "outside"} the line. Press I or X to correct.`);
+  } else announce("Bounce marked. Calibrate the court to get in or out and the court position.");
+  scheduleSave(); renderAll();
+}
+function deleteSelected() {
+  const s = selected(); if (!s) return;
+  if (!confirm(`Delete the ${s.type} at ${fmt(s.time)}?`)) return;
+  const i = label.shots.indexOf(s); label.shots.splice(i, 1);
+  selectedId = label.shots[Math.min(i, label.shots.length - 1)]?.id || null;
+  scheduleSave(); renderAll();
+}
+function step(n) {
+  const i = label.shots.findIndex(s => s.id === selectedId);
+  const target = label.shots[Math.max(0, Math.min(label.shots.length - 1, i + n))];
+  if (target) { selectedId = target.id; seek(target.time); renderAll(); }
+}
+
+// ─── Rendering ─────────────────────────────────────────────────────────────
+const fmt = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(3).padStart(6, "0")}`;
+const LABEL = {near: "Near", far: "Far", in: "In", out: "Out", net: "Net", none: "No bounce",
+  winner: "Winner", forced_error: "Forced error", unforced_error: "Unforced error"};
+const cap = (s) => s ? s[0].toUpperCase() + s.slice(1) : "";
+function renderShots() {
+  const body = $("shotRows"); body.innerHTML = "";
+  for (const s of label?.shots || []) {
+    const tr = document.createElement("tr"); if (s.id === selectedId) tr.className = "selected";
+    const b = document.createElement("button"); b.textContent = fmt(s.time);
+    b.setAttribute("aria-label", `Select ${s.type} at ${fmt(s.time)}`);
+    b.onclick = () => { selectedId = s.id; seek(s.time); renderAll(); };
+    const cells = [b, LABEL[s.hitter], cap(s.type), s.serveNumber ? (s.serveNumber === 1 ? "First" : "Second") : "",
+      LABEL[s.result] + (s.bounce ? "" : (s.result === "in" || s.result === "out" ? " (no spot)" : "")),
+      s.closeCall ? "Yes" : "", s.pointEnd ? LABEL[s.pointEnd] : ""];
+    for (const c of cells) { const td = document.createElement("td"); td.append(c); tr.append(td); }
+    body.append(tr);
+  }
+  body.querySelector("tr.selected")?.scrollIntoView({block: "nearest"});
+}
+function renderEditor() {
+  const s = selected();
+  $("editorEmpty").hidden = !!s; $("editorBody").hidden = !s;
+  if (!s) return;
+  $("editorTitle").textContent = `Selected shot: ${cap(s.type)} at ${fmt(s.time)}`;
+  for (const btn of document.querySelectorAll("[data-field]")) {
+    const f = btn.dataset.field, v = btn.dataset.value;
+    const cur = f === "pointEnd" ? (s.pointEnd || "") : String(s[f]);
+    btn.setAttribute("aria-pressed", String(cur === v));
+  }
+  $("serveField").hidden = s.type !== "serve";
+  const b = s.bounce;
+  if (!b) $("bounceText").textContent = "Not marked. Find the frame where the ball lands, then click the bounce on the video.";
+  else if (!b.court) $("bounceText").textContent = `Marked at ${fmt(b.time)}. Calibrate the court to place it.`;
+  else {
+    const d = lineCall(b.court, s.hitter, s.type === "serve");
+    $("bounceText").textContent = `Marked at ${fmt(b.time)}: ${b.court[0].toFixed(2)} m across, ${b.court[1].toFixed(2)} m from the net, `
+      + `${Math.abs(d * 100).toFixed(0)} cm ${d >= 0 ? "inside" : "outside"} the line.`;
+  }
+}
+function renderCalibrationNote() {
+  const n = label?.calibrations.length || 0;
+  $("calibrationNote").textContent = calibrating ? "" : n
+    ? `${n} court calibration${n > 1 ? "s" : ""}. Recalibrate if the phone moved.`
+    : "Calibrate the court first: press K on a clear frame, then click the four singles corners.";
+  $("calibrate").setAttribute("aria-pressed", String(!!calibrating));
+}
+function renderAll() { renderShots(); renderEditor(); renderCalibrationNote(); draw(); }
+
+function draw() {
+  const r = overlay.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const cw = Math.round(r.width * dpr), ch = Math.round(r.height * dpr);
+  if (overlay.width !== cw || overlay.height !== ch) { overlay.width = cw; overlay.height = ch; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, r.height);
+  if (!label || !court) return;
+  const W = r.width, H = r.height, t = video.currentTime;
+  const line = (pts, width, color) => {
+    ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x * W, y * H) : ctx.moveTo(x * W, y * H));
+    ctx.lineWidth = width + 2; ctx.strokeStyle = "rgba(0,0,0,.75)"; ctx.stroke();
+    ctx.lineWidth = width; ctx.strokeStyle = color; ctx.stroke();
+  };
+  const cal = activeCalibration(t);
+  if (cal && !calibrating) {
+    const Hinv = homography(court.corners, cal.corners);
+    if (Hinv) for (const [a, b] of court.lines) {
+      const pts = []; for (let i = 0; i <= 20; i++) pts.push(apply(Hinv, [a[0] + (b[0] - a[0]) * i / 20, a[1] + (b[1] - a[1]) * i / 20]));
+      line(pts, 1.5, "rgba(255,255,255,.85)");
+    }
+  }
+  for (const s of label.shots) {
+    if (!s.bounce?.image) continue;
+    const near = Math.abs(s.bounce.time - t) < 1.5, sel = s.id === selectedId;
+    if (!near && !sel) continue;
+    const [x, y] = [s.bounce.image[0] * W, s.bounce.image[1] * H];
+    ctx.lineWidth = sel ? 3 : 2; ctx.strokeStyle = "#000";
+    ctx.beginPath(); ctx.arc(x, y, sel ? 9 : 6, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineWidth = sel ? 2 : 1.5; ctx.strokeStyle = s.result === "out" ? "#FF8A73" : "#FFFFFF";
+    ctx.beginPath(); ctx.arc(x, y, sel ? 9 : 6, 0, Math.PI * 2); ctx.stroke();
+    if (s.result === "out") { ctx.beginPath(); ctx.moveTo(x - 5, y - 5); ctx.lineTo(x + 5, y + 5); ctx.moveTo(x + 5, y - 5); ctx.lineTo(x - 5, y + 5); ctx.stroke(); }
+  }
+  if (calibrating) {
+    calibrating.forEach(([x, y], i) => {
+      ctx.fillStyle = "#fff"; ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x * W, y * H, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.font = "600 13px system-ui"; ctx.fillText(String(i + 1), x * W + 9, y * H - 9);
+    });
+  }
+  drawLoupe();
+}
+function drawLoupe() {
+  if (!mouse || video.readyState < 2) { loupe.style.display = "none"; return; }
+  loupe.style.display = "block";
+  const size = 180, zoom = 5, vw = video.videoWidth, vh = video.videoHeight;
+  if (loupe.width !== size) { loupe.width = size; loupe.height = size; }
+  const sw = vw / zoom * (size / overlay.clientWidth), sh = vh / zoom * (size / overlay.clientHeight);
+  lctx.drawImage(video, mouse[0] * vw - sw / 2, mouse[1] * vh - sh / 2, sw, sh, 0, 0, size, size);
+  lctx.strokeStyle = "#fff"; lctx.lineWidth = 1;
+  lctx.beginPath(); lctx.moveTo(size / 2, 0); lctx.lineTo(size / 2, size); lctx.moveTo(0, size / 2); lctx.lineTo(size, size / 2); lctx.stroke();
+}
+function announce(text) {
+  const b = $("banner"); b.textContent = text; b.style.display = text ? "block" : "none";
+  clearTimeout(announce.t); if (!calibrating) announce.t = setTimeout(() => { b.style.display = "none"; }, 4000);
+}
+
+// ─── Playback ──────────────────────────────────────────────────────────────
+function seek(t) { video.pause(); video.currentTime = Math.max(0, Math.min(video.duration || t, t)); }
+function nudge(seconds) { seek(video.currentTime + seconds); }
+function togglePlay() { video.paused ? video.play() : video.pause(); }
+video.addEventListener("play", () => { $("playPause").textContent = "Pause"; $("playPause").setAttribute("aria-label", "Pause"); });
+video.addEventListener("pause", () => { $("playPause").textContent = "Play"; $("playPause").setAttribute("aria-label", "Play"); });
+video.addEventListener("timeupdate", () => { $("timeReadout").textContent = `${fmt(video.currentTime)}  frame ${Math.round(video.currentTime * fps())}`; draw(); });
+video.addEventListener("seeked", draw);
+video.addEventListener("loadedmetadata", () => {
+  if (!label.video?.width) stage.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`; draw();
+});
+new ResizeObserver(draw).observe(stage);
+
+// ─── Input ─────────────────────────────────────────────────────────────────
+function startCalibration() {
+  if (!label) return; video.pause(); calibrating = [];
+  announce(`Click the ${court.order[0]} singles corner (1 of 4).`); renderAll();
+}
+function eventPoint(e) {
+  const r = overlay.getBoundingClientRect();
+  return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height];
+}
+overlay.addEventListener("mousemove", (e) => { mouse = eventPoint(e); drawLoupe(); });
+overlay.addEventListener("mouseleave", () => { mouse = null; drawLoupe(); });
+overlay.addEventListener("click", (e) => {
+  const p = eventPoint(e);
+  if (calibrating) {
+    calibrating.push(p);
+    if (calibrating.length < 4) { announce(`Click the ${court.order[calibrating.length]} singles corner (${calibrating.length + 1} of 4).`); draw(); return; }
+    const fromTime = +video.currentTime.toFixed(3);
+    label.calibrations = label.calibrations.filter(c => Math.abs(c.fromTime - fromTime) > 0.001);
+    label.calibrations.push({fromTime, corners: calibrating.map(q => q.map(v => +v.toFixed(4)))});
+    calibrating = null;
+    // Recompute court positions for bounces this calibration now covers.
+    for (const s of label.shots) if (s.bounce?.image) {
+      const c = toCourt(s.bounce.image, s.bounce.time); s.bounce.court = c ? c.map(v => +v.toFixed(3)) : null;
+    }
+    announce("Court calibrated. Check the drawn lines sit on the real ones; press K to redo.");
+    scheduleSave(); renderAll(); return;
+  }
+  markBounce(p);
+});
+
+$("playPause").onclick = togglePlay;
+$("backFrame").onclick = () => nudge(-1 / fps()); $("fwdFrame").onclick = () => nudge(1 / fps());
+$("backSecond").onclick = () => nudge(-1); $("fwdSecond").onclick = () => nudge(1);
+$("speed").onchange = (e) => { video.playbackRate = Number(e.target.value); };
+$("calibrate").onclick = startCalibration;
+$("matchSelect").onchange = (e) => loadMatch(e.target.value);
+$("doneToggle").onchange = (e) => { if (label) { label.status = e.target.checked ? "done" : "in_progress"; scheduleSave(); } };
+for (const k of ["venue", "surface", "lighting", "level"])
+  $(`cond-${k}`).addEventListener("input", (e) => { label.conditions[k] = e.target.value.trim(); scheduleSave(); });
+$("labeler").addEventListener("input", (e) => { label.labeler = e.target.value.trim(); scheduleSave(); });
+for (const b of document.querySelectorAll("[data-add]")) b.onclick = () => addShot(b.dataset.add);
+for (const b of document.querySelectorAll("[data-field]")) b.onclick = () => setField(b.dataset.field, b.dataset.value);
+$("clearBounce").onclick = () => { const s = selected(); if (s) { s.bounce = null; scheduleSave(); renderAll(); } };
+$("jumpShot").onclick = () => { const s = selected(); if (s) seek(s.time); };
+$("jumpBounce").onclick = () => { const s = selected(); if (s?.bounce) seek(s.bounce.time); };
+$("deleteShot").onclick = deleteSelected;
+
+const KEYS = {
+  " ": togglePlay, ",": () => nudge(-1 / fps()), ".": () => nudge(1 / fps()),
+  "<": () => nudge(-1), ">": () => nudge(1),
+  s: () => addShot("serve"), f: () => addShot("forehand"), b: () => addShot("backhand"),
+  v: () => addShot("volley"), o: () => addShot("overhead"),
+  h: () => { const s = selected(); if (s) setField("hitter", s.hitter === "near" ? "far" : "near"); },
+  i: () => setField("result", "in"), x: () => setField("result", "out"),
+  n: () => setField("result", "net"), z: () => setField("result", "none"),
+  c: () => { const s = selected(); if (s) setField("closeCall", !s.closeCall); },
+  w: () => setField("pointEnd", "winner"), e: () => setField("pointEnd", "forced_error"),
+  u: () => setField("pointEnd", "unforced_error"), "0": () => setField("pointEnd", ""),
+  k: startCalibration,
+  ArrowUp: () => step(-1), ArrowDown: () => step(1),
+  Enter: () => { const s = selected(); if (s) seek(s.time); },
+  Delete: deleteSelected, Backspace: deleteSelected,
+  Escape: () => { if (calibrating) { calibrating = null; announce("Calibration cancelled."); renderAll(); } },
+};
+document.addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const tag = e.target.tagName;
+  if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+  if (e.key === "Enter" && tag === "BUTTON") return;   // let Enter press the focused button
+  if (e.key === " " && tag === "BUTTON" && e.target !== $("playPause")) return;
+  let key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (e.shiftKey && (key === "," || key === "<")) key = "<";
+  if (e.shiftKey && (key === "." || key === ">")) key = ">";
+  const fn = KEYS[key]; if (!fn || !label) return;
+  e.preventDefault(); fn();
+});
+
+(async () => {
+  court = await (await fetch("/api/court")).json();
+  await refreshMatchList(true);
+})();
+</script>
+</body>
+</html>
