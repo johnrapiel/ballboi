@@ -157,7 +157,7 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 - **Eligibility:** rating range and roster cap for Open leagues
 - **Format:** Flex or Round robin; Ladder comes later
 - **Play type:** singles, fixed-partner doubles, or rotating-partner doubles
-- **Season:** 6 to 12 weeks, optional playoff for top 4 or 8
+- **Season:** 1 to 24 weeks (8 by default), optional playoff for top 4 or 8
 - **Rules:** weekly deadline and forfeit or no-result for unplayed matches
 
 **Weekly loop (Flex)**

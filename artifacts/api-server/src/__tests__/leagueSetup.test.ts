@@ -26,11 +26,11 @@ describe("validateLeagueSetup", () => {
     expect(validateLeagueSetup({ ...base, format: "ladder" })).toMatch(/Flex or Round robin/);
   });
 
-  it("keeps seasons between 6 and 12 weeks", () => {
-    expect(validateLeagueSetup({ ...base, seasonWeeks: 5 })).toMatch(/6 to 12/);
-    expect(validateLeagueSetup({ ...base, seasonWeeks: 13 })).toMatch(/6 to 12/);
-    expect(validateLeagueSetup({ ...base, seasonWeeks: 6 })).toBeNull();
-    expect(validateLeagueSetup({ ...base, seasonWeeks: 12 })).toBeNull();
+  it("keeps seasons between 1 and 24 weeks", () => {
+    expect(validateLeagueSetup({ ...base, seasonWeeks: 0 })).toMatch(/1 to 24/);
+    expect(validateLeagueSetup({ ...base, seasonWeeks: 25 })).toMatch(/1 to 24/);
+    expect(validateLeagueSetup({ ...base, seasonWeeks: 1 })).toBeNull();
+    expect(validateLeagueSetup({ ...base, seasonWeeks: 24 })).toBeNull();
   });
 
   it("needs a real start date", () => {

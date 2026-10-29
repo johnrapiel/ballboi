@@ -26,9 +26,9 @@ type Format = "flex" | "round_robin";
 type PlayType = "singles" | "fixed" | "rotating";
 type Unplayed = "no_result" | "forfeit";
 
-// Season length limits match the spec (Leagues > Setup: 6 to 12 weeks) and the API.
-const MIN_WEEKS = 6;
-const MAX_WEEKS = 12;
+// Season length limits match the spec (Leagues > Setup: 1 to 24 weeks) and the API.
+const MIN_WEEKS = 1;
+const MAX_WEEKS = 24;
 const DEFAULT_WEEKS = 8;
 
 const today = () => {
