@@ -1,5 +1,6 @@
 import { db, matchesTable, playerAvailabilityTable, scheduleGenerationLogsTable } from "@workspace/db";
 import { eq, and, or } from "drizzle-orm";
+import { blockedPlayerPairs, pairKey as blockPairKey } from "../lib/blocks.js";
 
 const REMATCH_DAYS = 21;
 
@@ -56,6 +57,9 @@ export async function generateWeeklyMatches(leagueId: number, weekOf: string) {
     }
   }
 
+  // Never auto-schedule two players when either has blocked the other.
+  const blockedPairs = await blockedPlayerPairs([...new Set(availabilities.map((a) => a.playerId))]);
+
   // Build player data structures
   const players: PlayerWithAvail[] = availabilities.map((a) => {
     return {
@@ -100,6 +104,7 @@ export async function generateWeeklyMatches(leagueId: number, weekOf: string) {
         // Check rematch prevention
         const pairKey = [p1Id, p2Id].sort().join("-");
         if (recentPairs.has(pairKey)) { rematchesSkipped++; continue; }
+        if (blockedPairs.has(blockPairKey(p1Id, p2Id))) continue;
 
         // Check neither player already scheduled in this slot
         if (matchedInSlot.has(`${slot.key}:${p1Id}`) || matchedInSlot.has(`${slot.key}:${p2Id}`)) continue;

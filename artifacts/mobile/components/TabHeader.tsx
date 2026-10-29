@@ -63,12 +63,21 @@ export function MessagesButton({ unread = 0 }: { unread?: number }) {
 }
 
 /** A tab's page: paper background, safe-area top, and the tab header. */
-export function TabScreen({ title, children }: { title: string; children: React.ReactNode }) {
+export function TabScreen({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  /** An optional button for the tab's main action, shown next to Messages. */
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   const c = useColors();
   const insets = useSafeAreaInsets();
   return (
     <View style={{ flex: 1, backgroundColor: c.paper, paddingTop: insets.top + spacing.space2 }}>
-      <TabHeader title={title} />
+      <TabHeader title={title} action={action} />
       {children}
     </View>
   );
@@ -78,7 +87,7 @@ export function TabScreen({ title, children }: { title: string; children: React.
  * Top of every tab: the tab's name as a large title, with Messages
  * in the top-right corner. The title always matches the tab label.
  */
-export function TabHeader({ title }: { title: string }) {
+export function TabHeader({ title, action }: { title: string; action?: React.ReactNode }) {
   return (
     <View
       style={{
@@ -93,7 +102,10 @@ export function TabHeader({ title }: { title: string }) {
       <Text variant="displayL" accessibilityRole="header" style={{ flexShrink: 1 }}>
         {title}
       </Text>
-      <MessagesButton />
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2 }}>
+        {action}
+        <MessagesButton />
+      </View>
     </View>
   );
 }

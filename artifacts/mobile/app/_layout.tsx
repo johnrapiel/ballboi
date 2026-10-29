@@ -35,22 +35,67 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   const colors = useColors();
+  // Standard iOS header for screens pushed from a tab: back at the top left.
+  const pushedHeader = {
+    headerShown: true,
+    headerBackButtonDisplayMode: "minimal",
+    headerShadowVisible: false,
+    headerTintColor: colors.ink,
+    headerStyle: { backgroundColor: colors.paper },
+    headerTitleStyle: { fontFamily: "DMSans_600SemiBold", color: colors.ink },
+  } as const;
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="age-check" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="eighteen-plus" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="messages" options={{ ...pushedHeader, title: "Messages" }} />
+      <Stack.Screen name="delete-account" options={{ ...pushedHeader, title: "Delete account" }} />
       <Stack.Screen
-        name="messages"
+        name="league/new"
         options={{
           headerShown: true,
-          title: "Messages",
-          headerBackButtonDisplayMode: "minimal",
+          presentation: "modal",
+          title: "New league",
           headerShadowVisible: false,
           headerTintColor: colors.ink,
           headerStyle: { backgroundColor: colors.paper },
           headerTitleStyle: { fontFamily: "DMSans_600SemiBold", color: colors.ink },
+        }}
+      />
+      <Stack.Screen
+        name="league/join"
+        options={{
+          headerShown: false,
+          presentation: "formSheet",
+          sheetAllowedDetents: "fitToContents",
+          sheetGrabberVisible: true,
+          sheetCornerRadius: 18,
+          contentStyle: { backgroundColor: colors.linen },
+        }}
+      />
+      <Stack.Screen
+        name="league/invite/[leagueId]"
+        options={{
+          headerShown: true,
+          presentation: "modal",
+          title: "",
+          gestureEnabled: false,
+          headerShadowVisible: false,
+          headerTintColor: colors.ink,
+          headerStyle: { backgroundColor: colors.paper },
+        }}
+      />
+      <Stack.Screen
+        name="league/[leagueId]"
+        options={{
+          headerShown: true,
+          title: "",
+          headerBackButtonDisplayMode: "minimal",
+          headerShadowVisible: false,
+          headerTintColor: colors.ink,
+          headerStyle: { backgroundColor: colors.paper },
         }}
       />
       <Stack.Screen

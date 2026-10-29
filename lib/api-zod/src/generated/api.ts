@@ -25,13 +25,23 @@ export const GetLeaguesResponseItem = zod.object({
   id: zod.number(),
   name: zod.string(),
   description: zod.string().nullish(),
-  format: zod.enum(["round_robin", "elimination", "swiss"]),
+  format: zod.enum(["flex", "round_robin", "elimination", "swiss"]),
   status: zod.enum(["active", "completed", "upcoming"]),
   leagueType: zod.string().nullish(),
   startDate: zod.string().nullish(),
   endDate: zod.string().nullish(),
   location: zod.string().nullish(),
   createdByClerkUserId: zod.string().nullish(),
+  visibility: zod.enum(["private", "open"]),
+  partnerMode: zod
+    .union([zod.literal("fixed"), zod.literal("rotating"), zod.literal(null)])
+    .nullish(),
+  minRating: zod.string().nullish(),
+  maxRating: zod.string().nullish(),
+  rosterCap: zod.number().nullish(),
+  seasonWeeks: zod.number().nullish(),
+  playoffSize: zod.union([zod.literal(0), zod.literal(4), zod.literal(8)]),
+  unplayedRule: zod.enum(["forfeit", "no_result"]),
   playerCount: zod.number(),
   matchCount: zod.number(),
   createdAt: zod.string(),
@@ -42,17 +52,55 @@ export const GetLeaguesResponse = zod.array(GetLeaguesResponseItem);
 /**
  * @summary Create a new league
  */
-export const CreateLeagueBody = zod.object({
-  name: zod.string(),
-  description: zod.string().nullish(),
-  format: zod.enum(["round_robin", "elimination", "swiss"]),
-  status: zod.enum(["active", "completed", "upcoming"]),
-  leagueType: zod.string().nullish(),
-  startDate: zod.string().nullish(),
-  endDate: zod.string().nullish(),
-  location: zod.string().nullish(),
-  createdByClerkUserId: zod.string().nullish(),
-});
+export const createLeagueBodyNameMax = 60;
+
+export const createLeagueBodyRosterCapMin = 2;
+export const createLeagueBodyRosterCapMax = 64;
+
+export const createLeagueBodySeasonWeeksMin = 6;
+export const createLeagueBodySeasonWeeksMax = 12;
+
+export const CreateLeagueBody = zod
+  .object({
+    name: zod.string().min(1).max(createLeagueBodyNameMax),
+    description: zod.string().nullish(),
+    format: zod.enum(["flex", "round_robin", "elimination", "swiss"]),
+    status: zod.enum(["active", "completed", "upcoming"]).optional(),
+    leagueType: zod.enum(["singles", "doubles"]).optional(),
+    partnerMode: zod
+      .union([zod.literal("fixed"), zod.literal("rotating"), zod.literal(null)])
+      .nullish(),
+    visibility: zod.enum(["private", "open"]).optional(),
+    minRating: zod.string().nullish(),
+    maxRating: zod.string().nullish(),
+    rosterCap: zod
+      .number()
+      .min(createLeagueBodyRosterCapMin)
+      .max(createLeagueBodyRosterCapMax)
+      .nullish(),
+    startDate: zod.string().describe("First day of the season, YYYY-MM-DD"),
+    seasonWeeks: zod
+      .number()
+      .min(createLeagueBodySeasonWeeksMin)
+      .max(createLeagueBodySeasonWeeksMax),
+    playoffSize: zod
+      .union([zod.literal(0), zod.literal(4), zod.literal(8)])
+      .optional(),
+    unplayedRule: zod.enum(["forfeit", "no_result"]).optional(),
+    location: zod.string().nullish(),
+    playing: zod
+      .boolean()
+      .optional()
+      .describe("The admin plays in the league too (default true)"),
+    playerName: zod
+      .string()
+      .nullish()
+      .describe("The admin's name in the league, when playing"),
+    skillLevel: zod.string().nullish(),
+  })
+  .describe(
+    "Start a league (spec: Leagues > Setup). Anyone signed in can start one and becomes its admin. With playing true, the admin also joins as a player.",
+  );
 
 /**
  * @summary Get league by ID
@@ -65,13 +113,23 @@ export const GetLeagueResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   description: zod.string().nullish(),
-  format: zod.enum(["round_robin", "elimination", "swiss"]),
+  format: zod.enum(["flex", "round_robin", "elimination", "swiss"]),
   status: zod.enum(["active", "completed", "upcoming"]),
   leagueType: zod.string().nullish(),
   startDate: zod.string().nullish(),
   endDate: zod.string().nullish(),
   location: zod.string().nullish(),
   createdByClerkUserId: zod.string().nullish(),
+  visibility: zod.enum(["private", "open"]),
+  partnerMode: zod
+    .union([zod.literal("fixed"), zod.literal("rotating"), zod.literal(null)])
+    .nullish(),
+  minRating: zod.string().nullish(),
+  maxRating: zod.string().nullish(),
+  rosterCap: zod.number().nullish(),
+  seasonWeeks: zod.number().nullish(),
+  playoffSize: zod.union([zod.literal(0), zod.literal(4), zod.literal(8)]),
+  unplayedRule: zod.enum(["forfeit", "no_result"]),
   playerCount: zod.number(),
   matchCount: zod.number(),
   createdAt: zod.string(),
@@ -90,6 +148,7 @@ export const UpdateLeagueBody = zod.object({
   description: zod.string().nullish(),
   format: zod
     .union([
+      zod.literal("flex"),
       zod.literal("round_robin"),
       zod.literal("elimination"),
       zod.literal("swiss"),
@@ -113,13 +172,23 @@ export const UpdateLeagueResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   description: zod.string().nullish(),
-  format: zod.enum(["round_robin", "elimination", "swiss"]),
+  format: zod.enum(["flex", "round_robin", "elimination", "swiss"]),
   status: zod.enum(["active", "completed", "upcoming"]),
   leagueType: zod.string().nullish(),
   startDate: zod.string().nullish(),
   endDate: zod.string().nullish(),
   location: zod.string().nullish(),
   createdByClerkUserId: zod.string().nullish(),
+  visibility: zod.enum(["private", "open"]),
+  partnerMode: zod
+    .union([zod.literal("fixed"), zod.literal("rotating"), zod.literal(null)])
+    .nullish(),
+  minRating: zod.string().nullish(),
+  maxRating: zod.string().nullish(),
+  rosterCap: zod.number().nullish(),
+  seasonWeeks: zod.number().nullish(),
+  playoffSize: zod.union([zod.literal(0), zod.literal(4), zod.literal(8)]),
+  unplayedRule: zod.enum(["forfeit", "no_result"]),
   playerCount: zod.number(),
   matchCount: zod.number(),
   createdAt: zod.string(),

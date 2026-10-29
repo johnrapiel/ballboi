@@ -81,6 +81,7 @@ export type AvailabilityReminderCooldownResponse = ErrorResponse & {
 export type LeagueFormat = (typeof LeagueFormat)[keyof typeof LeagueFormat];
 
 export const LeagueFormat = {
+  flex: "flex",
   round_robin: "round_robin",
   elimination: "elimination",
   swiss: "swiss",
@@ -92,6 +93,43 @@ export const LeagueStatus = {
   active: "active",
   completed: "completed",
   upcoming: "upcoming",
+} as const;
+
+export type LeagueVisibility =
+  (typeof LeagueVisibility)[keyof typeof LeagueVisibility];
+
+export const LeagueVisibility = {
+  private: "private",
+  open: "open",
+} as const;
+
+/**
+ * @nullable
+ */
+export type LeaguePartnerMode =
+  | (typeof LeaguePartnerMode)[keyof typeof LeaguePartnerMode]
+  | null;
+
+export const LeaguePartnerMode = {
+  fixed: "fixed",
+  rotating: "rotating",
+} as const;
+
+export type LeaguePlayoffSize =
+  (typeof LeaguePlayoffSize)[keyof typeof LeaguePlayoffSize];
+
+export const LeaguePlayoffSize = {
+  NUMBER_0: 0,
+  NUMBER_4: 4,
+  NUMBER_8: 8,
+} as const;
+
+export type LeagueUnplayedRule =
+  (typeof LeagueUnplayedRule)[keyof typeof LeagueUnplayedRule];
+
+export const LeagueUnplayedRule = {
+  forfeit: "forfeit",
+  no_result: "no_result",
 } as const;
 
 export interface League {
@@ -111,6 +149,19 @@ export interface League {
   location?: string | null;
   /** @nullable */
   createdByClerkUserId?: string | null;
+  visibility: LeagueVisibility;
+  /** @nullable */
+  partnerMode?: LeaguePartnerMode;
+  /** @nullable */
+  minRating?: string | null;
+  /** @nullable */
+  maxRating?: string | null;
+  /** @nullable */
+  rosterCap?: number | null;
+  /** @nullable */
+  seasonWeeks?: number | null;
+  playoffSize: LeaguePlayoffSize;
+  unplayedRule: LeagueUnplayedRule;
   playerCount: number;
   matchCount: number;
   createdAt: string;
@@ -121,6 +172,7 @@ export type CreateLeagueBodyFormat =
   (typeof CreateLeagueBodyFormat)[keyof typeof CreateLeagueBodyFormat];
 
 export const CreateLeagueBodyFormat = {
+  flex: "flex",
   round_robin: "round_robin",
   elimination: "elimination",
   swiss: "swiss",
@@ -135,22 +187,98 @@ export const CreateLeagueBodyStatus = {
   upcoming: "upcoming",
 } as const;
 
+export type CreateLeagueBodyLeagueType =
+  (typeof CreateLeagueBodyLeagueType)[keyof typeof CreateLeagueBodyLeagueType];
+
+export const CreateLeagueBodyLeagueType = {
+  singles: "singles",
+  doubles: "doubles",
+} as const;
+
+/**
+ * @nullable
+ */
+export type CreateLeagueBodyPartnerMode =
+  | (typeof CreateLeagueBodyPartnerMode)[keyof typeof CreateLeagueBodyPartnerMode]
+  | null;
+
+export const CreateLeagueBodyPartnerMode = {
+  fixed: "fixed",
+  rotating: "rotating",
+} as const;
+
+export type CreateLeagueBodyVisibility =
+  (typeof CreateLeagueBodyVisibility)[keyof typeof CreateLeagueBodyVisibility];
+
+export const CreateLeagueBodyVisibility = {
+  private: "private",
+  open: "open",
+} as const;
+
+export type CreateLeagueBodyPlayoffSize =
+  (typeof CreateLeagueBodyPlayoffSize)[keyof typeof CreateLeagueBodyPlayoffSize];
+
+export const CreateLeagueBodyPlayoffSize = {
+  NUMBER_0: 0,
+  NUMBER_4: 4,
+  NUMBER_8: 8,
+} as const;
+
+export type CreateLeagueBodyUnplayedRule =
+  (typeof CreateLeagueBodyUnplayedRule)[keyof typeof CreateLeagueBodyUnplayedRule];
+
+export const CreateLeagueBodyUnplayedRule = {
+  forfeit: "forfeit",
+  no_result: "no_result",
+} as const;
+
+/**
+ * Start a league (spec: Leagues > Setup). Anyone signed in can start one and becomes its admin. With playing true, the admin also joins as a player.
+ */
 export interface CreateLeagueBody {
+  /**
+   * @minLength 1
+   * @maxLength 60
+   */
   name: string;
   /** @nullable */
   description?: string | null;
   format: CreateLeagueBodyFormat;
-  status: CreateLeagueBodyStatus;
+  status?: CreateLeagueBodyStatus;
+  leagueType?: CreateLeagueBodyLeagueType;
   /** @nullable */
-  leagueType?: string | null;
+  partnerMode?: CreateLeagueBodyPartnerMode;
+  visibility?: CreateLeagueBodyVisibility;
   /** @nullable */
-  startDate?: string | null;
+  minRating?: string | null;
   /** @nullable */
-  endDate?: string | null;
+  maxRating?: string | null;
+  /**
+   * @minimum 2
+   * @maximum 64
+   * @nullable
+   */
+  rosterCap?: number | null;
+  /** First day of the season, YYYY-MM-DD */
+  startDate: string;
+  /**
+   * @minimum 6
+   * @maximum 12
+   */
+  seasonWeeks: number;
+  playoffSize?: CreateLeagueBodyPlayoffSize;
+  unplayedRule?: CreateLeagueBodyUnplayedRule;
   /** @nullable */
   location?: string | null;
+  /** The admin plays in the league too (default true) */
+  playing?: boolean;
+  /**
+   * The admin's name in the league, when playing
+   * @nullable
+   */
+  playerName?: string | null;
   /** @nullable */
-  createdByClerkUserId?: string | null;
+  skillLevel?: string | null;
 }
 
 /**
@@ -161,6 +289,7 @@ export type UpdateLeagueBodyFormat =
   | null;
 
 export const UpdateLeagueBodyFormat = {
+  flex: "flex",
   round_robin: "round_robin",
   elimination: "elimination",
   swiss: "swiss",

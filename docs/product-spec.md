@@ -1,8 +1,8 @@
-<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (exported 2026-10-18, rev 32; Discover rename added 2026-10-21). The live doc wins if they differ. Refresh this file when the live doc changes. -->
+<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (exported 2026-10-28, rev 54). The live doc wins if they differ. Refresh this file when the live doc changes. -->
 
 # Ball Boi: Flows and Feature Spec
 
-2026-10-18 · @John
+2026-10-21 · @John
 
 ## Overview
 
@@ -37,11 +37,7 @@ Everyone has the same account type. Admin is a role on a specific league, so one
 **Onboarding (target: under 60 seconds to first value)**
 
 1. **Sign in:** Apple, Google, or email code
-2. **Age check:** Apple's Declared Age Range API, with a self-attested birth date as the fallback. Under 18s see a friendly "Ball Boi is 18+ for now" screen and no account is created. Only a pass/fail flag is stored, never the birth date
-   - **Birthday picker:** the native iOS date picker in wheels style, in a bottom sheet with a Done button. No calendar grid, no typed fields
-   - **Neutral prompt:** "What's your birthday?" with no mention of 18+ on this screen
-   - **Neutral start:** the field stays empty until confirmed, and the wheel never starts at exactly 18 years ago
-   - **No future dates:** the latest selectable date is today
+2. **Age check:** Apple's Declared Age Range API, with a self-attested birth date as the fallback. Under 18s see a friendly "Ball Boi is 18+ for now" screen and no account is created. Only a pass/fail flag is stored, never the birth date. The birth date uses the native iOS date picker in wheels style, in a bottom sheet with a Done button: no calendar grid, no typed fields. The prompt reads "What's your birthday?" with no mention of 18+, the field stays empty until confirmed, the wheel never starts at exactly 18 years ago, and the latest selectable date is today
 3. **Name and photo:** name required, photo skippable with an initials avatar
 4. **Home area:** zip code, with an optional "Use my location" shortcut
 5. **Rating quiz:** 4 to 5 plain-language descriptions that set a starting Ball Boi Rating, or "Link UTR instead"
@@ -72,7 +68,7 @@ Five tabs, with Ball Boi in the center. Messages opens from the button in the to
 | Discover | Players near you, Open leagues, Open matches (including your own) |
 | Profile | Player card, career stats, linked UTR, subscription, settings (including training data), account deletion |
 
-**Messages (top corner):** direct chats, Message Requests, and match threads, with an unread count VoiceOver reads.
+**Messages (top corner):** direct chats, Message Requests, and match threads. A 44pt button in the top-right of every tab with an unread count VoiceOver reads ("Messages, 3 unread").
 
 League chat lives inside each league, not in Messages, so busy leagues never bury direct conversations. Every tab has an icon plus a text label, and badge counts are read by VoiceOver.
 
@@ -222,7 +218,7 @@ The phone films with the rear camera, so its screen faces away from the court. V
 - **Per-stat accuracy bar,** e.g. shot type ≥ 90%, in/out on close calls ≥ 85%, serve placement ≥ 85%. A stat that misses its bar is hidden at launch, not shown with a disclaimer
 - **Beta:** commissioned local players record through a TestFlight build pointed at a private (non-public) production tenant; they sign a short footage release
 
-**Core stats (launch****, each gated on its accuracy bar****)**
+**Core stats (launch, each gated on its accuracy bar)**
 
 - **Shot type:** forehand, backhand, serve, volley, overhead
 - **In or out,** with uncertain calls labeled "Close call" instead of stated as fact
@@ -303,7 +299,7 @@ These decisions add launch-blocking items to the submission checklist. Strangers
 | UTR linking | Disclose shared data and unlink path in privacy policy and labels; no partner logos without approval | 5.1.1, 5.2.1 |
 | User-to-user messaging | Re-answer age rating questionnaire; set 18+ | Age rating |
 | Account deletion | Deletes messages, video, ratings, removes footage from future training; revokes UTR link and Apple token | 5.1.1(v) |
-| Reviewer demo account | Password sign-in for that account only; seeded league, two Ball Boi matches, message thread, Message Request, open match; free match already used so the paywall is live; 60-second on-court recording in review notes | 2.1 |
+| Reviewer demo account | Password sign-in for that account only; seeded league, two Ball Boi matches, message thread, Message Request, open match; 3 free months marked expired server-side so the paywall is live; 60-second on-court recording in review notes | 2.1 |
 | Opponent recording notification and remote controls | APNs push-to-start Live Activities with interactive Start / Stop buttons; connections only | 4.5.4 |
 | Filming other players and training on video | Opponent recording notification, first-recording consent screen with training toggle, both-players rule, no training on non-users until they join; microphone purpose string for analysis-only audio | 5.1.1, 5.1.2 |
 | Third-party processors | Stream (messaging), Anthropic (moderation agent), Cloudflare (video storage) listed in privacy policy and SDK privacy manifests | 5.1.1, 5.1.2 |
@@ -323,11 +319,15 @@ These decisions add launch-blocking items to the submission checklist. Strangers
 
 ## Roadmap
 
-_(Embedded roadmap graphic: see the live doc.)_
+_Phases are ordered, not dated. The live doc shows these as a chart._
+
+- **Launch (v1):** Discover; Leagues (Flex, Round robin); Ball Boi stats and simulated replay; Ball Boi Pro; court directory; head-to-head and recaps
+- **First update (v1.1):** close-call video clips; weather reschedule; calendar sync
+- **Later:** junior leagues (if there's demand); Ladder format; Organizer plan; doubles shot analysis; coaching tips; spin, swing path, footwork; Apple Watch scoring
 
 Coaching tips return only once a coach-authored library exists, and doubles analysis waits on per-player shot attribution.
 
-## Decision log (Oct 18, 2026)
+## Decision log (updated Oct 21, 2026)
 
 | # | Decision |
 | --- | --- |
@@ -348,7 +348,7 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 15 | No in-app notice for non-users; their footage stays out of training until they join |
 | 16 | Audio recorded for analysis only, never played back; the test set decides whether it stays |
 | 17 | Partner phone optional; live preview in v1.1; voice start command and solo visual cues post-MVP |
-| 18 | Find a Matchup is now **Discover** (Oct 21): a familiar, short tab label that covers players, Open leagues, and open matches. Sections: Players near you, Open leagues, Open matches. "Open Match posts" are now "open matches" |
-| 19 | Familiar over novel (Oct 21): standard iOS patterns, one name per thing everywhere, plain words over branded ones, same action in the same place. Tab order: Home, Leagues, Ball Boi (center), Discover, Messages |
+| 18 | Find a Matchup is now Discover (Oct 21): a familiar, short tab label covering players, Open leagues, and open matches. Sections: Players near you, Open leagues, Open matches. "Open Match posts" are now "open matches" |
+| 19 | Familiar over novel (Oct 21): standard iOS patterns, one name per thing everywhere, plain words over branded ones, same action in the same place. Tabs: Home, Leagues, Ball Boi (center), Discover, Messages |
 | 20 | Profile is the fifth tab and Messages moves to the top corner of every tab, with an unread count (Oct 21). Tab order: Home, Leagues, Ball Boi (center), Discover, Profile |
 | 21 | Birth-date fallback uses the native iOS date picker in wheels style, with a neutral prompt and starting date (Oct 21) |

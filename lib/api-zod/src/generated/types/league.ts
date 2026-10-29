@@ -6,7 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LeagueFormat } from "./leagueFormat";
+import type { LeaguePartnerMode } from "./leaguePartnerMode";
+import type { LeaguePlayoffSize } from "./leaguePlayoffSize";
 import type { LeagueStatus } from "./leagueStatus";
+import type { LeagueUnplayedRule } from "./leagueUnplayedRule";
+import type { LeagueVisibility } from "./leagueVisibility";
 
 export interface League {
   id: number;
@@ -25,6 +29,19 @@ export interface League {
   location?: string | null;
   /** @nullable */
   createdByClerkUserId?: string | null;
+  visibility: LeagueVisibility;
+  /** @nullable */
+  partnerMode?: LeaguePartnerMode;
+  /** @nullable */
+  minRating?: string | null;
+  /** @nullable */
+  maxRating?: string | null;
+  /** @nullable */
+  rosterCap?: number | null;
+  /** @nullable */
+  seasonWeeks?: number | null;
+  playoffSize: LeaguePlayoffSize;
+  unplayedRule: LeagueUnplayedRule;
   playerCount: number;
   matchCount: number;
   createdAt: string;

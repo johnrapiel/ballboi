@@ -9,6 +9,7 @@
 export type LeagueFormat = (typeof LeagueFormat)[keyof typeof LeagueFormat];
 
 export const LeagueFormat = {
+  flex: "flex",
   round_robin: "round_robin",
   elimination: "elimination",
   swiss: "swiss",

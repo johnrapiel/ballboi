@@ -237,7 +237,6 @@ beforeEach(async () => {
 const adminRoutes = [
   { method: "post", path: "/api/scheduling/1/generate", body: {} },
   { method: "post", path: "/api/scheduling/1/confirm", body: {} },
-  { method: "post", path: "/api/leagues", body: { name: "Test League", sport: "tennis" } },
   { method: "patch", path: "/api/leagues/1", body: { name: "Updated League" } },
   { method: "delete", path: "/api/leagues/1", body: {} },
   { method: "post", path: "/api/drills", body: { leagueId: 1, name: "Test Drill" } },
@@ -326,15 +325,6 @@ describe("requireAdmin middleware — admin requests pass through to the handler
       .send({});
     expect(res.status).toBe(404);
     expect(res.body.error).toMatch(/no schedule found/i);
-  });
-
-  it("POST /api/leagues — returns 201 with the created league", async () => {
-    mockDb.insert.mockReturnValue(mockChain([sampleLeague]));
-    const res = await supertest(app)
-      .post("/api/leagues")
-      .send({ name: "Test League", sport: "tennis" });
-    expect(res.status).toBe(201);
-    expect(res.body.name).toBe("Test League");
   });
 
   it("PATCH /api/leagues/1 — returns 200 with the updated league", async () => {

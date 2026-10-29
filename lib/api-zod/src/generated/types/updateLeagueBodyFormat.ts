@@ -14,6 +14,7 @@ export type UpdateLeagueBodyFormat =
   | null;
 
 export const UpdateLeagueBodyFormat = {
+  flex: "flex",
   round_robin: "round_robin",
   elimination: "elimination",
   swiss: "swiss",
