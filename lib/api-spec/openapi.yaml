@@ -676,6 +676,19 @@ paths:
                   - $ref: "#/components/schemas/LeagueBracket"
                   - type: "null"
 
+  /me/league-week:
+    get:
+      operationId: getMyLeagueWeek
+      tags: [leagues]
+      summary: Home tab's league section - this week's matches and byes, playoff matches, drafts to review, recent results
+      responses:
+        "200":
+          description: League week
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueWeek"
+
   /leagues/{leagueId}/matches/{matchId}/score:
     post:
       operationId: enterLeagueScore
@@ -1973,6 +1986,83 @@ components:
         countsForStandings:
           type: boolean
       required: [matchId, status, score, winnerId, inGrace, countsForStandings]
+
+    LeagueWeekItem:
+      type: object
+      properties:
+        leagueId: { type: integer }
+        leagueName: { type: string }
+        roundId: { type: integer }
+        roundNumber: { type: integer }
+        phase:
+          type: string
+          enum: [upcoming, open, grace]
+        startDate: { type: string }
+        deadline: { type: string }
+        graceEnd: { type: string }
+        bye: { type: boolean }
+        matchId: { type: ["integer", "null"] }
+        myPlayerId: { type: integer }
+        opponentName: { type: ["string", "null"] }
+        singles: { type: boolean }
+        scheduledAt: { type: ["string", "null"] }
+        location: { type: ["string", "null"] }
+      required: [leagueId, leagueName, roundId, roundNumber, phase, startDate, deadline, graceEnd, bye, matchId, myPlayerId, opponentName, singles, scheduledAt, location]
+
+    LeagueWeekPlayoff:
+      type: object
+      properties:
+        leagueId: { type: integer }
+        leagueName: { type: string }
+        matchId: { type: integer }
+        round: { type: string }
+        opponentName: { type: string }
+        singles: { type: boolean }
+      required: [leagueId, leagueName, matchId, round, opponentName, singles]
+
+    LeagueWeekDraft:
+      type: object
+      properties:
+        leagueId: { type: integer }
+        leagueName: { type: string }
+        roundId: { type: integer }
+        roundNumber: { type: integer }
+        startDate: { type: string }
+      required: [leagueId, leagueName, roundId, roundNumber, startDate]
+
+    LeagueWeekResult:
+      type: object
+      properties:
+        leagueId: { type: integer }
+        leagueName: { type: string }
+        matchId: { type: integer }
+        opponentName: { type: string }
+        score:
+          type: string
+          description: From the viewer's side, their games first
+        won: { type: boolean }
+        inGrace: { type: boolean }
+        playoff: { type: boolean }
+        completedAt: { type: ["string", "null"] }
+      required: [leagueId, leagueName, matchId, opponentName, score, won, inGrace, playoff, completedAt]
+
+    LeagueWeek:
+      type: object
+      properties:
+        today: { type: string }
+        thisWeek:
+          type: array
+          items: { $ref: "#/components/schemas/LeagueWeekItem" }
+        playoffs:
+          type: array
+          items: { $ref: "#/components/schemas/LeagueWeekPlayoff" }
+        drafts:
+          type: array
+          items: { $ref: "#/components/schemas/LeagueWeekDraft" }
+        recent:
+          type: array
+          items: { $ref: "#/components/schemas/LeagueWeekResult" }
+      required: [today, thisWeek, playoffs, drafts, recent]
 
     BracketSeed:
       type: object

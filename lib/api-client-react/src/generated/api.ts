@@ -61,6 +61,7 @@ import type {
   LeagueMembership,
   LeagueRoundWithMatchups,
   LeagueSchedule,
+  LeagueWeek,
   LockMatchBody,
   Match,
   MatchBallBoiShotCallbackBody,
@@ -2823,6 +2824,81 @@ export function useGetLeagueBracket<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetLeagueBracketQueryOptions(leagueId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Home tab's league section - this week's matches and byes, playoff matches, drafts to review, recent results
+ */
+export const getGetMyLeagueWeekUrl = () => {
+  return `/api/me/league-week`;
+};
+
+export const getMyLeagueWeek = async (
+  options?: RequestInit,
+): Promise<LeagueWeek> => {
+  return customFetch<LeagueWeek>(getGetMyLeagueWeekUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyLeagueWeekQueryKey = () => {
+  return [`/api/me/league-week`] as const;
+};
+
+export const getGetMyLeagueWeekQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyLeagueWeek>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyLeagueWeek>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyLeagueWeekQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyLeagueWeek>>> = ({
+    signal,
+  }) => getMyLeagueWeek({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyLeagueWeek>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyLeagueWeekQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyLeagueWeek>>
+>;
+export type GetMyLeagueWeekQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Home tab's league section - this week's matches and byes, playoff matches, drafts to review, recent results
+ */
+
+export function useGetMyLeagueWeek<
+  TData = Awaited<ReturnType<typeof getMyLeagueWeek>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyLeagueWeek>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyLeagueWeekQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

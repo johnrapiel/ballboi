@@ -99,6 +99,76 @@ export interface ScoreResult {
   countsForStandings: boolean;
 }
 
+export type LeagueWeekItemPhase =
+  (typeof LeagueWeekItemPhase)[keyof typeof LeagueWeekItemPhase];
+
+export const LeagueWeekItemPhase = {
+  upcoming: "upcoming",
+  open: "open",
+  grace: "grace",
+} as const;
+
+export interface LeagueWeekItem {
+  leagueId: number;
+  leagueName: string;
+  roundId: number;
+  roundNumber: number;
+  phase: LeagueWeekItemPhase;
+  startDate: string;
+  deadline: string;
+  graceEnd: string;
+  bye: boolean;
+  /** @nullable */
+  matchId: number | null;
+  myPlayerId: number;
+  /** @nullable */
+  opponentName: string | null;
+  singles: boolean;
+  /** @nullable */
+  scheduledAt: string | null;
+  /** @nullable */
+  location: string | null;
+}
+
+export interface LeagueWeekPlayoff {
+  leagueId: number;
+  leagueName: string;
+  matchId: number;
+  round: string;
+  opponentName: string;
+  singles: boolean;
+}
+
+export interface LeagueWeekDraft {
+  leagueId: number;
+  leagueName: string;
+  roundId: number;
+  roundNumber: number;
+  startDate: string;
+}
+
+export interface LeagueWeekResult {
+  leagueId: number;
+  leagueName: string;
+  matchId: number;
+  opponentName: string;
+  /** From the viewer's side, their games first */
+  score: string;
+  won: boolean;
+  inGrace: boolean;
+  playoff: boolean;
+  /** @nullable */
+  completedAt: string | null;
+}
+
+export interface LeagueWeek {
+  today: string;
+  thisWeek: LeagueWeekItem[];
+  playoffs: LeagueWeekPlayoff[];
+  drafts: LeagueWeekDraft[];
+  recent: LeagueWeekResult[];
+}
+
 export interface BracketSeed {
   seed: number;
   playerId: number;
