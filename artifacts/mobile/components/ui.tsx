@@ -17,18 +17,17 @@ import {
 } from "react-native";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Circle, G, Rect } from "react-native-svg";
 
 import { useColors } from "@/hooks/useColors";
 import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
 
 type TypeStyle = keyof typeof type;
-type Tone = "ink" | "inkMuted" | "pool" | "clay" | "danger" | "onInk";
+type Tone = "ink" | "inkMuted" | "court" | "danger" | "onInk";
 
 export interface TextProps extends RNTextProps {
   /** Design system text style. Defaults to `body`. */
   variant?: TypeStyle;
-  /** Text color token. Defaults to `ink`. `sun` is never text. */
+  /** Text color token. Defaults to `ink`. `court` is the only accent. */
   tone?: Tone;
 }
 
@@ -116,14 +115,14 @@ export function Card({ style, ...rest }: ViewProps) {
 
 export interface ChipProps extends ViewProps {
   label: string;
-  /** quiet: sand chip. live: clay, for the one thing happening now. win: pool. */
+  /** quiet: sand chip. live: filled court, the one thing happening now. win: court outline. */
   tone?: "quiet" | "live" | "win";
 }
 
 /** Small uppercase tag. Carries its meaning in text, never color alone. */
 export function Chip({ label, tone = "quiet", style, ...rest }: ChipProps) {
   const c = useColors();
-  const textColor = tone === "live" ? c.clay : tone === "win" ? c.pool : c.ink;
+  const textColor = tone === "live" ? c.onInk : tone === "win" ? c.court : c.ink;
   return (
     <View
       {...rest}
@@ -132,8 +131,8 @@ export function Chip({ label, tone = "quiet", style, ...rest }: ChipProps) {
       style={[
         {
           alignSelf: "flex-start",
-          backgroundColor: tone === "quiet" ? c.sand : "transparent",
-          borderColor: tone === "quiet" ? "transparent" : textColor,
+          backgroundColor: tone === "quiet" ? c.sand : tone === "live" ? c.court : "transparent",
+          borderColor: tone === "quiet" ? "transparent" : c.court,
           borderWidth: 1,
           borderRadius: radius.radiusPill,
           paddingHorizontal: spacing.space3,
@@ -230,19 +229,3 @@ export function KeyboardScreen({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Cabana awning: navy and linen stripes with a scalloped hem. Decorative. */
-export function Awning({ height = 18 }: { height?: number }) {
-  const c = useColors();
-  const stripe = 14;
-  const count = 40;
-  return (
-    <Svg width="100%" height={height} viewBox={`0 0 ${stripe * count} ${height}`} preserveAspectRatio="xMinYMin slice" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      {Array.from({ length: count }, (_, i) => (
-        <G key={i}>
-          <Rect x={i * stripe} y={0} width={stripe} height={height - 7} fill={i % 2 === 0 ? c.ink : c.linen} />
-          <Circle cx={i * stripe + stripe / 2} cy={height - 7} r={stripe / 2} fill={i % 2 === 0 ? c.ink : c.linen} />
-        </G>
-      ))}
-    </Svg>
-  );
-}

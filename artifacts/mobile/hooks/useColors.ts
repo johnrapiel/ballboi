@@ -5,7 +5,7 @@ import colors from "@/constants/colors";
 /**
  * Returns the Ball Boi design system colors for the device's appearance:
  * Day session (light) or Night session (dark). Includes the design system
- * names (paper, ink, pool...) plus legacy keys for screens not yet rebuilt.
+ * names (paper, ink, court...) plus legacy keys for screens not yet rebuilt.
  */
 export function useColors() {
   const scheme = useColorScheme();

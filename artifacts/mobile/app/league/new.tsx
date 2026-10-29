@@ -235,7 +235,7 @@ export default function StartLeagueScreen() {
           <Switch
             value={playing}
             onValueChange={setPlaying}
-            trackColor={{ true: c.pool, false: c.hairlineStrong }}
+            trackColor={{ true: c.court, false: c.hairlineStrong }}
             accessibilityLabel="I'm playing in this league"
           />
         </Card>

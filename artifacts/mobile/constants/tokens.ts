@@ -11,14 +11,12 @@ export const color = {
     "sand": "#E1CDAF",
     "ink": "#0A2447",
     "inkMuted": "#4A5670",
-    "onInk": "#F7F0E3",
+    "onInk": "#FFFFFF",
     "hairline": "rgba(10, 36, 71, 0.16)",
     "hairlineStrong": "rgba(10, 36, 71, 0.52)",
-    "pool": "#255C60",
-    "clay": "#943F24",
-    "sun": "#E9B949",
+    "court": "#2F5A3E",
     "danger": "#8E2B22",
-    "focus": "#255C60"
+    "focus": "#0A2447"
   },
   "dark": {
     "paper": "#071A33",
@@ -29,11 +27,9 @@ export const color = {
     "onInk": "#071A33",
     "hairline": "rgba(241, 230, 210, 0.16)",
     "hairlineStrong": "rgba(241, 230, 210, 0.42)",
-    "pool": "#86C2BC",
-    "clay": "#E2906A",
-    "sun": "#E9B949",
+    "court": "#9DBFA3",
     "danger": "#EF8B7D",
-    "focus": "#86C2BC"
+    "focus": "#F1E6D2"
   }
 } as const;
 
