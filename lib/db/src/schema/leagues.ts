@@ -19,7 +19,7 @@ export const leaguesTable = pgTable("leagues", {
   minRating: text("min_rating"), // Open leagues: eligibility range, NTRP scale
   maxRating: text("max_rating"),
   rosterCap: integer("roster_cap"),
-  seasonWeeks: integer("season_weeks"), // 6 to 12
+  seasonWeeks: integer("season_weeks"), // 1 to 24
   playoffSize: integer("playoff_size").notNull().default(0), // 0, 4, or 8
   unplayedRule: text("unplayed_rule").notNull().default("no_result"), // forfeit | no_result
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

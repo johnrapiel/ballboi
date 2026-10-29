@@ -153,9 +153,9 @@ describe("POST /api/leagues", () => {
   });
 
   it("returns 400 with a plain message for a setup the spec doesn't allow", async () => {
-    const res = await supertest(app).post("/api/leagues").send({ ...valid, seasonWeeks: 20 });
+    const res = await supertest(app).post("/api/leagues").send({ ...valid, seasonWeeks: 25 });
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/6 to 12 weeks/);
+    expect(res.body.error).toMatch(/1 to 24 weeks/);
     expect(inserted).toHaveLength(0);
   });
 });
