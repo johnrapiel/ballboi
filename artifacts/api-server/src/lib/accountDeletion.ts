@@ -1,6 +1,7 @@
 import { clerkClient } from "@clerk/express";
 import {
   ballBoiSessionsTable,
+  contentReportsTable,
   db,
   expoPushTokensTable,
   matchesTable,
@@ -8,9 +9,10 @@ import {
   playerLocationsTable,
   playersTable,
   pushSubscriptionsTable,
+  userBlocksTable,
   usersTable,
 } from "@workspace/db";
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray, or, sql } from "drizzle-orm";
 import { ObjectStorageService } from "./objectStorage";
 
 /**
@@ -24,6 +26,8 @@ import { ObjectStorageService } from "./objectStorage";
  *   data and stats, so the opponent keeps their replay (the same rule as scores).
  *   The video, the AI write-up, and the recorder's ID are removed. Recordings
  *   with no remaining opponent are deleted outright.
+ * - Blocks they made or received are removed. Reports they filed stay for
+ *   moderation with the reporter removed.
  * - League player records are anonymized, not deleted, so opponents' match
  *   history and standings stay correct. The name becomes "Deleted player";
  *   email, phone and bio are cleared and the account link is removed.
@@ -144,6 +148,13 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
 
     await tx.delete(pushSubscriptionsTable).where(eq(pushSubscriptionsTable.userId, clerkUserId));
     await tx.delete(expoPushTokensTable).where(eq(expoPushTokensTable.userId, clerkUserId));
+    await tx
+      .delete(userBlocksTable)
+      .where(or(eq(userBlocksTable.blockerClerkUserId, clerkUserId), eq(userBlocksTable.blockedClerkUserId, clerkUserId)));
+    await tx
+      .update(contentReportsTable)
+      .set({ reporterClerkUserId: null })
+      .where(eq(contentReportsTable.reporterClerkUserId, clerkUserId));
     await tx.delete(usersTable).where(eq(usersTable.clerkUserId, clerkUserId));
 
     const sessionPaths = sessions.map((s) => s.videoObjectPath).filter((p): p is string => !!p);

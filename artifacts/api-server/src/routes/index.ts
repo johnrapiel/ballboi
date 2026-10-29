@@ -17,6 +17,7 @@ import ballBoiRouter from "./ballBoi";
 import roundsRouter from "./rounds";
 import playoffsRouter from "./playoffs";
 import seasonsRouter from "./seasons";
+import safetyRouter from "./safety";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(ballBoiRouter);
 router.use(roundsRouter);
 router.use(playoffsRouter);
 router.use(seasonsRouter);
+router.use(safetyRouter);
 
 export default router;
