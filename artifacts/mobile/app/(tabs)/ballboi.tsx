@@ -23,7 +23,9 @@ export default function BallBoiScreen() {
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingBottom: spacing.space12, gap: spacing.space6 }}
         refreshControl={
-          <RefreshControl refreshing={today.isRefetching} onRefresh={() => today.refetch()} tintColor={c.ink} />
+          <RefreshControl refreshing={today.isRefetching} onRefresh={() => {
+            today.refetch();
+          }} tintColor={c.ink} />
         }
       >
         <View style={{ gap: spacing.space3 }}>
