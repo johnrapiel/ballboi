@@ -352,3 +352,4 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 19 | Familiar over novel (Oct 21): standard iOS patterns, one name per thing everywhere, plain words over branded ones, same action in the same place. Tabs: Home, Leagues, Ball Boi (center), Discover, Messages |
 | 20 | Profile is the fifth tab and Messages moves to the top corner of every tab, with an unread count (Oct 21). Tab order: Home, Leagues, Ball Boi (center), Discover, Profile |
 | 21 | Birth-date fallback uses the native iOS date picker in wheels style, with a neutral prompt and starting date (Oct 21) |
+| 22 | League seasons run 1 to 24 weeks, 8 by default, set with a number field and − / + buttons; seasons can start on any day from a calendar (Oct 29) |
