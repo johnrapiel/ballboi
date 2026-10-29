@@ -1,0 +1,61 @@
+name: Checks
+
+# Runs typecheck and tests on every pull request and on main, so a PR shows
+# a green check (or a red X) before it merges.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck (libs, iOS app, scripts)
+        run: |
+          pnpm run typecheck:libs
+          pnpm -r --filter "./artifacts/mobile" --filter "./scripts" --if-present run typecheck
+
+      - name: API typecheck (no new errors)
+        # The API still has carried-over type errors. Fail only if a PR adds more.
+        run: |
+          set +e
+          pnpm --filter @workspace/api-server run typecheck > api-tsc.log 2>&1
+          count=$(grep -c "error TS" api-tsc.log)
+          echo "API type errors: $count (baseline 98)"
+          echo "::notice title=API type errors::$count (baseline 98)"
+          if [ "$count" -gt 98 ]; then
+            grep "error TS" api-tsc.log | tail -40
+            echo "::error::This PR adds API type errors ($count, baseline 98)."
+            exit 1
+          fi
+
+      - name: Tests (contrast check + API)
+        run: |
+          set -o pipefail
+          pnpm test 2>&1 | tee test.log
+          # Post the totals as a note on the PR's checks (colors stripped first).
+          sed -E 's/\x1b\[[0-9;]*m//g' test.log > test.txt
+          files=$(grep -E "Test Files" test.txt | tail -1 | xargs || true)
+          tests=$(grep -E "^ *Tests " test.txt | tail -1 | xargs || true)
+          echo "::notice title=API tests::$files | $tests"
