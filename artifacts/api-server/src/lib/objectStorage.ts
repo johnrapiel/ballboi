@@ -1,4 +1,5 @@
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
@@ -123,5 +124,12 @@ export class ObjectStorageService {
       if (isNotFound(err)) throw new ObjectNotFoundError();
       throw err;
     }
+  }
+
+  /** Permanently deletes an object. A missing object is not an error (S3 delete is idempotent). */
+  async deleteObject(objectPath: string): Promise<void> {
+    const { client, bucket } = getConfig();
+    const key = objectKeyFromPath(objectPath);
+    await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
   }
 }
