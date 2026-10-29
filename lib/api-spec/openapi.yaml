@@ -560,6 +560,386 @@ paths:
               schema:
                 $ref: "#/components/schemas/PlayerStats"
 
+  /leagues/{leagueId}/membership:
+    get:
+      operationId: getLeagueMembership
+      tags: [leagues]
+      summary: The signed-in user's admin role and player row in a league
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      responses:
+        "200":
+          description: Membership
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueMembership"
+
+  /leagues/{leagueId}/admins:
+    get:
+      operationId: getLeagueAdmins
+      tags: [leagues]
+      summary: The league's owner and co-admins
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      responses:
+        "200":
+          description: Admins, owner first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeagueAdmin"
+    post:
+      operationId: promoteLeagueAdmin
+      tags: [leagues]
+      summary: Promote a league member to co-admin (admins only)
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlayerIdBody"
+      responses:
+        "201":
+          description: Promoted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueAdmin"
+
+  /leagues/{leagueId}/admins/{clerkUserId}:
+    delete:
+      operationId: removeLeagueAdmin
+      tags: [leagues]
+      summary: Remove a co-admin (the owner), or step down (a co-admin)
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - name: clerkUserId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Removed
+
+  /leagues/{leagueId}/schedule:
+    get:
+      operationId: getLeagueSchedule
+      tags: [leagues]
+      summary: Every round of the season, plus weeks still to come
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      responses:
+        "200":
+          description: Schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueSchedule"
+
+  /leagues/{leagueId}/matches/{matchId}/score:
+    post:
+      operationId: enterLeagueScore
+      tags: [leagues]
+      summary: Enter a league match score from your own side. The first score entered stands.
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnterScoreBody"
+      responses:
+        "201":
+          description: Score saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoreResult"
+        "409":
+          description: A score is already in, or the match can't be scored now
+
+  /leagues/{leagueId}/join-requests:
+    get:
+      operationId: getLeagueJoinRequests
+      tags: [leagues]
+      summary: Pending requests and the waitlist (admins only)
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      responses:
+        "200":
+          description: Pending requests, oldest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JoinRequest"
+    post:
+      operationId: requestToJoinLeague
+      tags: [leagues]
+      summary: Ask to join an Open league. Goes to the waitlist once the season has started or the league is full.
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinLeagueBody"
+      responses:
+        "201":
+          description: Request sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JoinRequest"
+        "202":
+          description: On the waitlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JoinRequest"
+
+  /leagues/{leagueId}/join-requests/me:
+    get:
+      operationId: getMyLeagueJoinRequest
+      tags: [leagues]
+      summary: Your own pending request or waitlist spot
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      responses:
+        "200":
+          description: The request, or null
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/JoinRequest"
+                  - type: "null"
+    delete:
+      operationId: withdrawLeagueJoinRequest
+      tags: [leagues]
+      summary: Withdraw your request or leave the waitlist
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      responses:
+        "204":
+          description: Withdrawn
+
+  /leagues/{leagueId}/join-requests/{requestId}/approve:
+    post:
+      operationId: approveLeagueJoinRequest
+      tags: [leagues]
+      summary: Approve a request before the season starts (admins only)
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - $ref: "#/components/parameters/RequestIdParam"
+      responses:
+        "201":
+          description: Player added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovedPlayer"
+
+  /leagues/{leagueId}/join-requests/{requestId}/decline:
+    post:
+      operationId: declineLeagueJoinRequest
+      tags: [leagues]
+      summary: Decline a request or remove someone from the waitlist (admins only)
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - $ref: "#/components/parameters/RequestIdParam"
+      responses:
+        "204":
+          description: Declined
+
+  /leagues/{leagueId}/leave:
+    post:
+      operationId: leaveLeague
+      tags: [leagues]
+      summary: Leave a league. Played matches stay; remaining matches are voided.
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      responses:
+        "200":
+          description: Left
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DropoutResult"
+
+  /leagues/{leagueId}/players/{playerId}/remove:
+    post:
+      operationId: removeLeaguePlayer
+      tags: [leagues]
+      summary: Remove a player (admins only). Same rules as leaving.
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - name: playerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DropoutResult"
+
+  /leagues/{leagueId}/rounds/draft-next:
+    post:
+      operationId: draftNextLeagueRound
+      tags: [leagues]
+      summary: Draft the next round's pairings now (admins only)
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      responses:
+        "200":
+          description: The draft round
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleRound"
+
+  /leagues/{leagueId}/rounds/{roundId}/repair:
+    post:
+      operationId: repairLeagueRound
+      tags: [leagues]
+      summary: Re-pair a draft, keeping locked matches and admin byes (admins only)
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - $ref: "#/components/parameters/RoundIdParam"
+      responses:
+        "200":
+          description: The draft round
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleRound"
+
+  /leagues/{leagueId}/rounds/{roundId}/publish:
+    post:
+      operationId: publishLeagueRound
+      tags: [leagues]
+      summary: Send a draft out to players now (admins only)
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - $ref: "#/components/parameters/RoundIdParam"
+      responses:
+        "200":
+          description: The published round
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleRound"
+
+  /leagues/{leagueId}/rounds/{roundId}/swap:
+    post:
+      operationId: swapLeagueRoundPlayers
+      tags: [leagues]
+      summary: Swap two players' places in a draft (admins only)
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - $ref: "#/components/parameters/RoundIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SwapPlayersBody"
+      responses:
+        "200":
+          description: The draft round
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleRound"
+
+  /leagues/{leagueId}/rounds/{roundId}/byes:
+    post:
+      operationId: addLeagueRoundBye
+      tags: [leagues]
+      summary: Give a player a bye in a draft (admins only)
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - $ref: "#/components/parameters/RoundIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlayerIdBody"
+      responses:
+        "200":
+          description: The draft round
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleRound"
+
+  /leagues/{leagueId}/rounds/{roundId}/byes/{playerId}:
+    delete:
+      operationId: removeLeagueRoundBye
+      tags: [leagues]
+      summary: Take a bye away in a draft (admins only)
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - $ref: "#/components/parameters/RoundIdParam"
+        - name: playerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The draft round
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleRound"
+
+  /leagues/{leagueId}/rounds/{roundId}/matches/{matchId}/lock:
+    post:
+      operationId: lockLeagueRoundMatch
+      tags: [leagues]
+      summary: Lock or unlock a pairing in a draft (admins only)
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - $ref: "#/components/parameters/RoundIdParam"
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LockMatchBody"
+      responses:
+        "200":
+          description: The draft round
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleRound"
+
   /matches:
     get:
       operationId: getMatches
@@ -1441,7 +1821,276 @@ paths:
                 $ref: "#/components/schemas/BallBoiNarrative"
 
 components:
+  parameters:
+    LeagueIdParam:
+      name: leagueId
+      in: path
+      required: true
+      schema:
+        type: integer
+    RoundIdParam:
+      name: roundId
+      in: path
+      required: true
+      schema:
+        type: integer
+    RequestIdParam:
+      name: requestId
+      in: path
+      required: true
+      schema:
+        type: integer
   schemas:
+    LeagueMembership:
+      type: object
+      properties:
+        leagueId:
+          type: integer
+        role:
+          type: ["string", "null"]
+          enum: [owner, co_admin, null]
+        isAdmin:
+          type: boolean
+        playerId:
+          type: ["integer", "null"]
+        isPlaying:
+          type: boolean
+        hasLeft:
+          type: boolean
+      required: [leagueId, role, isAdmin, playerId, isPlaying, hasLeft]
+
+    LeagueAdmin:
+      type: object
+      properties:
+        clerkUserId:
+          type: string
+        role:
+          type: string
+          enum: [owner, co_admin]
+        playerId:
+          type: ["integer", "null"]
+        name:
+          type: string
+      required: [clerkUserId, role, playerId, name]
+
+    PlayerIdBody:
+      type: object
+      properties:
+        playerId:
+          type: integer
+      required: [playerId]
+
+    SwapPlayersBody:
+      type: object
+      properties:
+        playerAId:
+          type: integer
+        playerBId:
+          type: integer
+      required: [playerAId, playerBId]
+
+    LockMatchBody:
+      type: object
+      properties:
+        locked:
+          type: boolean
+      required: [locked]
+
+    EnterScoreBody:
+      type: object
+      properties:
+        score:
+          type: string
+          description: Sets from your own side, like "6-3, 4-6, 10-7". Your games first.
+      required: [score]
+
+    ScoreResult:
+      type: object
+      properties:
+        matchId:
+          type: integer
+        status:
+          type: string
+        score:
+          type: ["string", "null"]
+          description: Stored from player 1's side
+        winnerId:
+          type: ["integer", "null"]
+        inGrace:
+          type: boolean
+          description: Scored in the grace week; counts for ratings and stats, not standings
+        countsForStandings:
+          type: boolean
+      required: [matchId, status, score, winnerId, inGrace, countsForStandings]
+
+    SchedulePlayer:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        playerName:
+          type: string
+      required: [playerId, playerName]
+
+    ScheduleBye:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        playerName:
+          type: string
+        setByAdmin:
+          type: boolean
+      required: [playerId, playerName, setByAdmin]
+
+    ScheduleMatch:
+      type: object
+      properties:
+        matchId:
+          type: integer
+        player1Id:
+          type: integer
+        player1Name:
+          type: string
+        player2Id:
+          type: integer
+        player2Name:
+          type: string
+        status:
+          type: string
+        score:
+          type: ["string", "null"]
+          description: From player 1's side
+        winnerId:
+          type: ["integer", "null"]
+        inGrace:
+          type: boolean
+        voided:
+          type: boolean
+        locked:
+          type: boolean
+        scheduledAt:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+      required: [matchId, player1Id, player1Name, player2Id, player2Name, status, score, winnerId, inGrace, voided, locked, scheduledAt, location]
+
+    ScheduleRound:
+      type: object
+      properties:
+        roundId:
+          type: integer
+        roundNumber:
+          type: integer
+        startDate:
+          type: string
+        deadline:
+          type: string
+          description: Last day to play for standings
+        graceEnd:
+          type: string
+          description: Last day of the grace week
+        phase:
+          type: string
+          enum: [draft, upcoming, open, grace, closed]
+        matches:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduleMatch"
+        byes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduleBye"
+        unpaired:
+          type: array
+          description: Admins, drafts only. Players with no match or bye yet.
+          items:
+            $ref: "#/components/schemas/SchedulePlayer"
+      required: [roundId, roundNumber, startDate, deadline, graceEnd, phase, matches, byes, unpaired]
+
+    ScheduleWeek:
+      type: object
+      properties:
+        roundNumber:
+          type: integer
+        startDate:
+          type: string
+        deadline:
+          type: string
+        graceEnd:
+          type: string
+      required: [roundNumber, startDate, deadline, graceEnd]
+
+    LeagueSchedule:
+      type: object
+      properties:
+        leagueId:
+          type: integer
+        today:
+          type: string
+          description: Today's date in the league's time zone
+        timeZone:
+          type: string
+        weeklyRounds:
+          type: boolean
+        isAdmin:
+          type: boolean
+        rounds:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduleRound"
+        upcoming:
+          type: array
+          description: Weeks this season with no round yet
+          items:
+            $ref: "#/components/schemas/ScheduleWeek"
+      required: [leagueId, today, timeZone, weeklyRounds, isAdmin, rounds, upcoming]
+
+    JoinRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        leagueId:
+          type: integer
+        playerName:
+          type: string
+        skillLevel:
+          type: string
+        kind:
+          type: string
+          enum: [request, waitlist]
+        status:
+          type: string
+          enum: [pending, approved, declined, withdrawn]
+        createdAt:
+          type: string
+        message:
+          type: string
+      required: [id, leagueId, playerName, skillLevel, kind, status, createdAt]
+
+    ApprovedPlayer:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        leagueId:
+          type: integer
+      required: [id, name, leagueId]
+
+    DropoutResult:
+      type: object
+      properties:
+        left:
+          type: boolean
+        removed:
+          type: boolean
+        voidedMatches:
+          type: integer
+      required: [voidedMatches]
+
     Season:
       type: object
       properties:
@@ -2409,6 +3058,11 @@ components:
           type: ["string", "null"]
         playerCount:
           type: ["integer", "null"]
+        waitlistOnly:
+          type: boolean
+          description: Joining now puts the player on the waitlist (season started or league full)
+        waitlistReason:
+          type: ["string", "null"]
         createdByClerkUserId:
           type: string
         expiresAt:
@@ -2462,8 +3116,10 @@ components:
               type: string
         message:
           type: string
+        waitlisted:
+          type: boolean
+          description: True when the season has started or the league is full; no player is created
       required:
-        - player
         - league
         - message
 

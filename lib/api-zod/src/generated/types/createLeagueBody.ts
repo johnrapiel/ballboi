@@ -43,8 +43,8 @@ export interface CreateLeagueBody {
   /** First day of the season, YYYY-MM-DD */
   startDate: string;
   /**
-   * @minimum 6
-   * @maximum 12
+   * @minimum 1
+   * @maximum 24
    */
   seasonWeeks: number;
   playoffSize?: CreateLeagueBodyPlayoffSize;
