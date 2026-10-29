@@ -316,7 +316,7 @@ export default function StartLeagueScreen() {
               display="compact"
               minimumDate={minStart}
               themeVariant={scheme === "dark" ? "dark" : "light"}
-              accentColor={c.pool}
+              accentColor={c.court}
               accessibilityLabel="Season starts"
               onChange={(_: DateTimePickerEvent, date?: Date) => {
                 if (date) {
