@@ -9,6 +9,7 @@ import {
   playerLocationsTable,
   playersTable,
   pushSubscriptionsTable,
+  ratingHistoryTable,
   userBlocksTable,
   usersTable,
 } from "@workspace/db";
@@ -31,10 +32,11 @@ import { ObjectStorageService } from "./objectStorage";
  * - League player records are anonymized, not deleted, so opponents' match
  *   history and standings stay correct. The name becomes "Deleted player";
  *   email, phone and bio are cleared and the account link is removed.
+ * - Their Ball Boi Rating and its history are deleted with the profile.
  * - Last, the Clerk user is deleted. That signs them out everywhere and, for
  *   Sign in with Apple, removes the Apple connection on Clerk's side.
  *
- * Not built yet, so nothing to delete: messages (Stream), ratings, training-set
+ * Not built yet, so nothing to delete: messages (Stream), training-set
  * membership, UTR links. Each of those features must hook in here when it lands.
  */
 
@@ -155,6 +157,7 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
       .update(contentReportsTable)
       .set({ reporterClerkUserId: null })
       .where(eq(contentReportsTable.reporterClerkUserId, clerkUserId));
+    await tx.delete(ratingHistoryTable).where(eq(ratingHistoryTable.clerkUserId, clerkUserId));
     await tx.delete(usersTable).where(eq(usersTable.clerkUserId, clerkUserId));
 
     const sessionPaths = sessions.map((s) => s.videoObjectPath).filter((p): p is string => !!p);

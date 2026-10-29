@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, boolean, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -13,6 +13,13 @@ export const usersTable = pgTable("users", {
   dominantHand: text("dominant_hand").notNull().default("right"),
   bio: text("bio"),
   onboardingComplete: boolean("onboarding_complete").notNull().default(false),
+  /**
+   * Ball Boi Rating, NTRP scale (2.5 to 7.0), two decimals. Null until the
+   * onboarding quiz or a UTR link sets it. Spec: Ball Boi Rating.
+   */
+  rating: numeric("rating", { precision: 4, scale: 2, mode: "number" }),
+  /** "self" (quiz, shown as Self-rated) or "verified" (linked UTR). */
+  ratingSource: text("rating_source"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

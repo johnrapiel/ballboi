@@ -39,6 +39,7 @@ const tables = {
   pushSubscriptionsTable: table("push_subscriptions", ["userId"]),
   expoPushTokensTable: table("expo_push_tokens", ["userId"]),
   usersTable: table("users", ["clerkUserId"]),
+  ratingHistoryTable: table("rating_history", ["clerkUserId"]),
   userBlocksTable: table("user_blocks", ["blockerClerkUserId", "blockedClerkUserId"]),
   contentReportsTable: table("content_reports", ["reporterClerkUserId"]),
 };
@@ -142,6 +143,7 @@ describe("deleteAccount", () => {
         "push_subscriptions",
         "expo_push_tokens",
         "user_blocks",
+        "rating_history",
         "users",
       ]),
     );
