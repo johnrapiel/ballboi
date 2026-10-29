@@ -20,6 +20,7 @@ import seasonsRouter from "./seasons";
 import safetyRouter from "./safety";
 import leagueAdminsRouter from "./leagueAdmins";
 import leagueScoresRouter from "./leagueScores";
+import leagueMembershipRouter from "./leagueMembership";
 
 const router: IRouter = Router();
 
@@ -44,5 +45,6 @@ router.use(seasonsRouter);
 router.use(safetyRouter);
 router.use(leagueAdminsRouter);
 router.use(leagueScoresRouter);
+router.use(leagueMembershipRouter);
 
 export default router;

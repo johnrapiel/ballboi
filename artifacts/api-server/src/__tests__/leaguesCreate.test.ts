@@ -56,6 +56,7 @@ vi.mock("drizzle-orm", () => ({
   eq: (a: unknown, b: unknown) => ({ a, b }),
   and: (...args: unknown[]) => args,
   count: () => ({ count: 1 }),
+  isNull: (a: unknown) => ({ isNull: a }),
   inArray: (a: unknown, b: unknown) => ({ a, b }),
   desc: (a: unknown) => a,
   asc: (a: unknown) => a,
