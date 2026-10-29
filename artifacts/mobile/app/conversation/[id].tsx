@@ -65,7 +65,10 @@ export default function ConversationScreen() {
   const params = useLocalSearchParams<{ id: string; playerId?: string; name?: string }>();
   const startPlayerId = params.playerId ? Number(params.playerId) : null;
 
-  const [conversationId, setConversationId] = useState<number | null>(params.id && params.id !== "new" ? Number(params.id) : null);
+  const [conversationId, setConversationId] = useState<number | null>(() => {
+    const n = Number(params.id);
+    return params.id !== "new" && Number.isInteger(n) && n > 0 ? n : null;
+  });
   const [lookingUp, setLookingUp] = useState(params.id === "new" && startPlayerId !== null);
   const thread = useThread(conversationId);
   const actions = useMessagesActions();
