@@ -3,12 +3,14 @@ import React from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 
 import { DoublesMatchCard } from "@/components/record/DoublesMatchCard";
+import { LocalProcessingCard, ServerProcessingCard } from "@/components/record/ProcessingCard";
 import { TodaysMatchCard } from "@/components/record/TodaysMatchCard";
 import { TabScreen } from "@/components/TabHeader";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { useTodaysMatches } from "@/lib/recording/api";
+import { useServerRecordings, useTodaysMatches } from "@/lib/recording/api";
+import { useQueue } from "@/lib/recording/queue";
 import { openRecorder } from "@/lib/recording/start";
 
 // Ball Boi tab (spec: Navigation, Ball Boi > Recording).
@@ -18,15 +20,23 @@ export default function BallBoiScreen() {
   const router = useRouter();
   const today = useTodaysMatches();
   const matches = today.data ?? [];
+  const queued = useQueue();
+  const server = useServerRecordings();
+  // A recording mid-upload can be in both lists; the phone's copy wins.
+  const onPhone = new Set(queued.map((r) => r.sessionId).filter((id) => id != null));
+  const onServer = (server.data ?? []).filter((r) => !onPhone.has(r.sessionId));
+  const refreshing = today.isRefetching || server.isRefetching;
+  const refresh = () => {
+    today.refetch();
+    server.refetch();
+  };
 
   return (
     <TabScreen title="Ball Boi">
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingBottom: spacing.space12, gap: spacing.space6 }}
         refreshControl={
-          <RefreshControl refreshing={today.isRefetching} onRefresh={() => {
-            today.refetch();
-          }} tintColor={c.ink} />
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.ink} />
         }
       >
         <View style={{ gap: spacing.space3 }}>
@@ -57,6 +67,20 @@ export default function BallBoiScreen() {
             )
           )}
         </View>
+
+        {queued.length > 0 || onServer.length > 0 ? (
+          <View style={{ gap: spacing.space3 }}>
+            <Text variant="label" accessibilityRole="header">
+              Your recordings
+            </Text>
+            {[...queued].reverse().map((r) => (
+              <LocalProcessingCard key={r.id} rec={r} />
+            ))}
+            {onServer.map((r) => (
+              <ServerProcessingCard key={r.sessionId} rec={r} />
+            ))}
+          </View>
+        ) : null}
       </ScrollView>
     </TabScreen>
   );

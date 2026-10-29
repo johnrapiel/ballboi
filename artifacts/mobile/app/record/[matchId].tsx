@@ -22,6 +22,7 @@ import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { chrome } from "@/lib/recording/chrome";
 import { countdownClock, cueAt, START_DELAYS, type StartDelayMinutes } from "@/lib/recording/countdown";
 import { keepRecording } from "@/lib/recording/files";
+import { enqueue } from "@/lib/recording/queue";
 import { formatElapsed, spokenDuration } from "@/lib/recording/format";
 import {
   hasRoomToStart,
@@ -30,10 +31,10 @@ import {
   useSafetyCap,
   type StopReason,
 } from "@/lib/recording/safety";
-import { ensureSession, uploadRecording } from "@/lib/recording/upload";
+import { drainQueue } from "@/lib/recording/uploader";
 import { prepareVoice, say, stopVoice } from "@/lib/recording/voice";
 
-type Phase = "ready" | "countdown" | "recording" | "saving" | "uploading" | "done" | "error";
+type Phase = "ready" | "countdown" | "recording" | "saving" | "saved" | "error";
 
 export default function RecordScreen() {
   const router = useRouter();
@@ -196,13 +197,21 @@ export default function RecordScreen() {
     setStopReason(reason);
     setPhase("saving");
     const durationSeconds = Math.max(1, Math.round((Date.now() - startedAt.current) / 1000));
-    const saved = await keepRecording(cacheUri, `match-${matchId}-${Date.now()}`);
-    setPhase("uploading");
-    const rec = { matchId, uri: saved.uri, sizeBytes: saved.sizeBytes, durationSeconds };
-    const sessionId = await ensureSession(rec);
-    await uploadRecording({ ...rec, sessionId });
-    setPhase("done");
-    AccessibilityInfo.announceForAccessibility("Uploaded. Ball Boi is analyzing your match.");
+    const id = `match-${matchId}-${Date.now()}`;
+    const saved = await keepRecording(cacheUri, id);
+    // Into the upload queue: Wi-Fi by default, kept on the phone until the server confirms.
+    await enqueue({
+      id,
+      matchId,
+      opponentName: opponent,
+      uri: saved.uri,
+      sizeBytes: saved.sizeBytes,
+      durationSeconds,
+      recordedAt: new Date().toISOString(),
+    });
+    drainQueue();
+    setPhase("saved");
+    AccessibilityInfo.announceForAccessibility("Match saved. It uploads on Wi-Fi.");
   }
 
   const recording = phase === "recording";
@@ -340,7 +349,7 @@ export default function RecordScreen() {
           </View>
         ) : null}
 
-        {phase === "saving" || phase === "uploading" || phase === "done" || phase === "error" ? (
+        {phase === "saving" || phase === "saved" || phase === "error" ? (
           <View style={[styles.panel, { backgroundColor: chrome.panel, alignSelf: "stretch" }]}>
             {stopReason !== "user" && phase !== "error" ? (
               <View style={{ flexDirection: "row", gap: spacing.space2, alignItems: "center" }} accessible>
@@ -350,21 +359,21 @@ export default function RecordScreen() {
                 </Text>
               </View>
             ) : null}
-            {phase === "saving" || phase === "uploading" ? (
+            {phase === "saving" ? (
               <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3 }} accessible>
                 <ActivityIndicator color={chrome.text} />
                 <Text variant="bodyStrong" style={{ color: chrome.text }} accessibilityLiveRegion="polite">
-                  {phase === "saving" ? "Saving your match" : "Uploading your match"}
+                  Saving your match
                 </Text>
               </View>
             ) : null}
-            {phase === "done" ? (
+            {phase === "saved" ? (
               <>
                 <Text variant="title" accessibilityRole="header" style={{ color: chrome.text }}>
-                  Uploaded
+                  Saved
                 </Text>
                 <Text style={{ color: chrome.textMuted }}>
-                  Ball Boi is analyzing your shots. Your replay shows up in the Ball Boi tab when it's ready.
+                  Your match uploads on Wi-Fi, then Ball Boi analyzes it. Follow along in the Ball Boi tab.
                 </Text>
                 <ChromeButton label="Done" onPress={() => router.back()} />
               </>
