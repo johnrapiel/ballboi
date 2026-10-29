@@ -1,5 +1,5 @@
 -- Byes an admin marks stay put when the round is re-paired; automatic byes
--- (the odd player out) are recalculated. Follows 20261029_league_rules.sql.
+-- (the odd player out) are recalculated. Follows 20261029_c_league_rules.sql.
 ALTER TABLE league_round_byes ADD COLUMN IF NOT EXISTS set_by_admin BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Name the new foreign keys the way Drizzle does, so the schema and the
