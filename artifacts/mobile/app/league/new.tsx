@@ -288,7 +288,7 @@ export default function StartLeagueScreen() {
             </Text>
           ) : null}
           <Text variant="small" tone="inkMuted">
-            Each round runs a week. Unplayed matches get a 1-week grace period: scores then count for ratings and stats, not standings.
+            Each round runs a week. Unplayed matches get a 1-week grace period: scores then count for Ball Boi stats, not standings.
           </Text>
         </Section>
 
