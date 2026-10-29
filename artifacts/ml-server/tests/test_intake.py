@@ -161,3 +161,19 @@ def test_scan_reviews_new_files_once(tmp_path, videos, monkeypatch):
     fresh.write_bytes(videos["small"].read_bytes())
     scan(folder, out)
     assert "fresh.mp4" not in (out / "review.json").read_text()
+
+
+class NoBall:
+    name = "wasb-tennis"
+
+    def detect(self, frames):
+        return [[] for _ in frames]
+
+
+def test_unseen_ball_is_a_note_until_the_model_is_trusted(videos, monkeypatch):
+    meta = read_meta(videos["steady"])
+    findings, facts = ck.check_ball(str(videos["steady"]), meta, NoBall(), windows=2, seconds=0.5)
+    assert facts["ballSeenInPlay"] == 0 and findings[0].level == "note" and "by eye" in findings[0].message
+    monkeypatch.setattr(ck, "BALL_CHECK_TRUSTED", True)
+    findings, _ = ck.check_ball(str(videos["steady"]), meta, NoBall(), windows=2, seconds=0.5)
+    assert findings[0].level == "fix"

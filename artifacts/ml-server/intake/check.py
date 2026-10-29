@@ -25,6 +25,7 @@ from services.pipeline.video import read_frames
 
 LEVELS = ("ok", "note", "fix")
 STABILITY_EVERY = 15.0       # seconds between frames compared for camera movement
+BALL_CHECK_TRUSTED = False   # flip once the ball model clears its bar on the labeled set
 VERDICTS = {"ok": "Good", "note": "Usable, with notes", "fix": "Needs a re-record"}
 
 
@@ -227,7 +228,13 @@ def check_ball(path: str, meta: VideoMeta, ball_detector, windows: int = 8, seco
     seen_in_play = float(np.mean(top))
     facts = {"ballSeenInPlay": round(seen_in_play, 2), "windows": [round(r, 2) for r in rates]}
     if seen_in_play < 0.25:
-        return [Finding("fix", "ball", f"The ball model barely sees the ball ({seen_in_play:.0%} of rally frames).",
+        # A note, not a re-record, until the ball model is proven on phone footage (BALL_CHECK_TRUSTED):
+        # a low score could be the model's fault rather than the video's.
+        level = "fix" if BALL_CHECK_TRUSTED else "note"
+        message = f"The ball model barely sees the ball ({seen_in_play:.0%} of rally frames)."
+        if not BALL_CHECK_TRUSTED:
+            message += " Check by eye that the ball is visible before asking for a re-record."
+        return [Finding(level, "ball", message,
                         "The ball is hard to make out in this one (light, glare, or distance). A brighter court "
                         "or a closer mount would help.")], facts
     if seen_in_play < 0.55:
