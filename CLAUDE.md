@@ -24,9 +24,9 @@ The mobile app's current screens came over from the original Replit build. They'
   - One name per thing, everywhere: a screen's title matches its tab label, and buttons, notifications, and empty states use the same word. Never mix synonyms (Messages, not Inbox or Chat).
   - Plain, familiar words over branded ones: Sign in, Settings, Profile, Record, Score. "Ball Boi" is the feature name; "Replay" is its output.
   - Same action, same place: the primary action sits in the same spot on every screen; destructive actions are red and confirmed.
-- Colors, type, spacing, and radii come from the design system tokens only: `paper`, `linen`, `sand`, `ink`, `ink-muted`, `on-ink`, `pool`, `clay`, `sun`, `danger`. Cormorant Garamond for display and scores, DM Sans for everything else.
-- Retired, don't add new uses: the old palette (Ink Navy, Court Cream, Teal Ace), the generic cyan palette in `constants/colors.ts`, and the Inter, Playfair Display, and DM Mono fonts.
-- Every text pair clears 4.5:1 (3:1 for 24px+ text, focus rings, and control borders) in both Day and Night themes. `sun` is never text.
+- Colors, type, spacing, and radii come from the design system tokens only: `paper`, `linen`, `sand`, `ink`, `ink-muted`, `on-ink`, `court`, `danger`. Navy (`ink`) does almost everything; `court` green is the only accent and appears rarely. Cormorant Garamond for display and scores, DM Sans for everything else. Increase Contrast (`-hc` tokens) and Bold Text are handled in `useColors` and `Text`; charts and the replay use the `heat-1` to `heat-5` ramp and the shape rules in the design system's Charts and replay section. Use `Text` and `TextLink`, never a raw React Native `Text`.
+- Retired, don't add new uses: `pool`, `clay`, `sun` and the cabana awning (October 2026 palette refresh), the old palette (Ink Navy, Court Cream, Teal Ace), the generic cyan palette in `constants/colors.ts`, and the Inter, Playfair Display, and DM Mono fonts.
+- Every text pair clears 4.5:1 (3:1 for 24px+ text, focus rings, and control borders) in both Day and Night themes.
 - Color is never the only signal: pair it with an icon or text.
 - Touch targets are at least 44×44pt. Dynamic Type stays on. Respect Reduce Motion. Every interactive element has an `accessibilityLabel`.
 - Voice cues always have a text caption. Gestures always have a non-gesture alternative.

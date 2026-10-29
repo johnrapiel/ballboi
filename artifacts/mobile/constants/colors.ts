@@ -4,21 +4,21 @@ import { color, radius, type ColorTokens } from "@/constants/tokens";
 // (constants/tokens.ts, generated from docs/design-system/tokens.json).
 // New code should read design system names directly via useColors():
 // paper, linen, sand, ink, inkMuted, onInk, hairline, hairlineStrong,
-// pool, clay, sun (never text), danger, focus.
+// court (the one accent), danger, focus.
 
 function palette(t: ColorTokens) {
   return {
     ...t,
     // Legacy keys used by screens that haven't been rebuilt yet.
     text: t.ink,
-    tint: t.pool,
+    tint: t.court,
     background: t.paper,
     foreground: t.ink,
     card: t.linen,
     cardForeground: t.ink,
     primary: t.ink,
     primaryForeground: t.onInk,
-    secondary: t.pool,
+    secondary: t.court,
     secondaryForeground: t.onInk,
     muted: t.sand,
     mutedForeground: t.inkMuted,

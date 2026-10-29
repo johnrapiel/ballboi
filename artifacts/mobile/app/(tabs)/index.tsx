@@ -111,12 +111,12 @@ function MatchCard({
       color: colors.primary,
     },
     completedBadge: {
-      backgroundColor: colors.pool + "22",
+      backgroundColor: colors.court + "22",
       borderWidth: 1,
-      borderColor: colors.pool + "55",
+      borderColor: colors.court + "55",
     },
     completedBadgeText: {
-      color: colors.pool,
+      color: colors.court,
     },
     scheduledBadge: {
       backgroundColor: colors.muted,
