@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, index, uniqueIndex, integer, jsonb } from "drizzle-orm/pg-core";
 
 // App Store guideline 1.2: apps where people meet and message need a way to
 // report objectionable content and block abusive users.
@@ -18,9 +18,13 @@ export const userBlocksTable = pgTable(
   ],
 );
 
-export const REPORT_TARGET_TYPES = ["player", "league", "ball_boi_session", "match"] as const;
+// "message": a direct message, with a snapshot of the conversation around it.
+// "account": filed by auto-restrict or Stream moderation, not by a person.
+export const REPORT_TARGET_TYPES = ["player", "league", "ball_boi_session", "match", "message", "account"] as const;
 export const REPORT_REASONS = ["harassment", "inappropriate_content", "impersonation", "spam", "cheating", "other"] as const;
 export const REPORT_STATUSES = ["open", "reviewed", "actioned", "dismissed"] as const;
+/** user: a person reported it. auto: auto-restrict fired. stream: Stream moderation flagged it. */
+export const REPORT_SOURCES = ["user", "auto", "stream"] as const;
 
 export type ReportTargetType = (typeof REPORT_TARGET_TYPES)[number];
 export type ReportReason = (typeof REPORT_REASONS)[number];
@@ -37,11 +41,62 @@ export const contentReportsTable = pgTable(
     reason: text("reason").notNull(),
     details: text("details"),
     status: text("status").notNull().default("open"),
+    source: text("source").notNull().default("user"),
+    /** The account the report is about, when known. Used to count distinct reporters. */
+    subjectClerkUserId: text("subject_clerk_user_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
   },
-  (table) => [index("idx_content_reports_status").on(table.status, table.createdAt)],
+  (table) => [
+    index("idx_content_reports_status").on(table.status, table.createdAt),
+    index("idx_content_reports_subject").on(table.subjectClerkUserId),
+  ],
+);
+
+/** What a moderator sees for a message report: the reported message and the ones before it. */
+export interface SnapshotMessage {
+  id: string;
+  senderClerkUserId: string;
+  senderName: string;
+  text: string;
+  at: string;
+  reported: boolean;
+}
+
+export const messageReportSnapshotsTable = pgTable("message_report_snapshots", {
+  id: serial("id").primaryKey(),
+  reportId: integer("report_id")
+    .notNull()
+    .references(() => contentReportsTable.id, { onDelete: "cascade" }),
+  conversationId: integer("conversation_id"),
+  messages: jsonb("messages").$type<SnapshotMessage[]>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const RESTRICTION_SOURCES = ["auto", "stream", "agent", "admin"] as const;
+export type RestrictionSource = (typeof RESTRICTION_SOURCES)[number];
+
+/**
+ * Auto-restrict (spec: Enforcement ladder, step 2). A restricted account can't
+ * start new conversations and its pending Message Requests are hidden until a
+ * moderator lifts it. Lifting keeps the row for history.
+ */
+export const messagingRestrictionsTable = pgTable(
+  "messaging_restrictions",
+  {
+    id: serial("id").primaryKey(),
+    clerkUserId: text("clerk_user_id").notNull(),
+    reason: text("reason").notNull(),
+    source: text("source").notNull(),
+    reportId: integer("report_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    liftedAt: timestamp("lifted_at", { withTimezone: true }),
+    liftedBy: text("lifted_by"),
+  },
+  (table) => [index("idx_messaging_restrictions_user").on(table.clerkUserId, table.liftedAt)],
 );
 
 export type UserBlock = typeof userBlocksTable.$inferSelect;
 export type ContentReport = typeof contentReportsTable.$inferSelect;
+export type ReportSource = (typeof REPORT_SOURCES)[number];
+export type MessagingRestriction = typeof messagingRestrictionsTable.$inferSelect;

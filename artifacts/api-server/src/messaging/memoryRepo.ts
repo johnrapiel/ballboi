@@ -49,6 +49,10 @@ export class MemoryMessagingRepo implements MessagingRepo {
     return rec;
   }
 
+  async findByChannel(channelId: string) {
+    return this.conversations.find((c) => c.channelId === channelId) ?? null;
+  }
+
   async update(id: number, patch: ConversationPatch) {
     const rec = this.conversations.find((c) => c.id === id);
     if (!rec) throw new Error(`No conversation ${id}`);

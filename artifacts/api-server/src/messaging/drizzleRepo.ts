@@ -2,6 +2,7 @@ import { clerkClient } from "@clerk/express";
 import { db, dmConversationsTable, playersTable, usersTable, type DmConversation, type DmStatus } from "@workspace/db";
 import { and, eq, gte, inArray, or, sql } from "drizzle-orm";
 import { blockedAccountsFor } from "../lib/blocks";
+import { moderationRepo } from "./drizzleModeration";
 import type { ConversationPatch, ConversationRecord, MessagingRepo, NewConversation, PersonSummary } from "./repo";
 
 function toRecord(row: DmConversation): ConversationRecord {
@@ -109,9 +110,13 @@ export class DrizzleMessagingRepo implements MessagingRepo {
     return blockedAccountsFor(userId);
   }
 
-  // Auto-restrict lands with message reports; until then nobody is restricted.
-  async restrictedSet(_userIds: string[]) {
-    return new Set<string>();
+  restrictedSet(userIds: string[]) {
+    return moderationRepo().restrictedSet(userIds);
+  }
+
+  async findByChannel(channelId: string) {
+    const [row] = await db.select().from(dmConversationsTable).where(eq(dmConversationsTable.channelId, channelId));
+    return row ? toRecord(row) : null;
   }
 
   async people(userIds: string[]) {
