@@ -8,7 +8,7 @@ import { autoLinkPlayer } from "../lib/autoLinkPlayer.js";
 import { requireAdmin } from "../middlewares/requireAdmin.js";
 import { isLeagueAdmin } from "../lib/leagueAccess.js";
 import { getPastSeasonNames } from "../services/seasonService.js";
-import { accumulateScoreTotals, calculatePoints } from "../lib/scoringUtils.js";
+import { computeStandings } from "../lib/leagueStandings.js";
 import { SKILL_LEVELS, seasonDates, validateLeagueSetup } from "../lib/leagueSetup.js";
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -235,6 +235,8 @@ router.post("/leagues/:leagueId/reset", requireAdmin, async (req, res) => {
   { res.json({ deleted: { rounds: deletedRounds.length } }); return; }
 });
 
+// Standings rank on wins only; grace-week, voided, and playoff matches don't
+// count; players who left are removed (spec: Leagues > Scores and standings).
 router.get("/leagues/:leagueId/standings", async (req, res) => {
   const leagueId = parseInt(String(req.params.leagueId));
   if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid id" }); return; }
@@ -242,78 +244,18 @@ router.get("/leagues/:leagueId/standings", async (req, res) => {
   const seasonFilter = typeof req.query.season === "string" ? req.query.season : undefined;
   const pastSeasonNames = seasonFilter ? [] : await getPastSeasonNames(leagueId);
 
-  const players = await db.select().from(playersTable).where(eq(playersTable.leagueId, leagueId));
-  const matches = await db
-    .select()
-    .from(matchesTable)
-    .where(eq(matchesTable.leagueId, leagueId));
+  const [players, matches] = await Promise.all([
+    db.select().from(playersTable).where(eq(playersTable.leagueId, leagueId)),
+    db.select().from(matchesTable).where(eq(matchesTable.leagueId, leagueId)),
+  ]);
 
-  const standings = players.map((player) => {
-    const playerMatches = matches.filter((m) => {
-      if (m.status !== "completed") return false;
-      if (
-        m.player1Id !== player.id &&
-        m.player2Id !== player.id &&
-        m.player3Id !== player.id &&
-        m.player4Id !== player.id
-      ) return false;
-      if (seasonFilter === "all") return true;
-      if (seasonFilter) return m.season === seasonFilter;
-      return m.season === null || !pastSeasonNames.includes(m.season);
-    });
-    // For doubles, a player "wins" if their team won:
-    // Team 1 = player1 + player3, Team 2 = player2 + player4
-    // winnerId is the first player of the winning team (player1Id or player2Id)
-    const wins = playerMatches.filter((m) => {
-      if (m.winnerId === null) return false;
-      if (m.winnerId === player.id) return true;
-      // doubles partner credit
-      if (m.player3Id === player.id && m.winnerId === m.player1Id) return true;
-      if (m.player4Id === player.id && m.winnerId === m.player2Id) return true;
-      return false;
-    }).length;
-    const losses = playerMatches.filter((m) => {
-      if (m.winnerId === null) return false;
-      const playerWon =
-        m.winnerId === player.id ||
-        (m.player3Id === player.id && m.winnerId === m.player1Id) ||
-        (m.player4Id === player.id && m.winnerId === m.player2Id);
-      return !playerWon;
-    }).length;
-    const matchesPlayed = wins + losses;
-    const winRate = matchesPlayed > 0 ? wins / matchesPlayed : 0;
+  const includeSeason = (season: string | null) => {
+    if (seasonFilter === "all") return true;
+    if (seasonFilter) return season === seasonFilter;
+    return season === null || !pastSeasonNames.includes(season);
+  };
 
-    // Team 1 = player1 + player3; Team 2 = player2 + player4
-    const scoreStrings = playerMatches.map((m) => m.score);
-    const isTeam1Array = playerMatches.map(
-      (m) => m.player1Id === player.id || m.player3Id === player.id,
-    );
-    const { gamesWon, gamesLost, setsWon, setsLost } = accumulateScoreTotals(
-      scoreStrings,
-      isTeam1Array,
-    );
-
-    // Ladder scoring: 1 pt per game won + 3 pts per set won + 6 bonus pts for match win
-    const points = calculatePoints({ gamesWon, gamesLost, setsWon, setsLost }, wins);
-
-    return {
-      playerId: player.id,
-      playerName: player.name,
-      wins,
-      losses,
-      matchesPlayed,
-      points,
-      winRate,
-      setsWon,
-      setsLost,
-      gamesWon,
-      gamesLost,
-    };
-  });
-
-  standings.sort((a, b) => b.points - a.points || b.winRate - a.winRate);
-  const ranked = standings.map((s, i) => ({ ...s, rank: i + 1 }));
-  { res.json(ranked); return; }
+  { res.json(computeStandings(players, matches, includeSeason)); return; }
 });
 
 router.post("/leagues/:leagueId/players", requireAuth, async (req: Request, res: Response) => {
