@@ -83,6 +83,8 @@ vi.mock("@workspace/db", () => ({
   ...tables,
 }));
 
+vi.mock("../lib/leagueAccountDeletion", () => ({ deleteLeagueDataFor: vi.fn().mockResolvedValue(undefined) }));
+
 vi.mock("drizzle-orm", () => ({
   eq: (a: unknown, b: unknown) => ({ a, b }),
   inArray: (a: unknown, b: unknown) => ({ a, b }),

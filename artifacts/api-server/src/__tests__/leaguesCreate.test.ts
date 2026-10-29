@@ -49,6 +49,7 @@ vi.mock("@workspace/db", () => ({
   playersTable: { __name: "players", id: {}, leagueId: {}, clerkUserId: {} },
   matchesTable: { __name: "matches", id: {}, leagueId: {} },
   leagueRoundsTable: { __name: "league_rounds", id: {}, leagueId: {} },
+  leagueAdminsTable: { __name: "league_admins", leagueId: {}, clerkUserId: {} },
 }));
 
 vi.mock("drizzle-orm", () => ({
@@ -67,6 +68,7 @@ vi.mock("@workspace/api-zod", () => ({
   UpdateLeagueBody: { safeParse: (v: unknown) => ({ success: true, data: v }) },
 }));
 
+vi.mock("../lib/leagueAccess.js", () => ({ isLeagueAdmin: vi.fn().mockResolvedValue(false) }));
 vi.mock("../lib/autoLinkPlayer.js", () => ({ autoLinkPlayer: vi.fn() }));
 vi.mock("../services/seasonService.js", () => ({ getPastSeasonNames: vi.fn().mockResolvedValue([]) }));
 vi.mock("../middlewares/requireAdmin.js", () => ({
@@ -122,6 +124,12 @@ describe("POST /api/leagues", () => {
     expect(res.body.endDate).toBe("2099-12-27");
     expect(res.body.playoffSize).toBe(4);
     expect(res.body.unplayedRule).toBe("forfeit");
+  });
+
+  it("records the creator as the league's owner", async () => {
+    await supertest(app).post("/api/leagues").send(valid);
+    const admin = inserted.find((i) => i.table === "league_admins");
+    expect(admin?.values).toMatchObject({ leagueId: 7, clerkUserId: "user_starter", role: "owner" });
   });
 
   it("adds the admin as a player when they're playing", async () => {
