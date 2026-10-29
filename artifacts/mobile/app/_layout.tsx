@@ -99,6 +99,10 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="record/[matchId]"
+        options={{ headerShown: false, presentation: "fullScreenModal", gestureEnabled: false }}
+      />
+      <Stack.Screen
         name="replay/[matchId]"
         options={{ headerShown: false, presentation: "card" }}
       />
