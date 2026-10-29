@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, boolean, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, boolean, numeric, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -20,6 +20,16 @@ export const usersTable = pgTable("users", {
   rating: numeric("rating", { precision: 4, scale: 2, mode: "number" }),
   /** "self" (quiz, shown as Self-rated) or "verified" (linked UTR). */
   ratingSource: text("rating_source"),
+  /** Home area (spec: Discover > Home area anchor). Five-digit US zip. */
+  homeZip: text("home_zip"),
+  /**
+   * Approximate home location, only when the player used "Use my location".
+   * Rounded to two decimals (about a kilometer) so we never hold an exact spot.
+   */
+  homeLatitude: real("home_latitude"),
+  homeLongitude: real("home_longitude"),
+  /** "What brings you here?" answer: run_league, join_league, find_matches, record. */
+  intent: text("intent"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

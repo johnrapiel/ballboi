@@ -32,7 +32,8 @@ import { ObjectStorageService } from "./objectStorage";
  * - League player records are anonymized, not deleted, so opponents' match
  *   history and standings stay correct. The name becomes "Deleted player";
  *   email, phone and bio are cleared and the account link is removed.
- * - Their Ball Boi Rating and its history are deleted with the profile.
+ * - Their Ball Boi Rating, its history, and their profile photo are deleted
+ *   with the profile.
  * - Last, the Clerk user is deleted. That signs them out everywhere and, for
  *   Sign in with Apple, removes the Apple connection on Clerk's side.
  *
@@ -63,7 +64,7 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
   const storage = deps.storage ?? new ObjectStorageService();
   const deleteClerkUser = deps.deleteClerkUser ?? ((id: string) => clerkClient.users.deleteUser(id));
 
-  const { videoPaths, playersAnonymized, recordingsDeleted, recordingsKept } = await db.transaction(async (tx) => {
+  const { videoPaths, playersAnonymized, recordingsDeleted, recordingsKept, photoPaths } = await db.transaction(async (tx) => {
     const players = await tx
       .select({ id: playersTable.id })
       .from(playersTable)
@@ -158,6 +159,11 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
       .set({ reporterClerkUserId: null })
       .where(eq(contentReportsTable.reporterClerkUserId, clerkUserId));
     await tx.delete(ratingHistoryTable).where(eq(ratingHistoryTable.clerkUserId, clerkUserId));
+    const profiles = await tx
+      .select({ avatarUrl: usersTable.avatarUrl })
+      .from(usersTable)
+      .where(eq(usersTable.clerkUserId, clerkUserId));
+    const photoPaths = profiles.map((u) => u.avatarUrl).filter((p): p is string => !!p && p.startsWith("/objects/"));
     await tx.delete(usersTable).where(eq(usersTable.clerkUserId, clerkUserId));
 
     const sessionPaths = sessions.map((s) => s.videoObjectPath).filter((p): p is string => !!p);
@@ -166,6 +172,7 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
       playersAnonymized: playerIds.length,
       recordingsDeleted: drop.length,
       recordingsKept: keep.length,
+      photoPaths,
     };
   });
 
@@ -178,6 +185,15 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
     } catch (err) {
       videoDeleteFailures++;
       log.warn({ err, path }, "Account deletion: video file not deleted; needs manual cleanup");
+    }
+  }
+
+  // Profile photo, uploaded during onboarding.
+  for (const path of photoPaths) {
+    try {
+      await storage.deleteObject(path);
+    } catch (err) {
+      log.warn({ err, path }, "Account deletion: profile photo not deleted; needs manual cleanup");
     }
   }
 

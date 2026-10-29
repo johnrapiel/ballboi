@@ -11,6 +11,7 @@ import { Image, Platform, StyleSheet, useColorScheme, type ImageSourcePropType }
 
 import { useColors } from "@/hooks/useColors";
 import { isAgeCheckPassed } from "@/lib/ageCheck";
+import { isOnboarded } from "@/lib/onboarding";
 
 // The five tabs, in order, with Ball Boi in the center (spec: Navigation).
 // Labels are the words used everywhere else in the app for these places.
@@ -116,6 +117,7 @@ export default function TabLayout() {
   if (!isSignedIn) return <Redirect href="/(auth)/welcome" />;
   if (!user) return null;
   if (!isAgeCheckPassed(user.unsafeMetadata)) return <Redirect href="/age-check" />;
+  if (!isOnboarded(user.unsafeMetadata)) return <Redirect href="/onboarding" />;
 
   if (isLiquidGlassAvailable()) {
     return <NativeTabLayout />;

@@ -38,7 +38,7 @@ const tables = {
   playerLocationsTable: table("player_locations", ["playerId"]),
   pushSubscriptionsTable: table("push_subscriptions", ["userId"]),
   expoPushTokensTable: table("expo_push_tokens", ["userId"]),
-  usersTable: table("users", ["clerkUserId"]),
+  usersTable: table("users", ["clerkUserId", "avatarUrl"]),
   ratingHistoryTable: table("rating_history", ["clerkUserId"]),
   userBlocksTable: table("user_blocks", ["blockerClerkUserId", "blockedClerkUserId"]),
   contentReportsTable: table("content_reports", ["reporterClerkUserId"]),
@@ -205,6 +205,14 @@ describe("deleteAccount", () => {
     expect(tablesTouched).not.toContain("player_availability");
     expect(tablesTouched).toContain("users");
     expect(summary.playersAnonymized).toBe(0);
+  });
+
+  it("deletes the profile photo", async () => {
+    const { deleteAccount } = await import("../lib/accountDeletion.js");
+    selectResults.users = [{ avatarUrl: "/objects/uploads/photo" }];
+    const storage = { deleteObject: vi.fn().mockResolvedValue(undefined) };
+    await deleteAccount("user_delete_me", log, { storage, deleteClerkUser: vi.fn() });
+    expect(storage.deleteObject).toHaveBeenCalledWith("/objects/uploads/photo");
   });
 
   it("still deletes the account when a video file can't be removed", async () => {
