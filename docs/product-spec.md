@@ -1,4 +1,4 @@
-<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (exported 2026-10-28, rev 54, plus league rules decided Oct 29 that the live doc doesn't have yet: decisions 22 to 27). The live doc wins if they differ. Refresh this file when the live doc changes. -->
+<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-10-29 with rev 57: decision log 1 to 28 and Milestone moments match the live doc; the league rules in Leagues, Discover, Ball Boi Rating, After the match and the match recap are ahead of the live doc's body text). The live doc wins if they differ. Refresh this file when the live doc changes. -->
 
 # Ball Boi: Flows and Feature Spec
 
@@ -286,6 +286,22 @@ The player card is a brag sheet, never a scouting report: it shows strengths and
 
 **Court directory:** public and club courts with surface, lights, and court count; players can add missing courts. Feeds home court, match requests, and open matches.
 
+## Milestone moments
+
+Four moments get a short animation and a haptic. Everything else uses standard iOS transitions.
+
+| Moment | Animation | Haptic |
+| --- | --- | --- |
+| Match result confirmed | Score settles in; Ball Boi Rating counts to its new value and shows the change | Success |
+| New career milestone | Badge scales in as a ring draws around it, then the title fades up. Launch set: first win, first Ball Boi match, 5- and 10-match win streaks | Success |
+| Player card reveal | Card flips from the Ball Boi back to the front, on the first view of each player only | Light |
+| Ball Boi analysis ready | Shot markers drop onto the court one by one, then "Your replay is ready" | Light ticks |
+
+- **Short and once:** each runs under 1 second, plays once, and never blocks input
+- **Built with Reanimated**
+- **Reduce Motion:** every moment becomes a 200ms fade with the final state shown at once; haptics still fire
+- **VoiceOver:** each outcome is announced in text, e.g. "Rating up 0.04 to 3.54" or "Milestone: First win"
+
 ## Pricing
 
 Only Ball Boi is paid: $5/month or $40/year after 3 free months that start at the first recording. Leagues, Discover, messaging, and player cards stay free so no non-payer can stall a league.
@@ -329,6 +345,7 @@ These decisions add launch-blocking items to the submission checklist. Strangers
 - **Swipe actions:** long-press menu and VoiceOver custom actions as alternatives (2.5.7)
 - **Voice cues:** captions mirror to the Live Activity, never audio-only; Start and Stop buttons labeled for VoiceOver (1.1.1, 1.3.3, 4.1.2)
 - **Radius and rating range controls:** 44×44pt targets, Dynamic Type safe (2.5.8, 1.4.4)
+- **Milestone animations:** a 200ms fade replaces motion under Reduce Motion; each moment's outcome is announced to VoiceOver in text (2.3.3, 4.1.3)
 
 ## Roadmap
 
@@ -371,3 +388,4 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 25 | Every league gets a fixed 1-week grace period after a round's deadline; matches played in it update ratings and Ball Boi stats but not standings. Replaces the admin's forfeit or no-result rule (Oct 29) |
 | 26 | Every league locks to new joins once the season starts; the waitlist holds requests for next season (Oct 29) |
 | 27 | A player who drops out keeps their played matches; their remaining matches are voided and they're removed from standings (Oct 29) |
+| 28 | Subtle animations at four moments (Oct 29): match result confirmed, career milestone, player card reveal (first view only), Ball Boi analysis ready. League standings change dropped. Reanimated with a haptic; a fade under Reduce Motion |
