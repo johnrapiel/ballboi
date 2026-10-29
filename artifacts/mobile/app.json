@@ -125,7 +125,8 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "Ball Boi listens for the sound of the ball being hit to detect shots. Audio is never played back and is deleted after your match is analyzed."
+          "microphonePermission": "Ball Boi listens for the sound of the ball being hit to detect shots. Audio is never played back and is deleted after your match is analyzed.",
+          "enableBackgroundPlayback": false
         }
       ]
     ],
