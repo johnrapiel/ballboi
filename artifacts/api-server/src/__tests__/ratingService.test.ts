@@ -31,13 +31,14 @@ const tx = {
 };
 const fakeDb = { ...tx, transaction: async (fn: (t: typeof tx) => unknown) => fn(tx) };
 
-const col = (name: string, cols: string[]) => Object.fromEntries([["__name", name], ...cols.map((c) => [c, {}])]);
-
-vi.mock("@workspace/db", () => ({
-  db: {},
-  usersTable: col("users", ["id", "clerkUserId", "rating", "ratingSource"]),
-  ratingHistoryTable: col("rating_history", ["id", "clerkUserId", "rating", "delta", "reason", "matchId", "weight", "createdAt"]),
-}));
+vi.mock("@workspace/db", () => {
+  const col = (name: string, cols: string[]) => Object.fromEntries([["__name", name], ...cols.map((c) => [c, {}])]);
+  return {
+    db: {},
+    usersTable: col("users", ["id", "clerkUserId", "rating", "ratingSource"]),
+    ratingHistoryTable: col("rating_history", ["id", "clerkUserId", "rating", "delta", "reason", "matchId", "weight", "createdAt"]),
+  };
+});
 
 import { applyMatchResult, setSelfRating, RatingError } from "../services/ratingService";
 
