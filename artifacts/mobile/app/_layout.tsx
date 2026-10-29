@@ -100,6 +100,8 @@ function RootLayoutNav() {
           contentStyle: { backgroundColor: colors.linen },
         }}
       />
+      <Stack.Screen name="league/[leagueId]/manage" options={{ ...pushedHeader, title: "" }} />
+      <Stack.Screen name="league/[leagueId]/round/[roundId]" options={{ ...pushedHeader, title: "" }} />
       <Stack.Screen
         name="league/[leagueId]/index"
         options={{

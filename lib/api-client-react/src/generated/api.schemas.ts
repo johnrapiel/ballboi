@@ -44,6 +44,28 @@ export interface LeagueAdmin {
   name: string;
 }
 
+/**
+ * @nullable
+ */
+export type RosterPlayerRole =
+  | (typeof RosterPlayerRole)[keyof typeof RosterPlayerRole]
+  | null;
+
+export const RosterPlayerRole = {
+  owner: "owner",
+  co_admin: "co_admin",
+} as const;
+
+export interface RosterPlayer {
+  playerId: number;
+  name: string;
+  skillLevel: string;
+  /** False for players an admin added by name; they can't be co-admins */
+  hasAccount: boolean;
+  /** @nullable */
+  role: RosterPlayerRole;
+}
+
 export interface PlayerIdBody {
   playerId: number;
 }

@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -13,6 +13,7 @@ import {
 
 import { RoundCard, UpcomingWeekRow } from "@/components/league/RoundCard";
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
+import { IconButton } from "@/components/Choice";
 import { StandingsTable } from "@/components/league/StandingsTable";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
@@ -123,12 +124,24 @@ export default function LeagueScreen() {
   const season =
     league?.startDate && league.endDate ? `Season ${dateRange(league.startDate, league.endDate)}` : null;
 
+  const draft = schedule?.rounds.find((r) => r.phase === "draft");
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
       contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.ink} />}
     >
+      {/* Admin tools appear in context only (spec: Roles). */}
+      <Stack.Screen
+        options={{
+          headerRight: membershipQ.data?.isAdmin
+            ? () => (
+                <IconButton symbol="slider.horizontal.3" label="Manage" onPress={() => router.push(`/league/${leagueId}/manage`)} />
+              )
+            : undefined,
+        }}
+      />
       {leagueQ.isError || !league ? (
         <Card style={{ gap: spacing.space2 }}>
           <Text variant="bodyStrong">Couldn't load this league</Text>
@@ -151,6 +164,21 @@ export default function LeagueScreen() {
           </View>
 
           {week && myPlayerId != null ? <YourWeek leagueId={leagueId} week={week} myPlayerId={myPlayerId} /> : null}
+
+          {draft && membershipQ.data?.isAdmin ? (
+            <Card style={{ gap: spacing.space3 }}>
+              <View accessible style={{ gap: spacing.space1 }}>
+                <Text variant="label" tone="inkMuted">
+                  Admin
+                </Text>
+                <Text variant="bodyStrong">{`Round ${draft.roundNumber} pairings are ready to review`}</Text>
+                <Text variant="small" tone="inkMuted">
+                  {`They go out to players ${shortDate(draft.startDate)} at 7am.`}
+                </Text>
+              </View>
+              <Button label="Review pairings" variant="secondary" onPress={() => router.push(`/league/${leagueId}/round/${draft.roundId}`)} />
+            </Card>
+          ) : null}
 
           <SegmentedTabs
             label="League sections"
