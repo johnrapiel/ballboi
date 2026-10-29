@@ -371,18 +371,7 @@ export class MessagingService {
     if (!message || message.channelId !== c.channelId) throw new MessagingError(404, "message_not_found", "That message isn't available.");
     if (message.senderId === me) throw new MessagingError(400, "own_message", "You can't report your own message.");
 
-    const history = await this.provider.listMessages(c.channelId, { limit: 200 });
-    const at = history.findIndex((m) => m.id === message.id);
-    const window = at >= 0 ? history.slice(Math.max(0, at - SNAPSHOT_CONTEXT), at + 1) : [message];
-    const people = await this.repo.people([c.userA, c.userB]);
-    const snapshot: SnapshotMessage[] = window.map((m) => ({
-      id: m.id,
-      senderClerkUserId: m.senderId,
-      senderName: people.get(m.senderId)?.name ?? "Player",
-      text: m.text,
-      at: m.createdAt.toISOString(),
-      reported: m.id === message.id,
-    }));
+    const snapshot = await this.snapshotFor(c, message);
 
     const reportId = await this.moderation.repo.createReport({
       reporter: me,
@@ -396,6 +385,52 @@ export class MessagingService {
     });
     await this.moderation.auto.evaluate(message.senderId, { kind: "report" });
     return { id: reportId };
+  }
+
+  /** The reported message and up to SNAPSHOT_CONTEXT before it, hidden ones included. */
+  private async snapshotFor(c: ConversationRecord, message: ProviderMessage): Promise<SnapshotMessage[]> {
+    const history = await this.provider.listMessages(c.channelId, { limit: 200 });
+    const at = history.findIndex((m) => m.id === message.id);
+    const window = at >= 0 ? history.slice(Math.max(0, at - SNAPSHOT_CONTEXT), at + 1) : [message];
+    const people = await this.repo.people([c.userA, c.userB]);
+    return window.map((m) => ({
+      id: m.id,
+      senderClerkUserId: m.senderId,
+      senderName: people.get(m.senderId)?.name ?? "Player",
+      text: m.text,
+      at: m.createdAt.toISOString(),
+      reported: m.id === message.id,
+    }));
+  }
+
+  /**
+   * A message flagged by the provider's moderation (Stream AI moderation).
+   * Files a report with a snapshot into the admin queue and restricts the
+   * sender until a moderator reviews it. Returns the report id, or null if
+   * the message isn't one of ours.
+   */
+  async recordProviderFlag(input: { messageId: string; details: string; reason: ReportReason }): Promise<number | null> {
+    if (!this.moderation) return null;
+    const message = await this.provider.getMessage(input.messageId);
+    const c = message ? await this.repo.findByChannel(message.channelId) : null;
+    if (!message || !c) return null;
+    const reportId = await this.moderation.repo.createReport({
+      reporter: null,
+      targetType: "message",
+      targetId: message.id,
+      reason: input.reason,
+      details: input.details.slice(0, 1000),
+      source: "stream",
+      subject: message.senderId,
+      snapshot: { conversationId: c.id, messages: await this.snapshotFor(c, message) },
+    });
+    await this.moderation.repo.restrict({
+      subject: message.senderId,
+      reason: `Flagged by Stream moderation: ${input.details}`.slice(0, 500),
+      source: "stream",
+      reportId,
+    });
+    return reportId;
   }
 
   /** Moderator action: hides or restores a message for both people. */

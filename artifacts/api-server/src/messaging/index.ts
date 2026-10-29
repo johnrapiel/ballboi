@@ -6,6 +6,7 @@ import { FirstMessageFilter } from "./filter";
 import { MemoryMessagingProvider } from "./memoryProvider";
 import { notifyNewMessage } from "./notify";
 import type { MessagingProvider } from "./provider";
+import { StreamMessagingProvider } from "./streamProvider";
 import { MessagingService } from "./service";
 
 let service: MessagingService | null = null;
@@ -26,7 +27,14 @@ export function getAutoRestrict(): AutoRestrict {
  */
 export function createProvider(env: NodeJS.ProcessEnv = process.env): MessagingProvider {
   const name = env.MESSAGING_PROVIDER ?? "memory";
-  if (name !== "memory") logger.warn({ provider: name }, "Unknown MESSAGING_PROVIDER, using memory");
+  if (name === "stream") {
+    if (env.STREAM_API_KEY && env.STREAM_API_SECRET) return new StreamMessagingProvider(env.STREAM_API_KEY, env.STREAM_API_SECRET);
+    // In production a missing key is a deploy mistake: fail loudly rather than lose messages on restart.
+    if (env.NODE_ENV === "production") throw new Error("MESSAGING_PROVIDER=stream needs STREAM_API_KEY and STREAM_API_SECRET");
+    logger.warn("MESSAGING_PROVIDER=stream without STREAM_API_KEY and STREAM_API_SECRET, using memory");
+  } else if (name !== "memory") {
+    logger.warn({ provider: name }, "Unknown MESSAGING_PROVIDER, using memory");
+  }
   return new MemoryMessagingProvider();
 }
 

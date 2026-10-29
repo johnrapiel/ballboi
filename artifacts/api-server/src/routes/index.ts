@@ -20,6 +20,7 @@ import seasonsRouter from "./seasons";
 import safetyRouter from "./safety";
 import messagesRouter from "./messages";
 import moderationRouter from "./moderation";
+import streamWebhookRouter from "./streamWebhook";
 
 const router: IRouter = Router();
 
@@ -44,5 +45,6 @@ router.use(seasonsRouter);
 router.use(safetyRouter);
 router.use(messagesRouter);
 router.use(moderationRouter);
+router.use(streamWebhookRouter);
 
 export default router;
