@@ -99,6 +99,81 @@ export interface ScoreResult {
   countsForStandings: boolean;
 }
 
+export interface BracketSeed {
+  seed: number;
+  playerId: number;
+  playerName: string;
+}
+
+export type BracketSlotRound =
+  (typeof BracketSlotRound)[keyof typeof BracketSlotRound];
+
+export const BracketSlotRound = {
+  quarterfinal: "quarterfinal",
+  semifinal: "semifinal",
+  final: "final",
+} as const;
+
+export interface BracketSlot {
+  round: BracketSlotRound;
+  slot: number;
+  /**
+   * Null until both players are known
+   * @nullable
+   */
+  matchId: number | null;
+  player1: BracketSeed | null;
+  player2: BracketSeed | null;
+  /** scheduled, completed, or waiting (no match yet) */
+  status: string;
+  /**
+   * From player 1's side
+   * @nullable
+   */
+  score: string | null;
+  /** @nullable */
+  winnerId: number | null;
+}
+
+export type BracketRoundRound =
+  (typeof BracketRoundRound)[keyof typeof BracketRoundRound];
+
+export const BracketRoundRound = {
+  quarterfinal: "quarterfinal",
+  semifinal: "semifinal",
+  final: "final",
+} as const;
+
+export interface BracketRound {
+  round: BracketRoundRound;
+  slots: BracketSlot[];
+}
+
+export type LeagueBracketStatus =
+  (typeof LeagueBracketStatus)[keyof typeof LeagueBracketStatus];
+
+export const LeagueBracketStatus = {
+  active: "active",
+  completed: "completed",
+} as const;
+
+export type LeagueBracketSize =
+  (typeof LeagueBracketSize)[keyof typeof LeagueBracketSize];
+
+export const LeagueBracketSize = {
+  NUMBER_4: 4,
+  NUMBER_8: 8,
+} as const;
+
+export interface LeagueBracket {
+  bracketId: number;
+  status: LeagueBracketStatus;
+  size: LeagueBracketSize;
+  seeds: BracketSeed[];
+  rounds: BracketRound[];
+  champion: BracketSeed | null;
+}
+
 export interface SchedulePlayer {
   playerId: number;
   playerName: string;

@@ -34,6 +34,7 @@ import { unpairedPlayers, type DraftRound } from "../lib/roundEdits.js";
 import { logger } from "../lib/logger.js";
 import { sendPushToUsers } from "../routes/notifications.js";
 import { getAutoSeason } from "./seasonService.js";
+import { startPlayoffs } from "./leaguePlayoffs.js";
 
 /** Leagues the weekly engine runs: set up with the new league form, singles for now. */
 export function usesWeeklyRounds(league: Pick<League, "seasonWeeks" | "startDate" | "format" | "leagueType">): boolean {
@@ -255,7 +256,14 @@ export async function runLeagueDay(league: League, today: string = leagueToday()
     if (status !== r.status) await db.update(leagueRoundsTable).set({ status }).where(eq(leagueRoundsTable.id, r.id));
   }
 
-  // League status: upcoming until the start, active through the last grace week.
+  // Playoffs start the day after the regular season's last deadline. Grace-week
+  // scores don't count for standings, so the seeds are final by then.
+  if (league.playoffSize && today > lastRound.deadline) {
+    await startPlayoffs(league);
+  }
+
+  // League status: upcoming until the start, active through the last grace week
+  // and any playoffs.
   if (today < start) {
     if (league.status !== "upcoming") await db.update(leaguesTable).set({ status: "upcoming" }).where(eq(leaguesTable.id, league.id));
   } else if (today <= lastRound.graceEnd) {

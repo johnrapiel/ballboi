@@ -813,6 +813,73 @@ export const GetLeagueScheduleResponse = zod.object({
 });
 
 /**
+ * @summary The playoff bracket, or null before playoffs start
+ */
+export const GetLeagueBracketParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const GetLeagueBracketResponse = zod.union([
+  zod.object({
+    bracketId: zod.number(),
+    status: zod.enum(["active", "completed"]),
+    size: zod.union([zod.literal(4), zod.literal(8)]),
+    seeds: zod.array(
+      zod.object({
+        seed: zod.number(),
+        playerId: zod.number(),
+        playerName: zod.string(),
+      }),
+    ),
+    rounds: zod.array(
+      zod.object({
+        round: zod.enum(["quarterfinal", "semifinal", "final"]),
+        slots: zod.array(
+          zod.object({
+            round: zod.enum(["quarterfinal", "semifinal", "final"]),
+            slot: zod.number(),
+            matchId: zod
+              .number()
+              .nullable()
+              .describe("Null until both players are known"),
+            player1: zod.union([
+              zod.object({
+                seed: zod.number(),
+                playerId: zod.number(),
+                playerName: zod.string(),
+              }),
+              zod.null(),
+            ]),
+            player2: zod.union([
+              zod.object({
+                seed: zod.number(),
+                playerId: zod.number(),
+                playerName: zod.string(),
+              }),
+              zod.null(),
+            ]),
+            status: zod
+              .string()
+              .describe("scheduled, completed, or waiting (no match yet)"),
+            score: zod.string().nullable().describe("From player 1's side"),
+            winnerId: zod.number().nullable(),
+          }),
+        ),
+      }),
+    ),
+    champion: zod.union([
+      zod.object({
+        seed: zod.number(),
+        playerId: zod.number(),
+        playerName: zod.string(),
+      }),
+      zod.null(),
+    ]),
+  }),
+  zod.null(),
+]);
+
+/**
  * @summary Enter a league match score from your own side. The first score entered stands.
  */
 export const EnterLeagueScoreParams = zod.object({
