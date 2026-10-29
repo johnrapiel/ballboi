@@ -16,4 +16,3 @@ export * from "./playoffBrackets";
 export * from "./seasons";
 export * from "./expoPushTokens";
 export * from "./safety";
-export * from "./ratings";
