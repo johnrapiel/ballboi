@@ -127,7 +127,7 @@ export function buildShotFromResult(
     playerId: typeof data.playerId === "number" ? data.playerId : null,
     clipStartSeconds: Math.max(0, timestampSeconds - 4),
     clipEndSeconds: timestampSeconds + 4,
-    rawMlData: data.rawMlData ?? data,
+    rawMlData: (data.rawMlData ?? data) as Record<string, unknown>,
   };
 }
 

@@ -12,7 +12,7 @@ import { SKILL_LEVELS, seasonDates, validateLeagueSetup } from "../lib/leagueSet
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
   next();
 }
 
@@ -55,7 +55,7 @@ router.get("/leagues", async (req, res) => {
     if (mc.leagueId !== null) mcMap[mc.leagueId] = Number(mc.count);
   }
 
-  return res.json(
+  { res.json(
     leagues.map((l) => ({
       ...l,
       startDate: l.startDate ?? null,
@@ -69,7 +69,7 @@ router.get("/leagues", async (req, res) => {
       createdAt: l.createdAt.toISOString(),
       updatedAt: l.updatedAt.toISOString(),
     }))
-  );
+  ); return; }
 });
 
 // Start a league (spec: Leagues > Setup). Anyone signed in can start one and is
@@ -78,11 +78,11 @@ router.post("/leagues", requireAuth, async (req, res) => {
   const { userId } = getAuth(req);
   const parsed = CreateLeagueBody.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.message });
+    { res.status(400).json({ error: parsed.error.message }); return; }
   }
   const body = parsed.data;
   const problem = validateLeagueSetup(body);
-  if (problem) return res.status(400).json({ error: problem });
+  if (problem) { res.status(400).json({ error: problem }); return; }
 
   const playing = body.playing !== false;
   const { endDate, status } = seasonDates(body.startDate, body.seasonWeeks);
@@ -127,7 +127,7 @@ router.post("/leagues", requireAuth, async (req, res) => {
     return { league, playerCount: playing ? 1 : 0 };
   });
 
-  return res.status(201).json({
+  { res.status(201).json({
     ...league,
     startDate: league.startDate ?? null,
     endDate: league.endDate ?? null,
@@ -139,19 +139,19 @@ router.post("/leagues", requireAuth, async (req, res) => {
     matchCount: 0,
     createdAt: league.createdAt.toISOString(),
     updatedAt: league.updatedAt.toISOString(),
-  });
+  }); return; }
 });
 
 router.get("/leagues/:leagueId", async (req, res) => {
-  const leagueId = parseInt(req.params.leagueId);
-  if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid id" });
+  const leagueId = parseInt(String(req.params.leagueId));
+  if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid id" }); return; }
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
-  if (!league) return res.status(404).json({ error: "League not found" });
+  if (!league) { res.status(404).json({ error: "League not found" }); return; }
 
   const [pc] = await db.select({ count: count() }).from(playersTable).where(eq(playersTable.leagueId, leagueId));
   const [mc] = await db.select({ count: count() }).from(matchesTable).where(eq(matchesTable.leagueId, leagueId));
 
-  return res.json({
+  { res.json({
     ...league,
     startDate: league.startDate ?? null,
     endDate: league.endDate ?? null,
@@ -162,17 +162,17 @@ router.get("/leagues/:leagueId", async (req, res) => {
     matchCount: Number(mc?.count ?? 0),
     createdAt: league.createdAt.toISOString(),
     updatedAt: league.updatedAt.toISOString(),
-  });
+  }); return; }
 });
 
 router.patch("/leagues/:leagueId", requireAdmin, async (req, res) => {
-  const leagueId = parseInt(req.params.leagueId);
-  if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid id" });
+  const leagueId = parseInt(String(req.params.leagueId));
+  if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid id" }); return; }
   if ("leagueType" in req.body) {
-    return res.status(400).json({ error: "leagueType cannot be changed after a league is created" });
+    { res.status(400).json({ error: "leagueType cannot be changed after a league is created" }); return; }
   }
   const parsed = UpdateLeagueBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const updates: Partial<typeof leaguesTable.$inferInsert> = {};
   if (parsed.data.name !== undefined && parsed.data.name !== null) updates.name = parsed.data.name;
@@ -184,12 +184,12 @@ router.patch("/leagues/:leagueId", requireAdmin, async (req, res) => {
   if (parsed.data.location !== undefined) updates.location = parsed.data.location ?? undefined;
 
   const [league] = await db.update(leaguesTable).set(updates).where(eq(leaguesTable.id, leagueId)).returning();
-  if (!league) return res.status(404).json({ error: "League not found" });
+  if (!league) { res.status(404).json({ error: "League not found" }); return; }
 
   const [pc] = await db.select({ count: count() }).from(playersTable).where(eq(playersTable.leagueId, leagueId));
   const [mc] = await db.select({ count: count() }).from(matchesTable).where(eq(matchesTable.leagueId, leagueId));
 
-  return res.json({
+  { res.json({
     ...league,
     startDate: league.startDate ?? null,
     endDate: league.endDate ?? null,
@@ -200,34 +200,34 @@ router.patch("/leagues/:leagueId", requireAdmin, async (req, res) => {
     matchCount: Number(mc?.count ?? 0),
     createdAt: league.createdAt.toISOString(),
     updatedAt: league.updatedAt.toISOString(),
-  });
+  }); return; }
 });
 
 router.delete("/leagues/:leagueId", requireAdmin, async (req, res) => {
-  const leagueId = parseInt(req.params.leagueId);
-  if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid id" });
+  const leagueId = parseInt(String(req.params.leagueId));
+  if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid id" }); return; }
   await db.delete(leaguesTable).where(eq(leaguesTable.id, leagueId));
-  return res.status(204).send();
+  { res.status(204).send(); return; }
 });
 
 router.post("/leagues/:leagueId/reset", requireAdmin, async (req, res) => {
-  const leagueId = parseInt(req.params.leagueId);
-  if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid id" });
+  const leagueId = parseInt(String(req.params.leagueId));
+  if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const [league] = await db.select({ id: leaguesTable.id }).from(leaguesTable).where(eq(leaguesTable.id, leagueId));
-  if (!league) return res.status(404).json({ error: "League not found" });
+  if (!league) { res.status(404).json({ error: "League not found" }); return; }
 
   const deletedRounds = await db
     .delete(leagueRoundsTable)
     .where(eq(leagueRoundsTable.leagueId, leagueId))
     .returning({ id: leagueRoundsTable.id });
 
-  return res.json({ deleted: { rounds: deletedRounds.length } });
+  { res.json({ deleted: { rounds: deletedRounds.length } }); return; }
 });
 
 router.get("/leagues/:leagueId/standings", async (req, res) => {
-  const leagueId = parseInt(req.params.leagueId);
-  if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid id" });
+  const leagueId = parseInt(String(req.params.leagueId));
+  if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const seasonFilter = typeof req.query.season === "string" ? req.query.season : undefined;
   const pastSeasonNames = seasonFilter ? [] : await getPastSeasonNames(leagueId);
@@ -303,22 +303,22 @@ router.get("/leagues/:leagueId/standings", async (req, res) => {
 
   standings.sort((a, b) => b.points - a.points || b.winRate - a.winRate);
   const ranked = standings.map((s, i) => ({ ...s, rank: i + 1 }));
-  return res.json(ranked);
+  { res.json(ranked); return; }
 });
 
 router.post("/leagues/:leagueId/players", requireAuth, async (req: Request, res: Response) => {
-  const leagueId = parseInt(req.params.leagueId);
-  if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid league ID" });
+  const leagueId = parseInt(String(req.params.leagueId));
+  if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid league ID" }); return; }
 
   const { userId } = getAuth(req);
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
-  if (!league) return res.status(404).json({ error: "League not found" });
+  if (!league) { res.status(404).json({ error: "League not found" }); return; }
   if (league.createdByClerkUserId !== userId) {
-    return res.status(403).json({ error: "Only the league creator can add players directly" });
+    { res.status(403).json({ error: "Only the league creator can add players directly" }); return; }
   }
 
   const { name, email, phone, skillLevel, dominantHand, bio } = req.body;
-  if (!name?.trim()) return res.status(400).json({ error: "name is required" });
+  if (!name?.trim()) { res.status(400).json({ error: "name is required" }); return; }
 
   const allowedSkillLevels = new Set(["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"]);
 
@@ -342,12 +342,12 @@ router.post("/leagues/:leagueId/players", requireAuth, async (req: Request, res:
     clerkUserId: linked ?? inserted.clerkUserId,
   };
 
-  return res.status(201).json({
+  { res.status(201).json({
     ...publicPlayer,
     autoLinked: !!linked,
     createdAt: inserted.createdAt.toISOString(),
     updatedAt: inserted.updatedAt.toISOString(),
-  });
+  }); return; }
 });
 
 export default router;
