@@ -69,6 +69,7 @@ vi.mock("@workspace/api-zod", () => ({
   UpdateLeagueBody: { safeParse: (v: unknown) => ({ success: true, data: v }) },
 }));
 
+vi.mock("../services/leagueRounds.js", () => ({ runLeagueDay: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../lib/leagueAccess.js", () => ({ isLeagueAdmin: vi.fn().mockResolvedValue(false) }));
 vi.mock("../lib/autoLinkPlayer.js", () => ({ autoLinkPlayer: vi.fn() }));
 vi.mock("../services/seasonService.js", () => ({ getPastSeasonNames: vi.fn().mockResolvedValue([]) }));
