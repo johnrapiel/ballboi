@@ -11,7 +11,7 @@ Models (all run on CPU through ONNX Runtime):
   yolox_m_humanart.onnx  YOLOX-m person detector (Apache-2.0), MMDeploy build from OpenMMLab.
   rtmpose_m_body7.onnx   RTMPose-m body keypoints (Apache-2.0), MMDeploy build from OpenMMLab.
 
-Needs: torch (CPU), pyyaml, gdown, onnxruntime, git. Writes MANIFEST.json with
+Needs: torch (CPU), omegaconf, gdown, onnxruntime, git. Writes MANIFEST.json with
 each file's SHA-256 and source, so a build can be checked against an earlier one.
 """
 from __future__ import annotations

@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends git ca-certific
     && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-cache-dir "numpy<2.3" pyyaml==6.0.2 gdown==5.2.0 onnx==1.17.0 onnxruntime==1.20.1
+RUN pip install --no-cache-dir omegaconf==2.3.0
 WORKDIR /build
 COPY scripts/fetch_models.py scripts/export_wasb_onnx.py ./scripts/
 RUN python scripts/fetch_models.py --out /models

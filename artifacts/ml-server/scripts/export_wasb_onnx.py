@@ -26,13 +26,13 @@ def main() -> None:
     args = parser.parse_args()
 
     import torch
-    import yaml
+    from omegaconf import OmegaConf   # WASB's model code reads its config as attributes (cfg.MODEL.EXTRA)
 
     spec = importlib.util.spec_from_file_location("wasb_hrnet", args.wasb_src / "models" / "hrnet.py")
     hrnet = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(hrnet)
 
-    cfg = yaml.safe_load((args.wasb_src / "configs" / "model" / "wasb.yaml").read_text())
+    cfg = OmegaConf.load(args.wasb_src / "configs" / "model" / "wasb.yaml")
     model = hrnet.HRNet(cfg)
     # Tensors-only loading: a downloaded pickle can't run code here.
     try:
