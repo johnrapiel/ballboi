@@ -10,7 +10,7 @@ import {
   requestBallBoiUploadUrl,
   startBallBoiSession,
 } from "@workspace/api-client-react";
-import * as LegacyFS from "expo-file-system/legacy";
+import { File, UploadType } from "expo-file-system";
 
 export interface RecordingToUpload {
   matchId: number;
@@ -35,10 +35,10 @@ export async function ensureSession(rec: RecordingToUpload): Promise<number> {
 export async function uploadRecording(rec: RecordingToUpload & { sessionId: number }): Promise<void> {
   // Ask for the upload address right before sending: it expires after 15 minutes.
   const { uploadURL, objectPath } = await requestBallBoiUploadUrl(rec.sessionId);
-  const result = await LegacyFS.uploadAsync(uploadURL, rec.uri, {
+  const result = await new File(rec.uri).upload(uploadURL, {
     httpMethod: "PUT",
-    uploadType: LegacyFS.FileSystemUploadType.BINARY_CONTENT,
-    sessionType: LegacyFS.FileSystemSessionType.BACKGROUND,
+    uploadType: UploadType.BINARY_CONTENT,
+    sessionType: "background",
     headers: { "Content-Type": "video/quicktime" },
   });
   if (result.status < 200 || result.status >= 300) {

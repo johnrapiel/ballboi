@@ -196,7 +196,7 @@ export default function RecordScreen() {
     setStopReason(reason);
     setPhase("saving");
     const durationSeconds = Math.max(1, Math.round((Date.now() - startedAt.current) / 1000));
-    const saved = keepRecording(cacheUri, `match-${matchId}-${Date.now()}`);
+    const saved = await keepRecording(cacheUri, `match-${matchId}-${Date.now()}`);
     setPhase("uploading");
     const rec = { matchId, uri: saved.uri, sizeBytes: saved.sizeBytes, durationSeconds };
     const sessionId = await ensureSession(rec);
