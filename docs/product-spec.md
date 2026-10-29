@@ -1,4 +1,4 @@
-<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-10-29 with rev 57: decision log 1 to 28 and Milestone moments match the live doc; the league rules in Leagues, Discover, Ball Boi Rating, After the match and the match recap are ahead of the live doc's body text). The live doc wins if they differ. Refresh this file when the live doc changes. -->
+<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-10-29 with rev 57: decision log 1 to 28 and Milestone moments match the live doc; decision 29 isn't in the live doc yet; the league rules in Leagues, Discover, Ball Boi Rating, After the match and the match recap are ahead of the live doc's body text). The live doc wins if they differ. Refresh this file when the live doc changes. -->
 
 # Ball Boi: Flows and Feature Spec
 
@@ -175,7 +175,7 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 
 **Weekly loop (Flex)**
 
-1. App pairs players Monday morning by rating, availability, and who hasn't played whom
+1. App pairs players each week on the morning of the season's start weekday (a season starting on a Thursday pairs every Thursday), by rating, availability, and who hasn't played whom
 2. Admin can swap pairings, mark a bye, or lock a match before publishing
 3. Players schedule inside the match thread using the same request flow as Discover
 4. Either player enters the score; the first score entered stands and standings update
@@ -389,3 +389,4 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 26 | Every league locks to new joins once the season starts; the waitlist holds requests for next season (Oct 29) |
 | 27 | A player who drops out keeps their played matches; their remaining matches are voided and they're removed from standings (Oct 29) |
 | 28 | Subtle animations at four moments (Oct 29): match result confirmed, career milestone, player card reveal (first view only), Ball Boi analysis ready. League standings change dropped. Reanimated with a haptic; a fade under Reduce Motion |
+| 29 | Flex pairings go out each week on the season's start weekday, not always Monday (Oct 29) |
