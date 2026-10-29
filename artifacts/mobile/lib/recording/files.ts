@@ -16,12 +16,12 @@ function recordingsDir(): Directory {
 }
 
 /** Moves a finished recording out of the cache. Returns its new location and size. */
-export function keepRecording(cacheUri: string, name: string): { uri: string; sizeBytes: number } {
+export async function keepRecording(cacheUri: string, name: string): Promise<{ uri: string; sizeBytes: number }> {
   const source = new File(cacheUri);
   const ext = source.extension || ".mov";
   const target = new File(recordingsDir(), `${name}${ext}`);
   if (target.exists) target.delete();
-  source.move(target);
+  await source.move(target);
   return { uri: target.uri, sizeBytes: target.size ?? 0 };
 }
 
