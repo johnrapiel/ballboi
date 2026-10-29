@@ -1,8 +1,9 @@
 import { useUser } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, Switch, View } from "react-native";
+import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import React, { useMemo, useRef, useState } from "react";
+import { Alert, Pressable, ScrollView, Switch, TextInput, View, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -14,8 +15,8 @@ import {
 } from "@workspace/api-client-react";
 
 import { ChoiceGroup } from "@/components/Choice";
-import { Card, Field, Text } from "@/components/ui";
-import { MIN_TAP, spacing } from "@/constants/tokens";
+import { Button, Card, Field, Text } from "@/components/ui";
+import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 
 // Start a league (spec: Leagues > Setup and Onboarding > Run a league;
@@ -25,36 +26,118 @@ type Format = "flex" | "round_robin";
 type PlayType = "singles" | "fixed" | "rotating";
 type Unplayed = "no_result" | "forfeit";
 
-/** The next six Mondays. Pairings go out Monday mornings, so seasons start on one. */
-function upcomingMondays(count = 6): Date[] {
+// Season length limits match the spec (Leagues > Setup: 1 to 24 weeks) and the API.
+const MIN_WEEKS = 1;
+const MAX_WEEKS = 24;
+const DEFAULT_WEEKS = 8;
+
+const today = () => {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+/** Default start: next Monday, since Flex pairings go out Monday mornings. Any day can be picked. */
+function nextMonday(): Date {
+  const d = today();
   const daysToMonday = (8 - d.getDay()) % 7 || 7;
   d.setDate(d.getDate() + daysToMonday);
-  return Array.from({ length: count }, (_, i) => {
-    const m = new Date(d);
-    m.setDate(d.getDate() + i * 7);
-    return m;
-  });
+  return d;
 }
 
 const dateKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const shortDate = (d: Date) => d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 
-function HeaderButton({ label, onPress, bold, disabled }: { label: string; onPress: () => void; bold?: boolean; disabled?: boolean }) {
+function HeaderButton({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      hitSlop={8}
+      style={{ minHeight: MIN_TAP, minWidth: MIN_TAP, justifyContent: "center" }}
+    >
+      <Text>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Round minus or plus button for the weeks stepper, 44×44pt. */
+function StepButton({ symbol, label, onPress, disabled }: { symbol: string; label: string; onPress: () => void; disabled: boolean }) {
+  const c = useColors();
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled: !!disabled }}
-      hitSlop={8}
-      style={{ minHeight: MIN_TAP, minWidth: MIN_TAP, justifyContent: "center", opacity: disabled ? 0.4 : 1 }}
+      accessibilityState={{ disabled }}
+      style={({ pressed }) => ({
+        width: MIN_TAP,
+        height: MIN_TAP,
+        borderRadius: radius.radiusPill,
+        borderWidth: 1,
+        borderColor: c.hairlineStrong,
+        alignItems: "center",
+        justifyContent: "center",
+        opacity: disabled ? 0.4 : pressed ? 0.7 : 1,
+      })}
     >
-      <Text variant={bold ? "bodyStrong" : "body"}>{label}</Text>
+      <Text variant="bodyStrong" importantForAccessibility="no" accessibilityElementsHidden>
+        {symbol}
+      </Text>
     </Pressable>
+  );
+}
+
+/** Weeks: a number field with minus and plus. Typing is clamped to the allowed range on blur. */
+function WeeksStepper({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const c = useColors();
+  const [draft, setDraft] = useState(String(value));
+  const set = (n: number) => {
+    const next = Math.min(MAX_WEEKS, Math.max(MIN_WEEKS, n));
+    onChange(next);
+    setDraft(String(next));
+  };
+  return (
+    <View style={{ gap: spacing.space2 }}>
+      <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
+        Weeks
+      </Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3 }}>
+        <StepButton symbol="−" label="Fewer weeks" onPress={() => set(value - 1)} disabled={value <= MIN_WEEKS} />
+        <TextInput
+          value={draft}
+          onChangeText={(t) => setDraft(t.replace(/[^0-9]/g, "").slice(0, 2))}
+          onBlur={() => set(Number(draft) || value)}
+          onSubmitEditing={() => set(Number(draft) || value)}
+          keyboardType="number-pad"
+          returnKeyType="done"
+          selectTextOnFocus
+          accessibilityLabel="Weeks"
+          accessibilityHint={`${MIN_WEEKS} to ${MAX_WEEKS} weeks`}
+          style={[
+            type.body,
+            {
+              minHeight: 48,
+              minWidth: 72,
+              paddingHorizontal: 14,
+              textAlign: "center",
+              borderRadius: radius.radiusSm,
+              borderWidth: 1,
+              borderColor: c.hairlineStrong,
+              backgroundColor: c.linen,
+              color: c.ink,
+            },
+          ]}
+        />
+        <StepButton symbol="+" label="More weeks" onPress={() => set(value + 1)} disabled={value >= MAX_WEEKS} />
+      </View>
+      <Text variant="small" tone="inkMuted">
+        {MIN_WEEKS} to {MAX_WEEKS} weeks
+      </Text>
+    </View>
   );
 }
 
@@ -76,26 +159,35 @@ export default function StartLeagueScreen() {
   const queryClient = useQueryClient();
   const { user } = useUser();
 
-  const mondays = useMemo(() => upcomingMondays(), []);
+  const scheme = useColorScheme();
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const minStart = useMemo(today, []);
 
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
   const [format, setFormat] = useState<Format>("flex");
   const [playType, setPlayType] = useState<PlayType>("singles");
-  const [start, setStart] = useState(dateKey(mondays[0]));
-  const [weeks, setWeeks] = useState(8);
+  const [start, setStart] = useState<Date>(nextMonday);
+  const [weeks, setWeeks] = useState(DEFAULT_WEEKS);
   const [playoffs, setPlayoffs] = useState<0 | 4 | 8>(0);
   const [unplayed, setUnplayed] = useState<Unplayed>("no_result");
   const [playing, setPlaying] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [nameMissing, setNameMissing] = useState(false);
 
   const playerName =
     user?.fullName?.trim() || user?.firstName?.trim() || user?.primaryEmailAddress?.emailAddress?.split("@")[0] || "";
 
-  const canCreate = name.trim().length > 0 && !saving;
+  const end = new Date(start);
+  end.setDate(end.getDate() + weeks * 7 - 1);
 
   async function create() {
-    if (!canCreate) return;
+    if (saving) return;
+    if (!name.trim()) {
+      setNameMissing(true);
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      return;
+    }
     setSaving(true);
     const body: CreateLeagueBody = {
       name: name.trim(),
@@ -108,7 +200,7 @@ export default function StartLeagueScreen() {
       minRating: null,
       maxRating: null,
       rosterCap: null,
-      startDate: start,
+      startDate: dateKey(start),
       seasonWeeks: weeks,
       playoffSize: playoffs,
       unplayedRule: unplayed,
@@ -137,16 +229,28 @@ export default function StartLeagueScreen() {
       <Stack.Screen
         options={{
           headerLeft: () => <HeaderButton label="Cancel" onPress={() => router.back()} />,
-          headerRight: () => <HeaderButton label="Create" bold onPress={create} disabled={!canCreate} />,
         }}
       />
       <ScrollView
+        ref={scrollRef}
         style={{ flex: 1, backgroundColor: c.paper }}
-        contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space6 }}
+        contentContainerStyle={{ padding: spacing.space4, paddingBottom: spacing.space8, gap: spacing.space6 }}
         keyboardShouldPersistTaps="handled"
       >
         <Section title="League">
-          <Field label="Name" value={name} onChangeText={setName} placeholder="Tuesday Night 3.5" maxLength={60} autoFocus />
+          <Field
+            label="Name"
+            value={name}
+            onChangeText={(t) => {
+              setName(t);
+              if (t.trim()) setNameMissing(false);
+            }}
+            placeholder="Tuesday Night 3.5"
+            maxLength={60}
+            autoFocus
+            error={nameMissing}
+            hint={nameMissing ? "Give your league a name to create it." : undefined}
+          />
           <Field
             label="Where you play (optional)"
             value={location}
@@ -201,18 +305,31 @@ export default function StartLeagueScreen() {
         </Section>
 
         <Section title="Season">
-          <ChoiceGroup<string>
-            label="Starts"
-            value={start}
-            onChange={setStart}
-            options={mondays.map((m) => ({ value: dateKey(m), label: shortDate(m) }))}
-          />
-          <ChoiceGroup<number>
-            label="Weeks"
-            value={weeks}
-            onChange={setWeeks}
-            options={[6, 7, 8, 9, 10, 11, 12].map((w) => ({ value: w, label: String(w) }))}
-          />
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.space3 }}>
+            <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
+              Starts
+            </Text>
+            {/* Native iOS date button: tap for the calendar, any day from today on. */}
+            <DateTimePicker
+              value={start}
+              mode="date"
+              display="compact"
+              minimumDate={minStart}
+              themeVariant={scheme === "dark" ? "dark" : "light"}
+              accentColor={c.pool}
+              accessibilityLabel="Season starts"
+              onChange={(_: DateTimePickerEvent, date?: Date) => {
+                if (date) {
+                  date.setHours(0, 0, 0, 0);
+                  setStart(date);
+                }
+              }}
+            />
+          </View>
+          <WeeksStepper value={weeks} onChange={setWeeks} />
+          <Text variant="small" tone="inkMuted" accessibilityLiveRegion="polite">
+            Runs {shortDate(start)} to {shortDate(end)}
+          </Text>
           <ChoiceGroup<0 | 4 | 8>
             label="Playoffs"
             value={playoffs}
@@ -240,6 +357,19 @@ export default function StartLeagueScreen() {
           />
         </Card>
       </ScrollView>
+      {/* Primary action pinned at the bottom, always in reach. */}
+      <View
+        style={{
+          paddingHorizontal: spacing.space4,
+          paddingTop: spacing.space3,
+          paddingBottom: insets.bottom + spacing.space3,
+          backgroundColor: c.paper,
+          borderTopWidth: 1,
+          borderTopColor: c.hairline,
+        }}
+      >
+        <Button label="Create league" onPress={create} loading={saving} />
+      </View>
     </>
   );
 }

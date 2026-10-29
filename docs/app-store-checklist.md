@@ -27,10 +27,11 @@ _Last updated: 2026-10-18. Synced with the launch-blocking items in `docs/produc
 | Background upload, Wi-Fi by default | 2.1 | ❌ | Survives app close and restart; video kept until the server confirms. Cellular toggle in settings; replay processing card shows "Waiting for Wi-Fi · Upload now on cellular," then "Analyzing"; push when replay is ready |
 | Post-stop flow | 2.1 | ❌ | Score prompt that posts to standings, draggable match start, court-line fix on a still frame captured on the phone, only on low detection confidence. No raw video replay |
 | Simulated replay (no video playback) | 2.1, 4.2 | ❌ | Animated court, shot-by-shot list, scrubber markers, filters. "Close call" label on uncertain in/out. Remove the "Full video" mode |
+| Milestone animations | HIG | ❌ | Four moments only: match result confirmed (score settles, rating counts to its new value), career milestone (badge and ring; launch set: first win, first Ball Boi match, 5- and 10-match win streaks), player card reveal (flip, first view of each player only), Ball Boi analysis ready (shot markers drop onto the court). Reanimated, under 1 second, plays once, never blocks input, a haptic on each. Accessibility tracked in Section 5 |
 | Dynamic Type support | HIG / WCAG 1.4.4 | 🟡 | Shared `Text` scales every text style fully; display styles and scores stop at 1.5x so they never clip. Body is 17pt, the iOS size. Bold Text and Increase Contrast are respected through `Text` and `useColors`. Still to do: test every rebuilt screen at the largest accessibility size |
 | VoiceOver labels on icon buttons, charts, heatmap, replay controls | HIG / WCAG 1.1.1, 4.1.2 | 🟡 | Done for built screens; replay/heatmap not built yet |
 | 44×44pt minimum tap targets | HIG / WCAG 2.5.8 | 🟡 | `MIN_TAP` enforced in shared Button |
-| Reduce Motion respected | HIG / WCAG 2.3.3 | 🟡 | Web: global CSS guard added. Also applies to the replay animation |
+| Reduce Motion respected | HIG / WCAG 2.3.3 | 🟡 | Web: global CSS guard added. Also applies to the replay animation and the milestone animations |
 | Design system applied | HIG, WCAG 1.4.3 | 🟡 | Tokens generated from `docs/design-system/tokens.json` (`pnpm tokens`); app palette and fonts switched to Paper, Linen, Ink, Pool, Clay, DM Sans, and Cormorant Garamond; core components in `components/ui.tsx`. Screens restyle as each flow is rebuilt |
 
 ## 2. Backend readiness
@@ -113,7 +114,7 @@ _Last updated: 2026-10-18. Synced with the launch-blocking items in `docs/produc
 | Age rating questionnaire | Required since Jan 31, 2026 | 🟡 | Decided: 18+ for the MVP, so Screen Time blocks the download for minors. Re-answer for user-to-user messaging and real-world meetups |
 | Subscription metadata | 3.1.2 | ❌ | Terms of Use (EULA) and privacy policy links in the App Store description or custom EULA field. Subscription products submitted with the build |
 | App Review notes | 2.1 | ❌ | Demo account credentials, 60-second on-court recording, and a note that the account's free period has ended, so the paywall appears when setting up a recording or opening stats |
-| App icon: hand-painted ball on paper, no wordmark | HIG, 2.3.8 | 🟡 | 1024×1024 opaque PNG at `assets/images/icon.png`. Wordmark roundel stays on the splash and Welcome screen. Next: layered Icon Composer version for dark, clear, and tinted modes |
+| App icon: white hand-painted ball on a navy tile, no wordmark | HIG, 2.3.8 | 🟡 | 1024×1024 opaque PNG at `assets/images/icon.png`. Wordmark roundel stays on the splash and Welcome screen. Next: layered Icon Composer version for dark, clear, and tinted modes |
 | Screenshots, description, keywords, support URL | 2.3 | 🟡 | Shot list + subtitle drafted. Show the simulated replay, not video. No partner logos until cleared |
 | EU trader status (if distributing in the EU) | DSA | ❌ | US-only launch; needed before any EU expansion |
 
@@ -132,6 +133,7 @@ The web-app rows below were completed in PR #2 before the web app was retired. T
 | No text under 11px | HIG / 1.4.4 | ✅ | `label` (11px) is for eyebrows and table headers only; chips use `chip` (12px). Body 17, small 15, button 16 |
 | Color is never the only signal (charts, heatmaps, shot markers) | 1.4.1 | 🟡 | Rules set in the design system (Charts and replay): players by shape, winners a check, errors a cross, close calls a dashed ring plus text, heatmaps one ink in five labeled steps. Apply when the replay is rebuilt |
 | Simulated replay is accessible | 1.1.1, 1.3.1 | ❌ | Court animation decorative; shot list carries type, player, outcome, time. "Close call" uses icon plus text |
+| Milestone animations accessible | 2.3.3, 4.1.3 | ❌ | Reduce Motion swaps every moment for a 200ms fade with the final state shown at once; haptics still fire. VoiceOver announces each outcome in text ("Rating up 0.04 to 3.54," "Milestone: First win"). Analysis-ready markers use shape, not color alone |
 | Rating badges, admin post labels, reliability not color-only | 1.4.1 | ❌ | Icon + text for Verified vs Self-rated, admin posts in league chat, and "Played 12 · 1 no-show" |
 | Charts have text alternatives | 1.1.1, 1.3.1 | ❌ | One-line text summary for VoiceOver plus an accessible data table on every trend chart |
 | Player card reads as one element | 1.3.1, 4.1.2 | ❌ | e.g. "Alex Kim, 3.5 Verified, 14 and 6, 22 aces this season" |

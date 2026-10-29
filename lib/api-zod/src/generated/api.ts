@@ -57,8 +57,8 @@ export const createLeagueBodyNameMax = 60;
 export const createLeagueBodyRosterCapMin = 2;
 export const createLeagueBodyRosterCapMax = 64;
 
-export const createLeagueBodySeasonWeeksMin = 6;
-export const createLeagueBodySeasonWeeksMax = 12;
+export const createLeagueBodySeasonWeeksMin = 1;
+export const createLeagueBodySeasonWeeksMax = 24;
 
 export const CreateLeagueBody = zod
   .object({

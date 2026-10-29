@@ -24,8 +24,8 @@ export function validateLeagueSetup(input: LeagueSetupInput): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.startDate) || Number.isNaN(Date.parse(`${input.startDate}T00:00:00Z`))) {
     return "Start date must be a date like 2026-11-02";
   }
-  if (!Number.isInteger(input.seasonWeeks) || input.seasonWeeks < 6 || input.seasonWeeks > 12) {
-    return "A season runs 6 to 12 weeks";
+  if (!Number.isInteger(input.seasonWeeks) || input.seasonWeeks < 1 || input.seasonWeeks > 24) {
+    return "A season runs 1 to 24 weeks";
   }
   const doubles = input.leagueType === "doubles";
   if (doubles && input.partnerMode !== "fixed" && input.partnerMode !== "rotating") {

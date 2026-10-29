@@ -9,7 +9,7 @@ const REMINDER_COOLDOWN_HOURS = 6;
 
 function requireAuth(req: any, res: any, next: any) {
   const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
   next();
 }
 
@@ -28,7 +28,7 @@ function isReminderInCooldown(sentAt: Date) {
 // GET /availability/:leagueId/:weekOf — get all availabilities for a league/week (admin or self)
 router.get("/availability/:leagueId/:weekOf", requireAuth, async (req, res) => {
   try {
-    const leagueId = parseInt(req.params.leagueId);
+    const leagueId = parseInt(String(req.params.leagueId));
     const weekOf = req.params.weekOf;
     const rows = await db
       .select()
@@ -44,7 +44,7 @@ router.get("/availability/:leagueId/:weekOf", requireAuth, async (req, res) => {
 router.get("/availability/me/:leagueId/:weekOf", requireAuth, async (req, res) => {
   try {
     const { userId } = getAuth(req);
-    const leagueId = parseInt(req.params.leagueId);
+    const leagueId = parseInt(String(req.params.leagueId));
     const weekOf = req.params.weekOf;
 
     // Find player by clerkUserId in this league
@@ -53,7 +53,7 @@ router.get("/availability/me/:leagueId/:weekOf", requireAuth, async (req, res) =
       .from(playersTable)
       .where(and(eq(playersTable.clerkUserId, userId!), eq(playersTable.leagueId, leagueId)));
 
-    if (!players.length) return res.json({ slots: [] });
+    if (!players.length) { res.json({ slots: [] }); return; }
 
     const playerId = players[0].id;
     const rows = await db
@@ -78,7 +78,7 @@ router.post("/availability", requireAuth, async (req, res) => {
     const { leagueId, weekOf, slots, playerId: bodyPlayerId } = req.body;
 
     if (!leagueId || !weekOf) {
-      return res.status(400).json({ error: "leagueId and weekOf required" });
+      { res.status(400).json({ error: "leagueId and weekOf required" }); return; }
     }
 
     // Resolve playerId from clerkUserId
@@ -88,7 +88,7 @@ router.post("/availability", requireAuth, async (req, res) => {
         .select()
         .from(playersTable)
         .where(and(eq(playersTable.clerkUserId, userId!), eq(playersTable.leagueId, leagueId)));
-      if (!players.length) return res.status(404).json({ error: "Player not found in this league" });
+      if (!players.length) { res.status(404).json({ error: "Player not found in this league" }); return; }
       playerId = players[0].id;
     }
 
@@ -108,7 +108,7 @@ router.post("/availability", requireAuth, async (req, res) => {
         .set({ slots: slots ?? [] })
         .where(eq(playerAvailabilityTable.id, existing[0].id))
         .returning();
-      return res.json(updated);
+      { res.json(updated); return; }
     }
 
     const [created] = await db
@@ -125,11 +125,11 @@ router.post("/availability", requireAuth, async (req, res) => {
 router.get("/availability/participation/:leagueId/:weekOf", requireAuth, async (req, res) => {
   try {
     const { userId } = getAuth(req);
-    const leagueId = parseInt(req.params.leagueId);
+    const leagueId = parseInt(String(req.params.leagueId));
     const weekOf = req.params.weekOf;
 
     if (!(await isLeagueAdmin(userId!, leagueId))) {
-      return res.status(403).json({ error: "Forbidden: league admin only" });
+      { res.status(403).json({ error: "Forbidden: league admin only" }); return; }
     }
 
     const players = await db
@@ -189,11 +189,11 @@ router.get("/availability/participation/:leagueId/:weekOf", requireAuth, async (
 router.post("/availability/remind/:leagueId/:weekOf", requireAuth, async (req, res) => {
   try {
     const { userId } = getAuth(req);
-    const leagueId = parseInt(req.params.leagueId);
+    const leagueId = parseInt(String(req.params.leagueId));
     const weekOf = req.params.weekOf;
 
     if (!(await isLeagueAdmin(userId!, leagueId))) {
-      return res.status(403).json({ error: "Forbidden: league admin only" });
+      { res.status(403).json({ error: "Forbidden: league admin only" }); return; }
     }
 
     const result = await db.transaction(async (tx) => {
@@ -271,11 +271,11 @@ router.post("/availability/remind/:leagueId/:weekOf", requireAuth, async (req, r
     });
 
     if (result.blocked) {
-      return res.status(409).json({
+      { res.status(409).json({
         error: `Availability reminders were already sent in the last ${REMINDER_COOLDOWN_HOURS} hours`,
         lastReminder: result.lastReminder,
         reminderCooldownHours: REMINDER_COOLDOWN_HOURS,
-      });
+      }); return; }
     }
 
     let notified = 0;

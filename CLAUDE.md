@@ -67,7 +67,7 @@ pnpm --filter @workspace/api-server exec vitest run src/__tests__/roundPairing.t
 cd artifacts/ml-server && .venv/bin/python -m pytest tests/test_court_detection.py   # ML tests; venv setup in README
 ```
 
-`pnpm typecheck` passes for `lib/*`, `artifacts/mobile`, and `scripts`. `artifacts/api-server` still has 98 type errors carried over from the original build; check that you haven't added new ones, and fix them in files you touch. The ML server needs Python 3.10+ and OpenCV below 5.
+`pnpm typecheck` passes everywhere, including `artifacts/api-server`, and CI fails on any type error. The ML server needs Python 3.10+ and OpenCV below 5.
 
 API tests live in `src/__tests__/`, run in the node environment, and mock `@clerk/express`, the logger, object storage, and `@workspace/db` with `vi.mock`, then exercise routers through `supertest`. No live database is needed.
 

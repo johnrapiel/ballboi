@@ -1,4 +1,4 @@
-<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (exported 2026-10-28, rev 54). The live doc wins if they differ. Refresh this file when the live doc changes. -->
+<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-10-29 with rev 57: decision log 1 to 28 and Milestone moments match the live doc; decision 29 isn't in the live doc yet; the league rules in Leagues, Discover, Ball Boi Rating, After the match and the match recap are ahead of the live doc's body text). The live doc wins if they differ. Refresh this file when the live doc changes. -->
 
 # Ball Boi: Flows and Feature Spec
 
@@ -45,7 +45,7 @@ Everyone has the same account type. Admin is a role on a specific league, so one
 
 **Intent paths**
 
-- **Run a league:** name, format, Private or Open, season dates, then a share link
+- **Run a league:** name, format, Private or Open, season start date and length, then a share link
 - **Join a league:** paste an invite code, or browse Open leagues nearby
 - **Find matches:** set weekly availability, then land on Discover
 - **Record my play:** 30-second phone mounting guide, camera and mic permission asked here
@@ -78,7 +78,7 @@ One in-app rating on the NTRP scale (2.5 to 5.0+) drives all matching. It avoids
 
 - **Starts self-rated:** onboarding quiz with plain descriptions, labeled "Self-rated" with icon and text
 - **Verified by UTR link:** OAuth via the UTR Engage API seeds the rating and shows a "Verified" badge with icon and text
-- **Adjusts from results:** every confirmed score nudges both players' ratings; doubles results count at half weight
+- **Adjusts from results:** every entered score nudges both players' ratings, including matches played in a league's grace period; doubles results count at half weight
 - **Match range:** ±0.5 by default, widenable to ±1.0
 - **Rating history:** shown as a trend line on the profile
 
@@ -110,10 +110,10 @@ Discover is always local: results are bounded by distance, never a national feed
 2. Request holds date and time window, court, singles or practice hit, optional note
 3. Recipient accepts, counters with a new time, or declines
 4. Both players confirm the day before; reminder 2 hours out
-5. Either player logs the score, the other confirms, and both ratings update
+5. Either player enters the score; the first score entered stands, and both ratings update
 6. Reliability shows on player cards: "Played 12 · 1 no-show"
 
-**Joining an Open league:** request a spot, admin approves; full leagues queue requests on a waitlist for next season.
+**Joining an Open league:** request a spot before the season starts, admin approves. Once the season starts the league locks to new joins; full and locked leagues hold requests on a waitlist for next season.
 
 ## Messaging and moderation
 
@@ -157,16 +157,29 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 - **Eligibility:** rating range and roster cap for Open leagues
 - **Format:** Flex or Round robin; Ladder comes later
 - **Play type:** singles, fixed-partner doubles, or rotating-partner doubles
-- **Season:** 6 to 12 weeks, optional playoff for top 4 or 8
-- **Rules:** weekly deadline and forfeit or no-result for unplayed matches
+- **Season start:** any day, chosen with a calendar picker
+- **Season length:** a number input with − and + buttons, 8 weeks by default, 1 to 24 weeks; optional playoff for top 4 or 8
+- **Deadline:** weekly deadline for each round, then a fixed 1-week grace period for every league (not an admin setting)
+- **Create** is the primary button at the bottom of the new league flow
+
+**Scores and standings**
+
+- **Standings rank on wins only**
+- **The first score entered stands:** either player enters it; there's no confirm or dispute step
+- **Grace period:** a match played in the week after its round's deadline updates both players' ratings and Ball Boi stats, but not standings
+
+**Joining and leaving**
+
+- **Every league locks to new joins once the season starts,** Private and Open alike. The waitlist holds requests for next season
+- **Dropouts:** when a player leaves mid-season, their played matches stay, their remaining matches are voided, and they're removed from standings
 
 **Weekly loop (Flex)**
 
-1. App pairs players Monday morning by rating, availability, and who hasn't played whom
+1. App pairs players each week on the morning of the season's start weekday (a season starting on a Thursday pairs every Thursday), by rating, availability, and who hasn't played whom
 2. Admin can swap pairings, mark a bye, or lock a match before publishing
 3. Players schedule inside the match thread using the same request flow as Discover
-4. Scores logged and confirmed; standings update
-5. Unplayed matches resolve by the admin's rule after Sunday night
+4. Either player enters the score; the first score entered stands and standings update
+5. Unplayed matches get a 1-week grace period after the round's deadline; matches played in it update ratings and Ball Boi stats but not standings
 
 **League chat**
 
@@ -201,7 +214,7 @@ The phone films with the rear camera, so its screen faces away from the court. V
 
 **After the match**
 
-- **Score prompt at stop** posts to standings right away; the opponent confirms as usual
+- **Score prompt at stop** posts to standings right away (ratings and stats only if the match is in its grace period); the first score entered stands
 - **Replay processing card:** no video playback; the match shows upload and analysis status ("Waiting for Wi-Fi · Upload now on cellular," then "Analyzing")
 - **Upload:** Wi-Fi by default with a cellular toggle in settings; background upload survives the app closing; video stays on the phone until the server confirms
 - **Push** when the simulated replay and stats are ready
@@ -269,9 +282,25 @@ The player card is a brag sheet, never a scouting report: it shows strengths and
 - **VoiceOver reads the card as one summary,** e.g. "Alex Kim, 3.5 Verified, 14 and 6, 22 aces this season"
 - **Career stats:** full personal history, reached from Profile
 
-**Shareable match recap:** auto-generated after each confirmed match with score, aces, and winners, sized for Instagram Stories and texts, carrying the Ball Boi logo.
+**Shareable match recap:** auto-generated after each match's score is entered with score, aces, and winners, sized for Instagram Stories and texts, carrying the Ball Boi logo.
 
 **Court directory:** public and club courts with surface, lights, and court count; players can add missing courts. Feeds home court, match requests, and open matches.
+
+## Milestone moments
+
+Four moments get a short animation and a haptic. Everything else uses standard iOS transitions.
+
+| Moment | Animation | Haptic |
+| --- | --- | --- |
+| Match result confirmed | Score settles in; Ball Boi Rating counts to its new value and shows the change | Success |
+| New career milestone | Badge scales in as a ring draws around it, then the title fades up. Launch set: first win, first Ball Boi match, 5- and 10-match win streaks | Success |
+| Player card reveal | Card flips from the Ball Boi back to the front, on the first view of each player only | Light |
+| Ball Boi analysis ready | Shot markers drop onto the court one by one, then "Your replay is ready" | Light ticks |
+
+- **Short and once:** each runs under 1 second, plays once, and never blocks input
+- **Built with Reanimated**
+- **Reduce Motion:** every moment becomes a 200ms fade with the final state shown at once; haptics still fire
+- **VoiceOver:** each outcome is announced in text, e.g. "Rating up 0.04 to 3.54" or "Milestone: First win"
 
 ## Pricing
 
@@ -316,6 +345,7 @@ These decisions add launch-blocking items to the submission checklist. Strangers
 - **Swipe actions:** long-press menu and VoiceOver custom actions as alternatives (2.5.7)
 - **Voice cues:** captions mirror to the Live Activity, never audio-only; Start and Stop buttons labeled for VoiceOver (1.1.1, 1.3.3, 4.1.2)
 - **Radius and rating range controls:** 44×44pt targets, Dynamic Type safe (2.5.8, 1.4.4)
+- **Milestone animations:** a 200ms fade replaces motion under Reduce Motion; each moment's outcome is announced to VoiceOver in text (2.3.3, 4.1.3)
 
 ## Roadmap
 
@@ -327,7 +357,7 @@ _Phases are ordered, not dated. The live doc shows these as a chart._
 
 Coaching tips return only once a coach-authored library exists, and doubles analysis waits on per-player shot attribution.
 
-## Decision log (updated Oct 21, 2026)
+## Decision log (updated Oct 29, 2026)
 
 | # | Decision |
 | --- | --- |
@@ -352,3 +382,11 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 19 | Familiar over novel (Oct 21): standard iOS patterns, one name per thing everywhere, plain words over branded ones, same action in the same place. Tabs: Home, Leagues, Ball Boi (center), Discover, Messages |
 | 20 | Profile is the fifth tab and Messages moves to the top corner of every tab, with an unread count (Oct 21). Tab order: Home, Leagues, Ball Boi (center), Discover, Profile |
 | 21 | Birth-date fallback uses the native iOS date picker in wheels style, with a neutral prompt and starting date (Oct 21) |
+| 22 | League seasons run 1 to 24 weeks, 8 by default, set with a number input and − / + buttons (replaces 6 to 12 weeks); seasons start on any day from a calendar picker; Create is the primary button at the bottom of the new league flow (Oct 29) |
+| 23 | Standings rank on wins only (Oct 29) |
+| 24 | The first score entered stands; no confirm or dispute flow in Leagues or Discover (Oct 29) |
+| 25 | Every league gets a fixed 1-week grace period after a round's deadline; matches played in it update ratings and Ball Boi stats but not standings. Replaces the admin's forfeit or no-result rule (Oct 29) |
+| 26 | Every league locks to new joins once the season starts; the waitlist holds requests for next season (Oct 29) |
+| 27 | A player who drops out keeps their played matches; their remaining matches are voided and they're removed from standings (Oct 29) |
+| 28 | Subtle animations at four moments (Oct 29): match result confirmed, career milestone, player card reveal (first view only), Ball Boi analysis ready. League standings change dropped. Reanimated with a haptic; a fade under Reduce Motion |
+| 29 | Flex pairings go out each week on the season's start weekday, not always Monday (Oct 29) |
