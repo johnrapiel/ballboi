@@ -28,7 +28,7 @@ function MatchRow({
   const c = useColors();
   const mine = isMine(m, myPlayerId);
   const result = resultLine(m);
-  const note = m.inGrace ? "Grace week: counts for ratings and stats, not standings" : null;
+  const note = m.inGrace ? "Grace week: counts for Ball Boi stats, not standings" : null;
   const scoreable = mine && canEnterScore(round, m);
   const summary = `${m.player1Name} versus ${m.player2Name}. ${result}.${note ? ` ${note}.` : ""}`;
 
@@ -107,7 +107,7 @@ export function RoundCard({
       ) : null}
       {round.phase === "grace" ? (
         <Text variant="small" tone="inkMuted">
-          {`Grace week until ${shortDate(round.graceEnd)}. Scores now count for ratings and stats, not standings.`}
+          {`Grace week until ${shortDate(round.graceEnd)}. Scores now count for Ball Boi stats, not standings.`}
         </Text>
       ) : null}
       <View>

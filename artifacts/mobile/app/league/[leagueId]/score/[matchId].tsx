@@ -144,7 +144,7 @@ export default function EnterScoreScreen() {
         <Text variant="title">{`You vs. ${opponent}`}</Text>
         {round?.phase === "grace" ? (
           <Text variant="small" tone="inkMuted">
-            This is the grace week, so this score counts for ratings and stats, not standings.
+            This is the grace week, so this score counts for Ball Boi stats, not standings.
           </Text>
         ) : null}
       </View>

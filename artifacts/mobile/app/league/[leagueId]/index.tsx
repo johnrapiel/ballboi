@@ -55,7 +55,7 @@ function YourWeek({
     round.phase === "upcoming"
       ? `Starts ${shortDate(round.startDate)}. Play by ${shortDate(round.deadline)}.`
       : round.phase === "grace"
-        ? `Grace week until ${shortDate(round.graceEnd)}. A score now counts for ratings and stats, not standings.`
+        ? `Grace week until ${shortDate(round.graceEnd)}. A score now counts for Ball Boi stats, not standings.`
         : `Play by ${shortDate(round.deadline)}.`;
 
   return (
