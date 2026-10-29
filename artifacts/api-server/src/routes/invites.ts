@@ -3,12 +3,20 @@ import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { leagueInvitesTable, leaguesTable, playersTable, leagueJoinRequestsTable } from "@workspace/db";
 import { eq, and, sql, isNull } from "drizzle-orm";
-import { nanoid } from "nanoid";
+import { customAlphabet } from "nanoid";
 import { isLeagueAdmin } from "../lib/leagueAccess.js";
 import { leagueToday } from "../lib/leagueCalendar.js";
 import { joinOutcome } from "../lib/leagueJoining.js";
 
 const router = Router();
+
+// Codes are typed by hand, so they're uppercase with no look-alike characters
+// (no 0/O, 1/I/L). Older codes were mixed case, so lookups ignore case.
+const newInviteCode = customAlphabet("23456789ABCDEFGHJKMNPQRSTUVWXYZ", 8);
+
+function sameCode(code: string) {
+  return sql`upper(${leagueInvitesTable.code}) = ${code.trim().toUpperCase()}`;
+}
 
 function requireAuth(req: any, res: any, next: any) {
   const { userId } = getAuth(req);
@@ -30,7 +38,7 @@ router.post("/leagues/:leagueId/invites", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "Only this league's admins can manage invites" });
   }
 
-  const code = nanoid(10);
+  const code = newInviteCode();
 
   const [invite] = await db
     .insert(leagueInvitesTable)
@@ -73,7 +81,7 @@ router.get("/leagues/:leagueId/invites", requireAuth, async (req, res) => {
 // Get invite info by code (public)
 router.get("/invites/:code", async (req, res) => {
   const { code } = req.params;
-  const [invite] = await db.select().from(leagueInvitesTable).where(eq(leagueInvitesTable.code, code));
+  const [invite] = await db.select().from(leagueInvitesTable).where(sameCode(code));
   if (!invite) return res.status(404).json({ error: "Invite not found" });
   if (!invite.isActive) return res.status(410).json({ error: "Invite is no longer active" });
 
@@ -107,9 +115,9 @@ router.post("/invites/:code/join", requireAuth, async (req, res) => {
 
   try {
     const result = await db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${code}), 0)`);
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${code.trim().toUpperCase()}), 0)`);
 
-      const [invite] = await tx.select().from(leagueInvitesTable).where(eq(leagueInvitesTable.code, code));
+      const [invite] = await tx.select().from(leagueInvitesTable).where(sameCode(code));
       if (!invite) return { status: 404, payload: { error: "Invite not found" } };
       if (!invite.isActive) return { status: 410, payload: { error: "Invite is no longer active" } };
       if (invite.expiresAt && new Date(invite.expiresAt) < new Date()) {
@@ -215,7 +223,7 @@ router.delete("/invites/:code", requireAuth, async (req, res) => {
   const { code } = req.params;
   const { userId } = getAuth(req);
 
-  const [invite] = await db.select().from(leagueInvitesTable).where(eq(leagueInvitesTable.code, code));
+  const [invite] = await db.select().from(leagueInvitesTable).where(sameCode(code));
   if (!invite) return res.status(404).json({ error: "Invite not found" });
 
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, invite.leagueId));
@@ -224,7 +232,7 @@ router.delete("/invites/:code", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "Only this league's admins can manage invites" });
   }
 
-  await db.update(leagueInvitesTable).set({ isActive: false }).where(eq(leagueInvitesTable.code, code));
+  await db.update(leagueInvitesTable).set({ isActive: false }).where(eq(leagueInvitesTable.id, invite.id));
   return res.status(204).send();
 });
 

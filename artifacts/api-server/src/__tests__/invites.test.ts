@@ -66,6 +66,7 @@ vi.mock("drizzle-orm", () => {
 
 vi.mock("nanoid", () => ({
   nanoid: () => "test-invite-code",
+  customAlphabet: () => () => "TESTCODE",
 }));
 
 async function buildApp() {
