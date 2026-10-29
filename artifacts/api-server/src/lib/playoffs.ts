@@ -7,8 +7,7 @@
 //   2. share of sets won,
 //   3. share of games won,
 //   4. name, so the order is always the same.
-// This tie-break order is a proposal pending John's decision; it lives only in
-// `seedOrder` so it's a one-place change.
+// John chose this order on Oct 29, 2026. It lives only in `seedOrder`.
 
 import { countsForStandings, type Standing, type StandingMatch } from "./leagueStandings.js";
 
