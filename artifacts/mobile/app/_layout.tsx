@@ -53,6 +53,17 @@ function RootLayoutNav() {
       <Stack.Screen name="messages" options={{ ...pushedHeader, title: "Messages" }} />
       <Stack.Screen name="delete-account" options={{ ...pushedHeader, title: "Delete account" }} />
       <Stack.Screen
+        name="league/[leagueId]"
+        options={{
+          headerShown: true,
+          title: "",
+          headerBackButtonDisplayMode: "minimal",
+          headerShadowVisible: false,
+          headerTintColor: colors.ink,
+          headerStyle: { backgroundColor: colors.paper },
+        }}
+      />
+      <Stack.Screen
         name="replay/[matchId]"
         options={{ headerShown: false, presentation: "card" }}
       />
