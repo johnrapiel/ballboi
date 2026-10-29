@@ -160,7 +160,7 @@ export default function StartLeagueScreen() {
   const { user } = useUser();
 
   const scheme = useColorScheme();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const minStart = useMemo(today, []);
 
   const [name, setName] = useState("");
