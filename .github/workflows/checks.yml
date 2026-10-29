@@ -15,9 +15,6 @@ concurrency:
 jobs:
   checks:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -52,14 +49,6 @@ jobs:
             echo "::error::This PR adds API type errors ($count, baseline 98)."
             exit 1
           fi
-
-      - name: TEMP post API errors to PR
-        if: always() && github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          { echo '```'; grep "error TS" api-tsc.log | sed "s#^artifacts/api-server/##" | head -300; echo '```'; } > errs.md
-          gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body-file errs.md
 
       - name: Tests (contrast check + API)
         run: |
