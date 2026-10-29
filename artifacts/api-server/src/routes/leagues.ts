@@ -1,11 +1,12 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
-import { leaguesTable, playersTable, matchesTable, leagueRoundsTable } from "@workspace/db";
+import { leaguesTable, playersTable, matchesTable, leagueRoundsTable, leagueAdminsTable } from "@workspace/db";
 import { CreateLeagueBody, UpdateLeagueBody } from "@workspace/api-zod";
 import { eq, count } from "drizzle-orm";
 import { autoLinkPlayer } from "../lib/autoLinkPlayer.js";
 import { requireAdmin } from "../middlewares/requireAdmin.js";
+import { isLeagueAdmin } from "../lib/leagueAccess.js";
 import { getPastSeasonNames } from "../services/seasonService.js";
 import { accumulateScoreTotals, calculatePoints } from "../lib/scoringUtils.js";
 import { SKILL_LEVELS, seasonDates, validateLeagueSetup } from "../lib/leagueSetup.js";
@@ -23,11 +24,17 @@ router.get("/leagues", async (req, res) => {
   let leagues = await db.select().from(leaguesTable).orderBy(leaguesTable.createdAt);
 
   if (clerkUserId) {
-    const memberPlayers = await db
-      .select({ leagueId: playersTable.leagueId })
-      .from(playersTable)
-      .where(eq(playersTable.clerkUserId, clerkUserId));
-    const memberLeagueIds = memberPlayers
+    const [memberPlayers, adminRows] = await Promise.all([
+      db
+        .select({ leagueId: playersTable.leagueId })
+        .from(playersTable)
+        .where(eq(playersTable.clerkUserId, clerkUserId)),
+      db
+        .select({ leagueId: leagueAdminsTable.leagueId })
+        .from(leagueAdminsTable)
+        .where(eq(leagueAdminsTable.clerkUserId, clerkUserId)),
+    ]);
+    const memberLeagueIds = [...memberPlayers, ...adminRows]
       .map((p) => p.leagueId)
       .filter((id): id is number => id !== null);
     leagues = leagues.filter(
@@ -113,6 +120,9 @@ router.post("/leagues", requireAuth, async (req, res) => {
         createdByClerkUserId: userId!,
       })
       .returning();
+
+    // The creator owns the league and can promote co-admins (spec: Roles).
+    await tx.insert(leagueAdminsTable).values({ leagueId: league.id, clerkUserId: userId!, role: "owner" });
 
     if (playing) {
       await tx.insert(playersTable).values({
@@ -313,8 +323,8 @@ router.post("/leagues/:leagueId/players", requireAuth, async (req: Request, res:
   const { userId } = getAuth(req);
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
-  if (league.createdByClerkUserId !== userId) {
-    { res.status(403).json({ error: "Only the league creator can add players directly" }); return; }
+  if (!(await isLeagueAdmin(leagueId, userId!))) {
+    { res.status(403).json({ error: "Only this league's admins can add players directly" }); return; }
   }
 
   const { name, email, phone, skillLevel, dominantHand, bio } = req.body;

@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { leagueInvitesTable, leaguesTable, playersTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { isLeagueAdmin } from "../lib/leagueAccess.js";
 
 const router = Router();
 
@@ -23,8 +24,8 @@ router.post("/leagues/:leagueId/invites", requireAuth, async (req, res) => {
 
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (!league) return res.status(404).json({ error: "League not found" });
-  if (league.createdByClerkUserId !== userId) {
-    return res.status(403).json({ error: "Only the league creator can manage invites" });
+  if (!(await isLeagueAdmin(league.id, userId!))) {
+    return res.status(403).json({ error: "Only this league's admins can manage invites" });
   }
 
   const code = nanoid(10);
@@ -55,8 +56,8 @@ router.get("/leagues/:leagueId/invites", requireAuth, async (req, res) => {
   const { userId } = getAuth(req);
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (!league) return res.status(404).json({ error: "League not found" });
-  if (league.createdByClerkUserId !== userId) {
-    return res.status(403).json({ error: "Only the league creator can manage invites" });
+  if (!(await isLeagueAdmin(league.id, userId!))) {
+    return res.status(403).json({ error: "Only this league's admins can manage invites" });
   }
 
   const invites = await db
@@ -172,8 +173,8 @@ router.delete("/invites/:code", requireAuth, async (req, res) => {
 
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, invite.leagueId));
   if (!league) return res.status(404).json({ error: "League not found" });
-  if (league.createdByClerkUserId !== userId) {
-    return res.status(403).json({ error: "Only the league creator can manage invites" });
+  if (!(await isLeagueAdmin(league.id, userId!))) {
+    return res.status(403).json({ error: "Only this league's admins can manage invites" });
   }
 
   await db.update(leagueInvitesTable).set({ isActive: false }).where(eq(leagueInvitesTable.code, code));
