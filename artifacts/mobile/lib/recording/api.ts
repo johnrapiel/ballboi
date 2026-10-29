@@ -64,3 +64,41 @@ export async function logDoublesView(matchId: number, getToken: () => Promise<st
     // A missed count isn't worth bothering anyone about.
   }
 }
+
+export type RecordingStage = "uploading" | "analyzing" | "ready" | "failed";
+
+export interface ServerRecording {
+  sessionId: number;
+  matchId: number;
+  opponentName: string;
+  recordedAt: string;
+  stage: RecordingStage;
+  scoreEntered: boolean;
+}
+
+export const recordingsKey = ["recording", "sessions"] as const;
+
+/** Your recent recordings on the server. Checks again every 30 s while any is analyzing. */
+export function useServerRecordings() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: recordingsKey,
+    queryFn: async (): Promise<ServerRecording[]> => {
+      const res = await apiFetch("/api/recording/sessions", getToken);
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't load your recordings."));
+      return (await res.json()) as ServerRecording[];
+    },
+    refetchInterval: (q) =>
+      (q.state.data ?? []).some((r) => r.stage === "uploading" || r.stage === "analyzing") ? 30_000 : false,
+  });
+}
+
+/** "Today", "Yesterday", or "Oct 21". */
+export function recordedDay(iso: string, now = new Date()): string {
+  const d = new Date(iso);
+  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(now) - day(d)) / 86_400_000);
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}

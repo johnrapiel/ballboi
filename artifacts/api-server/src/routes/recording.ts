@@ -1,12 +1,13 @@
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { getAuth } from "@clerk/express";
-import { ballBoiDoublesViewsTable, db, leaguesTable, matchesTable, playersTable } from "@workspace/db";
-import { eq, inArray, or } from "drizzle-orm";
+import { ballBoiDoublesViewsTable, ballBoiSessionsTable, db, leaguesTable, matchesTable, playersTable } from "@workspace/db";
+import { and, desc, eq, gte, inArray, or } from "drizzle-orm";
 import pino from "pino";
 import {
   byScheduledTime,
   isRecordableToday,
   parseWhen,
+  recordingStage,
   toRecordableMatch,
   type RecordableMatch,
 } from "../lib/recordableMatches";
@@ -84,6 +85,69 @@ router.get("/recording/todays-matches", requireAuth, async (req: Request, res: R
   } catch (err) {
     logger.error({ err }, "Failed to list today's matches");
     res.status(500).json({ error: "Couldn't load today's matches." });
+  }
+});
+
+/** How far back the Ball Boi tab lists your recordings. */
+const RECENT_DAYS = 60;
+
+/**
+ * GET /recording/sessions
+ * The caller's recent recordings on the server, newest first, for the Ball
+ * Boi tab's processing cards. Recordings still on the phone come from the
+ * phone's own upload queue, not from here.
+ */
+router.get("/recording/sessions", requireAuth, async (req: Request, res: Response) => {
+  const userId = getAuth(req).userId!;
+  try {
+    const since = new Date(Date.now() - RECENT_DAYS * 24 * 60 * 60 * 1000);
+    const sessions = await db
+      .select({
+        id: ballBoiSessionsTable.id,
+        matchId: ballBoiSessionsTable.matchId,
+        status: ballBoiSessionsTable.status,
+        processingStatus: ballBoiSessionsTable.processingStatus,
+        createdAt: ballBoiSessionsTable.createdAt,
+      })
+      .from(ballBoiSessionsTable)
+      .where(and(eq(ballBoiSessionsTable.recordedByClerkUserId, userId), gte(ballBoiSessionsTable.createdAt, since)))
+      .orderBy(desc(ballBoiSessionsTable.createdAt))
+      .limit(30);
+    if (sessions.length === 0) {
+      res.json([]);
+      return;
+    }
+    const matchIds = [...new Set(sessions.map((s) => s.matchId))];
+    const [matches, me] = await Promise.all([
+      db.select().from(matchesTable).where(inArray(matchesTable.id, matchIds)),
+      db.select({ id: playersTable.id }).from(playersTable).where(eq(playersTable.clerkUserId, userId)),
+    ]);
+    const myIds = me.map((p) => p.id);
+    const playerIds = [
+      ...new Set(matches.flatMap((m) => [m.player1Id, m.player2Id, m.player3Id, m.player4Id]).filter((id): id is number => id != null)),
+    ];
+    const players = playerIds.length
+      ? await db.select({ id: playersTable.id, name: playersTable.name }).from(playersTable).where(inArray(playersTable.id, playerIds))
+      : [];
+    const names = Object.fromEntries(players.map((p) => [p.id, p.name]));
+    const byId = new Map(matches.map((m) => [m.id, m]));
+    res.json(
+      sessions.map((s) => {
+        const m = byId.get(s.matchId);
+        const described = m ? toRecordableMatch(m, myIds, names, {}) : null;
+        return {
+          sessionId: s.id,
+          matchId: s.matchId,
+          opponentName: described?.opponentName ?? "Opponent",
+          recordedAt: s.createdAt.toISOString(),
+          stage: recordingStage(s.status, s.processingStatus),
+          scoreEntered: !!m?.score,
+        };
+      }),
+    );
+  } catch (err) {
+    logger.error({ err }, "Failed to list recordings");
+    res.status(500).json({ error: "Couldn't load your recordings." });
   }
 });
 

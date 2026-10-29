@@ -12,6 +12,8 @@ import {
 } from "@workspace/api-client-react";
 import * as LegacyFS from "expo-file-system/legacy";
 
+const MAX_INT32 = 2_147_483_647;
+
 export interface RecordingToUpload {
   matchId: number;
   /** Set once the server has a session for this recording. */
@@ -47,7 +49,10 @@ export async function uploadRecording(rec: RecordingToUpload & { sessionId: numb
   await completeBallBoiSession(rec.sessionId, {
     objectPath,
     contentType: "video/quicktime",
-    sizeBytes: rec.sizeBytes,
+    // ball_boi_sessions.video_size_bytes is a 32-bit integer, so files over
+    // 2 GB (about 35 minutes of 1080p) would fail here. Capped until Session E
+    // widens the column to bigint; the size is informational only.
+    sizeBytes: Math.min(rec.sizeBytes, MAX_INT32),
     durationSeconds: rec.durationSeconds,
   });
 }

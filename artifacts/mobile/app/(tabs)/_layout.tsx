@@ -11,6 +11,7 @@ import { Image, Platform, StyleSheet, useColorScheme, type ImageSourcePropType }
 
 import { useColors } from "@/hooks/useColors";
 import { isAgeCheckPassed } from "@/lib/ageCheck";
+import { useUploadRunner } from "@/lib/recording/uploader";
 
 // The five tabs, in order, with Ball Boi in the center (spec: Navigation).
 // Labels are the words used everywhere else in the app for these places.
@@ -111,6 +112,8 @@ export default function TabLayout() {
   useEffect(() => {
     setAuthTokenGetter(() => getToken());
   }, [getToken]);
+  // Ball Boi uploads: resume at launch, on foreground, and when Wi-Fi comes back.
+  useUploadRunner();
 
   if (!isLoaded) return null;
   if (!isSignedIn) return <Redirect href="/(auth)/welcome" />;
