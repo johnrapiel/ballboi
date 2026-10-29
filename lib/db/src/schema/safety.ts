@@ -100,3 +100,41 @@ export type UserBlock = typeof userBlocksTable.$inferSelect;
 export type ContentReport = typeof contentReportsTable.$inferSelect;
 export type ReportSource = (typeof REPORT_SOURCES)[number];
 export type MessagingRestriction = typeof messagingRestrictionsTable.$inferSelect;
+
+export const AGENT_ACTIONS = ["hide", "restrict", "dismiss", "escalate"] as const;
+export type AgentAction = (typeof AGENT_ACTIONS)[number];
+
+/**
+ * The Claude moderation agent's decisions (spec: Enforcement ladder step 3).
+ * It reviews reports nobody has acted on after 6 hours. John confirms or
+ * undoes every decision; undo reverses the action.
+ */
+export const moderationAgentDecisionsTable = pgTable(
+  "moderation_agent_decisions",
+  {
+    id: serial("id").primaryKey(),
+    reportId: integer("report_id")
+      .notNull()
+      .references(() => contentReportsTable.id, { onDelete: "cascade" }),
+    action: text("action").notNull(),
+    /** The agent's logged reason, in plain words. */
+    reason: text("reason").notNull(),
+    /** Hidden message, or restricted account, so undo knows what to reverse. */
+    messageId: text("message_id"),
+    subjectClerkUserId: text("subject_clerk_user_id"),
+    restrictionId: integer("restriction_id"),
+    /** The report's status before the agent acted, restored on undo. */
+    previousStatus: text("previous_status").notNull(),
+    model: text("model").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    undoneAt: timestamp("undone_at", { withTimezone: true }),
+    reviewedBy: text("reviewed_by"),
+  },
+  (table) => [
+    uniqueIndex("uq_moderation_agent_decisions_report").on(table.reportId),
+    index("idx_moderation_agent_decisions_pending").on(table.confirmedAt, table.undoneAt),
+  ],
+);
+
+export type ModerationAgentDecision = typeof moderationAgentDecisionsTable.$inferSelect;
