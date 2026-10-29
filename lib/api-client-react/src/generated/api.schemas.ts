@@ -438,6 +438,10 @@ export const CreateLeagueBodyPlayoffSize = {
   NUMBER_8: 8,
 } as const;
 
+/**
+ * Ignored. Every league has a fixed 1-week grace period (decision 25).
+ * @deprecated
+ */
 export type CreateLeagueBodyUnplayedRule =
   (typeof CreateLeagueBodyUnplayedRule)[keyof typeof CreateLeagueBodyUnplayedRule];
 
@@ -481,6 +485,10 @@ export interface CreateLeagueBody {
    */
   seasonWeeks: number;
   playoffSize?: CreateLeagueBodyPlayoffSize;
+  /**
+   * Ignored. Every league has a fixed 1-week grace period (decision 25).
+   * @deprecated
+   */
   unplayedRule?: CreateLeagueBodyUnplayedRule;
   /** @nullable */
   location?: string | null;

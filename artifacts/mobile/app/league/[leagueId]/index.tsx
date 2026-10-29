@@ -1,11 +1,19 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
+  getGetLeagueMembershipQueryKey,
+  getGetLeagueQueryKey,
+  getGetLeagueScheduleQueryKey,
+  getGetLeagueStandingsQueryKey,
+  getGetLeaguesQueryKey,
+  getGetMyPlayersQueryKey,
   useGetLeague,
   useGetLeagueMembership,
+  useLeaveLeague,
   useGetLeagueSchedule,
   useGetLeagueStandings,
   type ScheduleMatch,
@@ -87,6 +95,8 @@ export default function LeagueScreen() {
   const { leagueId: raw } = useLocalSearchParams<{ leagueId: string }>();
   const leagueId = Number(raw);
   const [tab, setTab] = useState<Tab>("standings");
+  const queryClient = useQueryClient();
+  const leave = useLeaveLeague();
 
   const leagueQ = useGetLeague(leagueId);
   const membershipQ = useGetLeagueMembership(leagueId);
@@ -125,6 +135,48 @@ export default function LeagueScreen() {
     league?.startDate && league.endDate ? `Season ${dateRange(league.startDate, league.endDate)}` : null;
 
   const draft = schedule?.rounds.find((r) => r.phase === "draft");
+  const started = !!league?.startDate && !!schedule && schedule.today >= league.startDate;
+
+  // Dropouts (decision 27): played matches stay, the rest are cancelled.
+  function confirmLeave() {
+    if (!league) return;
+    Alert.alert(
+      `Leave ${league.name}?`,
+      started
+        ? "Your played matches stay. Your remaining matches are cancelled, your opponents are told, and you leave the standings. You can't rejoin this season."
+        : "You can rejoin with the invite code until the season starts.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Leave league",
+          style: "destructive",
+          onPress: () =>
+            leave
+              .mutateAsync({ leagueId })
+              .then(async () => {
+                await Promise.all(
+                  [
+                    getGetLeagueMembershipQueryKey(leagueId),
+                    getGetLeagueQueryKey(leagueId),
+                    getGetLeagueScheduleQueryKey(leagueId),
+                    getGetLeagueStandingsQueryKey(leagueId),
+                    getGetLeaguesQueryKey().slice(0, 1),
+                    getGetMyPlayersQueryKey(),
+                  ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+                );
+                AccessibilityInfo.announceForAccessibility(`You left ${league.name}`);
+                router.back();
+              })
+              .catch((e) =>
+                Alert.alert(
+                  "Couldn't leave the league",
+                  (e as { data?: { error?: string } | null }).data?.error ?? "Try again in a moment.",
+                ),
+              ),
+        },
+      ],
+    );
+  }
 
   return (
     <ScrollView
@@ -259,6 +311,16 @@ export default function LeagueScreen() {
                 <Text tone="inkMuted">This league doesn't have playoffs this season.</Text>
               )}
             </Card>
+          ) : null}
+
+          {membershipQ.data?.isPlaying && league.status !== "completed" ? (
+            <Button
+              label="Leave league"
+              variant="destructive"
+              loading={leave.isPending}
+              onPress={confirmLeave}
+              style={{ marginTop: spacing.space6 }}
+            />
           ) : null}
         </>
       )}

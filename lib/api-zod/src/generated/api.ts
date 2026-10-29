@@ -82,7 +82,12 @@ export const CreateLeagueBody = zod
     playoffSize: zod
       .union([zod.literal(0), zod.literal(4), zod.literal(8)])
       .optional(),
-    unplayedRule: zod.enum(["forfeit", "no_result"]).optional(),
+    unplayedRule: zod
+      .enum(["forfeit", "no_result"])
+      .optional()
+      .describe(
+        "Ignored. Every league has a fixed 1-week grace period (decision 25).",
+      ),
     location: zod.string().nullish(),
     playing: zod
       .boolean()
