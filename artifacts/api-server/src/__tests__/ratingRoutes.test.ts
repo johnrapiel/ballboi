@@ -8,30 +8,31 @@ vi.mock("@clerk/express", () => ({
   getAuth: () => ({ userId: mockUserId }),
   clerkMiddleware: () => (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
-
 vi.mock("pino", () => ({ default: () => ({ warn: vi.fn(), info: vi.fn(), error: vi.fn() }) }));
 
-const setSelfRating = vi.fn();
-const getRating = vi.fn();
+// Each select returns the next queued result; updates are recorded.
+const selectQueue: unknown[][] = [];
+const updates: unknown[] = [];
 
-vi.mock("../services/ratingService", () => {
-  class RatingError extends Error {
-    constructor(
-      message: string,
-      readonly status: number,
-    ) {
-      super(message);
-    }
-  }
-  return {
-    RatingError,
-    setSelfRating: (...a: unknown[]) => setSelfRating(...a),
-    getRating: (...a: unknown[]) => getRating(...a),
-  };
-});
+vi.mock("@workspace/db", () => ({
+  db: {
+    select: () => ({ from: () => ({ where: async () => selectQueue.shift() ?? [] }) }),
+    update: () => ({
+      set: (values: unknown) => ({
+        where: () => ({
+          returning: async () => {
+            updates.push(values);
+            const v = values as { rating: number; ratingSource: string };
+            return [{ rating: v.rating, ratingSource: v.ratingSource }];
+          },
+        }),
+      }),
+    }),
+  },
+  usersTable: { clerkUserId: {}, rating: {}, ratingSource: {} },
+}));
 
 import ratingsRouter from "../routes/ratings";
-import { RatingError } from "../services/ratingService";
 
 function app() {
   const a = express();
@@ -42,8 +43,8 @@ function app() {
 
 beforeEach(() => {
   mockUserId = "user_rater";
-  setSelfRating.mockReset();
-  getRating.mockReset();
+  selectQueue.length = 0;
+  updates.length = 0;
 });
 
 describe("POST /users/me/rating/self", () => {
@@ -52,35 +53,34 @@ describe("POST /users/me/rating/self", () => {
     await app().post("/api/users/me/rating/self").send({ rating: 3.5 }).expect(401);
   });
 
-  it("only accepts a quiz rating", async () => {
+  it("only accepts a quiz level", async () => {
     await app().post("/api/users/me/rating/self").send({ rating: 3.7 }).expect(400);
     await app().post("/api/users/me/rating/self").send({ rating: "3.5" }).expect(400);
-    expect(setSelfRating).not.toHaveBeenCalled();
+    expect(updates).toHaveLength(0);
   });
 
-  it("saves a Self-rated starting rating", async () => {
-    setSelfRating.mockResolvedValue({ rating: 3.5, ratingSource: "self" });
+  it("saves a Self-rated level", async () => {
+    selectQueue.push([{ ratingSource: null }]);
     const res = await app().post("/api/users/me/rating/self").send({ rating: 3.5 }).expect(200);
-    expect(setSelfRating).toHaveBeenCalledWith("user_rater", 3.5);
+    expect(updates).toEqual([{ rating: 3.5, ratingSource: "self" }]);
     expect(res.body).toEqual({ rating: 3.5, source: "self" });
   });
 
-  it("passes through a conflict, such as a Verified rating", async () => {
-    setSelfRating.mockRejectedValue(new RatingError("Your rating comes from your linked UTR account.", 409));
+  it("can be changed anytime", async () => {
+    selectQueue.push([{ ratingSource: "self" }]);
+    await app().post("/api/users/me/rating/self").send({ rating: 4.0 }).expect(200);
+    expect(updates).toEqual([{ rating: 4.0, ratingSource: "self" }]);
+  });
+
+  it("leaves a Verified rating alone", async () => {
+    selectQueue.push([{ ratingSource: "verified" }]);
     const res = await app().post("/api/users/me/rating/self").send({ rating: 3.0 }).expect(409);
     expect(res.body.error).toMatch(/UTR/);
-  });
-});
-
-describe("GET /users/me/rating", () => {
-  it("returns the rating and history", async () => {
-    getRating.mockResolvedValue({ rating: 3.54, source: "self", history: [{ rating: 3.5 }, { rating: 3.54 }] });
-    const res = await app().get("/api/users/me/rating").expect(200);
-    expect(res.body.history).toHaveLength(2);
+    expect(updates).toHaveLength(0);
   });
 
-  it("404s before the profile exists", async () => {
-    getRating.mockResolvedValue(null);
-    await app().get("/api/users/me/rating").expect(404);
+  it("needs a profile first", async () => {
+    selectQueue.push([]);
+    await app().post("/api/users/me/rating/self").send({ rating: 3.0 }).expect(404);
   });
 });

@@ -1,12 +1,13 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { getAuth } from "@clerk/express";
+import { db, usersTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import pino from "pino";
 import { isQuizRating } from "../lib/rating";
-import { RatingError, getRating, setSelfRating } from "../services/ratingService";
 
-// Ball Boi Rating endpoints. Spec: Ball Boi Rating and onboarding step 5.
-// Rating changes from entered scores happen server-side in
-// services/ratingService.ts (applyMatchResult), never from the app.
+// Ball Boi Rating. Spec: Ball Boi Rating and onboarding step 5.
+// The rating is a level for matching. Players set it with the quiz during
+// onboarding and can change it anytime; results never move it.
 
 const logger = pino({ name: "ratings" });
 const router: IRouter = Router();
@@ -19,31 +20,38 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-/** GET /users/me/rating: current rating, Self-rated or Verified, and history. */
-router.get("/users/me/rating", requireAuth, async (req, res) => {
-  const result = await getRating(getAuth(req).userId!);
-  if (!result) {
-    res.status(404).json({ error: "User profile not found" });
-    return;
-  }
-  res.json(result);
-});
-
-/** POST /users/me/rating/self { rating }: starting rating from the onboarding quiz. */
+/**
+ * POST /users/me/rating/self { rating }
+ * Sets the player's level from the quiz, labeled Self-rated. Allowed anytime,
+ * unless a linked UTR account sets it (Verified).
+ */
 router.post("/users/me/rating/self", requireAuth, async (req, res) => {
+  const userId = getAuth(req).userId!;
   const rating = req.body?.rating;
   if (!isQuizRating(rating)) {
     res.status(400).json({ error: "Pick one of the descriptions." });
     return;
   }
   try {
-    const updated = await setSelfRating(getAuth(req).userId!, rating);
-    res.json({ rating: updated.rating, source: updated.ratingSource });
-  } catch (err) {
-    if (err instanceof RatingError) {
-      res.status(err.status).json({ error: err.message });
+    const [user] = await db
+      .select({ ratingSource: usersTable.ratingSource })
+      .from(usersTable)
+      .where(eq(usersTable.clerkUserId, userId));
+    if (!user) {
+      res.status(404).json({ error: "Set up your profile first." });
       return;
     }
+    if (user.ratingSource === "verified") {
+      res.status(409).json({ error: "Your rating comes from your linked UTR account." });
+      return;
+    }
+    const [updated] = await db
+      .update(usersTable)
+      .set({ rating, ratingSource: "self" })
+      .where(eq(usersTable.clerkUserId, userId))
+      .returning({ rating: usersTable.rating, ratingSource: usersTable.ratingSource });
+    res.json({ rating: updated.rating, source: updated.ratingSource });
+  } catch (err) {
     logger.error({ err }, "Self rating failed");
     res.status(500).json({ error: "We couldn't save your rating. Try again." });
   }

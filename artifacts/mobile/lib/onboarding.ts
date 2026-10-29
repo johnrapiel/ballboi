@@ -42,8 +42,8 @@ export function isZip(v: string): boolean {
 // ─── Rating quiz ─────────────────────────────────────────────────────────────
 
 /**
- * Plain-language descriptions that set a starting Ball Boi Rating (NTRP scale).
- * The API only accepts these ratings.
+ * Plain-language descriptions that set a Ball Boi Rating (NTRP scale), the
+ * player's level for matching. The API only accepts these ratings.
  */
 export const QUIZ_LEVELS: { rating: number; title: string; description: string }[] = [
   {
@@ -73,10 +73,9 @@ export const QUIZ_LEVELS: { rating: number; title: string; description: string }
   },
 ];
 
-/** "3.5" for half steps, "3.54" once results move it. */
+/** "3.5". Ratings are levels in half steps. */
 export function formatRating(n: number): string {
-  const r = Math.round(n * 100) / 100;
-  return Number.isInteger(r * 2) ? r.toFixed(1) : r.toFixed(2);
+  return n.toFixed(1);
 }
 
 export type RatingSource = "self" | "verified";

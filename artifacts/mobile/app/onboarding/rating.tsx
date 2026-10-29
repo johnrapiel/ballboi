@@ -1,7 +1,8 @@
 // Onboarding step 5: rating quiz (spec: Roles and onboarding; Ball Boi Rating).
-// Pick the description that sounds most like you. It sets a starting Ball Boi
-// Rating on the NTRP scale, labeled Self-rated. "Link UTR instead" is shown but
-// disabled until the UTR Engage integration lands.
+// Pick the description that sounds most like you. It sets the Ball Boi Rating,
+// the player's level for matching on the NTRP scale, labeled Self-rated.
+// Results don't move it. "Link UTR instead" is shown but disabled until the UTR
+// Engage integration lands.
 
 import { useAuth } from "@clerk/expo";
 import { useRouter } from "expo-router";
@@ -40,7 +41,7 @@ export default function RatingStep() {
     <OnboardingStep
       step="rating"
       title="How do you play?"
-      subtitle="Pick the one that sounds most like you. It sets your starting Ball Boi Rating, and your results adjust it from there."
+      subtitle="Pick the one that sounds most like you. It sets your Ball Boi Rating, which we use to match you with players at your level. You can change it later."
       footer={<Button label="Continue" onPress={next} loading={busy} disabled={rating == null} />}
     >
       <View accessibilityRole="radiogroup" accessibilityLabel="Your level" style={{ gap: spacing.space3 }}>
@@ -49,7 +50,7 @@ export default function RatingStep() {
             key={level.rating}
             title={level.title}
             description={level.description}
-            meta={{ text: formatRating(level.rating), spoken: `Starts at ${formatRating(level.rating)}` }}
+            meta={{ text: formatRating(level.rating), spoken: `Rating ${formatRating(level.rating)}` }}
             selected={rating === level.rating}
             onPress={() => setRating(level.rating)}
           />
@@ -59,7 +60,7 @@ export default function RatingStep() {
       {rating != null ? (
         <View style={{ gap: spacing.space2 }}>
           <Text variant="label" tone="inkMuted">
-            You'll start at
+            Your rating
           </Text>
           <RatingBadge rating={rating} source="self" />
         </View>

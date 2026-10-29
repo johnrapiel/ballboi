@@ -14,8 +14,9 @@ export const usersTable = pgTable("users", {
   bio: text("bio"),
   onboardingComplete: boolean("onboarding_complete").notNull().default(false),
   /**
-   * Ball Boi Rating, NTRP scale (2.5 to 7.0), two decimals. Null until the
-   * onboarding quiz or a UTR link sets it. Spec: Ball Boi Rating.
+   * Ball Boi Rating: the player's level for matching, NTRP scale. Null until the
+   * onboarding quiz or a UTR link sets it. Results don't move it; the player can
+   * change it anytime. Spec: Ball Boi Rating.
    */
   rating: numeric("rating", { precision: 4, scale: 2, mode: "number" }),
   /** "self" (quiz, shown as Self-rated) or "verified" (linked UTR). */
