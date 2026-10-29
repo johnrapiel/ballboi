@@ -53,6 +53,41 @@ function RootLayoutNav() {
       <Stack.Screen name="messages" options={{ ...pushedHeader, title: "Messages" }} />
       <Stack.Screen name="delete-account" options={{ ...pushedHeader, title: "Delete account" }} />
       <Stack.Screen
+        name="league/new"
+        options={{
+          headerShown: true,
+          presentation: "modal",
+          title: "New league",
+          headerShadowVisible: false,
+          headerTintColor: colors.ink,
+          headerStyle: { backgroundColor: colors.paper },
+          headerTitleStyle: { fontFamily: "DMSans_600SemiBold", color: colors.ink },
+        }}
+      />
+      <Stack.Screen
+        name="league/join"
+        options={{
+          headerShown: false,
+          presentation: "formSheet",
+          sheetAllowedDetents: "fitToContents",
+          sheetGrabberVisible: true,
+          sheetCornerRadius: 18,
+          contentStyle: { backgroundColor: colors.linen },
+        }}
+      />
+      <Stack.Screen
+        name="league/invite/[leagueId]"
+        options={{
+          headerShown: true,
+          presentation: "modal",
+          title: "",
+          gestureEnabled: false,
+          headerShadowVisible: false,
+          headerTintColor: colors.ink,
+          headerStyle: { backgroundColor: colors.paper },
+        }}
+      />
+      <Stack.Screen
         name="league/[leagueId]"
         options={{
           headerShown: true,

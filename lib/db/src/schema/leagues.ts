@@ -13,6 +13,15 @@ export const leaguesTable = pgTable("leagues", {
   endDate: text("end_date"),
   location: text("location"),
   createdByClerkUserId: text("created_by_clerk_user_id"),
+  // Setup options (spec: Leagues > Setup). Migration 20261021_league_setup.sql.
+  visibility: text("visibility").notNull().default("private"), // private | open
+  partnerMode: text("partner_mode"), // doubles only: fixed | rotating
+  minRating: text("min_rating"), // Open leagues: eligibility range, NTRP scale
+  maxRating: text("max_rating"),
+  rosterCap: integer("roster_cap"),
+  seasonWeeks: integer("season_weeks"), // 6 to 12
+  playoffSize: integer("playoff_size").notNull().default(0), // 0, 4, or 8
+  unplayedRule: text("unplayed_rule").notNull().default("no_result"), // forfeit | no_result
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

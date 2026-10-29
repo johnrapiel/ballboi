@@ -1617,7 +1617,7 @@ components:
           type: ["string", "null"]
         format:
           type: string
-          enum: ["round_robin", "elimination", "swiss"]
+          enum: ["flex", "round_robin", "elimination", "swiss"]
         status:
           type: string
           enum: ["active", "completed", "upcoming"]
@@ -1631,6 +1631,26 @@ components:
           type: ["string", "null"]
         createdByClerkUserId:
           type: ["string", "null"]
+        visibility:
+          type: string
+          enum: ["private", "open"]
+        partnerMode:
+          type: ["string", "null"]
+          enum: ["fixed", "rotating", null]
+        minRating:
+          type: ["string", "null"]
+        maxRating:
+          type: ["string", "null"]
+        rosterCap:
+          type: ["integer", "null"]
+        seasonWeeks:
+          type: ["integer", "null"]
+        playoffSize:
+          type: integer
+          enum: [0, 4, 8]
+        unplayedRule:
+          type: string
+          enum: ["forfeit", "no_result"]
         playerCount:
           type: integer
         matchCount:
@@ -1645,37 +1665,76 @@ components:
         - format
         - status
         - playerCount
+        - visibility
+        - playoffSize
+        - unplayedRule
         - matchCount
         - createdAt
         - updatedAt
 
     CreateLeagueBody:
       type: object
+      description: >-
+        Start a league (spec: Leagues > Setup). Anyone signed in can start one and
+        becomes its admin. With playing true, the admin also joins as a player.
       properties:
         name:
           type: string
+          minLength: 1
+          maxLength: 60
         description:
           type: ["string", "null"]
         format:
           type: string
-          enum: ["round_robin", "elimination", "swiss"]
+          enum: ["flex", "round_robin", "elimination", "swiss"]
         status:
           type: string
           enum: ["active", "completed", "upcoming"]
         leagueType:
+          type: string
+          enum: ["singles", "doubles"]
+        partnerMode:
           type: ["string", "null"]
+          enum: ["fixed", "rotating", null]
+        visibility:
+          type: string
+          enum: ["private", "open"]
+        minRating:
+          type: ["string", "null"]
+        maxRating:
+          type: ["string", "null"]
+        rosterCap:
+          type: ["integer", "null"]
+          minimum: 2
+          maximum: 64
         startDate:
-          type: ["string", "null"]
-        endDate:
-          type: ["string", "null"]
+          type: string
+          description: First day of the season, YYYY-MM-DD
+        seasonWeeks:
+          type: integer
+          minimum: 6
+          maximum: 12
+        playoffSize:
+          type: integer
+          enum: [0, 4, 8]
+        unplayedRule:
+          type: string
+          enum: ["forfeit", "no_result"]
         location:
           type: ["string", "null"]
-        createdByClerkUserId:
+        playing:
+          type: boolean
+          description: The admin plays in the league too (default true)
+        playerName:
+          type: ["string", "null"]
+          description: The admin's name in the league, when playing
+        skillLevel:
           type: ["string", "null"]
       required:
         - name
         - format
-        - status
+        - startDate
+        - seasonWeeks
 
     UpdateLeagueBody:
       type: object
@@ -1686,7 +1745,7 @@ components:
           type: ["string", "null"]
         format:
           type: ["string", "null"]
-          enum: ["round_robin", "elimination", "swiss", null]
+          enum: ["flex", "round_robin", "elimination", "swiss", null]
         status:
           type: ["string", "null"]
           enum: ["active", "completed", "upcoming", null]
