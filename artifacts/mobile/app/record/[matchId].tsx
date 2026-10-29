@@ -36,12 +36,12 @@ import {
 import { drainQueue } from "@/lib/recording/uploader";
 import { prepareVoice, say, stopVoice } from "@/lib/recording/voice";
 
-type Phase = "ready" | "countdown" | "recording" | "saving" | "saved" | "error";
+type Phase = "ready" | "countdown" | "recording" | "saving" | "error";
 
 export default function RecordScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ matchId: string; opponent?: string }>();
+  const params = useLocalSearchParams<{ matchId: string; opponent?: string; league?: string }>();
   const matchId = Number(params.matchId);
   const opponent = params.opponent ?? "your opponent";
 
@@ -238,8 +238,18 @@ export default function RecordScreen() {
       recordedAt: new Date().toISOString(),
     });
     drainQueue();
-    setPhase("saved");
     AccessibilityInfo.announceForAccessibility("Match saved. It uploads on Wi-Fi.");
+    // Straight to the score prompt; the stop message carries over.
+    router.replace({
+      pathname: "/record/score/[matchId]",
+      params: {
+        matchId: String(matchId),
+        opponent,
+        rec: id,
+        ...(params.league ? { league: params.league } : {}),
+        ...(reason !== "user" ? { stopped: reason } : {}),
+      },
+    });
   }
 
   const recording = phase === "recording";
@@ -377,7 +387,7 @@ export default function RecordScreen() {
           </View>
         ) : null}
 
-        {phase === "saving" || phase === "saved" || phase === "error" ? (
+        {phase === "saving" || phase === "error" ? (
           <View style={[styles.panel, { backgroundColor: chrome.panel, alignSelf: "stretch" }]}>
             {stopReason !== "user" && phase !== "error" ? (
               <View style={{ flexDirection: "row", gap: spacing.space2, alignItems: "center" }} accessible>
@@ -394,17 +404,6 @@ export default function RecordScreen() {
                   Saving your match
                 </Text>
               </View>
-            ) : null}
-            {phase === "saved" ? (
-              <>
-                <Text variant="title" accessibilityRole="header" style={{ color: chrome.text }}>
-                  Saved
-                </Text>
-                <Text style={{ color: chrome.textMuted }}>
-                  Your match uploads on Wi-Fi, then Ball Boi analyzes it. Follow along in the Ball Boi tab.
-                </Text>
-                <ChromeButton label="Done" onPress={() => router.back()} />
-              </>
             ) : null}
             {phase === "error" ? (
               <>

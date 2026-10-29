@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import supertest from "supertest";
-import { inviteUrl, newInviteCode, parseQuickMatch, pickableOpponents } from "../lib/quickMatch";
+import { flipScore, inviteUrl, newInviteCode, parseQuickMatch, parseSideScore, pickableOpponents } from "../lib/quickMatch";
 
 describe("parseQuickMatch", () => {
   it("defaults to singles and takes a picked player", () => {
@@ -49,6 +49,25 @@ describe("invite codes", () => {
     const code = newInviteCode();
     expect(code).toMatch(/^[A-HJ-NP-Z2-9]{8}$/);
     expect(inviteUrl(code)).toBe(`https://ballboi.tennis/record/invite/${code}`);
+  });
+});
+
+describe("parseSideScore and flipScore", () => {
+  it("reads a score from the entering player's side", () => {
+    expect(parseSideScore("6-3, 7-6(4)")).toEqual({ ok: true, score: "6-3, 7-6(4)", winnerSide: 1 });
+    expect(parseSideScore("3-6,6-4, 7-10")).toEqual({ ok: true, score: "3-6, 6-4, 7-10", winnerSide: 2 });
+  });
+
+  it("explains impossible scores", () => {
+    expect(parseSideScore("6-6")).toMatchObject({ ok: false });
+    expect(parseSideScore("6-3, 3-6")).toMatchObject({ ok: false });
+    expect(parseSideScore("six-three")).toMatchObject({ ok: false });
+    expect(parseSideScore("")).toMatchObject({ ok: false });
+    expect(parseSideScore(undefined)).toMatchObject({ ok: false });
+  });
+
+  it("flips to the other side, keeping tiebreak points", () => {
+    expect(flipScore("6-3, 7-6(4)")).toBe("3-6, 6-7(4)");
   });
 });
 
@@ -110,6 +129,7 @@ vi.mock("drizzle-orm", () => ({
   and: (...a: unknown[]) => a,
   or: (...a: unknown[]) => a,
   isNull: (a: unknown) => a,
+  ne: (a: unknown, b: unknown) => ({ a, b }),
   inArray: (a: unknown, b: unknown) => ({ a, b }),
 }));
 
