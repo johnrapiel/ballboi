@@ -3,7 +3,7 @@ import { leaguesTable } from "./leagues";
 
 // Admin is a role on a specific league (spec: Roles and onboarding). The
 // creator is the owner; any admin can promote a member to co-admin.
-// Migration 20261029_league_rules.sql.
+// Migration 20261029_c_league_rules.sql.
 
 export const LEAGUE_ADMIN_ROLES = ["owner", "co_admin"] as const;
 export type LeagueAdminRole = (typeof LEAGUE_ADMIN_ROLES)[number];

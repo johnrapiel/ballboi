@@ -34,7 +34,7 @@ export const matchesTable = pgTable("matches", {
   playoffRound: text("playoff_round"),
   playoffSlot: integer("playoff_slot"),
   season: text("season"),
-  // League rules (migration 20261029_league_rules.sql):
+  // League rules (migration 20261029_c_league_rules.sql):
   // locked: an admin kept this pairing, so a re-pair leaves it alone.
   locked: boolean("locked").notNull().default(false),
   // voidedAt: the match was cancelled because a player dropped out (decision 27).

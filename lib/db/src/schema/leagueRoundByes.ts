@@ -3,7 +3,7 @@ import { leagueRoundsTable } from "./leagueRounds";
 import { playersTable } from "./players";
 
 // A player sitting out a round: the odd one out, or an admin's choice.
-// Migration 20261029_league_rules.sql.
+// Migration 20261029_c_league_rules.sql.
 export const leagueRoundByesTable = pgTable(
   "league_round_byes",
   {

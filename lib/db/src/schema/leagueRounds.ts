@@ -11,7 +11,7 @@ export const leagueRoundsTable = pgTable("league_rounds", {
   endDate: text("end_date").notNull(),
   status: text("status").notNull().default("active"),
   // Null while an admin reviews the pairings; set when the round goes out
-  // to players (decision 29). Migration 20261029_league_rules.sql.
+  // to players (decision 29). Migration 20261029_c_league_rules.sql.
   publishedAt: timestamp("published_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [

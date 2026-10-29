@@ -4,7 +4,7 @@ import { leaguesTable } from "./leagues";
 
 // Requests to join an Open league before its season starts, and the waitlist
 // for next season once a league is locked or full (decision 26).
-// Migration 20261029_league_rules.sql.
+// Migration 20261029_c_league_rules.sql.
 
 export const JOIN_REQUEST_KINDS = ["request", "waitlist"] as const;
 export const JOIN_REQUEST_STATUSES = ["pending", "approved", "declined", "withdrawn"] as const;
