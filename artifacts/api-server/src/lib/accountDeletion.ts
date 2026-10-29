@@ -14,6 +14,7 @@ import {
 } from "@workspace/db";
 import { eq, inArray, or, sql } from "drizzle-orm";
 import { ObjectStorageService } from "./objectStorage";
+import { deleteRecordingData } from "./recordingCleanup";
 
 /**
  * App Store guideline 5.1.1(v): people must be able to delete their account and
@@ -155,6 +156,7 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
       .update(contentReportsTable)
       .set({ reporterClerkUserId: null })
       .where(eq(contentReportsTable.reporterClerkUserId, clerkUserId));
+    await deleteRecordingData(tx, clerkUserId);
     await tx.delete(usersTable).where(eq(usersTable.clerkUserId, clerkUserId));
 
     const sessionPaths = sessions.map((s) => s.videoObjectPath).filter((p): p is string => !!p);

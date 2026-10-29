@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import React from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 
+import { DoublesMatchCard } from "@/components/record/DoublesMatchCard";
 import { TodaysMatchCard } from "@/components/record/TodaysMatchCard";
 import { TabScreen } from "@/components/TabHeader";
 import { Button, Card, Text } from "@/components/ui";
@@ -16,7 +17,7 @@ export default function BallBoiScreen() {
   const c = useColors();
   const router = useRouter();
   const today = useTodaysMatches();
-  const singles = (today.data ?? []).filter((m) => m.format === "singles");
+  const matches = today.data ?? [];
 
   return (
     <TabScreen title="Ball Boi">
@@ -38,16 +39,20 @@ export default function BallBoiScreen() {
               <Text>Couldn't load today's matches.</Text>
               <Button variant="secondary" label="Try again" onPress={() => today.refetch()} />
             </Card>
-          ) : singles.length === 0 ? (
+          ) : matches.length === 0 ? (
             <Text tone="inkMuted">No matches on your schedule today.</Text>
           ) : (
-            singles.map((m) => (
-              <TodaysMatchCard
-                key={m.id}
-                match={m}
-                onRecord={() => openRecorder(router, { matchId: m.id, opponentName: m.opponentName })}
-              />
-            ))
+            matches.map((m) =>
+              m.format === "doubles" ? (
+                <DoublesMatchCard key={m.id} match={m} />
+              ) : (
+                <TodaysMatchCard
+                  key={m.id}
+                  match={m}
+                  onRecord={() => openRecorder(router, { matchId: m.id, opponentName: m.opponentName })}
+                />
+              ),
+            )
           )}
         </View>
       </ScrollView>

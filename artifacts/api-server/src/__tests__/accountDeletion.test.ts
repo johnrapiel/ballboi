@@ -13,6 +13,7 @@ vi.mock("@clerk/express", () => ({
 }));
 
 vi.mock("../lib/autoLinkPlayer.js", () => ({ autoLinkPlayersForUser: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("../lib/recordingCleanup", () => ({ deleteRecordingData: vi.fn().mockResolvedValue(undefined) }));
 
 // A fake transaction that records what was deleted and updated.
 type Call = { op: string; table: string; values?: unknown };
