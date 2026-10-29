@@ -3,7 +3,8 @@
 // - Either player enters the score. The first score entered stands: there's no
 //   confirm or dispute step (decision 24).
 // - A match scored in the week after its round's deadline is a grace-week
-//   match: it updates ratings and Ball Boi stats, not standings (decision 25).
+//   match: it counts for Ball Boi stats, not standings (decision 25; ratings
+//   don't move on results, per the Oct 29 Ball Boi Rating decision).
 //   After the grace week, the match can't be scored.
 //
 // Pure functions, so they're easy to test.

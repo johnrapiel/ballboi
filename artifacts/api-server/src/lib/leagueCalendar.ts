@@ -32,7 +32,7 @@ export interface RoundWindow {
   startDate: string;
   /** Last day to play for standings. */
   deadline: string;
-  /** Last day of the grace week: scores still count for ratings and stats. */
+  /** Last day of the grace week: scores still count for Ball Boi stats. */
   graceEnd: string;
 }
 
