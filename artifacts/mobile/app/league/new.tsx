@@ -23,11 +23,7 @@ import { useColors } from "@/hooks/useColors";
 
 type Format = "flex" | "round_robin";
 type PlayType = "singles" | "fixed" | "rotating";
-type Visibility = "private" | "open";
 type Unplayed = "no_result" | "forfeit";
-
-const RATINGS = ["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"] as const;
-type Rating = (typeof RATINGS)[number];
 
 /** The next six Mondays. Pairings go out Monday mornings, so seasons start on one. */
 function upcomingMondays(count = 6): Date[] {
@@ -86,10 +82,6 @@ export default function StartLeagueScreen() {
   const [location, setLocation] = useState("");
   const [format, setFormat] = useState<Format>("flex");
   const [playType, setPlayType] = useState<PlayType>("singles");
-  const [visibility, setVisibility] = useState<Visibility>("private");
-  const [minRating, setMinRating] = useState<Rating>("3.0");
-  const [maxRating, setMaxRating] = useState<Rating>("4.0");
-  const [rosterCap, setRosterCap] = useState("");
   const [start, setStart] = useState(dateKey(mondays[0]));
   const [weeks, setWeeks] = useState(8);
   const [playoffs, setPlayoffs] = useState<0 | 4 | 8>(0);
@@ -100,10 +92,7 @@ export default function StartLeagueScreen() {
   const playerName =
     user?.fullName?.trim() || user?.firstName?.trim() || user?.primaryEmailAddress?.emailAddress?.split("@")[0] || "";
 
-  const ratingsInOrder = Number(minRating) <= Number(maxRating);
-  const cap = rosterCap.trim() ? Number(rosterCap) : null;
-  const capValid = cap === null || (Number.isInteger(cap) && cap >= 2 && cap <= 64);
-  const canCreate = name.trim().length > 0 && (visibility === "private" || (ratingsInOrder && capValid)) && !saving;
+  const canCreate = name.trim().length > 0 && !saving;
 
   async function create() {
     if (!canCreate) return;
@@ -113,10 +102,12 @@ export default function StartLeagueScreen() {
       format,
       leagueType: playType === "singles" ? "singles" : "doubles",
       partnerMode: playType === "singles" ? null : playType,
-      visibility,
-      minRating: visibility === "open" ? minRating : null,
-      maxRating: visibility === "open" ? maxRating : null,
-      rosterCap: visibility === "open" ? cap : null,
+      // Open leagues (listed in Discover, with join requests) come back once
+      // Discover and join requests are built. Until then every league is private.
+      visibility: "private",
+      minRating: null,
+      maxRating: null,
+      rosterCap: null,
       startDate: start,
       seasonWeeks: weeks,
       playoffSize: playoffs,
@@ -175,7 +166,7 @@ export default function StartLeagueScreen() {
             ]}
             hint={
               format === "flex"
-                ? "Ball Boi pairs players every Monday by rating, availability, and who hasn't played whom."
+                ? "We pair players every Monday by rating, availability, and who hasn't played whom."
                 : "Everyone plays everyone once over the season."
             }
           />
@@ -206,46 +197,7 @@ export default function StartLeagueScreen() {
         </Section>
 
         <Section title="Who can join">
-          <ChoiceGroup<Visibility>
-            label="Visibility"
-            value={visibility}
-            onChange={setVisibility}
-            options={[
-              { value: "private", label: "Private" },
-              { value: "open", label: "Open" },
-            ]}
-            hint={
-              visibility === "private"
-                ? "Players join with your invite link or code."
-                : "Listed in Discover. Players near you request to join, and you approve them."
-            }
-          />
-          {visibility === "open" ? (
-            <>
-              <ChoiceGroup<Rating>
-                label="Lowest rating"
-                value={minRating}
-                onChange={setMinRating}
-                options={RATINGS.map((r) => ({ value: r, label: r }))}
-              />
-              <ChoiceGroup<Rating>
-                label="Highest rating"
-                value={maxRating}
-                onChange={setMaxRating}
-                options={RATINGS.map((r) => ({ value: r, label: r }))}
-                hint={ratingsInOrder ? undefined : "The highest rating needs to be at or above the lowest."}
-              />
-              <Field
-                label="Most players (optional)"
-                value={rosterCap}
-                onChangeText={(t) => setRosterCap(t.replace(/[^0-9]/g, ""))}
-                placeholder="16"
-                keyboardType="number-pad"
-                hint={capValid ? "Leave blank for no limit." : "Enter a number from 2 to 64."}
-                error={!capValid}
-              />
-            </>
-          ) : null}
+          <Text>Players join with your invite link or code.</Text>
         </Section>
 
         <Section title="Season">
