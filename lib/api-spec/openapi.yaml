@@ -611,6 +611,23 @@ paths:
               schema:
                 $ref: "#/components/schemas/LeagueAdmin"
 
+  /leagues/{leagueId}/roster:
+    get:
+      operationId: getLeagueRoster
+      tags: [leagues]
+      summary: Everyone playing this season, with their admin role (admins only)
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      responses:
+        "200":
+          description: Active players by name
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RosterPlayer"
+
   /leagues/{leagueId}/admins/{clerkUserId}:
     delete:
       operationId: removeLeagueAdmin
@@ -1872,6 +1889,23 @@ components:
         name:
           type: string
       required: [clerkUserId, role, playerId, name]
+
+    RosterPlayer:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        name:
+          type: string
+        skillLevel:
+          type: string
+        hasAccount:
+          type: boolean
+          description: False for players an admin added by name; they can't be co-admins
+        role:
+          type: ["string", "null"]
+          enum: [owner, co_admin, null]
+      required: [playerId, name, skillLevel, hasAccount, role]
 
     PlayerIdBody:
       type: object

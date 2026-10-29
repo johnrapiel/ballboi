@@ -103,6 +103,8 @@ export * from "./playoffSeeding";
 export * from "./playoffsStatusResponse";
 export * from "./resetLeagueRecords200";
 export * from "./resetLeagueRecords200Deleted";
+export * from "./rosterPlayer";
+export * from "./rosterPlayerRole";
 export * from "./roundMatchup";
 export * from "./scheduleBye";
 export * from "./scheduleMatch";

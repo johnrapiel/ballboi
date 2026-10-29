@@ -711,6 +711,28 @@ export const PromoteLeagueAdminBody = zod.object({
 });
 
 /**
+ * @summary Everyone playing this season, with their admin role (admins only)
+ */
+export const GetLeagueRosterParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const GetLeagueRosterResponseItem = zod.object({
+  playerId: zod.number(),
+  name: zod.string(),
+  skillLevel: zod.string(),
+  hasAccount: zod
+    .boolean()
+    .describe(
+      "False for players an admin added by name; they can't be co-admins",
+    ),
+  role: zod
+    .union([zod.literal("owner"), zod.literal("co_admin"), zod.literal(null)])
+    .nullable(),
+});
+export const GetLeagueRosterResponse = zod.array(GetLeagueRosterResponseItem);
+
+/**
  * @summary Remove a co-admin (the owner), or step down (a co-admin)
  */
 export const RemoveLeagueAdminParams = zod.object({
