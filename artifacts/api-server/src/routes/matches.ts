@@ -314,14 +314,18 @@ router.patch("/matches/:matchId", async (req, res) => {
     existingMatch.player4Id,
   ].filter((id): id is number => id != null);
 
-  const isParticipant = callerPlayer != null && participantIds.includes(callerPlayer.id);
 
-  // Block re-submission when the match is already completed, unless the caller
-  // is a participant correcting their own score.
-  if (parsed.data.status === "completed" && existingMatch.status === "completed" && !isParticipant) {
+  // The first score entered stands: no corrections or disputes once a match
+  // is completed (decision 24).
+  const changesResult =
+    parsed.data.status != null || parsed.data.score !== undefined || parsed.data.winnerId !== undefined;
+  if (existingMatch.status === "completed" && changesResult) {
     return res.status(409).json({
-      error: "This match result has already been recorded. Refresh the page to see the latest result.",
+      error: "A score is already in for this match. The first score entered stands.",
     });
+  }
+  if (existingMatch.voidedAt && changesResult) {
+    return res.status(409).json({ error: "This match was cancelled when a player left the league." });
   }
 
   // Winner/score consistency check.
