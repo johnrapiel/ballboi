@@ -223,6 +223,20 @@ describe("sending", () => {
   });
 });
 
+describe("opening a chat from a player", () => {
+  it("finds your existing conversation, and nothing for strangers or declined requests", async () => {
+    expect(await svc.conversationWithPlayer("alex", 2)).toBeNull();
+    const { conversationId } = await svc.start("alex", { playerId: 2, text: "Hi", clientMessageId: mid() });
+    expect(await svc.conversationWithPlayer("alex", 2)).toBe(conversationId);
+    expect(await svc.conversationWithPlayer("blair", 1)).toBe(conversationId);
+    const req = await svc.start("alex", { playerId: 3, text: "Hi", clientMessageId: mid() });
+    await svc.decline("casey", req.conversationId);
+    expect(await svc.conversationWithPlayer("casey", 1)).toBeNull();
+    expect(await svc.conversationWithPlayer("alex", 3)).toBe(req.conversationId);
+    expect(await svc.conversationWithPlayer("alex", "x")).toBeNull();
+  });
+});
+
 describe("contacts and account deletion", () => {
   it("lists league mates, minus blocks", async () => {
     expect(await svc.contacts("alex")).toEqual([{ name: "Blair Diaz", playerId: 2 }]);

@@ -68,6 +68,14 @@ export function createMessagesRouter(getService: () => MessagingService = getMes
     }),
   );
 
+  router.get(
+    "/messages/with-player/:playerId",
+    requireAuth,
+    handle(async (svc, me, req, res) => {
+      res.json({ conversationId: await svc.conversationWithPlayer(me, req.params.playerId) });
+    }),
+  );
+
   router.post(
     "/messages",
     requireAuth,
