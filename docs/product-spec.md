@@ -1,4 +1,4 @@
-<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-10-29 with rev 66). The live doc wins if they differ. Refresh this file when the live doc changes. -->
+<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-10-29 with rev 67). The live doc wins if they differ. Refresh this file when the live doc changes. -->
 
 # Ball Boi: Flows and Feature Spec
 
