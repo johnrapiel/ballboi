@@ -1,10 +1,12 @@
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
-import { leagueInvitesTable, leaguesTable, playersTable } from "@workspace/db";
-import { eq, and, sql } from "drizzle-orm";
+import { leagueInvitesTable, leaguesTable, playersTable, leagueJoinRequestsTable } from "@workspace/db";
+import { eq, and, sql, isNull } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { isLeagueAdmin } from "../lib/leagueAccess.js";
+import { leagueToday } from "../lib/leagueCalendar.js";
+import { joinOutcome } from "../lib/leagueJoining.js";
 
 const router = Router();
 
@@ -76,13 +78,20 @@ router.get("/invites/:code", async (req, res) => {
   if (!invite.isActive) return res.status(410).json({ error: "Invite is no longer active" });
 
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, invite.leagueId));
-  const playerCount = await db.select().from(playersTable).where(eq(playersTable.leagueId, invite.leagueId));
+  const players = await db.select().from(playersTable).where(eq(playersTable.leagueId, invite.leagueId));
+  const activeCount = players.filter((p) => !p.leftAt).length;
+  // Tells the join screen up front whether joining now means the waitlist.
+  const outcome = league
+    ? joinOutcome({ league, activePlayerCount: activeCount, today: leagueToday(), via: "invite" })
+    : null;
 
   return res.json({
     ...invite,
     leagueName: league?.name ?? "Unknown",
     leagueSport: null, // leagues have no sport column; kept for the API contract
-    playerCount: playerCount.length,
+    playerCount: activeCount,
+    waitlistOnly: outcome?.kind === "waitlist",
+    waitlistReason: outcome?.kind === "waitlist" ? outcome.reason : null,
   });
 });
 
@@ -118,7 +127,7 @@ router.post("/invites/:code/join", requireAuth, async (req, res) => {
         .from(playersTable)
         .where(and(eq(playersTable.leagueId, invite.leagueId), eq(playersTable.clerkUserId, userId!)));
 
-      if (existing) {
+      if (existing && !existing.leftAt) {
         return {
           status: 200,
           payload: {
@@ -126,6 +135,44 @@ router.post("/invites/:code/join", requireAuth, async (req, res) => {
             league: { id: league?.id, name: league?.name },
             message: "Already a member of this league",
           },
+        };
+      }
+      if (!league) return { status: 404, payload: { error: "League not found" } };
+
+      // Every league locks to new joins once its season starts, and a full
+      // league can't take more players. Both go to the waitlist (decision 26).
+      const active = await tx
+        .select({ id: playersTable.id })
+        .from(playersTable)
+        .where(and(eq(playersTable.leagueId, invite.leagueId), isNull(playersTable.leftAt)));
+      const outcome = joinOutcome({ league, activePlayerCount: active.length, today: leagueToday(), via: "invite" });
+      if (outcome.kind === "waitlist") {
+        await tx
+          .insert(leagueJoinRequestsTable)
+          .values({
+            leagueId: invite.leagueId,
+            clerkUserId: userId!,
+            playerName: playerName.trim(),
+            skillLevel: nextSkillLevel,
+            kind: "waitlist",
+          })
+          .onConflictDoNothing();
+        return {
+          status: 202,
+          payload: { waitlisted: true, league: { id: league.id, name: league.name }, message: outcome.reason },
+        };
+      }
+
+      // Someone who left before the season started can rejoin.
+      if (existing) {
+        const [player] = await tx
+          .update(playersTable)
+          .set({ leftAt: null, name: playerName.trim() })
+          .where(eq(playersTable.id, existing.id))
+          .returning();
+        return {
+          status: 200,
+          payload: { player, league: { id: league.id, name: league.name }, message: "Welcome back to the league" },
         };
       }
 
