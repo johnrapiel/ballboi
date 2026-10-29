@@ -48,3 +48,19 @@ export function matchTime(scheduledAt: string | null): string | null {
   if (Number.isNaN(d.getTime())) return null;
   return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
+
+/** Shown wherever Ball Boi is unavailable on a doubles match (spec wording). */
+export const DOUBLES_MESSAGE = "Ball Boi analyzes singles for now. Doubles is coming.";
+
+const loggedDoublesViews = new Set<number>();
+
+/** Counts a view of the doubles disabled state. Once per match per app launch; never throws. */
+export async function logDoublesView(matchId: number, getToken: () => Promise<string | null>) {
+  if (loggedDoublesViews.has(matchId)) return;
+  loggedDoublesViews.add(matchId);
+  try {
+    await apiFetch("/api/recording/doubles-views", getToken, { method: "POST", body: JSON.stringify({ matchId }) });
+  } catch {
+    // A missed count isn't worth bothering anyone about.
+  }
+}
