@@ -1,6 +1,9 @@
 """
-HVT Shot Analysis ML Service
-FastAPI server exposing video analysis endpoints.
+Ball Boi ML service: match analysis for Ball Boi.
+
+/analyze-match-batch runs the shot analysis pipeline (services/pipeline). The
+other endpoints are the legacy single-shot and live-frame analyzers, kept until
+the API stops calling them.
 """
 import os
 import sys
@@ -58,7 +61,8 @@ class LiveMatchRequest(BaseModel):
 
 
 class BatchMatchRequest(BaseModel):
-    video_url: str
+    video_url: str | None = None      # legacy: a URL the ML server downloads
+    video_key: str | None = None      # R2 object path ("/objects/...") or key, read with the S3_* settings
     session_id: int
     match_id: int
     callback_url: str
@@ -150,35 +154,20 @@ def process_and_callback(video_url: str, recording_id: int, callback_url: str):
         logger.error(f"Callback failed: {e}")
 
 
-def process_match_and_callback(video_url: str, session_id: int, match_id: int, callback_url: str, court_calibration: dict | None = None):
+_models = None
+
+
+def _pipeline_models():
+    """Loads the analysis models once. Refuses to run without them unless BALLBOI_ALLOW_FALLBACK=1."""
+    global _models
+    if _models is None:
+        from services.pipeline.models import load_models
+        _models = load_models(allow_fallback=os.environ.get("BALLBOI_ALLOW_FALLBACK") == "1")
+    return _models
+
+
+def _post_callback(callback_url: str, payload: dict) -> None:
     import urllib.request as req_lib
-    from services.analyzer import analyze_video
-
-    video_path = None
-    try:
-        video_path = download_video(video_url)
-        from services.analyzer import analyze_match_video
-        result = analyze_match_video(video_path, court_calibration)
-        result["sessionId"] = session_id
-        result["matchId"] = match_id
-        payload = {
-            "sessionId": session_id,
-            "matchId": match_id,
-            "status": "completed",
-            "result": result,
-        }
-    except Exception as e:
-        logger.error(f"Ball Boi analysis error for session {session_id}: {e}", exc_info=True)
-        payload = {
-            "sessionId": session_id,
-            "matchId": match_id,
-            "status": "failed",
-            "error": str(e),
-        }
-    finally:
-        if video_path and os.path.exists(video_path):
-            os.unlink(video_path)
-
     try:
         data = json.dumps(payload).encode()
         cb_req = req_lib.Request(
@@ -191,6 +180,38 @@ def process_match_and_callback(video_url: str, session_id: int, match_id: int, c
             logger.info(f"Ball Boi callback response: {resp.status}")
     except Exception as e:
         logger.error(f"Ball Boi callback failed: {e}")
+
+
+def process_match_and_callback(video_url: str | None, session_id: int, match_id: int, callback_url: str,
+                               court_calibration: dict | None = None, video_key: str | None = None):
+    """Full match analysis with the shot analysis pipeline, then POST the result to the API."""
+    from services.pipeline.models import ModelsMissing
+    from services.pipeline.run import AnalysisError, analyze_match
+
+    video_path = None
+    try:
+        if video_key:
+            from services.storage import download
+            video_path = download(video_key)
+        elif video_url:
+            video_path = download_video(video_url)
+        else:
+            raise AnalysisError("No video to analyze.")
+        result = analyze_match(video_path, calibration=court_calibration, models=_pipeline_models())
+        result["sessionId"] = session_id
+        result["matchId"] = match_id
+        payload = {"sessionId": session_id, "matchId": match_id, "status": "completed", "result": result}
+    except (AnalysisError, ModelsMissing) as e:
+        logger.warning(f"Ball Boi analysis stopped for session {session_id}: {e}")
+        payload = {"sessionId": session_id, "matchId": match_id, "status": "failed", "error": str(e)}
+    except Exception as e:
+        logger.error(f"Ball Boi analysis error for session {session_id}: {e}", exc_info=True)
+        payload = {"sessionId": session_id, "matchId": match_id, "status": "failed",
+                   "error": "Analysis failed. Please try again."}
+    finally:
+        if video_path and os.path.exists(video_path):
+            os.unlink(video_path)
+    _post_callback(callback_url, payload)
 
 
 @app.get("/health")
@@ -274,6 +295,8 @@ async def detect_court_lines(request: DetectCourtRequest):
 @app.post("/analyze-match-batch", response_model=BatchMatchResponse, dependencies=[Depends(require_ml_secret)])
 async def analyze_match_batch(request: BatchMatchRequest, background_tasks: BackgroundTasks):
     logger.info(f"Received Ball Boi batch request for session_id={request.session_id}")
+    if not request.video_url and not request.video_key:
+        raise HTTPException(status_code=422, detail="Send video_key or video_url")
     background_tasks.add_task(
         process_match_and_callback,
         request.video_url,
@@ -281,6 +304,7 @@ async def analyze_match_batch(request: BatchMatchRequest, background_tasks: Back
         request.match_id,
         request.callback_url,
         request.court_calibration,
+        request.video_key,
     )
     return BatchMatchResponse(session_id=request.session_id, status="processing")
 
