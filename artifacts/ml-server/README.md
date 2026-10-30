@@ -67,3 +67,13 @@ cd artifacts/ml-server && python -m pytest tests
 ```
 
 The end-to-end test renders a synthetic match (camera behind the baseline, real ball physics, serve toss, faults, volleys) and runs the full pipeline with stand-in detectors. It proves the logic; real accuracy comes from the labeled set.
+
+## Footage review
+
+New test-set videos dropped in the shared Google Drive folder get an automatic check: resolution, frame rate, HDR, compression, framing, camera movement, lighting, and whether the ball model can see the ball. You get a Mac notification and a verdict per video (Good, Usable with notes, Needs a re-record) with a drafted note to the friend, in `~/BallBoiTestSet/Review/Review.md`. The review never writes into the shared folder.
+
+```sh
+python -m intake check <video>                 # one file
+bash scripts/mac/install-footage-review.sh     # hourly on this Mac (needs Google Drive for desktop and Docker)
+bash scripts/mac/install-footage-review.sh --uninstall
+```
