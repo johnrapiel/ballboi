@@ -28,6 +28,20 @@ VIDEO_SUFFIXES = {".mp4", ".mov", ".m4v"}
 SETTLE_SECONDS = 120     # skip files modified this recently: they may still be syncing
 
 
+def _looks_like_video(p: Path) -> bool:
+    """By extension, or by the MP4/MOV header for files saved without one (Drive keeps the name as typed)."""
+    if p.suffix.lower() in VIDEO_SUFFIXES:
+        return True
+    if p.suffix:
+        return False
+    try:
+        with open(p, "rb") as f:
+            head = f.read(12)
+    except OSError:
+        return False
+    return len(head) == 12 and head[4:8] in (b"ftyp", b"moov", b"mdat", b"wide", b"free", b"skip")
+
+
 def _ball_detector(allow_missing: bool = True):
     from services.pipeline.models import ModelsMissing, load_models
 
@@ -74,7 +88,7 @@ def scan(folder: Path, out: Path, allow_missing_models: bool = True) -> int:
     now = dt.datetime.now().timestamp()
     todo = []
     for p in sorted(folder.iterdir()):
-        if p.suffix.lower() not in VIDEO_SUFFIXES or p.name.startswith("."):
+        if p.name.startswith(".") or not p.is_file() or not _looks_like_video(p):
             continue
         st = p.stat()
         key = (p.name, st.st_size, int(st.st_mtime))

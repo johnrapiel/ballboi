@@ -177,3 +177,17 @@ def test_unseen_ball_is_a_note_until_the_model_is_trusted(videos, monkeypatch):
     monkeypatch.setattr(ck, "BALL_CHECK_TRUSTED", True)
     findings, _ = ck.check_ball(str(videos["steady"]), meta, NoBall(), windows=2, seconds=0.5)
     assert findings[0].level == "fix"
+
+
+def test_scan_finds_videos_saved_without_an_extension(tmp_path, videos, monkeypatch):
+    folder = tmp_path / "Match Footage"
+    out = tmp_path / "review"
+    folder.mkdir()
+    (folder / "SinglesSet").write_bytes(videos["small"].read_bytes())
+    (folder / "README").write_text("not a video")
+    for f in folder.iterdir():
+        os.utime(f, (1_700_000_000, 1_700_000_000))
+    monkeypatch.setattr("intake.__main__._ball_detector", lambda allow_missing=True: None)
+    scan(folder, out)
+    reviewed = [e["file"] for e in json.loads((out / "review.json").read_text())["entries"]]
+    assert reviewed == ["SinglesSet"]

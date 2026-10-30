@@ -25,9 +25,11 @@ if [ -z "$FOLDER" ]; then
 fi
 
 # Download new videos first (Drive for desktop may only keep a placeholder on disk).
-shopt -s nullglob nocaseglob
-for f in "$FOLDER"/*.mp4 "$FOLDER"/*.mov "$FOLDER"/*.m4v; do
+shopt -s nullglob
+for f in "$FOLDER"/*; do
+  [ -f "$f" ] || continue
   name=$(basename "$f")
+  case "$name" in *.md|*.txt|*.json|*.pdf|*.jpg|*.jpeg|*.png|*.heic) continue ;; esac
   if ! grep -qF "\"file\": \"$name\"" "$OUT/review.json" 2>/dev/null; then
     cat "$f" > /dev/null || echo "Couldn't download $name yet"
   fi
