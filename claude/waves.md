@@ -2,7 +2,7 @@
 
 Owned by the coordinator session ("Train Conductor"), which also merges PRs and keeps the Feature Tracker current. Feature sessions read this file; only the coordinator edits it.
 
-**Current wave: Wave 1**
+**Current wave: Wave 1 review** (all Wave 1 code merged; reviews and walkthrough in progress)
 
 _Created 2026-10-29 against `main` at `59fbb10`. Updated 2026-10-31._
 
@@ -53,13 +53,13 @@ A wave is done when all three hold:
 
 Items marked **John** below are real-world tasks (accounts, filming, legal). They're tracked, but they don't hold a wave open.
 
-**From Wave 2 on, three more:**
+**From the Wave 1 review on, three more:**
 
 4. Every acceptance criterion in the wave's session prompts is met.
 5. John approved each PR's design and flow review before it merged.
 6. John has run the wave's end-to-end walkthrough on his phone, and every finding logged as **Bug** is fixed and merged.
 
-## Reviews: before, during and after each wave (Wave 2 on)
+## Reviews: before, during and after each wave
 
 The goal: users can actually do what each feature sets out to do, with no dead ends, and nothing reaches `main` that John hasn't seen.
 
@@ -82,7 +82,7 @@ The goal: users can actually do what each feature sets out to do, with no dead e
   - **Polish:** a tracker row for later.
 - The wave closes after the Bugs are merged.
 
-**Wave 1** shipped without these. It gets the same treatment **after Waves 2 and 3 are complete**: update `claude/walkthroughs/wave-1.md` for what changed, then do a flow review of every Wave 1 feature for dead ends and missing cases, and an end-to-end walkthrough on the phone. Its Bugs and gaps go into the Wave 4 prompts.
+**Wave 1** shipped without these. It gets the same treatment **before Wave 2 starts** (John, Oct 31), while its screens are still isolated and a fresh build is at hand. See "Wave 1 review" below.
 
 **Session names:** title each feature session "Wave N, Session X" (for example, "Wave 2, Session F") so John can find it.
 
@@ -92,15 +92,15 @@ The goal: users can actually do what each feature sets out to do, with no dead e
 - The coordinator checks every PR in the stack, then merges it bottom-up with merge commits, retargeting each PR to `main` as the one below it lands.
 - If a PR conflicts with `main`, the coordinator stops there and leaves a note on the stack for its session.
 
-## Merge status (2026-10-30)
+## Merge status (2026-10-31)
 
 | Session | State |
 |---|---|
-| A | **Done.** #43 (rating) and #49 (onboarding) merged |
-| B | Stack #46, #52, #56, #62, #60 conflicts with `main`. Note on #46 |
-| C | Stack #41, #47, #53, #58, #61, #63, #64, #65, #66 conflicts with `main`. Note on #41 |
-| D | #42 merged (needs one new development build). #45 to #59 conflict with `main`. Note on #59 |
-| E | #35 and #36 merged. #51 (pipeline) was closed without merging, so #67 is stuck on its branch. Note on #67 |
+| A | **Done.** #43 and #49 merged |
+| B | **Done.** #46, #52, #56, #62, #60, #69, #71, #72, #74 merged |
+| C | **Done.** #41 to #66 (nine PRs) merged |
+| D | **Done.** #42, #45 to #59, #73 and #79 merged |
+| E | **Done.** #35, #36, #70 (carrying #51 and #67), #75 to #78 merged |
 
 ## Wave 1
 
@@ -183,6 +183,17 @@ Native owner: **Session D**. Needs a new development build after D's first nativ
 
 **John:** film 10 to 15 varied singles matches for the test set; create the R2 bucket and CORS (staging first; R2 free tier covers 10 GB).
 
+## Wave 1 review (before Wave 2)
+
+Every Wave 1 PR is merged as of 2026-10-31. Before Wave 2 starts, Wave 1 gets the reviews it skipped. Run by this coordinator.
+
+1. **Tooling PR (Session C):** `pnpm seed:walkthrough` (test accounts B, C, D, a Private league with B in it, today's match A vs B) and dev-only time controls (season started, round deadline passed, in grace period, grace period over, run Flex pairing now), off in production builds. One small PR.
+2. **Flow review with John:** every Wave 1 feature, one question at a time, for dead ends, missing states and cases nobody considered. Findings become new steps in `claude/walkthroughs/wave-1.md`.
+3. **Walkthrough:** John runs `claude/walkthroughs/wave-1.md` on a fresh development build. Section 6 (analysis stats) waits for the labeled test set.
+4. **Bugs** are fixed by their owning session, one small PR each, through the normal merge flow. **Spec gaps** feed Wave 2's flow review. **Polish** goes to the tracker.
+
+Done when every Bug is merged and John has signed off the walkthrough. Then Wave 2's coordinator starts.
+
 ## Wave 2
 
 Native owner: **Session G**. Run by a Wave 2 coordinator session (prompt: `claude/wave-2-coordinator-prompt.md` in the Project), which writes these prompts after the flow review with John.
@@ -204,4 +215,4 @@ Native owner: **Session G**. Run by a Wave 2 coordinator session (prompt: `claud
 
 ## Wave 4 onward
 
-Starts with the deferred **Wave 1 review**: update `claude/walkthroughs/wave-1.md` for what Waves 2 and 3 changed, do a flow review of every Wave 1 feature for dead ends and missing cases, then John runs the end-to-end walkthrough. Its Bugs and gaps become Wave 4 sessions. Then built from whatever is still not Merged in the Feature Tracker, or ❌ or 🟡 in the checklist, until both show every launch-blocking item done. Each wave's prompts are written here when the previous wave closes, after a flow review with John, and each wave ends with a walkthrough.
+Built from whatever is still not Merged in the Feature Tracker, or ❌ or 🟡 in the checklist, until both show every launch-blocking item done. Each wave's prompts are written here when the previous wave closes, after a flow review with John, and each wave ends with a walkthrough.
