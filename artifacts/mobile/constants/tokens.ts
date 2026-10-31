@@ -11,14 +11,20 @@ export const color = {
     "sand": "#E1CDAF",
     "ink": "#0A2447",
     "inkMuted": "#4A5670",
-    "onInk": "#F7F0E3",
+    "onInk": "#FFFFFF",
     "hairline": "rgba(10, 36, 71, 0.16)",
     "hairlineStrong": "rgba(10, 36, 71, 0.52)",
-    "pool": "#255C60",
-    "clay": "#943F24",
-    "sun": "#E9B949",
+    "inkMutedHc": "#34405A",
+    "hairlineHc": "rgba(10, 36, 71, 0.34)",
+    "hairlineStrongHc": "rgba(10, 36, 71, 0.78)",
+    "court": "#2F5A3E",
     "danger": "#8E2B22",
-    "focus": "#255C60"
+    "focus": "#0A2447",
+    "heat1": "rgba(10, 36, 71, 0.10)",
+    "heat2": "rgba(10, 36, 71, 0.26)",
+    "heat3": "rgba(10, 36, 71, 0.55)",
+    "heat4": "rgba(10, 36, 71, 0.75)",
+    "heat5": "#0A2447"
   },
   "dark": {
     "paper": "#071A33",
@@ -29,11 +35,17 @@ export const color = {
     "onInk": "#071A33",
     "hairline": "rgba(241, 230, 210, 0.16)",
     "hairlineStrong": "rgba(241, 230, 210, 0.42)",
-    "pool": "#86C2BC",
-    "clay": "#E2906A",
-    "sun": "#E9B949",
+    "inkMutedHc": "#D6CCBA",
+    "hairlineHc": "rgba(241, 230, 210, 0.30)",
+    "hairlineStrongHc": "rgba(241, 230, 210, 0.66)",
+    "court": "#9DBFA3",
     "danger": "#EF8B7D",
-    "focus": "#86C2BC"
+    "focus": "#F1E6D2",
+    "heat1": "rgba(241, 230, 210, 0.10)",
+    "heat2": "rgba(241, 230, 210, 0.26)",
+    "heat3": "rgba(241, 230, 210, 0.55)",
+    "heat4": "rgba(241, 230, 210, 0.75)",
+    "heat5": "#F1E6D2"
   }
 } as const;
 
@@ -61,7 +73,7 @@ export const type = {
   "displayXl": {
     "fontFamily": "CormorantGaramond_500Medium",
     "fontSize": 56,
-    "lineHeight": 56,
+    "lineHeight": 60,
     "letterSpacing": -0.56
   },
   "displayL": {
@@ -90,18 +102,18 @@ export const type = {
   },
   "body": {
     "fontFamily": "DMSans_400Regular",
-    "fontSize": 15,
-    "lineHeight": 22
+    "fontSize": 17,
+    "lineHeight": 24
   },
   "bodyStrong": {
     "fontFamily": "DMSans_600SemiBold",
-    "fontSize": 15,
-    "lineHeight": 22
+    "fontSize": 17,
+    "lineHeight": 24
   },
   "small": {
     "fontFamily": "DMSans_400Regular",
-    "fontSize": 13,
-    "lineHeight": 18
+    "fontSize": 15,
+    "lineHeight": 20
   },
   "label": {
     "fontFamily": "DMSans_600SemiBold",
@@ -110,13 +122,46 @@ export const type = {
     "letterSpacing": 1.76,
     "textTransform": "uppercase"
   },
+  "chip": {
+    "fontFamily": "DMSans_600SemiBold",
+    "fontSize": 12,
+    "lineHeight": 16,
+    "letterSpacing": 1.68,
+    "textTransform": "uppercase"
+  },
   "button": {
     "fontFamily": "DMSans_600SemiBold",
-    "fontSize": 14,
-    "lineHeight": 20,
-    "letterSpacing": 0.28
+    "fontSize": 16,
+    "lineHeight": 22,
+    "letterSpacing": 0.32
   }
 } satisfies Record<string, TextStyle>;
+
+export type TypeStyle = keyof typeof type;
+
+/** Largest Dynamic Type multiplier per style. Styles not listed scale fully. */
+export const maxScale: Partial<Record<TypeStyle, number>> = {
+  "displayXl": 1.5,
+  "displayL": 1.5,
+  "title": 1.5,
+  "titleItalic": 1.5,
+  "score": 1.5
+};
+
+/** The face one step heavier than each loaded face (Bold Text, Night display). */
+export const heavierFace: Record<string, string> = {
+  "CormorantGaramond_500Medium": "CormorantGaramond_600SemiBold",
+  "CormorantGaramond_600SemiBold": "CormorantGaramond_700Bold",
+  "CormorantGaramond_500Medium_Italic": "CormorantGaramond_600SemiBold_Italic",
+  "CormorantGaramond_600SemiBold_Italic": "CormorantGaramond_600SemiBold_Italic",
+  "DMSans_400Regular": "DMSans_600SemiBold",
+  "DMSans_500Medium": "DMSans_600SemiBold",
+  "DMSans_600SemiBold": "DMSans_700Bold",
+  "DMSans_700Bold": "DMSans_700Bold"
+};
+
+/** Display (Cormorant) faces, which go one step heavier on Night session. */
+export const displayFaces: readonly string[] = ["CormorantGaramond_500Medium","CormorantGaramond_600SemiBold","CormorantGaramond_700Bold","CormorantGaramond_500Medium_Italic","CormorantGaramond_600SemiBold_Italic"];
 
 /** Minimum touch target, in points (Apple HIG, WCAG 2.5.8). */
 export const MIN_TAP = 44;
