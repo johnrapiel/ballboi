@@ -16,6 +16,9 @@ export const playersTable = pgTable("players", {
   leagueId: integer("league_id").references(() => leaguesTable.id, { onDelete: "set null" }),
   wins: integer("wins").notNull().default(0),
   losses: integer("losses").notNull().default(0),
+  // Set when a player drops out mid-season (decision 27). Their played matches
+  // stay; they leave standings and pairings.
+  leftAt: timestamp("left_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

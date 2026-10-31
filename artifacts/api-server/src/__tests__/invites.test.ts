@@ -48,6 +48,8 @@ vi.mock("@workspace/db", () => ({
   playersTable: { id: {}, clerkUserId: {}, name: {}, leagueId: {}, skillLevel: {}, wins: {}, losses: {} },
 }));
 
+vi.mock("../lib/leagueAccess.js", () => ({ isLeagueAdmin: vi.fn().mockResolvedValue(true) }));
+
 vi.mock("drizzle-orm", () => {
   const sqlTag = (_strings: TemplateStringsArray, ..._values: unknown[]) => ({
     queryChunks: [],
