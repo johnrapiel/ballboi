@@ -16,9 +16,11 @@ import { AccessibilityInfo, ActivityIndicator, Alert, Linking, Pressable, StyleS
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChromeButton, ChromeChoice } from "@/components/record/ChromeControls";
+import { ConsentScreen } from "@/components/record/ConsentScreen";
 import { HoldToStop } from "@/components/record/HoldToStop";
 import { Button, Screen, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
+import { useRecordingConsent } from "@/lib/recording/api";
 import { chrome } from "@/lib/recording/chrome";
 import { countdownClock, cueAt, START_DELAYS, type StartDelayMinutes } from "@/lib/recording/countdown";
 import { keepRecording } from "@/lib/recording/files";
@@ -57,6 +59,7 @@ export default function RecordScreen() {
   const startedAt = useRef(0);
   const startAt = useRef(0);
   const reasonRef = useRef<StopReason>("user");
+  const consent = useRecordingConsent();
 
   // The mounted phone must never auto-lock: iOS stops the camera when it does.
   useKeepAwake();
@@ -99,6 +102,31 @@ export default function RecordScreen() {
   }, [phase, delay]);
 
   useSafetyCap(phase === "recording", (reason) => stop(reason));
+
+  // Consent comes first: it explains the camera and microphone before iOS asks.
+  if (consent.isLoading) {
+    return (
+      <Screen style={{ justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator accessibilityLabel="Loading" />
+      </Screen>
+    );
+  }
+  if (consent.isError) {
+    return (
+      <Screen style={{ justifyContent: "center", gap: spacing.space4 }}>
+        <Text variant="title" accessibilityRole="header">
+          Couldn't open Ball Boi
+        </Text>
+        <Text tone="inkMuted">Check your connection and try again.</Text>
+        <Button label="Try again" onPress={() => consent.refetch()} />
+        <Button variant="secondary" label="Close" onPress={() => router.back()} />
+      </Screen>
+    );
+  }
+  if (!consent.data?.consented) {
+    // Saving the answer updates the consent query, which shows the camera.
+    return <ConsentScreen onAgree={() => {}} onCancel={() => router.back()} />;
+  }
 
   if (!camPerm) {
     return <View style={{ flex: 1, backgroundColor: chrome.ground }} />;
