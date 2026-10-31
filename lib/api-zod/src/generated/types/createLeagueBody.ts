@@ -43,11 +43,15 @@ export interface CreateLeagueBody {
   /** First day of the season, YYYY-MM-DD */
   startDate: string;
   /**
-   * @minimum 6
-   * @maximum 12
+   * @minimum 1
+   * @maximum 24
    */
   seasonWeeks: number;
   playoffSize?: CreateLeagueBodyPlayoffSize;
+  /**
+   * Ignored. Every league has a fixed 1-week grace period (decision 25).
+   * @deprecated
+   */
   unplayedRule?: CreateLeagueBodyUnplayedRule;
   /** @nullable */
   location?: string | null;
