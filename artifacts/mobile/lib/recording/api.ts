@@ -253,6 +253,9 @@ export function scoreString(sets: SetEntry[]): string {
     .join(", ");
 }
 
+/** Start of the 409 message both score routes send when a score is already in. */
+export const ALREADY_ENTERED = "A score is already in for this match.";
+
 /**
  * Posts the score from your side. League matches go to the league's score
  * route (Session C: first score stands, standings and grace week); Quick
@@ -269,9 +272,9 @@ export async function submitScore(
       : `/api/recording/quick-matches/${target.matchId}/score`;
   const res = await apiFetch(path, getToken, { method: "POST", body: JSON.stringify({ score }) });
   if (res.ok) return { ok: true };
-  return {
-    ok: false,
-    alreadyEntered: res.status === 409,
-    error: await apiErrorMessage(res, "Couldn't save the score. Try again."),
-  };
+  const error = await apiErrorMessage(res, "Couldn't save the score. Try again.");
+  // The league route also answers 409 for a cancelled match, a round that
+  // hasn't opened, or a grace week that's over. Only "already in" means the
+  // opponent beat you to it; the rest show their own message.
+  return { ok: false, alreadyEntered: res.status === 409 && error.startsWith(ALREADY_ENTERED), error };
 }
