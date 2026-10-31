@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { addDays, graceEndFor, hasSeasonStarted, leagueToday, roundWindow } from "../lib/leagueCalendar.js";
+import { addDays, graceEndFor, hasSeasonStarted, leagueToday, roundPhase, roundWindow } from "../lib/leagueCalendar.js";
 
 // Spec: Leagues. Rounds are weekly from the season's start weekday
 // (decision 29), followed by a fixed 1-week grace period (decision 25).
@@ -43,5 +43,16 @@ describe("dates", () => {
     expect(hasSeasonStarted("2026-11-05", "2026-11-04")).toBe(false);
     expect(hasSeasonStarted("2026-11-05", "2026-11-05")).toBe(true);
     expect(hasSeasonStarted(null, "2026-11-05")).toBe(false);
+  });
+});
+
+describe("roundPhase", () => {
+  const out = { publishedAt: new Date(), startDate: "2026-11-05", endDate: "2026-11-11" };
+  it("follows a round through its week and grace week", () => {
+    expect(roundPhase({ ...out, publishedAt: null }, "2026-11-05")).toBe("draft");
+    expect(roundPhase(out, "2026-11-04")).toBe("upcoming");
+    expect(roundPhase(out, "2026-11-11")).toBe("open");
+    expect(roundPhase(out, "2026-11-12")).toBe("grace");
+    expect(roundPhase(out, "2026-11-19")).toBe("closed");
   });
 });

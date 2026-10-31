@@ -7,6 +7,8 @@ import { and, eq, count, isNull } from "drizzle-orm";
 import { autoLinkPlayer } from "../lib/autoLinkPlayer.js";
 import { requireAdmin } from "../middlewares/requireAdmin.js";
 import { isLeagueAdmin } from "../lib/leagueAccess.js";
+import { runLeagueDay } from "../services/leagueRounds.js";
+import { logger } from "../lib/logger.js";
 import { getPastSeasonNames } from "../services/seasonService.js";
 import { computeStandings } from "../lib/leagueStandings.js";
 import { SKILL_LEVELS, seasonDates, validateLeagueSetup } from "../lib/leagueSetup.js";
@@ -137,6 +139,9 @@ router.post("/leagues", requireAuth, async (req, res) => {
     }
     return { league, playerCount: playing ? 1 : 0 };
   });
+
+  // A season starting today or tomorrow gets its first round right away.
+  runLeagueDay(league).catch((err) => logger.error({ err, leagueId: league.id }, "First league day failed"));
 
   { res.status(201).json({
     ...league,
