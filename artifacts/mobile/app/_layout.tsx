@@ -90,7 +90,20 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
-        name="league/[leagueId]"
+        name="league/[leagueId]/score/[matchId]"
+        options={{
+          headerShown: false,
+          presentation: "formSheet",
+          sheetAllowedDetents: [1.0],
+          sheetGrabberVisible: true,
+          sheetCornerRadius: 18,
+          contentStyle: { backgroundColor: colors.linen },
+        }}
+      />
+      <Stack.Screen name="league/[leagueId]/manage" options={{ ...pushedHeader, title: "" }} />
+      <Stack.Screen name="league/[leagueId]/round/[roundId]" options={{ ...pushedHeader, title: "" }} />
+      <Stack.Screen
+        name="league/[leagueId]/index"
         options={{
           headerShown: true,
           title: "",
