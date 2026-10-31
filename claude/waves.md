@@ -4,7 +4,7 @@ Owned by the coordinator session ("Train Conductor"), which also merges PRs and 
 
 **Current wave: Wave 1**
 
-_Created 2026-10-29 against `main` at `59fbb10`. Updated 2026-10-30._
+_Created 2026-10-29 against `main` at `59fbb10`. Updated 2026-10-31._
 
 ## Where the source docs live
 
@@ -52,6 +52,39 @@ A wave is done when all three hold:
 3. CI (`Checks`) is green on the latest `main` commit.
 
 Items marked **John** below are real-world tasks (accounts, filming, legal). They're tracked, but they don't hold a wave open.
+
+**From Wave 2 on, three more:**
+
+4. Every acceptance criterion in the wave's session prompts is met.
+5. John approved each PR's design and flow review before it merged.
+6. John has run the wave's end-to-end walkthrough on his phone, and every finding logged as **Bug** is fixed and merged.
+
+## Reviews: before, during and after each wave (Wave 2 on)
+
+The goal: users can actually do what each feature sets out to do, with no dead ends, and nothing reaches `main` that John hasn't seen.
+
+**1. Before the wave is built: flow review with John.**
+- The coordinator walks John through each feature's flows one question at a time, with a recommendation first: entry points, every step, empty and error states, edge cases, and how the user leaves the flow.
+- Each step is checked against the spec and the screen designs. Gaps get decided, not guessed.
+- The output goes into the session prompts: numbered **acceptance criteria** per feature, the canvas screens each flow uses, and decisions John made. Sessions don't start until John has approved their prompt.
+
+**2. Before each PR merges: design and flow review.**
+- The PR description quotes the acceptance criteria it covers. Each one gets the phone test step that proves it. Anything the PR couldn't meet is flagged with a reason.
+- It shows the flow screen by screen, start to finish, including empty, error and loading states, at the largest text size and in Dark Mode. Each screen sits next to its canvas screen, with any differences called out.
+- It confirms there are no dead ends: every screen has a way forward and a way back, and every error has a recovery path.
+- The coordinator checks all of this first and sends back anything incomplete. Then it shows John the review, and **John approves the design and flow** along with the go-ahead to merge.
+
+**3. After the wave: end-to-end walkthrough on the phone.**
+- When every PR is merged, the coordinator writes `claude/walkthroughs/wave-N.md` in the Project. It's organized by what a player does, with one "Do / Expect" table per flow, an accessibility pass on every new screen, and a findings log.
+- John runs it on a fresh development build. Each finding is bucketed:
+  - **Bug:** fix before the wave closes. The owning session gets one small PR.
+  - **Spec gap:** a decision for John that feeds the next wave's flow review.
+  - **Polish:** a tracker row for later.
+- The wave closes after the Bugs are merged.
+
+**Wave 1** shipped without these. It gets the same treatment **after Waves 2 and 3 are complete**: update `claude/walkthroughs/wave-1.md` for what changed, then do a flow review of every Wave 1 feature for dead ends and missing cases, and an end-to-end walkthrough on the phone. Its Bugs and gaps go into the Wave 4 prompts.
+
+**Session names:** title each feature session "Wave N, Session X" (for example, "Wave 2, Session F") so John can find it.
 
 ## How merging works
 
@@ -152,13 +185,13 @@ Native owner: **Session D**. Needs a new development build after D's first nativ
 
 ## Wave 2
 
-Native owner: **Session G**. Prompts are written when Wave 1 closes.
+Native owner: **Session G**. Run by a Wave 2 coordinator session (prompt: `claude/wave-2-coordinator-prompt.md` in the Project), which writes these prompts after the flow review with John.
 
 | Session | Scope |
 |---|---|
 | F. Discover | Players near you (radius 5 / 10 / 15 / 30, rating range, availability), Open leagues list and join requests, Open matches, Need 1 / Need 2, match requests (accept, counter, decline, day-before confirm, 2-hour reminder), reliability on cards, travel mode, hidden profile, court directory |
 | G. Push, Live Activity and voice coach (native owner) | APNs with provisional authorization, contextual prompt and Settings banner; message push with preview hiding; opponent "Ball Boi is recording your match" push; Live Activity on both phones with push-to-start and App Intents; on-device court detection and voice positioning coach with captions; DeviceCheck device bans; installs RevenueCat's native SDK for Session I |
-| H. Replay, profile, player card and league chat | Simulated replay rebuild (video tab removed), close-call labels, scrubber markers, filters, trends with text summaries and data tables; Profile rebuild, player card as one VoiceOver element, career stats, head-to-head, recap, rating trend, Settings > Privacy training toggle; player screen with report and block; league chat with pins on Session B's interface; milestone animations with Reduce Motion fades |
+| H. Replay, profile, player card and league chat | Simulated replay rebuild (replaces #78's placeholder; no video, ever), close-call labels, scrubber markers, filters, trends with text summaries and data tables; Profile rebuild, player card as one VoiceOver element, career stats, head-to-head, recap, Edit your level (rating is a level players set, Oct 29), Settings > Privacy training toggle; player screen with report and block; league chat with pins on Session B's interface; milestone animations with Reduce Motion fades |
 | I. Ball Boi Pro | RevenueCat (free tier) and IAP ($5/month, $40/year, one group, no intro offer), 3 free months from first recording tracked server-side, paywall at setup with disclosures, Restore Purchases, "Not now" records with 30-day expiry, lapsed state |
 
 ## Wave 3
@@ -171,4 +204,4 @@ Native owner: **Session G**. Prompts are written when Wave 1 closes.
 
 ## Wave 4 onward
 
-Built from whatever is still not Merged in the Feature Tracker, or ❌ or 🟡 in the checklist,, until both show every launch-blocking item done. Each wave's prompts are written here when the previous wave closes.
+Starts with the deferred **Wave 1 review**: update `claude/walkthroughs/wave-1.md` for what Waves 2 and 3 changed, do a flow review of every Wave 1 feature for dead ends and missing cases, then John runs the end-to-end walkthrough. Its Bugs and gaps become Wave 4 sessions. Then built from whatever is still not Merged in the Feature Tracker, or ❌ or 🟡 in the checklist, until both show every launch-blocking item done. Each wave's prompts are written here when the previous wave closes, after a flow review with John, and each wave ends with a walkthrough.
