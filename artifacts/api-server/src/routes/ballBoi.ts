@@ -13,6 +13,7 @@ import {
 import { desc, eq, inArray, sql } from "drizzle-orm";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { logger } from "../lib/logger";
+import { gateNarrative, gateSession, gateShot, gateStatistics, hiddenStats, shownStats } from "../lib/statGates";
 import {
   asRecord,
   stringOrNull,
@@ -25,7 +26,6 @@ import {
 } from "../lib/ballBoiUtils";
 import { computeNextRetryAt } from "../services/ballBoiRetry";
 import { isMlServiceUnreachable } from "../lib/mlServiceErrors";
-import { gateNarrative, gateSession, gateShot, gateStatistics, hiddenStats, shownStats } from "../lib/statGates";
 
 const router = Router();
 

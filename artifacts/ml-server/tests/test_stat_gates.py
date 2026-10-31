@@ -55,3 +55,19 @@ def test_shipped_result_today_hides_everything():
     if REPORT.exists():
         return
     assert shown(stat_gates(MODEL)) == set()
+
+
+def test_results_carry_stat_gates(monkeypatch):
+    import pytest
+    pytest.importorskip("fastapi")
+    import main
+    from services.pipeline import run as run_mod
+    sent = []
+    monkeypatch.setattr(main, "_post_callback", lambda url, payload: sent.append(payload))
+    monkeypatch.setattr(main, "download_video", lambda url: "/nonexistent/v.mp4")
+    monkeypatch.setattr(main, "_pipeline_models", lambda: object())
+    monkeypatch.setattr(run_mod, "analyze_match",
+                        lambda *a, **k: {"shots": [{"shotType": "serve"}], "model": {"version": "x", "degraded": True}})
+    main.process_match_and_callback("http://v", 7, 3, "http://cb", None)
+    gates = sent[-1]["result"]["statGates"]["stats"]
+    assert gates["shot_type"] == {"shown": False, "reason": "stand-in models"}
