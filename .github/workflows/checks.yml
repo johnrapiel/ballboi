@@ -36,19 +36,8 @@ jobs:
           pnpm run typecheck:libs
           pnpm -r --filter "./artifacts/mobile" --filter "./scripts" --if-present run typecheck
 
-      - name: API typecheck (no new errors)
-        # The API still has carried-over type errors. Fail only if a PR adds more.
-        run: |
-          set +e
-          pnpm --filter @workspace/api-server run typecheck > api-tsc.log 2>&1
-          count=$(grep -c "error TS" api-tsc.log)
-          echo "API type errors: $count (baseline 98)"
-          echo "::notice title=API type errors::$count (baseline 98)"
-          if [ "$count" -gt 98 ]; then
-            grep "error TS" api-tsc.log | tail -40
-            echo "::error::This PR adds API type errors ($count, baseline 98)."
-            exit 1
-          fi
+      - name: API typecheck
+        run: pnpm --filter @workspace/api-server run typecheck
 
       - name: Tests (contrast check + API)
         run: |

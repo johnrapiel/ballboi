@@ -207,7 +207,7 @@ function makeDoublesMatch(id: number, team1Won: boolean, daysAgo: number) {
  *
  * When there are no matches, call 3 becomes the leagues lookup.
  */
-function setupStatsMock(matches: ReturnType<typeof makeMatch>[]) {
+function setupStatsMock(matches: Array<ReturnType<typeof makeMatch> | ReturnType<typeof makeDoublesMatch>>) {
   let selectCall = 0;
   mockDb.select.mockImplementation(() => {
     selectCall++;

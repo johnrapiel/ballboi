@@ -9,7 +9,7 @@ import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useState } from "react";
 import { View } from "react-native";
 
-import { Awning, Button, Screen, Text } from "@/components/ui";
+import { Button, Screen, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { friendlyAuthError } from "@/lib/authErrors";
 
@@ -48,7 +48,6 @@ export default function WelcomeScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Awning height={64} />
       <Screen style={{ paddingTop: spacing.space12, alignItems: "center", gap: spacing.space6 }}>
         <Image
           source={require("@/assets/images/roundel.png")}
@@ -58,7 +57,7 @@ export default function WelcomeScreen() {
         />
         <View style={{ gap: spacing.space3, maxWidth: 320, alignItems: "center" }}>
           <Text variant="displayL" accessibilityRole="header" style={{ textAlign: "center" }}>
-            Club tennis, on resort time.
+            Club tennis, done properly.
           </Text>
           <Text tone="inkMuted" style={{ textAlign: "center" }}>
             Your league, your matches and a ball boi in your pocket that tracks every shot.

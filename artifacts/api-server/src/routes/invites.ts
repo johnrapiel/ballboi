@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { leagueInvitesTable, leaguesTable, playersTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { isLeagueAdmin } from "../lib/leagueAccess.js";
 
 const router = Router();
 
@@ -15,7 +16,7 @@ function requireAuth(req: any, res: any, next: any) {
 
 // Create invite for a league
 router.post("/leagues/:leagueId/invites", requireAuth, async (req, res) => {
-  const leagueId = parseInt(req.params.leagueId);
+  const leagueId = parseInt(String(req.params.leagueId));
   if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid league ID" });
 
   const { userId } = getAuth(req);
@@ -23,8 +24,8 @@ router.post("/leagues/:leagueId/invites", requireAuth, async (req, res) => {
 
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (!league) return res.status(404).json({ error: "League not found" });
-  if (league.createdByClerkUserId !== userId) {
-    return res.status(403).json({ error: "Only the league creator can manage invites" });
+  if (!(await isLeagueAdmin(league.id, userId!))) {
+    return res.status(403).json({ error: "Only this league's admins can manage invites" });
   }
 
   const code = nanoid(10);
@@ -49,14 +50,14 @@ router.post("/leagues/:leagueId/invites", requireAuth, async (req, res) => {
 
 // Get all invites for a league
 router.get("/leagues/:leagueId/invites", requireAuth, async (req, res) => {
-  const leagueId = parseInt(req.params.leagueId);
+  const leagueId = parseInt(String(req.params.leagueId));
   if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid league ID" });
 
   const { userId } = getAuth(req);
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (!league) return res.status(404).json({ error: "League not found" });
-  if (league.createdByClerkUserId !== userId) {
-    return res.status(403).json({ error: "Only the league creator can manage invites" });
+  if (!(await isLeagueAdmin(league.id, userId!))) {
+    return res.status(403).json({ error: "Only this league's admins can manage invites" });
   }
 
   const invites = await db
@@ -80,7 +81,7 @@ router.get("/invites/:code", async (req, res) => {
   return res.json({
     ...invite,
     leagueName: league?.name ?? "Unknown",
-    leagueSport: league?.sport ?? null,
+    leagueSport: null, // leagues have no sport column; kept for the API contract
     playerCount: playerCount.length,
   });
 });
@@ -172,8 +173,8 @@ router.delete("/invites/:code", requireAuth, async (req, res) => {
 
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, invite.leagueId));
   if (!league) return res.status(404).json({ error: "League not found" });
-  if (league.createdByClerkUserId !== userId) {
-    return res.status(403).json({ error: "Only the league creator can manage invites" });
+  if (!(await isLeagueAdmin(league.id, userId!))) {
+    return res.status(403).json({ error: "Only this league's admins can manage invites" });
   }
 
   await db.update(leagueInvitesTable).set({ isActive: false }).where(eq(leagueInvitesTable.code, code));

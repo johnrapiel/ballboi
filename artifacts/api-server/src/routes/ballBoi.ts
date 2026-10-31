@@ -27,6 +27,13 @@ import { computeNextRetryAt } from "../services/ballBoiRetry";
 import { isMlServiceUnreachable } from "../lib/mlServiceErrors";
 
 const router = Router();
+
+// Re-runs a request through this router under a rewritten URL (used by the
+// /matches/:matchId/ball-boi/* aliases). Express 5's types don't expose
+// Router#handle, though it exists at runtime.
+function dispatch(req: Request, res: Response) {
+  (router as unknown as { handle: (req: Request, res: Response) => void }).handle(req, res);
+}
 const storage = new ObjectStorageService();
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL ?? "http://localhost:8000";
@@ -38,7 +45,7 @@ const ML_UNAVAILABLE_MESSAGE =
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
   next();
 }
 
@@ -152,11 +159,12 @@ router.get("/ball-boi/ml-health", async (_req: Request, res: Response) => {
 router.post("/ball-boi/matches/:matchId/sessions/start", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const matchId = parseInt(req.params.matchId);
-    if (isNaN(matchId)) return res.status(400).json({ error: "Invalid match id" });
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const matchId = parseInt(String(req.params.matchId));
+    if (isNaN(matchId)) { res.status(400).json({ error: "Invalid match id" }); return; }
     const access = await canAccessMatch(matchId, userId);
-    if (!access.match) return res.status(404).json({ error: "Match not found" });
-    if (!access.allowed) return res.status(403).json({ error: "Forbidden" });
+    if (!access.match) { res.status(404).json({ error: "Match not found" }); return; }
+    if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const [session] = await db.insert(ballBoiSessionsTable).values({
       matchId,
       recordedByClerkUserId: userId,
@@ -174,11 +182,12 @@ router.post("/ball-boi/matches/:matchId/sessions/start", requireAuth, async (req
 router.post("/ball-boi/sessions/:sessionId/upload-url", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const sessionId = parseInt(req.params.sessionId);
-    if (isNaN(sessionId)) return res.status(400).json({ error: "Invalid session id" });
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const sessionId = parseInt(String(req.params.sessionId));
+    if (isNaN(sessionId)) { res.status(400).json({ error: "Invalid session id" }); return; }
     const [session] = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, sessionId));
-    if (!session) return res.status(404).json({ error: "Session not found" });
-    if (session.recordedByClerkUserId !== userId) return res.status(403).json({ error: "Forbidden" });
+    if (!session) { res.status(404).json({ error: "Session not found" }); return; }
+    if (session.recordedByClerkUserId !== userId) { res.status(403).json({ error: "Forbidden" }); return; }
     const { uploadURL, objectPath } = await storage.createUploadURL();
     res.json({ uploadURL, objectPath });
   } catch (err) {
@@ -190,12 +199,13 @@ router.post("/ball-boi/sessions/:sessionId/upload-url", requireAuth, async (req:
 router.post("/ball-boi/sessions/:sessionId/cancel", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const sessionId = parseInt(req.params.sessionId);
-    if (isNaN(sessionId)) return res.status(400).json({ error: "Invalid session id" });
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const sessionId = parseInt(String(req.params.sessionId));
+    if (isNaN(sessionId)) { res.status(400).json({ error: "Invalid session id" }); return; }
     const [session] = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, sessionId));
-    if (!session) return res.status(404).json({ error: "Session not found" });
-    if (session.recordedByClerkUserId !== userId) return res.status(403).json({ error: "Forbidden" });
-    if (session.status !== "recording") return res.status(409).json({ error: "Only active recording sessions can be cancelled" });
+    if (!session) { res.status(404).json({ error: "Session not found" }); return; }
+    if (session.recordedByClerkUserId !== userId) { res.status(403).json({ error: "Forbidden" }); return; }
+    if (session.status !== "recording") { res.status(409).json({ error: "Only active recording sessions can be cancelled" }); return; }
     const [updated] = await db.update(ballBoiSessionsTable).set({
       status: "failed",
       processingStatus: "failed",
@@ -212,10 +222,11 @@ router.post("/ball-boi/sessions/:sessionId/cancel", requireAuth, async (req: Req
 router.post("/ball-boi/sessions/:sessionId/live-shot", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const sessionId = parseInt(req.params.sessionId);
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const sessionId = parseInt(String(req.params.sessionId));
     const [session] = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, sessionId));
-    if (!session) return res.status(404).json({ error: "Session not found" });
-    if (session.recordedByClerkUserId !== userId) return res.status(403).json({ error: "Forbidden" });
+    if (!session) { res.status(404).json({ error: "Session not found" }); return; }
+    if (session.recordedByClerkUserId !== userId) { res.status(403).json({ error: "Forbidden" }); return; }
     const timestampSeconds = normalizeNumber(req.body?.timestampSeconds, 0);
     let liveResult: unknown = null;
     try {
@@ -236,7 +247,7 @@ router.post("/ball-boi/sessions/:sessionId/live-shot", requireAuth, async (req: 
     }
     const livePayload = asRecord(liveResult);
     const liveShotResult = livePayload.result;
-    if (!liveShotResult) return res.status(204).send();
+    if (!liveShotResult) { res.status(204).send(); return; }
     const currentCount = await db.select({ count: sql<number>`count(*)` }).from(matchShotsTable).where(eq(matchShotsTable.sessionId, sessionId));
     const sequenceNumber = Number(currentCount[0]?.count ?? 0) + 1;
     const [match] = await db.select().from(matchesTable).where(eq(matchesTable.id, session.matchId));
@@ -260,12 +271,13 @@ router.post("/ball-boi/sessions/:sessionId/live-shot", requireAuth, async (req: 
 router.post("/ball-boi/sessions/:sessionId/complete", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const sessionId = parseInt(req.params.sessionId);
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const sessionId = parseInt(String(req.params.sessionId));
     const [session] = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, sessionId));
-    if (!session) return res.status(404).json({ error: "Session not found" });
-    if (session.recordedByClerkUserId !== userId) return res.status(403).json({ error: "Forbidden" });
+    if (!session) { res.status(404).json({ error: "Session not found" }); return; }
+    if (session.recordedByClerkUserId !== userId) { res.status(403).json({ error: "Forbidden" }); return; }
     const { objectPath, contentType, sizeBytes, durationSeconds } = req.body ?? {};
-    if (!objectPath) return res.status(400).json({ error: "objectPath required" });
+    if (!objectPath) { res.status(400).json({ error: "objectPath required" }); return; }
     const [updated] = await db.update(ballBoiSessionsTable).set({
       status: "processing",
       processingStatus: "processing",
@@ -336,14 +348,14 @@ router.post("/ball-boi/sessions/:sessionId/complete", requireAuth, async (req: R
 
 router.post("/ball-boi/sessions/:sessionId/ml-callback", async (req: Request, res: Response) => {
   try {
-    const sessionId = parseInt(req.params.sessionId);
+    const sessionId = parseInt(String(req.params.sessionId));
     const [session] = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, sessionId));
-    if (!session) return res.status(404).json({ error: "Session not found" });
+    if (!session) { res.status(404).json({ error: "Session not found" }); return; }
     const callbackToken = sessionCallbackToken(session);
     const incomingSecret = req.headers["x-ml-secret"];
     const secretMatches = !!ML_SECRET && typeof incomingSecret === "string" && incomingSecret === ML_SECRET;
     const tokenMatches = !!callbackToken && req.query.token === callbackToken;
-    if (ML_SECRET ? !secretMatches : !tokenMatches) return res.status(403).json({ error: "Forbidden" });
+    if (ML_SECRET ? !secretMatches : !tokenMatches) { res.status(403).json({ error: "Forbidden" }); return; }
     const { status, result, error } = req.body ?? {};
     if (status === "completed" && result) {
       await saveBatchResults(sessionId, session.matchId, result);
@@ -364,14 +376,15 @@ router.post("/ball-boi/sessions/:sessionId/ml-callback", async (req: Request, re
 router.get("/ball-boi/matches/:matchId/replay", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const matchId = parseInt(req.params.matchId);
-    if (isNaN(matchId)) return res.status(400).json({ error: "Invalid match id" });
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const matchId = parseInt(String(req.params.matchId));
+    if (isNaN(matchId)) { res.status(400).json({ error: "Invalid match id" }); return; }
     const access = await canAccessMatch(matchId, userId);
-    if (!access.match) return res.status(404).json({ error: "Match not found" });
-    if (!access.allowed) return res.status(403).json({ error: "Forbidden" });
+    if (!access.match) { res.status(404).json({ error: "Match not found" }); return; }
+    if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const sessions = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.matchId, matchId)).orderBy(desc(ballBoiSessionsTable.createdAt));
     const session = sessions[0] ?? null;
-    if (!session) return res.json({ match: access.match, session: null, shots: [], statistics: null, videoUrl: null });
+    if (!session) { res.json({ match: access.match, session: null, shots: [], statistics: null, videoUrl: null }); return; }
     const [shots, statsRows] = await Promise.all([
       db.select().from(matchShotsTable).where(eq(matchShotsTable.sessionId, session.id)).orderBy(matchShotsTable.sequenceNumber),
       db.select().from(matchStatisticsTable).where(eq(matchStatisticsTable.sessionId, session.id)),
@@ -393,12 +406,12 @@ router.get("/ball-boi/matches/:matchId/replay", requireAuth, async (req: Request
 
 router.post("/matches/:matchId/ball-boi/sessions/start", requireAuth, async (req: Request, res: Response) => {
   req.url = `/ball-boi/matches/${req.params.matchId}/sessions/start`;
-  router.handle(req, res);
+  dispatch(req, res);
 });
 
 router.get("/matches/:matchId/ball-boi/replay", requireAuth, async (req: Request, res: Response) => {
   req.url = `/ball-boi/matches/${req.params.matchId}/replay`;
-  router.handle(req, res);
+  dispatch(req, res);
 });
 
 async function latestSessionForMatch(matchId: number) {
@@ -409,14 +422,15 @@ async function latestSessionForMatch(matchId: number) {
 router.post("/matches/:matchId/ball-boi/end", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const matchId = parseInt(req.params.matchId);
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const matchId = parseInt(String(req.params.matchId));
     const access = await canAccessMatch(matchId, userId);
-    if (!access.match) return res.status(404).json({ error: "Match not found" });
-    if (!access.allowed) return res.status(403).json({ error: "Forbidden" });
+    if (!access.match) { res.status(404).json({ error: "Match not found" }); return; }
+    if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const session = await latestSessionForMatch(matchId);
-    if (!session) return res.status(404).json({ error: "Ball Boi session not found" });
+    if (!session) { res.status(404).json({ error: "Ball Boi session not found" }); return; }
     const { objectPath, contentType, sizeBytes, durationSeconds } = req.body ?? {};
-    if (!objectPath) return res.status(400).json({ error: "objectPath required" });
+    if (!objectPath) { res.status(400).json({ error: "objectPath required" }); return; }
     const [updated] = await db.update(ballBoiSessionsTable).set({
       status: "processing",
       processingStatus: "processing",
@@ -484,18 +498,18 @@ router.post("/matches/:matchId/ball-boi/end", requireAuth, async (req: Request, 
 
 router.post("/matches/:matchId/ball-boi/shot-callback", async (req: Request, res: Response) => {
   try {
-    const matchId = parseInt(req.params.matchId);
+    const matchId = parseInt(String(req.params.matchId));
     const body = asRecord(req.body);
     const requestedSessionId = normalizeNumber(body.sessionId, 0);
     const session = requestedSessionId > 0
       ? (await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, requestedSessionId)))[0]
       : await latestSessionForMatch(matchId);
-    if (!session || session.matchId !== matchId) return res.status(404).json({ error: "Session not found" });
+    if (!session || session.matchId !== matchId) { res.status(404).json({ error: "Session not found" }); return; }
     const callbackToken = sessionCallbackToken(session);
     const incomingSecret = req.headers["x-ml-secret"];
     const secretMatches = !!ML_SECRET && typeof incomingSecret === "string" && incomingSecret === ML_SECRET;
     const tokenMatches = !!callbackToken && req.query.token === callbackToken;
-    if (ML_SECRET ? !secretMatches : !tokenMatches) return res.status(403).json({ error: "Forbidden" });
+    if (ML_SECRET ? !secretMatches : !tokenMatches) { res.status(403).json({ error: "Forbidden" }); return; }
     if (body.status === "completed" && body.result) {
       await saveBatchResults(session.id, session.matchId, body.result);
     } else {
@@ -515,12 +529,13 @@ router.post("/matches/:matchId/ball-boi/shot-callback", async (req: Request, res
 router.get("/matches/:matchId/ball-boi/status", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const matchId = parseInt(req.params.matchId);
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const matchId = parseInt(String(req.params.matchId));
     const access = await canAccessMatch(matchId, userId);
-    if (!access.match) return res.status(404).json({ error: "Match not found" });
-    if (!access.allowed) return res.status(403).json({ error: "Forbidden" });
+    if (!access.match) { res.status(404).json({ error: "Match not found" }); return; }
+    if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const session = await latestSessionForMatch(matchId);
-    if (!session) return res.json({ sessionId: null, status: "none", processingStatus: "none", processingError: null, shotCount: 0, progress: 0 });
+    if (!session) { res.json({ sessionId: null, status: "none", processingStatus: "none", processingError: null, shotCount: 0, progress: 0 }); return; }
     const shotCount = await db.select({ count: sql<number>`count(*)` }).from(matchShotsTable).where(eq(matchShotsTable.sessionId, session.id));
     res.json({
       sessionId: session.id,
@@ -539,12 +554,13 @@ router.get("/matches/:matchId/ball-boi/status", requireAuth, async (req: Request
 router.get("/matches/:matchId/narrative", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const matchId = parseInt(req.params.matchId);
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const matchId = parseInt(String(req.params.matchId));
     const access = await canAccessMatch(matchId, userId);
-    if (!access.match) return res.status(404).json({ error: "Match not found" });
-    if (!access.allowed) return res.status(403).json({ error: "Forbidden" });
+    if (!access.match) { res.status(404).json({ error: "Match not found" }); return; }
+    if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const session = await latestSessionForMatch(matchId);
-    if (!session) return res.json({ matchId, sessionId: null, narrative: null });
+    if (!session) { res.json({ matchId, sessionId: null, narrative: null }); return; }
     res.json({ matchId, sessionId: session.id, narrative: session.aiNarrative });
   } catch (err) {
     logger.error({ err }, "Failed to load match Ball Boi narrative");
@@ -555,14 +571,15 @@ router.get("/matches/:matchId/narrative", requireAuth, async (req: Request, res:
 router.get("/matches/:matchId/ball-boi/replay-metadata", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const matchId = parseInt(req.params.matchId);
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const matchId = parseInt(String(req.params.matchId));
     const access = await canAccessMatch(matchId, userId);
-    if (!access.match) return res.status(404).json({ error: "Match not found" });
-    if (!access.allowed) return res.status(403).json({ error: "Forbidden" });
+    if (!access.match) { res.status(404).json({ error: "Match not found" }); return; }
+    if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const session = await latestSessionForMatch(matchId);
-    if (!session) return res.json({ session: null, match: access.match, shotMarkers: [], chapters: [] });
+    if (!session) { res.json({ session: null, match: access.match, shotMarkers: [], chapters: [] }); return; }
     req.url = `/ball-boi/sessions/${session.id}/replay-metadata`;
-    router.handle(req, res);
+    dispatch(req, res);
   } catch (err) {
     logger.error({ err }, "Failed to load match Ball Boi replay metadata");
     res.status(500).json({ error: "Failed to load metadata" });
@@ -572,12 +589,13 @@ router.get("/matches/:matchId/ball-boi/replay-metadata", requireAuth, async (req
 router.get("/matches/:matchId/shots", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const matchId = parseInt(req.params.matchId);
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const matchId = parseInt(String(req.params.matchId));
     const access = await canAccessMatch(matchId, userId);
-    if (!access.match) return res.status(404).json({ error: "Match not found" });
-    if (!access.allowed) return res.status(403).json({ error: "Forbidden" });
+    if (!access.match) { res.status(404).json({ error: "Match not found" }); return; }
+    if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const session = await latestSessionForMatch(matchId);
-    if (!session) return res.json([]);
+    if (!session) { res.json([]); return; }
     const shots = await db.select().from(matchShotsTable).where(eq(matchShotsTable.sessionId, session.id)).orderBy(matchShotsTable.sequenceNumber);
     res.json(shots);
   } catch (err) {
@@ -589,12 +607,13 @@ router.get("/matches/:matchId/shots", requireAuth, async (req: Request, res: Res
 router.get("/matches/:matchId/statistics", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const matchId = parseInt(req.params.matchId);
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const matchId = parseInt(String(req.params.matchId));
     const access = await canAccessMatch(matchId, userId);
-    if (!access.match) return res.status(404).json({ error: "Match not found" });
-    if (!access.allowed) return res.status(403).json({ error: "Forbidden" });
+    if (!access.match) { res.status(404).json({ error: "Match not found" }); return; }
+    if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const session = await latestSessionForMatch(matchId);
-    if (!session) return res.json(null);
+    if (!session) { res.json(null); return; }
     const [stats] = await db.select().from(matchStatisticsTable).where(eq(matchStatisticsTable.sessionId, session.id));
     res.json(stats ?? null);
   } catch (err) {
@@ -606,10 +625,11 @@ router.get("/matches/:matchId/statistics", requireAuth, async (req: Request, res
 router.get("/ball-boi/sessions/:sessionId/status", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const sessionId = parseInt(req.params.sessionId);
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const sessionId = parseInt(String(req.params.sessionId));
     const access = await canAccessSession(sessionId, userId);
-    if (!access.session) return res.status(404).json({ error: "Session not found" });
-    if (!access.allowed) return res.status(403).json({ error: "Forbidden" });
+    if (!access.session) { res.status(404).json({ error: "Session not found" }); return; }
+    if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const shotCount = await db.select({ count: sql<number>`count(*)` }).from(matchShotsTable).where(eq(matchShotsTable.sessionId, sessionId));
     const sessionMeta = (access.session.metadata as Record<string, unknown> | null) ?? {};
     const retryCount = typeof sessionMeta.retryCount === "number" ? sessionMeta.retryCount : null;
@@ -633,10 +653,11 @@ router.get("/ball-boi/sessions/:sessionId/status", requireAuth, async (req: Requ
 router.get("/ball-boi/sessions/:sessionId/shots", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const sessionId = parseInt(req.params.sessionId);
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const sessionId = parseInt(String(req.params.sessionId));
     const access = await canAccessSession(sessionId, userId);
-    if (!access.session) return res.status(404).json({ error: "Session not found" });
-    if (!access.allowed) return res.status(403).json({ error: "Forbidden" });
+    if (!access.session) { res.status(404).json({ error: "Session not found" }); return; }
+    if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const shots = await db.select().from(matchShotsTable).where(eq(matchShotsTable.sessionId, sessionId)).orderBy(matchShotsTable.sequenceNumber);
     res.json(shots);
   } catch (err) {
@@ -648,10 +669,11 @@ router.get("/ball-boi/sessions/:sessionId/shots", requireAuth, async (req: Reque
 router.get("/ball-boi/sessions/:sessionId/statistics", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const sessionId = parseInt(req.params.sessionId);
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const sessionId = parseInt(String(req.params.sessionId));
     const access = await canAccessSession(sessionId, userId);
-    if (!access.session) return res.status(404).json({ error: "Session not found" });
-    if (!access.allowed) return res.status(403).json({ error: "Forbidden" });
+    if (!access.session) { res.status(404).json({ error: "Session not found" }); return; }
+    if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const [stats] = await db.select().from(matchStatisticsTable).where(eq(matchStatisticsTable.sessionId, sessionId));
     res.json(stats ?? null);
   } catch (err) {
@@ -663,10 +685,11 @@ router.get("/ball-boi/sessions/:sessionId/statistics", requireAuth, async (req: 
 router.get("/ball-boi/sessions/:sessionId/replay-metadata", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const sessionId = parseInt(req.params.sessionId);
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const sessionId = parseInt(String(req.params.sessionId));
     const access = await canAccessSession(sessionId, userId);
-    if (!access.session) return res.status(404).json({ error: "Session not found" });
-    if (!access.allowed) return res.status(403).json({ error: "Forbidden" });
+    if (!access.session) { res.status(404).json({ error: "Session not found" }); return; }
+    if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const shots = await db.select().from(matchShotsTable).where(eq(matchShotsTable.sessionId, sessionId)).orderBy(matchShotsTable.sequenceNumber);
     res.json({
       session: access.session,
@@ -707,12 +730,13 @@ router.get("/ball-boi/sessions/:sessionId/replay-metadata", requireAuth, async (
 router.get("/ball-boi/sessions/:sessionId/video-url", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const sessionId = parseInt(req.params.sessionId);
-    if (isNaN(sessionId)) return res.status(400).json({ error: "Invalid session id" });
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const sessionId = parseInt(String(req.params.sessionId));
+    if (isNaN(sessionId)) { res.status(400).json({ error: "Invalid session id" }); return; }
     const access = await canAccessSession(sessionId, userId);
-    if (!access.session) return res.status(404).json({ error: "Session not found" });
-    if (!access.allowed) return res.status(403).json({ error: "Forbidden" });
-    if (!access.session.videoObjectPath) return res.status(404).json({ error: "No video available for this session" });
+    if (!access.session) { res.status(404).json({ error: "Session not found" }); return; }
+    if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
+    if (!access.session.videoObjectPath) { res.status(404).json({ error: "No video available for this session" }); return; }
     const signedUrl = await storage.getObjectEntityViewURL(access.session.videoObjectPath);
     res.json({ sessionId, videoUrl: signedUrl });
   } catch (err) {
@@ -724,10 +748,11 @@ router.get("/ball-boi/sessions/:sessionId/video-url", requireAuth, async (req: R
 router.get("/ball-boi/sessions/:sessionId/narrative", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const sessionId = parseInt(req.params.sessionId);
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const sessionId = parseInt(String(req.params.sessionId));
     const access = await canAccessSession(sessionId, userId);
-    if (!access.session) return res.status(404).json({ error: "Session not found" });
-    if (!access.allowed) return res.status(403).json({ error: "Forbidden" });
+    if (!access.session) { res.status(404).json({ error: "Session not found" }); return; }
+    if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     res.json({ sessionId, narrative: access.session.aiNarrative });
   } catch (err) {
     logger.error({ err }, "Failed to load Ball Boi narrative");
@@ -738,7 +763,7 @@ router.get("/ball-boi/sessions/:sessionId/narrative", requireAuth, async (req: R
 router.post("/ball-boi/detect-court", requireAuth, async (req: Request, res: Response) => {
   try {
     const frameImage: string | undefined = req.body?.frameImage;
-    if (!frameImage) return res.status(400).json({ error: "frameImage is required" });
+    if (!frameImage) { res.status(400).json({ error: "frameImage is required" }); return; }
 
     let mlRes: globalThis.Response;
     try {
@@ -750,7 +775,7 @@ router.post("/ball-boi/detect-court", requireAuth, async (req: Request, res: Res
       });
     } catch (mlErr) {
       if (isMlServiceUnreachable(mlErr)) {
-        return res.status(503).json({ success: false, error: "Analysis service is temporarily unavailable — try manual calibration" });
+        { res.status(503).json({ success: false, error: "Analysis service is temporarily unavailable — try manual calibration" }); return; }
       }
       throw mlErr;
     }
@@ -766,10 +791,11 @@ router.post("/ball-boi/detect-court", requireAuth, async (req: Request, res: Res
 router.get("/ball-boi/matches/:matchId/sessions", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
-    const matchId = parseInt(req.params.matchId);
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const matchId = parseInt(String(req.params.matchId));
     const access = await canAccessMatch(matchId, userId);
-    if (!access.match) return res.status(404).json({ error: "Match not found" });
-    if (!access.allowed) return res.status(403).json({ error: "Forbidden" });
+    if (!access.match) { res.status(404).json({ error: "Match not found" }); return; }
+    if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const sessions = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.matchId, matchId)).orderBy(desc(ballBoiSessionsTable.createdAt));
     res.json(sessions);
   } catch (err) {

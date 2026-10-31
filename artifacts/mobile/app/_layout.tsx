@@ -4,6 +4,8 @@ import {
   CormorantGaramond_500Medium,
   CormorantGaramond_500Medium_Italic,
   CormorantGaramond_600SemiBold,
+  CormorantGaramond_600SemiBold_Italic,
+  CormorantGaramond_700Bold,
 } from "@expo-google-fonts/cormorant-garamond";
 import {
   DMSans_400Regular,
@@ -99,6 +101,10 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="record/[matchId]"
+        options={{ headerShown: false, presentation: "fullScreenModal", gestureEnabled: false }}
+      />
+      <Stack.Screen
         name="replay/[matchId]"
         options={{ headerShown: false, presentation: "card" }}
       />
@@ -117,6 +123,9 @@ export default function RootLayout() {
     CormorantGaramond_500Medium,
     CormorantGaramond_500Medium_Italic,
     CormorantGaramond_600SemiBold,
+    // One step heavier, for Night session display text and iOS Bold Text.
+    CormorantGaramond_600SemiBold_Italic,
+    CormorantGaramond_700Bold,
   });
 
   useEffect(() => {

@@ -4,7 +4,7 @@ import supertest from "supertest";
 import { isMlServiceUnreachable } from "../lib/mlServiceErrors.js";
 
 const mockUserId = "user_test123";
-let mockGetAuth = () => ({ userId: mockUserId });
+let mockGetAuth: () => { userId: string | null } = () => ({ userId: mockUserId });
 
 vi.mock("@clerk/express", () => ({
   getAuth: (req: unknown) => mockGetAuth(),
@@ -920,7 +920,7 @@ describe("heatmap data round-trip: POST /ml-callback → GET /replay", () => {
     expect(callbackRes.body.ok).toBe(true);
     expect(capturedStatisticsInsert).not.toBeNull();
 
-    const heatmapFromStats = (capturedStatisticsInsert as { heatmapData?: unknown[] }).heatmapData;
+    const heatmapFromStats = (capturedStatisticsInsert as unknown as { heatmapData?: unknown[] }).heatmapData;
     expect(Array.isArray(heatmapFromStats)).toBe(true);
     expect(heatmapFromStats).toHaveLength(2);
 
@@ -1016,7 +1016,7 @@ describe("heatmap data round-trip: POST /ml-callback → GET /replay", () => {
     expect(callbackRes.status).toBe(200);
     expect(capturedStatisticsInsert).not.toBeNull();
 
-    const heatmap = (capturedStatisticsInsert as { heatmapData?: unknown[] }).heatmapData;
+    const heatmap = (capturedStatisticsInsert as unknown as { heatmapData?: unknown[] }).heatmapData;
     expect(heatmap).toHaveLength(1);
     expect((heatmap![0] as { x: number }).x).toBe(0.5);
     expect((heatmap![0] as { y: number }).y).toBe(0.5);
