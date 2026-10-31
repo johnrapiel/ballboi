@@ -202,6 +202,21 @@ export class SanctionsService {
   listAppeals(open: boolean) {
     return this.repo.listAppeals({ open });
   }
+
+  /** Appeals with what they're against, for the Moderation screen. */
+  async listAppealsWithSanctions(open: boolean) {
+    const appeals = await this.repo.listAppeals({ open });
+    return Promise.all(
+      appeals.map(async (a) => {
+        const s = await this.repo.get(a.sanctionId);
+        return {
+          ...a,
+          reference: appealReference(a.sanctionId),
+          sanction: s ? { id: s.id, kind: s.kind, reason: s.reason, endsAt: s.endsAt, liftedAt: s.liftedAt, createdAt: s.createdAt } : null,
+        };
+      }),
+    );
+  }
 }
 
 /** In-memory SanctionsRepo for tests. */

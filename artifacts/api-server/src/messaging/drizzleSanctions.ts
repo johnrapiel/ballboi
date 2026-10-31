@@ -1,5 +1,6 @@
 import { clerkClient } from "@clerk/express";
 import {
+  usersTable,
   accountSanctionsTable,
   contentReportsTable,
   db,
@@ -7,7 +8,7 @@ import {
   type AppealOutcome,
   type SanctionKind,
 } from "@workspace/db";
-import { and, desc, eq, gt, isNull, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import { appealReference, normalizeEmails, SanctionsService, type AccountIdentity, type NewSanction, type SanctionsRepo } from "./sanctions";
 
 const activeAt = (now: Date) =>
@@ -141,4 +142,28 @@ export function getSanctionsService(): SanctionsService {
     return row?.id ?? null;
   });
   return service;
+}
+
+/** Display names for accounts, for the Moderation screen. Missing names are left out. */
+export async function namesFor(clerkUserIds: string[]): Promise<Map<string, string>> {
+  const ids = [...new Set(clerkUserIds)];
+  if (!ids.length) return new Map();
+  const rows = await db
+    .select({ id: usersTable.clerkUserId, name: usersTable.displayName })
+    .from(usersTable)
+    .where(inArray(usersTable.clerkUserId, ids));
+  return new Map(rows.map((r) => [r.id, r.name]));
+}
+
+/** Whether this account is the admin (same rule as middlewares/requireAdmin.ts). */
+export async function isAdminAccount(clerkUserId: string): Promise<boolean> {
+  const admin = process.env.ADMIN_EMAIL;
+  if (!admin) return false;
+  try {
+    const user = await clerkClient.users.getUser(clerkUserId);
+    const primary = user.emailAddresses.find((e: { id: string; emailAddress: string }) => e.id === user.primaryEmailAddressId)?.emailAddress;
+    return primary === admin;
+  } catch {
+    return false;
+  }
 }

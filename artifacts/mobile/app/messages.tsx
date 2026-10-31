@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { IconButton } from "@/components/Choice";
 import { EmptyState } from "@/components/EmptyState";
 import { BoxSwitch, ConversationRow } from "@/components/messages/ConversationRow";
+import { ModerationRow } from "@/components/moderation/ModerationRow";
 import { Button, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -51,6 +52,7 @@ export default function MessagesScreen() {
         }}
       />
       <View style={{ paddingTop: spacing.space3 }}>
+        <ModerationRow />
         <BoxSwitch value={box} onChange={setBox} requests={requests} />
       </View>
 
