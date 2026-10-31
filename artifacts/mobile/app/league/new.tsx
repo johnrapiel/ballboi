@@ -24,7 +24,6 @@ import { useColors } from "@/hooks/useColors";
 
 type Format = "flex" | "round_robin";
 type PlayType = "singles" | "fixed" | "rotating";
-type Unplayed = "no_result" | "forfeit";
 
 // Season length limits match the spec (Leagues > Setup: 1 to 24 weeks) and the API.
 const MIN_WEEKS = 1;
@@ -37,7 +36,7 @@ const today = () => {
   return d;
 };
 
-/** Default start: next Monday, since Flex pairings go out Monday mornings. Any day can be picked. */
+/** Default start: next Monday. Any day can be picked; pairings go out on the start weekday each week (decision 29). */
 function nextMonday(): Date {
   const d = today();
   const daysToMonday = (8 - d.getDay()) % 7 || 7;
@@ -47,6 +46,7 @@ function nextMonday(): Date {
 
 const dateKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const weekday = (d: Date) => d.toLocaleDateString("en-US", { weekday: "long" });
 const shortDate = (d: Date) => d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 
 function HeaderButton({ label, onPress }: { label: string; onPress: () => void }) {
@@ -170,7 +170,6 @@ export default function StartLeagueScreen() {
   const [start, setStart] = useState<Date>(nextMonday);
   const [weeks, setWeeks] = useState(DEFAULT_WEEKS);
   const [playoffs, setPlayoffs] = useState<0 | 4 | 8>(0);
-  const [unplayed, setUnplayed] = useState<Unplayed>("no_result");
   const [playing, setPlaying] = useState(true);
   const [saving, setSaving] = useState(false);
   const [nameMissing, setNameMissing] = useState(false);
@@ -203,7 +202,6 @@ export default function StartLeagueScreen() {
       startDate: dateKey(start),
       seasonWeeks: weeks,
       playoffSize: playoffs,
-      unplayedRule: unplayed,
       location: location.trim() || null,
       playing,
       playerName: playing ? playerName || "Admin" : null,
@@ -270,8 +268,8 @@ export default function StartLeagueScreen() {
             ]}
             hint={
               format === "flex"
-                ? "We pair players every Monday by rating, availability, and who hasn't played whom."
-                : "Everyone plays everyone once over the season."
+                ? `We pair players every ${weekday(start)} by rating, availability, and who hasn't played whom.`
+                : `Everyone plays everyone once over the season. New pairings go out every ${weekday(start)}.`
             }
           />
           <ChoiceGroup<PlayType>
@@ -284,20 +282,14 @@ export default function StartLeagueScreen() {
               { value: "rotating", label: "Doubles, rotating partners" },
             ]}
           />
-          <ChoiceGroup<Unplayed>
-            label="Unplayed matches"
-            value={unplayed}
-            onChange={setUnplayed}
-            options={[
-              { value: "no_result", label: "No result" },
-              { value: "forfeit", label: "Forfeit" },
-            ]}
-            hint={
-              unplayed === "no_result"
-                ? "Matches not played by Sunday night don't count for either player."
-                : "Matches not played by Sunday night count as a forfeit."
-            }
-          />
+          {playType !== "singles" ? (
+            <Text variant="small" tone="inkMuted">
+              Weekly pairing for doubles is coming soon. Singles leagues get weekly pairings today.
+            </Text>
+          ) : null}
+          <Text variant="small" tone="inkMuted">
+            Each round runs a week. Unplayed matches get a 1-week grace period: scores then count for Ball Boi stats, not standings.
+          </Text>
         </Section>
 
         <Section title="Who can join">

@@ -13,7 +13,7 @@ import {
   usersTable,
 } from "@workspace/db";
 import { eq, inArray, or, sql } from "drizzle-orm";
-import { deleteMessagingData } from "../messaging/accountDeletion";
+import { deleteLeagueDataFor } from "./leagueAccountDeletion";
 import { ObjectStorageService } from "./objectStorage";
 
 /**
@@ -36,10 +36,8 @@ import { ObjectStorageService } from "./objectStorage";
  * - Last, the Clerk user is deleted. That signs them out everywhere and, for
  *   Sign in with Apple, removes the Apple connection on Clerk's side.
  *
- * - Messages they sent and every conversation they're in are deleted
- *   (messaging/accountDeletion.ts).
- *
- * Not built yet, so nothing to delete: training-set membership, UTR links. Each of those features must hook in here when it lands.
+ * Not built yet, so nothing to delete: messages (Stream), training-set
+ * membership, UTR links. Each of those features must hook in here when it lands.
  */
 
 export const DELETED_PLAYER_NAME = "Deleted player";
@@ -159,6 +157,7 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
       .update(contentReportsTable)
       .set({ reporterClerkUserId: null })
       .where(eq(contentReportsTable.reporterClerkUserId, clerkUserId));
+    await deleteLeagueDataFor(tx, clerkUserId);
     const profiles = await tx
       .select({ avatarUrl: usersTable.avatarUrl })
       .from(usersTable)
@@ -197,7 +196,6 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
     }
   }
 
-  await deleteMessagingData(clerkUserId, log);
   await deleteClerkUser(clerkUserId);
 
   const summary: DeletionSummary = {

@@ -9,7 +9,9 @@ import type { JoinLeagueResponseLeague } from "./joinLeagueResponseLeague";
 import type { Player } from "./player";
 
 export interface JoinLeagueResponse {
-  player: Player;
+  player?: Player;
   league: JoinLeagueResponseLeague;
   message: string;
+  /** True when the season has started or the league is full; no player is created */
+  waitlisted?: boolean;
 }
