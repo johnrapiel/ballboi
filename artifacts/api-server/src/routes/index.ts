@@ -18,10 +18,10 @@ import roundsRouter from "./rounds";
 import playoffsRouter from "./playoffs";
 import seasonsRouter from "./seasons";
 import safetyRouter from "./safety";
+import quickMatchRouter from "./quickMatch";
 import ratingsRouter from "./ratings";
 import recordingRouter from "./recording";
 import trainingConsentRouter from "./trainingConsent";
-import quickMatchRouter from "./quickMatch";
 
 const router: IRouter = Router();
 
@@ -44,9 +44,9 @@ router.use(roundsRouter);
 router.use(playoffsRouter);
 router.use(seasonsRouter);
 router.use(safetyRouter);
+router.use(quickMatchRouter);
 router.use(ratingsRouter);
 router.use(recordingRouter);
 router.use(trainingConsentRouter);
-router.use(quickMatchRouter);
 
 export default router;
