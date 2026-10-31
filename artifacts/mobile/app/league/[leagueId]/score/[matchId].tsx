@@ -10,6 +10,8 @@ import {
   getGetLeagueStandingsQueryKey,
   getGetLeaguesQueryKey,
   useEnterLeagueScore,
+  getGetLeagueBracketQueryKey,
+  useGetLeagueBracket,
   useGetLeagueMembership,
   useGetLeagueSchedule,
 } from "@workspace/api-client-react";
@@ -18,6 +20,7 @@ import { Button, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { opponentName, shortDate } from "@/lib/leagueSchedule";
+import { ROUND_SINGULAR } from "@/components/league/Bracket";
 import { emptySet, isTiebreakSet, readScore, type SetEntry } from "@/lib/scoreEntry";
 
 // Enter score (spec: Leagues > Scores and standings; canvas: Log result).
@@ -75,9 +78,18 @@ export default function EnterScoreScreen() {
   const scheduleQ = useGetLeagueSchedule(leagueId);
   const membershipQ = useGetLeagueMembership(leagueId);
   const myPlayerId = membershipQ.data?.playerId ?? null;
+  const bracketQ = useGetLeagueBracket(leagueId);
   const round = scheduleQ.data?.rounds.find((r) => r.matches.some((m) => m.matchId === matchId));
-  const match = round?.matches.find((m) => m.matchId === matchId);
-  const opponent = match && myPlayerId != null ? opponentName(match, myPlayerId) : "your opponent";
+  const weekly = round?.matches.find((m) => m.matchId === matchId);
+  const playoffSlot = bracketQ.data?.rounds.flatMap((r) => r.slots).find((s) => s.matchId === matchId);
+  const playoffOpponent = playoffSlot
+    ? playoffSlot.player1?.playerId === myPlayerId
+      ? playoffSlot.player2?.playerName
+      : playoffSlot.player1?.playerName
+    : undefined;
+  const match = weekly ?? (playoffSlot ? { matchId } : undefined);
+  const opponent =
+    weekly && myPlayerId != null ? opponentName(weekly, myPlayerId) : playoffOpponent ?? "your opponent";
   const opponentShort = opponent.split(" ")[0];
 
   const [sets, setSets] = useState<SetEntry[]>([emptySet(), emptySet(), emptySet()]);
@@ -96,6 +108,7 @@ export default function EnterScoreScreen() {
       await save.mutateAsync({ leagueId, matchId, data: { score: draft.score } });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getGetLeagueScheduleQueryKey(leagueId) }),
+        queryClient.invalidateQueries({ queryKey: getGetLeagueBracketQueryKey(leagueId) }),
         queryClient.invalidateQueries({ queryKey: getGetLeagueStandingsQueryKey(leagueId) }),
         queryClient.invalidateQueries({ queryKey: getGetLeaguesQueryKey().slice(0, 1) }),
       ]);
@@ -139,6 +152,10 @@ export default function EnterScoreScreen() {
         {round ? (
           <Text variant="label" tone="inkMuted">
             {`Round ${round.roundNumber} · Play by ${shortDate(round.deadline)}`}
+          </Text>
+        ) : playoffSlot ? (
+          <Text variant="label" tone="inkMuted">
+            {`Playoffs · ${ROUND_SINGULAR[playoffSlot.round]}`}
           </Text>
         ) : null}
         <Text variant="title">{`You vs. ${opponent}`}</Text>

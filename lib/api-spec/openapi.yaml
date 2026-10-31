@@ -659,6 +659,23 @@ paths:
               schema:
                 $ref: "#/components/schemas/LeagueSchedule"
 
+  /leagues/{leagueId}/bracket:
+    get:
+      operationId: getLeagueBracket
+      tags: [leagues]
+      summary: The playoff bracket, or null before playoffs start
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      responses:
+        "200":
+          description: Bracket
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/LeagueBracket"
+                  - type: "null"
+
   /leagues/{leagueId}/matches/{matchId}/score:
     post:
       operationId: enterLeagueScore
@@ -1956,6 +1973,83 @@ components:
         countsForStandings:
           type: boolean
       required: [matchId, status, score, winnerId, inGrace, countsForStandings]
+
+    BracketSeed:
+      type: object
+      properties:
+        seed:
+          type: integer
+        playerId:
+          type: integer
+        playerName:
+          type: string
+      required: [seed, playerId, playerName]
+
+    BracketSlot:
+      type: object
+      properties:
+        round:
+          type: string
+          enum: [quarterfinal, semifinal, final]
+        slot:
+          type: integer
+        matchId:
+          type: ["integer", "null"]
+          description: Null until both players are known
+        player1:
+          oneOf:
+            - $ref: "#/components/schemas/BracketSeed"
+            - type: "null"
+        player2:
+          oneOf:
+            - $ref: "#/components/schemas/BracketSeed"
+            - type: "null"
+        status:
+          type: string
+          description: scheduled, completed, or waiting (no match yet)
+        score:
+          type: ["string", "null"]
+          description: From player 1's side
+        winnerId:
+          type: ["integer", "null"]
+      required: [round, slot, matchId, player1, player2, status, score, winnerId]
+
+    BracketRound:
+      type: object
+      properties:
+        round:
+          type: string
+          enum: [quarterfinal, semifinal, final]
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/BracketSlot"
+      required: [round, slots]
+
+    LeagueBracket:
+      type: object
+      properties:
+        bracketId:
+          type: integer
+        status:
+          type: string
+          enum: [active, completed]
+        size:
+          type: integer
+          enum: [4, 8]
+        seeds:
+          type: array
+          items:
+            $ref: "#/components/schemas/BracketSeed"
+        rounds:
+          type: array
+          items:
+            $ref: "#/components/schemas/BracketRound"
+        champion:
+          oneOf:
+            - $ref: "#/components/schemas/BracketSeed"
+            - type: "null"
+      required: [bracketId, status, size, seeds, rounds, champion]
 
     SchedulePlayer:
       type: object

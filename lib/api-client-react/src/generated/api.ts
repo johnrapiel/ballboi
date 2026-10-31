@@ -56,6 +56,7 @@ import type {
   JoinRequest,
   League,
   LeagueAdmin,
+  LeagueBracket,
   LeagueInvite,
   LeagueMembership,
   LeagueRoundWithMatchups,
@@ -2734,6 +2735,94 @@ export function useGetLeagueSchedule<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetLeagueScheduleQueryOptions(leagueId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary The playoff bracket, or null before playoffs start
+ */
+export const getGetLeagueBracketUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/bracket`;
+};
+
+export const getLeagueBracket = async (
+  leagueId: number,
+  options?: RequestInit,
+): Promise<LeagueBracket | null> => {
+  return customFetch<LeagueBracket | null>(getGetLeagueBracketUrl(leagueId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetLeagueBracketQueryKey = (leagueId: number) => {
+  return [`/api/leagues/${leagueId}/bracket`] as const;
+};
+
+export const getGetLeagueBracketQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLeagueBracket>>,
+  TError = ErrorType<unknown>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeagueBracket>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetLeagueBracketQueryKey(leagueId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getLeagueBracket>>
+  > = ({ signal }) => getLeagueBracket(leagueId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!leagueId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLeagueBracket>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLeagueBracketQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLeagueBracket>>
+>;
+export type GetLeagueBracketQueryError = ErrorType<unknown>;
+
+/**
+ * @summary The playoff bracket, or null before playoffs start
+ */
+
+export function useGetLeagueBracket<
+  TData = Awaited<ReturnType<typeof getLeagueBracket>>,
+  TError = ErrorType<unknown>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeagueBracket>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLeagueBracketQueryOptions(leagueId, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

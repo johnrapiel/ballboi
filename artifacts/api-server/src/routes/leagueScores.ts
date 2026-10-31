@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
-import { db, leagueRoundsTable, matchesTable, playersTable } from "@workspace/db";
+import { db, leagueRoundsTable, leaguesTable, matchesTable, playersTable } from "@workspace/db";
 import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { leagueToday } from "../lib/leagueCalendar.js";
 import {
@@ -11,6 +11,8 @@ import {
   winnerIdFor,
 } from "../lib/leagueScoring.js";
 import { advancePlayoffWinner } from "../services/playoffBracket.js";
+import { advancePlayoff } from "../services/leaguePlayoffs.js";
+import { usesWeeklyRounds } from "../services/leagueRounds.js";
 import { sendPushToUsers } from "./notifications.js";
 import { logger } from "../lib/logger.js";
 
@@ -93,7 +95,9 @@ router.post("/leagues/:leagueId/matches/:matchId/score", async (req, res) => {
     });
   }
   if (match.playoffBracketId) {
-    await advancePlayoffWinner(saved, winnerId).catch((err) => logger.error({ err, matchId }, "Couldn't advance playoff winner"));
+    const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
+    const advance = league && usesWeeklyRounds(league) ? advancePlayoff : advancePlayoffWinner;
+    await advance(saved, winnerId).catch((err) => logger.error({ err, matchId }, "Couldn't advance playoff winner"));
   }
 
   // Let everyone else in the match know, each from their own side.

@@ -7,6 +7,7 @@ import { graceEndFor, leagueToday, roundPhase, roundWindow, LEAGUE_TIME_ZONE } f
 import { planBye, planLock, planSwap, unpairedPlayers } from "../lib/roundEdits.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
 import { ensureDraft, loadDraftRound, publishRound, repairRound, usesWeeklyRounds } from "../services/leagueRounds.js";
+import { bracketFor } from "../services/leaguePlayoffs.js";
 
 // League schedule and the admin's weekly review (spec: Leagues > Weekly loop).
 // Players see rounds once they've gone out; admins also see the draft for
@@ -105,6 +106,15 @@ router.get("/leagues/:leagueId/schedule", requireAuth, async (req, res) => {
     rounds,
     upcoming,
   });
+});
+
+/** The playoff bracket: every slot, played or to come, and the champion. Null before playoffs start. */
+router.get("/leagues/:leagueId/bracket", requireAuth, async (req, res) => {
+  const leagueId = parseInt(String(req.params.leagueId));
+  if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid league ID" }); return; }
+  const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
+  if (!league) { res.status(404).json({ error: "League not found" }); return; }
+  res.json(await bracketFor(league));
 });
 
 /** Loads a round of this league for an admin action, or answers with a problem. */
