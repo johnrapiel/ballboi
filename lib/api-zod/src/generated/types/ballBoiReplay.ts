@@ -16,11 +16,6 @@ export interface BallBoiReplay {
   session: BallBoiSession | null;
   shots: MatchShot[];
   statistics: MatchStatistics | null;
-  /**
-   * Signed URL to stream the recorded match video, if available
-   * @nullable
-   */
-  videoUrl: string | null;
   /** Stats below their accuracy bar (or not yet measured). Their fields are empty; the app leaves them out rather than showing them with a disclaimer. */
   hiddenStats?: GatedStat[];
 }

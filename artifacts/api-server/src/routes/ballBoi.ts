@@ -419,26 +419,17 @@ router.get("/ball-boi/matches/:matchId/replay", requireAuth, async (req: Request
     if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const sessions = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.matchId, matchId)).orderBy(desc(ballBoiSessionsTable.createdAt));
     const session = sessions[0] ?? null;
-    if (!session) { res.json({ match: access.match, session: null, shots: [], statistics: null, videoUrl: null, hiddenStats: hiddenStats(new Set()) }); return; }
+    if (!session) { res.json({ match: access.match, session: null, shots: [], statistics: null, hiddenStats: hiddenStats(new Set()) }); return; }
     const [shots, statsRows] = await Promise.all([
       db.select().from(matchShotsTable).where(eq(matchShotsTable.sessionId, session.id)).orderBy(matchShotsTable.sequenceNumber),
       db.select().from(matchStatisticsTable).where(eq(matchStatisticsTable.sessionId, session.id)),
     ]);
-    let videoUrl: string | null = null;
-    if (session.videoObjectPath) {
-      try {
-        videoUrl = await storage.getObjectEntityViewURL(session.videoObjectPath);
-      } catch (urlErr) {
-        logger.warn({ urlErr }, "Failed to generate signed video URL for replay");
-      }
-    }
     const shown = shownStats(session.metadata);
     res.json({
       match: access.match,
       session: gateSession(session, shown),
       shots: shots.map((shot) => gateShot(shot, shown)),
       statistics: gateStatistics(statsRows[0], shown),
-      videoUrl,
       hiddenStats: hiddenStats(shown),
     });
   } catch (err) {
@@ -774,24 +765,6 @@ router.get("/ball-boi/sessions/:sessionId/replay-metadata", requireAuth, async (
   } catch (err) {
     logger.error({ err }, "Failed to load Ball Boi metadata");
     res.status(500).json({ error: "Failed to load metadata" });
-  }
-});
-
-router.get("/ball-boi/sessions/:sessionId/video-url", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { userId } = getAuth(req);
-    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
-    const sessionId = parseInt(String(req.params.sessionId));
-    if (isNaN(sessionId)) { res.status(400).json({ error: "Invalid session id" }); return; }
-    const access = await canAccessSession(sessionId, userId);
-    if (!access.session) { res.status(404).json({ error: "Session not found" }); return; }
-    if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
-    if (!access.session.videoObjectPath) { res.status(404).json({ error: "No video available for this session" }); return; }
-    const signedUrl = await storage.getObjectEntityViewURL(access.session.videoObjectPath);
-    res.json({ sessionId, videoUrl: signedUrl });
-  } catch (err) {
-    logger.error({ err }, "Failed to get Ball Boi video URL");
-    res.status(500).json({ error: "Failed to get video URL" });
   }
 });
 

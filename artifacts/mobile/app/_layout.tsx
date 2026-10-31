@@ -142,10 +142,7 @@ function RootLayoutNav() {
           headerTitleStyle: { fontFamily: "DMSans_600SemiBold", color: colors.ink },
         }}
       />
-      <Stack.Screen
-        name="replay/[matchId]"
-        options={{ headerShown: false, presentation: "card" }}
-      />
+      <Stack.Screen name="replay/[matchId]" options={{ ...pushedHeader, title: "Replay" }} />
     </Stack>
   );
 }

@@ -2291,10 +2291,6 @@ export const GetBallBoiReplayResponse = zod.object({
     }),
     zod.null(),
   ]),
-  videoUrl: zod
-    .string()
-    .nullable()
-    .describe("Signed URL to stream the recorded match video, if available"),
   hiddenStats: zod
     .array(
       zod
@@ -2484,10 +2480,6 @@ export const GetMatchScopedBallBoiReplayResponse = zod.object({
     }),
     zod.null(),
   ]),
-  videoUrl: zod
-    .string()
-    .nullable()
-    .describe("Signed URL to stream the recorded match video, if available"),
   hiddenStats: zod
     .array(
       zod
