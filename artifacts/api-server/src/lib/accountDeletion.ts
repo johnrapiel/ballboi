@@ -14,6 +14,7 @@ import {
 } from "@workspace/db";
 import { eq, inArray, or, sql } from "drizzle-orm";
 import { deleteLeagueDataFor } from "./leagueAccountDeletion";
+import { deleteMessagingData } from "../messaging/accountDeletion";
 import { ObjectStorageService } from "./objectStorage";
 import { deleteRecordingData } from "./recordingCleanup";
 
@@ -34,11 +35,13 @@ import { deleteRecordingData } from "./recordingCleanup";
  *   history and standings stay correct. The name becomes "Deleted player";
  *   email, phone and bio are cleared and the account link is removed.
  * - Their profile photo file is deleted with the profile.
+ * - Messages they sent and every conversation they're in are deleted
+ *   (messaging/accountDeletion.ts).
  * - Last, the Clerk user is deleted. That signs them out everywhere and, for
  *   Sign in with Apple, removes the Apple connection on Clerk's side.
  *
- * Not built yet, so nothing to delete: messages (Stream), training-set
- * membership, UTR links. Each of those features must hook in here when it lands.
+ * Not built yet, so nothing to delete: training-set membership, UTR links.
+ * Each of those features must hook in here when it lands.
  */
 
 export const DELETED_PLAYER_NAME = "Deleted player";
@@ -198,6 +201,7 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
     }
   }
 
+  await deleteMessagingData(clerkUserId, log);
   await deleteClerkUser(clerkUserId);
 
   const summary: DeletionSummary = {
