@@ -5,6 +5,7 @@ import {
   stringOrNull,
   computeStats,
   buildShotFromResult,
+  structuredShotFields,
   buildNarrative,
   courtCalibrationFromMetadata,
   type ShotInsert,
@@ -106,7 +107,7 @@ describe("buildShotFromResult", () => {
     expect(shot.outcome).toBe("rally_continuation");
     expect(shot.courtZoneX).toBeCloseTo(0.5);
     expect(shot.courtZoneY).toBeCloseTo(0.5);
-    expect(shot.speedMph).toBe(55);
+    expect(shot.speedMph).toBeNull();                 // never a made-up speed
     expect(shot.playerId).toBeNull();
     expect(shot.clipStartSeconds).toBe(0);
   });
@@ -413,5 +414,47 @@ describe("courtCalibrationFromMetadata", () => {
       },
     };
     expect(courtCalibrationFromMetadata(bad)).toBeNull();
+  });
+});
+
+describe("structuredShotFields", () => {
+  // Shaped like services/pipeline/shots.py to_dict() in the ML server.
+  const pipelineShot = {
+    id: "p0003", time: 12.4, hitter: "far", type: "serve", typeConfidence: 0.94, serveNumber: 2,
+    bounce: { time: 12.9, image: [0.41, 0.63], court: [-1.2, -5.8] },
+    result: "in", resultConfidence: 0.88, closeCall: true, lineDistanceMeters: 0.07,
+    pointEnd: "winner", serveZone: "deuce_t",
+    shotType: "serve", timestampSeconds: 12.4, outcome: "winner",
+  };
+
+  it("keeps hitter side, landing spot, line call, serve and point ending", () => {
+    expect(structuredShotFields(pipelineShot, "abc123")).toEqual({
+      hitterSide: "far",
+      landingXM: -1.2,
+      landingYM: -5.8,
+      landingSeconds: 12.9,
+      lineCall: "in",
+      lineCallConfidence: 0.88,
+      closeCall: true,
+      lineDistanceM: 0.07,
+      serveNumber: 2,
+      serveZone: "deuce_t",
+      pointEnd: "winner",
+      modelVersion: "abc123",
+    });
+  });
+
+  it("leaves missing or odd values empty instead of guessing", () => {
+    const f = structuredShotFields({ hitter: "left", result: "maybe", bounce: { court: [1] }, serveNumber: 3, closeCall: "yes" });
+    expect(f).toMatchObject({
+      hitterSide: null, lineCall: null, landingXM: null, landingYM: null,
+      serveNumber: null, closeCall: false, pointEnd: null, modelVersion: null,
+    });
+  });
+
+  it("a shot that never landed (volleyed) has no landing spot or line call", () => {
+    const f = structuredShotFields({ ...pipelineShot, bounce: null, result: null, serveZone: null });
+    expect(f.landingXM).toBeNull();
+    expect(f.lineCall).toBeNull();
   });
 });

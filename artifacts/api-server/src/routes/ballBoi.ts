@@ -19,6 +19,7 @@ import {
   normalizeNumber,
   courtCalibrationFromMetadata,
   buildShotFromResult,
+  structuredShotFields,
   computeStats,
   buildNarrative,
   type UnknownRecord,
@@ -98,13 +99,18 @@ async function saveBatchResults(sessionId: number, matchId: number, result: unkn
   const [match] = await db.select().from(matchesTable).where(eq(matchesTable.id, matchId));
   const participantIds = match ? [match.player1Id, match.player2Id, match.player3Id, match.player4Id].filter((id): id is number => id != null) : [];
   const players = participantIds.length > 0 ? await db.select().from(playersTable).where(inArray(playersTable.id, participantIds)) : [];
+  const modelVersion = stringOrNull(asRecord(payload.model).version);
   const shots = resultShots.map((shotResult: unknown, i: number) => {
     const shotPayload = asRecord(shotResult);
+    // The pipeline says which side of the net hit each shot, not which player:
+    // players switch ends, so the side alone can't name them. Leave playerId
+    // empty rather than guess; legacy results without a side keep the old fill.
+    const fromPipeline = typeof shotPayload.hitter === "string";
     const withPlayer = {
       ...shotPayload,
-      playerId: shotPayload.playerId ?? participantIds[i % Math.max(participantIds.length, 1)] ?? null,
+      playerId: shotPayload.playerId ?? (fromPipeline ? null : participantIds[i % Math.max(participantIds.length, 1)] ?? null),
     };
-    return buildShotFromResult(
+    const shot = buildShotFromResult(
       withPlayer,
       normalizeNumber(shotPayload.sequenceNumber, i + 1),
       matchId,
@@ -112,6 +118,7 @@ async function saveBatchResults(sessionId: number, matchId: number, result: unkn
       normalizeNumber(shotPayload.timestampSeconds, duration ? Math.min(duration, i * Math.max(4, duration / resultShots.length)) : i * 8),
       normalizeNumber(shotPayload.rallyNumber, Math.floor(i / 5) + 1),
     );
+    return { ...shot, ...structuredShotFields(shotPayload, modelVersion) };
   });
 
   const inserted = await db.insert(matchShotsTable).values(shots).returning();

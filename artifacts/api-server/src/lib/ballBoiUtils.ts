@@ -91,6 +91,44 @@ export function courtCalibrationFromMetadata(metadata: unknown) {
   return { ...calibration, points };
 }
 
+function finiteOrNull(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function oneOf<T extends string>(value: unknown, allowed: readonly T[]): T | null {
+  return typeof value === "string" && (allowed as readonly string[]).includes(value) ? (value as T) : null;
+}
+
+/**
+ * The structured fields the shot analysis pipeline sends (spec: "every shot
+ * stored as structured data (type, landing spot, outcome, timestamp)").
+ * Missing values stay null: nothing is made up.
+ */
+export function structuredShotFields(result: unknown, modelVersion: string | null = null) {
+  const data = asRecord(result);
+  const bounce = asRecord(data.bounce);
+  const court = Array.isArray(bounce.court) ? bounce.court : [];
+  const landingX = finiteOrNull(court[0]);
+  const landingY = finiteOrNull(court[1]);
+  const serveNumber = finiteOrNull(data.serveNumber);
+  return {
+    hitterSide: oneOf(data.hitter, ["near", "far"] as const),
+    landingXM: landingX != null && landingY != null ? landingX : null,
+    landingYM: landingX != null && landingY != null ? landingY : null,
+    landingSeconds: finiteOrNull(bounce.time),
+    lineCall: oneOf(data.result, ["in", "out", "net"] as const),
+    lineCallConfidence: finiteOrNull(data.resultConfidence),
+    closeCall: data.closeCall === true,
+    lineDistanceM: finiteOrNull(data.lineDistanceMeters),
+    serveNumber: serveNumber === 1 || serveNumber === 2 ? serveNumber : null,
+    serveZone: stringOrNull(data.serveZone),
+    pointEnd: oneOf(data.pointEnd, ["winner", "forced_error", "unforced_error"] as const),
+    modelVersion,
+  };
+}
+
 export function buildShotFromResult(
   result: unknown,
   index: number,
@@ -119,7 +157,7 @@ export function buildShotFromResult(
     courtZoneY: normalizeNumber(courtZone.y, 0.5),
     contactX: normalizeNumber(contactPoint.x, 0.5),
     contactY: normalizeNumber(contactPoint.y, 0.5),
-    speedMph: normalizeNumber(ballTrajectory.estimatedSpeedMph, 55),
+    speedMph: finiteOrNull(ballTrajectory.estimatedSpeedMph),
     spinType: stringOrNull(ballTrajectory.spin),
     depth: stringOrNull(ballTrajectory.depth),
     angleDegrees: normalizeNumber(ballTrajectory.angle, 0),

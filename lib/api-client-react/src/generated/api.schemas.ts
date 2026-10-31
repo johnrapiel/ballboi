@@ -985,6 +985,45 @@ export interface CompleteBallBoiSessionBody {
   durationSeconds: number;
 }
 
+/**
+ * Side of the net the hitter was on, as the camera sees it.
+ * @nullable
+ */
+export type MatchShotHitterSide =
+  | (typeof MatchShotHitterSide)[keyof typeof MatchShotHitterSide]
+  | null;
+
+export const MatchShotHitterSide = {
+  near: "near",
+  far: "far",
+} as const;
+
+/**
+ * @nullable
+ */
+export type MatchShotLineCall =
+  | (typeof MatchShotLineCall)[keyof typeof MatchShotLineCall]
+  | null;
+
+export const MatchShotLineCall = {
+  in: "in",
+  out: "out",
+  net: "net",
+} as const;
+
+/**
+ * @nullable
+ */
+export type MatchShotPointEnd =
+  | (typeof MatchShotPointEnd)[keyof typeof MatchShotPointEnd]
+  | null;
+
+export const MatchShotPointEnd = {
+  winner: "winner",
+  forced_error: "forced_error",
+  unforced_error: "unforced_error",
+} as const;
+
 export interface MatchShot {
   id: number;
   sessionId: number;
@@ -1025,6 +1064,42 @@ export interface MatchShot {
   clipStartSeconds?: number | null;
   /** @nullable */
   clipEndSeconds?: number | null;
+  /**
+   * Side of the net the hitter was on, as the camera sees it.
+   * @nullable
+   */
+  hitterSide?: MatchShotHitterSide;
+  /**
+   * Where the ball landed, meters across from the center line.
+   * @nullable
+   */
+  landingXM?: number | null;
+  /**
+   * Where the ball landed, meters from the net, positive toward the far baseline.
+   * @nullable
+   */
+  landingYM?: number | null;
+  /** @nullable */
+  landingSeconds?: number | null;
+  /** @nullable */
+  lineCall?: MatchShotLineCall;
+  /** @nullable */
+  lineCallConfidence?: number | null;
+  /** Too close to call with confidence; the app says "Close call" instead of in or out. */
+  closeCall?: boolean;
+  /**
+   * Distance to the deciding line in meters, positive inside.
+   * @nullable
+   */
+  lineDistanceM?: number | null;
+  /** @nullable */
+  serveNumber?: number | null;
+  /** @nullable */
+  serveZone?: string | null;
+  /** @nullable */
+  pointEnd?: MatchShotPointEnd;
+  /** @nullable */
+  modelVersion?: string | null;
 }
 
 export type MatchStatisticsHeatmapDataItem = { [key: string]: unknown };

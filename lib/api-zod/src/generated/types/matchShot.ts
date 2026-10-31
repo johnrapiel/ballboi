@@ -5,6 +5,9 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+import type { MatchShotHitterSide } from "./matchShotHitterSide";
+import type { MatchShotLineCall } from "./matchShotLineCall";
+import type { MatchShotPointEnd } from "./matchShotPointEnd";
 
 export interface MatchShot {
   id: number;
@@ -46,4 +49,40 @@ export interface MatchShot {
   clipStartSeconds?: number | null;
   /** @nullable */
   clipEndSeconds?: number | null;
+  /**
+   * Side of the net the hitter was on, as the camera sees it.
+   * @nullable
+   */
+  hitterSide?: MatchShotHitterSide;
+  /**
+   * Where the ball landed, meters across from the center line.
+   * @nullable
+   */
+  landingXM?: number | null;
+  /**
+   * Where the ball landed, meters from the net, positive toward the far baseline.
+   * @nullable
+   */
+  landingYM?: number | null;
+  /** @nullable */
+  landingSeconds?: number | null;
+  /** @nullable */
+  lineCall?: MatchShotLineCall;
+  /** @nullable */
+  lineCallConfidence?: number | null;
+  /** Too close to call with confidence; the app says "Close call" instead of in or out. */
+  closeCall?: boolean;
+  /**
+   * Distance to the deciding line in meters, positive inside.
+   * @nullable
+   */
+  lineDistanceM?: number | null;
+  /** @nullable */
+  serveNumber?: number | null;
+  /** @nullable */
+  serveZone?: string | null;
+  /** @nullable */
+  pointEnd?: MatchShotPointEnd;
+  /** @nullable */
+  modelVersion?: string | null;
 }
