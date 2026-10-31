@@ -1,6 +1,6 @@
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { getAuth } from "@clerk/express";
-import { db, leaguesTable, matchesTable, playersTable } from "@workspace/db";
+import { ballBoiDoublesViewsTable, db, leaguesTable, matchesTable, playersTable } from "@workspace/db";
 import { eq, inArray, or } from "drizzle-orm";
 import pino from "pino";
 import {
@@ -84,6 +84,27 @@ router.get("/recording/todays-matches", requireAuth, async (req: Request, res: R
   } catch (err) {
     logger.error({ err }, "Failed to list today's matches");
     res.status(500).json({ error: "Couldn't load today's matches." });
+  }
+});
+
+/**
+ * POST /recording/doubles-views { matchId }
+ * Someone saw "Ball Boi analyzes singles for now. Doubles is coming." on a
+ * doubles match. Counted once per person per match, as a demand signal.
+ */
+router.post("/recording/doubles-views", requireAuth, async (req: Request, res: Response) => {
+  const userId = getAuth(req).userId!;
+  const matchId = Number(req.body?.matchId);
+  if (!Number.isInteger(matchId) || matchId <= 0) {
+    res.status(400).json({ error: "matchId is required." });
+    return;
+  }
+  try {
+    await db.insert(ballBoiDoublesViewsTable).values({ clerkUserId: userId, matchId }).onConflictDoNothing();
+    res.status(204).end();
+  } catch (err) {
+    logger.error({ err }, "Failed to log a doubles view");
+    res.status(500).json({ error: "Couldn't log the view." });
   }
 });
 
