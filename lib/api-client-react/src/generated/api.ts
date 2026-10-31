@@ -18,6 +18,7 @@ import type {
 
 import type {
   ActivityItem,
+  ApprovedPlayer,
   AvailabilityParticipationResponse,
   AvailabilityReminderCooldownResponse,
   AvailabilityReminderResponse,
@@ -34,7 +35,9 @@ import type {
   CreateMatchBody,
   CreateSeasonBody,
   DashboardStats,
+  DropoutResult,
   EndMatchBallBoiBody,
+  EnterScoreBody,
   ErrorResponse,
   GenerateLeagueRoundBody,
   GetHeadToHeadParams,
@@ -50,9 +53,14 @@ import type {
   HealthStatus,
   JoinLeagueBody,
   JoinLeagueResponse,
+  JoinRequest,
   League,
+  LeagueAdmin,
   LeagueInvite,
+  LeagueMembership,
   LeagueRoundWithMatchups,
+  LeagueSchedule,
+  LockMatchBody,
   Match,
   MatchBallBoiShotCallbackBody,
   MatchShot,
@@ -60,13 +68,17 @@ import type {
   MyMatchesResponse,
   MyScheduleResponse,
   Player,
+  PlayerIdBody,
   PlayerStats,
   PlayoffBracketResponse,
   PlayoffsStatusResponse,
   ResetLeagueRecords200,
+  ScheduleRound,
+  ScoreResult,
   Season,
   Standing,
   StartBallBoiSessionBody,
+  SwapPlayersBody,
   TopPlayer,
   UpdateLeagueBody,
   UpdateMatchBody,
@@ -2199,6 +2211,1909 @@ export function useGetPlayerStats<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary The signed-in user's admin role and player row in a league
+ */
+export const getGetLeagueMembershipUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/membership`;
+};
+
+export const getLeagueMembership = async (
+  leagueId: number,
+  options?: RequestInit,
+): Promise<LeagueMembership> => {
+  return customFetch<LeagueMembership>(getGetLeagueMembershipUrl(leagueId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetLeagueMembershipQueryKey = (leagueId: number) => {
+  return [`/api/leagues/${leagueId}/membership`] as const;
+};
+
+export const getGetLeagueMembershipQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLeagueMembership>>,
+  TError = ErrorType<unknown>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeagueMembership>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetLeagueMembershipQueryKey(leagueId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getLeagueMembership>>
+  > = ({ signal }) =>
+    getLeagueMembership(leagueId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!leagueId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLeagueMembership>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLeagueMembershipQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLeagueMembership>>
+>;
+export type GetLeagueMembershipQueryError = ErrorType<unknown>;
+
+/**
+ * @summary The signed-in user's admin role and player row in a league
+ */
+
+export function useGetLeagueMembership<
+  TData = Awaited<ReturnType<typeof getLeagueMembership>>,
+  TError = ErrorType<unknown>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeagueMembership>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLeagueMembershipQueryOptions(leagueId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary The league's owner and co-admins
+ */
+export const getGetLeagueAdminsUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/admins`;
+};
+
+export const getLeagueAdmins = async (
+  leagueId: number,
+  options?: RequestInit,
+): Promise<LeagueAdmin[]> => {
+  return customFetch<LeagueAdmin[]>(getGetLeagueAdminsUrl(leagueId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetLeagueAdminsQueryKey = (leagueId: number) => {
+  return [`/api/leagues/${leagueId}/admins`] as const;
+};
+
+export const getGetLeagueAdminsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLeagueAdmins>>,
+  TError = ErrorType<unknown>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeagueAdmins>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetLeagueAdminsQueryKey(leagueId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getLeagueAdmins>>> = ({
+    signal,
+  }) => getLeagueAdmins(leagueId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!leagueId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLeagueAdmins>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLeagueAdminsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLeagueAdmins>>
+>;
+export type GetLeagueAdminsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary The league's owner and co-admins
+ */
+
+export function useGetLeagueAdmins<
+  TData = Awaited<ReturnType<typeof getLeagueAdmins>>,
+  TError = ErrorType<unknown>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeagueAdmins>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLeagueAdminsQueryOptions(leagueId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Promote a league member to co-admin (admins only)
+ */
+export const getPromoteLeagueAdminUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/admins`;
+};
+
+export const promoteLeagueAdmin = async (
+  leagueId: number,
+  playerIdBody: PlayerIdBody,
+  options?: RequestInit,
+): Promise<LeagueAdmin> => {
+  return customFetch<LeagueAdmin>(getPromoteLeagueAdminUrl(leagueId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(playerIdBody),
+  });
+};
+
+export const getPromoteLeagueAdminMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof promoteLeagueAdmin>>,
+    TError,
+    { leagueId: number; data: BodyType<PlayerIdBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof promoteLeagueAdmin>>,
+  TError,
+  { leagueId: number; data: BodyType<PlayerIdBody> },
+  TContext
+> => {
+  const mutationKey = ["promoteLeagueAdmin"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof promoteLeagueAdmin>>,
+    { leagueId: number; data: BodyType<PlayerIdBody> }
+  > = (props) => {
+    const { leagueId, data } = props ?? {};
+
+    return promoteLeagueAdmin(leagueId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PromoteLeagueAdminMutationResult = NonNullable<
+  Awaited<ReturnType<typeof promoteLeagueAdmin>>
+>;
+export type PromoteLeagueAdminMutationBody = BodyType<PlayerIdBody>;
+export type PromoteLeagueAdminMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Promote a league member to co-admin (admins only)
+ */
+export const usePromoteLeagueAdmin = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof promoteLeagueAdmin>>,
+    TError,
+    { leagueId: number; data: BodyType<PlayerIdBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof promoteLeagueAdmin>>,
+  TError,
+  { leagueId: number; data: BodyType<PlayerIdBody> },
+  TContext
+> => {
+  return useMutation(getPromoteLeagueAdminMutationOptions(options));
+};
+
+/**
+ * @summary Remove a co-admin (the owner), or step down (a co-admin)
+ */
+export const getRemoveLeagueAdminUrl = (
+  leagueId: number,
+  clerkUserId: string,
+) => {
+  return `/api/leagues/${leagueId}/admins/${clerkUserId}`;
+};
+
+export const removeLeagueAdmin = async (
+  leagueId: number,
+  clerkUserId: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getRemoveLeagueAdminUrl(leagueId, clerkUserId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getRemoveLeagueAdminMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeLeagueAdmin>>,
+    TError,
+    { leagueId: number; clerkUserId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof removeLeagueAdmin>>,
+  TError,
+  { leagueId: number; clerkUserId: string },
+  TContext
+> => {
+  const mutationKey = ["removeLeagueAdmin"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof removeLeagueAdmin>>,
+    { leagueId: number; clerkUserId: string }
+  > = (props) => {
+    const { leagueId, clerkUserId } = props ?? {};
+
+    return removeLeagueAdmin(leagueId, clerkUserId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RemoveLeagueAdminMutationResult = NonNullable<
+  Awaited<ReturnType<typeof removeLeagueAdmin>>
+>;
+
+export type RemoveLeagueAdminMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Remove a co-admin (the owner), or step down (a co-admin)
+ */
+export const useRemoveLeagueAdmin = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeLeagueAdmin>>,
+    TError,
+    { leagueId: number; clerkUserId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof removeLeagueAdmin>>,
+  TError,
+  { leagueId: number; clerkUserId: string },
+  TContext
+> => {
+  return useMutation(getRemoveLeagueAdminMutationOptions(options));
+};
+
+/**
+ * @summary Every round of the season, plus weeks still to come
+ */
+export const getGetLeagueScheduleUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/schedule`;
+};
+
+export const getLeagueSchedule = async (
+  leagueId: number,
+  options?: RequestInit,
+): Promise<LeagueSchedule> => {
+  return customFetch<LeagueSchedule>(getGetLeagueScheduleUrl(leagueId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetLeagueScheduleQueryKey = (leagueId: number) => {
+  return [`/api/leagues/${leagueId}/schedule`] as const;
+};
+
+export const getGetLeagueScheduleQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLeagueSchedule>>,
+  TError = ErrorType<unknown>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeagueSchedule>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetLeagueScheduleQueryKey(leagueId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getLeagueSchedule>>
+  > = ({ signal }) =>
+    getLeagueSchedule(leagueId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!leagueId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLeagueSchedule>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLeagueScheduleQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLeagueSchedule>>
+>;
+export type GetLeagueScheduleQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Every round of the season, plus weeks still to come
+ */
+
+export function useGetLeagueSchedule<
+  TData = Awaited<ReturnType<typeof getLeagueSchedule>>,
+  TError = ErrorType<unknown>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeagueSchedule>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLeagueScheduleQueryOptions(leagueId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Enter a league match score from your own side. The first score entered stands.
+ */
+export const getEnterLeagueScoreUrl = (leagueId: number, matchId: number) => {
+  return `/api/leagues/${leagueId}/matches/${matchId}/score`;
+};
+
+export const enterLeagueScore = async (
+  leagueId: number,
+  matchId: number,
+  enterScoreBody: EnterScoreBody,
+  options?: RequestInit,
+): Promise<ScoreResult> => {
+  return customFetch<ScoreResult>(getEnterLeagueScoreUrl(leagueId, matchId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(enterScoreBody),
+  });
+};
+
+export const getEnterLeagueScoreMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof enterLeagueScore>>,
+    TError,
+    { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof enterLeagueScore>>,
+  TError,
+  { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
+  TContext
+> => {
+  const mutationKey = ["enterLeagueScore"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof enterLeagueScore>>,
+    { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> }
+  > = (props) => {
+    const { leagueId, matchId, data } = props ?? {};
+
+    return enterLeagueScore(leagueId, matchId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EnterLeagueScoreMutationResult = NonNullable<
+  Awaited<ReturnType<typeof enterLeagueScore>>
+>;
+export type EnterLeagueScoreMutationBody = BodyType<EnterScoreBody>;
+export type EnterLeagueScoreMutationError = ErrorType<void>;
+
+/**
+ * @summary Enter a league match score from your own side. The first score entered stands.
+ */
+export const useEnterLeagueScore = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof enterLeagueScore>>,
+    TError,
+    { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof enterLeagueScore>>,
+  TError,
+  { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
+  TContext
+> => {
+  return useMutation(getEnterLeagueScoreMutationOptions(options));
+};
+
+/**
+ * @summary Pending requests and the waitlist (admins only)
+ */
+export const getGetLeagueJoinRequestsUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/join-requests`;
+};
+
+export const getLeagueJoinRequests = async (
+  leagueId: number,
+  options?: RequestInit,
+): Promise<JoinRequest[]> => {
+  return customFetch<JoinRequest[]>(getGetLeagueJoinRequestsUrl(leagueId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetLeagueJoinRequestsQueryKey = (leagueId: number) => {
+  return [`/api/leagues/${leagueId}/join-requests`] as const;
+};
+
+export const getGetLeagueJoinRequestsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLeagueJoinRequests>>,
+  TError = ErrorType<unknown>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeagueJoinRequests>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetLeagueJoinRequestsQueryKey(leagueId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getLeagueJoinRequests>>
+  > = ({ signal }) =>
+    getLeagueJoinRequests(leagueId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!leagueId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLeagueJoinRequests>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLeagueJoinRequestsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLeagueJoinRequests>>
+>;
+export type GetLeagueJoinRequestsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Pending requests and the waitlist (admins only)
+ */
+
+export function useGetLeagueJoinRequests<
+  TData = Awaited<ReturnType<typeof getLeagueJoinRequests>>,
+  TError = ErrorType<unknown>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeagueJoinRequests>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLeagueJoinRequestsQueryOptions(leagueId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Ask to join an Open league. Goes to the waitlist once the season has started or the league is full.
+ */
+export const getRequestToJoinLeagueUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/join-requests`;
+};
+
+export const requestToJoinLeague = async (
+  leagueId: number,
+  joinLeagueBody: JoinLeagueBody,
+  options?: RequestInit,
+): Promise<JoinRequest> => {
+  return customFetch<JoinRequest>(getRequestToJoinLeagueUrl(leagueId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(joinLeagueBody),
+  });
+};
+
+export const getRequestToJoinLeagueMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestToJoinLeague>>,
+    TError,
+    { leagueId: number; data: BodyType<JoinLeagueBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestToJoinLeague>>,
+  TError,
+  { leagueId: number; data: BodyType<JoinLeagueBody> },
+  TContext
+> => {
+  const mutationKey = ["requestToJoinLeague"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestToJoinLeague>>,
+    { leagueId: number; data: BodyType<JoinLeagueBody> }
+  > = (props) => {
+    const { leagueId, data } = props ?? {};
+
+    return requestToJoinLeague(leagueId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestToJoinLeagueMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestToJoinLeague>>
+>;
+export type RequestToJoinLeagueMutationBody = BodyType<JoinLeagueBody>;
+export type RequestToJoinLeagueMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Ask to join an Open league. Goes to the waitlist once the season has started or the league is full.
+ */
+export const useRequestToJoinLeague = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestToJoinLeague>>,
+    TError,
+    { leagueId: number; data: BodyType<JoinLeagueBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestToJoinLeague>>,
+  TError,
+  { leagueId: number; data: BodyType<JoinLeagueBody> },
+  TContext
+> => {
+  return useMutation(getRequestToJoinLeagueMutationOptions(options));
+};
+
+/**
+ * @summary Your own pending request or waitlist spot
+ */
+export const getGetMyLeagueJoinRequestUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/join-requests/me`;
+};
+
+export const getMyLeagueJoinRequest = async (
+  leagueId: number,
+  options?: RequestInit,
+): Promise<JoinRequest | null> => {
+  return customFetch<JoinRequest | null>(
+    getGetMyLeagueJoinRequestUrl(leagueId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetMyLeagueJoinRequestQueryKey = (leagueId: number) => {
+  return [`/api/leagues/${leagueId}/join-requests/me`] as const;
+};
+
+export const getGetMyLeagueJoinRequestQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyLeagueJoinRequest>>,
+  TError = ErrorType<unknown>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMyLeagueJoinRequest>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetMyLeagueJoinRequestQueryKey(leagueId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMyLeagueJoinRequest>>
+  > = ({ signal }) =>
+    getMyLeagueJoinRequest(leagueId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!leagueId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyLeagueJoinRequest>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyLeagueJoinRequestQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyLeagueJoinRequest>>
+>;
+export type GetMyLeagueJoinRequestQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Your own pending request or waitlist spot
+ */
+
+export function useGetMyLeagueJoinRequest<
+  TData = Awaited<ReturnType<typeof getMyLeagueJoinRequest>>,
+  TError = ErrorType<unknown>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMyLeagueJoinRequest>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyLeagueJoinRequestQueryOptions(leagueId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Withdraw your request or leave the waitlist
+ */
+export const getWithdrawLeagueJoinRequestUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/join-requests/me`;
+};
+
+export const withdrawLeagueJoinRequest = async (
+  leagueId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getWithdrawLeagueJoinRequestUrl(leagueId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getWithdrawLeagueJoinRequestMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof withdrawLeagueJoinRequest>>,
+    TError,
+    { leagueId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof withdrawLeagueJoinRequest>>,
+  TError,
+  { leagueId: number },
+  TContext
+> => {
+  const mutationKey = ["withdrawLeagueJoinRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof withdrawLeagueJoinRequest>>,
+    { leagueId: number }
+  > = (props) => {
+    const { leagueId } = props ?? {};
+
+    return withdrawLeagueJoinRequest(leagueId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type WithdrawLeagueJoinRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof withdrawLeagueJoinRequest>>
+>;
+
+export type WithdrawLeagueJoinRequestMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Withdraw your request or leave the waitlist
+ */
+export const useWithdrawLeagueJoinRequest = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof withdrawLeagueJoinRequest>>,
+    TError,
+    { leagueId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof withdrawLeagueJoinRequest>>,
+  TError,
+  { leagueId: number },
+  TContext
+> => {
+  return useMutation(getWithdrawLeagueJoinRequestMutationOptions(options));
+};
+
+/**
+ * @summary Approve a request before the season starts (admins only)
+ */
+export const getApproveLeagueJoinRequestUrl = (
+  leagueId: number,
+  requestId: number,
+) => {
+  return `/api/leagues/${leagueId}/join-requests/${requestId}/approve`;
+};
+
+export const approveLeagueJoinRequest = async (
+  leagueId: number,
+  requestId: number,
+  options?: RequestInit,
+): Promise<ApprovedPlayer> => {
+  return customFetch<ApprovedPlayer>(
+    getApproveLeagueJoinRequestUrl(leagueId, requestId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getApproveLeagueJoinRequestMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveLeagueJoinRequest>>,
+    TError,
+    { leagueId: number; requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof approveLeagueJoinRequest>>,
+  TError,
+  { leagueId: number; requestId: number },
+  TContext
+> => {
+  const mutationKey = ["approveLeagueJoinRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof approveLeagueJoinRequest>>,
+    { leagueId: number; requestId: number }
+  > = (props) => {
+    const { leagueId, requestId } = props ?? {};
+
+    return approveLeagueJoinRequest(leagueId, requestId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ApproveLeagueJoinRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof approveLeagueJoinRequest>>
+>;
+
+export type ApproveLeagueJoinRequestMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Approve a request before the season starts (admins only)
+ */
+export const useApproveLeagueJoinRequest = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveLeagueJoinRequest>>,
+    TError,
+    { leagueId: number; requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof approveLeagueJoinRequest>>,
+  TError,
+  { leagueId: number; requestId: number },
+  TContext
+> => {
+  return useMutation(getApproveLeagueJoinRequestMutationOptions(options));
+};
+
+/**
+ * @summary Decline a request or remove someone from the waitlist (admins only)
+ */
+export const getDeclineLeagueJoinRequestUrl = (
+  leagueId: number,
+  requestId: number,
+) => {
+  return `/api/leagues/${leagueId}/join-requests/${requestId}/decline`;
+};
+
+export const declineLeagueJoinRequest = async (
+  leagueId: number,
+  requestId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(
+    getDeclineLeagueJoinRequestUrl(leagueId, requestId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getDeclineLeagueJoinRequestMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof declineLeagueJoinRequest>>,
+    TError,
+    { leagueId: number; requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof declineLeagueJoinRequest>>,
+  TError,
+  { leagueId: number; requestId: number },
+  TContext
+> => {
+  const mutationKey = ["declineLeagueJoinRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof declineLeagueJoinRequest>>,
+    { leagueId: number; requestId: number }
+  > = (props) => {
+    const { leagueId, requestId } = props ?? {};
+
+    return declineLeagueJoinRequest(leagueId, requestId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeclineLeagueJoinRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof declineLeagueJoinRequest>>
+>;
+
+export type DeclineLeagueJoinRequestMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Decline a request or remove someone from the waitlist (admins only)
+ */
+export const useDeclineLeagueJoinRequest = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof declineLeagueJoinRequest>>,
+    TError,
+    { leagueId: number; requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof declineLeagueJoinRequest>>,
+  TError,
+  { leagueId: number; requestId: number },
+  TContext
+> => {
+  return useMutation(getDeclineLeagueJoinRequestMutationOptions(options));
+};
+
+/**
+ * @summary Leave a league. Played matches stay; remaining matches are voided.
+ */
+export const getLeaveLeagueUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/leave`;
+};
+
+export const leaveLeague = async (
+  leagueId: number,
+  options?: RequestInit,
+): Promise<DropoutResult> => {
+  return customFetch<DropoutResult>(getLeaveLeagueUrl(leagueId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getLeaveLeagueMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof leaveLeague>>,
+    TError,
+    { leagueId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof leaveLeague>>,
+  TError,
+  { leagueId: number },
+  TContext
+> => {
+  const mutationKey = ["leaveLeague"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof leaveLeague>>,
+    { leagueId: number }
+  > = (props) => {
+    const { leagueId } = props ?? {};
+
+    return leaveLeague(leagueId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LeaveLeagueMutationResult = NonNullable<
+  Awaited<ReturnType<typeof leaveLeague>>
+>;
+
+export type LeaveLeagueMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Leave a league. Played matches stay; remaining matches are voided.
+ */
+export const useLeaveLeague = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof leaveLeague>>,
+    TError,
+    { leagueId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof leaveLeague>>,
+  TError,
+  { leagueId: number },
+  TContext
+> => {
+  return useMutation(getLeaveLeagueMutationOptions(options));
+};
+
+/**
+ * @summary Remove a player (admins only). Same rules as leaving.
+ */
+export const getRemoveLeaguePlayerUrl = (
+  leagueId: number,
+  playerId: number,
+) => {
+  return `/api/leagues/${leagueId}/players/${playerId}/remove`;
+};
+
+export const removeLeaguePlayer = async (
+  leagueId: number,
+  playerId: number,
+  options?: RequestInit,
+): Promise<DropoutResult> => {
+  return customFetch<DropoutResult>(
+    getRemoveLeaguePlayerUrl(leagueId, playerId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getRemoveLeaguePlayerMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeLeaguePlayer>>,
+    TError,
+    { leagueId: number; playerId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof removeLeaguePlayer>>,
+  TError,
+  { leagueId: number; playerId: number },
+  TContext
+> => {
+  const mutationKey = ["removeLeaguePlayer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof removeLeaguePlayer>>,
+    { leagueId: number; playerId: number }
+  > = (props) => {
+    const { leagueId, playerId } = props ?? {};
+
+    return removeLeaguePlayer(leagueId, playerId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RemoveLeaguePlayerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof removeLeaguePlayer>>
+>;
+
+export type RemoveLeaguePlayerMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Remove a player (admins only). Same rules as leaving.
+ */
+export const useRemoveLeaguePlayer = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeLeaguePlayer>>,
+    TError,
+    { leagueId: number; playerId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof removeLeaguePlayer>>,
+  TError,
+  { leagueId: number; playerId: number },
+  TContext
+> => {
+  return useMutation(getRemoveLeaguePlayerMutationOptions(options));
+};
+
+/**
+ * @summary Draft the next round's pairings now (admins only)
+ */
+export const getDraftNextLeagueRoundUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/rounds/draft-next`;
+};
+
+export const draftNextLeagueRound = async (
+  leagueId: number,
+  options?: RequestInit,
+): Promise<ScheduleRound> => {
+  return customFetch<ScheduleRound>(getDraftNextLeagueRoundUrl(leagueId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getDraftNextLeagueRoundMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof draftNextLeagueRound>>,
+    TError,
+    { leagueId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof draftNextLeagueRound>>,
+  TError,
+  { leagueId: number },
+  TContext
+> => {
+  const mutationKey = ["draftNextLeagueRound"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof draftNextLeagueRound>>,
+    { leagueId: number }
+  > = (props) => {
+    const { leagueId } = props ?? {};
+
+    return draftNextLeagueRound(leagueId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DraftNextLeagueRoundMutationResult = NonNullable<
+  Awaited<ReturnType<typeof draftNextLeagueRound>>
+>;
+
+export type DraftNextLeagueRoundMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Draft the next round's pairings now (admins only)
+ */
+export const useDraftNextLeagueRound = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof draftNextLeagueRound>>,
+    TError,
+    { leagueId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof draftNextLeagueRound>>,
+  TError,
+  { leagueId: number },
+  TContext
+> => {
+  return useMutation(getDraftNextLeagueRoundMutationOptions(options));
+};
+
+/**
+ * @summary Re-pair a draft, keeping locked matches and admin byes (admins only)
+ */
+export const getRepairLeagueRoundUrl = (leagueId: number, roundId: number) => {
+  return `/api/leagues/${leagueId}/rounds/${roundId}/repair`;
+};
+
+export const repairLeagueRound = async (
+  leagueId: number,
+  roundId: number,
+  options?: RequestInit,
+): Promise<ScheduleRound> => {
+  return customFetch<ScheduleRound>(
+    getRepairLeagueRoundUrl(leagueId, roundId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getRepairLeagueRoundMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof repairLeagueRound>>,
+    TError,
+    { leagueId: number; roundId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof repairLeagueRound>>,
+  TError,
+  { leagueId: number; roundId: number },
+  TContext
+> => {
+  const mutationKey = ["repairLeagueRound"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof repairLeagueRound>>,
+    { leagueId: number; roundId: number }
+  > = (props) => {
+    const { leagueId, roundId } = props ?? {};
+
+    return repairLeagueRound(leagueId, roundId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RepairLeagueRoundMutationResult = NonNullable<
+  Awaited<ReturnType<typeof repairLeagueRound>>
+>;
+
+export type RepairLeagueRoundMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Re-pair a draft, keeping locked matches and admin byes (admins only)
+ */
+export const useRepairLeagueRound = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof repairLeagueRound>>,
+    TError,
+    { leagueId: number; roundId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof repairLeagueRound>>,
+  TError,
+  { leagueId: number; roundId: number },
+  TContext
+> => {
+  return useMutation(getRepairLeagueRoundMutationOptions(options));
+};
+
+/**
+ * @summary Send a draft out to players now (admins only)
+ */
+export const getPublishLeagueRoundUrl = (leagueId: number, roundId: number) => {
+  return `/api/leagues/${leagueId}/rounds/${roundId}/publish`;
+};
+
+export const publishLeagueRound = async (
+  leagueId: number,
+  roundId: number,
+  options?: RequestInit,
+): Promise<ScheduleRound> => {
+  return customFetch<ScheduleRound>(
+    getPublishLeagueRoundUrl(leagueId, roundId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getPublishLeagueRoundMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof publishLeagueRound>>,
+    TError,
+    { leagueId: number; roundId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof publishLeagueRound>>,
+  TError,
+  { leagueId: number; roundId: number },
+  TContext
+> => {
+  const mutationKey = ["publishLeagueRound"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof publishLeagueRound>>,
+    { leagueId: number; roundId: number }
+  > = (props) => {
+    const { leagueId, roundId } = props ?? {};
+
+    return publishLeagueRound(leagueId, roundId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PublishLeagueRoundMutationResult = NonNullable<
+  Awaited<ReturnType<typeof publishLeagueRound>>
+>;
+
+export type PublishLeagueRoundMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Send a draft out to players now (admins only)
+ */
+export const usePublishLeagueRound = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof publishLeagueRound>>,
+    TError,
+    { leagueId: number; roundId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof publishLeagueRound>>,
+  TError,
+  { leagueId: number; roundId: number },
+  TContext
+> => {
+  return useMutation(getPublishLeagueRoundMutationOptions(options));
+};
+
+/**
+ * @summary Swap two players' places in a draft (admins only)
+ */
+export const getSwapLeagueRoundPlayersUrl = (
+  leagueId: number,
+  roundId: number,
+) => {
+  return `/api/leagues/${leagueId}/rounds/${roundId}/swap`;
+};
+
+export const swapLeagueRoundPlayers = async (
+  leagueId: number,
+  roundId: number,
+  swapPlayersBody: SwapPlayersBody,
+  options?: RequestInit,
+): Promise<ScheduleRound> => {
+  return customFetch<ScheduleRound>(
+    getSwapLeagueRoundPlayersUrl(leagueId, roundId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(swapPlayersBody),
+    },
+  );
+};
+
+export const getSwapLeagueRoundPlayersMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof swapLeagueRoundPlayers>>,
+    TError,
+    { leagueId: number; roundId: number; data: BodyType<SwapPlayersBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof swapLeagueRoundPlayers>>,
+  TError,
+  { leagueId: number; roundId: number; data: BodyType<SwapPlayersBody> },
+  TContext
+> => {
+  const mutationKey = ["swapLeagueRoundPlayers"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof swapLeagueRoundPlayers>>,
+    { leagueId: number; roundId: number; data: BodyType<SwapPlayersBody> }
+  > = (props) => {
+    const { leagueId, roundId, data } = props ?? {};
+
+    return swapLeagueRoundPlayers(leagueId, roundId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SwapLeagueRoundPlayersMutationResult = NonNullable<
+  Awaited<ReturnType<typeof swapLeagueRoundPlayers>>
+>;
+export type SwapLeagueRoundPlayersMutationBody = BodyType<SwapPlayersBody>;
+export type SwapLeagueRoundPlayersMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Swap two players' places in a draft (admins only)
+ */
+export const useSwapLeagueRoundPlayers = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof swapLeagueRoundPlayers>>,
+    TError,
+    { leagueId: number; roundId: number; data: BodyType<SwapPlayersBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof swapLeagueRoundPlayers>>,
+  TError,
+  { leagueId: number; roundId: number; data: BodyType<SwapPlayersBody> },
+  TContext
+> => {
+  return useMutation(getSwapLeagueRoundPlayersMutationOptions(options));
+};
+
+/**
+ * @summary Give a player a bye in a draft (admins only)
+ */
+export const getAddLeagueRoundByeUrl = (leagueId: number, roundId: number) => {
+  return `/api/leagues/${leagueId}/rounds/${roundId}/byes`;
+};
+
+export const addLeagueRoundBye = async (
+  leagueId: number,
+  roundId: number,
+  playerIdBody: PlayerIdBody,
+  options?: RequestInit,
+): Promise<ScheduleRound> => {
+  return customFetch<ScheduleRound>(
+    getAddLeagueRoundByeUrl(leagueId, roundId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(playerIdBody),
+    },
+  );
+};
+
+export const getAddLeagueRoundByeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addLeagueRoundBye>>,
+    TError,
+    { leagueId: number; roundId: number; data: BodyType<PlayerIdBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof addLeagueRoundBye>>,
+  TError,
+  { leagueId: number; roundId: number; data: BodyType<PlayerIdBody> },
+  TContext
+> => {
+  const mutationKey = ["addLeagueRoundBye"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof addLeagueRoundBye>>,
+    { leagueId: number; roundId: number; data: BodyType<PlayerIdBody> }
+  > = (props) => {
+    const { leagueId, roundId, data } = props ?? {};
+
+    return addLeagueRoundBye(leagueId, roundId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AddLeagueRoundByeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof addLeagueRoundBye>>
+>;
+export type AddLeagueRoundByeMutationBody = BodyType<PlayerIdBody>;
+export type AddLeagueRoundByeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Give a player a bye in a draft (admins only)
+ */
+export const useAddLeagueRoundBye = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addLeagueRoundBye>>,
+    TError,
+    { leagueId: number; roundId: number; data: BodyType<PlayerIdBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof addLeagueRoundBye>>,
+  TError,
+  { leagueId: number; roundId: number; data: BodyType<PlayerIdBody> },
+  TContext
+> => {
+  return useMutation(getAddLeagueRoundByeMutationOptions(options));
+};
+
+/**
+ * @summary Take a bye away in a draft (admins only)
+ */
+export const getRemoveLeagueRoundByeUrl = (
+  leagueId: number,
+  roundId: number,
+  playerId: number,
+) => {
+  return `/api/leagues/${leagueId}/rounds/${roundId}/byes/${playerId}`;
+};
+
+export const removeLeagueRoundBye = async (
+  leagueId: number,
+  roundId: number,
+  playerId: number,
+  options?: RequestInit,
+): Promise<ScheduleRound> => {
+  return customFetch<ScheduleRound>(
+    getRemoveLeagueRoundByeUrl(leagueId, roundId, playerId),
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+};
+
+export const getRemoveLeagueRoundByeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeLeagueRoundBye>>,
+    TError,
+    { leagueId: number; roundId: number; playerId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof removeLeagueRoundBye>>,
+  TError,
+  { leagueId: number; roundId: number; playerId: number },
+  TContext
+> => {
+  const mutationKey = ["removeLeagueRoundBye"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof removeLeagueRoundBye>>,
+    { leagueId: number; roundId: number; playerId: number }
+  > = (props) => {
+    const { leagueId, roundId, playerId } = props ?? {};
+
+    return removeLeagueRoundBye(leagueId, roundId, playerId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RemoveLeagueRoundByeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof removeLeagueRoundBye>>
+>;
+
+export type RemoveLeagueRoundByeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Take a bye away in a draft (admins only)
+ */
+export const useRemoveLeagueRoundBye = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeLeagueRoundBye>>,
+    TError,
+    { leagueId: number; roundId: number; playerId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof removeLeagueRoundBye>>,
+  TError,
+  { leagueId: number; roundId: number; playerId: number },
+  TContext
+> => {
+  return useMutation(getRemoveLeagueRoundByeMutationOptions(options));
+};
+
+/**
+ * @summary Lock or unlock a pairing in a draft (admins only)
+ */
+export const getLockLeagueRoundMatchUrl = (
+  leagueId: number,
+  roundId: number,
+  matchId: number,
+) => {
+  return `/api/leagues/${leagueId}/rounds/${roundId}/matches/${matchId}/lock`;
+};
+
+export const lockLeagueRoundMatch = async (
+  leagueId: number,
+  roundId: number,
+  matchId: number,
+  lockMatchBody: LockMatchBody,
+  options?: RequestInit,
+): Promise<ScheduleRound> => {
+  return customFetch<ScheduleRound>(
+    getLockLeagueRoundMatchUrl(leagueId, roundId, matchId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(lockMatchBody),
+    },
+  );
+};
+
+export const getLockLeagueRoundMatchMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof lockLeagueRoundMatch>>,
+    TError,
+    {
+      leagueId: number;
+      roundId: number;
+      matchId: number;
+      data: BodyType<LockMatchBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof lockLeagueRoundMatch>>,
+  TError,
+  {
+    leagueId: number;
+    roundId: number;
+    matchId: number;
+    data: BodyType<LockMatchBody>;
+  },
+  TContext
+> => {
+  const mutationKey = ["lockLeagueRoundMatch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof lockLeagueRoundMatch>>,
+    {
+      leagueId: number;
+      roundId: number;
+      matchId: number;
+      data: BodyType<LockMatchBody>;
+    }
+  > = (props) => {
+    const { leagueId, roundId, matchId, data } = props ?? {};
+
+    return lockLeagueRoundMatch(
+      leagueId,
+      roundId,
+      matchId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LockLeagueRoundMatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof lockLeagueRoundMatch>>
+>;
+export type LockLeagueRoundMatchMutationBody = BodyType<LockMatchBody>;
+export type LockLeagueRoundMatchMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Lock or unlock a pairing in a draft (admins only)
+ */
+export const useLockLeagueRoundMatch = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof lockLeagueRoundMatch>>,
+    TError,
+    {
+      leagueId: number;
+      roundId: number;
+      matchId: number;
+      data: BodyType<LockMatchBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof lockLeagueRoundMatch>>,
+  TError,
+  {
+    leagueId: number;
+    roundId: number;
+    matchId: number;
+    data: BodyType<LockMatchBody>;
+  },
+  TContext
+> => {
+  return useMutation(getLockLeagueRoundMatchMutationOptions(options));
+};
 
 /**
  * @summary List matches

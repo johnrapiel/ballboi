@@ -39,9 +39,8 @@ export default function JoinWithCodeSheet() {
       router.back();
       // Joining after the season starts, or into a full league, puts the
       // player on the waitlist for next season (decision 26).
-      const waitlist = result as { waitlisted?: boolean; message?: string };
-      if (waitlist.waitlisted) {
-        Alert.alert("You're on the waitlist", waitlist.message ?? "You'll be able to join next season.");
+      if (result.waitlisted) {
+        Alert.alert("You're on the waitlist", result.message);
       } else {
         Alert.alert("You're in", `You joined ${result.league.name}.`);
       }
@@ -61,8 +60,7 @@ export default function JoinWithCodeSheet() {
       setBusy(false);
       const name = invite.leagueName ?? "this league";
       const players = invite.playerCount != null ? playersLabel(invite.playerCount) : null;
-      const locked = invite as { waitlistOnly?: boolean };
-      if (locked.waitlistOnly) {
+      if (invite.waitlistOnly) {
         Alert.alert(`${name} isn't taking new players right now`, "You can join the waitlist for next season.", [
           { text: "Cancel", style: "cancel" },
           { text: "Join waitlist", onPress: () => void join(cleaned) },
