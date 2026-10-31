@@ -27,8 +27,8 @@ _Last updated: 2026-10-18. Synced with the launch-blocking items in `docs/produc
 | Background upload, Wi-Fi by default | 2.1 | ❌ | Survives app close and restart; video kept until the server confirms. Cellular toggle in settings; replay processing card shows "Waiting for Wi-Fi · Upload now on cellular," then "Analyzing"; push when replay is ready |
 | Post-stop flow | 2.1 | ❌ | Score prompt that posts to standings, draggable match start, court-line fix on a still frame captured on the phone, only on low detection confidence. No raw video replay |
 | Simulated replay (no video playback) | 2.1, 4.2 | ❌ | Animated court, shot-by-shot list, scrubber markers, filters. "Close call" label on uncertain in/out. Remove the "Full video" mode |
-| Milestone animations | HIG | ❌ | Four moments only: match result confirmed (score settles, rating counts to its new value), career milestone (badge and ring; launch set: first win, first Ball Boi match, 5- and 10-match win streaks), player card reveal (flip, first view of each player only), Ball Boi analysis ready (shot markers drop onto the court). Reanimated, under 1 second, plays once, never blocks input, a haptic on each. Accessibility tracked in Section 5 |
-| Dynamic Type support | HIG / WCAG 1.4.4 | 🟡 | Font scaling on everywhere in the native app |
+| Milestone animations | HIG | ❌ | Four moments only: score entered (score settles, rating counts to its new value), career milestone (badge and ring; launch set: first win, first Ball Boi match, 5- and 10-match win streaks), player card reveal (flip, first view of each player only), Ball Boi analysis ready (shot markers drop onto the court). Reanimated, under 1 second, plays once, never blocks input, a haptic on each. Accessibility tracked in Section 5 |
+| Dynamic Type support | HIG / WCAG 1.4.4 | 🟡 | Shared `Text` scales every text style fully; display styles and scores stop at 1.5x so they never clip. Body is 17pt, the iOS size. Bold Text and Increase Contrast are respected through `Text` and `useColors`. Still to do: test every rebuilt screen at the largest accessibility size |
 | VoiceOver labels on icon buttons, charts, heatmap, replay controls | HIG / WCAG 1.1.1, 4.1.2 | 🟡 | Done for built screens; replay/heatmap not built yet |
 | 44×44pt minimum tap targets | HIG / WCAG 2.5.8 | 🟡 | `MIN_TAP` enforced in shared Button |
 | Reduce Motion respected | HIG / WCAG 2.3.3 | 🟡 | Web: global CSS guard added. Also applies to the replay animation and the milestone animations |
@@ -125,13 +125,13 @@ The web-app rows below were completed in PR #2 before the web app was retired. T
 | Item | Criterion | Status | Notes |
 |---|---|---|---|
 | Birthday picker accessible | 1.3.1, 4.1.2, 2.5.8, 1.4.4 | 🟡 | Built: visible "Birthday" label, field reads "Birthday, Not set" or the chosen date to VoiceOver, Cancel and Done at 44×44pt, sheet traps VoiceOver focus. Still to do: test with VoiceOver and the largest Dynamic Type sizes on a phone; the year wheel moves one year per swipe, so confirm the starting date is workable |
-| Text contrast ≥ 4.5:1, borders and focus ≥ 3:1 | 1.4.3, 1.4.11 | ✅ | `scripts/check-contrast.mjs` checks 40 token pairs in Day and Night on every `pnpm test`. Day `hairline-strong` raised to 0.52 opacity to reach 3:1 |
+| Text contrast ≥ 4.5:1, borders and focus ≥ 3:1 | 1.4.3, 1.4.11 | ✅ | `scripts/check-contrast.mjs` checks 62 token pairs in Day and Night on every `pnpm test`, including Increase Contrast values and heatmap labels. Day `hairline-strong` raised to 0.52 to clear 3:1 |
 | Primary button contrast | 1.4.3 | 🟡 | Native primary is `ink` on `paper` with `on-ink` text |
-| Status colors (warning/success/info/error) | 1.4.3 | 🟡 | Design system uses `pool`, `clay`, `danger`; `sun` is never text |
-| Focus indicator contrast ≥ 3:1 | 1.4.11 | 🟡 | `focus` token = `pool`, 2px ring |
+| Status colors (success/live/error) | 1.4.3, 1.4.1 | 🟡 | Refreshed palette: `court` (wins, live, links) and `danger` (errors) only; `pool`, `clay` and `sun` retired. Both text-safe on every surface. Each color job has a shape cue (underline, dot, check, cross) and the contrast check fails if one goes missing from the README |
+| Focus indicator contrast ≥ 3:1 | 1.4.11 | ✅ | `focus` token = `ink`, 2px ring, 11.8:1 or better in both themes |
 | Pinch zoom allowed | 1.4.4 | ✅ | Web, PR #2 |
-| No text under 11px | HIG / 1.4.4 | 🟡 | Design system `label` style is the 11px floor |
-| Color is never the only signal (charts, heatmaps, shot markers) | 1.4.1 | ❌ | Labels and patterns on heatmaps and replay markers |
+| No text under 11px | HIG / 1.4.4 | ✅ | `label` (11px) is for eyebrows and table headers only; chips use `chip` (12px). Body 17, small 15, button 16 |
+| Color is never the only signal (charts, heatmaps, shot markers) | 1.4.1 | 🟡 | Rules set in the design system (Charts and replay): players by shape, winners a check, errors a cross, close calls a dashed ring plus text, heatmaps one ink in five labeled steps. Apply when the replay is rebuilt |
 | Simulated replay is accessible | 1.1.1, 1.3.1 | ❌ | Court animation decorative; shot list carries type, player, outcome, time. "Close call" uses icon plus text |
 | Milestone animations accessible | 2.3.3, 4.1.3 | ❌ | Reduce Motion swaps every moment for a 200ms fade with the final state shown at once; haptics still fire. VoiceOver announces each outcome in text ("Rating up 0.04 to 3.54," "Milestone: First win"). Analysis-ready markers use shape, not color alone |
 | Rating badges, admin post labels, reliability not color-only | 1.4.1 | ❌ | Icon + text for Verified vs Self-rated, admin posts in league chat, and "Played 12 · 1 no-show" |
