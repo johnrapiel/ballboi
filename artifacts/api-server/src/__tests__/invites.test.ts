@@ -45,7 +45,8 @@ vi.mock("@workspace/db", () => ({
   },
   leagueInvitesTable: { id: {}, code: {}, leagueId: {}, isActive: {}, expiresAt: {}, maxUses: {}, usageCount: {}, createdByClerkUserId: {} },
   leaguesTable: { id: {}, name: {}, createdByClerkUserId: {}, sport: {} },
-  playersTable: { id: {}, clerkUserId: {}, name: {}, leagueId: {}, skillLevel: {}, wins: {}, losses: {} },
+  playersTable: { id: {}, clerkUserId: {}, name: {}, leagueId: {}, skillLevel: {}, wins: {}, losses: {}, leftAt: {} },
+  leagueJoinRequestsTable: { leagueId: {}, clerkUserId: {} },
 }));
 
 vi.mock("../lib/leagueAccess.js", () => ({ isLeagueAdmin: vi.fn().mockResolvedValue(true) }));
@@ -58,12 +59,14 @@ vi.mock("drizzle-orm", () => {
   return {
     eq: (a: unknown, b: unknown) => ({ a, b }),
     and: (...args: unknown[]) => args,
+    isNull: (a: unknown) => ({ isNull: a }),
     sql: sqlTag,
   };
 });
 
 vi.mock("nanoid", () => ({
   nanoid: () => "test-invite-code",
+  customAlphabet: () => () => "TESTCODE",
 }));
 
 async function buildApp() {
@@ -287,6 +290,40 @@ describe("POST /api/invites/:code/join", () => {
 
     expect(res.status).toBe(201);
     expect(executeCalls).toHaveLength(2);
+  });
+
+  it("puts the player on the waitlist once the season has started (decision 26)", async () => {
+    let inserted: Record<string, unknown> | null = null;
+    mockDb.transaction.mockImplementation(async (cb: (tx: unknown) => unknown) => {
+      let selectCall = 0;
+      const tx = {
+        execute: vi.fn().mockResolvedValue(undefined),
+        select: vi.fn().mockImplementation(() => {
+          selectCall++;
+          if (selectCall === 1) return mockChain([sampleInvite]);
+          if (selectCall === 2) return mockChain([{ ...sampleLeague, startDate: "2020-01-02", visibility: "private" }]);
+          return mockChain([]);
+        }),
+        insert: vi.fn().mockImplementation(() => ({
+          values: (vals: Record<string, unknown>) => {
+            inserted = vals;
+            return mockChain([]);
+          },
+        })),
+        update: vi.fn().mockReturnValue(mockChain([])),
+      };
+      return cb(tx);
+    });
+
+    const res = await supertest(app)
+      .post("/api/invites/test-invite-code/join")
+      .set("Authorization", "Bearer token")
+      .send({ playerName: "Late Larry", skillLevel: "3.5" });
+
+    expect(res.status).toBe(202);
+    expect(res.body.waitlisted).toBe(true);
+    expect(res.body.message).toMatch(/waitlist for next season/);
+    expect(inserted).toMatchObject({ kind: "waitlist", playerName: "Late Larry" });
   });
 
   it("returns 500 and does not crash the server when the transaction throws", async () => {

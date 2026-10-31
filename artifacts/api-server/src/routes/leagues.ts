@@ -3,7 +3,7 @@ import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { leaguesTable, playersTable, matchesTable, leagueRoundsTable, leagueAdminsTable } from "@workspace/db";
 import { CreateLeagueBody, UpdateLeagueBody } from "@workspace/api-zod";
-import { eq, count } from "drizzle-orm";
+import { and, eq, count, isNull } from "drizzle-orm";
 import { autoLinkPlayer } from "../lib/autoLinkPlayer.js";
 import { requireAdmin } from "../middlewares/requireAdmin.js";
 import { isLeagueAdmin } from "../lib/leagueAccess.js";
@@ -46,6 +46,7 @@ router.get("/leagues", async (req, res) => {
     db
       .select({ leagueId: playersTable.leagueId, count: count() })
       .from(playersTable)
+      .where(isNull(playersTable.leftAt))
       .groupBy(playersTable.leagueId),
     db
       .select({ leagueId: matchesTable.leagueId, count: count() })
@@ -158,7 +159,7 @@ router.get("/leagues/:leagueId", async (req, res) => {
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
 
-  const [pc] = await db.select({ count: count() }).from(playersTable).where(eq(playersTable.leagueId, leagueId));
+  const [pc] = await db.select({ count: count() }).from(playersTable).where(and(eq(playersTable.leagueId, leagueId), isNull(playersTable.leftAt)));
   const [mc] = await db.select({ count: count() }).from(matchesTable).where(eq(matchesTable.leagueId, leagueId));
 
   { res.json({
@@ -196,7 +197,7 @@ router.patch("/leagues/:leagueId", requireAdmin, async (req, res) => {
   const [league] = await db.update(leaguesTable).set(updates).where(eq(leaguesTable.id, leagueId)).returning();
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
 
-  const [pc] = await db.select({ count: count() }).from(playersTable).where(eq(playersTable.leagueId, leagueId));
+  const [pc] = await db.select({ count: count() }).from(playersTable).where(and(eq(playersTable.leagueId, leagueId), isNull(playersTable.leftAt)));
   const [mc] = await db.select({ count: count() }).from(matchesTable).where(eq(matchesTable.leagueId, leagueId));
 
   { res.json({
