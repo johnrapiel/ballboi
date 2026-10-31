@@ -215,3 +215,14 @@ def test_latest_eval_report_matches_the_pipeline():
         "The pipeline changed since the last eval. Run: python -m evaluation run --videos <folder>, "
         "then commit evaluation/reports/latest."
     )
+
+
+def test_court_fit_rejects_collapsed_corners():
+    """The first real upload produced a 'court' with two corners on the same point, at 99.5% confidence."""
+    from services.pipeline.court import _plausible
+    w, h = 960, 540
+    bad = [[0.4878668, 0.4051597], [0.8990429, 0.6719812], [0.9387246, 0.5218851], [0.4878638, 0.4051527]]
+    to_px = [[x * w, y * h] for x, y in bad]
+    assert not _plausible(cm.homography(cm.SINGLES_CORNERS_M, to_px), (h, w))
+    good = [[x * w, y * h] for x, y in CORNERS]
+    assert _plausible(cm.homography(cm.SINGLES_CORNERS_M, good), (h, w))

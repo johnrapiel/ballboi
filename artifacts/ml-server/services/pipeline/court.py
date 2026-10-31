@@ -127,6 +127,16 @@ def _plausible(h_court_to_img: np.ndarray, shape: tuple[int, int]) -> bool:
     near_l, near_r, far_r, far_l = quad
     if not (far_l[1] < near_l[1] and far_r[1] < near_r[1] and near_l[0] < near_r[0] and far_l[0] < far_r[0]):
         return False
+    # Every edge has real length (no corners collapsing onto each other), the far
+    # baseline is shorter than the near one (perspective), and the shape is convex.
+    diag = float(np.hypot(w, h))
+    edges = [np.linalg.norm(quad[i] - quad[(i + 1) % 4]) for i in range(4)]
+    if min(edges) < 0.04 * diag:
+        return False
+    if np.linalg.norm(far_r - far_l) > 1.05 * np.linalg.norm(near_r - near_l):
+        return False
+    if not cv2.isContourConvex(quad.astype(np.float32)):
+        return False
     area = cv2.contourArea(quad.astype(np.float32))
     if area < 0.03 * w * h or area > 4.0 * w * h:
         return False
