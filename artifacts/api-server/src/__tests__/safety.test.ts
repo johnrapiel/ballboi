@@ -162,6 +162,7 @@ describe("admin report queue", () => {
   it("is admin only", async () => {
     const res = await supertest(await buildApp()).get("/api/admin/reports");
     expect(res.status).toBe(403);
+    expect((await supertest(await buildApp()).get("/api/admin/reports/3")).status).toBe(403);
   });
 });
 

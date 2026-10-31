@@ -1,6 +1,6 @@
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { getAuth } from "@clerk/express";
-import { getSanctionsService, identityFromClerk } from "../messaging/drizzleSanctions";
+import { getSanctionsService, identityFromClerk, isAdminAccount, namesFor } from "../messaging/drizzleSanctions";
 import { clearSanctionsCache } from "../messaging/enforceSanctions";
 import { SanctionError, type AccountIdentity, type SanctionsService } from "../messaging/sanctions";
 import { requireAdmin } from "../middlewares/requireAdmin";
@@ -17,7 +17,8 @@ import { logger } from "../lib/logger";
 //   POST /api/admin/accounts/:clerkUserId/suspend   { reason, days (1-90), reportId? }
 //   POST /api/admin/sanctions/:id/lift
 //   GET  /api/admin/sanctions?active=false
-//   GET  /api/admin/appeals?open=false
+//   GET  /api/admin/appeals?open=false            (with the sanction and the person's name)
+//   GET  /api/admin/me                            { admin } for showing Moderation in the app
 //   POST /api/admin/appeals/:id/decide              { outcome: "upheld" | "overturned", note? }
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -34,12 +35,16 @@ export function createSanctionsRouter(
     getIdentity?: (clerkUserId: string) => Promise<AccountIdentity>;
     admin?: (req: Request, res: Response, next: NextFunction) => void;
     onChange?: () => void;
+    isAdmin?: (clerkUserId: string) => Promise<boolean>;
+    getNames?: (clerkUserIds: string[]) => Promise<Map<string, string>>;
   } = {},
 ): IRouter {
   const getService = deps.getService ?? getSanctionsService;
   const getIdentity = deps.getIdentity ?? identityFromClerk;
   const admin = deps.admin ?? requireAdmin;
   const onChange = deps.onChange ?? clearSanctionsCache;
+  const isAdmin = deps.isAdmin ?? isAdminAccount;
+  const getNames = deps.getNames ?? namesFor;
   const router: IRouter = Router();
 
   const handle =
@@ -94,6 +99,15 @@ export function createSanctionsRouter(
 
   // ─── Moderators ─────────────────────────────────────────────────────────
 
+  /** Whether to show Moderation in the app. Any signed-in person can ask; only the admin gets true. */
+  router.get(
+    "/admin/me",
+    requireAuth,
+    handle(async (req, res) => {
+      res.json({ admin: await isAdmin(getAuth(req).userId!) });
+    }),
+  );
+
   for (const kind of ["ban", "suspend"] as const) {
     router.post(
       `/admin/accounts/:clerkUserId/${kind}`,
@@ -139,7 +153,9 @@ export function createSanctionsRouter(
     "/admin/appeals",
     admin,
     handle(async (req, res) => {
-      res.json(await getService().listAppeals(req.query.open !== "false"));
+      const appeals = await getService().listAppealsWithSanctions(req.query.open !== "false");
+      const names = await getNames(appeals.map((a) => a.clerkUserId));
+      res.json(appeals.map((a) => ({ ...a, name: names.get(a.clerkUserId) ?? null })));
     }),
   );
 

@@ -9,6 +9,7 @@ import {
   REPORT_STATUSES,
   REPORT_TARGET_TYPES,
   userBlocksTable,
+  usersTable,
   type ReportReason,
   type ReportStatus,
   type ReportTargetType,
@@ -95,6 +96,33 @@ async function restrictQuietly(subject: string, kind: "report" | "block") {
   }
 }
 
+/** Report rows with the subject's name and, for message reports, the conversation snapshot. */
+async function withDetails(rows: (typeof contentReportsTable.$inferSelect)[]) {
+  // Message reports carry a snapshot of the conversation at the time of the report.
+  const snapshots = rows.length
+    ? await db
+        .select()
+        .from(messageReportSnapshotsTable)
+        .where(inArray(messageReportSnapshotsTable.reportId, rows.map((r) => r.id)))
+    : [];
+  // Who each report is about, by name, for the Moderation screen.
+  const subjects = [...new Set(rows.map((r) => r.subjectClerkUserId).filter((x): x is string => !!x))];
+  const names = subjects.length
+    ? await db
+        .select({ id: usersTable.clerkUserId, name: usersTable.displayName })
+        .from(usersTable)
+        .where(inArray(usersTable.clerkUserId, subjects))
+    : [];
+  return rows.map((r) => {
+    const snap = snapshots.find((s) => s.reportId === r.id);
+    return {
+      ...r,
+      subjectName: names.find((n) => n.id === r.subjectClerkUserId)?.name ?? null,
+      snapshot: snap ? { conversationId: snap.conversationId, messages: snap.messages } : null,
+    };
+  });
+}
+
 router.get("/admin/reports", requireAdmin, async (req, res) => {
   const status = isOneOf(REPORT_STATUSES, req.query.status) ? req.query.status : "open";
   const rows = await db
@@ -103,19 +131,18 @@ router.get("/admin/reports", requireAdmin, async (req, res) => {
     .where(eq(contentReportsTable.status, status))
     .orderBy(desc(contentReportsTable.createdAt))
     .limit(200);
-  // Message reports carry a snapshot of the conversation at the time of the report.
-  const snapshots = rows.length
-    ? await db
-        .select()
-        .from(messageReportSnapshotsTable)
-        .where(inArray(messageReportSnapshotsTable.reportId, rows.map((r) => r.id)))
-    : [];
-  res.json(
-    rows.map((r) => {
-      const snap = snapshots.find((s) => s.reportId === r.id);
-      return { ...r, snapshot: snap ? { conversationId: snap.conversationId, messages: snap.messages } : null };
-    }),
-  );
+  res.json(await withDetails(rows));
+});
+
+router.get("/admin/reports/:id", requireAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  const [row] = Number.isInteger(id) ? await db.select().from(contentReportsTable).where(eq(contentReportsTable.id, id)) : [];
+  if (!row) {
+    res.status(404).json({ error: "Report not found" });
+    return;
+  }
+  const [detailed] = await withDetails([row]);
+  res.json(detailed);
 });
 
 router.patch("/admin/reports/:id", requireAdmin, async (req, res) => {

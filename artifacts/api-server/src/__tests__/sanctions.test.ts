@@ -56,7 +56,16 @@ function app(opts: { gate?: boolean } = {}) {
     a.get("/api/leagues", (_q, r) => void r.json({ ok: true }));
     a.delete("/api/users/me", (_q, r) => void r.status(204).end());
   }
-  a.use("/api", createSanctionsRouter({ getService: () => svc, getIdentity, onChange: () => undefined }));
+  a.use(
+    "/api",
+    createSanctionsRouter({
+      getService: () => svc,
+      getIdentity,
+      onChange: () => undefined,
+      isAdmin: async (id) => id === "user_admin",
+      getNames: async (ids) => new Map(ids.filter((id) => id === "user_bad").map((id) => [id, "Bad Actor"])),
+    }),
+  );
   return a;
 }
 
@@ -219,9 +228,19 @@ describe("moderator routes", () => {
     const a = app();
     const open = await supertest(a).get("/api/admin/appeals");
     expect(open.body).toHaveLength(1);
+    expect(open.body[0]).toMatchObject({ name: "Bad Actor", reference: "BB-00001", sanction: { kind: "ban", reason: "Spam" } });
     const decided = await supertest(a).post(`/api/admin/appeals/${open.body[0].id}/decide`).send({ outcome: "upheld", note: "Clear threats" });
     expect(decided.body.appeal).toMatchObject({ outcome: "upheld", note: "Clear threats", decidedBy: "user_admin" });
     expect((await supertest(a).get("/api/admin/appeals")).body).toHaveLength(0);
+  });
+
+  it("tells the app whether to show Moderation", async () => {
+    mockUserId = "user_admin";
+    expect((await supertest(app()).get("/api/admin/me")).body).toEqual({ admin: true });
+    mockUserId = "user_good";
+    expect((await supertest(app()).get("/api/admin/me")).body).toEqual({ admin: false });
+    mockUserId = null;
+    expect((await supertest(app()).get("/api/admin/me")).status).toBe(401);
   });
 
   it("status needs sign-in", async () => {
