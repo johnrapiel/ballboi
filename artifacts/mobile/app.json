@@ -77,9 +77,24 @@
             "NSPrivacyAccessedAPITypeReasons": [
               "CA92.1"
             ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "E174.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1"
+            ]
           }
         ]
-      }
+      },
+      "associatedDomains": [
+        "applinks:ballboi.tennis"
+      ]
     },
     "android": {},
     "web": {
@@ -98,7 +113,22 @@
           "sounds": []
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Ball Boi uses the camera to record your match, track your shots, and build your replay. If you allow it, your video also helps improve shot tracking.",
+          "microphonePermission": "Ball Boi listens for the sound of the ball being hit to detect shots. Audio is never played back and is deleted after your match is analyzed.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Ball Boi listens for the sound of the ball being hit to detect shots. Audio is never played back and is deleted after your match is analyzed.",
+          "enableBackgroundPlayback": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
