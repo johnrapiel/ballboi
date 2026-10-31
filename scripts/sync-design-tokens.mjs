@@ -49,7 +49,9 @@ const FACES = {
   display: {
     "500": "CormorantGaramond_500Medium",
     "600": "CormorantGaramond_600SemiBold",
+    "700": "CormorantGaramond_700Bold",
     "500italic": "CormorantGaramond_500Medium_Italic",
+    "600italic": "CormorantGaramond_600SemiBold_Italic",
   },
   sans: {
     "400": "DMSans_400Regular",
@@ -58,7 +60,23 @@ const FACES = {
     "700": "DMSans_700Bold",
   },
 };
+// Display styles stop growing at 1.5x with Dynamic Type so heroes and
+// scores never clip. Text styles scale fully.
+const DISPLAY_MAX_SCALE = 1.5;
+
+// One step heavier, for iOS Bold Text and for Cormorant on Night session
+// (its hairline strokes thin out as light text on navy).
+const HEAVIER = {
+  display: { "500": "600", "600": "700", "500italic": "600italic", "600italic": "600italic" },
+  sans: { "400": "600", "500": "600", "600": "700", "700": "700" },
+};
+const heavier = {};
+for (const [family, steps] of Object.entries(HEAVIER)) {
+  for (const [from, to] of Object.entries(steps)) heavier[FACES[family][from]] = FACES[family][to];
+}
+
 const type = {};
+const maxScale = {};
 for (const group of tokens.type.groups) {
   for (const s of group.styles) {
     const key = `${s.fontWeight}${s.fontStyle === "italic" ? "italic" : ""}`;
@@ -67,7 +85,8 @@ for (const group of tokens.type.groups) {
     const size = px(s.fontSize);
     const style = { fontFamily, fontSize: size, lineHeight: px(s.lineHeight) };
     if (s.letterSpacing) style.letterSpacing = Number((Number.parseFloat(s.letterSpacing) * size).toFixed(2)); // em to points
-    if (s.name === "label") style.textTransform = "uppercase";
+    if (s.name === "label" || s.name === "chip") style.textTransform = "uppercase";
+    if (group.family === "display") maxScale[camel(s.name)] = DISPLAY_MAX_SCALE;
     if (s.name === "score") style.fontVariant = ["lining-nums", "tabular-nums"];
     type[camel(s.name)] = style;
   }
@@ -90,6 +109,17 @@ export const spacing = ${JSON.stringify(spacing, null, 2)} as const;
 export const radius = ${JSON.stringify(radius, null, 2)} as const;
 
 export const type = ${JSON.stringify(type, null, 2)} satisfies Record<string, TextStyle>;
+
+export type TypeStyle = keyof typeof type;
+
+/** Largest Dynamic Type multiplier per style. Styles not listed scale fully. */
+export const maxScale: Partial<Record<TypeStyle, number>> = ${JSON.stringify(maxScale, null, 2)};
+
+/** The face one step heavier than each loaded face (Bold Text, Night display). */
+export const heavierFace: Record<string, string> = ${JSON.stringify(heavier, null, 2)};
+
+/** Display (Cormorant) faces, which go one step heavier on Night session. */
+export const displayFaces: readonly string[] = ${JSON.stringify(Object.values(FACES.display))};
 
 /** Minimum touch target, in points (Apple HIG, WCAG 2.5.8). */
 export const MIN_TAP = 44;

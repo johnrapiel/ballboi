@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import pino from "pino";
 import { autoLinkPlayersForUser } from "../lib/autoLinkPlayer.js";
 import { deleteAccount } from "../lib/accountDeletion.js";
+import { isUserIntent, parseHomeArea } from "../lib/onboarding.js";
 
 const logger = pino({ name: "users" });
 
@@ -94,6 +95,42 @@ router.put("/users/me", requireAuth, async (req, res) => {
     displayName: updated.displayName,
     email: updated.email,
   }).catch((err) => logger.error({ err }, "Auto-link failed on user PUT update"));
+  return res.json(updated);
+});
+
+/**
+ * PUT /users/me/home-area { zip, latitude?, longitude? }
+ * Onboarding step 4. The zip is required; coordinates only come from the
+ * optional "Use my location" shortcut and are stored rounded (approximate).
+ */
+router.put("/users/me/home-area", requireAuth, async (req, res) => {
+  const { userId } = getAuth(req);
+  const parsed = parseHomeArea(req.body);
+  if ("error" in parsed) return res.status(400).json({ error: parsed.error });
+  const [updated] = await db
+    .update(usersTable)
+    .set({ homeZip: parsed.zip, homeLatitude: parsed.latitude, homeLongitude: parsed.longitude })
+    .where(eq(usersTable.clerkUserId, userId!))
+    .returning();
+  if (!updated) return res.status(404).json({ error: "User profile not found" });
+  return res.json(updated);
+});
+
+/**
+ * PUT /users/me/intent { intent }
+ * Onboarding step 6, "What brings you here?". The last step, so it also marks
+ * onboarding complete.
+ */
+router.put("/users/me/intent", requireAuth, async (req, res) => {
+  const { userId } = getAuth(req);
+  const intent = req.body?.intent;
+  if (!isUserIntent(intent)) return res.status(400).json({ error: "Pick one of the options." });
+  const [updated] = await db
+    .update(usersTable)
+    .set({ intent, onboardingComplete: true })
+    .where(eq(usersTable.clerkUserId, userId!))
+    .returning();
+  if (!updated) return res.status(404).json({ error: "User profile not found" });
   return res.json(updated);
 });
 
