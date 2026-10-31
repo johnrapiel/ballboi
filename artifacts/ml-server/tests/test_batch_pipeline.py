@@ -48,4 +48,3 @@ def test_unexpected_errors_stay_generic(monkeypatch, sent):
     monkeypatch.setattr(run_mod, "analyze_match", crash)
     main.process_match_and_callback("http://v", 7, 3, "http://cb", None)
     assert sent[0][1]["error"] == "Analysis failed. Please try again."
-
