@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import leagueAdminsRouter from "./leagueAdmins";
+import leagueScoresRouter from "./leagueScores";
 import leaguesRouter from "./leagues";
 import playersRouter from "./players";
 import matchesRouter from "./matches";
@@ -28,6 +29,7 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(leagueAdminsRouter);
+router.use(leagueScoresRouter);
 router.use(leaguesRouter);
 router.use(playersRouter);
 router.use(matchesRouter);
