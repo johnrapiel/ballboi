@@ -2403,6 +2403,8 @@ components:
         unplayedRule:
           type: string
           enum: ["forfeit", "no_result"]
+          deprecated: true
+          description: Ignored. Every league has a fixed 1-week grace period (decision 25).
         location:
           type: ["string", "null"]
         playing:
