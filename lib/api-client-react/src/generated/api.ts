@@ -73,6 +73,7 @@ import type {
   PlayoffBracketResponse,
   PlayoffsStatusResponse,
   ResetLeagueRecords200,
+  RosterPlayer,
   ScheduleRound,
   ScoreResult,
   Season,
@@ -2475,6 +2476,94 @@ export const usePromoteLeagueAdmin = <
 > => {
   return useMutation(getPromoteLeagueAdminMutationOptions(options));
 };
+
+/**
+ * @summary Everyone playing this season, with their admin role (admins only)
+ */
+export const getGetLeagueRosterUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/roster`;
+};
+
+export const getLeagueRoster = async (
+  leagueId: number,
+  options?: RequestInit,
+): Promise<RosterPlayer[]> => {
+  return customFetch<RosterPlayer[]>(getGetLeagueRosterUrl(leagueId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetLeagueRosterQueryKey = (leagueId: number) => {
+  return [`/api/leagues/${leagueId}/roster`] as const;
+};
+
+export const getGetLeagueRosterQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLeagueRoster>>,
+  TError = ErrorType<unknown>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeagueRoster>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetLeagueRosterQueryKey(leagueId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getLeagueRoster>>> = ({
+    signal,
+  }) => getLeagueRoster(leagueId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!leagueId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLeagueRoster>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLeagueRosterQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLeagueRoster>>
+>;
+export type GetLeagueRosterQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Everyone playing this season, with their admin role (admins only)
+ */
+
+export function useGetLeagueRoster<
+  TData = Awaited<ReturnType<typeof getLeagueRoster>>,
+  TError = ErrorType<unknown>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeagueRoster>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLeagueRosterQueryOptions(leagueId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Remove a co-admin (the owner), or step down (a co-admin)

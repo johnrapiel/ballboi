@@ -1,7 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { getAuth } from "@clerk/express";
 import { db, leagueAdminsTable, leaguesTable, playersTable, usersTable } from "@workspace/db";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { getLeagueRole } from "../lib/leagueAccess.js";
 import { promoteProblem, removeAdminProblem, type LeagueRole } from "../lib/leagueRoles.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
@@ -75,6 +75,28 @@ router.get("/leagues/:leagueId/admins", requireAuth, async (req, res) => {
   });
   rows.sort((x, y) => (x.role === y.role ? x.name.localeCompare(y.name) : x.role === "owner" ? -1 : 1));
   res.json(rows);
+});
+
+/** Admins: everyone playing this season, with their role, for Manage. */
+router.get("/leagues/:leagueId/roster", requireLeagueAdmin, async (_req, res) => {
+  const leagueId = res.locals.leagueId as number;
+  const [players, admins] = await Promise.all([
+    db
+      .select()
+      .from(playersTable)
+      .where(and(eq(playersTable.leagueId, leagueId), isNull(playersTable.leftAt)))
+      .orderBy(asc(playersTable.name)),
+    db.select().from(leagueAdminsTable).where(eq(leagueAdminsTable.leagueId, leagueId)),
+  ]);
+  res.json(
+    players.map((p) => ({
+      playerId: p.id,
+      name: p.name,
+      skillLevel: p.skillLevel,
+      hasAccount: !!p.clerkUserId,
+      role: admins.find((a) => p.clerkUserId && a.clerkUserId === p.clerkUserId)?.role ?? null,
+    })),
+  );
 });
 
 /** Promote a member to co-admin. Any admin can do this. */
