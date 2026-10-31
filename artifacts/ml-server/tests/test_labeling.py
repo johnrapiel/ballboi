@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.dirname(__file__))
 
 import socket  # noqa: E402
 import threading  # noqa: E402
@@ -187,3 +188,88 @@ def test_saved_file_is_valid_json_even_when_written_twice(client):
         assert c.put("/api/labels/match-one", json=label).status_code == 200
     json.loads((labels / "match-one.json").read_text())
     assert not list(labels.glob(".tmp-*"))
+
+
+# ─── Analysis viewer ─────────────────────────────────────────────────────────
+
+def wait_for(c, match_id, seconds=60):
+    deadline = time.time() + seconds
+    while time.time() < deadline:
+        st = c.get(f"/api/analysis/{match_id}/status").json()
+        if st["state"] != "running":
+            return st
+        time.sleep(0.2)
+    raise AssertionError("analysis didn't finish")
+
+
+@pytest.fixture
+def viewer(tmp_path, monkeypatch):
+    import synthetic_match as sm
+    from services.pipeline import models as model_mod
+    from services.pipeline.ball import MotionDetector
+
+    monkeypatch.setattr(model_mod, "load_models", lambda **k: model_mod.Models(ball=MotionDetector(), people=sm.ColorPeople()))
+    videos = tmp_path / "videos"
+    labels = tmp_path / "labels"
+    videos.mkdir()
+    scene = sm.build_scene()
+    avi = tmp_path / "m.avi"
+    cam = sm.render(scene, str(avi))
+    mp4 = tmp_path / "m.mp4"                                       # phones save MP4/MOV, not AVI
+    cap = cv2.VideoCapture(str(avi))
+    writer = cv2.VideoWriter(str(mp4), cv2.VideoWriter_fourcc(*"mp4v"), sm.FPS, (sm.W, sm.H))
+    while True:
+        ok, frame = cap.read()
+        if not ok:
+            break
+        writer.write(frame)
+    writer.release()
+    cap.release()
+    (videos / "SinglesSet").write_bytes(mp4.read_bytes())        # no extension, like the first real upload
+    truth = sm.truth_label(scene, cam, "SinglesSet")
+    server, thread, base = serve(create_app(videos, labels))
+    yield Client(base), labels, truth
+    server.should_exit = True
+    thread.join(timeout=5)
+
+
+def test_videos_without_an_extension_are_listed_and_served(viewer):
+    c, _, _ = viewer
+    assert [v["matchId"] for v in c.get("/api/videos").json()["videos"]] == ["SinglesSet"]
+    assert c.get("/video/SinglesSet", headers={"Range": "bytes=0-99"}).status_code == 206
+
+
+def test_runs_analysis_on_a_range_and_returns_the_ball_path(viewer):
+    c, labels, truth = viewer
+    label = c.get("/api/labels/SinglesSet").json()
+    label["calibrations"] = truth["calibrations"]
+    assert c.put("/api/labels/SinglesSet", json=label).status_code == 200
+    assert c.get("/api/analysis/SinglesSet/status").json()["state"] == "none"
+
+    assert c._send("POST", "/api/analysis/SinglesSet", body={"from": 13, "to": 21}).status_code == 200
+    st = wait_for(c, "SinglesSet")
+    assert st["state"] == "done", st
+    result = c.get("/api/analysis/SinglesSet").json()
+    assert result["court"]["source"] == "phone"
+    assert result["metadata"]["analyzedFrom"] == 13.0
+    assert result["shots"] and all(13 <= s["time"] <= 21 for s in result["shots"])
+    assert len(result["ballTrack"]["points"]) == 240
+    assert (labels.parent / "analysis" / "SinglesSet.json").is_file()
+
+
+def test_bad_range_is_refused(viewer):
+    c, _, _ = viewer
+    res = c._send("POST", "/api/analysis/SinglesSet", body={"from": 20, "to": 10})
+    assert res.status_code == 400 and "after the start" in res.json()["error"]
+
+
+def test_unchecked_suggestions_block_marking_done(viewer):
+    c, _, _ = viewer
+    label = c.get("/api/labels/SinglesSet").json()
+    label["status"] = "done"
+    label["shots"] = [{"id": "s0001", "time": 1.5, "hitter": "near", "type": "serve", "serveNumber": 1,
+                       "result": "in", "source": "model", "reviewed": False}]
+    res = c.put("/api/labels/SinglesSet", json=label)
+    assert res.status_code == 422 and "need a look" in res.json()["error"]
+    label["shots"][0]["reviewed"] = True
+    assert c.put("/api/labels/SinglesSet", json=label).status_code == 200

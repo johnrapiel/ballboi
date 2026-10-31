@@ -26,12 +26,30 @@ from services.pipeline.video import iter_frames, read_frames, video_info
 log = logging.getLogger(__name__)
 
 
+def _plain(value):
+    """NumPy numbers and arrays to plain Python, so every result can be saved as JSON."""
+    if isinstance(value, dict):
+        return {k: _plain(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_plain(v) for v in value]
+    if hasattr(value, "tolist"):          # numpy scalar or array
+        return value.tolist()
+    return value
+
+
 class AnalysisError(RuntimeError):
     """A problem with the video itself, worded for the player."""
 
 
 def analyze_match(video_path: str, calibration=None, models: Models | None = None,
-                  progress: Callable[[str], None] | None = None) -> dict:
+                  progress: Callable[[str], None] | None = None,
+                  start_seconds: float = 0.0, end_seconds: float | None = None,
+                  include_track: bool = False) -> dict:
+    """
+    start_seconds / end_seconds analyze just part of the video (the viewer uses this
+    so a test doesn't take hours). Times in the result are always from the start
+    of the whole video. include_track adds the ball's path for drawing.
+    """
     started = time.time()
     say = progress or (lambda msg: log.info(msg))
     models = models or load_models()
@@ -39,6 +57,11 @@ def analyze_match(video_path: str, calibration=None, models: Models | None = Non
     if info.frame_count < 3:
         raise AnalysisError("The recording is too short to analyze.")
     frame_shape = (info.height, info.width)
+    first = max(0, int(round(start_seconds * info.fps)))
+    last = info.frame_count if end_seconds is None else min(info.frame_count, int(round(end_seconds * info.fps)))
+    if last - first < 3:
+        raise AnalysisError("That stretch of the recording is too short to analyze.")
+    offset_s = first / info.fps
 
     say("Finding the court")
     court = from_phone(calibration) or detect_court_in_video(video_path)
@@ -47,20 +70,30 @@ def analyze_match(video_path: str, calibration=None, models: Models | None = Non
     image_to_court = court.image_to_court
 
     say("Tracking the ball")
-    candidates = ball_mod.run_detector(models.ball, iter_frames(video_path), info.frame_count)
+    candidates = ball_mod.run_detector(models.ball, iter_frames(video_path, first, last), last - first)
     track = ball_mod.track_ball(candidates, info.width)
 
+    # Track indexes count from `first`; frames on disk count from the start of the video.
     players_at: dict[int, Players] = {}
     if models.people is not None:
         say("Finding players at each hit")
-        frames = read_frames(video_path, candidate_frames(track, info.fps, info.height))
+        wanted = candidate_frames(track, info.fps, info.height)
+        frames = read_frames(video_path, [i + first for i in wanted])
         for idx, frame in frames.items():
-            players_at[idx] = assign_players(models.people(frame), image_to_court, frame_shape)
+            players_at[idx - first] = assign_players(models.people(frame), image_to_court, frame_shape)
 
     say("Reading shots")
     hits = find_events(track, info.fps, frame_shape, image_to_court, players_at or None)
     shots = build_shots(hits, players_at, track.xy, info.fps, image_to_court, frame_shape)
     shot_dicts = [to_dict(s, i) for i, s in enumerate(shots)]
+    if first:
+        for sd in shot_dicts:
+            sd["time"] = sd["timestampSeconds"] = round(sd["time"] + offset_s, 3)
+            sd["contactPoint"]["frameNumber"] += first
+            if sd["bounce"] and sd["bounce"]["time"] is not None:
+                sd["bounce"]["time"] = round(sd["bounce"]["time"] + offset_s, 3)
+            if sd["rawMlData"].get("bounceFrame") is not None:
+                sd["rawMlData"]["bounceFrame"] += first
 
     points = []
     current: list[dict] = []
@@ -77,7 +110,17 @@ def analyze_match(video_path: str, calibration=None, models: Models | None = Non
             current = []
 
     seen = track.visible()
-    return {
+    extra = {}
+    if include_track:
+        h, w = frame_shape
+        extra["ballTrack"] = {
+            "startFrame": first,
+            "fps": info.fps,
+            # Normalized [x, y] per frame, null when the ball wasn't found.
+            "points": [None if xy[0] != xy[0] else [round(float(xy[0]) / w, 4), round(float(xy[1]) / h, 4)]
+                       for xy in track.xy],
+        }
+    return _plain({**extra,
         "durationSeconds": round(info.duration, 2),
         "totalFrames": info.frame_count,
         "processingTimeMs": int((time.time() - started) * 1000),
@@ -91,8 +134,10 @@ def analyze_match(video_path: str, calibration=None, models: Models | None = Non
             "height": info.height,
             "ballVisibleShare": round(float(seen.mean()), 3) if len(seen) else 0.0,
             "framesWithPlayers": len(players_at),
+            "analyzedFrom": round(offset_s, 3),
+            "analyzedTo": round(last / info.fps, 3),
         },
-    }
+    })
 
 
 def to_prediction_file(result: dict, match_id: str) -> dict:

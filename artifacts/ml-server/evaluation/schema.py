@@ -28,7 +28,9 @@ Shot:
   "bounce": {"time": 13.1, "image": [x, y], "court": [x_m, y_m]} | null,
   "result": "in" | "out" | "net" | "none",   # none: hit before it bounced, or never seen landing
   "closeCall": false,
-  "pointEnd": null | "winner" | "forced_error" | "unforced_error"
+  "pointEnd": null | "winner" | "forced_error" | "unforced_error",
+  "source": "human" | "model" | "model-edited",   # optional; model = a suggestion confirmed unchanged
+  "reviewed": true                                 # optional; suggestions need it before a match is done
 }
 
 Predictions add optional confidences ("typeConfidence", "resultConfidence")
@@ -72,6 +74,11 @@ class Shot:
     point_end: str | None = None
     type_confidence: float | None = None
     result_confidence: float | None = None
+    source: str = "human"       # human | model (accepted unchanged) | model-edited
+
+    @property
+    def from_suggestion(self) -> bool:
+        return self.source in ("model", "model-edited")
 
     @property
     def is_serve(self) -> bool:
@@ -152,6 +159,7 @@ def parse_shot(raw: dict, where: str) -> Shot:
         point_end=point_end,
         type_confidence=raw.get("typeConfidence"),
         result_confidence=raw.get("resultConfidence"),
+        source=raw.get("source") if raw.get("source") in ("model", "model-edited") else "human",
     )
 
 

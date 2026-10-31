@@ -106,3 +106,22 @@ def test_blank_video_fails_with_a_plain_message(tmp_path):
     writer.release()
     with pytest.raises(AnalysisError, match="court"):
         analyze_match(path, models=Models(ball=MotionDetector(), people=None))
+
+
+def test_part_of_a_match_keeps_whole_video_times(match):
+    full = match["result"]["shots"]
+    part = analyze_match(match["path"], calibration=match["label"]["calibrations"][0]["corners"],
+                         models=Models(ball=MotionDetector(), people=sm.ColorPeople()),
+                         start_seconds=13.0, end_seconds=21.0, include_track=True)
+    expected = [s for s in full if 13.5 <= s["time"] <= 20.0]
+    got = {round(s["time"], 1) for s in part["shots"]}
+    assert expected and all(round(s["time"], 1) in got for s in expected)
+    assert all(13.0 <= s["time"] <= 21.0 for s in part["shots"])
+    track = part["ballTrack"]
+    assert track["startFrame"] == 390 and len(track["points"]) == 240
+    assert any(p is not None for p in track["points"])
+
+
+def test_result_is_plain_json(match):
+    import json
+    json.dumps(match["result"])      # NumPy numbers would raise here (and break the API callback)

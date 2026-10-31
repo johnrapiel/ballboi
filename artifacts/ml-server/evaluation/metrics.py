@@ -230,6 +230,7 @@ class Summary:
     confusion: dict[str, dict[tuple[str, str], int]]
     unscored_labels: list[str]
     unlabeled_predictions: list[str]
+    label_sources: dict[str, int] = field(default_factory=dict)
 
 
 RATE_STATS = (
@@ -284,7 +285,13 @@ def summarize(labels: dict[str, MatchFile], predictions: dict[str, MatchFile],
             for k, v in table.items():
                 agg[k] = agg.get(k, 0) + v
 
+    sources: dict[str, int] = {}
+    for match_id, label in labels.items():
+        if include(label):
+            for shot in label.shots:
+                sources[shot.source] = sources.get(shot.source, 0) + 1
     return Summary(
+        label_sources=sources,
         matches=scored,
         stats=stats,
         errors={k: _describe(v) for k, v in errors.items() if v},
