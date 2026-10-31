@@ -5,6 +5,365 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+/**
+ * @nullable
+ */
+export type LeagueMembershipRole =
+  | (typeof LeagueMembershipRole)[keyof typeof LeagueMembershipRole]
+  | null;
+
+export const LeagueMembershipRole = {
+  owner: "owner",
+  co_admin: "co_admin",
+} as const;
+
+export interface LeagueMembership {
+  leagueId: number;
+  /** @nullable */
+  role: LeagueMembershipRole;
+  isAdmin: boolean;
+  /** @nullable */
+  playerId: number | null;
+  isPlaying: boolean;
+  hasLeft: boolean;
+}
+
+export type LeagueAdminRole =
+  (typeof LeagueAdminRole)[keyof typeof LeagueAdminRole];
+
+export const LeagueAdminRole = {
+  owner: "owner",
+  co_admin: "co_admin",
+} as const;
+
+export interface LeagueAdmin {
+  clerkUserId: string;
+  role: LeagueAdminRole;
+  /** @nullable */
+  playerId: number | null;
+  name: string;
+}
+
+/**
+ * @nullable
+ */
+export type RosterPlayerRole =
+  | (typeof RosterPlayerRole)[keyof typeof RosterPlayerRole]
+  | null;
+
+export const RosterPlayerRole = {
+  owner: "owner",
+  co_admin: "co_admin",
+} as const;
+
+export interface RosterPlayer {
+  playerId: number;
+  name: string;
+  skillLevel: string;
+  /** False for players an admin added by name; they can't be co-admins */
+  hasAccount: boolean;
+  /** @nullable */
+  role: RosterPlayerRole;
+}
+
+export interface PlayerIdBody {
+  playerId: number;
+}
+
+export interface SwapPlayersBody {
+  playerAId: number;
+  playerBId: number;
+}
+
+export interface LockMatchBody {
+  locked: boolean;
+}
+
+export interface EnterScoreBody {
+  /** Sets from your own side, like "6-3, 4-6, 10-7". Your games first. */
+  score: string;
+}
+
+export interface ScoreResult {
+  matchId: number;
+  status: string;
+  /**
+   * Stored from player 1's side
+   * @nullable
+   */
+  score: string | null;
+  /** @nullable */
+  winnerId: number | null;
+  /** Scored in the grace week; counts for ratings and stats, not standings */
+  inGrace: boolean;
+  countsForStandings: boolean;
+}
+
+export type LeagueWeekItemPhase =
+  (typeof LeagueWeekItemPhase)[keyof typeof LeagueWeekItemPhase];
+
+export const LeagueWeekItemPhase = {
+  upcoming: "upcoming",
+  open: "open",
+  grace: "grace",
+} as const;
+
+export interface LeagueWeekItem {
+  leagueId: number;
+  leagueName: string;
+  roundId: number;
+  roundNumber: number;
+  phase: LeagueWeekItemPhase;
+  startDate: string;
+  deadline: string;
+  graceEnd: string;
+  bye: boolean;
+  /** @nullable */
+  matchId: number | null;
+  myPlayerId: number;
+  /** @nullable */
+  opponentName: string | null;
+  singles: boolean;
+  /** @nullable */
+  scheduledAt: string | null;
+  /** @nullable */
+  location: string | null;
+}
+
+export interface LeagueWeekPlayoff {
+  leagueId: number;
+  leagueName: string;
+  matchId: number;
+  round: string;
+  opponentName: string;
+  singles: boolean;
+}
+
+export interface LeagueWeekDraft {
+  leagueId: number;
+  leagueName: string;
+  roundId: number;
+  roundNumber: number;
+  startDate: string;
+}
+
+export interface LeagueWeekResult {
+  leagueId: number;
+  leagueName: string;
+  matchId: number;
+  opponentName: string;
+  /** From the viewer's side, their games first */
+  score: string;
+  won: boolean;
+  inGrace: boolean;
+  playoff: boolean;
+  /** @nullable */
+  completedAt: string | null;
+}
+
+export interface LeagueWeek {
+  today: string;
+  thisWeek: LeagueWeekItem[];
+  playoffs: LeagueWeekPlayoff[];
+  drafts: LeagueWeekDraft[];
+  recent: LeagueWeekResult[];
+}
+
+export interface BracketSeed {
+  seed: number;
+  playerId: number;
+  playerName: string;
+}
+
+export type BracketSlotRound =
+  (typeof BracketSlotRound)[keyof typeof BracketSlotRound];
+
+export const BracketSlotRound = {
+  quarterfinal: "quarterfinal",
+  semifinal: "semifinal",
+  final: "final",
+} as const;
+
+export interface BracketSlot {
+  round: BracketSlotRound;
+  slot: number;
+  /**
+   * Null until both players are known
+   * @nullable
+   */
+  matchId: number | null;
+  player1: BracketSeed | null;
+  player2: BracketSeed | null;
+  /** scheduled, completed, or waiting (no match yet) */
+  status: string;
+  /**
+   * From player 1's side
+   * @nullable
+   */
+  score: string | null;
+  /** @nullable */
+  winnerId: number | null;
+}
+
+export type BracketRoundRound =
+  (typeof BracketRoundRound)[keyof typeof BracketRoundRound];
+
+export const BracketRoundRound = {
+  quarterfinal: "quarterfinal",
+  semifinal: "semifinal",
+  final: "final",
+} as const;
+
+export interface BracketRound {
+  round: BracketRoundRound;
+  slots: BracketSlot[];
+}
+
+export type LeagueBracketStatus =
+  (typeof LeagueBracketStatus)[keyof typeof LeagueBracketStatus];
+
+export const LeagueBracketStatus = {
+  active: "active",
+  completed: "completed",
+} as const;
+
+export type LeagueBracketSize =
+  (typeof LeagueBracketSize)[keyof typeof LeagueBracketSize];
+
+export const LeagueBracketSize = {
+  NUMBER_4: 4,
+  NUMBER_8: 8,
+} as const;
+
+export interface LeagueBracket {
+  bracketId: number;
+  status: LeagueBracketStatus;
+  size: LeagueBracketSize;
+  seeds: BracketSeed[];
+  rounds: BracketRound[];
+  champion: BracketSeed | null;
+}
+
+export interface SchedulePlayer {
+  playerId: number;
+  playerName: string;
+}
+
+export interface ScheduleBye {
+  playerId: number;
+  playerName: string;
+  setByAdmin: boolean;
+}
+
+export interface ScheduleMatch {
+  matchId: number;
+  player1Id: number;
+  player1Name: string;
+  player2Id: number;
+  player2Name: string;
+  status: string;
+  /**
+   * From player 1's side
+   * @nullable
+   */
+  score: string | null;
+  /** @nullable */
+  winnerId: number | null;
+  inGrace: boolean;
+  voided: boolean;
+  locked: boolean;
+  /** @nullable */
+  scheduledAt: string | null;
+  /** @nullable */
+  location: string | null;
+}
+
+export type ScheduleRoundPhase =
+  (typeof ScheduleRoundPhase)[keyof typeof ScheduleRoundPhase];
+
+export const ScheduleRoundPhase = {
+  draft: "draft",
+  upcoming: "upcoming",
+  open: "open",
+  grace: "grace",
+  closed: "closed",
+} as const;
+
+export interface ScheduleRound {
+  roundId: number;
+  roundNumber: number;
+  startDate: string;
+  /** Last day to play for standings */
+  deadline: string;
+  /** Last day of the grace week */
+  graceEnd: string;
+  phase: ScheduleRoundPhase;
+  matches: ScheduleMatch[];
+  byes: ScheduleBye[];
+  /** Admins, drafts only. Players with no match or bye yet. */
+  unpaired: SchedulePlayer[];
+}
+
+export interface ScheduleWeek {
+  roundNumber: number;
+  startDate: string;
+  deadline: string;
+  graceEnd: string;
+}
+
+export interface LeagueSchedule {
+  leagueId: number;
+  /** Today's date in the league's time zone */
+  today: string;
+  timeZone: string;
+  weeklyRounds: boolean;
+  isAdmin: boolean;
+  rounds: ScheduleRound[];
+  /** Weeks this season with no round yet */
+  upcoming: ScheduleWeek[];
+}
+
+export type JoinRequestKind =
+  (typeof JoinRequestKind)[keyof typeof JoinRequestKind];
+
+export const JoinRequestKind = {
+  request: "request",
+  waitlist: "waitlist",
+} as const;
+
+export type JoinRequestStatus =
+  (typeof JoinRequestStatus)[keyof typeof JoinRequestStatus];
+
+export const JoinRequestStatus = {
+  pending: "pending",
+  approved: "approved",
+  declined: "declined",
+  withdrawn: "withdrawn",
+} as const;
+
+export interface JoinRequest {
+  id: number;
+  leagueId: number;
+  playerName: string;
+  skillLevel: string;
+  kind: JoinRequestKind;
+  status: JoinRequestStatus;
+  createdAt: string;
+  message?: string;
+}
+
+export interface ApprovedPlayer {
+  id: number;
+  name: string;
+  leagueId: number;
+}
+
+export interface DropoutResult {
+  left?: boolean;
+  removed?: boolean;
+  voidedMatches: number;
+}
+
 export interface Season {
   id: number;
   /** @nullable */
@@ -224,6 +583,10 @@ export const CreateLeagueBodyPlayoffSize = {
   NUMBER_8: 8,
 } as const;
 
+/**
+ * Ignored. Every league has a fixed 1-week grace period (decision 25).
+ * @deprecated
+ */
 export type CreateLeagueBodyUnplayedRule =
   (typeof CreateLeagueBodyUnplayedRule)[keyof typeof CreateLeagueBodyUnplayedRule];
 
@@ -262,11 +625,15 @@ export interface CreateLeagueBody {
   /** First day of the season, YYYY-MM-DD */
   startDate: string;
   /**
-   * @minimum 6
-   * @maximum 12
+   * @minimum 1
+   * @maximum 24
    */
   seasonWeeks: number;
   playoffSize?: CreateLeagueBodyPlayoffSize;
+  /**
+   * Ignored. Every league has a fixed 1-week grace period (decision 25).
+   * @deprecated
+   */
   unplayedRule?: CreateLeagueBodyUnplayedRule;
   /** @nullable */
   location?: string | null;
@@ -809,6 +1176,10 @@ export interface LeagueInvite {
   leagueSport?: string | null;
   /** @nullable */
   playerCount?: number | null;
+  /** Joining now puts the player on the waitlist (season started or league full) */
+  waitlistOnly?: boolean;
+  /** @nullable */
+  waitlistReason?: string | null;
   createdByClerkUserId: string;
   /** @nullable */
   expiresAt?: string | null;
@@ -838,9 +1209,11 @@ export type JoinLeagueResponseLeague = {
 };
 
 export interface JoinLeagueResponse {
-  player: Player;
+  player?: Player;
   league: JoinLeagueResponseLeague;
   message: string;
+  /** True when the season has started or the league is full; no player is created */
+  waitlisted?: boolean;
 }
 
 export interface DashboardStats {

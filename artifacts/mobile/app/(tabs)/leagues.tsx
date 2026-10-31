@@ -28,14 +28,16 @@ import { formatLabel, ordinal, playersLabel, playTypeLabel, statusLabel } from "
 // invite row is an unfilled, dashed action so the two never read as siblings.
 // Start a league opens from the + button and from the empty state.
 
-type MyStanding = { rank: number; points: number; behind: number } | null;
+// Standings rank on wins only (decision 23).
+type MyStanding = { rank: number; wins: number; behind: number; lead: number } | null;
 
 function myStanding(standings: Standing[] | undefined, myPlayerId: number | undefined): MyStanding {
   if (!standings || myPlayerId === undefined) return null;
   const mine = standings.find((s) => s.playerId === myPlayerId);
   if (!mine) return null;
-  const leader = standings.reduce((max, s) => Math.max(max, s.points), 0);
-  return { rank: mine.rank, points: mine.points, behind: leader - mine.points };
+  const leader = standings.reduce((max, s) => Math.max(max, s.wins), 0);
+  const nextBest = standings.filter((s) => s.playerId !== myPlayerId).reduce((max, s) => Math.max(max, s.wins), 0);
+  return { rank: mine.rank, wins: mine.wins, behind: leader - mine.wins, lead: mine.wins - nextBest };
 }
 
 // Stats sit in one row split by hairlines, not in filled tiles, so the
@@ -71,7 +73,7 @@ function LeagueCard({ league, standing, onPress }: { league: League; standing: M
     statusLabel(league.status),
     `${formatLabel(league.format)}, ${playTypeLabel(league.leagueType)}`,
     details,
-    standing ? `You're ${ordinal(standing.rank)} with ${standing.points} points` : null,
+    standing ? `You're ${ordinal(standing.rank)} with ${standing.wins} ${standing.wins === 1 ? "win" : "wins"}` : null,
   ]
     .filter(Boolean)
     .join(". ");
@@ -81,7 +83,7 @@ function LeagueCard({ league, standing, onPress }: { league: League; standing: M
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={spoken}
-      accessibilityHint="Opens standings"
+      accessibilityHint="Opens the league"
       style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
     >
       <Card
@@ -109,8 +111,12 @@ function LeagueCard({ league, standing, onPress }: { league: League; standing: M
         {standing ? (
           <View style={{ flexDirection: "row", borderTopWidth: 1, borderTopColor: c.hairline }}>
             <Stat first label="Your rank" value={ordinal(standing.rank)} />
-            <Stat label="Points" value={String(standing.points)} />
-            <Stat label={standing.rank === 1 ? "Leading" : "Behind 1st"} value={String(standing.behind)} />
+            <Stat label="Wins" value={String(standing.wins)} />
+            {standing.lead > 0 ? (
+              <Stat label="Ahead by" value={String(standing.lead)} />
+            ) : (
+              <Stat label="Behind 1st" value={String(standing.behind)} />
+            )}
           </View>
         ) : null}
         <View
