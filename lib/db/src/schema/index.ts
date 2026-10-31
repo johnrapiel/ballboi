@@ -16,5 +16,5 @@ export * from "./playoffBrackets";
 export * from "./seasons";
 export * from "./expoPushTokens";
 export * from "./safety";
-export * from "./recordingDemand";
 export * from "./recordingConsent";
+export * from "./recordingDemand";
