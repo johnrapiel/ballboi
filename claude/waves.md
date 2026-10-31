@@ -1,15 +1,16 @@
 # Ball Boi: Waves
 
-Owned by the wave manager. Feature sessions read this file; only the wave manager edits it.
+Owned by the coordinator session ("Train Conductor"), which also merges PRs and keeps the Feature Tracker current. Feature sessions read this file; only the coordinator edits it.
 
 **Current wave: Wave 1**
 
-_Created 2026-10-29 against `main` at `59fbb10`._
+_Created 2026-10-29 against `main` at `59fbb10`. Updated 2026-10-30._
 
 ## Where the source docs live
 
-- `claude/ball-boi-flows-and-feature-spec.md`, `claude/feature-status.md` and `claude/app-store-checklist.md` are docs in the claude.ai Project "Ball Boi". Read them with the Projects tool.
-- The repo carries snapshots: `docs/product-spec.md` (spec) and `docs/app-store-checklist.md` (checklist). There is no repo copy of `feature-status.md`.
+- `claude/ball-boi-flows-and-feature-spec.md` and `claude/app-store-checklist.md` are docs in the claude.ai Project "Ball Boi". Read them with the Projects tool.
+- **Feature status moved** on 2026-10-30 from `claude/feature-status.md` (now retired) to the **Ball Boi Feature Tracker**: https://claude.ai/artifact/RAcKukk587nMW46iaDg9ZD. Read the tracker wherever the shared header says `claude/feature-status.md`. Only the coordinator edits it; feature sessions list status changes in their PR descriptions.
+- The repo carries snapshots: `docs/product-spec.md` (spec) and `docs/app-store-checklist.md` (checklist).
 - If a session can't reach the Project, it reads the repo snapshots and says so in its PR description. The Project copy wins when they differ.
 
 ## Shared header
@@ -30,12 +31,12 @@ Rules:
 
 ## Rules for every wave
 
-**Shared files (append-only).** Any session may add its own lines to these, and nothing else. On a merge conflict, rebase on main and regenerate.
+**Shared files (append-only).** Any session may add its own lines to these, and nothing else. Insert new lines in **alphabetical order** by name, not at the end of a list, so two sessions rarely touch the same spot. On a conflict, merge `main` into your branch (no rebases on stacked branches), keep both sides, regenerate any generated code, and push.
 
 - `lib/api-spec/openapi.yaml`: add only your own paths and schemas, then run `pnpm --filter @workspace/api-spec run codegen`. Never hand-edit `generated/`.
-- `artifacts/api-server/src/routes/index.ts`: one mount line per new router.
+- `artifacts/api-server/src/routes/index.ts`: one import and one `router.use` line per new router, each in alphabetical order.
 - `lib/db/src/schema/index.ts`: one export line per new schema file.
-- Account deletion (`DELETE /api/users/me`): each session adds the cleanup for the data it creates, in its own helper, called from one added line.
+- Account deletion (`artifacts/api-server/src/lib/accountDeletion.ts`): each session adds the cleanup for the data it creates, in its own helper, called from one added line.
 - `artifacts/mobile/package.json` and `pnpm-lock.yaml`: any session may add a pure-JS package. Only the wave's **native owner** adds native packages (anything that needs a new development build) or touches `app.json`, `eas.json` or `ios.privacyManifests`. Others list what they need in the PR description.
 
 **Migrations.** Date-prefixed `scripts/migrations/YYYYMMDD_<session>_<name>.sql`, idempotent, one new file per change. Dropping a column or table waits for John's go-ahead.
@@ -46,15 +47,27 @@ Rules:
 
 A wave is done when all three hold:
 
-1. Every feature in each session's scope below is merged on `main` and shows ✅ in `feature-status.md` (or the matching checklist rows are ✅).
+1. Every feature in each session's scope below is merged on `main` and shows **Merged** in the Feature Tracker (or the matching checklist rows are ✅).
 2. No PR opened by that wave's sessions is still open.
 3. CI (`Checks`) is green on the latest `main` commit.
 
 Items marked **John** below are real-world tasks (accounts, filming, legal). They're tracked, but they don't hold a wave open.
 
-## Before Wave 1 starts
+## How merging works
 
-Open PRs from before the waves: #30 (navy app icon), #31 (refined palette and shared `Text` scaling), #38 (milestone rows in the repo checklist). **Merge #31 first:** it changes the shared `Text` component and touches `league/new.tsx`, which Session C rebuilds. #35 and #36 (ML) belong to Session E.
+- Sessions open stacked PRs and comment on the bottom PR when the whole stack is green and merges cleanly with `main`.
+- The coordinator checks every PR in the stack, then merges it bottom-up with merge commits, retargeting each PR to `main` as the one below it lands.
+- If a PR conflicts with `main`, the coordinator stops there and leaves a note on the stack for its session.
+
+## Merge status (2026-10-30)
+
+| Session | State |
+|---|---|
+| A | **Done.** #43 (rating) and #49 (onboarding) merged |
+| B | Stack #46, #52, #56, #62, #60 conflicts with `main`. Note on #46 |
+| C | Stack #41, #47, #53, #58, #61, #63, #64, #65, #66 conflicts with `main`. Note on #41 |
+| D | #42 merged (needs one new development build). #45 to #59 conflict with `main`. Note on #59 |
+| E | #35 and #36 merged. #51 (pipeline) was closed without merging, so #67 is stuck on its branch. Note on #67 |
 
 ## Wave 1
 
@@ -62,7 +75,9 @@ Native owner: **Session D**. Needs a new development build after D's first nativ
 
 ### A. Onboarding and Ball Boi Rating
 
-**Scope**
+**Status: done** (#43, #49). John's Oct 29 decision: the rating is a level players set (quiz now, UTR later) and results don't move it, so `applyMatchResult()` and rating history were dropped. Players edit their level from Profile.
+
+**Original scope**
 - Onboarding steps after the age check: name and photo (initials fallback), home area (zip, optional "Use my location"), rating quiz, "What brings you here?" with the four intent paths routing to their tabs
 - Ball Boi Rating: NTRP scale 2.5 to 5.0+, Self-rated vs Verified badge (icon plus text), stored rating history
 - `applyMatchResult()` rating service: every entered score moves both players, grace-period matches included, doubles at half weight. Merge this interface first so Session C can call it
@@ -92,9 +107,9 @@ Native owner: **Session D**. Needs a new development build after D's first nativ
 ### C. Leagues
 
 **Scope**
-- The six Oct 29 gaps in `feature-status.md`: drop the "Unplayed matches" choice for a fixed 1-week grace period, pairing copy and default for the season's start weekday, standings on wins only, join lock at season start with a waitlist, dropouts, grace-period logic (ratings and stats yes, standings no)
+- The six Oct 29 league gaps (moved here from the retired `feature-status.md`): drop the "Unplayed matches" choice for a fixed 1-week grace period, pairing copy and default for the season's start weekday, standings on wins only, join lock at season start with a waitlist, dropouts, grace-period logic (stats yes, standings no)
 - Flex pairing runs on the season's start weekday
-- Score entry screen: either player, first score stands, calls Session A's `applyMatchResult()`
+- Score entry screen: either player, first score stands (no rating change: Oct 29 decision)
 - League detail, rounds and playoffs screens; co-admins and Manage
 - Home tab: upcoming matches, this week's pairings, recent results
 - Match card with a "Record with Ball Boi" action on singles match-day cards linking to Session D's record route
@@ -156,4 +171,4 @@ Native owner: **Session G**. Prompts are written when Wave 1 closes.
 
 ## Wave 4 onward
 
-Built from whatever is still ❌ or 🟡 in `feature-status.md` and the checklist, until both show every launch-blocking item done. Each wave's prompts are written here when the previous wave closes.
+Built from whatever is still not Merged in the Feature Tracker, or ❌ or 🟡 in the checklist,, until both show every launch-blocking item done. Each wave's prompts are written here when the previous wave closes.

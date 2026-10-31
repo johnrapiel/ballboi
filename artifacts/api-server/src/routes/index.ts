@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
+import leagueAdminsRouter from "./leagueAdmins";
 import leaguesRouter from "./leagues";
 import playersRouter from "./players";
 import matchesRouter from "./matches";
@@ -18,11 +19,12 @@ import roundsRouter from "./rounds";
 import playoffsRouter from "./playoffs";
 import seasonsRouter from "./seasons";
 import safetyRouter from "./safety";
-import leagueAdminsRouter from "./leagueAdmins";
+import ratingsRouter from "./ratings";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(leagueAdminsRouter);
 router.use(leaguesRouter);
 router.use(playersRouter);
 router.use(matchesRouter);
@@ -41,6 +43,6 @@ router.use(roundsRouter);
 router.use(playoffsRouter);
 router.use(seasonsRouter);
 router.use(safetyRouter);
-router.use(leagueAdminsRouter);
+router.use(ratingsRouter);
 
 export default router;
