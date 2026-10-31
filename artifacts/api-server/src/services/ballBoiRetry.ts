@@ -3,6 +3,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { courtCalibrationFromMetadata } from "../lib/ballBoiUtils";
 import { isMlServiceUnreachable } from "../lib/mlServiceErrors";
+import { keepForTraining } from "../lib/videoRetention";
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL ?? "http://localhost:8000";
 const ML_SECRET = process.env.ML_SECRET;
@@ -89,6 +90,7 @@ export async function retryFailedBallBoiSessions(): Promise<void> {
           match_id: session.matchId,
           callback_url: callbackUrl,
           court_calibration: courtCalibrationFromMetadata(session.metadata),
+          keep_for_training: await keepForTraining(session.matchId),
         }),
         signal: AbortSignal.timeout(5000),
       });

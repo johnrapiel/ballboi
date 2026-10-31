@@ -9,6 +9,7 @@ Turns a match recording into shots, line calls, and points. The API sends a vide
 | Pipeline | `services/pipeline/` | Court, ball tracking, players and pose, hits and bounces, shot types, line calls, points |
 | Court geometry | `services/court_model.py` | ITF court in meters; shared with the eval and the labeling tool |
 | R2 reading | `services/storage.py` | Downloads video with the API's `S3_*` settings |
+| Training copy | `services/training_copy.py` | When the API sends `keep_for_training`, uploads a video-only copy (audio removed with ffmpeg, no re-encoding) to `/objects/training/` |
 | Eval | `evaluation/` | Scores the pipeline against the labeled test set ([README](evaluation/README.md)) |
 | Labeling tool | `labeling/` | Labels the test set ([README](labeling/README.md)) |
 | Legacy | `services/analyzer.py` | Old single-shot and live-frame endpoints, kept until the API stops calling them |

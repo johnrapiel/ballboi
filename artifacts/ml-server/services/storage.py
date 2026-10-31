@@ -111,6 +111,21 @@ def download(path_or_key: str, cfg: S3Config | None = None, dest_dir: str | None
     return tmp
 
 
+def upload(local_path: str, path_or_key: str, cfg: S3Config | None = None,
+           content_type: str = "video/mp4") -> str:
+    """Streams a local file to the bucket with a presigned PUT. Returns the "/objects/<key>" path."""
+    cfg = cfg or S3Config.from_env()
+    key = object_key(path_or_key)
+    size = os.path.getsize(local_path)
+    with open(local_path, "rb") as body:
+        req = urllib.request.Request(presign(cfg, key, method="PUT"), data=body, method="PUT",
+                                     headers={"Content-Length": str(size), "Content-Type": content_type})
+        with urllib.request.urlopen(req, timeout=600) as resp:
+            if resp.status >= 300:
+                raise OSError(f"Upload failed with HTTP {resp.status}")
+    return OBJECT_PATH_PREFIX + key
+
+
 def list_keys(prefix: str, cfg: S3Config | None = None) -> list[str]:
     """Every key under a prefix (ListObjectsV2, paged)."""
     cfg = cfg or S3Config.from_env()

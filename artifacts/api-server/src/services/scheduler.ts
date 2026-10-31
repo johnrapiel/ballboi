@@ -7,6 +7,7 @@ import { sendPushToUsers } from "../routes/notifications";
 import { logger } from "../lib/logger";
 import { retryFailedBallBoiSessions } from "./ballBoiRetry";
 import { runAllLeagueDays } from "./leagueRounds";
+import { sweepSessionVideos } from "../lib/videoRetention";
 
 function getMondayOf(date: Date): string {
   const d = new Date(date);
@@ -506,5 +507,11 @@ export function startScheduler() {
     });
   });
 
-  logger.info("Scheduler started: Daily 7AM (league rounds), Thu 9AM (auto-generate), Wed 5PM (availability reminder), Sun 9AM (match reminder), Daily 8AM (day-before reminder), every 1min (Ball Boi retry)");
+  // Hourly at :17 — delete match video the spec says not to keep (raw uploads
+  // after analysis, training copies once a player turns training off)
+  cron.schedule("17 * * * *", () => {
+    sweepSessionVideos().catch((err) => logger.error({ err }, "CRON: Video retention sweep failed"));
+  });
+
+  logger.info("Scheduler started: Daily 7AM (league rounds), Thu 9AM (auto-generate), Wed 5PM (availability reminder), Sun 9AM (match reminder), Daily 8AM (day-before reminder), every 1min (Ball Boi retry), hourly (video retention)");
 }
