@@ -48,3 +48,16 @@ def test_unexpected_errors_stay_generic(monkeypatch, sent):
     monkeypatch.setattr(run_mod, "analyze_match", crash)
     main.process_match_and_callback("http://v", 7, 3, "http://cb", None)
     assert sent[0][1]["error"] == "Analysis failed. Please try again."
+
+
+def test_training_copy_only_when_the_api_says_so(monkeypatch, sent):
+    from services import training_copy
+    made = []
+    monkeypatch.setattr(main, "_pipeline_models", lambda: object())
+    monkeypatch.setattr(run_mod, "analyze_match", lambda *a, **k: {"shots": [{"shotType": "serve"}]})
+    monkeypatch.setattr(training_copy, "make_training_copy",
+                        lambda path, sid: made.append(sid) or f"/objects/training/session-{sid}.mp4")
+    main.process_match_and_callback("http://v", 7, 3, "http://cb", None)
+    assert made == [] and "trainingVideoKey" not in sent[-1][1]["result"]
+    main.process_match_and_callback("http://v", 7, 3, "http://cb", None, keep_for_training=True)
+    assert made == [7] and sent[-1][1]["result"]["trainingVideoKey"] == "/objects/training/session-7.mp4"

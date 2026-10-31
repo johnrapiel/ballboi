@@ -25,6 +25,7 @@ import {
 } from "../lib/ballBoiUtils";
 import { computeNextRetryAt } from "../services/ballBoiRetry";
 import { isMlServiceUnreachable } from "../lib/mlServiceErrors";
+import { keepForTraining, settleSessionVideo } from "../lib/videoRetention";
 
 const router = Router();
 
@@ -132,6 +133,26 @@ async function saveBatchResults(sessionId: number, matchId: number, result: unkn
     aiNarrative,
     durationSeconds: Math.round(duration || normalizeNumber(asRecord(payload.metadata).durationSeconds, 0)),
   }).where(eq(ballBoiSessionsTable.id, sessionId));
+}
+
+// Once analysis has finished: delete the raw upload (it has the audio) and keep
+// the ML server's video-only copy only if every player left training on.
+async function settleVideoAfterAnalysis(sessionId: number, result: unknown) {
+  try {
+    const trainingVideoKey = stringOrNull(asRecord(result).trainingVideoKey);
+    const [session] = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, sessionId));
+    if (!session) return;
+    if (session.status === "completed") {
+      await settleSessionVideo(session, trainingVideoKey);
+    } else if (trainingVideoKey) {
+      // No shots found: the raw upload waits out the failed-analysis grace period; the sweep settles both.
+      const metadata = asRecord(session.metadata);
+      await db.update(ballBoiSessionsTable).set({ metadata: { ...metadata, trainingVideoPath: trainingVideoKey } })
+        .where(eq(ballBoiSessionsTable.id, sessionId));
+    }
+  } catch (err) {
+    logger.error({ err, sessionId }, "Video retention after analysis failed; the hourly sweep will retry");
+  }
 }
 
 router.get("/ball-boi/ml-health", async (_req: Request, res: Response) => {
@@ -303,6 +324,7 @@ router.post("/ball-boi/sessions/:sessionId/complete", requireAuth, async (req: R
           match_id: session.matchId,
           callback_url: callbackUrl,
           court_calibration: courtCalibrationFromMetadata(session.metadata),
+          keep_for_training: await keepForTraining(session.matchId),
         }),
         signal: AbortSignal.timeout(5000),
       });
@@ -359,6 +381,7 @@ router.post("/ball-boi/sessions/:sessionId/ml-callback", async (req: Request, re
     const { status, result, error } = req.body ?? {};
     if (status === "completed" && result) {
       await saveBatchResults(sessionId, session.matchId, result);
+      await settleVideoAfterAnalysis(sessionId, result);
     } else {
       await db.update(ballBoiSessionsTable).set({
         status: "failed",
@@ -455,6 +478,7 @@ router.post("/matches/:matchId/ball-boi/end", requireAuth, async (req: Request, 
           match_id: matchId,
           callback_url: callbackUrl,
           court_calibration: courtCalibrationFromMetadata(session.metadata),
+          keep_for_training: await keepForTraining(session.matchId),
         }),
         signal: AbortSignal.timeout(5000),
       });
@@ -512,6 +536,7 @@ router.post("/matches/:matchId/ball-boi/shot-callback", async (req: Request, res
     if (ML_SECRET ? !secretMatches : !tokenMatches) { res.status(403).json({ error: "Forbidden" }); return; }
     if (body.status === "completed" && body.result) {
       await saveBatchResults(session.id, session.matchId, body.result);
+      await settleVideoAfterAnalysis(session.id, body.result);
     } else {
       await db.update(ballBoiSessionsTable).set({
         status: "failed",

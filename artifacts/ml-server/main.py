@@ -67,6 +67,9 @@ class BatchMatchRequest(BaseModel):
     match_id: int
     callback_url: str
     court_calibration: dict | None = None
+    # True only when every player left training on. The ML server then uploads a
+    # video-only copy (no audio) for training and returns its path as trainingVideoKey.
+    keep_for_training: bool = False
 
 
 class BatchMatchResponse(BaseModel):
@@ -183,7 +186,8 @@ def _post_callback(callback_url: str, payload: dict) -> None:
 
 
 def process_match_and_callback(video_url: str | None, session_id: int, match_id: int, callback_url: str,
-                               court_calibration: dict | None = None, video_key: str | None = None):
+                               court_calibration: dict | None = None, video_key: str | None = None,
+                               keep_for_training: bool = False):
     """Full match analysis with the shot analysis pipeline, then POST the result to the API."""
     from services.pipeline.models import ModelsMissing
     from services.pipeline.run import AnalysisError, analyze_match
@@ -200,6 +204,9 @@ def process_match_and_callback(video_url: str | None, session_id: int, match_id:
         result = analyze_match(video_path, calibration=court_calibration, models=_pipeline_models())
         result["sessionId"] = session_id
         result["matchId"] = match_id
+        if keep_for_training:
+            from services.training_copy import make_training_copy
+            result["trainingVideoKey"] = make_training_copy(video_path, session_id)
         payload = {"sessionId": session_id, "matchId": match_id, "status": "completed", "result": result}
     except (AnalysisError, ModelsMissing) as e:
         logger.warning(f"Ball Boi analysis stopped for session {session_id}: {e}")
@@ -305,6 +312,7 @@ async def analyze_match_batch(request: BatchMatchRequest, background_tasks: Back
         request.callback_url,
         request.court_calibration,
         request.video_key,
+        request.keep_for_training,
     )
     return BatchMatchResponse(session_id=request.session_id, status="processing")
 

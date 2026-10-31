@@ -82,6 +82,7 @@ Carried over from the original web app's project notes. Describes how the API, s
 - Replay pages expose seven review modes: Full Video, Shot-by-Shot, Rally Replay, Heatmap, Timeline, Stats Dashboard, and Comparison, with set filters, shot scrubber markers, heatmap filters, timeline momentum, and player comparison details.
 - My Matches shows Ball Boi replay badges and quick shot stats only for matches that have recorded Ball Boi data.
 - The API stores session metadata in `ball_boi_sessions`, including optional Ball Boi court calibration points, detections in `match_shots`, and aggregated replay analytics in `match_statistics`.
+- Video retention (`api-server/src/lib/videoRetention.ts`): once analysis finishes, the raw upload (the only copy with audio) is deleted. If every player left training on, the API asks the ML server for a video-only copy under `/objects/training/` and keeps it in `metadata.trainingVideoPath`. An hourly sweep finishes failed deletes, drops training copies once any player turns training off or deletes their account, and clears raw uploads from analyses that failed more than 7 days ago.
 - The ML server includes `/analyze-match-live` for low-latency detections and `/analyze-match-batch` for post-match video analysis callbacks. When calibration metadata is present, ML maps detected ball positions through a perspective transform so heatmap points align with real court zones.
 
 ## League Invitations
