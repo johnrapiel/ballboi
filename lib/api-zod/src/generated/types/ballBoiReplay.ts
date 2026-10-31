@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { BallBoiSession } from "./ballBoiSession";
+import type { GatedStat } from "./gatedStat";
 import type { Match } from "./match";
 import type { MatchShot } from "./matchShot";
 import type { MatchStatistics } from "./matchStatistics";
@@ -20,4 +21,6 @@ export interface BallBoiReplay {
    * @nullable
    */
   videoUrl: string | null;
+  /** Stats below their accuracy bar (or not yet measured). Their fields are empty; the app leaves them out rather than showing them with a disclaimer. */
+  hiddenStats?: GatedStat[];
 }

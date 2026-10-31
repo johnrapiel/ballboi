@@ -82,6 +82,7 @@ Carried over from the original web app's project notes. Describes how the API, s
 - Replay pages expose seven review modes: Full Video, Shot-by-Shot, Rally Replay, Heatmap, Timeline, Stats Dashboard, and Comparison, with set filters, shot scrubber markers, heatmap filters, timeline momentum, and player comparison details.
 - My Matches shows Ball Boi replay badges and quick shot stats only for matches that have recorded Ball Boi data.
 - The API stores session metadata in `ball_boi_sessions`, including optional Ball Boi court calibration points, detections in `match_shots`, and aggregated replay analytics in `match_statistics`.
+- Per-stat accuracy gates (`api-server/src/lib/statGates.ts`): every analysis result carries `statGates` from the ML server (`evaluation/gates.py`), decided from the committed eval report for that exact pipeline and model files. It's saved on the session's metadata. Every Ball Boi read endpoint blanks the fields of hidden stats and the replay lists them in `hiddenStats`. No gates (older sessions, or no eval report yet) means every stat is hidden. The written summary needs shot type, point ending, rally length and speed all shown.
 - The ML server includes `/analyze-match-live` for low-latency detections and `/analyze-match-batch` for post-match video analysis callbacks. When calibration metadata is present, ML maps detected ball positions through a perspective transform so heatmap points align with real court zones.
 
 ## League Invitations

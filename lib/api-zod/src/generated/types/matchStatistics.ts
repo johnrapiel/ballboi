@@ -15,19 +15,33 @@ export interface MatchStatistics {
   sessionId: number;
   matchId: number;
   totalShots: number;
-  totalRallies: number;
-  avgRallyLength: number;
-  avgShotSpeedMph: number;
-  fastestShotMph: number;
-  winners: number;
-  errors: number;
-  serves: number;
-  forehands: number;
-  backhands: number;
-  volleys: number;
-  overheads: number;
-  heatmapData: MatchStatisticsHeatmapDataItem[];
+  /** @nullable */
+  totalRallies: number | null;
+  /** @nullable */
+  avgRallyLength: number | null;
+  /** @nullable */
+  avgShotSpeedMph: number | null;
+  /** @nullable */
+  fastestShotMph: number | null;
+  /** @nullable */
+  winners: number | null;
+  /** @nullable */
+  errors: number | null;
+  /** @nullable */
+  serves: number | null;
+  /** @nullable */
+  forehands: number | null;
+  /** @nullable */
+  backhands: number | null;
+  /** @nullable */
+  volleys: number | null;
+  /** @nullable */
+  overheads: number | null;
+  /** @nullable */
+  heatmapData: MatchStatisticsHeatmapDataItem[] | null;
+  /** @nullable */
   shotTypeBreakdown: MatchStatisticsShotTypeBreakdown;
+  /** @nullable */
   outcomeBreakdown: MatchStatisticsOutcomeBreakdown;
   playerComparisons: MatchStatisticsPlayerComparisons;
 }

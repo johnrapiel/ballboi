@@ -994,7 +994,11 @@ export interface MatchShot {
   /** @nullable */
   playerId?: number | null;
   timestampSeconds: number;
-  shotType: string;
+  /**
+   * Empty when shot type is hidden (below its accuracy bar).
+   * @nullable
+   */
+  shotType: string | null;
   /** @nullable */
   shotTypeConfidence?: number | null;
   /** @nullable */
@@ -1029,9 +1033,15 @@ export interface MatchShot {
 
 export type MatchStatisticsHeatmapDataItem = { [key: string]: unknown };
 
-export type MatchStatisticsShotTypeBreakdown = { [key: string]: number };
+/**
+ * @nullable
+ */
+export type MatchStatisticsShotTypeBreakdown = { [key: string]: number } | null;
 
-export type MatchStatisticsOutcomeBreakdown = { [key: string]: number };
+/**
+ * @nullable
+ */
+export type MatchStatisticsOutcomeBreakdown = { [key: string]: number } | null;
 
 export type MatchStatisticsPlayerComparisons = {
   [key: string]: { [key: string]: unknown };
@@ -1042,19 +1052,33 @@ export interface MatchStatistics {
   sessionId: number;
   matchId: number;
   totalShots: number;
-  totalRallies: number;
-  avgRallyLength: number;
-  avgShotSpeedMph: number;
-  fastestShotMph: number;
-  winners: number;
-  errors: number;
-  serves: number;
-  forehands: number;
-  backhands: number;
-  volleys: number;
-  overheads: number;
-  heatmapData: MatchStatisticsHeatmapDataItem[];
+  /** @nullable */
+  totalRallies: number | null;
+  /** @nullable */
+  avgRallyLength: number | null;
+  /** @nullable */
+  avgShotSpeedMph: number | null;
+  /** @nullable */
+  fastestShotMph: number | null;
+  /** @nullable */
+  winners: number | null;
+  /** @nullable */
+  errors: number | null;
+  /** @nullable */
+  serves: number | null;
+  /** @nullable */
+  forehands: number | null;
+  /** @nullable */
+  backhands: number | null;
+  /** @nullable */
+  volleys: number | null;
+  /** @nullable */
+  overheads: number | null;
+  /** @nullable */
+  heatmapData: MatchStatisticsHeatmapDataItem[] | null;
+  /** @nullable */
   shotTypeBreakdown: MatchStatisticsShotTypeBreakdown;
+  /** @nullable */
   outcomeBreakdown: MatchStatisticsOutcomeBreakdown;
   playerComparisons: MatchStatisticsPlayerComparisons;
 }
@@ -1069,9 +1093,27 @@ export interface BallBoiStatus {
   progress: number;
 }
 
+/**
+ * A Ball Boi stat that is shown only when it meets its accuracy bar.
+ */
+export type GatedStat = (typeof GatedStat)[keyof typeof GatedStat];
+
+export const GatedStat = {
+  shot_type: "shot_type",
+  line_calls: "line_calls",
+  serve_placement: "serve_placement",
+  placement_heatmap: "placement_heatmap",
+  point_ending: "point_ending",
+  rally_length: "rally_length",
+  first_serve_pct: "first_serve_pct",
+  serve_speed: "serve_speed",
+} as const;
+
 export interface BallBoiReplayMetadata {
   session: BallBoiSession;
   match: Match | null;
+  /** Stats below their accuracy bar (or not yet measured). Their fields are empty; the app leaves them out rather than showing them with a disclaimer. */
+  hiddenStats?: GatedStat[];
 }
 
 export interface BallBoiNarrative {
@@ -1090,6 +1132,8 @@ export interface BallBoiReplay {
    * @nullable
    */
   videoUrl: string | null;
+  /** Stats below their accuracy bar (or not yet measured). Their fields are empty; the app leaves them out rather than showing them with a disclaimer. */
+  hiddenStats?: GatedStat[];
 }
 
 export type UserProfileSkillLevel =

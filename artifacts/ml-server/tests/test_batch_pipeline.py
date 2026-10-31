@@ -48,3 +48,12 @@ def test_unexpected_errors_stay_generic(monkeypatch, sent):
     monkeypatch.setattr(run_mod, "analyze_match", crash)
     main.process_match_and_callback("http://v", 7, 3, "http://cb", None)
     assert sent[0][1]["error"] == "Analysis failed. Please try again."
+
+
+def test_results_carry_stat_gates(monkeypatch, sent):
+    monkeypatch.setattr(main, "_pipeline_models", lambda: object())
+    monkeypatch.setattr(run_mod, "analyze_match",
+                        lambda *a, **k: {"shots": [{"shotType": "serve"}], "model": {"version": "x", "degraded": True}})
+    main.process_match_and_callback("http://v", 7, 3, "http://cb", None)
+    gates = sent[-1][1]["result"]["statGates"]["stats"]
+    assert gates["shot_type"] == {"shown": False, "reason": "stand-in models"}

@@ -924,10 +924,12 @@ describe("heatmap data round-trip: POST /ml-callback → GET /replay", () => {
     expect(Array.isArray(heatmapFromStats)).toBe(true);
     expect(heatmapFromStats).toHaveLength(2);
 
+    // Heatmaps are shown only once the eval clears them (lib/statGates.ts).
     const completedSession = {
       ...processingSession,
       status: "completed",
       processingStatus: "completed",
+      metadata: { ...processingSession.metadata, statGates: { stats: { placement_heatmap: { shown: true } } } },
     };
     const insertedShots = capturedShotInsertValues.map((shot, i) => ({
       id: 100 + i,
@@ -959,6 +961,26 @@ describe("heatmap data round-trip: POST /ml-callback → GET /replay", () => {
     expect(statistics.heatmapData[0].y).toBe(mlResult.shots[0].courtZone.y);
     expect(statistics.heatmapData[1].x).toBe(mlResult.shots[1].courtZone.x);
     expect(statistics.heatmapData[1].y).toBe(mlResult.shots[1].courtZone.y);
+  });
+
+  it("hides the heatmap when the eval hasn't cleared it", async () => {
+    const completedSession = { ...processingSession, status: "completed", processingStatus: "completed" };
+    const statistics = { id: 99, sessionId: SESSION_ID, matchId: MATCH_ID, totalShots: 2, winners: 1, heatmapData: [{ x: 0.25, y: 0.65 }] };
+    let call = 0;
+    mockDb.select.mockImplementation(() => {
+      call++;
+      if (call === 1) return mockChain([match]);
+      if (call === 2) return mockChain([player1]);
+      if (call === 3) return mockChain([completedSession]);
+      if (call === 4) return mockChain([{ id: 100, shotType: "forehand", courtZoneX: 0.25 }]);
+      if (call === 5) return mockChain([statistics]);
+      return mockChain([]);
+    });
+    const res = await supertest(app).get(`/api/ball-boi/matches/${MATCH_ID}/replay`).set("Authorization", "Bearer token");
+    expect(res.status).toBe(200);
+    expect(res.body.statistics).toMatchObject({ totalShots: 2, heatmapData: null, winners: null });
+    expect(res.body.shots[0]).toMatchObject({ id: 100, shotType: null, courtZoneX: null });
+    expect(res.body.hiddenStats).toContain("placement_heatmap");
   });
 
   it("uses the default 0.5 fallback for x/y when courtZone is missing from the ML payload", async () => {

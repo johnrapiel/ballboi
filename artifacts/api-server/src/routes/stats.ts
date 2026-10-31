@@ -2,6 +2,7 @@ import { Router } from "express";
 import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { requireAdmin } from "../middlewares/requireAdmin";
+import { shownStats } from "../lib/statGates";
 import { matchesTable, playersTable, leaguesTable, scheduleGenerationLogsTable, ballBoiSessionsTable, matchStatisticsTable, leagueRoundsTable } from "@workspace/db";
 import { eq, and, or, desc, inArray, ne, isNull } from "drizzle-orm";
 import { getPlayerNameMap, getLeagueNameMap, matchPlayerIds } from "../lib/lookups.js";
@@ -304,7 +305,7 @@ router.get("/stats/my-matches", async (req, res) => {
         hasBallBoiReplay: !!ballBoiSession,
         ballBoiProcessingStatus: ballBoiSession?.processingStatus ?? null,
         ballBoiShotCount: ballBoiStat?.totalShots ?? null,
-        ballBoiAvgShotSpeedMph: ballBoiStat?.avgShotSpeedMph ?? null,
+        ballBoiAvgShotSpeedMph: ballBoiSession && shownStats(ballBoiSession.metadata).has("serve_speed") ? (ballBoiStat?.avgShotSpeedMph ?? null) : null,
         roundId: m.roundId ?? null,
         roundNumber: m.roundId ? (roundById[m.roundId]?.roundNumber ?? null) : null,
         playoffBracketId: m.playoffBracketId ?? null,

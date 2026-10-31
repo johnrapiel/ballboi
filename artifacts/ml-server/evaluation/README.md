@@ -14,6 +14,8 @@ Set in `bars.json`:
 
 Point endings, rally length, first serve %, and landing heatmaps are scored too but have no bar yet, so they stay hidden until one is set.
 
+**How hiding works:** the committed report in `reports/latest/report.json` decides what the app shows. Every analysis result carries `statGates` (`gates.py`): a stat is shown only if that report came from the same pipeline and model files, the models aren't stand-ins, and the stat met its bar. The API blanks every hidden stat before it reaches the app. So after any model change, re-run the eval and commit the new report, or every stat goes back to hidden.
+
 ## Run it
 
 ```sh

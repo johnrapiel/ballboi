@@ -25,6 +25,7 @@ import {
 } from "../lib/ballBoiUtils";
 import { computeNextRetryAt } from "../services/ballBoiRetry";
 import { isMlServiceUnreachable } from "../lib/mlServiceErrors";
+import { gateNarrative, gateSession, gateShot, gateStatistics, hiddenStats, shownStats } from "../lib/statGates";
 
 const router = Router();
 
@@ -125,10 +126,14 @@ async function saveBatchResults(sessionId: number, matchId: number, result: unkn
   const aiNarrative = buildNarrative(matchTitle, stats, inserted);
 
   await db.insert(matchStatisticsTable).values({ sessionId, matchId, ...stats });
+  // Which stats the app may show, decided by the eval for this exact pipeline
+  // (lib/statGates.ts). No gates means every stat stays hidden.
+  const statGates = asRecord(payload.statGates);
   await db.update(ballBoiSessionsTable).set({
     status: "completed",
     processingStatus: "completed",
     processingError: null,
+    metadata: sql`coalesce(${ballBoiSessionsTable.metadata}, '{}'::jsonb) || ${JSON.stringify({ statGates })}::jsonb`,
     aiNarrative,
     durationSeconds: Math.round(duration || normalizeNumber(asRecord(payload.metadata).durationSeconds, 0)),
   }).where(eq(ballBoiSessionsTable.id, sessionId));
@@ -384,7 +389,7 @@ router.get("/ball-boi/matches/:matchId/replay", requireAuth, async (req: Request
     if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const sessions = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.matchId, matchId)).orderBy(desc(ballBoiSessionsTable.createdAt));
     const session = sessions[0] ?? null;
-    if (!session) { res.json({ match: access.match, session: null, shots: [], statistics: null, videoUrl: null }); return; }
+    if (!session) { res.json({ match: access.match, session: null, shots: [], statistics: null, videoUrl: null, hiddenStats: hiddenStats(new Set()) }); return; }
     const [shots, statsRows] = await Promise.all([
       db.select().from(matchShotsTable).where(eq(matchShotsTable.sessionId, session.id)).orderBy(matchShotsTable.sequenceNumber),
       db.select().from(matchStatisticsTable).where(eq(matchStatisticsTable.sessionId, session.id)),
@@ -397,7 +402,15 @@ router.get("/ball-boi/matches/:matchId/replay", requireAuth, async (req: Request
         logger.warn({ urlErr }, "Failed to generate signed video URL for replay");
       }
     }
-    res.json({ match: access.match, session, shots, statistics: statsRows[0] ?? null, videoUrl });
+    const shown = shownStats(session.metadata);
+    res.json({
+      match: access.match,
+      session: gateSession(session, shown),
+      shots: shots.map((shot) => gateShot(shot, shown)),
+      statistics: gateStatistics(statsRows[0], shown),
+      videoUrl,
+      hiddenStats: hiddenStats(shown),
+    });
   } catch (err) {
     logger.error({ err }, "Failed to load Ball Boi replay");
     res.status(500).json({ error: "Failed to load replay" });
@@ -561,7 +574,7 @@ router.get("/matches/:matchId/narrative", requireAuth, async (req: Request, res:
     if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const session = await latestSessionForMatch(matchId);
     if (!session) { res.json({ matchId, sessionId: null, narrative: null }); return; }
-    res.json({ matchId, sessionId: session.id, narrative: session.aiNarrative });
+    res.json({ matchId, sessionId: session.id, narrative: gateNarrative(session.aiNarrative, shownStats(session.metadata)) });
   } catch (err) {
     logger.error({ err }, "Failed to load match Ball Boi narrative");
     res.status(500).json({ error: "Failed to load narrative" });
@@ -597,7 +610,8 @@ router.get("/matches/:matchId/shots", requireAuth, async (req: Request, res: Res
     const session = await latestSessionForMatch(matchId);
     if (!session) { res.json([]); return; }
     const shots = await db.select().from(matchShotsTable).where(eq(matchShotsTable.sessionId, session.id)).orderBy(matchShotsTable.sequenceNumber);
-    res.json(shots);
+    const shown = shownStats(session.metadata);
+    res.json(shots.map((shot) => gateShot(shot, shown)));
   } catch (err) {
     logger.error({ err }, "Failed to load match Ball Boi shots");
     res.status(500).json({ error: "Failed to load shots" });
@@ -615,7 +629,7 @@ router.get("/matches/:matchId/statistics", requireAuth, async (req: Request, res
     const session = await latestSessionForMatch(matchId);
     if (!session) { res.json(null); return; }
     const [stats] = await db.select().from(matchStatisticsTable).where(eq(matchStatisticsTable.sessionId, session.id));
-    res.json(stats ?? null);
+    res.json(gateStatistics(stats, shownStats(session.metadata)));
   } catch (err) {
     logger.error({ err }, "Failed to load match Ball Boi statistics");
     res.status(500).json({ error: "Failed to load statistics" });
@@ -659,7 +673,8 @@ router.get("/ball-boi/sessions/:sessionId/shots", requireAuth, async (req: Reque
     if (!access.session) { res.status(404).json({ error: "Session not found" }); return; }
     if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const shots = await db.select().from(matchShotsTable).where(eq(matchShotsTable.sessionId, sessionId)).orderBy(matchShotsTable.sequenceNumber);
-    res.json(shots);
+    const shown = shownStats(access.session.metadata);
+    res.json(shots.map((shot) => gateShot(shot, shown)));
   } catch (err) {
     logger.error({ err }, "Failed to load Ball Boi shots");
     res.status(500).json({ error: "Failed to load shots" });
@@ -675,7 +690,7 @@ router.get("/ball-boi/sessions/:sessionId/statistics", requireAuth, async (req: 
     if (!access.session) { res.status(404).json({ error: "Session not found" }); return; }
     if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const [stats] = await db.select().from(matchStatisticsTable).where(eq(matchStatisticsTable.sessionId, sessionId));
-    res.json(stats ?? null);
+    res.json(gateStatistics(stats, shownStats(access.session.metadata)));
   } catch (err) {
     logger.error({ err }, "Failed to load Ball Boi statistics");
     res.status(500).json({ error: "Failed to load statistics" });
@@ -690,10 +705,13 @@ router.get("/ball-boi/sessions/:sessionId/replay-metadata", requireAuth, async (
     const access = await canAccessSession(sessionId, userId);
     if (!access.session) { res.status(404).json({ error: "Session not found" }); return; }
     if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
-    const shots = await db.select().from(matchShotsTable).where(eq(matchShotsTable.sessionId, sessionId)).orderBy(matchShotsTable.sequenceNumber);
+    const shown = shownStats(access.session.metadata);
+    const shots = (await db.select().from(matchShotsTable).where(eq(matchShotsTable.sessionId, sessionId)).orderBy(matchShotsTable.sequenceNumber))
+      .map((shot) => gateShot(shot, shown));
     res.json({
-      session: access.session,
+      session: gateSession(access.session, shown),
       match: access.match,
+      hiddenStats: hiddenStats(shown),
       shotMarkers: shots.map((shot) => ({
         id: shot.id,
         sequenceNumber: shot.sequenceNumber,
@@ -753,7 +771,7 @@ router.get("/ball-boi/sessions/:sessionId/narrative", requireAuth, async (req: R
     const access = await canAccessSession(sessionId, userId);
     if (!access.session) { res.status(404).json({ error: "Session not found" }); return; }
     if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
-    res.json({ sessionId, narrative: access.session.aiNarrative });
+    res.json({ sessionId, narrative: gateNarrative(access.session.aiNarrative, shownStats(access.session.metadata)) });
   } catch (err) {
     logger.error({ err }, "Failed to load Ball Boi narrative");
     res.status(500).json({ error: "Failed to load narrative" });
@@ -797,7 +815,7 @@ router.get("/ball-boi/matches/:matchId/sessions", requireAuth, async (req: Reque
     if (!access.match) { res.status(404).json({ error: "Match not found" }); return; }
     if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const sessions = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.matchId, matchId)).orderBy(desc(ballBoiSessionsTable.createdAt));
-    res.json(sessions);
+    res.json(sessions.map((s) => gateSession(s, shownStats(s.metadata))));
   } catch (err) {
     logger.error({ err }, "Failed to load Ball Boi sessions");
     res.status(500).json({ error: "Failed to load sessions" });
