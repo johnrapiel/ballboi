@@ -5,33 +5,28 @@ import {
   RequestUploadUrlResponse,
 } from "@workspace/api-zod";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
-import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
-import { ballBoiSessionsTable, leaguesTable, matchesTable, playersTable } from "@workspace/db";
+import { ballBoiSessionsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
 const ML_SECRET = process.env.ML_SECRET;
 
-async function canReadBallBoiObject(objectPath: string, req: Request) {
+// Spec (Video and training data): match video is never shown in the app. Ball
+// Boi video, the raw upload and the training copy alike, streams only to the
+// ML server (X-ML-Secret). Other uploads are unaffected.
+export const TRAINING_PREFIX = "/objects/training/";
+
+export async function isBallBoiVideo(objectPath: string): Promise<boolean> {
+  if (objectPath.startsWith(TRAINING_PREFIX)) return true;
   const [session] = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.videoObjectPath, objectPath));
-  if (!session) return true;
-  if (ML_SECRET && req.headers["x-ml-secret"] === ML_SECRET) return true;
-  const { userId } = getAuth(req);
-  if (!userId) return false;
-  if (session.recordedByClerkUserId === userId) return true;
-  const [match] = await db.select().from(matchesTable).where(eq(matchesTable.id, session.matchId));
-  if (!match) return false;
-  const callerPlayers = await db.select().from(playersTable).where(eq(playersTable.clerkUserId, userId));
-  const callerPlayer = callerPlayers[0] ?? null;
-  const participantIds = [match.player1Id, match.player2Id, match.player3Id, match.player4Id].filter((id): id is number => id != null);
-  if (callerPlayer && participantIds.includes(callerPlayer.id)) return true;
-  if (match.leagueId != null) {
-    const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, match.leagueId));
-    if (league?.createdByClerkUserId === userId) return true;
-  }
-  return false;
+  return !!session;
+}
+
+async function canReadObject(objectPath: string, req: Request) {
+  if (!(await isBallBoiVideo(objectPath))) return true;
+  return !!ML_SECRET && req.headers["x-ml-secret"] === ML_SECRET;
 }
 
 /**
@@ -70,15 +65,14 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
  * GET /storage/objects/*
  *
  * Stream an uploaded object through the API. The ML server downloads Ball Boi
- * videos this way (with X-ML-Secret); apps use presigned URLs instead.
+ * videos this way (with X-ML-Secret); nobody else can read them.
  */
 router.get("/storage/objects/*path", async (req: Request, res: Response) => {
   try {
     const raw = req.params.path;
     const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
     const objectPath = `/objects/${wildcardPath}`;
-    const canReadBallBoi = await canReadBallBoiObject(objectPath, req);
-    if (!canReadBallBoi) {
+    if (!(await canReadObject(objectPath, req))) {
       res.status(403).json({ error: "Forbidden" });
       return;
     }

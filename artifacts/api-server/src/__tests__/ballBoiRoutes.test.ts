@@ -724,103 +724,27 @@ describe("GET /api/ball-boi/matches/:matchId/replay", () => {
   });
 });
 
-describe("GET /api/ball-boi/sessions/:sessionId/video-url", () => {
-  const sessionWithVideo = {
-    id: 1,
-    matchId: 10,
-    recordedByClerkUserId: mockUserId,
-    status: "completed",
-    processingStatus: "completed",
-    videoObjectPath: "/objects/uploads/test-video.webm",
-    metadata: {},
-  };
-
-  const sessionWithoutVideo = {
-    id: 2,
-    matchId: 10,
-    recordedByClerkUserId: mockUserId,
-    status: "recording",
-    processingStatus: "pending",
-    videoObjectPath: null,
-    metadata: {},
-  };
-
-  const sampleMatch = {
-    id: 10,
-    player1Id: 1,
-    player2Id: 2,
-    player3Id: null,
-    player4Id: null,
-    leagueId: null,
-  };
-
-  it("returns 401 when not authenticated", async () => {
-    mockGetAuth = () => ({ userId: null });
-    const res = await supertest(app).get("/api/ball-boi/sessions/1/video-url");
-    expect(res.status).toBe(401);
-    expect(res.body.error).toMatch(/unauthorized/i);
-  });
-
-  it("returns 404 when the session does not exist", async () => {
-    mockDb.select.mockImplementation(() => mockChain([]));
-    const res = await supertest(app)
-      .get("/api/ball-boi/sessions/999/video-url")
-      .set("Authorization", "Bearer token");
+describe("match video is never handed to the app", () => {
+  it("the video-url endpoint is gone", async () => {
+    mockDb.select.mockImplementation(() => mockChain([{ id: 1, matchId: 10, recordedByClerkUserId: mockUserId, videoObjectPath: "/objects/uploads/v" }]));
+    const res = await supertest(app).get("/api/ball-boi/sessions/1/video-url").set("Authorization", "Bearer token");
     expect(res.status).toBe(404);
-    expect(res.body.error).toMatch(/session not found/i);
   });
 
-  it("returns 403 when the requesting user does not own the session and is not a match participant", async () => {
-    const foreignSession = { ...sessionWithVideo, recordedByClerkUserId: "user_other" };
-    let selectCall = 0;
+  it("the replay carries no video link", async () => {
+    const session = { id: 1, matchId: 10, recordedByClerkUserId: mockUserId, status: "completed", processingStatus: "completed", videoObjectPath: "/objects/uploads/v", metadata: {} };
+    let call = 0;
     mockDb.select.mockImplementation(() => {
-      selectCall++;
-      if (selectCall === 1) return mockChain([foreignSession]);
-      if (selectCall === 2) return mockChain([sampleMatch]);
-      if (selectCall === 3) return mockChain([{ id: 99, clerkUserId: "user_other", name: "Stranger" }]);
+      call++;
+      if (call === 1) return mockChain([{ id: 10, player1Id: 1, player2Id: 2, player3Id: null, player4Id: null, leagueId: null }]);
+      if (call === 2) return mockChain([{ id: 1, clerkUserId: mockUserId, name: "Me" }]);
+      if (call === 3) return mockChain([session]);
       return mockChain([]);
     });
-
-    const res = await supertest(app)
-      .get("/api/ball-boi/sessions/1/video-url")
-      .set("Authorization", "Bearer token");
-    expect(res.status).toBe(403);
-    expect(res.body.error).toMatch(/forbidden/i);
-  });
-
-  it("returns 404 when the session has no video uploaded yet", async () => {
-    let selectCall = 0;
-    mockDb.select.mockImplementation(() => {
-      selectCall++;
-      if (selectCall === 1) return mockChain([sessionWithoutVideo]);
-      if (selectCall === 2) return mockChain([sampleMatch]);
-      if (selectCall === 3) return mockChain([{ id: 1, clerkUserId: mockUserId, name: "Test Player" }]);
-      return mockChain([]);
-    });
-
-    const res = await supertest(app)
-      .get("/api/ball-boi/sessions/2/video-url")
-      .set("Authorization", "Bearer token");
-    expect(res.status).toBe(404);
-    expect(res.body.error).toMatch(/no video available/i);
-  });
-
-  it("returns a signed video URL on success", async () => {
-    let selectCall = 0;
-    mockDb.select.mockImplementation(() => {
-      selectCall++;
-      if (selectCall === 1) return mockChain([sessionWithVideo]);
-      if (selectCall === 2) return mockChain([sampleMatch]);
-      if (selectCall === 3) return mockChain([{ id: 1, clerkUserId: mockUserId, name: "Test Player" }]);
-      return mockChain([]);
-    });
-
-    const res = await supertest(app)
-      .get("/api/ball-boi/sessions/1/video-url")
-      .set("Authorization", "Bearer token");
+    const res = await supertest(app).get("/api/ball-boi/matches/10/replay").set("Authorization", "Bearer token");
     expect(res.status).toBe(200);
-    expect(res.body.sessionId).toBe(1);
-    expect(res.body.videoUrl).toBe("https://storage.example.com/signed-view-url");
+    expect(res.body).not.toHaveProperty("videoUrl");
+    expect(res.body.session.id).toBe(1);
   });
 });
 

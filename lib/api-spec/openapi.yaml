@@ -3235,9 +3235,6 @@ components:
           anyOf:
             - $ref: "#/components/schemas/MatchStatistics"
             - type: "null"
-        videoUrl:
-          type: ["string", "null"]
-          description: Signed URL to stream the recorded match video, if available
         hiddenStats:
           description: >-
             Stats below their accuracy bar (or not yet measured). Their fields are
@@ -3250,7 +3247,6 @@ components:
         - session
         - shots
         - statistics
-        - videoUrl
 
     UserProfile:
       type: object
