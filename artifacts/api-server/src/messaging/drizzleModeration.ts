@@ -1,4 +1,5 @@
 import {
+  accountSanctionsTable,
   contentReportsTable,
   db,
   dmConversationsTable,
@@ -7,7 +8,7 @@ import {
   userBlocksTable,
   type RestrictionSource,
 } from "@workspace/db";
-import { and, eq, gte, inArray, isNotNull, isNull, lte, ne, sql } from "drizzle-orm";
+import { and, eq, gt, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { ModerationRepo, NewReport, Restriction } from "./moderation";
 
 function toRestriction(row: typeof messagingRestrictionsTable.$inferSelect): Restriction {
@@ -108,13 +109,27 @@ export class DrizzleModerationRepo implements ModerationRepo {
     return rows.length > 0;
   }
 
+  /** Restricted, banned or suspended: no new conversations, pending requests hidden. */
   async restrictedSet(subjects: string[]) {
     if (!subjects.length) return new Set<string>();
-    const rows = await db
-      .select({ id: messagingRestrictionsTable.clerkUserId })
-      .from(messagingRestrictionsTable)
-      .where(and(inArray(messagingRestrictionsTable.clerkUserId, subjects), isNull(messagingRestrictionsTable.liftedAt)));
-    return new Set(rows.map((r) => r.id));
+    const now = new Date();
+    const [restricted, sanctioned] = await Promise.all([
+      db
+        .select({ id: messagingRestrictionsTable.clerkUserId })
+        .from(messagingRestrictionsTable)
+        .where(and(inArray(messagingRestrictionsTable.clerkUserId, subjects), isNull(messagingRestrictionsTable.liftedAt))),
+      db
+        .select({ id: accountSanctionsTable.clerkUserId })
+        .from(accountSanctionsTable)
+        .where(
+          and(
+            inArray(accountSanctionsTable.clerkUserId, subjects),
+            isNull(accountSanctionsTable.liftedAt),
+            or(isNull(accountSanctionsTable.endsAt), gt(accountSanctionsTable.endsAt, now)),
+          ),
+        ),
+    ]);
+    return new Set([...restricted, ...sanctioned].map((r) => r.id));
   }
 }
 

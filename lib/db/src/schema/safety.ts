@@ -23,8 +23,8 @@ export const userBlocksTable = pgTable(
 export const REPORT_TARGET_TYPES = ["player", "league", "ball_boi_session", "match", "message", "account"] as const;
 export const REPORT_REASONS = ["harassment", "inappropriate_content", "impersonation", "spam", "cheating", "other"] as const;
 export const REPORT_STATUSES = ["open", "reviewed", "actioned", "dismissed"] as const;
-/** user: a person reported it. auto: auto-restrict fired. stream: Stream moderation flagged it. */
-export const REPORT_SOURCES = ["user", "auto", "stream"] as const;
+/** user: a person reported it. auto: auto-restrict fired. stream: Stream moderation flagged it. appeal: a banned or suspended person appealed. */
+export const REPORT_SOURCES = ["user", "auto", "stream", "appeal"] as const;
 
 export type ReportTargetType = (typeof REPORT_TARGET_TYPES)[number];
 export type ReportReason = (typeof REPORT_REASONS)[number];
@@ -138,3 +138,66 @@ export const moderationAgentDecisionsTable = pgTable(
 );
 
 export type ModerationAgentDecision = typeof moderationAgentDecisionsTable.$inferSelect;
+
+export const SANCTION_KINDS = ["ban", "suspend"] as const;
+export type SanctionKind = (typeof SANCTION_KINDS)[number];
+
+/**
+ * Bans and suspensions (spec: Enforcement ladder steps 4 to 6). Human-only:
+ * a moderator creates them, never the agent or auto-restrict. Enforced at
+ * sign-in against the Clerk account, the Sign in with Apple user ID and the
+ * email address, so deleting the account and signing up again doesn't get
+ * around a ban. Kept after account deletion for that reason.
+ * DeviceCheck device bans come in Wave 2.
+ */
+export const accountSanctionsTable = pgTable(
+  "account_sanctions",
+  {
+    id: serial("id").primaryKey(),
+    kind: text("kind").notNull(),
+    clerkUserId: text("clerk_user_id").notNull(),
+    /** The Sign in with Apple user ID ("sub"), when the account used Apple. */
+    appleUserId: text("apple_user_id"),
+    /** Lowercased email addresses on the account when it was sanctioned. */
+    emails: jsonb("emails").$type<string[]>().notNull().default([]),
+    /** For moderators only; the person sees a plain, general message. */
+    reason: text("reason").notNull(),
+    reportId: integer("report_id"),
+    /** Suspensions end here. Null for bans. */
+    endsAt: timestamp("ends_at", { withTimezone: true }),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    liftedAt: timestamp("lifted_at", { withTimezone: true }),
+    liftedBy: text("lifted_by"),
+  },
+  (table) => [
+    index("idx_account_sanctions_user").on(table.clerkUserId, table.liftedAt),
+    index("idx_account_sanctions_apple").on(table.appleUserId),
+  ],
+);
+
+export const APPEAL_OUTCOMES = ["upheld", "overturned"] as const;
+export type AppealOutcome = (typeof APPEAL_OUTCOMES)[number];
+
+/** One appeal per sanction (spec: "One appeal: by email"), logged in the reports queue. */
+export const sanctionAppealsTable = pgTable(
+  "sanction_appeals",
+  {
+    id: serial("id").primaryKey(),
+    sanctionId: integer("sanction_id")
+      .notNull()
+      .references(() => accountSanctionsTable.id, { onDelete: "cascade" }),
+    clerkUserId: text("clerk_user_id").notNull(),
+    /** The report row that puts the appeal in /api/admin/reports. */
+    reportId: integer("report_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    outcome: text("outcome"),
+    note: text("note"),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    decidedBy: text("decided_by"),
+  },
+  (table) => [uniqueIndex("uq_sanction_appeals_sanction").on(table.sanctionId)],
+);
+
+export type AccountSanction = typeof accountSanctionsTable.$inferSelect;
+export type SanctionAppeal = typeof sanctionAppealsTable.$inferSelect;

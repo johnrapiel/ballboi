@@ -17,6 +17,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import pino from "pino";
 import { requireAdmin } from "../middlewares/requireAdmin";
 import { getAutoRestrict } from "../messaging";
+import sanctionsRouter from "./sanctions";
 
 // App Store guideline 1.2: report objectionable content, block abusive users,
 // and act on every report within 24 hours. Spec: Messaging and moderation.
@@ -201,5 +202,8 @@ router.delete("/players/:playerId/block", requireAuth, async (req, res) => {
   }
   res.status(204).end();
 });
+
+// Bans, suspensions and appeals (routes/sanctions.ts).
+router.use(sanctionsRouter);
 
 export default router;

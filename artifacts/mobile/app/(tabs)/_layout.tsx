@@ -9,6 +9,7 @@ import { SymbolView, type SFSymbol } from "expo-symbols";
 import React, { useEffect } from "react";
 import { Image, Platform, StyleSheet, useColorScheme, type ImageSourcePropType } from "react-native";
 
+import { useAccountStatus } from "@/hooks/useAccountStatus";
 import { useColors } from "@/hooks/useColors";
 import { isAgeCheckPassed } from "@/lib/ageCheck";
 import { isOnboarded } from "@/lib/onboarding";
@@ -109,6 +110,7 @@ function ClassicTabLayout() {
 export default function TabLayout() {
   const { isSignedIn, isLoaded, getToken } = useAuth();
   const { user } = useUser();
+  const account = useAccountStatus(!!isSignedIn);
 
   useEffect(() => {
     setAuthTokenGetter(() => getToken());
@@ -119,6 +121,7 @@ export default function TabLayout() {
   if (!isLoaded) return null;
   if (!isSignedIn) return <Redirect href="/(auth)/welcome" />;
   if (!user) return null;
+  if (account.data && account.data.status !== "ok") return <Redirect href="/account-blocked" />;
   if (!isAgeCheckPassed(user.unsafeMetadata)) return <Redirect href="/age-check" />;
   if (!isOnboarded(user.unsafeMetadata)) return <Redirect href="/onboarding" />;
 
