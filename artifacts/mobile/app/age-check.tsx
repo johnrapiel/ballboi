@@ -17,11 +17,11 @@ import DateTimePicker, { type DateTimePickerEvent } from "@react-native-communit
 import { useAuth, useUser } from "@clerk/expo";
 import { Redirect, useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Modal, Pressable, Text as RNText, View, useColorScheme } from "react-native";
+import { Modal, Pressable, View, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Button, Screen, Text } from "@/components/ui";
-import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
+import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import {
   AGE_CHECK_PASSED,
@@ -106,9 +106,9 @@ function BirthdayField({ value, onPress }: { value: Date | null; onPress: () => 
   const c = useColors();
   return (
     <View style={{ gap: spacing.space2 }}>
-      <RNText style={[type.label, { color: c.ink }]} importantForAccessibility="no" accessibilityElementsHidden>
+      <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
         Birthday
-      </RNText>
+      </Text>
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
@@ -126,9 +126,7 @@ function BirthdayField({ value, onPress }: { value: Date | null; onPress: () => 
           opacity: pressed ? 0.85 : 1,
         })}
       >
-        <RNText style={[type.body, { color: value ? c.ink : c.inkMuted }]}>
-          {value ? formatBirthday(value) : "Choose a date"}
-        </RNText>
+        <Text tone={value ? "ink" : "inkMuted"}>{value ? formatBirthday(value) : "Choose a date"}</Text>
       </Pressable>
     </View>
   );
@@ -217,7 +215,6 @@ function BirthdaySheet({
 
 /** Text button in the sheet header, at least 44×44pt. */
 function SheetAction({ label, strong = false, onPress }: { label: string; strong?: boolean; onPress: () => void }) {
-  const c = useColors();
   return (
     <Pressable
       onPress={onPress}
@@ -233,7 +230,7 @@ function SheetAction({ label, strong = false, onPress }: { label: string; strong
         opacity: pressed ? 0.6 : 1,
       })}
     >
-      <RNText style={[strong ? type.bodyStrong : type.body, { color: c.ink }]}>{label}</RNText>
+      <Text variant={strong ? "bodyStrong" : "body"}>{label}</Text>
     </Pressable>
   );
 }
