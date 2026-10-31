@@ -37,7 +37,13 @@ export default function JoinWithCodeSheet() {
         queryClient.invalidateQueries({ queryKey: getGetMyPlayersQueryKey() }),
       ]);
       router.back();
-      Alert.alert("You're in", `You joined ${result.league.name}.`);
+      // Joining after the season starts, or into a full league, puts the
+      // player on the waitlist for next season (decision 26).
+      if (result.waitlisted) {
+        Alert.alert("You're on the waitlist", result.message);
+      } else {
+        Alert.alert("You're in", `You joined ${result.league.name}.`);
+      }
     } catch {
       Alert.alert("Couldn't join", "Something went wrong joining this league. Try again in a moment.");
     } finally {
@@ -54,6 +60,13 @@ export default function JoinWithCodeSheet() {
       setBusy(false);
       const name = invite.leagueName ?? "this league";
       const players = invite.playerCount != null ? playersLabel(invite.playerCount) : null;
+      if (invite.waitlistOnly) {
+        Alert.alert(`${name} isn't taking new players right now`, "You can join the waitlist for next season.", [
+          { text: "Cancel", style: "cancel" },
+          { text: "Join waitlist", onPress: () => void join(cleaned) },
+        ]);
+        return;
+      }
       Alert.alert(`Join ${name}?`, players ? `${players} so far.` : undefined, [
         { text: "Cancel", style: "cancel" },
         { text: "Join", onPress: () => void join(cleaned) },

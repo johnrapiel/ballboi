@@ -3,6 +3,7 @@ import { getAuth } from "@clerk/express";
 import {
   contentReportsTable,
   db,
+  messageReportSnapshotsTable,
   playersTable,
   REPORT_REASONS,
   REPORT_STATUSES,
@@ -15,6 +16,7 @@ import {
 import { and, desc, eq, inArray } from "drizzle-orm";
 import pino from "pino";
 import { requireAdmin } from "../middlewares/requireAdmin";
+import { getAutoRestrict } from "../messaging";
 
 // App Store guideline 1.2: report objectionable content, block abusive users,
 // and act on every report within 24 hours. Spec: Messaging and moderation.
@@ -43,7 +45,10 @@ export interface ParsedReport {
 /** Validates a report body. Returns the clean report, or an error message. */
 export function parseReport(body: unknown): ParsedReport | { error: string } {
   const b = (body ?? {}) as Record<string, unknown>;
-  if (!isOneOf(REPORT_TARGET_TYPES, b.targetType)) return { error: "Unknown report target" };
+  // Messages are reported through /messages/:id/report (with a snapshot); "account" reports are system-filed.
+  if (!isOneOf(REPORT_TARGET_TYPES, b.targetType) || b.targetType === "message" || b.targetType === "account") {
+    return { error: "Unknown report target" };
+  }
   if (!isOneOf(REPORT_REASONS, b.reason)) return { error: "Unknown report reason" };
   const targetId =
     typeof b.targetId === "number" && Number.isFinite(b.targetId)
@@ -67,15 +72,27 @@ router.post("/reports", requireAuth, async (req, res) => {
     return;
   }
   const { userId } = getAuth(req);
+  // Player reports count toward auto-restrict ("reported by 2 or more different people").
+  const subject = parsed.targetType === "player" && /^\d+$/.test(parsed.targetId) ? await accountForPlayer(Number(parsed.targetId)) : null;
   const [report] = await db
     .insert(contentReportsTable)
-    .values({ reporterClerkUserId: userId!, ...parsed })
+    .values({ reporterClerkUserId: userId!, ...parsed, source: "user", subjectClerkUserId: subject })
     .returning({ id: contentReportsTable.id });
+  if (subject && subject !== userId) await restrictQuietly(subject, "report");
   // Surfaces in logs so a person reviews it within 24 hours. Push alert to the
   // moderator comes with APNs (checklist: 24-hour review, staffed).
   logger.warn({ reportId: report.id, targetType: parsed.targetType, reason: parsed.reason }, "New content report");
   res.status(201).json({ id: report.id, status: "open" });
 });
+
+/** Auto-restrict never blocks the report or block it follows. */
+async function restrictQuietly(subject: string, kind: "report" | "block") {
+  try {
+    await getAutoRestrict().evaluate(subject, { kind });
+  } catch (err) {
+    logger.error({ err }, "Auto-restrict check failed");
+  }
+}
 
 router.get("/admin/reports", requireAdmin, async (req, res) => {
   const status = isOneOf(REPORT_STATUSES, req.query.status) ? req.query.status : "open";
@@ -85,7 +102,19 @@ router.get("/admin/reports", requireAdmin, async (req, res) => {
     .where(eq(contentReportsTable.status, status))
     .orderBy(desc(contentReportsTable.createdAt))
     .limit(200);
-  res.json(rows);
+  // Message reports carry a snapshot of the conversation at the time of the report.
+  const snapshots = rows.length
+    ? await db
+        .select()
+        .from(messageReportSnapshotsTable)
+        .where(inArray(messageReportSnapshotsTable.reportId, rows.map((r) => r.id)))
+    : [];
+  res.json(
+    rows.map((r) => {
+      const snap = snapshots.find((s) => s.reportId === r.id);
+      return { ...r, snapshot: snap ? { conversationId: snap.conversationId, messages: snap.messages } : null };
+    }),
+  );
 });
 
 router.patch("/admin/reports/:id", requireAdmin, async (req, res) => {
@@ -157,6 +186,7 @@ router.post("/players/:playerId/block", requireAuth, async (req, res) => {
     .insert(userBlocksTable)
     .values({ blockerClerkUserId: userId!, blockedClerkUserId: target })
     .onConflictDoNothing();
+  await restrictQuietly(target, "block");
   res.status(201).json({ blocked: true });
 });
 

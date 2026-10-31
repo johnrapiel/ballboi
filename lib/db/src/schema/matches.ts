@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, real, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, real, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { leaguesTable } from "./leagues";
@@ -34,6 +34,14 @@ export const matchesTable = pgTable("matches", {
   playoffRound: text("playoff_round"),
   playoffSlot: integer("playoff_slot"),
   season: text("season"),
+  // League rules (migration 20261029_c_league_rules.sql):
+  // locked: an admin kept this pairing, so a re-pair leaves it alone.
+  locked: boolean("locked").notNull().default(false),
+  // voidedAt: the match was cancelled because a player dropped out (decision 27).
+  voidedAt: timestamp("voided_at", { withTimezone: true }),
+  // inGrace: scored in the week after its round's deadline, so it counts for
+  // ratings and Ball Boi stats but not standings (decision 25).
+  inGrace: boolean("in_grace").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

@@ -28,7 +28,14 @@ app.use(
 );
 
 app.use(cors());
-app.use(express.json());
+app.use(
+  express.json({
+    // Webhook signatures (Stream) are checked against the exact bytes received.
+    verify: (req, _res, buf) => {
+      (req as typeof req & { rawBody?: Buffer }).rawBody = buf;
+    },
+  }),
+);
 app.use(express.urlencoded({ extended: true }));
 
 // Clerk auth middleware - makes auth available on all routes
