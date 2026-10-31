@@ -18,6 +18,7 @@ import roundsRouter from "./rounds";
 import playoffsRouter from "./playoffs";
 import seasonsRouter from "./seasons";
 import safetyRouter from "./safety";
+import ratingsRouter from "./ratings";
 import recordingRouter from "./recording";
 
 const router: IRouter = Router();
@@ -41,6 +42,7 @@ router.use(roundsRouter);
 router.use(playoffsRouter);
 router.use(seasonsRouter);
 router.use(safetyRouter);
+router.use(ratingsRouter);
 router.use(recordingRouter);
 
 export default router;
