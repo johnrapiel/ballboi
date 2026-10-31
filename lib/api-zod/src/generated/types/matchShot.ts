@@ -18,7 +18,11 @@ export interface MatchShot {
   /** @nullable */
   playerId?: number | null;
   timestampSeconds: number;
-  shotType: string;
+  /**
+   * Empty when shot type is hidden (below its accuracy bar).
+   * @nullable
+   */
+  shotType: string | null;
   /** @nullable */
   shotTypeConfidence?: number | null;
   /** @nullable */

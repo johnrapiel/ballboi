@@ -202,6 +202,8 @@ def process_match_and_callback(video_url: str | None, session_id: int, match_id:
         else:
             raise AnalysisError("No video to analyze.")
         result = analyze_match(video_path, calibration=court_calibration, models=_pipeline_models())
+        from evaluation.gates import stat_gates
+        result["statGates"] = stat_gates(result.get("model"))
         result["sessionId"] = session_id
         result["matchId"] = match_id
         if keep_for_training:

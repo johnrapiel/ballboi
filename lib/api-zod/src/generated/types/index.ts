@@ -43,6 +43,7 @@ export * from "./endMatchBallBoiBody";
 export * from "./endMatchBallBoiBodyChunksItem";
 export * from "./enterScoreBody";
 export * from "./errorResponse";
+export * from "./gatedStat";
 export * from "./generateLeagueRoundBody";
 export * from "./getHeadToHeadParams";
 export * from "./getLeaguesParams";

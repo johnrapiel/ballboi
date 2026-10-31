@@ -6,4 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type MatchStatisticsShotTypeBreakdown = { [key: string]: number };
+/**
+ * @nullable
+ */
+export type MatchStatisticsShotTypeBreakdown = { [key: string]: number } | null;

@@ -2196,7 +2196,10 @@ export const GetBallBoiReplayResponse = zod.object({
       rallyNumber: zod.number(),
       playerId: zod.number().nullish(),
       timestampSeconds: zod.number(),
-      shotType: zod.string(),
+      shotType: zod
+        .string()
+        .nullable()
+        .describe("Empty when shot type is hidden (below its accuracy bar)."),
       shotTypeConfidence: zod.number().nullish(),
       outcome: zod.string().nullish(),
       outcomeConfidence: zod.number().nullish(),
@@ -2265,20 +2268,22 @@ export const GetBallBoiReplayResponse = zod.object({
       sessionId: zod.number(),
       matchId: zod.number(),
       totalShots: zod.number(),
-      totalRallies: zod.number(),
-      avgRallyLength: zod.number(),
-      avgShotSpeedMph: zod.number(),
-      fastestShotMph: zod.number(),
-      winners: zod.number(),
-      errors: zod.number(),
-      serves: zod.number(),
-      forehands: zod.number(),
-      backhands: zod.number(),
-      volleys: zod.number(),
-      overheads: zod.number(),
-      heatmapData: zod.array(zod.record(zod.string(), zod.unknown())),
-      shotTypeBreakdown: zod.record(zod.string(), zod.number()),
-      outcomeBreakdown: zod.record(zod.string(), zod.number()),
+      totalRallies: zod.number().nullable(),
+      avgRallyLength: zod.number().nullable(),
+      avgShotSpeedMph: zod.number().nullable(),
+      fastestShotMph: zod.number().nullable(),
+      winners: zod.number().nullable(),
+      errors: zod.number().nullable(),
+      serves: zod.number().nullable(),
+      forehands: zod.number().nullable(),
+      backhands: zod.number().nullable(),
+      volleys: zod.number().nullable(),
+      overheads: zod.number().nullable(),
+      heatmapData: zod
+        .array(zod.record(zod.string(), zod.unknown()))
+        .nullable(),
+      shotTypeBreakdown: zod.record(zod.string(), zod.number()).nullable(),
+      outcomeBreakdown: zod.record(zod.string(), zod.number()).nullable(),
       playerComparisons: zod.record(
         zod.string(),
         zod.record(zod.string(), zod.unknown()),
@@ -2290,6 +2295,27 @@ export const GetBallBoiReplayResponse = zod.object({
     .string()
     .nullable()
     .describe("Signed URL to stream the recorded match video, if available"),
+  hiddenStats: zod
+    .array(
+      zod
+        .enum([
+          "shot_type",
+          "line_calls",
+          "serve_placement",
+          "placement_heatmap",
+          "point_ending",
+          "rally_length",
+          "first_serve_pct",
+          "serve_speed",
+        ])
+        .describe(
+          "A Ball Boi stat that is shown only when it meets its accuracy bar.",
+        ),
+    )
+    .optional()
+    .describe(
+      "Stats below their accuracy bar (or not yet measured). Their fields are empty; the app leaves them out rather than showing them with a disclaimer.",
+    ),
 });
 
 /**
@@ -2363,7 +2389,10 @@ export const GetMatchScopedBallBoiReplayResponse = zod.object({
       rallyNumber: zod.number(),
       playerId: zod.number().nullish(),
       timestampSeconds: zod.number(),
-      shotType: zod.string(),
+      shotType: zod
+        .string()
+        .nullable()
+        .describe("Empty when shot type is hidden (below its accuracy bar)."),
       shotTypeConfidence: zod.number().nullish(),
       outcome: zod.string().nullish(),
       outcomeConfidence: zod.number().nullish(),
@@ -2432,20 +2461,22 @@ export const GetMatchScopedBallBoiReplayResponse = zod.object({
       sessionId: zod.number(),
       matchId: zod.number(),
       totalShots: zod.number(),
-      totalRallies: zod.number(),
-      avgRallyLength: zod.number(),
-      avgShotSpeedMph: zod.number(),
-      fastestShotMph: zod.number(),
-      winners: zod.number(),
-      errors: zod.number(),
-      serves: zod.number(),
-      forehands: zod.number(),
-      backhands: zod.number(),
-      volleys: zod.number(),
-      overheads: zod.number(),
-      heatmapData: zod.array(zod.record(zod.string(), zod.unknown())),
-      shotTypeBreakdown: zod.record(zod.string(), zod.number()),
-      outcomeBreakdown: zod.record(zod.string(), zod.number()),
+      totalRallies: zod.number().nullable(),
+      avgRallyLength: zod.number().nullable(),
+      avgShotSpeedMph: zod.number().nullable(),
+      fastestShotMph: zod.number().nullable(),
+      winners: zod.number().nullable(),
+      errors: zod.number().nullable(),
+      serves: zod.number().nullable(),
+      forehands: zod.number().nullable(),
+      backhands: zod.number().nullable(),
+      volleys: zod.number().nullable(),
+      overheads: zod.number().nullable(),
+      heatmapData: zod
+        .array(zod.record(zod.string(), zod.unknown()))
+        .nullable(),
+      shotTypeBreakdown: zod.record(zod.string(), zod.number()).nullable(),
+      outcomeBreakdown: zod.record(zod.string(), zod.number()).nullable(),
       playerComparisons: zod.record(
         zod.string(),
         zod.record(zod.string(), zod.unknown()),
@@ -2457,6 +2488,27 @@ export const GetMatchScopedBallBoiReplayResponse = zod.object({
     .string()
     .nullable()
     .describe("Signed URL to stream the recorded match video, if available"),
+  hiddenStats: zod
+    .array(
+      zod
+        .enum([
+          "shot_type",
+          "line_calls",
+          "serve_placement",
+          "placement_heatmap",
+          "point_ending",
+          "rally_length",
+          "first_serve_pct",
+          "serve_speed",
+        ])
+        .describe(
+          "A Ball Boi stat that is shown only when it meets its accuracy bar.",
+        ),
+    )
+    .optional()
+    .describe(
+      "Stats below their accuracy bar (or not yet measured). Their fields are empty; the app leaves them out rather than showing them with a disclaimer.",
+    ),
 });
 
 /**
@@ -2580,7 +2632,10 @@ export const GetMatchShotsResponseItem = zod.object({
   rallyNumber: zod.number(),
   playerId: zod.number().nullish(),
   timestampSeconds: zod.number(),
-  shotType: zod.string(),
+  shotType: zod
+    .string()
+    .nullable()
+    .describe("Empty when shot type is hidden (below its accuracy bar)."),
   shotTypeConfidence: zod.number().nullish(),
   outcome: zod.string().nullish(),
   outcomeConfidence: zod.number().nullish(),
@@ -2657,20 +2712,20 @@ export const GetMatchStatisticsResponse = zod.union([
     sessionId: zod.number(),
     matchId: zod.number(),
     totalShots: zod.number(),
-    totalRallies: zod.number(),
-    avgRallyLength: zod.number(),
-    avgShotSpeedMph: zod.number(),
-    fastestShotMph: zod.number(),
-    winners: zod.number(),
-    errors: zod.number(),
-    serves: zod.number(),
-    forehands: zod.number(),
-    backhands: zod.number(),
-    volleys: zod.number(),
-    overheads: zod.number(),
-    heatmapData: zod.array(zod.record(zod.string(), zod.unknown())),
-    shotTypeBreakdown: zod.record(zod.string(), zod.number()),
-    outcomeBreakdown: zod.record(zod.string(), zod.number()),
+    totalRallies: zod.number().nullable(),
+    avgRallyLength: zod.number().nullable(),
+    avgShotSpeedMph: zod.number().nullable(),
+    fastestShotMph: zod.number().nullable(),
+    winners: zod.number().nullable(),
+    errors: zod.number().nullable(),
+    serves: zod.number().nullable(),
+    forehands: zod.number().nullable(),
+    backhands: zod.number().nullable(),
+    volleys: zod.number().nullable(),
+    overheads: zod.number().nullable(),
+    heatmapData: zod.array(zod.record(zod.string(), zod.unknown())).nullable(),
+    shotTypeBreakdown: zod.record(zod.string(), zod.number()).nullable(),
+    outcomeBreakdown: zod.record(zod.string(), zod.number()).nullable(),
     playerComparisons: zod.record(
       zod.string(),
       zod.record(zod.string(), zod.unknown()),
@@ -2710,7 +2765,10 @@ export const GetBallBoiSessionShotsResponseItem = zod.object({
   rallyNumber: zod.number(),
   playerId: zod.number().nullish(),
   timestampSeconds: zod.number(),
-  shotType: zod.string(),
+  shotType: zod
+    .string()
+    .nullable()
+    .describe("Empty when shot type is hidden (below its accuracy bar)."),
   shotTypeConfidence: zod.number().nullish(),
   outcome: zod.string().nullish(),
   outcomeConfidence: zod.number().nullish(),
@@ -2789,20 +2847,20 @@ export const GetBallBoiSessionStatisticsResponse = zod.union([
     sessionId: zod.number(),
     matchId: zod.number(),
     totalShots: zod.number(),
-    totalRallies: zod.number(),
-    avgRallyLength: zod.number(),
-    avgShotSpeedMph: zod.number(),
-    fastestShotMph: zod.number(),
-    winners: zod.number(),
-    errors: zod.number(),
-    serves: zod.number(),
-    forehands: zod.number(),
-    backhands: zod.number(),
-    volleys: zod.number(),
-    overheads: zod.number(),
-    heatmapData: zod.array(zod.record(zod.string(), zod.unknown())),
-    shotTypeBreakdown: zod.record(zod.string(), zod.number()),
-    outcomeBreakdown: zod.record(zod.string(), zod.number()),
+    totalRallies: zod.number().nullable(),
+    avgRallyLength: zod.number().nullable(),
+    avgShotSpeedMph: zod.number().nullable(),
+    fastestShotMph: zod.number().nullable(),
+    winners: zod.number().nullable(),
+    errors: zod.number().nullable(),
+    serves: zod.number().nullable(),
+    forehands: zod.number().nullable(),
+    backhands: zod.number().nullable(),
+    volleys: zod.number().nullable(),
+    overheads: zod.number().nullable(),
+    heatmapData: zod.array(zod.record(zod.string(), zod.unknown())).nullable(),
+    shotTypeBreakdown: zod.record(zod.string(), zod.number()).nullable(),
+    outcomeBreakdown: zod.record(zod.string(), zod.number()).nullable(),
     playerComparisons: zod.record(
       zod.string(),
       zod.record(zod.string(), zod.unknown()),
@@ -2873,6 +2931,27 @@ export const GetBallBoiReplayMetadataResponse = zod.object({
     }),
     zod.null(),
   ]),
+  hiddenStats: zod
+    .array(
+      zod
+        .enum([
+          "shot_type",
+          "line_calls",
+          "serve_placement",
+          "placement_heatmap",
+          "point_ending",
+          "rally_length",
+          "first_serve_pct",
+          "serve_speed",
+        ])
+        .describe(
+          "A Ball Boi stat that is shown only when it meets its accuracy bar.",
+        ),
+    )
+    .optional()
+    .describe(
+      "Stats below their accuracy bar (or not yet measured). Their fields are empty; the app leaves them out rather than showing them with a disclaimer.",
+    ),
 });
 
 /**

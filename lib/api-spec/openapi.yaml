@@ -3015,7 +3015,8 @@ components:
         timestampSeconds:
           type: number
         shotType:
-          type: string
+          description: Empty when shot type is hidden (below its accuracy bar).
+          type: ["string", "null"]
         shotTypeConfidence:
           type: ["number", "null"]
         outcome:
@@ -3099,38 +3100,38 @@ components:
         totalShots:
           type: integer
         totalRallies:
-          type: integer
+          type: ["integer", "null"]
         avgRallyLength:
-          type: number
+          type: ["number", "null"]
         avgShotSpeedMph:
-          type: number
+          type: ["number", "null"]
         fastestShotMph:
-          type: number
+          type: ["number", "null"]
         winners:
-          type: integer
+          type: ["integer", "null"]
         errors:
-          type: integer
+          type: ["integer", "null"]
         serves:
-          type: integer
+          type: ["integer", "null"]
         forehands:
-          type: integer
+          type: ["integer", "null"]
         backhands:
-          type: integer
+          type: ["integer", "null"]
         volleys:
-          type: integer
+          type: ["integer", "null"]
         overheads:
-          type: integer
+          type: ["integer", "null"]
         heatmapData:
-          type: array
+          type: ["array", "null"]
           items:
             type: object
             additionalProperties: true
         shotTypeBreakdown:
-          type: object
+          type: ["object", "null"]
           additionalProperties:
             type: integer
         outcomeBreakdown:
-          type: object
+          type: ["object", "null"]
           additionalProperties:
             type: integer
         playerComparisons:
@@ -3190,6 +3191,13 @@ components:
           anyOf:
             - $ref: "#/components/schemas/Match"
             - type: "null"
+        hiddenStats:
+          description: >-
+            Stats below their accuracy bar (or not yet measured). Their fields are
+            empty; the app leaves them out rather than showing them with a disclaimer.
+          type: array
+          items:
+            $ref: "#/components/schemas/GatedStat"
       required:
         - session
         - match
@@ -3204,6 +3212,11 @@ components:
       required:
         - sessionId
         - narrative
+
+    GatedStat:
+      type: string
+      description: A Ball Boi stat that is shown only when it meets its accuracy bar.
+      enum: [shot_type, line_calls, serve_placement, placement_heatmap, point_ending, rally_length, first_serve_pct, serve_speed]
 
     BallBoiReplay:
       type: object
@@ -3225,6 +3238,13 @@ components:
         videoUrl:
           type: ["string", "null"]
           description: Signed URL to stream the recorded match video, if available
+        hiddenStats:
+          description: >-
+            Stats below their accuracy bar (or not yet measured). Their fields are
+            empty; the app leaves them out rather than showing them with a disclaimer.
+          type: array
+          items:
+            $ref: "#/components/schemas/GatedStat"
       required:
         - match
         - session
