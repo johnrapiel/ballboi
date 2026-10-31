@@ -10,10 +10,11 @@ import { freeDiskBytes } from "@/lib/recording/files";
 export const MAX_RECORDING_SECONDS = 4 * 60 * 60;
 /** Stop below this charge, unless the phone is plugged in. */
 export const LOW_BATTERY = 0.1;
-/** Stop below this much free space, leaving room to finish writing the file. */
+/** Stop below this much free space, leaving room to finish writing the file (about 15 minutes of 720p). */
 export const LOW_STORAGE_BYTES = 1 * 1024 ** 3;
-/** Don't start with less than this free: roughly 30 minutes of 1080p video. */
-export const MIN_START_STORAGE_BYTES = 3 * 1024 ** 3;
+/** Don't start with less than this free, in GB: about 30 minutes of 720p video, plus room to finish the file. */
+export const MIN_START_STORAGE_GB = 2;
+export const MIN_START_STORAGE_BYTES = MIN_START_STORAGE_GB * 1024 ** 3;
 
 export type StopReason = "user" | "battery" | "storage" | "time";
 

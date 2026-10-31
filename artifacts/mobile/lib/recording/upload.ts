@@ -50,8 +50,9 @@ export async function uploadRecording(rec: RecordingToUpload & { sessionId: numb
     objectPath,
     contentType: "video/quicktime",
     // ball_boi_sessions.video_size_bytes is a 32-bit integer, so files over
-    // 2 GB (about 35 minutes of 1080p) would fail here. Capped until Session E
-    // widens the column to bigint; the size is informational only.
+    // 2 GB (about 35 minutes of 720p at the high end, an hour at the low end)
+    // would fail here. Capped until the column is widened to bigint; the size
+    // is informational only.
     sizeBytes: Math.min(rec.sizeBytes, MAX_INT32),
     durationSeconds: rec.durationSeconds,
   });
