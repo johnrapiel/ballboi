@@ -1,0 +1,11 @@
+# Match video and model weights never go in git: they live in R2 and on your Mac.
+*.mp4
+*.mov
+*.m4v
+*.onnx
+*.pt
+*.pth
+videos/
+models/
+predictions/
+.cache/
