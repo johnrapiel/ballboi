@@ -33,6 +33,7 @@ export interface PersonSummary {
 export interface MessagingRepo {
   findByPair(pairKey: string): Promise<ConversationRecord | null>;
   findById(id: number): Promise<ConversationRecord | null>;
+  findByChannel(channelId: string): Promise<ConversationRecord | null>;
   /** Creates the conversation, or returns the existing one if the pair already has one. */
   create(input: NewConversation): Promise<ConversationRecord>;
   update(id: number, patch: ConversationPatch): Promise<ConversationRecord>;

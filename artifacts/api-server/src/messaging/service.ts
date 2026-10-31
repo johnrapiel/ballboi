@@ -12,6 +12,8 @@
 //    other person has read a message (no read receipts).
 
 import { createHash } from "node:crypto";
+import { REPORT_REASONS, type ReportReason, type SnapshotMessage } from "@workspace/db";
+import type { AutoRestrict, ModerationRepo } from "./moderation";
 import { FILTER_MESSAGES, FirstMessageFilter } from "./filter";
 import type { MessagingProvider, ProviderMessage } from "./provider";
 import { pairKeyFor, type ConversationRecord, type MessagingRepo } from "./repo";
@@ -69,7 +71,12 @@ export interface MessagingServiceDeps {
   onNewMessage?: (event: NewMessageEvent) => void | Promise<void>;
   /** Development only: sample players reply to you after a few seconds. */
   devAutoReply?: boolean;
+  /** Auto-restrict and report storage. Optional so tests can leave it out. */
+  moderation?: { auto: AutoRestrict; repo: ModerationRepo };
 }
+
+/** Messages kept in a report snapshot: the reported one and up to this many before it. */
+export const SNAPSHOT_CONTEXT = 19;
 
 export const DEV_SAMPLE_PREFIX = "dev_sample_";
 
@@ -90,6 +97,7 @@ export class MessagingService {
   private now: () => Date;
   private onNewMessage?: MessagingServiceDeps["onNewMessage"];
   private devAutoReply: boolean;
+  readonly moderation?: MessagingServiceDeps["moderation"];
 
   constructor(deps: MessagingServiceDeps) {
     this.repo = deps.repo;
@@ -98,6 +106,7 @@ export class MessagingService {
     this.now = deps.now ?? (() => new Date());
     this.onNewMessage = deps.onNewMessage;
     this.devAutoReply = deps.devAutoReply ?? false;
+    this.moderation = deps.moderation;
   }
 
   // ─── Reading ──────────────────────────────────────────────────────────────
@@ -236,6 +245,10 @@ export class MessagingService {
     if (!connected) {
       const verdict = this.filter.check(text);
       if (!verdict.ok) throw new MessagingError(422, `filtered_${verdict.reason}`, FILTER_MESSAGES[verdict.reason!]);
+      // Copy-paste openers and piles of unanswered requests restrict the account.
+      if (this.moderation && (await this.moderation.auto.evaluate(me, { kind: "request", openingHash: openingHash(text) }))) {
+        throw new MessagingError(403, "restricted", "You can't start new conversations right now while we review your account.");
+      }
     }
 
     const pairKey = pairKeyFor(me, other);
@@ -336,6 +349,72 @@ export class MessagingService {
   async deleteUserData(me: string) {
     await this.provider.deleteUserData(me);
     await this.repo.deleteAllFor(me);
+  }
+
+  // ─── Reports and moderation ───────────────────────────────────────────────
+
+  /**
+   * Reports a message from the other person. Stores a snapshot of it and the
+   * messages before it, so moderators see what was said even if it's later
+   * deleted. Two different reporters restrict the sender.
+   */
+  async reportMessage(me: string, id: number, input: { messageId: unknown; reason: unknown; details: unknown }) {
+    if (!this.moderation) throw new MessagingError(503, "unavailable", "Reporting isn't available right now.");
+    const { c } = await this.conversationFor(me, id);
+    if (typeof input.reason !== "string" || !(REPORT_REASONS as readonly string[]).includes(input.reason)) {
+      throw new MessagingError(400, "invalid_reason", "Pick a reason for the report.");
+    }
+    const reason = input.reason as ReportReason;
+    const details = typeof input.details === "string" ? input.details.trim().slice(0, 1000) || undefined : undefined;
+    const messageId = typeof input.messageId === "string" ? input.messageId : "";
+    const message = messageId ? await this.provider.getMessage(messageId) : null;
+    if (!message || message.channelId !== c.channelId) throw new MessagingError(404, "message_not_found", "That message isn't available.");
+    if (message.senderId === me) throw new MessagingError(400, "own_message", "You can't report your own message.");
+
+    const history = await this.provider.listMessages(c.channelId, { limit: 200 });
+    const at = history.findIndex((m) => m.id === message.id);
+    const window = at >= 0 ? history.slice(Math.max(0, at - SNAPSHOT_CONTEXT), at + 1) : [message];
+    const people = await this.repo.people([c.userA, c.userB]);
+    const snapshot: SnapshotMessage[] = window.map((m) => ({
+      id: m.id,
+      senderClerkUserId: m.senderId,
+      senderName: people.get(m.senderId)?.name ?? "Player",
+      text: m.text,
+      at: m.createdAt.toISOString(),
+      reported: m.id === message.id,
+    }));
+
+    const reportId = await this.moderation.repo.createReport({
+      reporter: me,
+      targetType: "message",
+      targetId: message.id,
+      reason,
+      details,
+      source: "user",
+      subject: message.senderId,
+      snapshot: { conversationId: c.id, messages: snapshot },
+    });
+    await this.moderation.auto.evaluate(message.senderId, { kind: "report" });
+    return { id: reportId };
+  }
+
+  /** Moderator action: hides or restores a message for both people. */
+  async setMessageHidden(messageId: string, hidden: boolean): Promise<boolean> {
+    const message = await this.provider.getMessage(messageId);
+    if (!message) return false;
+    await this.provider.setHidden(messageId, hidden);
+    const c = await this.repo.findByChannel(message.channelId);
+    if (c) {
+      // Keep the Messages list preview in step with what's visible.
+      const visible = (await this.provider.listMessages(c.channelId, { limit: 50 })).filter((m) => !m.hidden);
+      const last = visible[visible.length - 1];
+      await this.repo.update(c.id, {
+        lastMessageText: last?.text ?? null,
+        lastSender: last?.senderId ?? null,
+        lastMessageAt: last?.createdAt ?? c.lastMessageAt,
+      });
+    }
+    return true;
   }
 
   // ─── Development samples ──────────────────────────────────────────────────
