@@ -3,6 +3,7 @@ import healthRouter from "./health";
 import leaguesRouter from "./leagues";
 import playersRouter from "./players";
 import matchesRouter from "./matches";
+import messagesRouter from "./messages";
 import statsRouter from "./stats";
 import usersRouter from "./users";
 import invitesRouter from "./invites";
@@ -18,7 +19,7 @@ import roundsRouter from "./rounds";
 import playoffsRouter from "./playoffs";
 import seasonsRouter from "./seasons";
 import safetyRouter from "./safety";
-import messagesRouter from "./messages";
+import ratingsRouter from "./ratings";
 
 const router: IRouter = Router();
 
@@ -26,6 +27,7 @@ router.use(healthRouter);
 router.use(leaguesRouter);
 router.use(playersRouter);
 router.use(matchesRouter);
+router.use(messagesRouter);
 router.use(statsRouter);
 router.use(usersRouter);
 router.use(invitesRouter);
@@ -41,6 +43,6 @@ router.use(roundsRouter);
 router.use(playoffsRouter);
 router.use(seasonsRouter);
 router.use(safetyRouter);
-router.use(messagesRouter);
+router.use(ratingsRouter);
 
 export default router;

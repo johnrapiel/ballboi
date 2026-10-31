@@ -1,0 +1,6 @@
+{
+  "_about": "Launch accuracy bars from the product spec (Ball Boi > Shot analysis build). A stat below its bar is hidden at launch. A stat with no bar here is hidden until John sets one.",
+  "shot_type": 0.90,
+  "close_call_in_out": 0.85,
+  "serve_placement": 0.85
+}
