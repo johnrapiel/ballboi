@@ -13,6 +13,7 @@ import {
   usersTable,
 } from "@workspace/db";
 import { eq, inArray, or, sql } from "drizzle-orm";
+import { deleteLeagueDataFor } from "./leagueAccountDeletion";
 import { ObjectStorageService } from "./objectStorage";
 import { deleteRecordingData } from "./recordingCleanup";
 
@@ -157,6 +158,7 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
       .update(contentReportsTable)
       .set({ reporterClerkUserId: null })
       .where(eq(contentReportsTable.reporterClerkUserId, clerkUserId));
+    await deleteLeagueDataFor(tx, clerkUserId);
     const profiles = await tx
       .select({ avatarUrl: usersTable.avatarUrl })
       .from(usersTable)

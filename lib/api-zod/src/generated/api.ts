@@ -57,7 +57,6 @@ export const createLeagueBodyNameMax = 60;
 export const createLeagueBodyRosterCapMin = 2;
 export const createLeagueBodyRosterCapMax = 64;
 
-export const createLeagueBodySeasonWeeksMin = 1;
 export const createLeagueBodySeasonWeeksMax = 24;
 
 export const CreateLeagueBody = zod
@@ -79,14 +78,16 @@ export const CreateLeagueBody = zod
       .max(createLeagueBodyRosterCapMax)
       .nullish(),
     startDate: zod.string().describe("First day of the season, YYYY-MM-DD"),
-    seasonWeeks: zod
-      .number()
-      .min(createLeagueBodySeasonWeeksMin)
-      .max(createLeagueBodySeasonWeeksMax),
+    seasonWeeks: zod.number().min(1).max(createLeagueBodySeasonWeeksMax),
     playoffSize: zod
       .union([zod.literal(0), zod.literal(4), zod.literal(8)])
       .optional(),
-    unplayedRule: zod.enum(["forfeit", "no_result"]).optional(),
+    unplayedRule: zod
+      .enum(["forfeit", "no_result"])
+      .optional()
+      .describe(
+        "Ignored. Every league has a fixed 1-week grace period (decision 25).",
+      ),
     location: zod.string().nullish(),
     playing: zod
       .boolean()
@@ -671,6 +672,749 @@ export const GetPlayerStatsResponse = zod.object({
 });
 
 /**
+ * @summary The signed-in user's admin role and player row in a league
+ */
+export const GetLeagueMembershipParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const GetLeagueMembershipResponse = zod.object({
+  leagueId: zod.number(),
+  role: zod
+    .union([zod.literal("owner"), zod.literal("co_admin"), zod.literal(null)])
+    .nullable(),
+  isAdmin: zod.boolean(),
+  playerId: zod.number().nullable(),
+  isPlaying: zod.boolean(),
+  hasLeft: zod.boolean(),
+});
+
+/**
+ * @summary The league's owner and co-admins
+ */
+export const GetLeagueAdminsParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const GetLeagueAdminsResponseItem = zod.object({
+  clerkUserId: zod.string(),
+  role: zod.enum(["owner", "co_admin"]),
+  playerId: zod.number().nullable(),
+  name: zod.string(),
+});
+export const GetLeagueAdminsResponse = zod.array(GetLeagueAdminsResponseItem);
+
+/**
+ * @summary Promote a league member to co-admin (admins only)
+ */
+export const PromoteLeagueAdminParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const PromoteLeagueAdminBody = zod.object({
+  playerId: zod.number(),
+});
+
+/**
+ * @summary Everyone playing this season, with their admin role (admins only)
+ */
+export const GetLeagueRosterParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const GetLeagueRosterResponseItem = zod.object({
+  playerId: zod.number(),
+  name: zod.string(),
+  skillLevel: zod.string(),
+  hasAccount: zod
+    .boolean()
+    .describe(
+      "False for players an admin added by name; they can't be co-admins",
+    ),
+  role: zod
+    .union([zod.literal("owner"), zod.literal("co_admin"), zod.literal(null)])
+    .nullable(),
+});
+export const GetLeagueRosterResponse = zod.array(GetLeagueRosterResponseItem);
+
+/**
+ * @summary Remove a co-admin (the owner), or step down (a co-admin)
+ */
+export const RemoveLeagueAdminParams = zod.object({
+  leagueId: zod.coerce.number(),
+  clerkUserId: zod.coerce.string(),
+});
+
+/**
+ * @summary Every round of the season, plus weeks still to come
+ */
+export const GetLeagueScheduleParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const GetLeagueScheduleResponse = zod.object({
+  leagueId: zod.number(),
+  today: zod.string().describe("Today's date in the league's time zone"),
+  timeZone: zod.string(),
+  weeklyRounds: zod.boolean(),
+  isAdmin: zod.boolean(),
+  rounds: zod.array(
+    zod.object({
+      roundId: zod.number(),
+      roundNumber: zod.number(),
+      startDate: zod.string(),
+      deadline: zod.string().describe("Last day to play for standings"),
+      graceEnd: zod.string().describe("Last day of the grace week"),
+      phase: zod.enum(["draft", "upcoming", "open", "grace", "closed"]),
+      matches: zod.array(
+        zod.object({
+          matchId: zod.number(),
+          player1Id: zod.number(),
+          player1Name: zod.string(),
+          player2Id: zod.number(),
+          player2Name: zod.string(),
+          status: zod.string(),
+          score: zod.string().nullable().describe("From player 1's side"),
+          winnerId: zod.number().nullable(),
+          inGrace: zod.boolean(),
+          voided: zod.boolean(),
+          locked: zod.boolean(),
+          scheduledAt: zod.string().nullable(),
+          location: zod.string().nullable(),
+        }),
+      ),
+      byes: zod.array(
+        zod.object({
+          playerId: zod.number(),
+          playerName: zod.string(),
+          setByAdmin: zod.boolean(),
+        }),
+      ),
+      unpaired: zod
+        .array(
+          zod.object({
+            playerId: zod.number(),
+            playerName: zod.string(),
+          }),
+        )
+        .describe("Admins, drafts only. Players with no match or bye yet."),
+    }),
+  ),
+  upcoming: zod
+    .array(
+      zod.object({
+        roundNumber: zod.number(),
+        startDate: zod.string(),
+        deadline: zod.string(),
+        graceEnd: zod.string(),
+      }),
+    )
+    .describe("Weeks this season with no round yet"),
+});
+
+/**
+ * @summary The playoff bracket, or null before playoffs start
+ */
+export const GetLeagueBracketParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const GetLeagueBracketResponse = zod.union([
+  zod.object({
+    bracketId: zod.number(),
+    status: zod.enum(["active", "completed"]),
+    size: zod.union([zod.literal(4), zod.literal(8)]),
+    seeds: zod.array(
+      zod.object({
+        seed: zod.number(),
+        playerId: zod.number(),
+        playerName: zod.string(),
+      }),
+    ),
+    rounds: zod.array(
+      zod.object({
+        round: zod.enum(["quarterfinal", "semifinal", "final"]),
+        slots: zod.array(
+          zod.object({
+            round: zod.enum(["quarterfinal", "semifinal", "final"]),
+            slot: zod.number(),
+            matchId: zod
+              .number()
+              .nullable()
+              .describe("Null until both players are known"),
+            player1: zod.union([
+              zod.object({
+                seed: zod.number(),
+                playerId: zod.number(),
+                playerName: zod.string(),
+              }),
+              zod.null(),
+            ]),
+            player2: zod.union([
+              zod.object({
+                seed: zod.number(),
+                playerId: zod.number(),
+                playerName: zod.string(),
+              }),
+              zod.null(),
+            ]),
+            status: zod
+              .string()
+              .describe("scheduled, completed, or waiting (no match yet)"),
+            score: zod.string().nullable().describe("From player 1's side"),
+            winnerId: zod.number().nullable(),
+          }),
+        ),
+      }),
+    ),
+    champion: zod.union([
+      zod.object({
+        seed: zod.number(),
+        playerId: zod.number(),
+        playerName: zod.string(),
+      }),
+      zod.null(),
+    ]),
+  }),
+  zod.null(),
+]);
+
+/**
+ * @summary Home tab's league section - this week's matches and byes, playoff matches, drafts to review, recent results
+ */
+export const GetMyLeagueWeekResponse = zod.object({
+  today: zod.string(),
+  thisWeek: zod.array(
+    zod.object({
+      leagueId: zod.number(),
+      leagueName: zod.string(),
+      roundId: zod.number(),
+      roundNumber: zod.number(),
+      phase: zod.enum(["upcoming", "open", "grace"]),
+      startDate: zod.string(),
+      deadline: zod.string(),
+      graceEnd: zod.string(),
+      bye: zod.boolean(),
+      matchId: zod.number().nullable(),
+      myPlayerId: zod.number(),
+      opponentName: zod.string().nullable(),
+      singles: zod.boolean(),
+      scheduledAt: zod.string().nullable(),
+      location: zod.string().nullable(),
+    }),
+  ),
+  playoffs: zod.array(
+    zod.object({
+      leagueId: zod.number(),
+      leagueName: zod.string(),
+      matchId: zod.number(),
+      round: zod.string(),
+      opponentName: zod.string(),
+      singles: zod.boolean(),
+    }),
+  ),
+  drafts: zod.array(
+    zod.object({
+      leagueId: zod.number(),
+      leagueName: zod.string(),
+      roundId: zod.number(),
+      roundNumber: zod.number(),
+      startDate: zod.string(),
+    }),
+  ),
+  recent: zod.array(
+    zod.object({
+      leagueId: zod.number(),
+      leagueName: zod.string(),
+      matchId: zod.number(),
+      opponentName: zod.string(),
+      score: zod.string().describe("From the viewer's side, their games first"),
+      won: zod.boolean(),
+      inGrace: zod.boolean(),
+      playoff: zod.boolean(),
+      completedAt: zod.string().nullable(),
+    }),
+  ),
+});
+
+/**
+ * @summary Enter a league match score from your own side. The first score entered stands.
+ */
+export const EnterLeagueScoreParams = zod.object({
+  leagueId: zod.coerce.number(),
+  matchId: zod.coerce.number(),
+});
+
+export const EnterLeagueScoreBody = zod.object({
+  score: zod
+    .string()
+    .describe(
+      'Sets from your own side, like \"6-3, 4-6, 10-7\". Your games first.',
+    ),
+});
+
+/**
+ * @summary Pending requests and the waitlist (admins only)
+ */
+export const GetLeagueJoinRequestsParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const GetLeagueJoinRequestsResponseItem = zod.object({
+  id: zod.number(),
+  leagueId: zod.number(),
+  playerName: zod.string(),
+  skillLevel: zod.string(),
+  kind: zod.enum(["request", "waitlist"]),
+  status: zod.enum(["pending", "approved", "declined", "withdrawn"]),
+  createdAt: zod.string(),
+  message: zod.string().optional(),
+});
+export const GetLeagueJoinRequestsResponse = zod.array(
+  GetLeagueJoinRequestsResponseItem,
+);
+
+/**
+ * @summary Ask to join an Open league. Goes to the waitlist once the season has started or the league is full.
+ */
+export const RequestToJoinLeagueParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const RequestToJoinLeagueBody = zod.object({
+  playerName: zod.string(),
+  skillLevel: zod.string().nullish(),
+});
+
+/**
+ * @summary Your own pending request or waitlist spot
+ */
+export const GetMyLeagueJoinRequestParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const GetMyLeagueJoinRequestResponse = zod.union([
+  zod.object({
+    id: zod.number(),
+    leagueId: zod.number(),
+    playerName: zod.string(),
+    skillLevel: zod.string(),
+    kind: zod.enum(["request", "waitlist"]),
+    status: zod.enum(["pending", "approved", "declined", "withdrawn"]),
+    createdAt: zod.string(),
+    message: zod.string().optional(),
+  }),
+  zod.null(),
+]);
+
+/**
+ * @summary Withdraw your request or leave the waitlist
+ */
+export const WithdrawLeagueJoinRequestParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+/**
+ * @summary Approve a request before the season starts (admins only)
+ */
+export const ApproveLeagueJoinRequestParams = zod.object({
+  leagueId: zod.coerce.number(),
+  requestId: zod.coerce.number(),
+});
+
+/**
+ * @summary Decline a request or remove someone from the waitlist (admins only)
+ */
+export const DeclineLeagueJoinRequestParams = zod.object({
+  leagueId: zod.coerce.number(),
+  requestId: zod.coerce.number(),
+});
+
+/**
+ * @summary Leave a league. Played matches stay; remaining matches are voided.
+ */
+export const LeaveLeagueParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const LeaveLeagueResponse = zod.object({
+  left: zod.boolean().optional(),
+  removed: zod.boolean().optional(),
+  voidedMatches: zod.number(),
+});
+
+/**
+ * @summary Remove a player (admins only). Same rules as leaving.
+ */
+export const RemoveLeaguePlayerParams = zod.object({
+  leagueId: zod.coerce.number(),
+  playerId: zod.coerce.number(),
+});
+
+export const RemoveLeaguePlayerResponse = zod.object({
+  left: zod.boolean().optional(),
+  removed: zod.boolean().optional(),
+  voidedMatches: zod.number(),
+});
+
+/**
+ * @summary Draft the next round's pairings now (admins only)
+ */
+export const DraftNextLeagueRoundParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const DraftNextLeagueRoundResponse = zod.object({
+  roundId: zod.number(),
+  roundNumber: zod.number(),
+  startDate: zod.string(),
+  deadline: zod.string().describe("Last day to play for standings"),
+  graceEnd: zod.string().describe("Last day of the grace week"),
+  phase: zod.enum(["draft", "upcoming", "open", "grace", "closed"]),
+  matches: zod.array(
+    zod.object({
+      matchId: zod.number(),
+      player1Id: zod.number(),
+      player1Name: zod.string(),
+      player2Id: zod.number(),
+      player2Name: zod.string(),
+      status: zod.string(),
+      score: zod.string().nullable().describe("From player 1's side"),
+      winnerId: zod.number().nullable(),
+      inGrace: zod.boolean(),
+      voided: zod.boolean(),
+      locked: zod.boolean(),
+      scheduledAt: zod.string().nullable(),
+      location: zod.string().nullable(),
+    }),
+  ),
+  byes: zod.array(
+    zod.object({
+      playerId: zod.number(),
+      playerName: zod.string(),
+      setByAdmin: zod.boolean(),
+    }),
+  ),
+  unpaired: zod
+    .array(
+      zod.object({
+        playerId: zod.number(),
+        playerName: zod.string(),
+      }),
+    )
+    .describe("Admins, drafts only. Players with no match or bye yet."),
+});
+
+/**
+ * @summary Re-pair a draft, keeping locked matches and admin byes (admins only)
+ */
+export const RepairLeagueRoundParams = zod.object({
+  leagueId: zod.coerce.number(),
+  roundId: zod.coerce.number(),
+});
+
+export const RepairLeagueRoundResponse = zod.object({
+  roundId: zod.number(),
+  roundNumber: zod.number(),
+  startDate: zod.string(),
+  deadline: zod.string().describe("Last day to play for standings"),
+  graceEnd: zod.string().describe("Last day of the grace week"),
+  phase: zod.enum(["draft", "upcoming", "open", "grace", "closed"]),
+  matches: zod.array(
+    zod.object({
+      matchId: zod.number(),
+      player1Id: zod.number(),
+      player1Name: zod.string(),
+      player2Id: zod.number(),
+      player2Name: zod.string(),
+      status: zod.string(),
+      score: zod.string().nullable().describe("From player 1's side"),
+      winnerId: zod.number().nullable(),
+      inGrace: zod.boolean(),
+      voided: zod.boolean(),
+      locked: zod.boolean(),
+      scheduledAt: zod.string().nullable(),
+      location: zod.string().nullable(),
+    }),
+  ),
+  byes: zod.array(
+    zod.object({
+      playerId: zod.number(),
+      playerName: zod.string(),
+      setByAdmin: zod.boolean(),
+    }),
+  ),
+  unpaired: zod
+    .array(
+      zod.object({
+        playerId: zod.number(),
+        playerName: zod.string(),
+      }),
+    )
+    .describe("Admins, drafts only. Players with no match or bye yet."),
+});
+
+/**
+ * @summary Send a draft out to players now (admins only)
+ */
+export const PublishLeagueRoundParams = zod.object({
+  leagueId: zod.coerce.number(),
+  roundId: zod.coerce.number(),
+});
+
+export const PublishLeagueRoundResponse = zod.object({
+  roundId: zod.number(),
+  roundNumber: zod.number(),
+  startDate: zod.string(),
+  deadline: zod.string().describe("Last day to play for standings"),
+  graceEnd: zod.string().describe("Last day of the grace week"),
+  phase: zod.enum(["draft", "upcoming", "open", "grace", "closed"]),
+  matches: zod.array(
+    zod.object({
+      matchId: zod.number(),
+      player1Id: zod.number(),
+      player1Name: zod.string(),
+      player2Id: zod.number(),
+      player2Name: zod.string(),
+      status: zod.string(),
+      score: zod.string().nullable().describe("From player 1's side"),
+      winnerId: zod.number().nullable(),
+      inGrace: zod.boolean(),
+      voided: zod.boolean(),
+      locked: zod.boolean(),
+      scheduledAt: zod.string().nullable(),
+      location: zod.string().nullable(),
+    }),
+  ),
+  byes: zod.array(
+    zod.object({
+      playerId: zod.number(),
+      playerName: zod.string(),
+      setByAdmin: zod.boolean(),
+    }),
+  ),
+  unpaired: zod
+    .array(
+      zod.object({
+        playerId: zod.number(),
+        playerName: zod.string(),
+      }),
+    )
+    .describe("Admins, drafts only. Players with no match or bye yet."),
+});
+
+/**
+ * @summary Swap two players' places in a draft (admins only)
+ */
+export const SwapLeagueRoundPlayersParams = zod.object({
+  leagueId: zod.coerce.number(),
+  roundId: zod.coerce.number(),
+});
+
+export const SwapLeagueRoundPlayersBody = zod.object({
+  playerAId: zod.number(),
+  playerBId: zod.number(),
+});
+
+export const SwapLeagueRoundPlayersResponse = zod.object({
+  roundId: zod.number(),
+  roundNumber: zod.number(),
+  startDate: zod.string(),
+  deadline: zod.string().describe("Last day to play for standings"),
+  graceEnd: zod.string().describe("Last day of the grace week"),
+  phase: zod.enum(["draft", "upcoming", "open", "grace", "closed"]),
+  matches: zod.array(
+    zod.object({
+      matchId: zod.number(),
+      player1Id: zod.number(),
+      player1Name: zod.string(),
+      player2Id: zod.number(),
+      player2Name: zod.string(),
+      status: zod.string(),
+      score: zod.string().nullable().describe("From player 1's side"),
+      winnerId: zod.number().nullable(),
+      inGrace: zod.boolean(),
+      voided: zod.boolean(),
+      locked: zod.boolean(),
+      scheduledAt: zod.string().nullable(),
+      location: zod.string().nullable(),
+    }),
+  ),
+  byes: zod.array(
+    zod.object({
+      playerId: zod.number(),
+      playerName: zod.string(),
+      setByAdmin: zod.boolean(),
+    }),
+  ),
+  unpaired: zod
+    .array(
+      zod.object({
+        playerId: zod.number(),
+        playerName: zod.string(),
+      }),
+    )
+    .describe("Admins, drafts only. Players with no match or bye yet."),
+});
+
+/**
+ * @summary Give a player a bye in a draft (admins only)
+ */
+export const AddLeagueRoundByeParams = zod.object({
+  leagueId: zod.coerce.number(),
+  roundId: zod.coerce.number(),
+});
+
+export const AddLeagueRoundByeBody = zod.object({
+  playerId: zod.number(),
+});
+
+export const AddLeagueRoundByeResponse = zod.object({
+  roundId: zod.number(),
+  roundNumber: zod.number(),
+  startDate: zod.string(),
+  deadline: zod.string().describe("Last day to play for standings"),
+  graceEnd: zod.string().describe("Last day of the grace week"),
+  phase: zod.enum(["draft", "upcoming", "open", "grace", "closed"]),
+  matches: zod.array(
+    zod.object({
+      matchId: zod.number(),
+      player1Id: zod.number(),
+      player1Name: zod.string(),
+      player2Id: zod.number(),
+      player2Name: zod.string(),
+      status: zod.string(),
+      score: zod.string().nullable().describe("From player 1's side"),
+      winnerId: zod.number().nullable(),
+      inGrace: zod.boolean(),
+      voided: zod.boolean(),
+      locked: zod.boolean(),
+      scheduledAt: zod.string().nullable(),
+      location: zod.string().nullable(),
+    }),
+  ),
+  byes: zod.array(
+    zod.object({
+      playerId: zod.number(),
+      playerName: zod.string(),
+      setByAdmin: zod.boolean(),
+    }),
+  ),
+  unpaired: zod
+    .array(
+      zod.object({
+        playerId: zod.number(),
+        playerName: zod.string(),
+      }),
+    )
+    .describe("Admins, drafts only. Players with no match or bye yet."),
+});
+
+/**
+ * @summary Take a bye away in a draft (admins only)
+ */
+export const RemoveLeagueRoundByeParams = zod.object({
+  leagueId: zod.coerce.number(),
+  roundId: zod.coerce.number(),
+  playerId: zod.coerce.number(),
+});
+
+export const RemoveLeagueRoundByeResponse = zod.object({
+  roundId: zod.number(),
+  roundNumber: zod.number(),
+  startDate: zod.string(),
+  deadline: zod.string().describe("Last day to play for standings"),
+  graceEnd: zod.string().describe("Last day of the grace week"),
+  phase: zod.enum(["draft", "upcoming", "open", "grace", "closed"]),
+  matches: zod.array(
+    zod.object({
+      matchId: zod.number(),
+      player1Id: zod.number(),
+      player1Name: zod.string(),
+      player2Id: zod.number(),
+      player2Name: zod.string(),
+      status: zod.string(),
+      score: zod.string().nullable().describe("From player 1's side"),
+      winnerId: zod.number().nullable(),
+      inGrace: zod.boolean(),
+      voided: zod.boolean(),
+      locked: zod.boolean(),
+      scheduledAt: zod.string().nullable(),
+      location: zod.string().nullable(),
+    }),
+  ),
+  byes: zod.array(
+    zod.object({
+      playerId: zod.number(),
+      playerName: zod.string(),
+      setByAdmin: zod.boolean(),
+    }),
+  ),
+  unpaired: zod
+    .array(
+      zod.object({
+        playerId: zod.number(),
+        playerName: zod.string(),
+      }),
+    )
+    .describe("Admins, drafts only. Players with no match or bye yet."),
+});
+
+/**
+ * @summary Lock or unlock a pairing in a draft (admins only)
+ */
+export const LockLeagueRoundMatchParams = zod.object({
+  leagueId: zod.coerce.number(),
+  roundId: zod.coerce.number(),
+  matchId: zod.coerce.number(),
+});
+
+export const LockLeagueRoundMatchBody = zod.object({
+  locked: zod.boolean(),
+});
+
+export const LockLeagueRoundMatchResponse = zod.object({
+  roundId: zod.number(),
+  roundNumber: zod.number(),
+  startDate: zod.string(),
+  deadline: zod.string().describe("Last day to play for standings"),
+  graceEnd: zod.string().describe("Last day of the grace week"),
+  phase: zod.enum(["draft", "upcoming", "open", "grace", "closed"]),
+  matches: zod.array(
+    zod.object({
+      matchId: zod.number(),
+      player1Id: zod.number(),
+      player1Name: zod.string(),
+      player2Id: zod.number(),
+      player2Name: zod.string(),
+      status: zod.string(),
+      score: zod.string().nullable().describe("From player 1's side"),
+      winnerId: zod.number().nullable(),
+      inGrace: zod.boolean(),
+      voided: zod.boolean(),
+      locked: zod.boolean(),
+      scheduledAt: zod.string().nullable(),
+      location: zod.string().nullable(),
+    }),
+  ),
+  byes: zod.array(
+    zod.object({
+      playerId: zod.number(),
+      playerName: zod.string(),
+      setByAdmin: zod.boolean(),
+    }),
+  ),
+  unpaired: zod
+    .array(
+      zod.object({
+        playerId: zod.number(),
+        playerName: zod.string(),
+      }),
+    )
+    .describe("Admins, drafts only. Players with no match or bye yet."),
+});
+
+/**
  * @summary List matches
  */
 export const GetMatchesQueryParams = zod.object({
@@ -995,6 +1739,13 @@ export const GetLeagueInvitesResponseItem = zod.object({
   leagueName: zod.string().nullish(),
   leagueSport: zod.string().nullish(),
   playerCount: zod.number().nullish(),
+  waitlistOnly: zod
+    .boolean()
+    .optional()
+    .describe(
+      "Joining now puts the player on the waitlist (season started or league full)",
+    ),
+  waitlistReason: zod.string().nullish(),
   createdByClerkUserId: zod.string(),
   expiresAt: zod.string().nullish(),
   maxUses: zod.number().nullish(),
@@ -1030,6 +1781,13 @@ export const GetInviteResponse = zod.object({
   leagueName: zod.string().nullish(),
   leagueSport: zod.string().nullish(),
   playerCount: zod.number().nullish(),
+  waitlistOnly: zod
+    .boolean()
+    .optional()
+    .describe(
+      "Joining now puts the player on the waitlist (season started or league full)",
+    ),
+  waitlistReason: zod.string().nullish(),
   createdByClerkUserId: zod.string(),
   expiresAt: zod.string().nullish(),
   maxUses: zod.number().nullish(),

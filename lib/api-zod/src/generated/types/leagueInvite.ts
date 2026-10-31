@@ -16,6 +16,10 @@ export interface LeagueInvite {
   leagueSport?: string | null;
   /** @nullable */
   playerCount?: number | null;
+  /** Joining now puts the player on the waitlist (season started or league full) */
+  waitlistOnly?: boolean;
+  /** @nullable */
+  waitlistReason?: string | null;
   createdByClerkUserId: string;
   /** @nullable */
   expiresAt?: string | null;
