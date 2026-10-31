@@ -73,6 +73,9 @@
   dl.keys dd { margin: 0; }
   .conditions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .conditions label { display: flex; flex-direction: column; font-size: 13px; color: var(--ink-muted); gap: 2px; }
+  .suggested { font-weight: 600; }
+  .agree-diff { font-weight: 600; }
+  #anSummary:empty, #anStatus:empty { display: none; }
   .empty { padding: 40px; text-align: center; color: #fff; }
   @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 </style>
@@ -116,6 +119,12 @@
 
     <div class="panel">
       <h2>Shots in this match</h2>
+      <label class="inline muted">Order
+        <select id="shotOrder" aria-label="Order of the shot list">
+          <option value="time">By time</option>
+          <option value="check">Suggestions to check first</option>
+        </select>
+      </label>
       <div class="shots-wrap">
         <table>
           <caption class="muted" style="text-align:left">Select a row to edit that shot and jump to it.</caption>
@@ -123,6 +132,33 @@
             <th scope="col">Serve</th><th scope="col">Result</th><th scope="col">Close</th>
             <th scope="col">Point ending</th></tr></thead>
           <tbody id="shotRows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel" id="analysisPanel">
+      <h2>Analysis</h2>
+      <p class="muted" id="anHelp">Run the shot analysis on part of this match, then check what it found against the video.
+        Times are minutes:seconds. A few minutes of play takes a few minutes here; a whole match takes hours.</p>
+      <div class="group" role="group" aria-label="Analysis range">
+        <label class="inline">From <input type="text" id="anFrom" inputmode="decimal" size="7" aria-describedby="anHelp" value="0:00"></label>
+        <label class="inline">To <input type="text" id="anTo" inputmode="decimal" size="7" aria-describedby="anHelp" placeholder="end"></label>
+        <button id="anHere">Next 2 minutes from here</button>
+        <button id="anRun" class="primary">Run analysis</button>
+      </div>
+      <p id="anStatus" class="status" role="status" aria-live="polite"></p>
+      <p id="anSummary"></p>
+      <div class="group" id="anActions" hidden>
+        <label class="inline"><input type="checkbox" id="anShow" checked> Show on video</label>
+        <button id="anCopy">Use as labels</button>
+      </div>
+      <div class="shots-wrap" id="anTableWrap" hidden>
+        <table>
+          <caption class="muted" style="text-align:left">What the analysis found. Select a row to jump there.</caption>
+          <thead><tr><th scope="col">Time</th><th scope="col">Hitter</th><th scope="col">Type</th>
+            <th scope="col">Result</th><th scope="col">Close</th><th scope="col">Point ending</th>
+            <th scope="col">Your label</th></tr></thead>
+          <tbody id="anRows"></tbody>
         </table>
       </div>
     </div>
@@ -145,6 +181,10 @@
       <h2 id="editorTitle">Selected shot</h2>
       <p class="muted" id="editorEmpty">No shot selected.</p>
       <div id="editorBody" hidden>
+        <div id="suggestedBox" hidden>
+          <p class="muted" id="suggestedText">Suggested by the analysis. Check it against the video, fix anything wrong, then confirm.</p>
+          <div class="group"><button id="looksRight" class="primary">Looks right <kbd>Y</kbd></button></div>
+        </div>
         <fieldset><legend>Hitter <kbd>H</kbd></legend>
           <div class="group">
             <button data-field="hitter" data-value="near">Near side</button>
@@ -218,6 +258,7 @@
         <dt><kbd>C</kbd></dt><dd>Toggle close call</dd>
         <dt><kbd>W E U 0</kbd></dt><dd>Winner, forced error, unforced error, none</dd>
         <dt><kbd>K</kbd></dt><dd>Calibrate the court from this frame</dd>
+        <dt><kbd>Y</kbd></dt><dd>Confirm a suggested shot looks right</dd>
         <dt><kbd>Delete</kbd></dt><dd>Delete the selected shot</dd>
         <dt>Click video</dt><dd>Mark the selected shot's bounce</dd>
       </dl>
@@ -237,6 +278,8 @@ let selectedId = null;
 let calibrating = null;     // array of clicked corners while calibrating
 let saveTimer = null, saving = false, dirty = false;
 let mouse = null;
+let analysis = null;        // latest analysis result for this match
+let anPoll = null;
 
 // ─── Geometry (mirrors services/court_model.py) ────────────────────────────
 function solve(A, b) {
@@ -350,7 +393,8 @@ async function loadMatch(id) {
   for (const k of ["venue", "surface", "lighting", "level"]) $(`cond-${k}`).value = label.conditions[k] || "";
   $("labeler").value = label.labeler || "";
   $("doneToggle").checked = label.status === "done";
-  setStatus(""); renderAll();
+  setStatus(""); analysis = null; clearTimeout(anPoll);
+  loadAnalysis(id); renderAll();
 }
 
 // ─── Shots ─────────────────────────────────────────────────────────────────
@@ -379,8 +423,21 @@ function addShot(type) {
   selectedId = shot.id; announce(`Added ${type} at ${fmt(t)}, ${hitter} side`);
   scheduleSave(); renderAll();
 }
+function touched(s) {
+  if (s.source === "model") { s.source = "model-edited"; s.reviewed = true; }
+}
+function confirmSuggestion() {
+  const s = selected(); if (!s || s.source !== "model") return;
+  s.reviewed = true; scheduleSave(); announce("Confirmed."); stepToNextUnchecked();
+}
+function stepToNextUnchecked() {
+  const next = orderedShots().find(x => x.source === "model" && !x.reviewed);
+  if (next) { selectedId = next.id; seek(next.time); }
+  renderAll();
+}
 function setField(field, value) {
   const s = selected(); if (!s) return;
+  touched(s);
   if (field === "serveNumber") value = Number(value);
   if (field === "closeCall") value = value === true || value === "true";
   if (field === "pointEnd") value = value || null;
@@ -392,6 +449,7 @@ function markBounce(point) {
   const s = selected(); if (!s) { announce("Select or add a shot first, then click its bounce."); return; }
   const t = +video.currentTime.toFixed(3);
   const c = toCourt(point, t);
+  touched(s);
   s.bounce = {time: t, image: point.map(v => +v.toFixed(4)), court: c ? c.map(v => +v.toFixed(3)) : null};
   if (c) {
     const d = lineCall(c, s.hitter, s.type === "serve");
@@ -407,9 +465,20 @@ function deleteSelected() {
   selectedId = label.shots[Math.min(i, label.shots.length - 1)]?.id || null;
   scheduleSave(); renderAll();
 }
+function orderedShots() {
+  const shots = [...(label?.shots || [])];
+  if ($("shotOrder").value !== "check") return shots;
+  const unsure = (s) => Math.min(s.typeConfidence ?? 1, s.resultConfidence ?? 1) - (s.closeCall ? 1 : 0);
+  return shots.sort((a, b) => {
+    const ua = a.source === "model" && !a.reviewed, ub = b.source === "model" && !b.reviewed;
+    if (ua !== ub) return ua ? -1 : 1;
+    return unsure(a) - unsure(b) || a.time - b.time;
+  });
+}
 function step(n) {
-  const i = label.shots.findIndex(s => s.id === selectedId);
-  const target = label.shots[Math.max(0, Math.min(label.shots.length - 1, i + n))];
+  const list = orderedShots();
+  const i = list.findIndex(s => s.id === selectedId);
+  const target = list[Math.max(0, Math.min(list.length - 1, i + n))];
   if (target) { selectedId = target.id; seek(target.time); renderAll(); }
 }
 
@@ -420,12 +489,18 @@ const LABEL = {near: "Near", far: "Far", in: "In", out: "Out", net: "Net", none:
 const cap = (s) => s ? s[0].toUpperCase() + s.slice(1) : "";
 function renderShots() {
   const body = $("shotRows"); body.innerHTML = "";
-  for (const s of label?.shots || []) {
+  for (const s of orderedShots()) {
     const tr = document.createElement("tr"); if (s.id === selectedId) tr.className = "selected";
     const b = document.createElement("button"); b.textContent = fmt(s.time);
     b.setAttribute("aria-label", `Select ${s.type} at ${fmt(s.time)}`);
     b.onclick = () => { selectedId = s.id; seek(s.time); renderAll(); };
-    const cells = [b, LABEL[s.hitter], cap(s.type), s.serveNumber ? (s.serveNumber === 1 ? "First" : "Second") : "",
+    const typeCell = document.createElement("span");
+    typeCell.textContent = cap(s.type);
+    if (s.source === "model" && !s.reviewed) {
+      const tag = document.createElement("span"); tag.className = "suggested"; tag.textContent = " · Suggested";
+      typeCell.append(tag);
+    }
+    const cells = [b, LABEL[s.hitter], typeCell, s.serveNumber ? (s.serveNumber === 1 ? "First" : "Second") : "",
       LABEL[s.result] + (s.bounce ? "" : (s.result === "in" || s.result === "out" ? " (no spot)" : "")),
       s.closeCall ? "Yes" : "", s.pointEnd ? LABEL[s.pointEnd] : ""];
     for (const c of cells) { const td = document.createElement("td"); td.append(c); tr.append(td); }
@@ -438,6 +513,13 @@ function renderEditor() {
   $("editorEmpty").hidden = !!s; $("editorBody").hidden = !s;
   if (!s) return;
   $("editorTitle").textContent = `Selected shot: ${cap(s.type)} at ${fmt(s.time)}`;
+  const suggested = s.source === "model" && !s.reviewed;
+  $("suggestedBox").hidden = !suggested;
+  if (suggested) {
+    const conf = [s.typeConfidence, s.resultConfidence].filter(v => typeof v === "number");
+    $("suggestedText").textContent = "Suggested by the analysis" + (conf.length
+      ? ` (${Math.round(Math.min(...conf) * 100)}% sure)` : "") + ". Check it against the video, fix anything wrong, then confirm.";
+  }
   for (const btn of document.querySelectorAll("[data-field]")) {
     const f = btn.dataset.field, v = btn.dataset.value;
     const cur = f === "pointEnd" ? (s.pointEnd || "") : String(s[f]);
@@ -460,7 +542,7 @@ function renderCalibrationNote() {
     : "Calibrate the court first: press K on a clear frame, then click the four singles corners.";
   $("calibrate").setAttribute("aria-pressed", String(!!calibrating));
 }
-function renderAll() { renderShots(); renderEditor(); renderCalibrationNote(); draw(); }
+function renderAll() { renderShots(); renderEditor(); renderCalibrationNote(); renderAnalysis(); draw(); }
 
 function draw() {
   const r = overlay.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
@@ -493,6 +575,7 @@ function draw() {
     ctx.beginPath(); ctx.arc(x, y, sel ? 9 : 6, 0, Math.PI * 2); ctx.stroke();
     if (s.result === "out") { ctx.beginPath(); ctx.moveTo(x - 5, y - 5); ctx.lineTo(x + 5, y + 5); ctx.moveTo(x + 5, y - 5); ctx.lineTo(x - 5, y + 5); ctx.stroke(); }
   }
+  if (analysis && $("anShow").checked && !calibrating) drawAnalysis(W, H, t);
   if (calibrating) {
     calibrating.forEach(([x, y], i) => {
       ctx.fillStyle = "#fff"; ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
@@ -502,6 +585,162 @@ function draw() {
   }
   drawLoupe();
 }
+// ─── Analysis ──────────────────────────────────────────────────────────────
+function parseTime(text) {
+  text = String(text || "").trim();
+  if (!text) return null;
+  const parts = text.split(":").map(Number);
+  if (parts.some(isNaN)) return NaN;
+  return parts.reduce((acc, v) => acc * 60 + v, 0);
+}
+const mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+function setAnStatus(text, isError = false) {
+  const el = $("anStatus"); el.textContent = text; el.classList.toggle("error", isError);
+}
+async function loadAnalysis(id) {
+  const st = await (await fetch(`/api/analysis/${encodeURIComponent(id)}/status`)).json();
+  if (st.state === "running") return pollAnalysis(id);
+  if (st.state === "error") setAnStatus(`Analysis stopped: ${st.message}`, true);
+  else setAnStatus("");
+  if (st.state === "done") {
+    const res = await fetch(`/api/analysis/${encodeURIComponent(id)}`);
+    if (res.ok && label?.matchId === id) analysis = await res.json();
+  }
+  renderAll();
+}
+async function pollAnalysis(id) {
+  clearTimeout(anPoll);
+  const st = await (await fetch(`/api/analysis/${encodeURIComponent(id)}/status`)).json();
+  if (label?.matchId !== id) return;
+  if (st.state === "running") {
+    const mins = Math.floor((Date.now() / 1000 - st.startedAt) / 60);
+    setAnStatus(`Analyzing: ${st.step}… (${mins} min so far)`);
+    $("anRun").disabled = true;
+    anPoll = setTimeout(() => pollAnalysis(id), 3000);
+    return;
+  }
+  $("anRun").disabled = false;
+  if (st.state === "done") announce("Analysis finished.");
+  loadAnalysis(id);
+}
+async function runAnalysis() {
+  if (!label) return;
+  const from = parseTime($("anFrom").value) ?? 0, to = parseTime($("anTo").value);
+  if (Number.isNaN(from) || Number.isNaN(to)) { setAnStatus("Use minutes:seconds, like 12:30.", true); return; }
+  const res = await fetch(`/api/analysis/${encodeURIComponent(label.matchId)}`, {
+    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({from, to})});
+  const body = await res.json();
+  if (!res.ok) { setAnStatus(body.error, true); return; }
+  if (!label.calibrations.length) announce("No court calibration yet, so the analysis will try to find the court itself.");
+  pollAnalysis(label.matchId);
+}
+function labelMatch(m) {
+  return (label?.shots || []).filter(s => s.source !== "model" || s.reviewed)
+    .reduce((best, s) => Math.abs(s.time - m.time) <= 0.25 && (!best || Math.abs(s.time - m.time) < Math.abs(best.time - m.time)) ? s : best, null);
+}
+function agreement(m) {
+  const l = labelMatch(m);
+  if (!l) return "Not labeled";
+  const diffs = [];
+  if (l.hitter !== m.hitter) diffs.push("hitter");
+  if (l.type !== m.type) diffs.push("type");
+  if ((l.result === "net" ? "out" : l.result) !== (m.result === "net" ? "out" : m.result)) diffs.push("in or out");
+  if ((l.pointEnd || null) !== (m.pointEnd || null)) diffs.push("point ending");
+  return diffs.length ? `Differs: ${diffs.join(", ")}` : "Same";
+}
+function renderAnalysis() {
+  const has = !!analysis;
+  $("anActions").hidden = !has; $("anTableWrap").hidden = !has;
+  if (!has) { $("anSummary").textContent = ""; return; }
+  const md = analysis.metadata || {}, model = analysis.model || {};
+  const shots = analysis.shots || [];
+  const points = (analysis.points || []).length;
+  const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const mins = Math.round((analysis.processingTimeMs || 0) / 60000);
+  $("anSummary").textContent = `${mmss(md.analyzedFrom || 0)} to ${mmss(md.analyzedTo || 0)}: ${plural(shots.length, "shot")}, ${plural(points, "point")}. `
+    + `Ball seen in ${Math.round((md.ballVisibleShare || 0) * 100)}% of frames. Took ${mins ? plural(mins, "minute") : "under a minute"}. `
+    + `Court from ${analysis.court?.source === "phone" ? "your calibration" : "automatic detection"}.`
+    + (model.degraded ? " Running without the full models, so results are rough." : "");
+  const body = $("anRows"); body.innerHTML = "";
+  for (const m of shots) {
+    const tr = document.createElement("tr");
+    const b = document.createElement("button"); b.textContent = fmt(m.time);
+    b.setAttribute("aria-label", `Jump to the analysis's ${m.type} at ${fmt(m.time)}`);
+    b.onclick = () => seek(m.time);
+    const agree = agreement(m);
+    const agreeEl = document.createElement("span"); agreeEl.textContent = agree;
+    if (agree.startsWith("Differs")) agreeEl.className = "agree-diff";
+    const cells = [b, LABEL[m.hitter], cap(m.type), LABEL[m.result] || "", m.closeCall ? "Yes" : "",
+      m.pointEnd ? LABEL[m.pointEnd] : "", agreeEl];
+    for (const c of cells) { const td = document.createElement("td"); td.append(c); tr.append(td); }
+    body.append(tr);
+  }
+}
+function copyAnalysisToLabels() {
+  if (!analysis || !label) return;
+  let added = 0;
+  for (const m of analysis.shots || []) {
+    if (label.shots.some(s => Math.abs(s.time - m.time) <= 0.25)) continue;
+    label.shots.push({
+      id: nextId(), time: m.time, hitter: m.hitter, type: m.type,
+      serveNumber: m.type === "serve" ? (m.serveNumber || 1) : null,
+      bounce: m.bounce?.image ? {time: m.bounce.time, image: m.bounce.image, court: null} : null,
+      result: m.result || "none", closeCall: !!m.closeCall, pointEnd: m.pointEnd || null,
+      typeConfidence: m.typeConfidence, resultConfidence: m.resultConfidence,
+      source: "model", reviewed: false,
+    });
+    added++;
+  }
+  label.shots.sort((a, b) => a.time - b.time);
+  $("shotOrder").value = "check";
+  scheduleSave(); stepToNextUnchecked();
+  announce(added ? `Added ${added} suggested shots. Check each one; Y confirms.` : "Every shot the analysis found is already labeled.");
+}
+function drawAnalysis(W, H, t) {
+  const track = analysis.ballTrack;
+  const label_ = (text, x, y) => {
+    ctx.font = "600 13px system-ui"; const w = ctx.measureText(text).width + 10;
+    ctx.fillStyle = "rgba(0,0,0,.78)"; ctx.fillRect(x, y - 15, w, 20);
+    ctx.fillStyle = "#fff"; ctx.fillText(text, x + 5, y);
+  };
+  if (track) {
+    const i = Math.round(t * track.fps) - track.startFrame;
+    const pts = [];
+    for (let k = Math.max(0, i - 12); k <= i && k < track.points.length; k++) if (track.points[k]) pts.push(track.points[k]);
+    if (pts.length > 1) {
+      ctx.beginPath(); pts.forEach(([x, y], k) => k ? ctx.lineTo(x * W, y * H) : ctx.moveTo(x * W, y * H));
+      ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,.6)"; ctx.stroke();
+      ctx.lineWidth = 2; ctx.strokeStyle = "#FFE14D"; ctx.stroke();
+    }
+    const cur = track.points[i];
+    if (cur) {
+      ctx.lineWidth = 2; ctx.strokeStyle = "#FFE14D";
+      ctx.beginPath(); ctx.arc(cur[0] * W, cur[1] * H, 8, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+  for (const m of analysis.shots || []) {
+    if (Math.abs(m.time - t) < 0.4 && m.contactPoint) {
+      label_(`${cap(m.type)}, ${m.hitter} side`, m.contactPoint.x * W + 12, m.contactPoint.y * H - 10);
+    }
+    const b = m.bounce;
+    if (b?.image && b.time != null && Math.abs(b.time - t) < 1.5) {
+      const [x, y] = [b.image[0] * W, b.image[1] * H];
+      ctx.setLineDash([4, 3]); ctx.lineWidth = 2; ctx.strokeStyle = "#FFE14D";
+      ctx.strokeRect(x - 7, y - 7, 14, 14); ctx.setLineDash([]);
+      const call = (LABEL[m.result] || "") + (m.closeCall ? ", close call" : "");
+      if (call) label_(call, x + 10, y + 4);
+    }
+  }
+}
+$("anRun").onclick = runAnalysis;
+$("anHere").onclick = () => {
+  $("anFrom").value = mmss(video.currentTime); $("anTo").value = mmss(Math.min(video.duration || 1e9, video.currentTime + 120));
+};
+$("anShow").onchange = draw;
+$("anCopy").onclick = copyAnalysisToLabels;
+$("shotOrder").onchange = renderAll;
+$("looksRight").onclick = confirmSuggestion;
+
 function drawLoupe() {
   if (!mouse || video.readyState < 2) { loupe.style.display = "none"; return; }
   loupe.style.display = "block";
@@ -566,7 +805,17 @@ $("backSecond").onclick = () => nudge(-1); $("fwdSecond").onclick = () => nudge(
 $("speed").onchange = (e) => { video.playbackRate = Number(e.target.value); };
 $("calibrate").onclick = startCalibration;
 $("matchSelect").onchange = (e) => loadMatch(e.target.value);
-$("doneToggle").onchange = (e) => { if (label) { label.status = e.target.checked ? "done" : "in_progress"; scheduleSave(); } };
+$("doneToggle").onchange = (e) => {
+  if (!label) return;
+  const unchecked = label.shots.filter(s => s.source === "model" && !s.reviewed).length;
+  if (e.target.checked && unchecked) {
+    e.target.checked = false;
+    $("shotOrder").value = "check"; stepToNextUnchecked();
+    announce(`${unchecked} suggested shot${unchecked > 1 ? "s" : ""} still need a look before this match is done.`);
+    return;
+  }
+  label.status = e.target.checked ? "done" : "in_progress"; scheduleSave();
+};
 for (const k of ["venue", "surface", "lighting", "level"])
   $(`cond-${k}`).addEventListener("input", (e) => { label.conditions[k] = e.target.value.trim(); scheduleSave(); });
 $("labeler").addEventListener("input", (e) => { label.labeler = e.target.value.trim(); scheduleSave(); });
@@ -589,6 +838,7 @@ const KEYS = {
   w: () => setField("pointEnd", "winner"), e: () => setField("pointEnd", "forced_error"),
   u: () => setField("pointEnd", "unforced_error"), "0": () => setField("pointEnd", ""),
   k: startCalibration,
+  y: confirmSuggestion,
   ArrowUp: () => step(-1), ArrowDown: () => step(1),
   Enter: () => { const s = selected(); if (s) seek(s.time); },
   Delete: deleteSelected, Backspace: deleteSelected,

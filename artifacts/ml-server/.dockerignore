@@ -1,0 +1,11 @@
+.venv
+__pycache__
+*.pyc
+videos
+models
+predictions
+.cache
+*.mp4
+*.mov
+*.m4v
+*.webm

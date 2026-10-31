@@ -30,3 +30,16 @@ It saves automatically. Every shortcut also has an on-screen button.
 - **Hitter:** the side of the net the player was on when they hit it, as the camera sees it (near or far).
 - **Close call:** you flag it, or it landed within 10 cm of the line that decides it. The eval counts both.
 - **Point ending:** winner (opponent couldn't reach it), forced error (opponent reached it but was under pressure), unforced error (a miss on a playable ball).
+
+## Analysis viewer
+
+The same page shows what the shot analysis finds, so you can check it against the video and use it as a head start on labels.
+
+On your Mac, the viewer runs in Docker with the real models: `bash scripts/mac/open-viewer.sh` (or double-click **Open analysis viewer**). Videos come straight from the Match Footage Drive folder; labels and analysis results are saved in `evaluation/labels` and `evaluation/analysis`.
+
+1. **Calibrate the court first** (K). The analysis uses your corners, like the app uses the phone's.
+2. **Pick a stretch:** set From and To (minutes:seconds), or press **Next 2 minutes from here**. On this Mac's processor, analysis takes about three times as long as the stretch itself, so start with a few minutes, not the whole match.
+3. **Run analysis.** When it finishes, the video shows the ball's path in yellow, the shot type at each hit, and a dashed square on each bounce with In, Out, or Close call written next to it. The table lists every shot it found, and the "Your label" column says whether it matches yours.
+4. **Use as labels** copies the analysis's shots into your labels as suggestions, marked **Suggested**. The list switches to "Suggestions to check first," starting with the ones the analysis was least sure about. For each one, check it against the video: press **Y** if it's right, or fix any field (that confirms it too). Delete shots that didn't happen and add any it missed.
+
+A match can't be marked done until every suggestion has been checked. The eval report says how many labels came from suggestions accepted unchanged, because a high share can make the scores look better than they are.

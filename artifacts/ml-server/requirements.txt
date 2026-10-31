@@ -3,9 +3,12 @@ fastapi>=0.115
 uvicorn>=0.30
 pydantic>=2.7
 numpy>=1.26
-opencv-python-headless>=4.10,<5  # court line detection fails on 5.x
+opencv-python-headless>=4.10,<5  # legacy court line detection fails on 5.x
+onnxruntime>=1.20,<2             # runs the ball, person, and pose models on CPU
 
-# Optional, for better detection. Without them the analyzer falls back to
-# color-based ball detection and skips pose estimation. Both are large installs.
-#   ultralytics   # YOLOv8 ball detection; downloads yolov8n.pt on first run
-#   mediapipe     # player pose estimation
+# The legacy single-shot analyzer (services/analyzer.py, /analyze endpoints) can
+# optionally use these. Don't install ultralytics on a server that ships: it's
+# AGPL-3.0, which would require publishing Ball Boi's server source. The match
+# pipeline (services/pipeline) doesn't use either.
+#   ultralytics
+#   mediapipe

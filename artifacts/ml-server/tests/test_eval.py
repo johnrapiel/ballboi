@@ -211,3 +211,12 @@ def test_cli_validate_rejects_bad_file(tmp_path, capsys):
     (tmp_path / "bad.json").write_text("{not json")
     assert main(["validate", "--labels", str(tmp_path)]) == 1
     assert "not valid JSON" in capsys.readouterr().err
+
+
+def test_report_counts_labels_from_suggestions():
+    raw = example()
+    raw["shots"][0]["source"] = "model"
+    raw["shots"][1]["source"] = "model-edited"
+    s = summary_for(raw, as_prediction(raw))
+    assert s.label_sources == {"model": 1, "model-edited": 1, "human": 2}
+    assert "1 of 4 accepted unchanged" in report.to_markdown(s, {"version": "x"})

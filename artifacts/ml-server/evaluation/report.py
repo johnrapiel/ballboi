@@ -119,6 +119,14 @@ def to_markdown(summary: Summary, model: dict[str, Any], regressions: list[str] 
         lines.append(f"| {m.match_id} | " + " | ".join(cells) + " |")
     lines.append("")
 
+    total = sum(summary.label_sources.values())
+    accepted = summary.label_sources.get("model", 0)
+    if total and (accepted or summary.label_sources.get("model-edited")):
+        edited = summary.label_sources.get("model-edited", 0)
+        lines.append(f"Labels from analysis suggestions: {accepted} of {total} accepted unchanged "
+                     f"({accepted / total:.0%}), {edited} corrected. A high unchanged share can flatter the "
+                     "scores; spot-check a few.")
+        lines.append("")
     if summary.unscored_labels:
         lines.append("Not scored, labeling still in progress: " + ", ".join(summary.unscored_labels) + ".")
     if summary.unlabeled_predictions:
