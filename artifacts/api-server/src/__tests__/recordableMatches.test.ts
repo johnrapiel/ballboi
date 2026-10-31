@@ -3,6 +3,7 @@ import {
   byScheduledTime,
   isRecordableToday,
   parseWhen,
+  recordingStage,
   toRecordableMatch,
   type MatchRow,
 } from "../lib/recordableMatches";
@@ -87,5 +88,14 @@ describe("byScheduledTime and parseWhen", () => {
     expect(parseWhen("2026-10-29T04:00:00.000Z")?.toISOString()).toBe("2026-10-29T04:00:00.000Z");
     expect(parseWhen("nope")).toBeNull();
     expect(parseWhen(undefined)).toBeNull();
+  });
+});
+
+describe("recordingStage", () => {
+  it("maps session statuses to the processing card", () => {
+    expect(recordingStage("recording", "pending")).toBe("uploading");
+    expect(recordingStage("processing", "processing")).toBe("analyzing");
+    expect(recordingStage("completed", "completed")).toBe("ready");
+    expect(recordingStage("failed", "failed")).toBe("failed");
   });
 });

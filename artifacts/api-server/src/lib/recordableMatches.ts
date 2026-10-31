@@ -87,3 +87,17 @@ export function parseWhen(v: unknown): Date | null {
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? null : d;
 }
+
+/** What the Ball Boi tab's processing card says about a server recording. */
+export type RecordingStage = "uploading" | "analyzing" | "ready" | "failed";
+
+/**
+ * Maps a session's status to the card's stage. "recording" on the server means
+ * the phone made the session but the upload hasn't finished.
+ */
+export function recordingStage(status: string, processingStatus: string): RecordingStage {
+  if (status === "completed" || processingStatus === "completed") return "ready";
+  if (status === "failed" || processingStatus === "failed") return "failed";
+  if (status === "processing" || processingStatus === "processing") return "analyzing";
+  return "uploading";
+}
