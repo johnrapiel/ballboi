@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "matchId": "example-public-hard-day",
+  "video": {"file": "example-public-hard-day.mp4", "r2Key": "test-set/example-public-hard-day.mp4", "fps": 30.0, "width": 1920, "height": 1080},
+  "conditions": {"venue": "public courts", "surface": "hard", "lighting": "day", "level": "3.5"},
+  "labeler": "John",
+  "status": "done",
+  "calibrations": [
+    {"fromTime": 0.0, "corners": [[0.18, 0.92], [0.82, 0.92], [0.63, 0.31], [0.37, 0.31]]}
+  ],
+  "shots": [
+    {"id": "s0001", "time": 10.40, "hitter": "near", "type": "serve", "serveNumber": 1,
+     "bounce": {"time": 11.02, "image": [0.462, 0.415], "court": [-0.9, 6.55]},
+     "result": "out", "closeCall": false, "pointEnd": null},
+    {"id": "s0002", "time": 24.10, "hitter": "near", "type": "serve", "serveNumber": 2,
+     "bounce": {"time": 24.80, "image": [0.445, 0.452], "court": [-2.1, 5.2]},
+     "result": "in", "closeCall": false, "pointEnd": null},
+    {"id": "s0003", "time": 25.30, "hitter": "far", "type": "backhand", "serveNumber": null,
+     "bounce": {"time": 26.10, "image": [0.39, 0.84], "court": [-2.4, -9.8]},
+     "result": "in", "closeCall": false, "pointEnd": null},
+    {"id": "s0004", "time": 26.70, "hitter": "near", "type": "forehand", "serveNumber": null,
+     "bounce": {"time": 27.50, "image": [0.611, 0.345], "court": [4.08, 10.9]},
+     "result": "in", "closeCall": true, "pointEnd": "winner"}
+  ]
+}
