@@ -14,6 +14,10 @@ vi.mock("@clerk/express", () => ({
 
 vi.mock("../lib/autoLinkPlayer.js", () => ({ autoLinkPlayersForUser: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../lib/recordingCleanup", () => ({ deleteRecordingData: vi.fn().mockResolvedValue(undefined) }));
+const { messagingDeleted } = vi.hoisted(() => ({ messagingDeleted: [] as string[] }));
+vi.mock("../messaging/accountDeletion", () => ({
+  deleteMessagingData: async (id: string) => void messagingDeleted.push(id),
+}));
 
 // A fake transaction that records what was deleted and updated.
 type Call = { op: string; table: string; values?: unknown };
@@ -97,6 +101,7 @@ const log = { warn: vi.fn(), info: vi.fn() };
 
 beforeEach(() => {
   calls.length = 0;
+  messagingDeleted.length = 0;
   for (const k of Object.keys(selectResults)) delete selectResults[k];
   for (const k of Object.keys(secondSelectResults)) delete secondSelectResults[k];
   for (const k of Object.keys(selectCounts)) delete selectCounts[k];
@@ -168,6 +173,8 @@ describe("deleteAccount", () => {
     // Each video once, even when listed twice; Clerk last.
     expect(order).toEqual(["video:/objects/uploads/a", "video:/objects/uploads/b", "clerk"]);
     expect(deleteClerkUser).toHaveBeenCalledWith("user_delete_me");
+    // Messages and conversations go too (checklist 5.1.1(v)).
+    expect(messagingDeleted).toEqual(["user_delete_me"]);
     expect(summary).toEqual({
       playersAnonymized: 2,
       recordingsDeleted: 1,
