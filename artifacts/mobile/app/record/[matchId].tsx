@@ -29,11 +29,13 @@ import { formatElapsed, spokenDuration } from "@/lib/recording/format";
 import {
   hasRoomToStart,
   MAX_RECORDING_SECONDS,
+  MIN_START_STORAGE_GB,
   STOP_MESSAGES,
   useSafetyCap,
   type StopReason,
 } from "@/lib/recording/safety";
 import { drainQueue } from "@/lib/recording/uploader";
+import { VIDEO_CODEC, VIDEO_QUALITY, VIDEO_STABILIZATION } from "@/lib/recording/settings";
 import { prepareVoice, say, stopVoice } from "@/lib/recording/voice";
 
 type Phase = "ready" | "countdown" | "recording" | "saving" | "error";
@@ -161,7 +163,7 @@ export default function RecordScreen() {
   function pressStart() {
     if (!cameraReady) return;
     if (!hasRoomToStart()) {
-      Alert.alert("Not enough space", "Free up at least 3 GB on your phone to record a match.");
+      Alert.alert("Not enough space", `Free up at least ${MIN_START_STORAGE_GB} GB on your phone to record a match.`);
       return;
     }
     setError(null);
@@ -190,7 +192,7 @@ export default function RecordScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     AccessibilityInfo.announceForAccessibility("Recording started");
     try {
-      const video = await camera.current.recordAsync({ maxDuration: MAX_RECORDING_SECONDS });
+      const video = await camera.current.recordAsync({ maxDuration: MAX_RECORDING_SECONDS, codec: VIDEO_CODEC });
       if (!video?.uri) throw new Error("No video was saved.");
       // Reaching maxDuration ends the recording without a stop call.
       if (reasonRef.current === "user" && Date.now() - startedAt.current >= (MAX_RECORDING_SECONDS - 5) * 1000) {
@@ -268,7 +270,9 @@ export default function RecordScreen() {
         style={StyleSheet.absoluteFill}
         facing="back"
         mode="video"
-        videoQuality="1080p"
+        // 1280x720, 30 fps, H.264, no stabilization: what the analysis models read.
+        videoQuality={VIDEO_QUALITY}
+        videoStabilizationMode={VIDEO_STABILIZATION}
         mute={!micPerm?.granted}
         // The app is portrait-only, but a fence-mounted phone is usually
         // sideways. Record in whichever way the phone is actually held.
