@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { badgeCount, useMessagesSummary } from "@/hooks/useMessages";
 
 /**
  * Messages, in a 44pt circle in the top-right corner of every tab.
@@ -88,6 +89,7 @@ export function TabScreen({
  * in the top-right corner. The title always matches the tab label.
  */
 export function TabHeader({ title, action }: { title: string; action?: React.ReactNode }) {
+  const summary = useMessagesSummary();
   return (
     <View
       style={{
@@ -104,7 +106,7 @@ export function TabHeader({ title, action }: { title: string; action?: React.Rea
       </Text>
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2 }}>
         {action}
-        <MessagesButton />
+        <MessagesButton unread={badgeCount(summary.data)} />
       </View>
     </View>
   );

@@ -96,11 +96,31 @@ export function useMessagesSummary() {
   });
 }
 
+/** Unread messages plus waiting Message Requests: the Messages button's badge. */
+export function badgeCount(summary: MessagesSummary | undefined): number {
+  return (summary?.unread ?? 0) + (summary?.requests ?? 0);
+}
+
 export function useThread(id: number | null) {
   const call = useApi();
+  const qc = useQueryClient();
   return useQuery({
     queryKey: messagesKeys.thread(id ?? 0),
-    queryFn: () => call<{ conversation: Conversation; messages: Message[] }>(`/api/messages/${id}`),
+    queryFn: async () => {
+      type Thread = { conversation: Conversation; messages: Message[] };
+      const before = qc.getQueryData<Thread>(messagesKeys.thread(id ?? 0));
+      const thread = await call<Thread>(`/api/messages/${id}`);
+      // Opening a conversation marks it read on the server. When that happens
+      // (first load, or new messages read while it's open), refresh the badge
+      // and the Messages list so their counts drop right away.
+      const lastBefore = before?.messages[before.messages.length - 1]?.id;
+      const lastNow = thread.messages[thread.messages.length - 1]?.id;
+      if (!before || lastBefore !== lastNow) {
+        void qc.invalidateQueries({ queryKey: messagesKeys.summary });
+        void qc.invalidateQueries({ queryKey: ["messages", "list"] });
+      }
+      return thread;
+    },
     enabled: id !== null,
     refetchInterval: 5_000,
   });
