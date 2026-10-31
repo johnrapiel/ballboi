@@ -67,3 +67,43 @@ export function pickableOpponents(rows: OpponentRow[], me: string, blocked: Set<
   }
   return [...byAccount.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
+
+export type ScoreParse = { ok: true; score: string; winnerSide: 1 | 2 } | { ok: false; error: string };
+
+/**
+ * Reads a score written from the side of the player entering it ("6-3, 7-6(4)":
+ * their games first). Same rules as league scores: every set has a winner, and
+ * a split match needs a deciding set or match tiebreak.
+ */
+export function parseSideScore(raw: unknown): ScoreParse {
+  if (typeof raw !== "string") return { ok: false, error: "Enter the score for each set, like 6-4." };
+  const sets = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  if (sets.length === 0) return { ok: false, error: "Enter the score for each set, like 6-4." };
+  if (sets.length > 5) return { ok: false, error: "A match has at most 5 sets." };
+  let mine = 0;
+  let theirs = 0;
+  for (const set of sets) {
+    const m = set.match(/^(\d{1,2})-(\d{1,2})(\((\d{1,2})\))?$/);
+    if (!m) return { ok: false, error: `"${set}" isn't a set score. Use a format like 6-4.` };
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    if (a === b) return { ok: false, error: `"${set}" is tied. Every set needs a winner.` };
+    if (a > b) mine++;
+    else theirs++;
+  }
+  if (mine === theirs) {
+    return { ok: false, error: "The sets are tied. If you played a match tiebreak, add it as the last set (like 10-7)." };
+  }
+  return { ok: true, score: sets.join(", "), winnerSide: mine > theirs ? 1 : 2 };
+}
+
+/** Flips a score to the other side's view: "6-3, 7-6(4)" becomes "3-6, 6-7(4)". */
+export function flipScore(score: string): string {
+  return score
+    .split(",")
+    .map((set) => {
+      const m = set.trim().match(/^(\d+)-(\d+)(\(\d+\))?$/);
+      return m ? `${m[2]}-${m[1]}${m[3] ?? ""}` : set.trim();
+    })
+    .join(", ");
+}

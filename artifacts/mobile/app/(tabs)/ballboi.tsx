@@ -69,7 +69,7 @@ export default function BallBoiScreen() {
                 <TodaysMatchCard
                   key={m.id}
                   match={m}
-                  onRecord={() => openRecorder(router, { matchId: m.id, opponentName: m.opponentName })}
+                  onRecord={() => openRecorder(router, { matchId: m.id, opponentName: m.opponentName, leagueId: m.leagueId })}
                 />
               ),
             )

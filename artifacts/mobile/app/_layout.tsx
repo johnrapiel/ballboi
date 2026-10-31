@@ -131,6 +131,18 @@ function RootLayoutNav() {
       />
       <Stack.Screen name="record/invite/[code]" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen
+        name="record/score/[matchId]"
+        options={{
+          headerShown: true,
+          presentation: "modal",
+          title: "Score",
+          headerShadowVisible: false,
+          headerTintColor: colors.ink,
+          headerStyle: { backgroundColor: colors.paper },
+          headerTitleStyle: { fontFamily: "DMSans_600SemiBold", color: colors.ink },
+        }}
+      />
+      <Stack.Screen
         name="replay/[matchId]"
         options={{ headerShown: false, presentation: "card" }}
       />

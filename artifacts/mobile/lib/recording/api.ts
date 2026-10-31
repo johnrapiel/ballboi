@@ -226,3 +226,55 @@ export async function claimMatchInvite(
   if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't add the match. Try again."));
   return (await res.json()) as { matchId: number };
 }
+
+/** A set as typed on the score prompt, from your side. */
+export interface SetEntry {
+  mine: string;
+  theirs: string;
+  /** Loser's points in a 7-6 tiebreak, when played. */
+  tiebreak: string;
+}
+
+/** True when a set is 7-6 either way, so it had a tiebreak. */
+export function isTiebreakSet(set: SetEntry): boolean {
+  const a = Number(set.mine);
+  const b = Number(set.theirs);
+  return (a === 7 && b === 6) || (a === 6 && b === 7);
+}
+
+/** "6-3, 7-6(4)" from the sets typed so far. Blank sets are skipped. */
+export function scoreString(sets: SetEntry[]): string {
+  return sets
+    .filter((s) => s.mine.trim() !== "" && s.theirs.trim() !== "")
+    .map((s) => {
+      const tb = isTiebreakSet(s) && s.tiebreak.trim() !== "" ? `(${Number(s.tiebreak)})` : "";
+      return `${Number(s.mine)}-${Number(s.theirs)}${tb}`;
+    })
+    .join(", ");
+}
+
+/** Start of the 409 message both score routes send when a score is already in. */
+export const ALREADY_ENTERED = "A score is already in for this match.";
+
+/**
+ * Posts the score from your side. League matches go to the league's score
+ * route (Session C: first score stands, standings and grace week); Quick
+ * matches to the recording route, which never touches standings.
+ */
+export async function submitScore(
+  target: { matchId: number; leagueId: number | null },
+  score: string,
+  getToken: () => Promise<string | null>,
+): Promise<{ ok: true } | { ok: false; error: string; alreadyEntered: boolean }> {
+  const path =
+    target.leagueId != null
+      ? `/api/leagues/${target.leagueId}/matches/${target.matchId}/score`
+      : `/api/recording/quick-matches/${target.matchId}/score`;
+  const res = await apiFetch(path, getToken, { method: "POST", body: JSON.stringify({ score }) });
+  if (res.ok) return { ok: true };
+  const error = await apiErrorMessage(res, "Couldn't save the score. Try again.");
+  // The league route also answers 409 for a cancelled match, a round that
+  // hasn't opened, or a grace week that's over. Only "already in" means the
+  // opponent beat you to it; the rest show their own message.
+  return { ok: false, alreadyEntered: res.status === 409 && error.startsWith(ALREADY_ENTERED), error };
+}
