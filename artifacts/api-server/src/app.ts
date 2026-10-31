@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
 import router from "./routes";
+import { enforceSanctions } from "./messaging/enforceSanctions";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -40,6 +41,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // Clerk auth middleware - makes auth available on all routes
 app.use(clerkMiddleware());
+
+// Banned and suspended accounts can only check their status, appeal once, or delete the account.
+app.use("/api", enforceSanctions);
 
 app.use("/api", router);
 

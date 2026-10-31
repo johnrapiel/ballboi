@@ -19,6 +19,11 @@ vi.mock("../messaging", () => ({
   getAutoRestrict: () => ({ evaluate: async (...a: unknown[]) => void restrictCalls.push(a) }),
 }));
 
+vi.mock("../routes/sanctions", async () => {
+  const { Router } = await import("express");
+  return { default: Router() };
+});
+
 vi.mock("pino", () => ({ default: () => ({ warn: vi.fn(), info: vi.fn(), error: vi.fn() }) }));
 
 // Minimal query-builder fakes. Each test queues what selects return.
