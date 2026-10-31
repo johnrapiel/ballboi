@@ -1,11 +1,12 @@
 import cron from "node-cron";
 import { db, leaguesTable, scheduleGenerationLogsTable, matchesTable, playersTable, playerAvailabilityTable, matchRemindersLogTable, leagueRoundsTable, playoffBracketsTable } from "@workspace/db";
-import { eq, and, gte, lt, inArray, desc, asc } from "drizzle-orm";
+import { eq, and, gte, lt, inArray, desc, asc, isNull } from "drizzle-orm";
 import { generateWeeklyMatches, saveGeneratedMatches } from "./matchGeneration";
 import { generateAllRounds } from "./roundPairing";
 import { sendPushToUsers } from "../routes/notifications";
 import { logger } from "../lib/logger";
 import { retryFailedBallBoiSessions } from "./ballBoiRetry";
+import { runAllLeagueDays } from "./leagueRounds";
 
 function getMondayOf(date: Date): string {
   const d = new Date(date);
@@ -32,10 +33,21 @@ async function getActiveLeagueIds(): Promise<number[]> {
   return leagues.map((l) => l.id);
 }
 
+// Leagues made before the new league form (no season length). Only these use
+// the legacy round and schedule generators; newer leagues run the weekly loop
+// in services/leagueRounds.ts.
+async function getLegacyActiveLeagueIds(): Promise<number[]> {
+  const leagues = await db
+    .select({ id: leaguesTable.id })
+    .from(leaguesTable)
+    .where(and(eq(leaguesTable.status, "active"), isNull(leaguesTable.seasonWeeks)));
+  return leagues.map((l) => l.id);
+}
+
 // Auto-generate schedules for all active leagues on Thursday 9AM
 async function autoGenerateSchedules() {
   logger.info("CRON: Running Thursday schedule auto-generation");
-  const leagueIds = await getActiveLeagueIds();
+  const leagueIds = await getLegacyActiveLeagueIds();
   const weekOf = getNextMonday(new Date()); // Generate for next week
 
   for (const leagueId of leagueIds) {
@@ -384,7 +396,7 @@ async function dayBeforeMatchReminder() {
 
 async function autoGenerateRounds() {
   logger.info("CRON: Running daily round promotion check");
-  const leagueIds = await getActiveLeagueIds();
+  const leagueIds = await getLegacyActiveLeagueIds();
   const today = new Date().toISOString().slice(0, 10);
 
   for (const leagueId of leagueIds) {
@@ -459,6 +471,14 @@ export function startScheduler() {
     timezone: "America/New_York",
   });
 
+  // Daily at 7:00 AM — weekly league loop: draft tomorrow's pairings for admin
+  // review, send out rounds that start today (spec: Leagues > Weekly loop).
+  cron.schedule("0 7 * * *", () => {
+    runAllLeagueDays().catch((err) => logger.error({ err }, "CRON: League day failed"));
+  }, {
+    timezone: "America/New_York",
+  });
+
   // Thursday at 9:00 AM — auto-generate availability-based schedules
   cron.schedule("0 9 * * 4", autoGenerateSchedules, {
     timezone: "America/New_York",
@@ -486,5 +506,5 @@ export function startScheduler() {
     });
   });
 
-  logger.info("Scheduler started: Thu 9AM (auto-generate), Wed 5PM (availability reminder), Sun 9AM (match reminder), Daily 8AM (day-before reminder), every 1min (Ball Boi retry)");
+  logger.info("Scheduler started: Daily 7AM (league rounds), Thu 9AM (auto-generate), Wed 5PM (availability reminder), Sun 9AM (match reminder), Daily 8AM (day-before reminder), every 1min (Ball Boi retry)");
 }

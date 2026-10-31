@@ -32,6 +32,10 @@ router.post("/leagues/:leagueId/rounds/generate", requireAdmin, async (req, res)
     const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
     if (!league) return res.status(404).json({ error: "League not found" });
 
+    if (league.seasonWeeks) {
+      return res.status(400).json({ error: "This league pairs a round each week; edit it from Manage." });
+    }
+
     const force = req.body?.force === true;
 
     if (force) {
@@ -200,7 +204,9 @@ router.get("/leagues/:leagueId/rounds", requireAuth, async (req, res) => {
       .from(leagueRoundsTable)
       .where(eq(leagueRoundsTable.leagueId, leagueId));
 
-    if (existing.length < 6) {
+    // Leagues on the weekly loop (services/leagueRounds.ts) never get legacy rounds.
+    const [leagueRow] = await db.select({ seasonWeeks: leaguesTable.seasonWeeks }).from(leaguesTable).where(eq(leaguesTable.id, leagueId));
+    if (existing.length < 6 && !leagueRow?.seasonWeeks) {
       try {
         await generateAllRounds(leagueId, 6);
       } catch (genErr) {
