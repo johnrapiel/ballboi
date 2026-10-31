@@ -17,7 +17,7 @@ import {
 import { IconButton } from "@/components/Choice";
 import { EmptyState } from "@/components/EmptyState";
 import { TabScreen } from "@/components/TabHeader";
-import { Awning, Button, Card, Chip, Text } from "@/components/ui";
+import { Button, Card, Chip, Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { formatLabel, ordinal, playersLabel, playTypeLabel, statusLabel } from "@/lib/leagues";
@@ -84,14 +84,8 @@ function LeagueCard({ league, standing, onPress }: { league: League; standing: M
       accessibilityHint="Opens standings"
       style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
     >
-      <View style={{ borderTopLeftRadius: radius.radiusMd, borderTopRightRadius: radius.radiusMd, overflow: "hidden" }}>
-        <Awning />
-      </View>
       <Card
         style={{
-          borderTopLeftRadius: 0,
-          borderTopRightRadius: 0,
-          borderTopWidth: 0,
           borderColor: c.hairlineStrong,
           padding: 0,
         }}
@@ -130,10 +124,10 @@ function LeagueCard({ league, standing, onPress }: { league: League; standing: M
             borderTopColor: c.hairline,
           }}
         >
-          <Text variant="button" tone="pool">
+          <Text variant="button" tone="court">
             Open league
           </Text>
-          <SymbolView name="chevron.right" size={14} tintColor={c.pool} />
+          <SymbolView name="chevron.right" size={14} tintColor={c.court} />
         </View>
       </Card>
     </Pressable>
