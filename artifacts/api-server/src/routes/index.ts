@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import leagueAdminsRouter from "./leagueAdmins";
+import leagueHomeRouter from "./leagueHome";
 import leagueMembershipRouter from "./leagueMembership";
 import leagueScheduleRouter from "./leagueSchedule";
 import leagueScoresRouter from "./leagueScores";
@@ -31,6 +32,7 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(leagueAdminsRouter);
+router.use(leagueHomeRouter);
 router.use(leagueMembershipRouter);
 router.use(leagueScheduleRouter);
 router.use(leagueScoresRouter);
