@@ -204,6 +204,17 @@ export class MessagingService {
     return { id: m.id, text: m.text, fromMe: m.senderId === me, at: m.createdAt.toISOString() };
   }
 
+  /** Your conversation with a player, if there is one you can see. For opening a chat from a player. */
+  async conversationWithPlayer(me: string, playerId: unknown): Promise<number | null> {
+    const id = Number(playerId);
+    const other = Number.isInteger(id) ? await this.repo.accountForPlayer(id) : null;
+    if (!other || other === me) return null;
+    const c = await this.repo.findByPair(pairKeyFor(me, other));
+    if (!c) return null;
+    const visible = await this.visibleFor(me);
+    return visible.some((r) => r.c.id === c.id) ? c.id : null;
+  }
+
   /** League mates you can message freely, for New message. */
   async contacts(me: string) {
     const [contacts, blocked] = await Promise.all([this.repo.contactsFor(me), this.repo.blockedSetFor(me)]);
