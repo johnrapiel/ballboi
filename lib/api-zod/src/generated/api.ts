@@ -2212,6 +2212,51 @@ export const GetBallBoiReplayResponse = zod.object({
       playerStance: zod.string().nullish(),
       clipStartSeconds: zod.number().nullish(),
       clipEndSeconds: zod.number().nullish(),
+      hitterSide: zod
+        .union([zod.literal("near"), zod.literal("far"), zod.literal(null)])
+        .nullish()
+        .describe("Side of the net the hitter was on, as the camera sees it."),
+      landingXM: zod
+        .number()
+        .nullish()
+        .describe("Where the ball landed, meters across from the center line."),
+      landingYM: zod
+        .number()
+        .nullish()
+        .describe(
+          "Where the ball landed, meters from the net, positive toward the far baseline.",
+        ),
+      landingSeconds: zod.number().nullish(),
+      lineCall: zod
+        .union([
+          zod.literal("in"),
+          zod.literal("out"),
+          zod.literal("net"),
+          zod.literal(null),
+        ])
+        .nullish(),
+      lineCallConfidence: zod.number().nullish(),
+      closeCall: zod
+        .boolean()
+        .optional()
+        .describe(
+          'Too close to call with confidence; the app says \"Close call\" instead of in or out.',
+        ),
+      lineDistanceM: zod
+        .number()
+        .nullish()
+        .describe("Distance to the deciding line in meters, positive inside."),
+      serveNumber: zod.number().nullish(),
+      serveZone: zod.string().nullish(),
+      pointEnd: zod
+        .union([
+          zod.literal("winner"),
+          zod.literal("forced_error"),
+          zod.literal("unforced_error"),
+          zod.literal(null),
+        ])
+        .nullish(),
+      modelVersion: zod.string().nullish(),
     }),
   ),
   statistics: zod.union([
@@ -2334,6 +2379,51 @@ export const GetMatchScopedBallBoiReplayResponse = zod.object({
       playerStance: zod.string().nullish(),
       clipStartSeconds: zod.number().nullish(),
       clipEndSeconds: zod.number().nullish(),
+      hitterSide: zod
+        .union([zod.literal("near"), zod.literal("far"), zod.literal(null)])
+        .nullish()
+        .describe("Side of the net the hitter was on, as the camera sees it."),
+      landingXM: zod
+        .number()
+        .nullish()
+        .describe("Where the ball landed, meters across from the center line."),
+      landingYM: zod
+        .number()
+        .nullish()
+        .describe(
+          "Where the ball landed, meters from the net, positive toward the far baseline.",
+        ),
+      landingSeconds: zod.number().nullish(),
+      lineCall: zod
+        .union([
+          zod.literal("in"),
+          zod.literal("out"),
+          zod.literal("net"),
+          zod.literal(null),
+        ])
+        .nullish(),
+      lineCallConfidence: zod.number().nullish(),
+      closeCall: zod
+        .boolean()
+        .optional()
+        .describe(
+          'Too close to call with confidence; the app says \"Close call\" instead of in or out.',
+        ),
+      lineDistanceM: zod
+        .number()
+        .nullish()
+        .describe("Distance to the deciding line in meters, positive inside."),
+      serveNumber: zod.number().nullish(),
+      serveZone: zod.string().nullish(),
+      pointEnd: zod
+        .union([
+          zod.literal("winner"),
+          zod.literal("forced_error"),
+          zod.literal("unforced_error"),
+          zod.literal(null),
+        ])
+        .nullish(),
+      modelVersion: zod.string().nullish(),
     }),
   ),
   statistics: zod.union([
@@ -2506,6 +2596,51 @@ export const GetMatchShotsResponseItem = zod.object({
   playerStance: zod.string().nullish(),
   clipStartSeconds: zod.number().nullish(),
   clipEndSeconds: zod.number().nullish(),
+  hitterSide: zod
+    .union([zod.literal("near"), zod.literal("far"), zod.literal(null)])
+    .nullish()
+    .describe("Side of the net the hitter was on, as the camera sees it."),
+  landingXM: zod
+    .number()
+    .nullish()
+    .describe("Where the ball landed, meters across from the center line."),
+  landingYM: zod
+    .number()
+    .nullish()
+    .describe(
+      "Where the ball landed, meters from the net, positive toward the far baseline.",
+    ),
+  landingSeconds: zod.number().nullish(),
+  lineCall: zod
+    .union([
+      zod.literal("in"),
+      zod.literal("out"),
+      zod.literal("net"),
+      zod.literal(null),
+    ])
+    .nullish(),
+  lineCallConfidence: zod.number().nullish(),
+  closeCall: zod
+    .boolean()
+    .optional()
+    .describe(
+      'Too close to call with confidence; the app says \"Close call\" instead of in or out.',
+    ),
+  lineDistanceM: zod
+    .number()
+    .nullish()
+    .describe("Distance to the deciding line in meters, positive inside."),
+  serveNumber: zod.number().nullish(),
+  serveZone: zod.string().nullish(),
+  pointEnd: zod
+    .union([
+      zod.literal("winner"),
+      zod.literal("forced_error"),
+      zod.literal("unforced_error"),
+      zod.literal(null),
+    ])
+    .nullish(),
+  modelVersion: zod.string().nullish(),
 });
 export const GetMatchShotsResponse = zod.array(GetMatchShotsResponseItem);
 
@@ -2591,6 +2726,51 @@ export const GetBallBoiSessionShotsResponseItem = zod.object({
   playerStance: zod.string().nullish(),
   clipStartSeconds: zod.number().nullish(),
   clipEndSeconds: zod.number().nullish(),
+  hitterSide: zod
+    .union([zod.literal("near"), zod.literal("far"), zod.literal(null)])
+    .nullish()
+    .describe("Side of the net the hitter was on, as the camera sees it."),
+  landingXM: zod
+    .number()
+    .nullish()
+    .describe("Where the ball landed, meters across from the center line."),
+  landingYM: zod
+    .number()
+    .nullish()
+    .describe(
+      "Where the ball landed, meters from the net, positive toward the far baseline.",
+    ),
+  landingSeconds: zod.number().nullish(),
+  lineCall: zod
+    .union([
+      zod.literal("in"),
+      zod.literal("out"),
+      zod.literal("net"),
+      zod.literal(null),
+    ])
+    .nullish(),
+  lineCallConfidence: zod.number().nullish(),
+  closeCall: zod
+    .boolean()
+    .optional()
+    .describe(
+      'Too close to call with confidence; the app says \"Close call\" instead of in or out.',
+    ),
+  lineDistanceM: zod
+    .number()
+    .nullish()
+    .describe("Distance to the deciding line in meters, positive inside."),
+  serveNumber: zod.number().nullish(),
+  serveZone: zod.string().nullish(),
+  pointEnd: zod
+    .union([
+      zod.literal("winner"),
+      zod.literal("forced_error"),
+      zod.literal("unforced_error"),
+      zod.literal(null),
+    ])
+    .nullish(),
+  modelVersion: zod.string().nullish(),
 });
 export const GetBallBoiSessionShotsResponse = zod.array(
   GetBallBoiSessionShotsResponseItem,

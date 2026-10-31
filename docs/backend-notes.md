@@ -82,6 +82,7 @@ Carried over from the original web app's project notes. Describes how the API, s
 - Replay pages expose seven review modes: Full Video, Shot-by-Shot, Rally Replay, Heatmap, Timeline, Stats Dashboard, and Comparison, with set filters, shot scrubber markers, heatmap filters, timeline momentum, and player comparison details.
 - My Matches shows Ball Boi replay badges and quick shot stats only for matches that have recorded Ball Boi data.
 - The API stores session metadata in `ball_boi_sessions`, including optional Ball Boi court calibration points, detections in `match_shots`, and aggregated replay analytics in `match_statistics`.
+- Every shot from the shot analysis pipeline is stored as structured data in `match_shots`: `hitter_side` (near or far, as the camera sees it), landing spot in court meters (`landing_x_m`, `landing_y_m`; origin at the center of the net, +y toward the far baseline), `line_call` (in, out, net) with `close_call` and `line_distance_m`, `serve_number`, `serve_zone`, `point_end`, and `model_version`. Mapping lives in `structuredShotFields` (`lib/ballBoiUtils.ts`). The pipeline names a side, not a player, so `player_id` stays empty for its shots.
 - The ML server includes `/analyze-match-live` for low-latency detections and `/analyze-match-batch` for post-match video analysis callbacks. When calibration metadata is present, ML maps detected ball positions through a perspective transform so heatmap points align with real court zones.
 
 ## League Invitations

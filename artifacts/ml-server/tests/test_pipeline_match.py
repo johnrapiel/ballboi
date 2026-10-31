@@ -77,6 +77,13 @@ def test_result_keeps_the_api_callback_fields(match):
     for key in ("sequenceNumber", "rallyNumber", "timestampSeconds", "shotType", "shotTypeConfidence",
                 "outcome", "courtZone", "contactPoint", "ballTrajectory", "playerPose", "rawMlData"):
         assert key in shot
+    # Structured fields the API stores per shot (api-server lib/ballBoiUtils.ts structuredShotFields)
+    for key in ("hitter", "bounce", "result", "resultConfidence", "closeCall", "lineDistanceMeters",
+                "serveNumber", "serveZone", "pointEnd"):
+        assert key in shot
+    landed = next(s for s in match["result"]["shots"] if s["bounce"])
+    assert len(landed["bounce"]["court"]) == 2 and "time" in landed["bounce"]
+    assert match["result"]["model"]["version"]
     assert shot["courtZone"]["name"].startswith("service_box_")
     assert 0 <= shot["courtZone"]["x"] <= 1 and 0 <= shot["courtZone"]["y"] <= 1
     assert match["result"]["model"]["degraded"] is True              # stand-in models are flagged

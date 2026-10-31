@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, real, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, real, jsonb, index, boolean } from "drizzle-orm/pg-core";
 import { matchesTable } from "./matches";
 import { playersTable } from "./players";
 
@@ -47,6 +47,21 @@ export const matchShotsTable = pgTable("match_shots", {
   playerStance: text("player_stance"),
   clipStartSeconds: real("clip_start_seconds"),
   clipEndSeconds: real("clip_end_seconds"),
+  // Structured shot data from the shot analysis pipeline (spec: Data foundation
+  // for later coaching). Court coordinates are meters from the center of the
+  // net, +y toward the far baseline, as seen from the camera.
+  hitterSide: text("hitter_side"),                 // "near" | "far" (side of the net, camera's view)
+  landingXM: real("landing_x_m"),
+  landingYM: real("landing_y_m"),
+  landingSeconds: real("landing_seconds"),
+  lineCall: text("line_call"),                     // "in" | "out" | "net"; null when it didn't land
+  lineCallConfidence: real("line_call_confidence"),
+  closeCall: boolean("close_call").notNull().default(false),
+  lineDistanceM: real("line_distance_m"),          // signed: positive inside the line
+  serveNumber: integer("serve_number"),            // 1 or 2 on serves
+  serveZone: text("serve_zone"),                   // e.g. "deuce_t", "ad_wide"
+  pointEnd: text("point_end"),                     // "winner" | "forced_error" | "unforced_error" on the last shot
+  modelVersion: text("model_version"),
   rawMlData: jsonb("raw_ml_data").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [

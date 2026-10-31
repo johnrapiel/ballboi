@@ -3046,6 +3046,38 @@ components:
           type: ["number", "null"]
         clipEndSeconds:
           type: ["number", "null"]
+        hitterSide:
+          description: Side of the net the hitter was on, as the camera sees it.
+          type: ["string", "null"]
+          enum: [near, far, null]
+        landingXM:
+          description: Where the ball landed, meters across from the center line.
+          type: ["number", "null"]
+        landingYM:
+          description: Where the ball landed, meters from the net, positive toward the far baseline.
+          type: ["number", "null"]
+        landingSeconds:
+          type: ["number", "null"]
+        lineCall:
+          type: ["string", "null"]
+          enum: [in, out, net, null]
+        lineCallConfidence:
+          type: ["number", "null"]
+        closeCall:
+          description: Too close to call with confidence; the app says "Close call" instead of in or out.
+          type: boolean
+        lineDistanceM:
+          description: Distance to the deciding line in meters, positive inside.
+          type: ["number", "null"]
+        serveNumber:
+          type: ["integer", "null"]
+        serveZone:
+          type: ["string", "null"]
+        pointEnd:
+          type: ["string", "null"]
+          enum: [winner, forced_error, unforced_error, null]
+        modelVersion:
+          type: ["string", "null"]
       required:
         - id
         - sessionId
