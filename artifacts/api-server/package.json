@@ -9,7 +9,8 @@
     "start": "node ../../scripts/run-db-migrations.mjs && node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "walkthrough": "node ./build-walkthrough.mjs && LOG_LEVEL=warn node --enable-source-maps ./dist/walkthrough/walkthrough.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1152.0",

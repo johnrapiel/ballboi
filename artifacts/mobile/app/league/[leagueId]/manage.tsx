@@ -32,6 +32,7 @@ import {
 } from "@workspace/api-client-react";
 
 import { ListRow, SectionLabel } from "@/components/league/ListRow";
+import { TestingTools } from "@/components/league/TestingTools";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -353,6 +354,8 @@ export default function ManageLeagueScreen() {
           last
         />
       </Card>
+
+      <TestingTools leagueId={leagueId} onChanged={refreshAll} />
     </ScrollView>
   );
 }
