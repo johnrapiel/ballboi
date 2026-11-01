@@ -8,6 +8,8 @@ servers:
   - url: /api
     description: Base API path
 tags:
+  - name: dev
+    description: Development-only walkthrough tools. Not available in production.
   - name: health
     description: Health operations
   - name: leagues
@@ -688,6 +690,63 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueWeek"
+
+  /dev/leagues/{leagueId}/tools:
+    get:
+      operationId: getDevLeagueTools
+      tags: [dev]
+      summary: Development only. What the Testing tools section in Manage shows. 404 in production.
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      responses:
+        "200":
+          description: Tools state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DevLeagueTools"
+        "404":
+          description: Not available (production)
+
+  /dev/leagues/{leagueId}/time:
+    post:
+      operationId: moveDevLeagueTime
+      tags: [dev]
+      summary: Development only. Moves the league's dates earlier, as if time passed. League admins only.
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DevTimeBody"
+      responses:
+        "200":
+          description: Moved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DevTimeResult"
+        "409":
+          description: Not changed, with the reason
+
+  /dev/leagues/{leagueId}/pair-now:
+    post:
+      operationId: devPairLeagueNow
+      tags: [dev]
+      summary: Development only. Drafts the next round now, for review. League admins only.
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      responses:
+        "200":
+          description: Drafted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DevPairResult"
+        "409":
+          description: Not paired, with the reason
 
   /leagues/{leagueId}/matches/{matchId}/score:
     post:
@@ -2063,6 +2122,48 @@ components:
           type: array
           items: { $ref: "#/components/schemas/LeagueWeekResult" }
       required: [today, thisWeek, playoffs, drafts, recent]
+
+    DevLeagueTools:
+      type: object
+      properties:
+        available: { type: boolean }
+        today: { type: string }
+        startDate: { type: ["string", "null"] }
+        seasonStarted: { type: boolean }
+        targetRound:
+          oneOf:
+            - type: object
+              properties:
+                roundNumber: { type: integer }
+                deadline: { type: string }
+              required: [roundNumber, deadline]
+            - type: "null"
+      required: [available, today, startDate, seasonStarted, targetRound]
+
+    DevTimeBody:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [season_started, deadline_passed, in_grace, grace_over]
+      required: [action]
+
+    DevTimeResult:
+      type: object
+      properties:
+        ok: { type: boolean }
+        message: { type: string }
+        days: { type: integer }
+      required: [ok, message, days]
+
+    DevPairResult:
+      type: object
+      properties:
+        ok: { type: boolean }
+        message: { type: string }
+        roundId: { type: integer }
+        roundNumber: { type: integer }
+      required: [ok, message]
 
     BracketSeed:
       type: object

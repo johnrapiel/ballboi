@@ -242,19 +242,74 @@ async function notifyAdminsOfDraft(league: League, round: LeagueRound) {
  * for admin review, sends out any round that starts today or earlier, and
  * keeps round and league statuses in step with the calendar.
  */
+/** Published rounds' statuses follow the calendar. */
+export async function syncRoundStatuses(rounds: LeagueRound[], today: string): Promise<void> {
+  for (const r of rounds) {
+    if (!r.publishedAt) continue;
+    const status = today > r.endDate ? "completed" : today >= r.startDate ? "active" : "upcoming";
+    if (status !== r.status) await db.update(leagueRoundsTable).set({ status }).where(eq(leagueRoundsTable.id, r.id));
+  }
+}
+
+/**
+ * League status: upcoming until the start, active through the last grace week
+ * and any playoffs, then completed. Returns true once the season is over.
+ */
+export async function syncLeagueStatus(league: League, today: string): Promise<boolean> {
+  const start = league.startDate!;
+  const lastRound = roundWindow(start, league.seasonWeeks!);
+  if (today < start) {
+    if (league.status !== "upcoming") await db.update(leaguesTable).set({ status: "upcoming" }).where(eq(leaguesTable.id, league.id));
+    return false;
+  }
+  if (today <= lastRound.graceEnd) {
+    if (league.status !== "active") await db.update(leaguesTable).set({ status: "active" }).where(eq(leaguesTable.id, league.id));
+    return false;
+  }
+  const [playoffs] = await db
+    .select({ id: playoffBracketsTable.id })
+    .from(playoffBracketsTable)
+    .where(and(eq(playoffBracketsTable.leagueId, league.id), eq(playoffBracketsTable.status, "active")));
+  if (!playoffs && league.status !== "completed") {
+    await db.update(leaguesTable).set({ status: "completed" }).where(eq(leaguesTable.id, league.id));
+  }
+  return true;
+}
+
+/**
+ * Drafts the next round that hasn't gone out and whose deadline hasn't
+ * passed, for an admin to review. Returns an existing draft if there is one.
+ */
+export async function draftNextRound(
+  league: League,
+  today: string = leagueToday(),
+): Promise<{ round: LeagueRound } | { error: string }> {
+  if (!usesWeeklyRounds(league)) return { error: "This league's rounds can't be drafted here." };
+  const rounds = await db.select().from(leagueRoundsTable).where(eq(leagueRoundsTable.leagueId, league.id));
+  for (let n = 1; n <= league.seasonWeeks!; n++) {
+    const existing = rounds.find((r) => r.roundNumber === n);
+    if (existing?.publishedAt) continue;
+    if (roundWindow(league.startDate!, n).deadline < today) continue;
+    const result = await ensureDraft(league, n);
+    if (!result) return { error: "A league needs at least 2 players to pair." };
+    return { round: result.round };
+  }
+  return { error: "Every round this season has gone out." };
+}
+
+/**
+ * The weekly loop for one league, run each morning: drafts tomorrow's round
+ * for admin review, sends out any round that starts today or earlier, and
+ * keeps round and league statuses in step with the calendar.
+ */
 export async function runLeagueDay(league: League, today: string = leagueToday()): Promise<void> {
   if (!usesWeeklyRounds(league)) return;
   const weeks = league.seasonWeeks!;
   const start = league.startDate!;
   const lastRound = roundWindow(start, weeks);
 
-  // Round statuses follow the calendar.
   const rounds = await db.select().from(leagueRoundsTable).where(eq(leagueRoundsTable.leagueId, league.id));
-  for (const r of rounds) {
-    if (!r.publishedAt) continue;
-    const status = today > r.endDate ? "completed" : today >= r.startDate ? "active" : "upcoming";
-    if (status !== r.status) await db.update(leagueRoundsTable).set({ status }).where(eq(leagueRoundsTable.id, r.id));
-  }
+  await syncRoundStatuses(rounds, today);
 
   // Playoffs start the day after the regular season's last deadline. Grace-week
   // scores don't count for standings, so the seeds are final by then.
@@ -262,22 +317,7 @@ export async function runLeagueDay(league: League, today: string = leagueToday()
     await startPlayoffs(league);
   }
 
-  // League status: upcoming until the start, active through the last grace week
-  // and any playoffs.
-  if (today < start) {
-    if (league.status !== "upcoming") await db.update(leaguesTable).set({ status: "upcoming" }).where(eq(leaguesTable.id, league.id));
-  } else if (today <= lastRound.graceEnd) {
-    if (league.status !== "active") await db.update(leaguesTable).set({ status: "active" }).where(eq(leaguesTable.id, league.id));
-  } else {
-    const [playoffs] = await db
-      .select({ id: playoffBracketsTable.id })
-      .from(playoffBracketsTable)
-      .where(and(eq(playoffBracketsTable.leagueId, league.id), eq(playoffBracketsTable.status, "active")));
-    if (!playoffs && league.status !== "completed") {
-      await db.update(leaguesTable).set({ status: "completed" }).where(eq(leaguesTable.id, league.id));
-    }
-    return;
-  }
+  if (await syncLeagueStatus(league, today)) return;
 
   for (let n = 1; n <= weeks; n++) {
     const w = roundWindow(start, n);
