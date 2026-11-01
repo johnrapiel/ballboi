@@ -61,24 +61,30 @@ Items marked **John** below are real-world tasks (accounts, filming, legal). The
 
 ## Reviews: before, during and after each wave
 
-The goal: users can actually do what each feature sets out to do, with no dead ends, and nothing reaches `main` that John hasn't seen.
+The goal: users can actually do what each feature sets out to do, with no dead ends, and nothing reaches `main` that John hasn't seen. Every review is **holistic**: behavior and design together, never one without the other.
 
-**1. Before the wave is built: flow review with John.**
-- The coordinator walks John through each feature's flows one question at a time, with a recommendation first: entry points, every step, empty and error states, edge cases, and how the user leaves the flow.
-- Each step is checked against the spec and the screen designs. Gaps get decided, not guessed.
-- The output goes into the session prompts: numbered **acceptance criteria** per feature, the canvas screens each flow uses, and decisions John made. Sessions don't start until John has approved their prompt.
+**Two tools, in every review:**
+- **Grilling** (`/grilling`): an interview, one round at a time, every question with a recommended answer, until nothing is left assumed. This is how flows get reviewed with John.
+- **Impeccable** (`/impeccable`): design and accessibility review of real screens. `critique` scores the UX, `audit` checks accessibility and technical quality, `harden` covers errors and edge cases. This is how screens get reviewed, by the coordinator before a PR merges and by sessions before they comment "ready".
+
+**1. Before the wave is built: feature review with John.**
+- The coordinator grills John through each feature: entry points, every step, empty, loading and error states, edge cases, how the user leaves, and which canvas screen covers each step. Gaps get decided, not guessed.
+- Each canvas screen the feature uses gets an Impeccable `critique` against the design system, and findings go into the review so John decides them with the flow.
+- The output goes into the session prompts: numbered **acceptance criteria** per feature, the canvas screens for each flow, the critique findings to address, and John's decisions. Sessions don't start until John has approved their prompt.
 
 **2. Before each PR merges: design and flow review.**
-- The PR description quotes the acceptance criteria it covers. Each one gets the phone test step that proves it. Anything the PR couldn't meet is flagged with a reason.
-- It shows the flow screen by screen, start to finish, including empty, error and loading states, at the largest text size and in Dark Mode. Each screen sits next to its canvas screen, with any differences called out.
+- The session runs Impeccable `critique`, `audit` and `harden` on every screen it built, fixes what they find, and puts the results in the PR.
+- The PR quotes the acceptance criteria it covers, each with the phone test step that proves it. Anything it couldn't meet is flagged with a reason.
+- It shows the flow screen by screen, start to finish, including empty, error and loading states, at the largest text size and in Dark Mode, next to the canvas screens, with differences called out.
 - It confirms there are no dead ends: every screen has a way forward and a way back, and every error has a recovery path.
-- The coordinator checks all of this first and sends back anything incomplete. Then it shows John the review, and **John approves the design and flow** along with the go-ahead to merge.
+- The coordinator checks all of this first, runs its own `critique` on the result, and sends back anything incomplete. Then it shows John the review, and **John approves the design and flow** along with the go-ahead to merge.
 
 **3. After the wave: end-to-end walkthrough on the phone.**
-- When every PR is merged, the coordinator writes `claude/walkthroughs/wave-N.md` in the Project. It's organized by what a player does, with one "Do / Expect" table per flow, an accessibility pass on every new screen, and a findings log.
-- John runs it on a fresh development build. Each finding is bucketed:
+- When every PR is merged, the coordinator writes `claude/walkthroughs/wave-N.md` in the Project: organized by what a player does, one "Do / Expect" table per flow, an accessibility pass on every new screen, a findings log.
+- John runs it on a fresh development build. The coordinator runs an Impeccable `audit` across the wave's screens alongside, so accessibility and polish findings land in the same log.
+- Each finding is bucketed:
   - **Bug:** fix before the wave closes. The owning session gets one small PR.
-  - **Spec gap:** a decision for John that feeds the next wave's flow review.
+  - **Spec gap:** a decision for John that feeds the next wave's feature review.
   - **Polish:** a tracker row for later.
 - The wave closes after the Bugs are merged.
 
@@ -188,7 +194,7 @@ Native owner: **Session D**. Needs a new development build after D's first nativ
 Every Wave 1 PR is merged as of 2026-10-31. Before Wave 2 starts, Wave 1 gets the reviews it skipped. Run by this coordinator.
 
 1. **Tooling PR (Session C):** `pnpm seed:walkthrough` (test accounts B, C, D, a Private league with B in it, today's match A vs B) and dev-only time controls (season started, round deadline passed, in grace period, grace period over, run Flex pairing now), off in production builds. One small PR.
-2. **Flow review with John:** every Wave 1 feature, one question at a time, for dead ends, missing states and cases nobody considered. Findings become new steps in `claude/walkthroughs/wave-1.md`.
+2. **Feature review with John:** grill through every Wave 1 feature for dead ends, missing states and cases nobody considered, and critique each shipped screen with Impeccable. Findings become new steps in `claude/walkthroughs/wave-1.md`, and screen findings go straight to the owning session as Bugs or to the tracker as Polish.
 3. **Walkthrough:** John runs `claude/walkthroughs/wave-1.md` on a fresh development build. Section 6 (analysis stats) waits for the labeled test set.
 4. **Bugs** are fixed by their owning session, one small PR each, through the normal merge flow. **Spec gaps** feed Wave 2's flow review. **Polish** goes to the tracker.
 
