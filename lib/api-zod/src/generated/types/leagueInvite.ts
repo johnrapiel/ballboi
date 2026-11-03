@@ -5,6 +5,7 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+import type { LeagueInviteJoinAction } from "./leagueInviteJoinAction";
 
 export interface LeagueInvite {
   id: number;
@@ -16,6 +17,23 @@ export interface LeagueInvite {
   leagueSport?: string | null;
   /** @nullable */
   playerCount?: number | null;
+  /** @nullable */
+  startDate?: string | null;
+  /** @nullable */
+  location?: string | null;
+  /** What Join does now. request = Private league that started or is full (decision 30); waitlist = Open league that started or is full */
+  joinAction?: LeagueInviteJoinAction;
+  /**
+   * What the player is told when Join doesn't add them right away
+   * @nullable
+   */
+  joinNote?: string | null;
+  alreadyMember?: boolean;
+  /**
+   * The signed-in player's pending request kind for this league (request or waitlist), if any
+   * @nullable
+   */
+  pendingRequest?: string | null;
   /** Joining now puts the player on the waitlist (season started or league full) */
   waitlistOnly?: boolean;
   /** @nullable */

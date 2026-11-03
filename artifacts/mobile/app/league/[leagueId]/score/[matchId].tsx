@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
-import { AccessibilityInfo, Pressable, ScrollView, TextInput, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { AccessibilityInfo, Alert, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -9,6 +9,7 @@ import {
   getGetLeagueScheduleQueryKey,
   getGetLeagueStandingsQueryKey,
   getGetLeaguesQueryKey,
+  useCorrectLeagueScore,
   useEnterLeagueScore,
   getGetLeagueBracketQueryKey,
   useGetLeagueBracket,
@@ -19,13 +20,17 @@ import {
 import { Button, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { opponentName, shortDate } from "@/lib/leagueSchedule";
+import { correctionLine, opponentName, shortDate } from "@/lib/leagueSchedule";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
-import { emptySet, isTiebreakSet, readScore, type SetEntry } from "@/lib/scoreEntry";
+import { emptySet, isTiebreakSet, readScore, setsFromScore, type SetEntry } from "@/lib/scoreEntry";
 
 // Enter score (spec: Leagues > Scores and standings; canvas: Log result).
-// Either player enters it, from their own side. The first score entered
-// stands, so there's no edit afterwards: the sheet says so before you save.
+// Either player enters it, from their own side. The player who entered it can
+// undo it for 10 minutes (C4); after that the first score stands.
+//
+// With ?correct=1 it's the admin's correction from Manage (C5): the boxes
+// start with the score as it stands, from player 1's side, and saving asks
+// to confirm. The match then shows "Corrected by {admin} on {date}".
 
 function ScoreBox({
   value,
@@ -71,9 +76,10 @@ export default function EnterScoreScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const { leagueId: rawLeague, matchId: rawMatch } = useLocalSearchParams<{ leagueId: string; matchId: string }>();
+  const { leagueId: rawLeague, matchId: rawMatch, correct } = useLocalSearchParams<{ leagueId: string; matchId: string; correct?: string }>();
   const leagueId = Number(rawLeague);
   const matchId = Number(rawMatch);
+  const correcting = correct === "1";
 
   const scheduleQ = useGetLeagueSchedule(leagueId);
   const membershipQ = useGetLeagueMembership(leagueId);
@@ -88,24 +94,59 @@ export default function EnterScoreScreen() {
       : playoffSlot.player1?.playerName
     : undefined;
   const match = weekly ?? (playoffSlot ? { matchId } : undefined);
-  const opponent =
-    weekly && myPlayerId != null ? opponentName(weekly, myPlayerId) : playoffOpponent ?? "your opponent";
+  const opponent = correcting
+    ? weekly?.player2Name ?? "Player 2"
+    : weekly && myPlayerId != null
+      ? opponentName(weekly, myPlayerId)
+      : playoffOpponent ?? "your opponent";
   const opponentShort = opponent.split(" ")[0];
+  // Correcting: the first row is player 1, the second player 2.
+  const firstName = correcting ? weekly?.player1Name ?? "Player 1" : "You";
+  const firstShort = firstName.split(" ")[0];
 
   const [sets, setSets] = useState<SetEntry[]>([emptySet(), emptySet(), emptySet()]);
+  const [prefilled, setPrefilled] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const draft = readScore(sets);
   const save = useEnterLeagueScore();
+  const fix = useCorrectLeagueScore();
+  const busy = save.isPending || fix.isPending;
+
+  // Correcting starts from the score as it stands.
+  useEffect(() => {
+    if (correcting && !prefilled && weekly?.score) {
+      setSets(setsFromScore(weekly.score, 3));
+      setPrefilled(true);
+    }
+  }, [correcting, prefilled, weekly?.score]);
 
   const update = (i: number, patch: Partial<SetEntry>) => {
     setServerError(null);
     setSets((prev) => prev.map((s, n) => (n === i ? { ...s, ...patch } : s)));
   };
 
-  async function onSave() {
+  function onSave() {
+    if (!draft.ok || busy) return;
+    if (!correcting) {
+      void submit();
+      return;
+    }
+    const winner = draft.iWon ? firstName : opponent;
+    Alert.alert(
+      "Correct this score?",
+      `${winner} won ${draft.score}. Standings update, and both players see that you corrected it.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Correct score", onPress: () => void submit() },
+      ],
+    );
+  }
+
+  async function submit() {
     if (!draft.ok) return;
     try {
-      await save.mutateAsync({ leagueId, matchId, data: { score: draft.score } });
+      if (correcting) await fix.mutateAsync({ leagueId, matchId, data: { score: draft.score } });
+      else await save.mutateAsync({ leagueId, matchId, data: { score: draft.score } });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getGetLeagueScheduleQueryKey(leagueId) }),
         queryClient.invalidateQueries({ queryKey: getGetLeagueBracketQueryKey(leagueId) }),
@@ -113,7 +154,7 @@ export default function EnterScoreScreen() {
         queryClient.invalidateQueries({ queryKey: getGetLeaguesQueryKey().slice(0, 1) }),
       ]);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      AccessibilityInfo.announceForAccessibility("Score saved");
+      AccessibilityInfo.announceForAccessibility(correcting ? "Score corrected" : "Score saved");
       router.back();
     } catch (e) {
       const data = (e as { data?: { error?: string } | null }).data;
@@ -124,7 +165,7 @@ export default function EnterScoreScreen() {
   }
 
   const summary = draft.ok
-    ? `${draft.iWon ? "You won" : `${opponentShort} won`} ${draft.score}`
+    ? `${draft.iWon ? (correcting ? `${firstShort} won` : "You won") : `${opponentShort} won`} ${draft.score}`
     : draft.message ?? "Enter the games for each set you played.";
 
   return (
@@ -143,7 +184,7 @@ export default function EnterScoreScreen() {
           <Text variant="body">Cancel</Text>
         </Pressable>
         <Text variant="bodyStrong" accessibilityRole="header">
-          Enter score
+          {correcting ? "Correct score" : "Enter score"}
         </Text>
         <View style={{ minWidth: MIN_TAP }} />
       </View>
@@ -151,15 +192,20 @@ export default function EnterScoreScreen() {
       <View style={{ gap: spacing.space1 }}>
         {round ? (
           <Text variant="label" tone="inkMuted">
-            {`Round ${round.roundNumber} · Play by ${shortDate(round.deadline)}`}
+            {correcting ? `Round ${round.roundNumber}` : `Round ${round.roundNumber} · Play by ${shortDate(round.deadline)}`}
           </Text>
         ) : playoffSlot ? (
           <Text variant="label" tone="inkMuted">
             {`Playoffs · ${ROUND_SINGULAR[playoffSlot.round]}`}
           </Text>
         ) : null}
-        <Text variant="title">{`You vs. ${opponent}`}</Text>
-        {round?.phase === "grace" ? (
+        <Text variant="title">{correcting ? `${firstName} vs. ${opponent}` : `You vs. ${opponent}`}</Text>
+        {correcting && weekly ? (
+          <Text variant="small" tone="inkMuted">
+            {[`Now: ${weekly.score ? weekly.score : "no score"}`, correctionLine(weekly)].filter(Boolean).join(". ")}
+          </Text>
+        ) : null}
+        {!correcting && round?.phase === "grace" ? (
           <Text variant="small" tone="inkMuted">
             This is the grace week, so this score counts for Ball Boi stats, not standings.
           </Text>
@@ -168,7 +214,9 @@ export default function EnterScoreScreen() {
 
       <View style={{ gap: spacing.space2 }}>
         <Text variant="small" tone="inkMuted">
-          Your games first. Leave set 3 empty if you won in two.
+          {correcting
+            ? `${firstShort}'s games on top. Leave set 3 empty if the match was two sets.`
+            : "Your games first. Leave set 3 empty if you won in two."}
         </Text>
         <View style={{ flexDirection: "row", gap: spacing.space2, alignItems: "flex-end" }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
           <View style={{ flex: 1 }} />
@@ -181,14 +229,14 @@ export default function EnterScoreScreen() {
         {(["me", "them"] as const).map((side) => (
           <View key={side} style={{ flexDirection: "row", gap: spacing.space2, alignItems: "center" }}>
             <Text variant="bodyStrong" style={{ flex: 1 }} numberOfLines={2}>
-              {side === "me" ? "You" : opponent}
+              {side === "me" ? firstName : opponent}
             </Text>
             {sets.map((s, i) => (
               <ScoreBox
                 key={i}
                 value={s[side]}
                 onChange={(v) => update(i, { [side]: v })}
-                label={`Set ${i + 1}, ${side === "me" ? "your games" : `${opponent}'s games`}`}
+                label={`Set ${i + 1}, ${side === "me" ? (correcting ? `${firstName}'s games` : "your games") : `${opponent}'s games`}`}
               />
             ))}
           </View>
@@ -211,7 +259,12 @@ export default function EnterScoreScreen() {
             <Text variant="label" style={{ flex: 1 }}>
               {`Set ${i + 1} tiebreak (optional)`}
             </Text>
-            <ScoreBox size={48} value={s.tbMe} onChange={(v) => update(i, { tbMe: v })} label={`Set ${i + 1} tiebreak, your points`} />
+            <ScoreBox
+              size={48}
+              value={s.tbMe}
+              onChange={(v) => update(i, { tbMe: v })}
+              label={`Set ${i + 1} tiebreak, ${correcting ? `${firstName}'s` : "your"} points`}
+            />
             <Text tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
               –
             </Text>
@@ -234,14 +287,16 @@ export default function EnterScoreScreen() {
 
       <View style={{ gap: spacing.space2 }}>
         <Button
-          label="Save score"
-          onPress={() => void onSave()}
+          label={correcting ? "Correct score" : "Save score"}
+          onPress={onSave}
           disabled={!draft.ok || !match}
-          loading={save.isPending}
-          accessibilityHint="The first score entered stands and can't be changed"
+          loading={busy}
+          accessibilityHint={correcting ? "Asks you to confirm, then updates standings" : "You can undo it for 10 minutes"}
         />
         <Text variant="small" tone="inkMuted" style={{ textAlign: "center" }}>
-          The first score entered stands, so check it before you save.
+          {correcting
+            ? "Players can't change a score. Only league admins can correct one."
+            : "You can undo for 10 minutes after you save. After that, the score stands."}
         </Text>
       </View>
     </ScrollView>

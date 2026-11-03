@@ -39,6 +39,7 @@ import { TestingTools } from "@/components/league/TestingTools";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { inviteMessage } from "@/lib/leagueInvite";
 import { shortDate } from "@/lib/leagueSchedule";
 
 // Manage (spec: Roles: "Admin tools appear in context only: a Manage entry
@@ -264,7 +265,7 @@ export default function ManageLeagueScreen() {
       const code = invite?.code ?? (await createInvite.mutateAsync({ leagueId, data: {} })).code;
       if (!invite) await refreshAll();
       await Share.share({
-        message: `Join ${league?.name ?? "my league"} on Ball Boi. Open the app, go to Leagues, and enter code ${code}.`,
+        message: inviteMessage(league?.name ?? "my league", code),
       });
     } catch (e) {
       Alert.alert("Couldn't share the invite", errorText(e, "Try again in a moment."));
@@ -329,6 +330,21 @@ export default function ManageLeagueScreen() {
           </View>
         )}
       </Card>
+
+      {schedule?.weeklyRounds ? (
+        <>
+          <SectionLabel>Scores</SectionLabel>
+          <Card style={{ padding: 0, overflow: "hidden" }}>
+            <ListRow
+              title="Correct a score"
+              subtitle="Fix a played match. Players can't change scores."
+              symbol="pencil"
+              onPress={() => router.push(`/league/${leagueId}/scores`)}
+              last
+            />
+          </Card>
+        </>
+      ) : null}
 
       {requests.length > 0 ? (
         <>

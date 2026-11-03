@@ -8,11 +8,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   getGetLeagueStandingsQueryOptions,
+  useDismissMyJoinRequest,
   useDismissMyLeagueNotice,
   useGetLeagues,
+  useGetMyJoinRequests,
   useGetMyLeagueNotices,
   useGetMyPlayers,
   type League,
+  type MyJoinRequest,
   type Standing,
 } from "@workspace/api-client-react";
 
@@ -25,8 +28,9 @@ import { useColors } from "@/hooks/useColors";
 import { formatLabel, ordinal, playersLabel, playTypeLabel, statusLabel } from "@/lib/leagues";
 
 // Leagues tab (spec: Leagues; canvas: Leagues). Notes about deleted leagues,
-// your current leagues as cards with your rank, finished and ended leagues
-// under Past (decision 31), and a row that opens the invite
+// your current leagues as cards with your rank, leagues you've asked to join
+// (decision 30), finished and ended leagues under Past (decision 31), and a
+// row that opens the invite
 // code sheet (app/league/join.tsx). The league card is the hero surface; the
 // invite row is an unfilled, dashed action so the two never read as siblings.
 // Start a league opens from the + button and from the empty state.
@@ -198,6 +202,66 @@ function NoticeRow({ message, onClear, clearing }: { message: string; onClear: (
   );
 }
 
+// A league you've asked to join (decision 30). Pending shows "Requested"
+// (or "Waitlist" for an Open league's next season) until the organizer
+// decides. Declined becomes a one-line note the player clears.
+function RequestRow({
+  request,
+  onDismiss,
+  dismissing,
+  last,
+}: {
+  request: MyJoinRequest;
+  onDismiss: () => void;
+  dismissing: boolean;
+  last: boolean;
+}) {
+  const c = useColors();
+  const declined = request.status === "declined";
+  const label = request.kind === "waitlist" ? "Waitlist" : "Requested";
+  const sub = declined
+    ? `The organizer didn't add you this season.`
+    : request.kind === "waitlist"
+      ? "You'll get a spot when next season opens."
+      : "Waiting for the organizer. You'll hear back here.";
+  return (
+    <View
+      style={{
+        minHeight: 56,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.space3,
+        paddingHorizontal: spacing.space4,
+        paddingVertical: spacing.space3,
+        borderBottomWidth: last ? 0 : 1,
+        borderBottomColor: c.hairline,
+      }}
+    >
+      <View accessible accessibilityLabel={`${request.leagueName}. ${declined ? "Not added" : label}. ${sub}`} style={{ flex: 1, gap: 2 }}>
+        <Text variant="bodyStrong">{request.leagueName}</Text>
+        <Text variant="small" tone="inkMuted">
+          {sub}
+        </Text>
+      </View>
+      {declined ? (
+        <Pressable
+          onPress={onDismiss}
+          disabled={dismissing}
+          accessibilityRole="button"
+          accessibilityLabel={`Clear ${request.leagueName}`}
+          accessibilityState={{ disabled: dismissing, busy: dismissing }}
+          hitSlop={8}
+          style={({ pressed }) => ({ minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center", opacity: pressed || dismissing ? 0.6 : 1 })}
+        >
+          <Text variant="button">Clear</Text>
+        </Pressable>
+      ) : (
+        <Chip label={label} />
+      )}
+    </View>
+  );
+}
+
 function InviteCodeRow({ onPress }: { onPress: () => void }) {
   const c = useColors();
   return (
@@ -239,7 +303,13 @@ export default function LeaguesScreen() {
   const noticesQ = useGetMyLeagueNotices();
   const clearNotice = useDismissMyLeagueNotice();
   const notices = noticesQ.data ?? [];
+  const requestsQ = useGetMyJoinRequests();
+  const dismiss = useDismissMyJoinRequest();
   const leagues = leaguesQ.data ?? [];
+  const memberOf = new Set(leagues.map((l) => l.id));
+  const requests = (requestsQ.data ?? []).filter((r) => !memberOf.has(r.leagueId));
+  const clearRequest = (requestId: number) =>
+    dismiss.mutate({ requestId }, { onSettled: () => void requestsQ.refetch() });
 
   const standingsQs = useQueries({
     queries: leagues.map((l) => getGetLeagueStandingsQueryOptions(l.id)),
@@ -260,6 +330,7 @@ export default function LeaguesScreen() {
     void leaguesQ.refetch();
     void playersQ.refetch();
     void noticesQ.refetch();
+    void requestsQ.refetch();
     standingsQs.forEach((q) => void q.refetch());
   };
 
@@ -299,7 +370,7 @@ export default function LeaguesScreen() {
             />
           ))}
 
-          {!leaguesQ.isError && leagues.length === 0 ? (
+          {!leaguesQ.isError && leagues.length === 0 && requests.length === 0 ? (
             <View style={{ minHeight: 240, gap: spacing.space4 }}>
               <EmptyState symbol="trophy" title="No leagues yet" message="Leagues you start or join show up here." />
               <Button label="Start a league" onPress={startLeague} />
@@ -314,6 +385,25 @@ export default function LeaguesScreen() {
               {current.map(({ league, i }) => (
                 <LeagueCard key={league.id} league={league} standing={standingFor(league, i)} onPress={() => open(league)} />
               ))}
+            </View>
+          ) : null}
+
+          {requests.length > 0 ? (
+            <View style={{ gap: spacing.space2 }}>
+              <Text variant="label" tone="inkMuted" accessibilityRole="header">
+                Requested
+              </Text>
+              <Card style={{ padding: 0 }}>
+                {requests.map((r, n) => (
+                  <RequestRow
+                    key={r.id}
+                    request={r}
+                    onDismiss={() => clearRequest(r.id)}
+                    dismissing={dismiss.isPending && dismiss.variables?.requestId === r.id}
+                    last={n === requests.length - 1}
+                  />
+                ))}
+              </Card>
             </View>
           ) : null}
 

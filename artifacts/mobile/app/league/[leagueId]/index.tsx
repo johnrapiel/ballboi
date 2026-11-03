@@ -22,6 +22,7 @@ import {
 } from "@workspace/api-client-react";
 
 import { RoundCard, UpcomingWeekRow } from "@/components/league/RoundCard";
+import { UndoScore } from "@/components/league/UndoScore";
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
 import { IconButton } from "@/components/Choice";
 import { StandingsTable } from "@/components/league/StandingsTable";
@@ -31,7 +32,7 @@ import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { RatingBadge } from "@/components/RatingBadge";
 import { formatRating } from "@/lib/onboarding";
-import { canEnterScore, dateRange, myWeek, opponentName, shortDate } from "@/lib/leagueSchedule";
+import { canEnterScore, correctionLine, dateRange, myWeek, opponentName, resultLine, shortDate } from "@/lib/leagueSchedule";
 import { formatLabel, playersLabel, playTypeLabel } from "@/lib/leagues";
 
 // League (spec: Leagues; canvas: League · Standings, Rounds, Playoffs).
@@ -72,8 +73,11 @@ function YourWeek({
   // C7: a direct chat with your opponent. League mates skip Message Requests.
   const message = () =>
     router.push({ pathname: "/conversation/[id]", params: { id: "new", playerId: String(opponentId), name: opponent } });
-  const when =
-    round.phase === "upcoming"
+  const played = match.status === "completed" && !!match.score;
+  const corrected = correctionLine(match);
+  const when = played
+    ? [resultLine(match), corrected].filter(Boolean).join(". ")
+    : round.phase === "upcoming"
       ? `Starts ${shortDate(round.startDate)}. Play by ${shortDate(round.deadline)}.`
       : round.phase === "grace"
         ? `Grace week until ${shortDate(round.graceEnd)}. A score now counts for Ball Boi stats, not standings.`
@@ -120,6 +124,7 @@ function YourWeek({
           />
         ) : null}
       </View>
+      {!scoreable ? <UndoScore leagueId={leagueId} matchId={match.matchId} undoUntil={match.undoUntil} align="flex-start" /> : null}
     </Card>
   );
 }
@@ -261,6 +266,12 @@ export default function LeagueScreen() {
             <Text variant="small" tone="inkMuted">
               {[playersLabel(league.playerCount), season].filter(Boolean).join(" · ")}
             </Text>
+            {/* A late joiner starts at zero wins and enters the next round (C3). */}
+            {membershipQ.data?.joinedWeek && membershipQ.data.seasonWeeks && league.status !== "completed" ? (
+              <Text variant="small" tone="inkMuted">
+                {`You joined in week ${membershipQ.data.joinedWeek} of ${membershipQ.data.seasonWeeks}.`}
+              </Text>
+            ) : null}
           </View>
 
           {ended ? (
@@ -356,7 +367,7 @@ export default function LeagueScreen() {
               ) : (
                 <>
                   {rounds.map((r) => (
-                    <RoundCard key={r.roundId} round={r} myPlayerId={myPlayerId} onEnterScore={enterScore} frozen={ended} />
+                    <RoundCard key={r.roundId} leagueId={leagueId} round={r} myPlayerId={myPlayerId} onEnterScore={enterScore} frozen={ended} />
                   ))}
                   {schedule && schedule.upcoming.length > 0 ? (
                     <View style={{ gap: spacing.space2 }}>

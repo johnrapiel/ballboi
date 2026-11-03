@@ -67,9 +67,18 @@ export function scoreForPlayer(score: string, m: Pick<ScheduleMatch, "player1Id"
     .join(", ");
 }
 
+/**
+ * C6: an unplayed match whose grace week has passed. It shows "Not played"
+ * and has no effect on standings.
+ */
+export function isNotPlayed(round: Pick<ScheduleRound, "phase">, m: ScheduleMatch): boolean {
+  return round.phase === "closed" && !m.voided && m.status !== "completed";
+}
+
 /** "Alex Kim won 6-3, 6-4" from the winner's side, or a status in words. */
-export function resultLine(m: ScheduleMatch): string {
+export function resultLine(m: ScheduleMatch, round?: Pick<ScheduleRound, "phase">): string {
   if (m.voided) return "Cancelled";
+  if (round && isNotPlayed(round, m)) return "Not played";
   if (m.status !== "completed" || !m.score || m.winnerId == null) return "Not played yet";
   const winner = m.winnerId === m.player1Id ? m.player1Name : m.player2Name;
   return `${winner} won ${scoreForPlayer(m.score, m, m.winnerId)}`;
@@ -107,4 +116,30 @@ export function myWeek(schedule: LeagueSchedule | undefined, myPlayerId: number 
 /** Whether a match can be scored now: it's out, unplayed, not voided, and not past its grace week. */
 export function canEnterScore(round: ScheduleRound, m: ScheduleMatch): boolean {
   return (round.phase === "open" || round.phase === "grace") && m.status !== "completed" && !m.voided;
+}
+
+/** C5: "Corrected by Sam Lee on Nov 6", shown to both players and in Manage. */
+export function correctionLine(m: Pick<ScheduleMatch, "correctedBy" | "correctedAt">): string | null {
+  if (!m.correctedBy || !m.correctedAt) return null;
+  const on = new Date(m.correctedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `Corrected by ${m.correctedBy} on ${on}`;
+}
+
+/** C4: seconds left to undo a score you entered, or 0 once it stands. */
+export function undoSecondsLeft(undoUntil: string | null | undefined, now: number): number {
+  if (!undoUntil) return 0;
+  return Math.max(0, Math.ceil((Date.parse(undoUntil) - now) / 1000));
+}
+
+/** "9:41" */
+export function countdownLabel(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+/** "9 minutes 41 seconds", for VoiceOver. */
+export function countdownSpoken(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  const parts = [m ? `${m} ${m === 1 ? "minute" : "minutes"}` : null, s || !m ? `${s} ${s === 1 ? "second" : "seconds"}` : null];
+  return parts.filter(Boolean).join(" ");
 }

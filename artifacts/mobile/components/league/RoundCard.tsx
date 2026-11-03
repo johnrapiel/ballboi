@@ -7,12 +7,15 @@ import type { ScheduleMatch, ScheduleRound, ScheduleWeek } from "@workspace/api-
 import { Card, Chip, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { canEnterScore, dateRange, isMine, phaseLabel, resultLine, shortDate } from "@/lib/leagueSchedule";
+import { canEnterScore, correctionLine, dateRange, isMine, isNotPlayed, phaseLabel, resultLine, shortDate } from "@/lib/leagueSchedule";
+
+import { UndoScore } from "./UndoScore";
 
 // One week of a league season (spec: Leagues > Weekly loop). Every state is in
-// words: "This week", "Grace week", "Cancelled", "Not played yet".
+// words: "This week", "Grace week", "Cancelled", "Not played yet", "Not played".
 
 function MatchRow({
+  leagueId,
   m,
   round,
   myPlayerId,
@@ -20,6 +23,7 @@ function MatchRow({
   frozen,
   last,
 }: {
+  leagueId: number;
   m: ScheduleMatch;
   round: ScheduleRound;
   myPlayerId: number | null | undefined;
@@ -29,10 +33,13 @@ function MatchRow({
 }) {
   const c = useColors();
   const mine = isMine(m, myPlayerId);
-  const result = resultLine(m);
-  const note = m.inGrace ? "Grace week: counts for Ball Boi stats, not standings" : null;
+  const result = resultLine(m, round);
+  const notPlayed = isNotPlayed(round, m);
+  const notes = [m.inGrace ? "Grace week: counts for Ball Boi stats, not standings" : null, correctionLine(m)].filter(
+    (n): n is string => !!n,
+  );
   const scoreable = mine && !frozen && canEnterScore(round, m);
-  const summary = `${m.player1Name} versus ${m.player2Name}. ${result}.${note ? ` ${note}.` : ""}`;
+  const summary = `${m.player1Name} versus ${m.player2Name}. ${result}.${notes.map((n) => ` ${n}.`).join("")}`;
 
   return (
     <View
@@ -49,14 +56,24 @@ function MatchRow({
         <Text variant="bodyStrong">
           {m.player1Name} vs. {m.player2Name}
         </Text>
-        <Text variant="small" tone="inkMuted" style={m.voided ? { textDecorationLine: "line-through" } : undefined}>
-          {result}
-        </Text>
-        {note ? (
-          <Text variant="small" tone="inkMuted">
-            {note}
+        {notPlayed ? (
+          // C6: in words with an icon, never color alone. No standings effect.
+          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space1 }}>
+            <SymbolView name="minus.circle" size={14} tintColor={c.inkMuted} />
+            <Text variant="small" tone="inkMuted">
+              {result}
+            </Text>
+          </View>
+        ) : (
+          <Text variant="small" tone="inkMuted" style={m.voided ? { textDecorationLine: "line-through" } : undefined}>
+            {result}
           </Text>
-        ) : null}
+        )}
+        {notes.map((n) => (
+          <Text key={n} variant="small" tone="inkMuted">
+            {n}
+          </Text>
+        ))}
       </View>
       {scoreable ? (
         <Pressable
@@ -76,17 +93,21 @@ function MatchRow({
             Enter score
           </Text>
         </Pressable>
+      ) : mine ? (
+        <UndoScore leagueId={leagueId} matchId={m.matchId} undoUntil={m.undoUntil} />
       ) : null}
     </View>
   );
 }
 
 export function RoundCard({
+  leagueId,
   round,
   myPlayerId,
   onEnterScore,
   frozen = false,
 }: {
+  leagueId: number;
   round: ScheduleRound;
   myPlayerId: number | null | undefined;
   onEnterScore: (m: ScheduleMatch) => void;
@@ -119,6 +140,7 @@ export function RoundCard({
         {matches.map((m, i) => (
           <MatchRow
             key={m.matchId}
+            leagueId={leagueId}
             m={m}
             round={round}
             myPlayerId={myPlayerId}

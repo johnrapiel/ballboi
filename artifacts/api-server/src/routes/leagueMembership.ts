@@ -1,7 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { getAuth } from "@clerk/express";
 import { db, leagueJoinRequestsTable, leagueRoundByesTable, leaguesTable, matchesTable, playersTable } from "@workspace/db";
-import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { leagueToday } from "../lib/leagueCalendar.js";
 import { getLeagueRole, leagueAdminCount } from "../lib/leagueAccess.js";
 import { approveOutcome, joinOutcome, matchesToVoid } from "../lib/leagueJoining.js";
@@ -48,6 +48,54 @@ function requestJson(r: typeof leagueJoinRequestsTable.$inferSelect) {
 }
 
 const router = Router();
+
+/**
+ * The signed-in player's requests to join: pending ones show as "Requested"
+ * on the Leagues tab, declined ones as a one-line note until dismissed
+ * (decision 30). Approved ones are already in the league.
+ */
+router.get("/me/join-requests", requireAuth, async (req, res) => {
+  const { userId } = getAuth(req);
+  const rows = await db
+    .select({
+      id: leagueJoinRequestsTable.id,
+      leagueId: leagueJoinRequestsTable.leagueId,
+      leagueName: leaguesTable.name,
+      kind: leagueJoinRequestsTable.kind,
+      status: leagueJoinRequestsTable.status,
+      createdAt: leagueJoinRequestsTable.createdAt,
+      decidedAt: leagueJoinRequestsTable.decidedAt,
+    })
+    .from(leagueJoinRequestsTable)
+    .innerJoin(leaguesTable, eq(leaguesTable.id, leagueJoinRequestsTable.leagueId))
+    .where(and(
+      eq(leagueJoinRequestsTable.clerkUserId, userId!),
+      or(
+        eq(leagueJoinRequestsTable.status, "pending"),
+        and(eq(leagueJoinRequestsTable.status, "declined"), isNull(leagueJoinRequestsTable.playerDismissedAt)),
+      ),
+    ))
+    .orderBy(desc(leagueJoinRequestsTable.createdAt));
+  res.json(
+    rows.map((r) => ({
+      ...r,
+      createdAt: r.createdAt.toISOString(),
+      decidedAt: r.decidedAt ? r.decidedAt.toISOString() : null,
+    })),
+  );
+});
+
+/** Dismiss the "declined" note for one request. */
+router.post("/me/join-requests/:requestId/dismiss", requireAuth, async (req, res) => {
+  const { userId } = getAuth(req);
+  const requestId = parseInt(String(req.params.requestId));
+  if (isNaN(requestId)) { res.status(400).json({ error: "Invalid request ID" }); return; }
+  await db
+    .update(leagueJoinRequestsTable)
+    .set({ playerDismissedAt: new Date() })
+    .where(and(eq(leagueJoinRequestsTable.id, requestId), eq(leagueJoinRequestsTable.clerkUserId, userId!)));
+  res.status(204).send();
+});
 
 /** Ask to join an Open league from Discover. */
 router.post("/leagues/:leagueId/join-requests", requireAuth, async (req, res) => {
@@ -151,7 +199,7 @@ async function loadPendingRequest(leagueId: number, requestId: number) {
   return row;
 }
 
-/** Admins: approve a request before the season starts. */
+/** Admins: approve a request. Open leagues: before the season starts. Private: any time (decision 30). */
 router.post("/leagues/:leagueId/join-requests/:requestId/approve", requireLeagueAdmin, async (req, res) => {
   const { userId } = getAuth(req);
   const leagueId = res.locals.leagueId as number;

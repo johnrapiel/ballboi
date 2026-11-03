@@ -708,6 +708,13 @@ export const GetLeagueMembershipResponse = zod.object({
     .describe(
       "The caller is this league's only admin, so they can't leave until someone else is a co-admin",
     ),
+  joinedWeek: zod
+    .number()
+    .nullable()
+    .describe(
+      'For a player who joined after week 1, the week they joined (\"You joined in week 3 of 8\")',
+    ),
+  seasonWeeks: zod.number().nullable(),
 });
 
 /**
@@ -826,6 +833,19 @@ export const GetLeagueScheduleResponse = zod.object({
           locked: zod.boolean(),
           scheduledAt: zod.string().nullable(),
           location: zod.string().nullable(),
+          undoUntil: zod
+            .string()
+            .nullable()
+            .describe(
+              "When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.",
+            ),
+          correctedBy: zod
+            .string()
+            .nullable()
+            .describe(
+              'The admin who corrected the score, for \"Corrected by {admin} on {date}\"',
+            ),
+          correctedAt: zod.string().nullable(),
         }),
       ),
       byes: zod.array(
@@ -923,6 +943,29 @@ export const GetLeagueBracketResponse = zod.union([
   }),
   zod.null(),
 ]);
+
+/**
+ * @summary The signed-in player's pending requests, and declined ones not yet dismissed
+ */
+export const GetMyJoinRequestsResponseItem = zod.object({
+  id: zod.number(),
+  leagueId: zod.number(),
+  leagueName: zod.string(),
+  kind: zod.enum(["request", "waitlist"]),
+  status: zod.enum(["pending", "declined"]),
+  createdAt: zod.string(),
+  decidedAt: zod.string().nullable(),
+});
+export const GetMyJoinRequestsResponse = zod.array(
+  GetMyJoinRequestsResponseItem,
+);
+
+/**
+ * @summary Dismiss the note for a declined request
+ */
+export const DismissMyJoinRequestParams = zod.object({
+  requestId: zod.coerce.number(),
+});
 
 /**
  * @summary Home tab's league section - this week's matches and byes, playoff matches, drafts to review, recent results
@@ -1053,6 +1096,45 @@ export const EnterLeagueScoreBody = zod.object({
     .describe(
       'Sets from your own side, like \"6-3, 4-6, 10-7\". Your games first.',
     ),
+});
+
+/**
+ * @summary League admins correct a completed match's score, from player 1's side. Standings recompute.
+ */
+export const CorrectLeagueScoreParams = zod.object({
+  leagueId: zod.coerce.number(),
+  matchId: zod.coerce.number(),
+});
+
+export const CorrectLeagueScoreBody = zod.object({
+  score: zod
+    .string()
+    .describe(
+      'Sets from your own side, like \"6-3, 4-6, 10-7\". Your games first.',
+    ),
+});
+
+export const CorrectLeagueScoreResponse = zod.object({
+  matchId: zod.number(),
+  score: zod.string(),
+  winnerId: zod.number().nullable(),
+  correctedAt: zod.string(),
+  correctedBy: zod.string(),
+});
+
+/**
+ * @summary The player who entered a score undoes it within 10 minutes. Standings recompute.
+ */
+export const UndoLeagueScoreParams = zod.object({
+  leagueId: zod.coerce.number(),
+  matchId: zod.coerce.number(),
+});
+
+export const UndoLeagueScoreResponse = zod.object({
+  matchId: zod.number(),
+  status: zod.string(),
+  score: zod.null(),
+  winnerId: zod.null(),
 });
 
 /**
@@ -1245,6 +1327,19 @@ export const DraftNextLeagueRoundResponse = zod.object({
       locked: zod.boolean(),
       scheduledAt: zod.string().nullable(),
       location: zod.string().nullable(),
+      undoUntil: zod
+        .string()
+        .nullable()
+        .describe(
+          "When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.",
+        ),
+      correctedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          'The admin who corrected the score, for \"Corrected by {admin} on {date}\"',
+        ),
+      correctedAt: zod.string().nullable(),
     }),
   ),
   byes: zod.array(
@@ -1318,6 +1413,19 @@ export const RepairLeagueRoundResponse = zod.object({
       locked: zod.boolean(),
       scheduledAt: zod.string().nullable(),
       location: zod.string().nullable(),
+      undoUntil: zod
+        .string()
+        .nullable()
+        .describe(
+          "When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.",
+        ),
+      correctedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          'The admin who corrected the score, for \"Corrected by {admin} on {date}\"',
+        ),
+      correctedAt: zod.string().nullable(),
     }),
   ),
   byes: zod.array(
@@ -1391,6 +1499,19 @@ export const PublishLeagueRoundResponse = zod.object({
       locked: zod.boolean(),
       scheduledAt: zod.string().nullable(),
       location: zod.string().nullable(),
+      undoUntil: zod
+        .string()
+        .nullable()
+        .describe(
+          "When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.",
+        ),
+      correctedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          'The admin who corrected the score, for \"Corrected by {admin} on {date}\"',
+        ),
+      correctedAt: zod.string().nullable(),
     }),
   ),
   byes: zod.array(
@@ -1469,6 +1590,19 @@ export const SwapLeagueRoundPlayersResponse = zod.object({
       locked: zod.boolean(),
       scheduledAt: zod.string().nullable(),
       location: zod.string().nullable(),
+      undoUntil: zod
+        .string()
+        .nullable()
+        .describe(
+          "When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.",
+        ),
+      correctedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          'The admin who corrected the score, for \"Corrected by {admin} on {date}\"',
+        ),
+      correctedAt: zod.string().nullable(),
     }),
   ),
   byes: zod.array(
@@ -1546,6 +1680,19 @@ export const AddLeagueRoundByeResponse = zod.object({
       locked: zod.boolean(),
       scheduledAt: zod.string().nullable(),
       location: zod.string().nullable(),
+      undoUntil: zod
+        .string()
+        .nullable()
+        .describe(
+          "When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.",
+        ),
+      correctedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          'The admin who corrected the score, for \"Corrected by {admin} on {date}\"',
+        ),
+      correctedAt: zod.string().nullable(),
     }),
   ),
   byes: zod.array(
@@ -1620,6 +1767,19 @@ export const RemoveLeagueRoundByeResponse = zod.object({
       locked: zod.boolean(),
       scheduledAt: zod.string().nullable(),
       location: zod.string().nullable(),
+      undoUntil: zod
+        .string()
+        .nullable()
+        .describe(
+          "When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.",
+        ),
+      correctedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          'The admin who corrected the score, for \"Corrected by {admin} on {date}\"',
+        ),
+      correctedAt: zod.string().nullable(),
     }),
   ),
   byes: zod.array(
@@ -1698,6 +1858,19 @@ export const LockLeagueRoundMatchResponse = zod.object({
       locked: zod.boolean(),
       scheduledAt: zod.string().nullable(),
       location: zod.string().nullable(),
+      undoUntil: zod
+        .string()
+        .nullable()
+        .describe(
+          "When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.",
+        ),
+      correctedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          'The admin who corrected the score, for \"Corrected by {admin} on {date}\"',
+        ),
+      correctedAt: zod.string().nullable(),
     }),
   ),
   byes: zod.array(
@@ -2042,6 +2215,25 @@ export const GetLeagueInvitesResponseItem = zod.object({
   leagueName: zod.string().nullish(),
   leagueSport: zod.string().nullish(),
   playerCount: zod.number().nullish(),
+  startDate: zod.string().nullish(),
+  location: zod.string().nullish(),
+  joinAction: zod
+    .enum(["join", "request", "waitlist"])
+    .optional()
+    .describe(
+      "What Join does now. request = Private league that started or is full (decision 30); waitlist = Open league that started or is full",
+    ),
+  joinNote: zod
+    .string()
+    .nullish()
+    .describe("What the player is told when Join doesn't add them right away"),
+  alreadyMember: zod.boolean().optional(),
+  pendingRequest: zod
+    .string()
+    .nullish()
+    .describe(
+      "The signed-in player's pending request kind for this league (request or waitlist), if any",
+    ),
   waitlistOnly: zod
     .boolean()
     .optional()
@@ -2084,6 +2276,25 @@ export const GetInviteResponse = zod.object({
   leagueName: zod.string().nullish(),
   leagueSport: zod.string().nullish(),
   playerCount: zod.number().nullish(),
+  startDate: zod.string().nullish(),
+  location: zod.string().nullish(),
+  joinAction: zod
+    .enum(["join", "request", "waitlist"])
+    .optional()
+    .describe(
+      "What Join does now. request = Private league that started or is full (decision 30); waitlist = Open league that started or is full",
+    ),
+  joinNote: zod
+    .string()
+    .nullish()
+    .describe("What the player is told when Join doesn't add them right away"),
+  alreadyMember: zod.boolean().optional(),
+  pendingRequest: zod
+    .string()
+    .nullish()
+    .describe(
+      "The signed-in player's pending request kind for this league (request or waitlist), if any",
+    ),
   waitlistOnly: zod
     .boolean()
     .optional()

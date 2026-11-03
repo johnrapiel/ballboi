@@ -45,3 +45,23 @@ export function readScore(sets: SetEntry[]): ScoreDraft {
   if (won === lost) return { ok: false, message: "The sets are tied. Add the third set, or a match tiebreak like 10-7." };
   return { ok: true, score: parts.join(", "), iWon: won > lost, setsWon: won, setsLost: lost };
 }
+
+/**
+ * The boxes for a stored score like "6-3, 7-6(4)", first side on top, padded
+ * to `count` sets. A tiebreak keeps the loser's points; the winner's are the
+ * least that win it (7, or two more).
+ */
+export function setsFromScore(score: string, count: number): SetEntry[] {
+  const sets: SetEntry[] = score
+    .split(",")
+    .map((part) => part.trim().match(/^(\d+)-(\d+)(?:\((\d+)\))?$/))
+    .filter((m): m is RegExpMatchArray => !!m)
+    .map((m) => {
+      const [a, b, tb] = [m[1], m[2], m[3]];
+      if (tb == null) return { me: a, them: b, tbMe: "", tbThem: "" };
+      const winnerPts = String(Math.max(7, Number(tb) + 2));
+      return Number(a) > Number(b) ? { me: a, them: b, tbMe: winnerPts, tbThem: tb } : { me: a, them: b, tbMe: tb, tbThem: winnerPts };
+    });
+  while (sets.length < count) sets.push(emptySet());
+  return sets;
+}

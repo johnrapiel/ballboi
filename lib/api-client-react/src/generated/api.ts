@@ -31,6 +31,7 @@ import type {
   BallBoiUploadUrl,
   CompleteBallBoiSessionBody,
   ConfirmLeagueName,
+  CorrectedScore,
   CreateLeagueBody,
   CreateLeagueInviteBody,
   CreateMatchBody,
@@ -74,6 +75,7 @@ import type {
   MatchBallBoiShotCallbackBody,
   MatchShot,
   MatchStatistics,
+  MyJoinRequest,
   MyMatchesResponse,
   MyScheduleResponse,
   Player,
@@ -90,6 +92,7 @@ import type {
   StartBallBoiSessionBody,
   SwapPlayersBody,
   TopPlayer,
+  UndoneScore,
   UpdateLeagueBody,
   UpdateMatchBody,
   UpdatePlayerBody,
@@ -2843,6 +2846,165 @@ export function useGetLeagueBracket<
 }
 
 /**
+ * @summary The signed-in player's pending requests, and declined ones not yet dismissed
+ */
+export const getGetMyJoinRequestsUrl = () => {
+  return `/api/me/join-requests`;
+};
+
+export const getMyJoinRequests = async (
+  options?: RequestInit,
+): Promise<MyJoinRequest[]> => {
+  return customFetch<MyJoinRequest[]>(getGetMyJoinRequestsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyJoinRequestsQueryKey = () => {
+  return [`/api/me/join-requests`] as const;
+};
+
+export const getGetMyJoinRequestsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyJoinRequests>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyJoinRequests>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyJoinRequestsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMyJoinRequests>>
+  > = ({ signal }) => getMyJoinRequests({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyJoinRequests>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyJoinRequestsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyJoinRequests>>
+>;
+export type GetMyJoinRequestsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary The signed-in player's pending requests, and declined ones not yet dismissed
+ */
+
+export function useGetMyJoinRequests<
+  TData = Awaited<ReturnType<typeof getMyJoinRequests>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyJoinRequests>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyJoinRequestsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Dismiss the note for a declined request
+ */
+export const getDismissMyJoinRequestUrl = (requestId: number) => {
+  return `/api/me/join-requests/${requestId}/dismiss`;
+};
+
+export const dismissMyJoinRequest = async (
+  requestId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDismissMyJoinRequestUrl(requestId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getDismissMyJoinRequestMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dismissMyJoinRequest>>,
+    TError,
+    { requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof dismissMyJoinRequest>>,
+  TError,
+  { requestId: number },
+  TContext
+> => {
+  const mutationKey = ["dismissMyJoinRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof dismissMyJoinRequest>>,
+    { requestId: number }
+  > = (props) => {
+    const { requestId } = props ?? {};
+
+    return dismissMyJoinRequest(requestId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DismissMyJoinRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof dismissMyJoinRequest>>
+>;
+
+export type DismissMyJoinRequestMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Dismiss the note for a declined request
+ */
+export const useDismissMyJoinRequest = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dismissMyJoinRequest>>,
+    TError,
+    { requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof dismissMyJoinRequest>>,
+  TError,
+  { requestId: number },
+  TContext
+> => {
+  return useMutation(getDismissMyJoinRequestMutationOptions(options));
+};
+
+/**
  * @summary Home tab's league section - this week's matches and byes, playoff matches, drafts to review, recent results
  */
 export const getGetMyLeagueWeekUrl = () => {
@@ -3263,6 +3425,182 @@ export const useEnterLeagueScore = <
   TContext
 > => {
   return useMutation(getEnterLeagueScoreMutationOptions(options));
+};
+
+/**
+ * @summary League admins correct a completed match's score, from player 1's side. Standings recompute.
+ */
+export const getCorrectLeagueScoreUrl = (leagueId: number, matchId: number) => {
+  return `/api/leagues/${leagueId}/matches/${matchId}/score`;
+};
+
+export const correctLeagueScore = async (
+  leagueId: number,
+  matchId: number,
+  enterScoreBody: EnterScoreBody,
+  options?: RequestInit,
+): Promise<CorrectedScore> => {
+  return customFetch<CorrectedScore>(
+    getCorrectLeagueScoreUrl(leagueId, matchId),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(enterScoreBody),
+    },
+  );
+};
+
+export const getCorrectLeagueScoreMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof correctLeagueScore>>,
+    TError,
+    { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof correctLeagueScore>>,
+  TError,
+  { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
+  TContext
+> => {
+  const mutationKey = ["correctLeagueScore"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof correctLeagueScore>>,
+    { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> }
+  > = (props) => {
+    const { leagueId, matchId, data } = props ?? {};
+
+    return correctLeagueScore(leagueId, matchId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CorrectLeagueScoreMutationResult = NonNullable<
+  Awaited<ReturnType<typeof correctLeagueScore>>
+>;
+export type CorrectLeagueScoreMutationBody = BodyType<EnterScoreBody>;
+export type CorrectLeagueScoreMutationError = ErrorType<void>;
+
+/**
+ * @summary League admins correct a completed match's score, from player 1's side. Standings recompute.
+ */
+export const useCorrectLeagueScore = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof correctLeagueScore>>,
+    TError,
+    { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof correctLeagueScore>>,
+  TError,
+  { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
+  TContext
+> => {
+  return useMutation(getCorrectLeagueScoreMutationOptions(options));
+};
+
+/**
+ * @summary The player who entered a score undoes it within 10 minutes. Standings recompute.
+ */
+export const getUndoLeagueScoreUrl = (leagueId: number, matchId: number) => {
+  return `/api/leagues/${leagueId}/matches/${matchId}/score/undo`;
+};
+
+export const undoLeagueScore = async (
+  leagueId: number,
+  matchId: number,
+  options?: RequestInit,
+): Promise<UndoneScore> => {
+  return customFetch<UndoneScore>(getUndoLeagueScoreUrl(leagueId, matchId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getUndoLeagueScoreMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof undoLeagueScore>>,
+    TError,
+    { leagueId: number; matchId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof undoLeagueScore>>,
+  TError,
+  { leagueId: number; matchId: number },
+  TContext
+> => {
+  const mutationKey = ["undoLeagueScore"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof undoLeagueScore>>,
+    { leagueId: number; matchId: number }
+  > = (props) => {
+    const { leagueId, matchId } = props ?? {};
+
+    return undoLeagueScore(leagueId, matchId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UndoLeagueScoreMutationResult = NonNullable<
+  Awaited<ReturnType<typeof undoLeagueScore>>
+>;
+
+export type UndoLeagueScoreMutationError = ErrorType<void>;
+
+/**
+ * @summary The player who entered a score undoes it within 10 minutes. Standings recompute.
+ */
+export const useUndoLeagueScore = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof undoLeagueScore>>,
+    TError,
+    { leagueId: number; matchId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof undoLeagueScore>>,
+  TError,
+  { leagueId: number; matchId: number },
+  TContext
+> => {
+  return useMutation(getUndoLeagueScoreMutationOptions(options));
 };
 
 /**
