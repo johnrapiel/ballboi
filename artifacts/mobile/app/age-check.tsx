@@ -72,7 +72,7 @@ export default function AgeCheckScreen() {
         <Text variant="label" tone="inkMuted">
           One quick check
         </Text>
-        <Text variant="displayL" accessibilityRole="header">
+        <Text variant="brushL" accessibilityRole="header">
           What's your birthday?
         </Text>
         <Text tone="inkMuted">We only keep a yes or no, never your birthday.</Text>

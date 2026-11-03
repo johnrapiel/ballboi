@@ -136,6 +136,9 @@ importers:
 
   artifacts/mobile:
     dependencies:
+      '@expo-google-fonts/nanum-brush-script':
+        specifier: ^0.4.1
+        version: 0.4.1
       '@react-native-community/datetimepicker':
         specifier: 9.2.1
         version: 9.2.1(expo@58.0.10)(react-native@0.88.0(@babel/core@7.29.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
@@ -1165,6 +1168,9 @@ packages:
   '@expo-google-fonts/material-symbols@0.4.50':
     resolution: {integrity: sha512-XNSgSfd+1p6wqRAzzhrckGngHJQ1/z+oCMdI5FN+x/VnDeMMFGkXsuRNPYcZTYYff1GwVwx4u6Gqnb30aALysw==}
 
+  '@expo-google-fonts/nanum-brush-script@0.4.1':
+    resolution: {integrity: sha512-ydgsS4Elhf8MQbDNVk5unIFVQfxDy9lUtPkjSxIP0CRLJNLjI9eqP9lVQZc/hCvkEwD/88clOUIs64NoTinCgw==}
+
   '@expo/cli@58.1.8':
     resolution: {integrity: sha512-Fe/Cr6HZpVjQ3dpXwBNLUaoJMB3Mg6Xp68hduAv/E3AFM1NLcNzEauLnO8Qu10udx95L12Omt7KycEzAe3DCbg==}
     hasBin: true
@@ -2065,6 +2071,7 @@ packages:
   '@smithy/core@3.36.0':
     resolution: {integrity: sha512-3hJiwG1F5t1SoXqp/yOCmYXziyx7ZVqF63S5W6YU201e/qwVaHPex+E/3vvyY9a3ORq/b+BydeNZpP2saQ9X2g==}
     engines: {node: '>=18.0.0'}
+    deprecated: Deprecated due to a bug in custom logger data redaction. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
 
   '@smithy/credential-provider-imds@4.5.2':
     resolution: {integrity: sha512-A9uSdn72ozbRUSit0eib0TW7nXuNPlaeM0zcGkJ+nE6tFcSDbnmtwoxbTCFBukVQcszDAyvsd7+rTduPTXpygg==}
@@ -5150,6 +5157,7 @@ packages:
   tsconfck@3.1.6:
     resolution: {integrity: sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w==}
     engines: {node: ^18 || >=20}
+    deprecated: unmaintained
     hasBin: true
     peerDependencies:
       typescript: ^5.0.0
@@ -6502,6 +6510,8 @@ snapshots:
   '@expo-google-fonts/dm-sans@0.4.2': {}
 
   '@expo-google-fonts/material-symbols@0.4.50': {}
+
+  '@expo-google-fonts/nanum-brush-script@0.4.1': {}
 
   '@expo/cli@58.1.8(@expo/metro-runtime@58.0.14)(expo-constants@58.0.12)(expo-font@58.0.8)(expo-router@58.0.20)(expo@58.0.10)(react-dom@19.3.0(react@19.3.0))(react-native@0.88.0(@babel/core@7.29.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@5.9.3)':
     dependencies:

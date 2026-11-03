@@ -263,7 +263,7 @@ export default function LeagueScreen() {
             <Text variant="label" tone="inkMuted">
               {eyebrow}
             </Text>
-            <Text variant="displayL" accessibilityRole="header">
+            <Text variant="brushL" accessibilityRole="header">
               {league.name}
             </Text>
             <Text variant="small" tone="inkMuted">

@@ -14,6 +14,7 @@ import {
   DMSans_700Bold,
   useFonts,
 } from "@expo-google-fonts/dm-sans";
+import { NanumBrushScript_400Regular } from "@expo-google-fonts/nanum-brush-script";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -152,7 +153,8 @@ function RootLayoutNav() {
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     // Design system type: DM Sans for everything you read or tap,
-    // Cormorant Garamond for titles and scores.
+    // Cormorant Garamond for scores and display text, Nanum Brush Script
+    // for page headers that echo the roundel.
     DMSans_400Regular,
     DMSans_500Medium,
     DMSans_600SemiBold,
@@ -163,6 +165,7 @@ export default function RootLayout() {
     // One step heavier, for Night session display text and iOS Bold Text.
     CormorantGaramond_600SemiBold_Italic,
     CormorantGaramond_700Bold,
+    NanumBrushScript_400Regular,
   });
 
   useEffect(() => {

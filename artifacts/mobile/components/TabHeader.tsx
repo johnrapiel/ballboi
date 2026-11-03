@@ -4,6 +4,7 @@ import React from "react";
 import { Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Roundel } from "@/components/Roundel";
 import { Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -67,28 +68,40 @@ export function MessagesButton({ unread = 0 }: { unread?: number }) {
 export function TabScreen({
   title,
   action,
+  roundel,
   children,
 }: {
   title: string;
   /** An optional button for the tab's main action, shown next to Messages. */
   action?: React.ReactNode;
+  /** Show the small roundel next to the title. Home only. */
+  roundel?: boolean;
   children: React.ReactNode;
 }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
   return (
     <View style={{ flex: 1, backgroundColor: c.paper, paddingTop: insets.top + spacing.space2 }}>
-      <TabHeader title={title} action={action} />
+      <TabHeader title={title} action={action} roundel={roundel} />
       {children}
     </View>
   );
 }
 
 /**
- * Top of every tab: the tab's name as a large title, with Messages
- * in the top-right corner. The title always matches the tab label.
+ * Top of every tab: the tab's name as a large brush title, echoing the
+ * roundel's lettering, with Messages in the top-right corner. The title
+ * always matches the tab label. Home adds the small roundel beside it.
  */
-export function TabHeader({ title, action }: { title: string; action?: React.ReactNode }) {
+export function TabHeader({
+  title,
+  action,
+  roundel,
+}: {
+  title: string;
+  action?: React.ReactNode;
+  roundel?: boolean;
+}) {
   const summary = useMessagesSummary();
   return (
     <View
@@ -101,9 +114,12 @@ export function TabHeader({ title, action }: { title: string; action?: React.Rea
         paddingBottom: spacing.space3,
       }}
     >
-      <Text variant="displayL" accessibilityRole="header" style={{ flexShrink: 1 }}>
-        {title}
-      </Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3, flexShrink: 1 }}>
+        {roundel ? <Roundel size={40} /> : null}
+        <Text variant="brushL" accessibilityRole="header" style={{ flexShrink: 1 }}>
+          {title}
+        </Text>
+      </View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2 }}>
         {action}
         <MessagesButton unread={badgeCount(summary.data)} />

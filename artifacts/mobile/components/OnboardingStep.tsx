@@ -61,11 +61,11 @@ export function OnboardingStep({
               accessibilityLabel={`${title}. ${reason}`}
               style={{ gap: spacing.space1, marginBottom: spacing.space2 }}
             >
-              <Text variant="displayL">{title}</Text>
+              <Text variant="brushL">{title}</Text>
               <Text tone="inkMuted">{reason}</Text>
             </View>
           ) : (
-            <Text variant="displayL" accessibilityRole="header">
+            <Text variant="brushL" accessibilityRole="header">
               {title}
             </Text>
           )}

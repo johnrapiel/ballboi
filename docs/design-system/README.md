@@ -11,9 +11,9 @@ Ball Boi is a tennis app with heritage manners. Think Wilson's navy-and-cream re
 - **One ink.** Navy does almost everything: text, buttons, rules, the ring, every shape. If a screen looks good in navy and cream alone, it's done.
 - **Color is rare.** `court` green appears only when something good or live needs saying. Most screens use none. `danger` appears only for destructive actions and errors.
 - **Paper, not glass.** Warm cream grounds with a faint grain. No gradients, no glassmorphism, no neon.
-- **Hand-made, not decorated.** The brush ring and the painted ball carry the brushwork. Never more than one per screen.
+- **Hand-made, not decorated.** The brush headers, the ring, the painted ball and the roundel carry the brushwork. Never more than one motif per screen.
 - **Hairlines over shadows.** Cards sit on a 1px `hairline` border. Only floating things (sheets, menus) get `shadow-lift`.
-- **Serif for the moment, sans for the work.** Cormorant Garamond carries titles and scores. DM Sans carries everything you tap or read in a list.
+- **Brush for the page, serif for the moment, sans for the work.** Nanum Brush Script carries page headers, echoing the roundel. Cormorant Garamond carries scores and display text. DM Sans carries everything you tap or read in a list.
 - **Generous, never crowded.** Default to `space-6` between cards and `space-12` above heroes.
 
 ## Voice
@@ -65,19 +65,21 @@ When iOS Increase Contrast is on, `ink-muted`, `hairline` and `hairline-strong` 
 
 ## Type
 
+- **Brush:** Nanum Brush Script 400 (`brush-l`, 48px). Tab headers and big screen titles only: league names, onboarding step titles, milestone titles. It echoes the roundel's tall, upright lettering. Never below 28px. Never for buttons, body, scores, or small top-bar titles on pushed screens (those stay DM Sans 600).
 - **Display:** Cormorant Garamond 500/600, italic 500. Titles, scores, rank numerals. Never below 20px: its hairline strokes vanish at small sizes.
 - **Text:** DM Sans 400/600. Body, buttons, labels.
 - **Body is 17px**, the iOS body size. Small is 15px, buttons 16px.
 - **Scores always use** `font-variant-numeric: lining-nums tabular-nums` so sets line up.
 - **Labels** are 11px uppercase with 0.16em tracking: the heritage tag on a racquet throat. 11px is the iOS floor, so it's for eyebrows and table headers only. Chips use `chip`, 12px.
-- Never set the logo's brush script as a font. The brush lives in the logo and the ring.
+- The roundel itself is never retyped in the brush font. Its lettering is hand-painted and lives only in the image.
 
 ### Dynamic Type and display settings
 
 - **Text styles scale fully** with the user's text size. Layouts reflow; nothing truncates.
-- **Display styles stop at 1.5x**, so heroes and scores never clip.
+- **Display and brush styles stop at 1.5x**, so headers, heroes and scores never clip.
 - **Bold Text:** every style goes one weight heavier (DM Sans 400 to 600, 600 to 700; Cormorant 500 to 600, 600 to 700).
 - **Night session:** Cormorant goes one weight heavier, because light hairlines thin out on navy.
+- **The brush font has one weight,** so Bold Text and Night session leave it as is. Its strokes are already heavy enough for both.
 
 ## Charts and replay
 
@@ -93,11 +95,12 @@ The replay and stats stay inside the one-ink palette. No literal grass green, no
 
 ## Signature motifs
 
-Pick one per screen.
+Pick one per screen. Brush headers are type, not a motif, so a screen with a brush header can still use one of these.
 
 1. **Brush ring.** The logo's hand-drawn circle, wrapped around the single thing that matters: the match winner, the current user's rank, the active tab underline.
 2. **Painted ball.** The app icon's hand-painted ball, in `ink` on paper or `on-ink` on an ink field. One, large, in a hero, the splash or a celebration. Never as a repeating pattern, never in color.
-3. **Paper grain.** `.bb-grain` on the page ground only. Never on cards.
+3. **Roundel.** The logo itself, cropped to its circle, in the places listed under Logo. Decorative to VoiceOver.
+4. **Paper grain.** `.bb-grain` on the page ground only. Never on cards.
 
 ## Shape and space
 
@@ -111,7 +114,17 @@ Thin 1.5px line icons, round caps, drawn in `ink`. Lucide at stroke-width 1.5 is
 
 ## Logo
 
-The roundel (`assets/Logos/ball-boi-roundel.png`) is the wordmark. Show it on `paper` or `linen` only, at 40px minimum: the splash, Welcome, the marketing site, App Store screenshots. Do not recolor, outline or place it on photos.
+The roundel (`assets/Logos/ball-boi-roundel.png`) is the wordmark. Show it at 40px minimum, cropped to its circle, on its own textured paper. Do not recolor, outline or place it on photos.
+
+Where it appears:
+- Splash, Welcome, the marketing site and App Store screenshots
+- A 40px mark beside the Home tab header
+- Player-facing empty states on the main tabs (Leagues, Discover), at 120px in place of the symbol. Not on Home, which already has it in the header
+- Behind the badge in milestone moments (first win, first Ball Boi match, 5- and 10-match win streaks)
+- Stamped on every shareable match recap
+- An About footer at the bottom of Profile
+
+Inside the app it's decorative: the screen's title or text carries the meaning, so VoiceOver skips it. In Night session it keeps its own paper, like a sticker on navy.
 
 The app icon (`assets/Logos/ball-boi-app-icon.png`) is the symbol: the hand-painted ball in white (`on-ink`) on an `ink` tile with a faint paper grain. No wordmark in the icon; iOS prints the name beneath it.
 

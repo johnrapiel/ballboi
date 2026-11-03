@@ -57,6 +57,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "@expo-google-fonts/nanum-brush-script": "^0.4.1",
     "@react-native-community/datetimepicker": "9.2.1",
     "expo-audio": "~58.0.0",
     "expo-battery": "~58.0.0",

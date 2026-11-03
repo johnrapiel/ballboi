@@ -372,7 +372,7 @@ export default function LeaguesScreen() {
 
           {!leaguesQ.isError && leagues.length === 0 && requests.length === 0 ? (
             <View style={{ minHeight: 240, gap: spacing.space4 }}>
-              <EmptyState symbol="trophy" title="No leagues yet" message="Leagues you start or join show up here." />
+              <EmptyState roundel title="No leagues yet" message="Leagues you start or join show up here." />
               <Button label="Start a league" onPress={startLeague} />
             </View>
           ) : null}

@@ -53,6 +53,11 @@ const FACES = {
     "500italic": "CormorantGaramond_500Medium_Italic",
     "600italic": "CormorantGaramond_600SemiBold_Italic",
   },
+  // Nanum Brush Script, for page headers that echo the roundel's lettering.
+  // One weight only, so Bold Text and Night session leave it as is.
+  brush: {
+    "400": "NanumBrushScript_400Regular",
+  },
   sans: {
     "400": "DMSans_400Regular",
     "500": "DMSans_500Medium",
@@ -86,7 +91,7 @@ for (const group of tokens.type.groups) {
     const style = { fontFamily, fontSize: size, lineHeight: px(s.lineHeight) };
     if (s.letterSpacing) style.letterSpacing = Number((Number.parseFloat(s.letterSpacing) * size).toFixed(2)); // em to points
     if (s.name === "label" || s.name === "chip") style.textTransform = "uppercase";
-    if (group.family === "display") maxScale[camel(s.name)] = DISPLAY_MAX_SCALE;
+    if (group.family === "display" || group.family === "brush") maxScale[camel(s.name)] = DISPLAY_MAX_SCALE;
     if (s.name === "score") style.fontVariant = ["lining-nums", "tabular-nums"];
     type[camel(s.name)] = style;
   }
