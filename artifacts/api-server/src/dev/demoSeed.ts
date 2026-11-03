@@ -156,6 +156,7 @@ async function insertProfile(p: DemoPerson, clerkUserId: string, intent: string)
     homeLatitude: area?.latitude ?? null,
     homeLongitude: area?.longitude ?? null,
     intent,
+    intents: [intent],
     onboardingComplete: true,
   });
 }
