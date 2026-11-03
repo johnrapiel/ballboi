@@ -42,6 +42,11 @@ export const matchesTable = pgTable("matches", {
   // inGrace: scored in the week after its round's deadline, so it counts for
   // ratings and Ball Boi stats but not standings (decision 25).
   inGrace: boolean("in_grace").notNull().default(false),
+  // An admin corrected the score from Manage (migration 20261101_c_score_corrections.sql).
+  // The name is kept as it was then, for "Corrected by {admin} on {date}".
+  correctedAt: timestamp("corrected_at", { withTimezone: true }),
+  correctedByClerkUserId: text("corrected_by_clerk_user_id"),
+  correctedByName: text("corrected_by_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

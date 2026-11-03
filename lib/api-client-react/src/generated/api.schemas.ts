@@ -296,6 +296,24 @@ export interface ScheduleBye {
   setByAdmin: boolean;
 }
 
+export interface UndoneScore {
+  matchId: number;
+  status: string;
+  /** @nullable */
+  score: null;
+  /** @nullable */
+  winnerId: null;
+}
+
+export interface CorrectedScore {
+  matchId: number;
+  score: string;
+  /** @nullable */
+  winnerId: number | null;
+  correctedAt: string;
+  correctedBy: string;
+}
+
 export interface ScheduleMatch {
   matchId: number;
   player1Id: number;
@@ -317,6 +335,18 @@ export interface ScheduleMatch {
   scheduledAt: string | null;
   /** @nullable */
   location: string | null;
+  /**
+   * When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.
+   * @nullable
+   */
+  undoUntil: string | null;
+  /**
+   * The admin who corrected the score, for "Corrected by {admin} on {date}"
+   * @nullable
+   */
+  correctedBy: string | null;
+  /** @nullable */
+  correctedAt: string | null;
 }
 
 export type ScheduleRoundPhase =

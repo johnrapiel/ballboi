@@ -4,6 +4,7 @@ import { db, leagueRoundByesTable, leagueRoundsTable, leaguesTable, matchesTable
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { getLeagueRole } from "../lib/leagueAccess.js";
 import { graceEndFor, leagueToday, roundPhase, roundWindow, LEAGUE_TIME_ZONE } from "../lib/leagueCalendar.js";
+import { undoDeadline } from "../lib/leagueScoreChanges.js";
 import { planBye, planLock, planSwap, unpairedPlayers } from "../lib/roundEdits.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
 import { draftNextRound, loadDraftRound, publishRound, repairRound, usesWeeklyRounds } from "../services/leagueRounds.js";
@@ -19,7 +20,8 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDetail: boolean, today: string) {
+async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDetail: boolean, today: string, userId: string | null) {
+  const now = new Date();
   // inArray needs at least one id; -1 matches nothing.
   const ids = rounds.length ? rounds.map((r) => r.id) : [-1];
   const [matches, byes, players] = await Promise.all([
@@ -66,6 +68,11 @@ async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDe
           locked: m.locked,
           scheduledAt: m.scheduledAt ?? null,
           location: m.location ?? null,
+          // C4: set only for the player who entered the score, while they can undo it.
+          undoUntil: undoDeadline(m, userId, now),
+          // C5: shown to both players and in Manage.
+          correctedBy: m.correctedAt ? (m.correctedByName ?? "League admin") : null,
+          correctedAt: m.correctedAt ? m.correctedAt.toISOString() : null,
         })),
       byes: roundByes.map((b) => ({ playerId: b.playerId, playerName: name(b.playerId), setByAdmin: b.setByAdmin })),
       unpaired: unpaired.map((id) => ({ playerId: id, playerName: name(id) })),
@@ -87,7 +94,7 @@ router.get("/leagues/:leagueId/schedule", requireAuth, async (req, res) => {
   const today = leagueToday();
   const all = await db.select().from(leagueRoundsTable).where(eq(leagueRoundsTable.leagueId, leagueId)).orderBy(asc(leagueRoundsTable.roundNumber));
   const visible = all.filter((r) => isAdmin || r.publishedAt);
-  const rounds = await buildRounds(league, visible, isAdmin, today);
+  const rounds = await buildRounds(league, visible, isAdmin, today, userId ?? null);
 
   // Weeks with no round yet, so the schedule shows the whole season.
   const weekly = usesWeeklyRounds(league);
@@ -137,7 +144,7 @@ async function adminRound(req: Request, res: Response): Promise<{ league: League
 
 async function respondWithRound(res: Response, league: League, roundId: number) {
   const [round] = await db.select().from(leagueRoundsTable).where(eq(leagueRoundsTable.id, roundId));
-  const [built] = await buildRounds(league, [round], true, leagueToday());
+  const [built] = await buildRounds(league, [round], true, leagueToday(), getAuth(res.req).userId ?? null);
   res.json(built);
 }
 

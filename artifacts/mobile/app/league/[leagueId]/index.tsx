@@ -21,6 +21,7 @@ import {
 } from "@workspace/api-client-react";
 
 import { RoundCard, UpcomingWeekRow } from "@/components/league/RoundCard";
+import { UndoScore } from "@/components/league/UndoScore";
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
 import { IconButton } from "@/components/Choice";
 import { StandingsTable } from "@/components/league/StandingsTable";
@@ -28,7 +29,7 @@ import { BracketView, myPlayoffMatch, ROUND_SINGULAR } from "@/components/league
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { canEnterScore, dateRange, myWeek, opponentName, shortDate } from "@/lib/leagueSchedule";
+import { canEnterScore, correctionLine, dateRange, myWeek, opponentName, resultLine, shortDate } from "@/lib/leagueSchedule";
 import { formatLabel, playersLabel, playTypeLabel } from "@/lib/leagues";
 
 // League (spec: Leagues; canvas: League · Standings, Rounds, Playoffs).
@@ -62,8 +63,11 @@ function YourWeek({
 
   const opponent = opponentName(match, myPlayerId);
   const scoreable = canEnterScore(round, match);
-  const when =
-    round.phase === "upcoming"
+  const played = match.status === "completed" && !!match.score;
+  const corrected = correctionLine(match);
+  const when = played
+    ? [resultLine(match), corrected].filter(Boolean).join(". ")
+    : round.phase === "upcoming"
       ? `Starts ${shortDate(round.startDate)}. Play by ${shortDate(round.deadline)}.`
       : round.phase === "grace"
         ? `Grace week until ${shortDate(round.graceEnd)}. A score now counts for Ball Boi stats, not standings.`
@@ -86,7 +90,9 @@ function YourWeek({
           accessibilityHint={`For your match against ${opponent}`}
           onPress={() => router.push(`/league/${leagueId}/score/${match.matchId}`)}
         />
-      ) : null}
+      ) : (
+        <UndoScore leagueId={leagueId} matchId={match.matchId} undoUntil={match.undoUntil} align="flex-start" />
+      )}
     </Card>
   );
 }
@@ -303,7 +309,7 @@ export default function LeagueScreen() {
               ) : (
                 <>
                   {rounds.map((r) => (
-                    <RoundCard key={r.roundId} round={r} myPlayerId={myPlayerId} onEnterScore={enterScore} />
+                    <RoundCard key={r.roundId} leagueId={leagueId} round={r} myPlayerId={myPlayerId} onEnterScore={enterScore} />
                   ))}
                   {schedule && schedule.upcoming.length > 0 ? (
                     <View style={{ gap: spacing.space2 }}>

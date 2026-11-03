@@ -265,6 +265,21 @@ export default function ManageLeagueScreen() {
         )}
       </Card>
 
+      {schedule?.weeklyRounds ? (
+        <>
+          <SectionLabel>Scores</SectionLabel>
+          <Card style={{ padding: 0, overflow: "hidden" }}>
+            <ListRow
+              title="Correct a score"
+              subtitle="Fix a played match. Players can't change scores."
+              symbol="pencil"
+              onPress={() => router.push(`/league/${leagueId}/scores`)}
+              last
+            />
+          </Card>
+        </>
+      ) : null}
+
       {requests.length > 0 ? (
         <>
           <SectionLabel>{`Requests to join (${requests.length})`}</SectionLabel>
