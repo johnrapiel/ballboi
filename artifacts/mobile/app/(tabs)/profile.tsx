@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { BlockedPlayersRow } from "@/components/safety/BlockedPlayersRow";
 import { TabScreen } from "@/components/TabHeader";
 import { EditProfileRow } from "@/components/profile/EditProfileRow";
 import { Toggle } from "@/components/Toggle";
@@ -378,6 +379,7 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Account</Text>
           <EditProfileRow />
+          <BlockedPlayersRow />
           <Pressable
             style={({ pressed }) => [styles.signOutBtn, { opacity: pressed ? 0.7 : 1 }]}
             onPress={handleSignOut}
