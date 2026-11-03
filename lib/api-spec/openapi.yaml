@@ -2418,7 +2418,10 @@ components:
           description: The admin who corrected the score, for "Corrected by {admin} on {date}"
         correctedAt:
           type: ["string", "null"]
-      required: [matchId, player1Id, player1Name, player2Id, player2Name, status, score, winnerId, inGrace, voided, locked, scheduledAt, location, undoUntil, correctedBy, correctedAt]
+        scoreClearedBy:
+          type: ["string", "null"]
+          description: The player who undid the score, shown to the opponent until a new score is in
+      required: [matchId, player1Id, player1Name, player2Id, player2Name, status, score, winnerId, inGrace, voided, locked, scheduledAt, location, undoUntil, correctedBy, correctedAt, scoreClearedBy]
 
     ScheduleRound:
       type: object

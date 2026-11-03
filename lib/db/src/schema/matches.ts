@@ -47,6 +47,10 @@ export const matchesTable = pgTable("matches", {
   correctedAt: timestamp("corrected_at", { withTimezone: true }),
   correctedByClerkUserId: text("corrected_by_clerk_user_id"),
   correctedByName: text("corrected_by_name"),
+  // The player who entered a score undid it (migration 20261102_c_score_cleared_note.sql).
+  // Cleared again when a new score is entered.
+  scoreClearedAt: timestamp("score_cleared_at", { withTimezone: true }),
+  scoreClearedByName: text("score_cleared_by_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

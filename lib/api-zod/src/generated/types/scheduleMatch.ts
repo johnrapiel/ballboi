@@ -39,4 +39,9 @@ export interface ScheduleMatch {
   correctedBy: string | null;
   /** @nullable */
   correctedAt: string | null;
+  /**
+   * The player who undid the score, shown to the opponent until a new score is in
+   * @nullable
+   */
+  scoreClearedBy: string | null;
 }

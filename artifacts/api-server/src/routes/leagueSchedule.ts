@@ -73,6 +73,8 @@ async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDe
           // C5: shown to both players and in Manage.
           correctedBy: m.correctedAt ? (m.correctedByName ?? "League admin") : null,
           correctedAt: m.correctedAt ? m.correctedAt.toISOString() : null,
+          // C4 follow-up: the opponent sees who undid the score.
+          scoreClearedBy: m.status !== "completed" && m.scoreClearedByName ? m.scoreClearedByName : null,
         })),
       byes: roundByes.map((b) => ({ playerId: b.playerId, playerName: name(b.playerId), setByAdmin: b.setByAdmin })),
       unpaired: unpaired.map((id) => ({ playerId: id, playerName: name(id) })),

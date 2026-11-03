@@ -801,6 +801,12 @@ export const GetLeagueScheduleResponse = zod.object({
               'The admin who corrected the score, for \"Corrected by {admin} on {date}\"',
             ),
           correctedAt: zod.string().nullable(),
+          scoreClearedBy: zod
+            .string()
+            .nullable()
+            .describe(
+              "The player who undid the score, shown to the opponent until a new score is in",
+            ),
         }),
       ),
       byes: zod.array(
@@ -1238,6 +1244,12 @@ export const DraftNextLeagueRoundResponse = zod.object({
           'The admin who corrected the score, for \"Corrected by {admin} on {date}\"',
         ),
       correctedAt: zod.string().nullable(),
+      scoreClearedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          "The player who undid the score, shown to the opponent until a new score is in",
+        ),
     }),
   ),
   byes: zod.array(
@@ -1300,6 +1312,12 @@ export const RepairLeagueRoundResponse = zod.object({
           'The admin who corrected the score, for \"Corrected by {admin} on {date}\"',
         ),
       correctedAt: zod.string().nullable(),
+      scoreClearedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          "The player who undid the score, shown to the opponent until a new score is in",
+        ),
     }),
   ),
   byes: zod.array(
@@ -1362,6 +1380,12 @@ export const PublishLeagueRoundResponse = zod.object({
           'The admin who corrected the score, for \"Corrected by {admin} on {date}\"',
         ),
       correctedAt: zod.string().nullable(),
+      scoreClearedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          "The player who undid the score, shown to the opponent until a new score is in",
+        ),
     }),
   ),
   byes: zod.array(
@@ -1429,6 +1453,12 @@ export const SwapLeagueRoundPlayersResponse = zod.object({
           'The admin who corrected the score, for \"Corrected by {admin} on {date}\"',
         ),
       correctedAt: zod.string().nullable(),
+      scoreClearedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          "The player who undid the score, shown to the opponent until a new score is in",
+        ),
     }),
   ),
   byes: zod.array(
@@ -1495,6 +1525,12 @@ export const AddLeagueRoundByeResponse = zod.object({
           'The admin who corrected the score, for \"Corrected by {admin} on {date}\"',
         ),
       correctedAt: zod.string().nullable(),
+      scoreClearedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          "The player who undid the score, shown to the opponent until a new score is in",
+        ),
     }),
   ),
   byes: zod.array(
@@ -1558,6 +1594,12 @@ export const RemoveLeagueRoundByeResponse = zod.object({
           'The admin who corrected the score, for \"Corrected by {admin} on {date}\"',
         ),
       correctedAt: zod.string().nullable(),
+      scoreClearedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          "The player who undid the score, shown to the opponent until a new score is in",
+        ),
     }),
   ),
   byes: zod.array(
@@ -1625,6 +1667,12 @@ export const LockLeagueRoundMatchResponse = zod.object({
           'The admin who corrected the score, for \"Corrected by {admin} on {date}\"',
         ),
       correctedAt: zod.string().nullable(),
+      scoreClearedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          "The player who undid the score, shown to the opponent until a new score is in",
+        ),
     }),
   ),
   byes: zod.array(

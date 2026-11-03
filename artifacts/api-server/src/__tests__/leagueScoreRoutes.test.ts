@@ -78,6 +78,8 @@ const match = (over: Record<string, unknown> = {}) => ({
   winnerId: 10,
   voidedAt: null,
   playoffBracketId: null,
+  playoffRound: null,
+  playoffSlot: null,
   inGrace: false,
   recordedAt: new Date(Date.now() - 60_000).toISOString(),
   recordedByClerkUserId: "user_a",
@@ -104,6 +106,16 @@ describe("POST /api/leagues/:leagueId/matches/:matchId/score/undo", () => {
     expect(res.body).toMatchObject({ matchId: 7, status: "scheduled", score: null, winnerId: null });
     expect(sets.find((c) => c.method === "set")?.args[0]).toMatchObject({ status: "scheduled", score: null, winnerId: null });
     expect(txUpdates.filter((c) => c.method === "set")).toHaveLength(2);
+  });
+
+  it("leaves the opponent a 'Score cleared by' note", async () => {
+    const sets: Call[] = [];
+    mockDb.select.mockReturnValueOnce(chain([match()])).mockReturnValueOnce(chain([{ name: "Alex Kim" }]));
+    mockDb.update.mockReturnValue(chain([{ ...match(), status: "scheduled", score: null, winnerId: null }], sets));
+    mockDb.transaction.mockImplementation(async (cb: (tx: unknown) => unknown) => cb({ update: () => chain(undefined) }));
+    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score/undo");
+    expect(res.status).toBe(200);
+    expect(sets.find((c) => c.method === "set")?.args[0]).toMatchObject({ scoreClearedByName: "Alex Kim" });
   });
 
   it("refuses the opponent", async () => {
@@ -156,6 +168,32 @@ describe("PUT /api/leagues/:leagueId/matches/:matchId/score", () => {
     mockIsAdmin = false;
     const res = await supertest(await buildApp()).put("/api/leagues/1/matches/7/score").send({ score: "6-1, 6-1" });
     expect(res.status).toBe(403);
+  });
+
+  it("corrects a playoff score and moves the new winner into the next round", async () => {
+    const sets: Call[] = [];
+    const po = match({ playoffBracketId: 3, playoffRound: "semifinal", playoffSlot: 1 });
+    mockDb.select
+      .mockReturnValueOnce(chain([po]))
+      .mockReturnValueOnce(chain([{ id: 99, status: "scheduled" }])) // the final, unplayed
+      .mockReturnValueOnce(chain([{ name: "Sam Lee" }]))
+      .mockReturnValueOnce(chain([]));
+    mockDb.update.mockReturnValue(chain([{ ...po, score: "3-6, 4-6", winnerId: 20, correctedAt: new Date(), correctedByName: "Sam Lee" }], sets));
+    const res = await supertest(await buildApp()).put("/api/leagues/1/matches/7/score").send({ score: "3-6, 4-6" });
+    expect(res.status).toBe(200);
+    // Second update is the final's slot: slot 1 feeds player 1.
+    const slot = sets.filter((c) => c.method === "set")[1];
+    expect(slot?.args[0]).toEqual({ player1Id: 20 });
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+
+  it("refuses a playoff correction once the next round is played", async () => {
+    mockDb.select
+      .mockReturnValueOnce(chain([match({ playoffBracketId: 3, playoffRound: "semifinal", playoffSlot: 1 })]))
+      .mockReturnValueOnce(chain([{ id: 99, status: "completed" }]));
+    const res = await supertest(await buildApp()).put("/api/leagues/1/matches/7/score").send({ score: "3-6, 4-6" });
+    expect(res.status).toBe(409);
+    expect(mockDb.update).not.toHaveBeenCalled();
   });
 
   it("only corrects played matches", async () => {
