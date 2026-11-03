@@ -55,6 +55,9 @@ export default function IntentStep() {
       reason="Pick all that apply."
       footer={
         <>
+          {/* Right above the buttons: below the options it would sit under
+              the footer, out of sight, exactly when someone needs it. */}
+          <StepError message={error} />
           <Button
             label="Skip"
             variant="secondary"
@@ -87,8 +90,6 @@ export default function IntentStep() {
       <Text variant="small" tone="inkMuted">
         This helps us improve Ball Boi. Your answer is only shared with our team.
       </Text>
-
-      <StepError message={error} />
     </OnboardingStep>
   );
 }
