@@ -53,7 +53,7 @@ export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
         setLoaded(true);
       })
       .catch(() => {
-        if (editing) setLoadError("We couldn't load your profile. Check your connection.");
+        if (editing) setLoadError("We couldn't load your profile. Check your connection and try again.");
       });
   }, [getToken, editing]);
 

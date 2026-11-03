@@ -66,11 +66,8 @@ export default function RatingStep({ mode = "onboarding" }: { mode?: FormMode })
 
   if (verified && rating != null) {
     return (
-      <OnboardingStep title="Your level">
+      <OnboardingStep title="Linked to UTR">
         <Card style={{ gap: spacing.space3 }}>
-          <Text variant="bodyStrong" accessibilityRole="header">
-            Linked to UTR
-          </Text>
           <RatingBadge rating={rating} source="verified" />
           <Text tone="inkMuted">Your level comes from your UTR account, so it can't be changed here.</Text>
         </Card>

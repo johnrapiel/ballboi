@@ -23,8 +23,9 @@ export function useProfile() {
         setProfile(p);
         if (!p) setError("We couldn't find your profile.");
       })
-      .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "We couldn't load your profile.");
+      .catch(() => {
+        // Our own words, never the server's: the cause is almost always signal.
+        if (!cancelled) setError("We couldn't load your profile. Check your connection and try again.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

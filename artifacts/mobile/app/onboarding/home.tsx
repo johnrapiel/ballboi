@@ -45,7 +45,7 @@ export default function HomeAreaStep({ mode = "onboarding" }: { mode?: FormMode 
         setZip(p.homeZip ?? "");
         setLoaded(true);
       })
-      .catch(() => setLoadError("We couldn't load your profile. Check your connection."));
+      .catch(() => setLoadError("We couldn't load your profile. Check your connection and try again."));
   }, [getToken, editing]);
   useEffect(load, [load]);
 
