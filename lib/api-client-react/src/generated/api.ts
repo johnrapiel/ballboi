@@ -30,6 +30,7 @@ import type {
   BallBoiStatus,
   BallBoiUploadUrl,
   CompleteBallBoiSessionBody,
+  CorrectedScore,
   CreateLeagueBody,
   CreateLeagueInviteBody,
   CreateMatchBody,
@@ -88,6 +89,7 @@ import type {
   StartBallBoiSessionBody,
   SwapPlayersBody,
   TopPlayer,
+  UndoneScore,
   UpdateLeagueBody,
   UpdateMatchBody,
   UpdatePlayerBody,
@@ -3417,6 +3419,182 @@ export const useEnterLeagueScore = <
   TContext
 > => {
   return useMutation(getEnterLeagueScoreMutationOptions(options));
+};
+
+/**
+ * @summary League admins correct a completed match's score, from player 1's side. Standings recompute.
+ */
+export const getCorrectLeagueScoreUrl = (leagueId: number, matchId: number) => {
+  return `/api/leagues/${leagueId}/matches/${matchId}/score`;
+};
+
+export const correctLeagueScore = async (
+  leagueId: number,
+  matchId: number,
+  enterScoreBody: EnterScoreBody,
+  options?: RequestInit,
+): Promise<CorrectedScore> => {
+  return customFetch<CorrectedScore>(
+    getCorrectLeagueScoreUrl(leagueId, matchId),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(enterScoreBody),
+    },
+  );
+};
+
+export const getCorrectLeagueScoreMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof correctLeagueScore>>,
+    TError,
+    { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof correctLeagueScore>>,
+  TError,
+  { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
+  TContext
+> => {
+  const mutationKey = ["correctLeagueScore"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof correctLeagueScore>>,
+    { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> }
+  > = (props) => {
+    const { leagueId, matchId, data } = props ?? {};
+
+    return correctLeagueScore(leagueId, matchId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CorrectLeagueScoreMutationResult = NonNullable<
+  Awaited<ReturnType<typeof correctLeagueScore>>
+>;
+export type CorrectLeagueScoreMutationBody = BodyType<EnterScoreBody>;
+export type CorrectLeagueScoreMutationError = ErrorType<void>;
+
+/**
+ * @summary League admins correct a completed match's score, from player 1's side. Standings recompute.
+ */
+export const useCorrectLeagueScore = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof correctLeagueScore>>,
+    TError,
+    { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof correctLeagueScore>>,
+  TError,
+  { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
+  TContext
+> => {
+  return useMutation(getCorrectLeagueScoreMutationOptions(options));
+};
+
+/**
+ * @summary The player who entered a score undoes it within 10 minutes. Standings recompute.
+ */
+export const getUndoLeagueScoreUrl = (leagueId: number, matchId: number) => {
+  return `/api/leagues/${leagueId}/matches/${matchId}/score/undo`;
+};
+
+export const undoLeagueScore = async (
+  leagueId: number,
+  matchId: number,
+  options?: RequestInit,
+): Promise<UndoneScore> => {
+  return customFetch<UndoneScore>(getUndoLeagueScoreUrl(leagueId, matchId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getUndoLeagueScoreMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof undoLeagueScore>>,
+    TError,
+    { leagueId: number; matchId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof undoLeagueScore>>,
+  TError,
+  { leagueId: number; matchId: number },
+  TContext
+> => {
+  const mutationKey = ["undoLeagueScore"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof undoLeagueScore>>,
+    { leagueId: number; matchId: number }
+  > = (props) => {
+    const { leagueId, matchId } = props ?? {};
+
+    return undoLeagueScore(leagueId, matchId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UndoLeagueScoreMutationResult = NonNullable<
+  Awaited<ReturnType<typeof undoLeagueScore>>
+>;
+
+export type UndoLeagueScoreMutationError = ErrorType<void>;
+
+/**
+ * @summary The player who entered a score undoes it within 10 minutes. Standings recompute.
+ */
+export const useUndoLeagueScore = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof undoLeagueScore>>,
+    TError,
+    { leagueId: number; matchId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof undoLeagueScore>>,
+  TError,
+  { leagueId: number; matchId: number },
+  TContext
+> => {
+  return useMutation(getUndoLeagueScoreMutationOptions(options));
 };
 
 /**

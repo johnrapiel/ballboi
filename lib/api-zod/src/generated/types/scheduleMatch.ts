@@ -27,4 +27,16 @@ export interface ScheduleMatch {
   scheduledAt: string | null;
   /** @nullable */
   location: string | null;
+  /**
+   * When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.
+   * @nullable
+   */
+  undoUntil: string | null;
+  /**
+   * The admin who corrected the score, for "Corrected by {admin} on {date}"
+   * @nullable
+   */
+  correctedBy: string | null;
+  /** @nullable */
+  correctedAt: string | null;
 }
