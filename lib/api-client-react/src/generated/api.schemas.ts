@@ -26,6 +26,26 @@ export interface LeagueMembership {
   playerId: number | null;
   isPlaying: boolean;
   hasLeft: boolean;
+  /** The caller is this league's only admin, so they can't leave until someone else is a co-admin */
+  onlyAdmin: boolean;
+}
+
+export interface ConfirmLeagueName {
+  /** The league's name, typed to confirm */
+  confirmName: string;
+}
+
+export interface EndedLeague {
+  leagueId: number;
+  status: string;
+  endedAt: string;
+  cancelledRounds: number;
+}
+
+export interface LeagueNotice {
+  id: number;
+  message: string;
+  createdAt: string;
 }
 
 export type LeagueAdminRole =
@@ -296,12 +316,32 @@ export interface ScheduleBye {
   setByAdmin: boolean;
 }
 
+export type MatchPlayerRatingSource =
+  (typeof MatchPlayerRatingSource)[keyof typeof MatchPlayerRatingSource];
+
+export const MatchPlayerRatingSource = {
+  self: "self",
+  verified: "verified",
+} as const;
+
+/**
+ * A player's Ball Boi Rating and where it came from, for the rating badge
+ */
+export interface MatchPlayerRating {
+  rating: number;
+  source: MatchPlayerRatingSource;
+}
+
 export interface ScheduleMatch {
   matchId: number;
   player1Id: number;
   player1Name: string;
   player2Id: number;
   player2Name: string;
+  player1Rating: MatchPlayerRating | null;
+  player2Rating: MatchPlayerRating | null;
+  player1HasAccount: boolean;
+  player2HasAccount: boolean;
   status: string;
   /**
    * From player 1's side
@@ -566,6 +606,11 @@ export interface League {
   matchCount: number;
   createdAt: string;
   updatedAt: string;
+  /**
+   * An admin ended the league (decision 31). Standings are frozen.
+   * @nullable
+   */
+  endedAt?: string | null;
 }
 
 export type CreateLeagueBodyFormat =

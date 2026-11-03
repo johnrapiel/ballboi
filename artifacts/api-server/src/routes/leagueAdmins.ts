@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { getAuth } from "@clerk/express";
 import { db, leagueAdminsTable, leaguesTable, playersTable, usersTable } from "@workspace/db";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
-import { getLeagueRole } from "../lib/leagueAccess.js";
+import { getLeagueRole, leagueAdminCount } from "../lib/leagueAccess.js";
 import { promoteProblem, removeAdminProblem, type LeagueRole } from "../lib/leagueRoles.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
 
@@ -25,15 +25,18 @@ router.get("/leagues/:leagueId/membership", requireAuth, async (req, res) => {
   const [league] = await db.select({ id: leaguesTable.id }).from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
 
-  const [role, [player]] = await Promise.all([
+  const [role, [player], adminCount] = await Promise.all([
     getLeagueRole(leagueId, userId!),
     db
       .select({ id: playersTable.id, leftAt: playersTable.leftAt })
       .from(playersTable)
       .where(and(eq(playersTable.leagueId, leagueId), eq(playersTable.clerkUserId, userId!))),
+    leagueAdminCount(leagueId),
   ]);
 
   res.json({
+    // C8: the only admin can't leave until someone else is a co-admin.
+    onlyAdmin: role !== null && adminCount <= 1,
     leagueId,
     role,
     isAdmin: role !== null,

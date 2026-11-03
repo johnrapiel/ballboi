@@ -17,19 +17,21 @@ function MatchRow({
   round,
   myPlayerId,
   onEnterScore,
+  frozen,
   last,
 }: {
   m: ScheduleMatch;
   round: ScheduleRound;
   myPlayerId: number | null | undefined;
   onEnterScore: (m: ScheduleMatch) => void;
+  frozen: boolean;
   last: boolean;
 }) {
   const c = useColors();
   const mine = isMine(m, myPlayerId);
   const result = resultLine(m);
   const note = m.inGrace ? "Grace week: counts for Ball Boi stats, not standings" : null;
-  const scoreable = mine && canEnterScore(round, m);
+  const scoreable = mine && !frozen && canEnterScore(round, m);
   const summary = `${m.player1Name} versus ${m.player2Name}. ${result}.${note ? ` ${note}.` : ""}`;
 
   return (
@@ -83,10 +85,13 @@ export function RoundCard({
   round,
   myPlayerId,
   onEnterScore,
+  frozen = false,
 }: {
   round: ScheduleRound;
   myPlayerId: number | null | undefined;
   onEnterScore: (m: ScheduleMatch) => void;
+  /** The league has ended (decision 31): no more scores. */
+  frozen?: boolean;
 }) {
   const matches = round.matches;
   return (
@@ -100,12 +105,12 @@ export function RoundCard({
         </View>
         <Chip label={phaseLabel(round.phase)} />
       </View>
-      {round.phase === "open" || round.phase === "upcoming" ? (
+      {!frozen && (round.phase === "open" || round.phase === "upcoming") ? (
         <Text variant="small" tone="inkMuted">
           {`Play by ${shortDate(round.deadline)}. Grace week until ${shortDate(round.graceEnd)}.`}
         </Text>
       ) : null}
-      {round.phase === "grace" ? (
+      {!frozen && round.phase === "grace" ? (
         <Text variant="small" tone="inkMuted">
           {`Grace week until ${shortDate(round.graceEnd)}. Scores now count for Ball Boi stats, not standings.`}
         </Text>
@@ -118,6 +123,7 @@ export function RoundCard({
             round={round}
             myPlayerId={myPlayerId}
             onEnterScore={onEnterScore}
+            frozen={frozen}
             last={i === matches.length - 1 && round.byes.length === 0}
           />
         ))}

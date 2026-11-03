@@ -256,6 +256,8 @@ export async function syncRoundStatuses(rounds: LeagueRound[], today: string): P
  * and any playoffs, then completed. Returns true once the season is over.
  */
 export async function syncLeagueStatus(league: League, today: string): Promise<boolean> {
+  // An admin ended it (decision 31): it stays completed.
+  if (league.endedAt) return true;
   const start = league.startDate!;
   const lastRound = roundWindow(start, league.seasonWeeks!);
   if (today < start) {
@@ -303,7 +305,7 @@ export async function draftNextRound(
  * keeps round and league statuses in step with the calendar.
  */
 export async function runLeagueDay(league: League, today: string = leagueToday()): Promise<void> {
-  if (!usesWeeklyRounds(league)) return;
+  if (!usesWeeklyRounds(league) || league.endedAt) return;
   const weeks = league.seasonWeeks!;
   const start = league.startDate!;
   const lastRound = roundWindow(start, weeks);

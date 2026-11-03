@@ -46,4 +46,9 @@ export interface League {
   matchCount: number;
   createdAt: string;
   updatedAt: string;
+  /**
+   * An admin ended the league (decision 31). Standings are frozen.
+   * @nullable
+   */
+  endedAt?: string | null;
 }

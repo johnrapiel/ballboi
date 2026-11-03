@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { getAuth } from "@clerk/express";
-import { db, leagueRoundByesTable, leagueRoundsTable, leaguesTable, matchesTable, playersTable, type League, type LeagueRound } from "@workspace/db";
+import { db, leagueRoundByesTable, leagueRoundsTable, leaguesTable, matchesTable, playersTable, usersTable, type League, type LeagueRound } from "@workspace/db";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { getLeagueRole } from "../lib/leagueAccess.js";
 import { graceEndFor, leagueToday, roundPhase, roundWindow, LEAGUE_TIME_ZONE } from "../lib/leagueCalendar.js";
@@ -25,9 +25,18 @@ async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDe
   const [matches, byes, players] = await Promise.all([
     db.select().from(matchesTable).where(inArray(matchesTable.roundId, ids)),
     db.select().from(leagueRoundByesTable).where(inArray(leagueRoundByesTable.roundId, ids)),
-    db.select({ id: playersTable.id, name: playersTable.name, leftAt: playersTable.leftAt }).from(playersTable).where(eq(playersTable.leagueId, league.id)),
+    db
+      .select({ id: playersTable.id, name: playersTable.name, leftAt: playersTable.leftAt, clerkUserId: playersTable.clerkUserId, rating: usersTable.rating, ratingSource: usersTable.ratingSource })
+      .from(playersTable)
+      .leftJoin(usersTable, eq(usersTable.clerkUserId, playersTable.clerkUserId))
+      .where(eq(playersTable.leagueId, league.id)),
   ]);
   const name = (id: number) => players.find((p) => p.id === id)?.name ?? "Player";
+  // C7: the Ball Boi Rating badge next to the opponent's name.
+  const rating = (id: number) => {
+    const p = players.find((x) => x.id === id);
+    return p?.rating != null ? { rating: Number(p.rating), source: p.ratingSource === "verified" ? "verified" : "self" } : null;
+  };
   const activeIds = players.filter((p) => !p.leftAt).map((p) => p.id);
 
   return rounds.map((r) => {
@@ -58,6 +67,11 @@ async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDe
           player1Name: name(m.player1Id),
           player2Id: m.player2Id,
           player2Name: name(m.player2Id),
+          player1Rating: rating(m.player1Id),
+          player2Rating: rating(m.player2Id),
+          // C7: Message only works with players who have a Ball Boi account.
+          player1HasAccount: !!players.find((p) => p.id === m.player1Id)?.clerkUserId,
+          player2HasAccount: !!players.find((p) => p.id === m.player2Id)?.clerkUserId,
           status: m.status,
           score: m.score ?? null,
           winnerId: m.winnerId ?? null,

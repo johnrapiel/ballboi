@@ -36,6 +36,10 @@ router.post("/leagues/:leagueId/matches/:matchId/score", async (req, res) => {
     .where(and(eq(matchesTable.id, matchId), eq(matchesTable.leagueId, leagueId)));
   if (!match) { res.status(404).json({ error: "Match not found" }); return; }
 
+  // An ended league's standings are frozen (decision 31).
+  const [owner] = await db.select({ endedAt: leaguesTable.endedAt }).from(leaguesTable).where(eq(leaguesTable.id, leagueId));
+  if (owner?.endedAt) { res.status(409).json({ error: "This league has ended, so scores can't be entered." }); return; }
+
   const [[round], callerPlayers] = await Promise.all([
     match.roundId
       ? db.select().from(leagueRoundsTable).where(eq(leagueRoundsTable.id, match.roundId))

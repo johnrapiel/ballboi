@@ -16,4 +16,6 @@ export interface LeagueMembership {
   playerId: number | null;
   isPlaying: boolean;
   hasLeft: boolean;
+  /** The caller is this league's only admin, so they can't leave until someone else is a co-admin */
+  onlyAdmin: boolean;
 }

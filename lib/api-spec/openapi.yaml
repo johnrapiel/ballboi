@@ -133,16 +133,26 @@ paths:
     delete:
       operationId: deleteLeague
       tags: [leagues]
-      summary: Delete league
+      summary: League admins delete the league, with its name typed. Members get a note; Ball Boi recordings stay with the players.
       parameters:
         - name: leagueId
           in: path
           required: true
           schema:
             type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmLeagueName"
       responses:
         "204":
           description: Deleted
+        "400":
+          description: The typed name doesn't match
+        "403":
+          description: Not a league admin
 
   /leagues/{leagueId}/reset:
     post:
@@ -775,6 +785,53 @@ paths:
                 $ref: "#/components/schemas/ScoreResult"
         "409":
           description: A score is already in, or the match can't be scored now
+
+  /leagues/{leagueId}/end:
+    post:
+      operationId: endLeague
+      tags: [leagues]
+      summary: League admins end the league. Standings freeze, unpublished rounds are cancelled, history stays.
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      responses:
+        "200":
+          description: Ended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EndedLeague"
+        "409":
+          description: Already ended
+
+  /me/league-notices:
+    get:
+      operationId: getMyLeagueNotices
+      tags: [leagues]
+      summary: One-line notes about leagues you were in, such as one being deleted
+      responses:
+        "200":
+          description: Notes you haven't cleared, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeagueNotice"
+
+  /me/league-notices/{noticeId}/dismiss:
+    post:
+      operationId: dismissMyLeagueNotice
+      tags: [leagues]
+      summary: Clear a league note
+      parameters:
+        - name: noticeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Cleared
 
   /leagues/{leagueId}/join-requests:
     get:
@@ -1963,7 +2020,35 @@ components:
           type: boolean
         hasLeft:
           type: boolean
-      required: [leagueId, role, isAdmin, playerId, isPlaying, hasLeft]
+        onlyAdmin:
+          type: boolean
+          description: The caller is this league's only admin, so they can't leave until someone else is a co-admin
+      required: [leagueId, role, isAdmin, playerId, isPlaying, hasLeft, onlyAdmin]
+
+    ConfirmLeagueName:
+      type: object
+      properties:
+        confirmName:
+          type: string
+          description: The league's name, typed to confirm
+      required: [confirmName]
+
+    EndedLeague:
+      type: object
+      properties:
+        leagueId: { type: integer }
+        status: { type: string }
+        endedAt: { type: string }
+        cancelledRounds: { type: integer }
+      required: [leagueId, status, endedAt, cancelledRounds]
+
+    LeagueNotice:
+      type: object
+      properties:
+        id: { type: integer }
+        message: { type: string }
+        createdAt: { type: string }
+      required: [id, message, createdAt]
 
     LeagueAdmin:
       type: object
@@ -2275,6 +2360,18 @@ components:
           type: integer
         player2Name:
           type: string
+        player1Rating:
+          oneOf:
+            - $ref: "#/components/schemas/MatchPlayerRating"
+            - type: "null"
+        player2Rating:
+          oneOf:
+            - $ref: "#/components/schemas/MatchPlayerRating"
+            - type: "null"
+        player1HasAccount:
+          type: boolean
+        player2HasAccount:
+          type: boolean
         status:
           type: string
         score:
@@ -2292,7 +2389,17 @@ components:
           type: ["string", "null"]
         location:
           type: ["string", "null"]
-      required: [matchId, player1Id, player1Name, player2Id, player2Name, status, score, winnerId, inGrace, voided, locked, scheduledAt, location]
+      required: [matchId, player1Id, player1Name, player2Id, player2Name, player1Rating, player2Rating, player1HasAccount, player2HasAccount, status, score, winnerId, inGrace, voided, locked, scheduledAt, location]
+
+    MatchPlayerRating:
+      type: object
+      description: A player's Ball Boi Rating and where it came from, for the rating badge
+      properties:
+        rating: { type: number }
+        source:
+          type: string
+          enum: [self, verified]
+      required: [rating, source]
 
     ScheduleRound:
       type: object
@@ -2627,6 +2734,9 @@ components:
           type: string
         updatedAt:
           type: string
+        endedAt:
+          type: ["string", "null"]
+          description: An admin ended the league (decision 31). Standings are frozen.
       required:
         - id
         - name

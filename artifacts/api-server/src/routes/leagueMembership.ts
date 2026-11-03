@@ -3,7 +3,9 @@ import { getAuth } from "@clerk/express";
 import { db, leagueJoinRequestsTable, leagueRoundByesTable, leaguesTable, matchesTable, playersTable } from "@workspace/db";
 import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { leagueToday } from "../lib/leagueCalendar.js";
+import { getLeagueRole, leagueAdminCount } from "../lib/leagueAccess.js";
 import { approveOutcome, joinOutcome, matchesToVoid } from "../lib/leagueJoining.js";
+import { leaveCheck } from "../lib/leagueLifecycle.js";
 import { SKILL_LEVELS } from "../lib/leagueSetup.js";
 import { logger } from "../lib/logger.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
@@ -287,6 +289,10 @@ router.post("/leagues/:leagueId/leave", requireAuth, async (req, res) => {
     .from(playersTable)
     .where(and(eq(playersTable.leagueId, leagueId), eq(playersTable.clerkUserId, userId!), isNull(playersTable.leftAt)));
   if (!player) { res.status(404).json({ error: "You're not playing in this league" }); return; }
+  // C8: the only admin hands the league on first.
+  const [role, adminCount] = await Promise.all([getLeagueRole(leagueId, userId!), leagueAdminCount(leagueId)]);
+  const check = leaveCheck({ isAdmin: role !== null, adminCount });
+  if (!check.ok) { res.status(check.status).json({ error: check.error, code: check.code }); return; }
   const voidedMatches = await dropOut(leagueId, player.id, player.name);
   res.json({ left: true, voidedMatches });
 });
