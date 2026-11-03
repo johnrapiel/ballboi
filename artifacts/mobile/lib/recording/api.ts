@@ -278,3 +278,39 @@ export async function submitScore(
   // opponent beat you to it; the rest show their own message.
   return { ok: false, alreadyEntered: res.status === 409 && error.startsWith(ALREADY_ENTERED), error };
 }
+
+/** Why a discard didn't go through, with the message to show. */
+export class DiscardError extends Error {
+  constructor(
+    message: string,
+    /** The upload had already finished, so the server keeps it and analysis follows #75's rules. */
+    readonly alreadyUploaded = false,
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * Removes the server's side of a discarded recording: its session, if one was
+ * created, and the match when it's a Quick match against a placeholder. A
+ * league match and its score are left alone. Throws DiscardError.
+ */
+export async function discardOnServer(
+  matchId: number,
+  sessionId: number | null,
+  getToken: () => Promise<string | null>,
+): Promise<{ matchRemoved: boolean }> {
+  const res = await apiFetch("/api/recording/discard", getToken, {
+    method: "POST",
+    body: JSON.stringify(sessionId != null ? { matchId, sessionId } : { matchId }),
+  }).catch(() => null);
+  if (!res) throw new DiscardError("Couldn't reach Ball Boi. Check your connection and try again.");
+  if (res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { matchRemoved?: boolean };
+    return { matchRemoved: !!body.matchRemoved };
+  }
+  throw new DiscardError(
+    await apiErrorMessage(res, "Couldn't discard the recording. Try again."),
+    res.status === 409,
+  );
+}
