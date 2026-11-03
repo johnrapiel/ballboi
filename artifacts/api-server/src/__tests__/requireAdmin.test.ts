@@ -238,7 +238,7 @@ const adminRoutes = [
   { method: "post", path: "/api/scheduling/1/generate", body: {} },
   { method: "post", path: "/api/scheduling/1/confirm", body: {} },
   { method: "patch", path: "/api/leagues/1", body: { name: "Updated League" } },
-  { method: "delete", path: "/api/leagues/1", body: {} },
+  // DELETE /api/leagues/:id is for league admins now (C10): leagueLifecycle.test.ts.
   { method: "post", path: "/api/drills", body: { leagueId: 1, name: "Test Drill" } },
   { method: "delete", path: "/api/drills/1", body: {} },
   { method: "get", path: "/api/stats/dashboard", body: {} },
@@ -336,11 +336,6 @@ describe("requireAdmin middleware — admin requests pass through to the handler
       .send({ name: "Updated League" });
     expect(res.status).toBe(200);
     expect(res.body.name).toBe("Updated League");
-  });
-
-  it("DELETE /api/leagues/1 — returns 204 after deletion", async () => {
-    const res = await supertest(app).delete("/api/leagues/1");
-    expect(res.status).toBe(204);
   });
 
   it("POST /api/drills — returns 201 with the created drill", async () => {

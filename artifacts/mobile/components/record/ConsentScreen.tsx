@@ -7,11 +7,12 @@ import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import React, { useState } from "react";
-import { ScrollView, Switch, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Button, Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
+import { Toggle } from "@/components/Toggle";
 import { useColors } from "@/hooks/useColors";
 import { consentKey, saveRecordingConsent } from "@/lib/recording/api";
 
@@ -92,13 +93,11 @@ export function ConsentScreen({ onAgree, onCancel }: { onAgree: () => void; onCa
             <Text variant="bodyStrong" style={{ flex: 1 }} importantForAccessibility="no" accessibilityElementsHidden>
               Help Ball Boi get smarter
             </Text>
-            <Switch
+            <Toggle
               value={training}
               onValueChange={setTraining}
               accessibilityLabel="Help Ball Boi get smarter"
               accessibilityHint={TRAINING_COPY}
-              trackColor={{ true: c.ink, false: c.hairlineStrong }}
-              ios_backgroundColor={c.hairlineStrong}
             />
           </View>
           <Text tone="inkMuted">{TRAINING_COPY}</Text>

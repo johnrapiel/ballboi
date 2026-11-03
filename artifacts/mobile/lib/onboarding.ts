@@ -83,6 +83,8 @@ export function formatRating(n: number): string {
 export type RatingSource = "self" | "verified";
 
 // ─── Intent ──────────────────────────────────────────────────────────────────
+// Options for "What do you want to do on Ball Boi?". Research only: the
+// answer never changes where the app goes.
 
 export type Intent = "run_league" | "join_league" | "find_matches" | "record";
 
@@ -175,9 +177,12 @@ export async function saveSelfRating(getToken: TokenGetter, rating: number) {
   return (await res.json()) as { rating: number; source: RatingSource };
 }
 
-/** Step 6. Also marks onboarding complete on the server. */
-export async function saveIntent(getToken: TokenGetter, intent: Intent) {
-  await send("/api/users/me/intent", getToken, "PUT", { intent }, "We couldn't save that. Try again.");
+/**
+ * Step 4 of 4, "What do you want to do on Ball Boi?": any number of picks, or
+ * none (Skip sends an empty list). Also marks onboarding complete.
+ */
+export async function saveIntents(getToken: TokenGetter, intents: Intent[]) {
+  await send("/api/users/me/intents", getToken, "PUT", { intents }, "We couldn't save that. Try again.");
 }
 
 // ─── Edit mode ───────────────────────────────────────────────────────────────

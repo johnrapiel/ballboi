@@ -11,14 +11,15 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { BlockedPlayersRow } from "@/components/safety/BlockedPlayersRow";
 import { TabScreen } from "@/components/TabHeader";
 import { EditProfileRow } from "@/components/profile/EditProfileRow";
+import { Toggle } from "@/components/Toggle";
 import { useColors } from "@/hooks/useColors";
 
 const API_BASE = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
@@ -340,11 +341,10 @@ export default function ProfileScreen() {
                 {pushLoading ? (
                   <ActivityIndicator size="small" color={colors.primary} />
                 ) : (
-                  <Switch
+                  <Toggle
                     value={pushEnabled}
                     onValueChange={handlePushToggle}
-                    trackColor={{ false: colors.border, true: colors.primary }}
-                    thumbColor={colors.primaryForeground}
+                    accessibilityLabel="Match day reminders"
                   />
                 )}
               </View>
@@ -379,6 +379,7 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Account</Text>
           <EditProfileRow />
+          <BlockedPlayersRow />
           <Pressable
             style={({ pressed }) => [styles.signOutBtn, { opacity: pressed ? 0.7 : 1 }]}
             onPress={handleSignOut}

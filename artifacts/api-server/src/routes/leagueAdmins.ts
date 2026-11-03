@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { getAuth } from "@clerk/express";
 import { db, leagueAdminsTable, leagueJoinRequestsTable, leaguesTable, playersTable, usersTable } from "@workspace/db";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
-import { getLeagueRole } from "../lib/leagueAccess.js";
+import { getLeagueRole, leagueAdminCount } from "../lib/leagueAccess.js";
 import { leagueToday } from "../lib/leagueCalendar.js";
 import { joinedWeek } from "../lib/leagueJoining.js";
 import { promoteProblem, removeAdminProblem, type LeagueRole } from "../lib/leagueRoles.js";
@@ -30,7 +30,7 @@ router.get("/leagues/:leagueId/membership", requireAuth, async (req, res) => {
     .where(eq(leaguesTable.id, leagueId));
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
 
-  const [role, [player], [approved]] = await Promise.all([
+  const [role, [player], [approved], adminCount] = await Promise.all([
     getLeagueRole(leagueId, userId!),
     db
       .select({ id: playersTable.id, leftAt: playersTable.leftAt, createdAt: playersTable.createdAt })
@@ -46,6 +46,7 @@ router.get("/leagues/:leagueId/membership", requireAuth, async (req, res) => {
       ))
       .orderBy(desc(leagueJoinRequestsTable.decidedAt))
       .limit(1),
+    leagueAdminCount(leagueId),
   ]);
 
   // Late joiners see "You joined in week 3 of 8" (decision 30, C3). The join
@@ -55,6 +56,8 @@ router.get("/leagues/:leagueId/membership", requireAuth, async (req, res) => {
   const week = playing && joinedAt ? joinedWeek(league.startDate, leagueToday(joinedAt), league.seasonWeeks) : null;
 
   res.json({
+    // C8: the only admin can't leave until someone else is a co-admin.
+    onlyAdmin: role !== null && adminCount <= 1,
     leagueId,
     role,
     isAdmin: role !== null,
