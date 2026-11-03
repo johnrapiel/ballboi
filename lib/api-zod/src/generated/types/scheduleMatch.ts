@@ -5,6 +5,7 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+import type { MatchPlayerRating } from "./matchPlayerRating";
 
 export interface ScheduleMatch {
   matchId: number;
@@ -12,6 +13,10 @@ export interface ScheduleMatch {
   player1Name: string;
   player2Id: number;
   player2Name: string;
+  player1Rating: MatchPlayerRating | null;
+  player2Rating: MatchPlayerRating | null;
+  player1HasAccount: boolean;
+  player2HasAccount: boolean;
   status: string;
   /**
    * From player 1's side
@@ -39,4 +44,9 @@ export interface ScheduleMatch {
   correctedBy: string | null;
   /** @nullable */
   correctedAt: string | null;
+  /**
+   * The player who undid the score, shown to the opponent until a new score is in
+   * @nullable
+   */
+  scoreClearedBy: string | null;
 }

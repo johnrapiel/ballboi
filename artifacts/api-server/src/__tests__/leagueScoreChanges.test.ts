@@ -53,10 +53,16 @@ describe("checkCorrection", () => {
   it("corrects a played weekly match", () => {
     expect(checkCorrection(played)).toEqual({ ok: true });
   });
-  it("refuses unplayed, cancelled, and playoff matches", () => {
+  it("refuses unplayed and cancelled matches", () => {
     expect(checkCorrection({ ...played, status: "scheduled", score: null })).toMatchObject({ ok: false });
     expect(checkCorrection({ ...played, voidedAt: new Date() })).toMatchObject({ ok: false });
-    expect(checkCorrection({ ...played, playoffBracketId: 2 })).toMatchObject({ ok: false });
+  });
+  it("corrects a playoff match until the match it feeds is played", () => {
+    expect(checkCorrection({ ...played, playoffBracketId: 2 }, null)).toEqual({ ok: true });
+    expect(checkCorrection({ ...played, playoffBracketId: 2 }, { status: "scheduled" })).toEqual({ ok: true });
+    const out = checkCorrection({ ...played, playoffBracketId: 2 }, { status: "completed" });
+    expect(out).toMatchObject({ ok: false, status: 409 });
+    if (!out.ok) expect(out.error).toMatch(/stands/);
   });
 });
 

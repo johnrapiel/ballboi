@@ -11,6 +11,7 @@ import {
   winnerIdFor,
 } from "../lib/leagueScoring.js";
 import { checkCorrection, checkUndo, recordChanges } from "../lib/leagueScoreChanges.js";
+import { advanceTo, nextRound, type PlayoffRound } from "../lib/playoffs.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
 import { advancePlayoffWinner } from "../services/playoffBracket.js";
 import { advancePlayoff } from "../services/leaguePlayoffs.js";
@@ -38,6 +39,10 @@ router.post("/leagues/:leagueId/matches/:matchId/score", async (req, res) => {
     .from(matchesTable)
     .where(and(eq(matchesTable.id, matchId), eq(matchesTable.leagueId, leagueId)));
   if (!match) { res.status(404).json({ error: "Match not found" }); return; }
+
+  // An ended league's standings are frozen (decision 31).
+  const [owner] = await db.select({ endedAt: leaguesTable.endedAt }).from(leaguesTable).where(eq(leaguesTable.id, leagueId));
+  if (owner?.endedAt) { res.status(409).json({ error: "This league has ended, so scores can't be entered." }); return; }
 
   const [[round], callerPlayers] = await Promise.all([
     match.roundId
@@ -79,6 +84,8 @@ router.post("/leagues/:leagueId/matches/:matchId/score", async (req, res) => {
       recordedAt: now,
       recordedByClerkUserId: userId,
       inGrace: check.inGrace,
+      scoreClearedAt: null,
+      scoreClearedByName: null,
     })
     .where(and(eq(matchesTable.id, matchId), ne(matchesTable.status, "completed"), isNull(matchesTable.voidedAt)))
     .returning();
@@ -185,11 +192,26 @@ router.post("/leagues/:leagueId/matches/:matchId/score/undo", async (req, res) =
 
   const check = checkUndo(match, userId, new Date());
   if (!check.ok) { res.status(check.status).json({ error: check.error }); return; }
+  const [me] = await db
+    .select({ name: playersTable.name })
+    .from(playersTable)
+    .where(and(eq(playersTable.leagueId, leagueId), eq(playersTable.clerkUserId, userId)));
 
   // Only clears the score this caller entered, so a race can't undo another one.
   const [cleared] = await db
     .update(matchesTable)
-    .set({ status: "scheduled", score: null, winnerId: null, completedAt: null, recordedAt: null, recordedByClerkUserId: null, inGrace: false })
+    .set({
+      status: "scheduled",
+      score: null,
+      winnerId: null,
+      completedAt: null,
+      recordedAt: null,
+      recordedByClerkUserId: null,
+      inGrace: false,
+      // The opponent sees "Score cleared by {name}" until a new score is in.
+      scoreClearedAt: new Date(),
+      scoreClearedByName: me?.name ?? "your opponent",
+    })
     .where(and(
       eq(matchesTable.id, matchId),
       eq(matchesTable.status, "completed"),
@@ -203,6 +225,23 @@ router.post("/leagues/:leagueId/matches/:matchId/score/undo", async (req, res) =
   if (!match.inGrace) await applyRecordChanges(match, winnerSideOf(match), null);
   res.json({ matchId, status: cleared.status, score: null, winnerId: null });
 });
+
+/** The next-round playoff match this one's winner plays in, if it exists. */
+async function nextPlayoffMatch(match: MatchRow): Promise<{ id: number; status: string } | null> {
+  if (!match.playoffBracketId || !match.playoffRound || !match.playoffSlot) return null;
+  const next = nextRound(match.playoffRound as PlayoffRound);
+  if (!next) return null;
+  const [row] = await db
+    .select({ id: matchesTable.id, status: matchesTable.status })
+    .from(matchesTable)
+    .where(and(
+      eq(matchesTable.playoffBracketId, match.playoffBracketId),
+      eq(matchesTable.playoffRound, next),
+      eq(matchesTable.playoffSlot, advanceTo(match.playoffSlot).slot),
+      isNull(matchesTable.voidedAt),
+    ));
+  return row ?? null;
+}
 
 /** C5: a league admin corrects a completed match's score from Manage. Standings recompute. */
 router.put("/leagues/:leagueId/matches/:matchId/score", requireLeagueAdmin, async (req, res) => {
@@ -218,7 +257,9 @@ router.put("/leagues/:leagueId/matches/:matchId/score", requireLeagueAdmin, asyn
     .where(and(eq(matchesTable.id, matchId), eq(matchesTable.leagueId, leagueId)));
   if (!match) { res.status(404).json({ error: "Match not found" }); return; }
 
-  const check = checkCorrection(match);
+  // A playoff score can be corrected until the match it feeds is played.
+  const feeds = await nextPlayoffMatch(match);
+  const check = checkCorrection(match, feeds);
   if (!check.ok) { res.status(check.status).json({ error: check.error }); return; }
 
   // The admin enters the score from player 1's side, as Manage shows it.
@@ -240,7 +281,15 @@ router.put("/leagues/:leagueId/matches/:matchId/score", requireLeagueAdmin, asyn
     .returning();
   if (!saved) { res.status(409).json({ error: "This match changed. Pull down to see the latest." }); return; }
 
-  if (!match.inGrace) await applyRecordChanges(match, winnerSideOf(match), parsed.winnerSide);
+  if (match.playoffBracketId) {
+    // The corrected winner takes the spot in the next round.
+    if (feeds && match.winnerId !== winnerId && match.playoffSlot) {
+      const position = advanceTo(match.playoffSlot).position;
+      await db.update(matchesTable).set(position === 1 ? { player1Id: winnerId } : { player2Id: winnerId }).where(eq(matchesTable.id, feeds.id));
+    }
+  } else if (!match.inGrace) {
+    await applyRecordChanges(match, winnerSideOf(match), parsed.winnerSide);
+  }
   res.json({
     matchId: saved.id,
     score: saved.score,

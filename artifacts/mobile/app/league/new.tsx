@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import React, { useMemo, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, Switch, TextInput, View, useColorScheme } from "react-native";
+import { Alert, Pressable, ScrollView, TextInput, View, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -17,6 +17,7 @@ import {
 import { ChoiceGroup } from "@/components/Choice";
 import { Button, Card, Field, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
+import { Toggle } from "@/components/Toggle";
 import { useColors } from "@/hooks/useColors";
 
 // Start a league (spec: Leagues > Setup and Onboarding > Run a league;
@@ -341,10 +342,9 @@ export default function StartLeagueScreen() {
               {playing ? "You'll be paired like everyone else." : "You'll run the league without playing."}
             </Text>
           </View>
-          <Switch
+          <Toggle
             value={playing}
             onValueChange={setPlaying}
-            trackColor={{ true: c.court, false: c.hairlineStrong }}
             accessibilityLabel="I'm playing in this league"
           />
         </Card>

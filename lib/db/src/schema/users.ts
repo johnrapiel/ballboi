@@ -29,8 +29,17 @@ export const usersTable = pgTable("users", {
    */
   homeLatitude: real("home_latitude"),
   homeLongitude: real("home_longitude"),
-  /** "What brings you here?" answer: run_league, join_league, find_matches, record. */
+  /**
+   * Single-choice answer from the first onboarding version. Kept for the dev
+   * walkthrough seed; new answers go in `intents`.
+   */
   intent: text("intent"),
+  /**
+   * "What do you want to do on Ball Boi?" picks: run_league, join_league,
+   * find_matches, record. Null = never answered; empty = skipped or nothing
+   * picked. Research data for the team, never shown back to the player.
+   */
+  intents: text("intents").array(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

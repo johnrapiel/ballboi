@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import pino from "pino";
 import { autoLinkPlayersForUser } from "../lib/autoLinkPlayer.js";
 import { deleteAccount } from "../lib/accountDeletion.js";
-import { isUserIntent, parseHomeArea } from "../lib/onboarding.js";
+import { isUserIntent, parseHomeArea, parseIntents } from "../lib/onboarding.js";
 
 const logger = pino({ name: "users" });
 
@@ -117,9 +117,28 @@ router.put("/users/me/home-area", requireAuth, async (req, res) => {
 });
 
 /**
+ * PUT /users/me/intents { intents: [] }
+ * Onboarding step 4, "What do you want to do on Ball Boi?": zero or more picks.
+ * Skip sends an empty list. The last step, so it also marks onboarding
+ * complete. Research data only; nothing in the app reads it back.
+ */
+router.put("/users/me/intents", requireAuth, async (req, res) => {
+  const { userId } = getAuth(req);
+  const intents = parseIntents(req.body);
+  if ("error" in intents) return res.status(400).json({ error: intents.error });
+  const [updated] = await db
+    .update(usersTable)
+    .set({ intents, onboardingComplete: true })
+    .where(eq(usersTable.clerkUserId, userId!))
+    .returning();
+  if (!updated) return res.status(404).json({ error: "User profile not found" });
+  return res.json(updated);
+});
+
+/**
  * PUT /users/me/intent { intent }
- * Onboarding step 6, "What brings you here?". The last step, so it also marks
- * onboarding complete.
+ * The single-choice version of onboarding step 4. Kept so an older app build
+ * still finishes onboarding; it also records the answer in `intents`.
  */
 router.put("/users/me/intent", requireAuth, async (req, res) => {
   const { userId } = getAuth(req);
@@ -127,7 +146,7 @@ router.put("/users/me/intent", requireAuth, async (req, res) => {
   if (!isUserIntent(intent)) return res.status(400).json({ error: "Pick one of the options." });
   const [updated] = await db
     .update(usersTable)
-    .set({ intent, onboardingComplete: true })
+    .set({ intent, intents: [intent], onboardingComplete: true })
     .where(eq(usersTable.clerkUserId, userId!))
     .returning();
   if (!updated) return res.status(404).json({ error: "User profile not found" });

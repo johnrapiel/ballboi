@@ -6,11 +6,12 @@ import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Switch, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 
 import { TRAINING_COPY } from "@/components/record/ConsentScreen";
 import { Button, Card, Screen, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
+import { Toggle } from "@/components/Toggle";
 import { useColors } from "@/hooks/useColors";
 import { claimMatchInvite, recordingsKey, useMatchInvite } from "@/lib/recording/api";
 import { savePendingInvite } from "@/lib/recording/pendingInvite";
@@ -136,13 +137,11 @@ export default function MatchInviteScreen() {
           <Text variant="bodyStrong" style={{ flex: 1 }} importantForAccessibility="no" accessibilityElementsHidden>
             Help Ball Boi get smarter
           </Text>
-          <Switch
+          <Toggle
             value={training}
             onValueChange={setTraining}
             accessibilityLabel="Help Ball Boi get smarter"
             accessibilityHint={TRAINING_COPY}
-            trackColor={{ true: c.ink, false: c.hairlineStrong }}
-            ios_backgroundColor={c.hairlineStrong}
           />
         </View>
         <Text tone="inkMuted">{TRAINING_COPY}</Text>

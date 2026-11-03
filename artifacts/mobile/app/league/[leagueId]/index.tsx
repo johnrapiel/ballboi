@@ -1,6 +1,7 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
+import { SymbolView } from "expo-symbols";
 import React, { useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -29,6 +30,8 @@ import { BracketView, myPlayoffMatch, ROUND_SINGULAR } from "@/components/league
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { RatingBadge } from "@/components/RatingBadge";
+import { formatRating } from "@/lib/onboarding";
 import { canEnterScore, correctionLine, dateRange, myWeek, opponentName, resultLine, shortDate } from "@/lib/leagueSchedule";
 import { formatLabel, playersLabel, playTypeLabel } from "@/lib/leagues";
 
@@ -62,37 +65,69 @@ function YourWeek({
   if (!match) return null;
 
   const opponent = opponentName(match, myPlayerId);
+  const opponentId = match.player1Id === myPlayerId ? match.player2Id : match.player1Id;
+  const opponentRating = match.player1Id === myPlayerId ? match.player2Rating : match.player1Rating;
+  const canMessage = match.player1Id === myPlayerId ? match.player2HasAccount : match.player1HasAccount;
   const scoreable = canEnterScore(round, match);
+  const { fontScale } = useWindowDimensions();
+  // C7: a direct chat with your opponent. League mates skip Message Requests.
+  const message = () =>
+    router.push({ pathname: "/conversation/[id]", params: { id: "new", playerId: String(opponentId), name: opponent } });
   const played = match.status === "completed" && !!match.score;
   const corrected = correctionLine(match);
+  // After an undo, the opponent sees who cleared it until a new score is in.
+  const clearedNote = !played && match.scoreClearedBy ? `Score cleared by ${match.scoreClearedBy}. ` : "";
   const when = played
     ? [resultLine(match), corrected].filter(Boolean).join(". ")
-    : round.phase === "upcoming"
+    : clearedNote +
+      (round.phase === "upcoming"
       ? `Starts ${shortDate(round.startDate)}. Play by ${shortDate(round.deadline)}.`
       : round.phase === "grace"
         ? `Grace week until ${shortDate(round.graceEnd)}. A score now counts for Ball Boi stats, not standings.`
-        : `Play by ${shortDate(round.deadline)}.`;
+        : `Play by ${shortDate(round.deadline)}.`);
 
   return (
     <Card style={{ gap: spacing.space3 }}>
-      <View accessible accessibilityLabel={`Your match. ${label}. You versus ${opponent}. ${when}`} style={{ gap: spacing.space1 }}>
+      <View
+        accessible
+        accessibilityLabel={`Your match. ${label}. You versus ${opponent}${
+          opponentRating ? `, Ball Boi Rating ${formatRating(opponentRating.rating)}, ${opponentRating.source === "verified" ? "Verified" : "Self-rated"}` : ""
+        }. ${when}`}
+        style={{ gap: spacing.space1 }}
+      >
         <Text variant="label" tone="inkMuted">
           {label}
         </Text>
-        <Text variant="title">{`You vs. ${opponent}`}</Text>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.space2 }}>
+          <Text variant="title">{`You vs. ${opponent}`}</Text>
+          {opponentRating ? <RatingBadge rating={opponentRating.rating} source={opponentRating.source} /> : null}
+        </View>
         <Text variant="small" tone="inkMuted">
           {when}
         </Text>
       </View>
-      {scoreable ? (
-        <Button
-          label="Enter score"
-          accessibilityHint={`For your match against ${opponent}`}
-          onPress={() => router.push(`/league/${leagueId}/score/${match.matchId}`)}
-        />
-      ) : (
-        <UndoScore leagueId={leagueId} matchId={match.matchId} undoUntil={match.undoUntil} align="flex-start" />
-      )}
+      {/* Side by side; stacked at large text sizes so neither label truncates. */}
+      <View style={{ flexDirection: fontScale >= 1.3 ? "column" : "row", gap: spacing.space2 }}>
+        {scoreable ? (
+          <Button
+            label="Enter score"
+            accessibilityHint={`For your match against ${opponent}`}
+            onPress={() => router.push(`/league/${leagueId}/score/${match.matchId}`)}
+            style={fontScale >= 1.3 ? undefined : { flex: 1 }}
+          />
+        ) : null}
+        {canMessage ? (
+          <Button
+            label={`Message ${opponent.split(" ")[0]}`}
+            accessibilityLabel={`Message ${opponent}`}
+            accessibilityHint="Opens a direct chat"
+            variant="secondary"
+            onPress={message}
+            style={fontScale >= 1.3 ? undefined : { flex: 1 }}
+          />
+        ) : null}
+      </View>
+      {!scoreable ? <UndoScore leagueId={leagueId} matchId={match.matchId} undoUntil={match.undoUntil} align="flex-start" /> : null}
     </Card>
   );
 }
@@ -147,11 +182,20 @@ export default function LeagueScreen() {
     league?.startDate && league.endDate ? `Season ${dateRange(league.startDate, league.endDate)}` : null;
 
   const draft = schedule?.rounds.find((r) => r.phase === "draft");
+  const ended = !!league?.endedAt;
   const started = !!league?.startDate && !!schedule && schedule.today >= league.startDate;
 
   // Dropouts (decision 27): played matches stay, the rest are cancelled.
   function confirmLeave() {
     if (!league) return;
+    // C8: the only admin hands the league on first.
+    if (membershipQ.data?.onlyAdmin) {
+      Alert.alert("Make someone a co-admin first", `You're the only admin of ${league.name}. Make another player a co-admin in Manage, then you can leave.`, [
+        { text: "Cancel", style: "cancel" },
+        { text: "Open Manage", onPress: () => router.push(`/league/${leagueId}/manage`) },
+      ]);
+      return;
+    }
     Alert.alert(
       `Leave ${league.name}?`,
       started
@@ -233,7 +277,18 @@ export default function LeagueScreen() {
             ) : null}
           </View>
 
-          {playoff ? (
+          {ended ? (
+            // Decision 31: an admin ended the league. Standings are final.
+            <Card accessible style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3 }}>
+              <SymbolView name="flag.checkered" size={20} tintColor={c.ink} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text variant="bodyStrong">This league has ended</Text>
+                <Text variant="small" tone="inkMuted">
+                  {`Standings are final as of ${new Date(league.endedAt!).toLocaleDateString("en-US", { month: "short", day: "numeric" })}. Everything played stays.`}
+                </Text>
+              </View>
+            </Card>
+          ) : playoff ? (
             <Card style={{ gap: spacing.space3 }}>
               <View
                 accessible
@@ -315,7 +370,7 @@ export default function LeagueScreen() {
               ) : (
                 <>
                   {rounds.map((r) => (
-                    <RoundCard key={r.roundId} leagueId={leagueId} round={r} myPlayerId={myPlayerId} onEnterScore={enterScore} />
+                    <RoundCard key={r.roundId} leagueId={leagueId} round={r} myPlayerId={myPlayerId} onEnterScore={enterScore} frozen={ended} />
                   ))}
                   {schedule && schedule.upcoming.length > 0 ? (
                     <View style={{ gap: spacing.space2 }}>

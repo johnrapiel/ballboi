@@ -30,6 +30,7 @@ import type {
   BallBoiStatus,
   BallBoiUploadUrl,
   CompleteBallBoiSessionBody,
+  ConfirmLeagueName,
   CorrectedScore,
   CreateLeagueBody,
   CreateLeagueInviteBody,
@@ -42,6 +43,7 @@ import type {
   DevTimeResult,
   DropoutResult,
   EndMatchBallBoiBody,
+  EndedLeague,
   EnterScoreBody,
   ErrorResponse,
   GenerateLeagueRoundBody,
@@ -64,6 +66,7 @@ import type {
   LeagueBracket,
   LeagueInvite,
   LeagueMembership,
+  LeagueNotice,
   LeagueRoundWithMatchups,
   LeagueSchedule,
   LeagueWeek,
@@ -535,7 +538,7 @@ export const useUpdateLeague = <
 };
 
 /**
- * @summary Delete league
+ * @summary League admins delete the league, with its name typed. Members get a note; Ball Boi recordings stay with the players.
  */
 export const getDeleteLeagueUrl = (leagueId: number) => {
   return `/api/leagues/${leagueId}`;
@@ -543,29 +546,32 @@ export const getDeleteLeagueUrl = (leagueId: number) => {
 
 export const deleteLeague = async (
   leagueId: number,
+  confirmLeagueName: ConfirmLeagueName,
   options?: RequestInit,
 ): Promise<void> => {
   return customFetch<void>(getDeleteLeagueUrl(leagueId), {
     ...options,
     method: "DELETE",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(confirmLeagueName),
   });
 };
 
 export const getDeleteLeagueMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof deleteLeague>>,
     TError,
-    { leagueId: number },
+    { leagueId: number; data: BodyType<ConfirmLeagueName> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteLeague>>,
   TError,
-  { leagueId: number },
+  { leagueId: number; data: BodyType<ConfirmLeagueName> },
   TContext
 > => {
   const mutationKey = ["deleteLeague"];
@@ -579,11 +585,11 @@ export const getDeleteLeagueMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteLeague>>,
-    { leagueId: number }
+    { leagueId: number; data: BodyType<ConfirmLeagueName> }
   > = (props) => {
-    const { leagueId } = props ?? {};
+    const { leagueId, data } = props ?? {};
 
-    return deleteLeague(leagueId, requestOptions);
+    return deleteLeague(leagueId, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -592,27 +598,27 @@ export const getDeleteLeagueMutationOptions = <
 export type DeleteLeagueMutationResult = NonNullable<
   Awaited<ReturnType<typeof deleteLeague>>
 >;
-
-export type DeleteLeagueMutationError = ErrorType<unknown>;
+export type DeleteLeagueMutationBody = BodyType<ConfirmLeagueName>;
+export type DeleteLeagueMutationError = ErrorType<void>;
 
 /**
- * @summary Delete league
+ * @summary League admins delete the league, with its name typed. Members get a note; Ball Boi recordings stay with the players.
  */
 export const useDeleteLeague = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof deleteLeague>>,
     TError,
-    { leagueId: number },
+    { leagueId: number; data: BodyType<ConfirmLeagueName> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof deleteLeague>>,
   TError,
-  { leagueId: number },
+  { leagueId: number; data: BodyType<ConfirmLeagueName> },
   TContext
 > => {
   return useMutation(getDeleteLeagueMutationOptions(options));
@@ -3595,6 +3601,249 @@ export const useUndoLeagueScore = <
   TContext
 > => {
   return useMutation(getUndoLeagueScoreMutationOptions(options));
+};
+
+/**
+ * @summary League admins end the league. Standings freeze, unpublished rounds are cancelled, history stays.
+ */
+export const getEndLeagueUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/end`;
+};
+
+export const endLeague = async (
+  leagueId: number,
+  options?: RequestInit,
+): Promise<EndedLeague> => {
+  return customFetch<EndedLeague>(getEndLeagueUrl(leagueId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getEndLeagueMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof endLeague>>,
+    TError,
+    { leagueId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof endLeague>>,
+  TError,
+  { leagueId: number },
+  TContext
+> => {
+  const mutationKey = ["endLeague"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof endLeague>>,
+    { leagueId: number }
+  > = (props) => {
+    const { leagueId } = props ?? {};
+
+    return endLeague(leagueId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EndLeagueMutationResult = NonNullable<
+  Awaited<ReturnType<typeof endLeague>>
+>;
+
+export type EndLeagueMutationError = ErrorType<void>;
+
+/**
+ * @summary League admins end the league. Standings freeze, unpublished rounds are cancelled, history stays.
+ */
+export const useEndLeague = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof endLeague>>,
+    TError,
+    { leagueId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof endLeague>>,
+  TError,
+  { leagueId: number },
+  TContext
+> => {
+  return useMutation(getEndLeagueMutationOptions(options));
+};
+
+/**
+ * @summary One-line notes about leagues you were in, such as one being deleted
+ */
+export const getGetMyLeagueNoticesUrl = () => {
+  return `/api/me/league-notices`;
+};
+
+export const getMyLeagueNotices = async (
+  options?: RequestInit,
+): Promise<LeagueNotice[]> => {
+  return customFetch<LeagueNotice[]>(getGetMyLeagueNoticesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyLeagueNoticesQueryKey = () => {
+  return [`/api/me/league-notices`] as const;
+};
+
+export const getGetMyLeagueNoticesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyLeagueNotices>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyLeagueNotices>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyLeagueNoticesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMyLeagueNotices>>
+  > = ({ signal }) => getMyLeagueNotices({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyLeagueNotices>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyLeagueNoticesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyLeagueNotices>>
+>;
+export type GetMyLeagueNoticesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary One-line notes about leagues you were in, such as one being deleted
+ */
+
+export function useGetMyLeagueNotices<
+  TData = Awaited<ReturnType<typeof getMyLeagueNotices>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyLeagueNotices>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyLeagueNoticesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Clear a league note
+ */
+export const getDismissMyLeagueNoticeUrl = (noticeId: number) => {
+  return `/api/me/league-notices/${noticeId}/dismiss`;
+};
+
+export const dismissMyLeagueNotice = async (
+  noticeId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDismissMyLeagueNoticeUrl(noticeId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getDismissMyLeagueNoticeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dismissMyLeagueNotice>>,
+    TError,
+    { noticeId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof dismissMyLeagueNotice>>,
+  TError,
+  { noticeId: number },
+  TContext
+> => {
+  const mutationKey = ["dismissMyLeagueNotice"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof dismissMyLeagueNotice>>,
+    { noticeId: number }
+  > = (props) => {
+    const { noticeId } = props ?? {};
+
+    return dismissMyLeagueNotice(noticeId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DismissMyLeagueNoticeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof dismissMyLeagueNotice>>
+>;
+
+export type DismissMyLeagueNoticeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Clear a league note
+ */
+export const useDismissMyLeagueNotice = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dismissMyLeagueNotice>>,
+    TError,
+    { noticeId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof dismissMyLeagueNotice>>,
+  TError,
+  { noticeId: number },
+  TContext
+> => {
+  return useMutation(getDismissMyLeagueNoticeMutationOptions(options));
 };
 
 /**

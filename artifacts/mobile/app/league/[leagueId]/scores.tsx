@@ -3,7 +3,9 @@ import React from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useGetLeague, useGetLeagueSchedule } from "@workspace/api-client-react";
+import { useGetLeague, useGetLeagueBracket, useGetLeagueSchedule } from "@workspace/api-client-react";
+
+import { ROUND_SINGULAR } from "@/components/league/Bracket";
 
 import { ListRow, SectionLabel } from "@/components/league/ListRow";
 import { Card, Text } from "@/components/ui";
@@ -14,8 +16,8 @@ import { correctionLine, dateRange, resultLine } from "@/lib/leagueSchedule";
 // Correct a score (Oct 31 review, C5). Manage > Correct a score lists every
 // played match by round, newest first. Tap one to enter the corrected sets
 // and confirm; standings recompute and both players see "Corrected by
-// {admin} on {date}". Playoff scores aren't listed: the winner has already
-// moved on to the next round.
+// {admin} on {date}". A playoff score can be corrected until the match it
+// feeds has been played; the corrected winner takes that spot.
 
 export default function CorrectScoresScreen() {
   const c = useColors();
@@ -24,6 +26,11 @@ export default function CorrectScoresScreen() {
   const leagueId = Number(raw);
   const leagueQ = useGetLeague(leagueId);
   const scheduleQ = useGetLeagueSchedule(leagueId);
+  const bracketQ = useGetLeagueBracket(leagueId);
+  const playoffRounds = (bracketQ.data?.rounds ?? [])
+    .map((r) => ({ round: r.round, played: r.slots.filter((s) => s.status === "completed" && !!s.score && s.matchId != null) }))
+    .filter((r) => r.played.length > 0)
+    .reverse();
 
   const rounds = (scheduleQ.data?.rounds ?? [])
     .map((r) => ({ round: r, played: r.matches.filter((m) => m.status === "completed" && !!m.score && !m.voided) }))
@@ -55,7 +62,7 @@ export default function CorrectScoresScreen() {
             Pull down to try again.
           </Text>
         </Card>
-      ) : rounds.length === 0 ? (
+      ) : rounds.length === 0 && playoffRounds.length === 0 ? (
         <Card style={{ gap: spacing.space2 }}>
           <Text variant="bodyStrong">No scores yet</Text>
           <Text variant="small" tone="inkMuted">
@@ -63,7 +70,34 @@ export default function CorrectScoresScreen() {
           </Text>
         </Card>
       ) : (
-        rounds.map(({ round, played }) => (
+        <>
+          {playoffRounds.map(({ round, played }) => (
+            <View key={`po-${round}`} style={{ gap: spacing.space2 }}>
+              <SectionLabel>{`Playoffs · ${ROUND_SINGULAR[round]}`}</SectionLabel>
+              <Card style={{ padding: 0, overflow: "hidden" }}>
+                {played.map((s, i) => {
+                  const winner = s.winnerId === s.player1?.playerId ? s.player1?.playerName : s.player2?.playerName;
+                  return (
+                    <ListRow
+                      key={s.matchId}
+                      title={`${s.player1?.playerName ?? "Player 1"} vs. ${s.player2?.playerName ?? "Player 2"}`}
+                      subtitle={`${winner ?? "Winner"} won ${s.score}`}
+                      trailing="Correct"
+                      onPress={() =>
+                        router.push({
+                          pathname: "/league/[leagueId]/score/[matchId]",
+                          params: { leagueId: String(leagueId), matchId: String(s.matchId), correct: "1" },
+                        })
+                      }
+                      accessibilityHint="Opens the score to correct it. Allowed until the next round is played."
+                      last={i === played.length - 1}
+                    />
+                  );
+                })}
+              </Card>
+            </View>
+          ))}
+          {rounds.map(({ round, played }) => (
           <View key={round.roundId} style={{ gap: spacing.space2 }}>
             <SectionLabel>{`Round ${round.roundNumber} · ${dateRange(round.startDate, round.deadline)}`}</SectionLabel>
             <Card style={{ padding: 0, overflow: "hidden" }}>
@@ -85,7 +119,8 @@ export default function CorrectScoresScreen() {
               ))}
             </Card>
           </View>
-        ))
+          ))}
+        </>
       )}
     </ScrollView>
   );

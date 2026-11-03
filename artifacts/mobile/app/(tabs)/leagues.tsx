@@ -9,8 +9,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   getGetLeagueStandingsQueryOptions,
   useDismissMyJoinRequest,
+  useDismissMyLeagueNotice,
   useGetLeagues,
   useGetMyJoinRequests,
+  useGetMyLeagueNotices,
   useGetMyPlayers,
   type League,
   type MyJoinRequest,
@@ -25,9 +27,10 @@ import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { formatLabel, ordinal, playersLabel, playTypeLabel, statusLabel } from "@/lib/leagues";
 
-// Leagues tab (spec: Leagues; canvas: Leagues). Your current leagues as cards
-// with your rank, leagues you've asked to join (decision 30), past seasons as
-// a list, and a row that opens the invite
+// Leagues tab (spec: Leagues; canvas: Leagues). Notes about deleted leagues,
+// your current leagues as cards with your rank, leagues you've asked to join
+// (decision 30), finished and ended leagues under Past (decision 31), and a
+// row that opens the invite
 // code sheet (app/league/join.tsx). The league card is the hero surface; the
 // invite row is an unfilled, dashed action so the two never read as siblings.
 // Start a league opens from the + button and from the empty state.
@@ -153,7 +156,7 @@ function PastLeagueRow({ league, standing, onPress, last }: { league: League; st
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${league.name}. ${sub}. Done`}
+      accessibilityLabel={`${league.name}. ${sub}. ${league.endedAt ? "Ended" : "Done"}`}
       style={({ pressed }) => ({
         minHeight: 56,
         flexDirection: "row",
@@ -172,8 +175,30 @@ function PastLeagueRow({ league, standing, onPress, last }: { league: League; st
           {sub}
         </Text>
       </View>
-      <Chip label="Done" />
+      <Chip label={league.endedAt ? "Ended" : "Done"} />
     </Pressable>
+  );
+}
+
+// "Tuesday Flex was deleted by its organizer" (C10). One line; the player clears it.
+function NoticeRow({ message, onClear, clearing }: { message: string; onClear: () => void; clearing: boolean }) {
+  return (
+    <Card style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3, paddingVertical: spacing.space2 }}>
+      <Text variant="body" style={{ flex: 1 }}>
+        {message}
+      </Text>
+      <Pressable
+        onPress={onClear}
+        disabled={clearing}
+        accessibilityRole="button"
+        accessibilityLabel="Clear"
+        accessibilityHint={message}
+        accessibilityState={{ disabled: clearing, busy: clearing }}
+        style={({ pressed }) => ({ minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center", opacity: pressed || clearing ? 0.6 : 1 })}
+      >
+        <Text variant="button">Clear</Text>
+      </Pressable>
+    </Card>
   );
 }
 
@@ -275,6 +300,9 @@ export default function LeaguesScreen() {
 
   const leaguesQ = useGetLeagues(user?.id ? { clerkUserId: user.id } : undefined);
   const playersQ = useGetMyPlayers();
+  const noticesQ = useGetMyLeagueNotices();
+  const clearNotice = useDismissMyLeagueNotice();
+  const notices = noticesQ.data ?? [];
   const requestsQ = useGetMyJoinRequests();
   const dismiss = useDismissMyJoinRequest();
   const leagues = leaguesQ.data ?? [];
@@ -301,6 +329,7 @@ export default function LeaguesScreen() {
   const refresh = () => {
     void leaguesQ.refetch();
     void playersQ.refetch();
+    void noticesQ.refetch();
     void requestsQ.refetch();
     standingsQs.forEach((q) => void q.refetch());
   };
@@ -331,6 +360,15 @@ export default function LeaguesScreen() {
               </Text>
             </Card>
           ) : null}
+
+          {notices.map((n) => (
+            <NoticeRow
+              key={n.id}
+              message={n.message}
+              clearing={clearNotice.isPending && clearNotice.variables?.noticeId === n.id}
+              onClear={() => clearNotice.mutate({ noticeId: n.id }, { onSettled: () => void noticesQ.refetch() })}
+            />
+          ))}
 
           {!leaguesQ.isError && leagues.length === 0 && requests.length === 0 ? (
             <View style={{ minHeight: 240, gap: spacing.space4 }}>
@@ -372,7 +410,7 @@ export default function LeaguesScreen() {
           {past.length > 0 ? (
             <View style={{ gap: spacing.space2 }}>
               <Text variant="label" tone="inkMuted" accessibilityRole="header">
-                Past seasons
+                Past
               </Text>
               <Card style={{ padding: 0 }}>
                 {past.map(({ league, i }, n) => (

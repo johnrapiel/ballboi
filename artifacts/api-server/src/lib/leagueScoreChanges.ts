@@ -4,8 +4,9 @@
 //   the score; standings recompute. After that, the first score stands.
 // - A league admin can correct any completed match from Manage. The match
 //   shows "Corrected by {admin} on {date}". Players still can't dispute or edit.
-// - Playoff scores move the winner on to the next round, so neither applies
-//   to them yet.
+// - Playoff scores move the winner on to the next round, so they can't be
+//   undone. An admin can correct one while the match it feeds is unplayed;
+//   the corrected winner takes that spot.
 //
 // Pure functions, so they're easy to test.
 
@@ -46,12 +47,18 @@ export function checkUndo(match: ChangeableMatch, userId: string, now: Date): Ch
   return { ok: true };
 }
 
-export function checkCorrection(match: ChangeableMatch): ChangeCheck {
+/**
+ * `next` is the playoff match this one feeds: null when there isn't one yet
+ * (or this is the final). Once that match is played, the score stands.
+ */
+export function checkCorrection(match: ChangeableMatch, next: { status: string } | null = null): ChangeCheck {
   if (match.voidedAt) return { ok: false, status: 409, error: "This match was cancelled when a player left the league." };
   if (match.status !== "completed" || !match.score) {
     return { ok: false, status: 409, error: "Only played matches can be corrected." };
   }
-  if (match.playoffBracketId) return { ok: false, status: 409, error: "Playoff scores can't be corrected yet." };
+  if (match.playoffBracketId && next?.status === "completed") {
+    return { ok: false, status: 409, error: "The next playoff round has been played, so this score stands." };
+  }
   return { ok: true };
 }
 
