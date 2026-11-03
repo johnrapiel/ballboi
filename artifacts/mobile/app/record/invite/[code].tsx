@@ -6,18 +6,29 @@ import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Switch, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 
 import { TRAINING_COPY } from "@/components/record/ConsentScreen";
 import { Button, Card, Screen, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
+import { Toggle } from "@/components/Toggle";
 import { useColors } from "@/hooks/useColors";
-import { claimMatchInvite, recordingsKey, useMatchInvite } from "@/lib/recording/api";
+import {
+  claimMatchInvite,
+  recordingsKey,
+  useMatchInvite,
+} from "@/lib/recording/api";
 import { savePendingInvite } from "@/lib/recording/pendingInvite";
 
 function longDate(iso: string): string {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "a recent day" : d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  return Number.isNaN(d.getTime())
+    ? "a recent day"
+    : d.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      });
 }
 
 export default function MatchInviteScreen() {
@@ -38,7 +49,8 @@ export default function MatchInviteScreen() {
     if (isLoaded && !isSignedIn && code) savePendingInvite(code);
   }, [isLoaded, isSignedIn, code]);
 
-  const close = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)/ballboi"));
+  const close = () =>
+    router.canGoBack() ? router.back() : router.replace("/(tabs)/ballboi");
 
   if (!isLoaded) return <Screen />;
 
@@ -48,8 +60,14 @@ export default function MatchInviteScreen() {
         <Text variant="title" accessibilityRole="header">
           A match is waiting for you
         </Text>
-        <Text tone="inkMuted">Sign in to Ball Boi to add it to your matches. This link opens again once you're in.</Text>
-        <Button label="Sign in" onPress={() => router.replace("/(auth)/welcome")} />
+        <Text tone="inkMuted">
+          Sign in to Ball Boi to add it to your matches. This link opens again
+          once you're in.
+        </Text>
+        <Button
+          label="Sign in"
+          onPress={() => router.replace("/(auth)/welcome")}
+        />
       </Screen>
     );
   }
@@ -68,7 +86,11 @@ export default function MatchInviteScreen() {
         <Text variant="title" accessibilityRole="header">
           This link doesn't work
         </Text>
-        <Text tone="inkMuted">{invite.error instanceof Error ? invite.error.message : "Ask the player who sent it for a new one."}</Text>
+        <Text tone="inkMuted">
+          {invite.error instanceof Error
+            ? invite.error.message
+            : "Ask the player who sent it for a new one."}
+        </Text>
         <Button variant="secondary" label="Close" onPress={close} />
       </Screen>
     );
@@ -84,7 +106,8 @@ export default function MatchInviteScreen() {
           Added to your matches
         </Text>
         <Text tone="inkMuted">
-          Your match with {inv.recorderName} on {when} is yours too. Its stats show up once Ball Boi finishes the analysis.
+          Your match with {inv.recorderName} on {when} is yours too. Its stats
+          show up once Ball Boi finishes the analysis.
         </Text>
         <Button label="Done" onPress={close} />
       </Screen>
@@ -116,7 +139,9 @@ export default function MatchInviteScreen() {
       queryClient.invalidateQueries({ queryKey: ["recording", "consent"] });
       setJoined(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't add the match. Try again.");
+      setError(
+        e instanceof Error ? e.message : "Couldn't add the match. Try again.",
+      );
     } finally {
       setSaving(false);
     }
@@ -128,21 +153,33 @@ export default function MatchInviteScreen() {
         <Text variant="title" accessibilityRole="header">
           {inv.recorderName} recorded your match on {when}
         </Text>
-        <Text tone="inkMuted">Add it to your matches to see your shots and stats.</Text>
+        <Text tone="inkMuted">
+          Add it to your matches to see your shots and stats.
+        </Text>
       </View>
 
       <Card style={{ gap: spacing.space3 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3, minHeight: MIN_TAP }}>
-          <Text variant="bodyStrong" style={{ flex: 1 }} importantForAccessibility="no" accessibilityElementsHidden>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.space3,
+            minHeight: MIN_TAP,
+          }}
+        >
+          <Text
+            variant="bodyStrong"
+            style={{ flex: 1 }}
+            importantForAccessibility="no"
+            accessibilityElementsHidden
+          >
             Help Ball Boi get smarter
           </Text>
-          <Switch
+          <Toggle
             value={training}
             onValueChange={setTraining}
             accessibilityLabel="Help Ball Boi get smarter"
             accessibilityHint={TRAINING_COPY}
-            trackColor={{ true: c.ink, false: c.hairlineStrong }}
-            ios_backgroundColor={c.hairlineStrong}
           />
         </View>
         <Text tone="inkMuted">{TRAINING_COPY}</Text>
@@ -156,7 +193,12 @@ export default function MatchInviteScreen() {
 
       <View style={{ flex: 1 }} />
       <Button label="Add to my matches" onPress={join} loading={saving} />
-      <Button variant="secondary" label="Not now" onPress={close} disabled={saving} />
+      <Button
+        variant="secondary"
+        label="Not now"
+        onPress={close}
+        disabled={saving}
+      />
     </Screen>
   );
 }

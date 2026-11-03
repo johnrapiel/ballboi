@@ -11,7 +11,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from "react-native";
@@ -19,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { TabScreen } from "@/components/TabHeader";
 import { EditProfileRow } from "@/components/profile/EditProfileRow";
+import { Toggle } from "@/components/Toggle";
 import { useColors } from "@/hooks/useColors";
 
 const API_BASE = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
@@ -26,7 +26,7 @@ const API_BASE = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
 async function fetchWithAuth(
   path: string,
   options: RequestInit = {},
-  getToken: () => Promise<string | null>
+  getToken: () => Promise<string | null>,
 ): Promise<Response> {
   const token = await getToken();
   return fetch(`${API_BASE}${path}`, {
@@ -34,7 +34,7 @@ async function fetchWithAuth(
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers as Record<string, string> ?? {}),
+      ...((options.headers as Record<string, string>) ?? {}),
     },
   });
 }
@@ -65,13 +65,16 @@ export default function ProfileScreen() {
   const loadPushStatus = useCallback(async () => {
     if (Platform.OS === "web") return;
     try {
-      const res = await fetchWithAuth("/api/notifications/expo-token/status", {}, getToken);
+      const res = await fetchWithAuth(
+        "/api/notifications/expo-token/status",
+        {},
+        getToken,
+      );
       if (res.ok) {
         const data = (await res.json()) as { registered: boolean };
         setPushEnabled(data.registered);
       }
-    } catch {
-    }
+    } catch {}
   }, [getToken]);
 
   useEffect(() => {
@@ -82,11 +85,15 @@ export default function ProfileScreen() {
     if (Platform.OS === "web") return null;
 
     // expo-notifications v56 PermissionResponse type may not resolve correctly in this TS config
-    const existing = (await Notifications.getPermissionsAsync()) as { granted: boolean };
+    const existing = (await Notifications.getPermissionsAsync()) as {
+      granted: boolean;
+    };
     let granted = existing.granted;
 
     if (!granted) {
-      const result = (await Notifications.requestPermissionsAsync()) as { granted: boolean };
+      const result = (await Notifications.requestPermissionsAsync()) as {
+        granted: boolean;
+      };
       granted = result.granted;
     }
 
@@ -94,7 +101,7 @@ export default function ProfileScreen() {
       Alert.alert(
         "Notifications Disabled",
         "Enable notifications in Settings to receive match day reminders.",
-        [{ text: "OK" }]
+        [{ text: "OK" }],
       );
       return null;
     }
@@ -107,62 +114,70 @@ export default function ProfileScreen() {
     }
   }, []);
 
-  const handlePushToggle = useCallback(async (enabled: boolean) => {
-    if (Platform.OS === "web") return;
-    setPushLoading(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const handlePushToggle = useCallback(
+    async (enabled: boolean) => {
+      if (Platform.OS === "web") return;
+      setPushLoading(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    try {
-      if (enabled) {
-        const token = await registerPushToken();
-        if (!token) {
-          setPushLoading(false);
-          return;
-        }
-
-        const res = await fetchWithAuth(
-          "/api/notifications/expo-token",
-          {
-            method: "POST",
-            body: JSON.stringify({ token }),
-          },
-          getToken
-        );
-
-        if (res.ok) {
-          setPushToken(token);
-          setPushEnabled(true);
-        }
-      } else {
-        const tokenToRemove = pushToken ?? (await (async () => {
-          try {
-            const d = await Notifications.getExpoPushTokenAsync();
-            return d.data;
-          } catch {
-            return null;
+      try {
+        if (enabled) {
+          const token = await registerPushToken();
+          if (!token) {
+            setPushLoading(false);
+            return;
           }
-        })());
 
-        if (tokenToRemove) {
-          await fetchWithAuth(
+          const res = await fetchWithAuth(
             "/api/notifications/expo-token",
             {
-              method: "DELETE",
-              body: JSON.stringify({ token: tokenToRemove }),
+              method: "POST",
+              body: JSON.stringify({ token }),
             },
-            getToken
+            getToken,
           );
-        }
 
-        setPushToken(null);
-        setPushEnabled(false);
+          if (res.ok) {
+            setPushToken(token);
+            setPushEnabled(true);
+          }
+        } else {
+          const tokenToRemove =
+            pushToken ??
+            (await (async () => {
+              try {
+                const d = await Notifications.getExpoPushTokenAsync();
+                return d.data;
+              } catch {
+                return null;
+              }
+            })());
+
+          if (tokenToRemove) {
+            await fetchWithAuth(
+              "/api/notifications/expo-token",
+              {
+                method: "DELETE",
+                body: JSON.stringify({ token: tokenToRemove }),
+              },
+              getToken,
+            );
+          }
+
+          setPushToken(null);
+          setPushEnabled(false);
+        }
+      } catch {
+        Alert.alert(
+          "Error",
+          "Could not update notification settings. Please try again.",
+        );
+      } finally {
+        setPushLoading(false);
       }
-    } catch {
-      Alert.alert("Error", "Could not update notification settings. Please try again.");
-    } finally {
-      setPushLoading(false);
-    }
-  }, [getToken, pushToken, registerPushToken]);
+    },
+    [getToken, pushToken, registerPushToken],
+  );
 
   const handleSignOut = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -298,7 +313,7 @@ export default function ProfileScreen() {
 
   const initials = user?.firstName
     ? `${user.firstName[0]}${user.lastName ? user.lastName[0] : ""}`.toUpperCase()
-    : user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ?? "?";
+    : (user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ?? "?");
 
   const fullName = user?.firstName
     ? [user.firstName, user.lastName].filter(Boolean).join(" ")
@@ -328,8 +343,17 @@ export default function ProfileScreen() {
             <Text style={styles.sectionLabel}>Notifications</Text>
             <View style={styles.card}>
               <View style={styles.row}>
-                <View style={[styles.rowIconWrap, { backgroundColor: colors.primary + "22" }]}>
-                  <Ionicons name="notifications" size={18} color={colors.primary} />
+                <View
+                  style={[
+                    styles.rowIconWrap,
+                    { backgroundColor: colors.primary + "22" },
+                  ]}
+                >
+                  <Ionicons
+                    name="notifications"
+                    size={18}
+                    color={colors.primary}
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rowText}>Match day reminders</Text>
@@ -340,11 +364,10 @@ export default function ProfileScreen() {
                 {pushLoading ? (
                   <ActivityIndicator size="small" color={colors.primary} />
                 ) : (
-                  <Switch
+                  <Toggle
                     value={pushEnabled}
                     onValueChange={handlePushToggle}
-                    trackColor={{ false: colors.border, true: colors.primary }}
-                    thumbColor={colors.primaryForeground}
+                    accessibilityLabel="Match day reminders"
                   />
                 )}
               </View>
@@ -356,7 +379,12 @@ export default function ProfileScreen() {
           <Text style={styles.sectionLabel}>About</Text>
           <View style={styles.card}>
             <View style={styles.row}>
-              <View style={[styles.rowIconWrap, { backgroundColor: colors.primary + "22" }]}>
+              <View
+                style={[
+                  styles.rowIconWrap,
+                  { backgroundColor: colors.primary + "22" },
+                ]}
+              >
                 <Ionicons name="tennisball" size={18} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
@@ -365,8 +393,14 @@ export default function ProfileScreen() {
               </View>
             </View>
             <View style={[styles.row, styles.rowBorder]}>
-              <View style={[styles.rowIconWrap, { backgroundColor: colors.muted }]}>
-                <Ionicons name="information-circle" size={18} color={colors.mutedForeground} />
+              <View
+                style={[styles.rowIconWrap, { backgroundColor: colors.muted }]}
+              >
+                <Ionicons
+                  name="information-circle"
+                  size={18}
+                  color={colors.mutedForeground}
+                />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowText}>Version</Text>
@@ -380,14 +414,24 @@ export default function ProfileScreen() {
           <Text style={styles.sectionLabel}>Account</Text>
           <EditProfileRow />
           <Pressable
-            style={({ pressed }) => [styles.signOutBtn, { opacity: pressed ? 0.7 : 1 }]}
+            style={({ pressed }) => [
+              styles.signOutBtn,
+              { opacity: pressed ? 0.7 : 1 },
+            ]}
             onPress={handleSignOut}
           >
-            <Ionicons name="log-out-outline" size={20} color={colors.destructive} />
+            <Ionicons
+              name="log-out-outline"
+              size={20}
+              color={colors.destructive}
+            />
             <Text style={styles.signOutText}>Sign out</Text>
           </Pressable>
           <Pressable
-            style={({ pressed }) => [styles.deleteRow, { opacity: pressed ? 0.7 : 1 }]}
+            style={({ pressed }) => [
+              styles.deleteRow,
+              { opacity: pressed ? 0.7 : 1 },
+            ]}
             onPress={() => router.push("/delete-account")}
             accessibilityRole="button"
             accessibilityLabel="Delete account"
