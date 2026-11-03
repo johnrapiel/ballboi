@@ -16,7 +16,9 @@ export function isOnboarded(metadata: unknown): boolean {
 export const STEPS = ["name", "home", "rating", "intent"] as const;
 export type Step = (typeof STEPS)[number];
 
-export function stepLabel(step: Step): string {
+/** "Step 2 of 4". Empty in edit mode, where there's no step. */
+export function stepLabel(step?: Step): string {
+  if (!step) return "";
   return `Step ${STEPS.indexOf(step) + 1} of ${STEPS.length}`;
 }
 
@@ -177,3 +179,12 @@ export async function saveSelfRating(getToken: TokenGetter, rating: number) {
 export async function saveIntent(getToken: TokenGetter, intent: Intent) {
   await send("/api/users/me/intent", getToken, "PUT", { intent }, "We couldn't save that. Try again.");
 }
+
+// ─── Edit mode ───────────────────────────────────────────────────────────────
+
+/**
+ * The onboarding screens double as Profile > Edit profile screens. In edit
+ * mode they're prefilled, say Save instead of Continue, show no step count,
+ * and go back to the Edit profile list after saving.
+ */
+export type FormMode = "onboarding" | "edit";

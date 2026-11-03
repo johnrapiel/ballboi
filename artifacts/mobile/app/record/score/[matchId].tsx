@@ -53,6 +53,10 @@ export default function ScorePromptScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<"saved" | "already" | null>(null);
+  /** "recording": only the recording went. "match": a placeholder Quick match went with it. */
+  const [discarded, setDiscarded] = useState<"recording" | "match" | null>(null);
+  // A discarded placeholder Quick match no longer exists, so there is no score to enter.
+  const matchGone = discarded === "match";
 
   const score = scoreString(sets);
 
@@ -96,7 +100,7 @@ export default function ScorePromptScreen() {
           </Card>
         ) : null}
 
-        {done ? (
+        {matchGone ? null : done ? (
           <View style={{ gap: spacing.space2 }} accessible>
             <Text variant="title" accessibilityRole="header">
               {done === "saved" ? "Score saved" : "Score already in"}
@@ -176,10 +180,16 @@ export default function ScorePromptScreen() {
             <Text variant="label" accessibilityRole="header">
               Your recording
             </Text>
-            <LocalProcessingCard rec={rec} />
+            <LocalProcessingCard rec={rec} onDiscarded={(r) => setDiscarded(r.matchRemoved ? "match" : "recording")} />
           </View>
         ) : (
-          <Text tone="inkMuted">Your recording is uploaded. Ball Boi is analyzing it.</Text>
+          <Text tone="inkMuted" accessibilityLiveRegion="polite">
+            {discarded === "match"
+              ? "Recording and match discarded."
+              : discarded === "recording"
+                ? "Recording discarded."
+                : "Your recording is uploaded. Ball Boi is analyzing it."}
+          </Text>
         )}
       </ScrollView>
 
@@ -194,7 +204,7 @@ export default function ScorePromptScreen() {
           borderTopColor: c.hairline,
         }}
       >
-        {done ? (
+        {done || matchGone ? (
           <Button label="Done" onPress={finish} />
         ) : (
           <>

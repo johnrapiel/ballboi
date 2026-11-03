@@ -26,6 +26,13 @@ export interface LeagueMembership {
   playerId: number | null;
   isPlaying: boolean;
   hasLeft: boolean;
+  /**
+   * For a player who joined after week 1, the week they joined ("You joined in week 3 of 8")
+   * @nullable
+   */
+  joinedWeek: number | null;
+  /** @nullable */
+  seasonWeeks: number | null;
 }
 
 export type LeagueAdminRole =
@@ -99,6 +106,33 @@ export interface ScoreResult {
   countsForStandings: boolean;
 }
 
+export type MyJoinRequestKind =
+  (typeof MyJoinRequestKind)[keyof typeof MyJoinRequestKind];
+
+export const MyJoinRequestKind = {
+  request: "request",
+  waitlist: "waitlist",
+} as const;
+
+export type MyJoinRequestStatus =
+  (typeof MyJoinRequestStatus)[keyof typeof MyJoinRequestStatus];
+
+export const MyJoinRequestStatus = {
+  pending: "pending",
+  declined: "declined",
+} as const;
+
+export interface MyJoinRequest {
+  id: number;
+  leagueId: number;
+  leagueName: string;
+  kind: MyJoinRequestKind;
+  status: MyJoinRequestStatus;
+  createdAt: string;
+  /** @nullable */
+  decidedAt: string | null;
+}
+
 export type LeagueWeekItemPhase =
   (typeof LeagueWeekItemPhase)[keyof typeof LeagueWeekItemPhase];
 
@@ -167,6 +201,47 @@ export interface LeagueWeek {
   playoffs: LeagueWeekPlayoff[];
   drafts: LeagueWeekDraft[];
   recent: LeagueWeekResult[];
+}
+
+export type DevLeagueToolsTargetRound = {
+  roundNumber: number;
+  deadline: string;
+} | null;
+
+export interface DevLeagueTools {
+  available: boolean;
+  today: string;
+  /** @nullable */
+  startDate: string | null;
+  seasonStarted: boolean;
+  targetRound: DevLeagueToolsTargetRound;
+}
+
+export type DevTimeBodyAction =
+  (typeof DevTimeBodyAction)[keyof typeof DevTimeBodyAction];
+
+export const DevTimeBodyAction = {
+  season_started: "season_started",
+  deadline_passed: "deadline_passed",
+  in_grace: "in_grace",
+  grace_over: "grace_over",
+} as const;
+
+export interface DevTimeBody {
+  action: DevTimeBodyAction;
+}
+
+export interface DevTimeResult {
+  ok: boolean;
+  message: string;
+  days: number;
+}
+
+export interface DevPairResult {
+  ok: boolean;
+  message: string;
+  roundId?: number;
+  roundNumber?: number;
 }
 
 export interface BracketSeed {
@@ -255,6 +330,24 @@ export interface ScheduleBye {
   setByAdmin: boolean;
 }
 
+export interface UndoneScore {
+  matchId: number;
+  status: string;
+  /** @nullable */
+  score: null;
+  /** @nullable */
+  winnerId: null;
+}
+
+export interface CorrectedScore {
+  matchId: number;
+  score: string;
+  /** @nullable */
+  winnerId: number | null;
+  correctedAt: string;
+  correctedBy: string;
+}
+
 export interface ScheduleMatch {
   matchId: number;
   player1Id: number;
@@ -276,6 +369,18 @@ export interface ScheduleMatch {
   scheduledAt: string | null;
   /** @nullable */
   location: string | null;
+  /**
+   * When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.
+   * @nullable
+   */
+  undoUntil: string | null;
+  /**
+   * The admin who corrected the score, for "Corrected by {admin} on {date}"
+   * @nullable
+   */
+  correctedBy: string | null;
+  /** @nullable */
+  correctedAt: string | null;
 }
 
 export type ScheduleRoundPhase =
@@ -1280,6 +1385,18 @@ export interface UpsertUserProfileBody {
   onboardingComplete?: boolean;
 }
 
+/**
+ * What Join does now. request = Private league that started or is full (decision 30); waitlist = Open league that started or is full
+ */
+export type LeagueInviteJoinAction =
+  (typeof LeagueInviteJoinAction)[keyof typeof LeagueInviteJoinAction];
+
+export const LeagueInviteJoinAction = {
+  join: "join",
+  request: "request",
+  waitlist: "waitlist",
+} as const;
+
 export interface LeagueInvite {
   id: number;
   code: string;
@@ -1290,6 +1407,23 @@ export interface LeagueInvite {
   leagueSport?: string | null;
   /** @nullable */
   playerCount?: number | null;
+  /** @nullable */
+  startDate?: string | null;
+  /** @nullable */
+  location?: string | null;
+  /** What Join does now. request = Private league that started or is full (decision 30); waitlist = Open league that started or is full */
+  joinAction?: LeagueInviteJoinAction;
+  /**
+   * What the player is told when Join doesn't add them right away
+   * @nullable
+   */
+  joinNote?: string | null;
+  alreadyMember?: boolean;
+  /**
+   * The signed-in player's pending request kind for this league (request or waitlist), if any
+   * @nullable
+   */
+  pendingRequest?: string | null;
   /** Joining now puts the player on the waitlist (season started or league full) */
   waitlistOnly?: boolean;
   /** @nullable */
@@ -1328,6 +1462,8 @@ export interface JoinLeagueResponse {
   message: string;
   /** True when the season has started or the league is full; no player is created */
   waitlisted?: boolean;
+  /** True when a Private league had started or was full, so the organizer was asked (decision 30); no player is created */
+  requested?: boolean;
 }
 
 export interface DashboardStats {

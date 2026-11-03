@@ -102,6 +102,7 @@ function RootLayoutNav() {
       />
       <Stack.Screen name="league/[leagueId]/manage" options={{ ...pushedHeader, title: "" }} />
       <Stack.Screen name="league/[leagueId]/round/[roundId]" options={{ ...pushedHeader, title: "" }} />
+      <Stack.Screen name="league/[leagueId]/scores" options={{ ...pushedHeader, title: "" }} />
       <Stack.Screen
         name="league/[leagueId]/index"
         options={{
@@ -129,6 +130,7 @@ function RootLayoutNav() {
           headerTitleStyle: { fontFamily: "DMSans_600SemiBold", color: colors.ink },
         }}
       />
+      <Stack.Screen name="join/[code]" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="record/invite/[code]" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen
         name="record/score/[matchId]"

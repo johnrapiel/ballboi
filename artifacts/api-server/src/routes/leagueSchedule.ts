@@ -4,9 +4,10 @@ import { db, leagueRoundByesTable, leagueRoundsTable, leaguesTable, matchesTable
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { getLeagueRole } from "../lib/leagueAccess.js";
 import { graceEndFor, leagueToday, roundPhase, roundWindow, LEAGUE_TIME_ZONE } from "../lib/leagueCalendar.js";
+import { undoDeadline } from "../lib/leagueScoreChanges.js";
 import { planBye, planLock, planSwap, unpairedPlayers } from "../lib/roundEdits.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
-import { ensureDraft, loadDraftRound, publishRound, repairRound, usesWeeklyRounds } from "../services/leagueRounds.js";
+import { draftNextRound, loadDraftRound, publishRound, repairRound, usesWeeklyRounds } from "../services/leagueRounds.js";
 import { bracketFor } from "../services/leaguePlayoffs.js";
 
 // League schedule and the admin's weekly review (spec: Leagues > Weekly loop).
@@ -19,7 +20,8 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDetail: boolean, today: string) {
+async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDetail: boolean, today: string, userId: string | null) {
+  const now = new Date();
   // inArray needs at least one id; -1 matches nothing.
   const ids = rounds.length ? rounds.map((r) => r.id) : [-1];
   const [matches, byes, players] = await Promise.all([
@@ -66,6 +68,11 @@ async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDe
           locked: m.locked,
           scheduledAt: m.scheduledAt ?? null,
           location: m.location ?? null,
+          // C4: set only for the player who entered the score, while they can undo it.
+          undoUntil: undoDeadline(m, userId, now),
+          // C5: shown to both players and in Manage.
+          correctedBy: m.correctedAt ? (m.correctedByName ?? "League admin") : null,
+          correctedAt: m.correctedAt ? m.correctedAt.toISOString() : null,
         })),
       byes: roundByes.map((b) => ({ playerId: b.playerId, playerName: name(b.playerId), setByAdmin: b.setByAdmin })),
       unpaired: unpaired.map((id) => ({ playerId: id, playerName: name(id) })),
@@ -87,7 +94,7 @@ router.get("/leagues/:leagueId/schedule", requireAuth, async (req, res) => {
   const today = leagueToday();
   const all = await db.select().from(leagueRoundsTable).where(eq(leagueRoundsTable.leagueId, leagueId)).orderBy(asc(leagueRoundsTable.roundNumber));
   const visible = all.filter((r) => isAdmin || r.publishedAt);
-  const rounds = await buildRounds(league, visible, isAdmin, today);
+  const rounds = await buildRounds(league, visible, isAdmin, today, userId ?? null);
 
   // Weeks with no round yet, so the schedule shows the whole season.
   const weekly = usesWeeklyRounds(league);
@@ -137,7 +144,7 @@ async function adminRound(req: Request, res: Response): Promise<{ league: League
 
 async function respondWithRound(res: Response, league: League, roundId: number) {
   const [round] = await db.select().from(leagueRoundsTable).where(eq(leagueRoundsTable.id, roundId));
-  const [built] = await buildRounds(league, [round], true, leagueToday());
+  const [built] = await buildRounds(league, [round], true, leagueToday(), getAuth(res.req).userId ?? null);
   res.json(built);
 }
 
@@ -146,20 +153,12 @@ router.post("/leagues/:leagueId/rounds/draft-next", requireLeagueAdmin, async (_
   const leagueId = res.locals.leagueId as number;
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
-  if (!usesWeeklyRounds(league)) { res.status(400).json({ error: "This league's rounds can't be drafted here." }); return; }
-
-  const rounds = await db.select().from(leagueRoundsTable).where(eq(leagueRoundsTable.leagueId, leagueId));
-  const today = leagueToday();
-  for (let n = 1; n <= league.seasonWeeks!; n++) {
-    const existing = rounds.find((r) => r.roundNumber === n);
-    if (existing?.publishedAt) continue;
-    if (roundWindow(league.startDate!, n).deadline < today) continue;
-    const result = await ensureDraft(league, n);
-    if (!result) { res.status(409).json({ error: "A league needs at least 2 players to pair." }); return; }
-    await respondWithRound(res, league, result.round.id);
+  const result = await draftNextRound(league);
+  if ("error" in result) {
+    res.status(usesWeeklyRounds(league) ? 409 : 400).json({ error: result.error });
     return;
   }
-  res.status(409).json({ error: "Every round this season has gone out." });
+  await respondWithRound(res, league, result.round.id);
 });
 
 /** Admins: re-pair a draft, keeping locked matches and byes you set. */

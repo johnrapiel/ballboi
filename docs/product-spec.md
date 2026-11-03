@@ -1,8 +1,8 @@
-<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-10-29 with rev 67). The live doc wins if they differ. Refresh this file when the live doc changes. -->
+<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-11-02 with rev 74). The live doc wins if they differ. Refresh this file when the live doc changes. -->
 
 # Ball Boi: Flows and Feature Spec
 
-2026-10-21 · @John
+2026-11-02 · @John
 
 ## Overview
 
@@ -17,7 +17,7 @@ Ball Boi launches in the US as one app for finding local players, running league
 - **Messaging:** direct messages with a Message Requests inbox, match threads, moderation ladder
 - **Profile:** baseball-card player card, career stats, head-to-head
 - **Extras:** court directory, head-to-head records, shareable match recaps
-- **Pricing:** everything free except Ball Boi, which becomes Ball Boi Pro after 3 free months from the first recording
+- **Pricing:** playing is free; Ball Boi Pro (analysis, replay, trends, career stats) is $7.99/month or $59.99/year after 3 free months
 - **Audience:** adults only (18+)
 
 **Out of v1:** coaching tips, Ladder format, doubles shot analysis, Organizer plan, Apple Watch, weather reschedule, calendar sync, junior (under 18) players, match video playback, close-call video clips.
@@ -32,7 +32,7 @@ Everyone has the same account type. Admin is a role on a specific league, so one
 - **Admin plays by default:** setup toggle "I'm playing in this league" lets organizers opt out of pairings
 - **Co-admins:** an admin can promote any member
 - **Admin tools appear in context only:** a Manage entry inside leagues you run
-- **Later: Organizer plan** as an upgrade on the same account, unlocking a multi-league dashboard, entry-fee collection via Stripe, and a verified club badge
+- **Later: Organizer plan** as an upgrade on the same account, unlocking a multi-league dashboard, in-app league fee collection for clubs, and a verified club badge
 
 **Onboarding (target: under 60 seconds to first value)**
 
@@ -160,6 +160,7 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 - **Season start:** any day, chosen with a calendar picker
 - **Season length:** a number input with − and + buttons, 8 weeks by default, 1 to 24 weeks; optional playoff for top 4 or 8
 - **Deadline:** weekly deadline for each round, then a fixed 1-week grace period for every league (not an admin setting)
+- **League fee (optional):** a fee and payment instructions, collected outside the app (see Pricing > League fees)
 - **Create** is the primary button at the bottom of the new league flow
 
 **Scores and standings**
@@ -219,7 +220,7 @@ The phone films with the rear camera, so its screen faces away from the court. V
 - **Upload:** Wi-Fi by default with a cellular toggle in settings; background upload survives the app closing; video stays on the phone until the server confirms
 - **Push** when the simulated replay and stats are ready
 - **Court-line fix** appears only when detection confidence is low: drag four handles on a still frame captured on the phone before upload
-- **Free for 3 months from the first recording:** full replay and stats, then Ball Boi Pro (see Pricing)
+- **3 free months of Pro, from the first use of any Pro feature:** full replay and stats, then Ball Boi Pro (see Pricing). A match is analyzed if either player has Pro
 
 **Processing:** court detection runs on device; shot analysis runs on the server for v1 and moves on device later.
 
@@ -275,7 +276,7 @@ The player card is a brag sheet, never a scouting report: it shows strengths and
 | Town, app win-loss record, reliability | Public |
 | Ball Boi highlights (forehand winners, aces, first serve %, win streak) | Public, season or career toggle |
 | Head-to-head record vs. the viewer | Visible to that viewer |
-| Error patterns, heatmaps, trends | Private |
+| Error patterns, heatmaps, trends | Private, except an opponent from the same match sees its full breakdown when both players have Pro |
 | Match video | Never shown; raw video deleted after analysis unless kept for training |
 
 - **No Ball Boi data yet:** card shows rating and record with a "No Ball Boi matches yet" prompt
@@ -304,15 +305,29 @@ Four moments get a short animation and a haptic. Everything else uses standard i
 
 ## Pricing
 
-Only Ball Boi is paid: $5/month or $40/year after 3 free months that start at the first recording. Leagues, Discover, messaging, and player cards stay free so no non-payer can stall a league.
+Playing is free forever. Ball Boi Pro is $7.99/month or $59.99/year after 3 free months that start the first time a player uses any Pro feature. Leagues, Discover, match requests, scores, messaging, and player cards stay free so no non-payer can stall a league.
 
-- **3 free months from the first recording:** full simulated replay and stats, no paywall and no trial sheet. Tracked server-side by account so reinstalling doesn't reset it
-- **Paywall appears after the free period,** the next time the user sets up a recording or opens stats ("Your 3 free months are up"), during setup and never at the fence
-- **"Not now" still records and uploads:** analysis waits until they subscribe ("Your match is saved. Subscribe to see your stats."); unanalyzed matches expire after 30 days
+- **What Pro includes at launch:** shot analysis, the simulated replay, trends, and full career stats. Travel mode, deeper head-to-head, and AI insights join Pro as each ships, at the same price
+- **3 free months for everyone:** the clock starts at the first use of any Pro feature (recording, trends, or career stats), and the screen that starts it says "Your 3 free months of Pro start today." No paywall and no trial sheet during it. Tracked server-side by account so reinstalling doesn't reset it
+- **Paywall ships at launch:** no free-until-X-users period and no founding member price. After the free months it appears the next time the user sets up a recording or opens a Pro feature ("Your 3 free months are up"), during setup and never at the fence
+- **"Not now" still records and uploads:** analysis waits until they subscribe, unless the opponent has Pro (see Who sees what in a match); unanalyzed matches expire after 30 days
 - **Sold through Apple In-App Purchase** as a plain auto-renewing subscription (no introductory offer, since the free period runs outside Apple), managed with RevenueCat's free tier. An external Stripe link is revisited after the Supreme Court rules on Apple's appeal in Epic v. Apple
 - **Paywall discloses** price, renewal terms, and links to Terms and Privacy
-- **After a lapse:** users keep stats history, trends, card highlights, and recaps; new analysis requires Pro
-- **League entry fees (later, Organizer plan):** collected via Stripe, since they pay for in-person play
+- **After a lapse:** users keep everything they already unlocked: past breakdowns and replays, past opponent breakdowns, career stats, card highlights, and recaps. New analysis and trends require Pro
+
+**Who sees what in a match**
+
+- **A match is analyzed if either player has Pro** (paid or in their free months), whoever's phone recorded it. Shot data is stored for both players
+- **A free player sees the first 4 games:** full breakdown and replay for games 1 to 4; the rest shows locked ("Games 5 to 12 are ready. Subscribe to see them."). Subscribing later unlocks every past analyzed match
+- **Unused free months:** a free player who hasn't started theirs sees "Start your 3 free months to see the whole match." Nothing starts without their tap
+- **Opponent breakdowns are mutual:** a player sees an opponent's full breakdown for matches they played together only when both have Pro. The free player sees "Alex has Pro and can see your breakdown. Subscribe to see theirs."
+- **Placeholder opponents who join later** see "<name> recorded your match on <date>" with their training toggle, then the same 4-game teaser and free-months offer
+
+**League fees**
+
+- **Casual leagues collect fees outside the app** (Venmo or anything else). Ball Boi takes no cut
+- **Optional fee note:** organizers can add a fee and payment instructions ("$40 for the season, Venmo @dave-tennis"), shown to everyone in Discover, on the league page, and on the join screen, and reportable like other league content. A paid checklist in Manage tracks who's paid. Ships before launch
+- **In-app fee collection (later, club enterprise offer):** part of the Organizer plan after all waves, collected via Stripe since fees pay for in-person play. Pricing decided then
 
 ## App Store and WCAG AA implications
 
@@ -357,7 +372,7 @@ _Phases are ordered, not dated. The live doc shows these as a chart._
 
 Coaching tips return only once a coach-authored library exists, and doubles analysis waits on per-player shot attribution.
 
-## Decision log (updated Oct 29, 2026)
+## Decision log (updated Nov 2, 2026)
 
 | # | Decision |
 | --- | --- |
@@ -390,3 +405,21 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 27 | A player who drops out keeps their played matches; their remaining matches are voided and they're removed from standings (Oct 29) |
 | 28 | Subtle animations at four moments (Oct 29): score entered, career milestone, player card reveal (first view only), Ball Boi analysis ready. League standings change dropped. Reanimated with a haptic; a fade under Reduce Motion |
 | 29 | Flex pairings go out each week on the season's start weekday, not always Monday (Oct 29) |
+| 30 | Waitlists are Open-only. A Private league's code entered after its season starts creates a join request for the admin; approved players enter the next round at zero wins (Oct 31) |
+| 31 | League admins can end and delete their league. End freezes standings and keeps history; Delete removes it and notifies members. A league's only admin can't leave without promoting a co-admin (Oct 31) |
+| 32 | Playing stays free forever: leagues, Discover, match requests, scores, messaging, and the player card (Nov 2) |
+| 33 | Pro at launch is shot analysis, replay, trends, and full career stats; travel mode, deeper head-to-head, and AI insights join Pro as they ship, at the same price (Nov 2) |
+| 34 | Every account gets 3 free months of Pro, starting at the first use of any Pro feature with a "starts today" message. Replaces "from the first recording" in decision 3 (Nov 2) |
+| 35 | The paywall ships at launch; no free-until-X-users period and no founding member price (Nov 2) |
+| 36 | Pro costs $7.99/month or $59.99/year (replaces $5 / $40) (Nov 2) |
+| 37 | A match is analyzed if either player has Pro (paid or in free months), no matter whose phone recorded it (Nov 2) |
+| 38 | Free players get the full breakdown and replay for the first 4 games; the rest shows locked. Subscribing later unlocks every past analyzed match (Nov 2) |
+| 39 | Free players with unused free months see "Start your 3 free months to see the whole match"; nothing starts without their tap (Nov 2) |
+| 40 | Opponent breakdowns are mutual: a player sees an opponent's full breakdown for matches they played together only when both have Pro (Nov 2) |
+| 41 | Placeholder opponents who join later get the "recorded your match" notice and training toggle, then the 4-game teaser and free-months offer (Nov 2) |
+| 42 | When Pro lapses, players keep everything already unlocked, including past opponent breakdowns; new analysis and trends need Pro (Nov 2) |
+| 43 | The Organizer plan comes after launch, once real leagues are running (Nov 2) |
+| 44 | Casual leagues collect fees outside the app (Venmo or anything else); Ball Boi takes no cut (Nov 2) |
+| 45 | Organizers can add an optional fee and payment instructions, visible to everyone in Discover, on the league page, and on the join screen, plus a paid checklist in Manage (Nov 2) |
+| 46 | The fee note and paid checklist ship before launch, in Wave 4 (Nov 2) |
+| 47 | In-app league fee collection is a club enterprise offer after all waves, folded into the Organizer plan; pricing decided then (Nov 2) |

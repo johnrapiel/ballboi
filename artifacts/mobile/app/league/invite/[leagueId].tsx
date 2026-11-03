@@ -8,6 +8,7 @@ import { useGetLeague, useGetLeagueInvites } from "@workspace/api-client-react";
 import { Button, Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { inviteMessage } from "@/lib/leagueInvite";
 
 // Invite players (spec: Onboarding > Run a league "then a share link";
 // canvas: Admin · Invite players). Shown right after starting a league.
@@ -29,7 +30,7 @@ export default function InvitePlayersScreen() {
   async function share() {
     if (!invite) return;
     await Share.share({
-      message: `Join ${name} on Ball Boi. Open the app, go to Leagues, and enter code ${invite.code}.`,
+      message: inviteMessage(leagueQ.data?.name ?? "my league", invite.code),
     });
   }
 

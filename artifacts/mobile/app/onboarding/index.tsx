@@ -1,17 +1,19 @@
 // Onboarding step 3: name and photo (spec: Roles and onboarding).
 // Name is required; the photo is optional and falls back to initials.
+// Also Profile > Edit profile > Name and photo (mode="edit").
 
 import { useAuth, useUser } from "@clerk/expo";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
 
 import { Avatar } from "@/components/Avatar";
 import { OnboardingStep, StepError } from "@/components/OnboardingStep";
+import { EditLoading } from "@/components/profile/EditLoading";
 import { Button, Field, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
-import { NAME_MAX, fetchProfile, saveNameAndPhoto, uploadPhoto } from "@/lib/onboarding";
+import { NAME_MAX, fetchProfile, saveNameAndPhoto, uploadPhoto, type FormMode } from "@/lib/onboarding";
 import { photoUrl } from "@/lib/photos";
 
 type Photo =
@@ -21,7 +23,8 @@ type Photo =
   /** Just picked; uploads on Continue. */
   | { kind: "picked"; asset: ImagePicker.ImagePickerAsset };
 
-export default function NameStep() {
+export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
+  const editing = mode === "edit";
   const router = useRouter();
   const { getToken } = useAuth();
   const { user } = useUser();
@@ -31,18 +34,30 @@ export default function NameStep() {
   const [profileExists, setProfileExists] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Coming back to onboarding after closing the app: start from what's saved.
-  useEffect(() => {
+  // Start from what's saved: after closing the app mid-onboarding, or always
+  // in edit mode, where Save waits until this has loaded.
+  const load = useCallback(() => {
+    setLoadError(null);
     fetchProfile(getToken)
       .then((p) => {
-        if (!p) return;
-        setProfileExists(true);
-        if (p.displayName) setName(p.displayName);
-        if (p.avatarUrl) setPhoto({ kind: "saved", path: p.avatarUrl });
+        if (p) {
+          setProfileExists(true);
+          if (p.displayName) setName(p.displayName);
+          setPhoto(p.avatarUrl ? { kind: "saved", path: p.avatarUrl } : { kind: "none" });
+        } else if (editing) {
+          return setLoadError("We couldn't find your profile.");
+        }
+        setLoaded(true);
       })
-      .catch(() => {});
-  }, [getToken]);
+      .catch(() => {
+        if (editing) setLoadError("We couldn't load your profile. Check your connection and try again.");
+      });
+  }, [getToken, editing]);
+
+  useEffect(load, [load]);
 
   const trimmed = name.trim();
   const previewUri =
@@ -80,7 +95,8 @@ export default function NameStep() {
         profileExists,
       );
       setProfileExists(true);
-      router.push("/onboarding/home");
+      if (editing) router.back();
+      else router.push("/onboarding/home");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong. Try again.");
     } finally {
@@ -88,12 +104,14 @@ export default function NameStep() {
     }
   }
 
+  if (editing && !loaded) return <EditLoading error={loadError} onRetry={load} />;
+
   return (
     <OnboardingStep
-      step="name"
+      step={editing ? undefined : "name"}
       title="What should we call you?"
       subtitle="Your name and photo show on your player card."
-      footer={<Button label="Continue" onPress={next} loading={busy} disabled={!trimmed} />}
+      footer={<Button label={editing ? "Save" : "Continue"} onPress={next} loading={busy} disabled={!trimmed} />}
     >
       <Field
         label="Name"
@@ -105,6 +123,7 @@ export default function NameStep() {
         autoCapitalize="words"
         returnKeyType="done"
         onSubmitEditing={next}
+        hint={editing && !trimmed ? "Enter your name to save." : undefined}
       />
 
       <View style={{ gap: spacing.space3 }}>

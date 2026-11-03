@@ -8,6 +8,8 @@ servers:
   - url: /api
     description: Base API path
 tags:
+  - name: dev
+    description: Development-only walkthrough tools. Not available in production.
   - name: health
     description: Health operations
   - name: leagues
@@ -676,6 +678,32 @@ paths:
                   - $ref: "#/components/schemas/LeagueBracket"
                   - type: "null"
 
+  /me/join-requests:
+    get:
+      operationId: getMyJoinRequests
+      tags: [leagues]
+      summary: The signed-in player's pending requests, and declined ones not yet dismissed
+      responses:
+        "200":
+          description: Requests, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MyJoinRequest"
+
+  /me/join-requests/{requestId}/dismiss:
+    post:
+      operationId: dismissMyJoinRequest
+      tags: [leagues]
+      summary: Dismiss the note for a declined request
+      parameters:
+        - $ref: "#/components/parameters/RequestIdParam"
+      responses:
+        "204":
+          description: Dismissed
+
   /me/league-week:
     get:
       operationId: getMyLeagueWeek
@@ -688,6 +716,63 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueWeek"
+
+  /dev/leagues/{leagueId}/tools:
+    get:
+      operationId: getDevLeagueTools
+      tags: [dev]
+      summary: Development only. What the Testing tools section in Manage shows. 404 in production.
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      responses:
+        "200":
+          description: Tools state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DevLeagueTools"
+        "404":
+          description: Not available (production)
+
+  /dev/leagues/{leagueId}/time:
+    post:
+      operationId: moveDevLeagueTime
+      tags: [dev]
+      summary: Development only. Moves the league's dates earlier, as if time passed. League admins only.
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DevTimeBody"
+      responses:
+        "200":
+          description: Moved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DevTimeResult"
+        "409":
+          description: Not changed, with the reason
+
+  /dev/leagues/{leagueId}/pair-now:
+    post:
+      operationId: devPairLeagueNow
+      tags: [dev]
+      summary: Development only. Drafts the next round now, for review. League admins only.
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      responses:
+        "200":
+          description: Drafted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DevPairResult"
+        "409":
+          description: Not paired, with the reason
 
   /leagues/{leagueId}/matches/{matchId}/score:
     post:
@@ -716,6 +801,58 @@ paths:
                 $ref: "#/components/schemas/ScoreResult"
         "409":
           description: A score is already in, or the match can't be scored now
+    put:
+      operationId: correctLeagueScore
+      tags: [leagues]
+      summary: League admins correct a completed match's score, from player 1's side. Standings recompute.
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnterScoreBody"
+      responses:
+        "200":
+          description: Score corrected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CorrectedScore"
+        "403":
+          description: Not a league admin
+        "409":
+          description: The match isn't played, was cancelled, or is a playoff match
+
+  /leagues/{leagueId}/matches/{matchId}/score/undo:
+    post:
+      operationId: undoLeagueScore
+      tags: [leagues]
+      summary: The player who entered a score undoes it within 10 minutes. Standings recompute.
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Score cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UndoneScore"
+        "403":
+          description: Someone else entered this score
+        "409":
+          description: The 10 minutes have passed, or there's no score to undo
 
   /leagues/{leagueId}/join-requests:
     get:
@@ -1904,7 +2041,12 @@ components:
           type: boolean
         hasLeft:
           type: boolean
-      required: [leagueId, role, isAdmin, playerId, isPlaying, hasLeft]
+        joinedWeek:
+          type: ["integer", "null"]
+          description: For a player who joined after week 1, the week they joined ("You joined in week 3 of 8")
+        seasonWeeks:
+          type: ["integer", "null"]
+      required: [leagueId, role, isAdmin, playerId, isPlaying, hasLeft, joinedWeek, seasonWeeks]
 
     LeagueAdmin:
       type: object
@@ -1987,6 +2129,22 @@ components:
           type: boolean
       required: [matchId, status, score, winnerId, inGrace, countsForStandings]
 
+    MyJoinRequest:
+      type: object
+      properties:
+        id: { type: integer }
+        leagueId: { type: integer }
+        leagueName: { type: string }
+        kind:
+          type: string
+          enum: [request, waitlist]
+        status:
+          type: string
+          enum: [pending, declined]
+        createdAt: { type: string }
+        decidedAt: { type: ["string", "null"] }
+      required: [id, leagueId, leagueName, kind, status, createdAt, decidedAt]
+
     LeagueWeekItem:
       type: object
       properties:
@@ -2063,6 +2221,48 @@ components:
           type: array
           items: { $ref: "#/components/schemas/LeagueWeekResult" }
       required: [today, thisWeek, playoffs, drafts, recent]
+
+    DevLeagueTools:
+      type: object
+      properties:
+        available: { type: boolean }
+        today: { type: string }
+        startDate: { type: ["string", "null"] }
+        seasonStarted: { type: boolean }
+        targetRound:
+          oneOf:
+            - type: object
+              properties:
+                roundNumber: { type: integer }
+                deadline: { type: string }
+              required: [roundNumber, deadline]
+            - type: "null"
+      required: [available, today, startDate, seasonStarted, targetRound]
+
+    DevTimeBody:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [season_started, deadline_passed, in_grace, grace_over]
+      required: [action]
+
+    DevTimeResult:
+      type: object
+      properties:
+        ok: { type: boolean }
+        message: { type: string }
+        days: { type: integer }
+      required: [ok, message, days]
+
+    DevPairResult:
+      type: object
+      properties:
+        ok: { type: boolean }
+        message: { type: string }
+        roundId: { type: integer }
+        roundNumber: { type: integer }
+      required: [ok, message]
 
     BracketSeed:
       type: object
@@ -2161,6 +2361,25 @@ components:
           type: boolean
       required: [playerId, playerName, setByAdmin]
 
+    UndoneScore:
+      type: object
+      properties:
+        matchId: { type: integer }
+        status: { type: string }
+        score: { type: "null" }
+        winnerId: { type: "null" }
+      required: [matchId, status, score, winnerId]
+
+    CorrectedScore:
+      type: object
+      properties:
+        matchId: { type: integer }
+        score: { type: string }
+        winnerId: { type: ["integer", "null"] }
+        correctedAt: { type: string }
+        correctedBy: { type: string }
+      required: [matchId, score, winnerId, correctedAt, correctedBy]
+
     ScheduleMatch:
       type: object
       properties:
@@ -2191,7 +2410,15 @@ components:
           type: ["string", "null"]
         location:
           type: ["string", "null"]
-      required: [matchId, player1Id, player1Name, player2Id, player2Name, status, score, winnerId, inGrace, voided, locked, scheduledAt, location]
+        undoUntil:
+          type: ["string", "null"]
+          description: When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.
+        correctedBy:
+          type: ["string", "null"]
+          description: The admin who corrected the score, for "Corrected by {admin} on {date}"
+        correctedAt:
+          type: ["string", "null"]
+      required: [matchId, player1Id, player1Name, player2Id, player2Name, status, score, winnerId, inGrace, voided, locked, scheduledAt, location, undoUntil, correctedBy, correctedAt]
 
     ScheduleRound:
       type: object
@@ -3326,6 +3553,22 @@ components:
           type: ["string", "null"]
         playerCount:
           type: ["integer", "null"]
+        startDate:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        joinAction:
+          type: string
+          enum: [join, request, waitlist]
+          description: What Join does now. request = Private league that started or is full (decision 30); waitlist = Open league that started or is full
+        joinNote:
+          type: ["string", "null"]
+          description: What the player is told when Join doesn't add them right away
+        alreadyMember:
+          type: boolean
+        pendingRequest:
+          type: ["string", "null"]
+          description: The signed-in player's pending request kind for this league (request or waitlist), if any
         waitlistOnly:
           type: boolean
           description: Joining now puts the player on the waitlist (season started or league full)
@@ -3387,6 +3630,9 @@ components:
         waitlisted:
           type: boolean
           description: True when the season has started or the league is full; no player is created
+        requested:
+          type: boolean
+          description: True when a Private league had started or was full, so the organizer was asked (decision 30); no player is created
       required:
         - league
         - message
