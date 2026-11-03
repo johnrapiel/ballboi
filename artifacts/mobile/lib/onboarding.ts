@@ -16,7 +16,9 @@ export function isOnboarded(metadata: unknown): boolean {
 export const STEPS = ["name", "home", "rating", "intent"] as const;
 export type Step = (typeof STEPS)[number];
 
-export function stepLabel(step: Step): string {
+/** "Step 2 of 4". Empty in edit mode, where there's no step. */
+export function stepLabel(step?: Step): string {
+  if (!step) return "";
   return `Step ${STEPS.indexOf(step) + 1} of ${STEPS.length}`;
 }
 

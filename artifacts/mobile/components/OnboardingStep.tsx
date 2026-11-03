@@ -7,6 +7,9 @@ import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { stepLabel, type Step } from "@/lib/onboarding";
 
+/** No step count in edit mode: out of layout and out of VoiceOver. */
+const HIDDEN = { display: "none" } as const;
+
 /**
  * Shared layout for onboarding steps 3 to 6: step count, title, a short line
  * under it, scrolling content, and the primary action pinned at the bottom
@@ -39,11 +42,9 @@ export function OnboardingStep({
         contentContainerStyle={{ padding: spacing.space4, paddingBottom: spacing.space8, gap: spacing.space6 }}
       >
         <View style={{ gap: spacing.space2 }}>
-          {step ? (
-            <Text variant="label" tone="inkMuted">
-              {stepLabel(step)}
-            </Text>
-          ) : null}
+          <Text variant="label" tone="inkMuted" style={step ? undefined : HIDDEN} accessibilityElementsHidden={!step}>
+            {stepLabel(step)}
+          </Text>
           <Text variant="displayL" accessibilityRole="header">
             {title}
           </Text>
