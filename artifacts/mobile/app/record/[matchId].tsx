@@ -6,13 +6,24 @@
 // cap stops and saves on low battery, low storage, or at 4 hours.
 // The video is analysis input only: it is never played back.
 
+import { useAuth } from "@clerk/expo";
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import { useKeepAwake } from "expo-keep-awake";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import React, { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Alert, Linking, Pressable, StyleSheet, View } from "react-native";
+import {
+  AccessibilityInfo,
+  ActionSheetIOS,
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChromeButton, ChromeChoice } from "@/components/record/ChromeControls";
@@ -20,10 +31,10 @@ import { ConsentScreen } from "@/components/record/ConsentScreen";
 import { HoldToStop } from "@/components/record/HoldToStop";
 import { Button, Screen, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
-import { useRecordingConsent } from "@/lib/recording/api";
+import { discardOnServer, useRecordingConsent } from "@/lib/recording/api";
 import { chrome } from "@/lib/recording/chrome";
 import { countdownClock, cueAt, START_DELAYS, type StartDelayMinutes } from "@/lib/recording/countdown";
-import { keepRecording } from "@/lib/recording/files";
+import { deleteRecording, keepRecording } from "@/lib/recording/files";
 import { enqueue } from "@/lib/recording/queue";
 import { formatElapsed, spokenDuration } from "@/lib/recording/format";
 import {
@@ -38,7 +49,29 @@ import { drainQueue } from "@/lib/recording/uploader";
 import { VIDEO_CODEC, VIDEO_QUALITY, VIDEO_STABILIZATION } from "@/lib/recording/settings";
 import { prepareVoice, say, stopVoice } from "@/lib/recording/voice";
 
-type Phase = "ready" | "countdown" | "recording" | "saving" | "error";
+type Phase = "ready" | "countdown" | "recording" | "saving" | "deciding" | "error";
+
+/** A stop you chose under this many seconds asks "Keep this recording?" first (#79 note, D1). */
+const SHORT_RECORDING_SECONDS = 2 * 60;
+
+/** Asks Keep or Discard with the native iOS action sheet. Dismissing it keeps the recording. */
+function askKeepOrDiscard(durationSeconds: number): Promise<"keep" | "discard"> {
+  const title = "Keep this recording?";
+  const message = `It's ${spokenDuration(durationSeconds)} long.`;
+  return new Promise((resolve) => {
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { title, message, options: ["Discard", "Keep"], destructiveButtonIndex: 0, cancelButtonIndex: 1 },
+        (i) => resolve(i === 0 ? "discard" : "keep"),
+      );
+    } else {
+      Alert.alert(title, message, [
+        { text: "Discard", style: "destructive", onPress: () => resolve("discard") },
+        { text: "Keep", style: "cancel", onPress: () => resolve("keep") },
+      ], { cancelable: true, onDismiss: () => resolve("keep") });
+    }
+  });
+}
 
 export default function RecordScreen() {
   const router = useRouter();
@@ -62,6 +95,7 @@ export default function RecordScreen() {
   const startAt = useRef(0);
   const reasonRef = useRef<StopReason>("user");
   const consent = useRecordingConsent();
+  const { getToken } = useAuth();
 
   // The mounted phone must never auto-lock: iOS stops the camera when it does.
   useKeepAwake();
@@ -229,6 +263,23 @@ export default function RecordScreen() {
     const durationSeconds = Math.max(1, Math.round((Date.now() - startedAt.current) / 1000));
     const id = `match-${matchId}-${Date.now()}`;
     const saved = await keepRecording(cacheUri, id);
+
+    // Stopped early or by mistake: ask before it goes anywhere. Auto-stops
+    // (battery, storage, 4 hours) always keep.
+    if (reason === "user" && durationSeconds < SHORT_RECORDING_SECONDS) {
+      setPhase("deciding");
+      if ((await askKeepOrDiscard(durationSeconds)) === "discard") {
+        deleteRecording(saved.uri);
+        // No session exists yet. A Quick match against a placeholder only
+        // existed for this recording, so it goes too; league matches stay.
+        // Sent in the background so a weak signal never leaves you stuck on the camera.
+        if (!params.league) discardOnServer(matchId, null, getToken).catch(() => {});
+        AccessibilityInfo.announceForAccessibility("Recording discarded");
+        router.back();
+        return;
+      }
+      setPhase("saving");
+    }
     // Into the upload queue: Wi-Fi by default, kept on the phone until the server confirms.
     await enqueue({
       id,

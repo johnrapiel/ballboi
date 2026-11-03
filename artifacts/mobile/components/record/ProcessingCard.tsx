@@ -1,20 +1,23 @@
 // Replay processing card (spec: Ball Boi > After the match). No video
 // playback: the card only shows where the match is between the phone and
 // the replay: "Waiting for Wi-Fi · Upload now on cellular", then
-// "Uploading", then "Analyzing", then ready.
+// "Uploading", then "Analyzing", then ready. While the recording is still on
+// the phone, Discard throws it away (coordinator note on #79, D2).
 
+import { useAuth } from "@clerk/expo";
 import { useNetworkState, NetworkStateType } from "expo-network";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import React from "react";
-import { View } from "react-native";
+import React, { useState } from "react";
+import { AccessibilityInfo, Alert, View } from "react-native";
 
+import { DestructiveTextButton } from "@/components/record/DestructiveTextButton";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { recordedDay, type ServerRecording } from "@/lib/recording/api";
 import { useUploadOnCellular } from "@/lib/recording/prefs";
 import type { QueuedRecording } from "@/lib/recording/queue";
-import { retryUpload, uploadNowOnCellular } from "@/lib/recording/uploader";
+import { discardQueued, retryUpload, uploadNowOnCellular } from "@/lib/recording/uploader";
 
 interface Status {
   symbol: SFSymbol;
@@ -66,7 +69,18 @@ function serverStatus(rec: ServerRecording): Status {
   }
 }
 
-function CardBody({ opponentName, when, status }: { opponentName: string; when: string; status: Status }) {
+function CardBody({
+  opponentName,
+  when,
+  status,
+  children,
+}: {
+  opponentName: string;
+  when: string;
+  status: Status;
+  /** Extra controls under the status, like Discard. */
+  children?: React.ReactNode;
+}) {
   const c = useColors();
   const spoken = [`Match vs ${opponentName}`, when, status.text, status.detail].filter(Boolean).join(". ");
   return (
@@ -91,20 +105,60 @@ function CardBody({ opponentName, when, status }: { opponentName: string; when: 
         ) : null}
       </View>
       {status.action ? <Button variant="secondary" label={status.action.label} onPress={status.action.onPress} /> : null}
+      {children}
     </Card>
   );
 }
 
-/** A recording still on this phone. */
-export function LocalProcessingCard({ rec }: { rec: QueuedRecording }) {
+/**
+ * A recording still on this phone: waiting, uploading, or failed. Discard is
+ * here only; once the server has the upload, the server card has no Discard.
+ */
+export function LocalProcessingCard({
+  rec,
+  onDiscarded,
+}: {
+  rec: QueuedRecording;
+  /** matchRemoved: it was a Quick match against a placeholder, so the match went too. */
+  onDiscarded?: (result: { matchRemoved: boolean }) => void;
+}) {
   const onWifi = useOnWifi();
   const cellularOn = useUploadOnCellular();
+  const { getToken } = useAuth();
+  const [discarding, setDiscarding] = useState(false);
+
+  const discard = async () => {
+    setDiscarding(true);
+    try {
+      const result = await discardQueued(rec.id, getToken);
+      AccessibilityInfo.announceForAccessibility("Recording discarded");
+      onDiscarded?.(result);
+    } catch (e) {
+      Alert.alert("Couldn't discard", e instanceof Error ? e.message : "Try again.");
+      setDiscarding(false);
+    }
+  };
+
+  const confirm = () =>
+    Alert.alert("Discard this recording?", "It won't be analyzed.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Discard", style: "destructive", onPress: discard },
+    ]);
+
   return (
     <CardBody
       opponentName={rec.opponentName}
       when={recordedDay(rec.recordedAt)}
       status={localStatus(rec, onWifi, cellularOn)}
-    />
+    >
+      <DestructiveTextButton
+        label="Discard"
+        accessibilityLabel={`Discard recording, match vs ${rec.opponentName}`}
+        accessibilityHint="Asks before deleting it from this phone. It won't be analyzed."
+        loading={discarding}
+        onPress={confirm}
+      />
+    </CardBody>
   );
 }
 

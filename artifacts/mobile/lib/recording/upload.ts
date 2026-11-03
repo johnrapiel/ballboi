@@ -34,7 +34,10 @@ export async function ensureSession(rec: RecordingToUpload): Promise<number> {
  * Uploads the file and tells the server it's ready to analyze. Resolves once
  * the server has confirmed it; only then is it safe to delete the file.
  */
-export async function uploadRecording(rec: RecordingToUpload & { sessionId: number }): Promise<void> {
+export async function uploadRecording(
+  rec: RecordingToUpload & { sessionId: number },
+  signal?: AbortSignal,
+): Promise<void> {
   // Ask for the upload address right before sending: it expires after 15 minutes.
   const { uploadURL, objectPath } = await requestBallBoiUploadUrl(rec.sessionId);
   const result = await new File(rec.uri).upload(uploadURL, {
@@ -42,10 +45,13 @@ export async function uploadRecording(rec: RecordingToUpload & { sessionId: numb
     uploadType: UploadType.BINARY_CONTENT,
     sessionType: "background",
     headers: { "Content-Type": "video/quicktime" },
+    signal,
   });
   if (result.status < 200 || result.status >= 300) {
     throw new Error(`Upload failed (${result.status}). Your match is still on this phone.`);
   }
+  // Discarded while the file was going up: don't tell the server it's ready.
+  if (signal?.aborted) throw new Error("Discarded.");
   await completeBallBoiSession(rec.sessionId, {
     objectPath,
     contentType: "video/quicktime",

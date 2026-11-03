@@ -1,7 +1,15 @@
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { getAuth } from "@clerk/express";
-import { ballBoiDoublesViewsTable, ballBoiSessionsTable, db, leaguesTable, matchesTable, playersTable } from "@workspace/db";
-import { and, desc, eq, gte, inArray, or } from "drizzle-orm";
+import {
+  ballBoiDoublesViewsTable,
+  ballBoiSessionsTable,
+  db,
+  leaguesTable,
+  matchesTable,
+  matchInvitesTable,
+  playersTable,
+} from "@workspace/db";
+import { and, desc, eq, gte, inArray, isNull, ne, or } from "drizzle-orm";
 import pino from "pino";
 import {
   byScheduledTime,
@@ -11,6 +19,7 @@ import {
   toRecordableMatch,
   type RecordableMatch,
 } from "../lib/recordableMatches";
+import { planDiscard } from "../lib/recordingDiscard";
 
 // Ball Boi recording: the matches a player can record today.
 // Spec: Ball Boi > Recording ("Every recording starts from a match").
@@ -169,6 +178,79 @@ router.post("/recording/doubles-views", requireAuth, async (req: Request, res: R
   } catch (err) {
     logger.error({ err }, "Failed to log a doubles view");
     res.status(500).json({ error: "Couldn't log the view." });
+  }
+});
+
+/**
+ * POST /recording/discard { matchId, sessionId? }
+ * Throws away a recording that hasn't finished uploading: from the "Keep this
+ * recording?" sheet (no session yet) or the processing card's Discard. See
+ * lib/recordingDiscard.ts for what's removed and what's left alone.
+ */
+router.post("/recording/discard", requireAuth, async (req: Request, res: Response) => {
+  const userId = getAuth(req).userId!;
+  const matchId = Number(req.body?.matchId);
+  const rawSession = req.body?.sessionId;
+  const sessionRequested = rawSession != null;
+  const sessionId = Number(rawSession);
+  if (!Number.isInteger(matchId) || matchId <= 0 || (sessionRequested && (!Number.isInteger(sessionId) || sessionId <= 0))) {
+    res.status(400).json({ error: "matchId is required; sessionId must be a number when sent." });
+    return;
+  }
+  try {
+    const [match] = await db.select().from(matchesTable).where(eq(matchesTable.id, matchId));
+    if (!match) {
+      // Already gone (a retry after the placeholder match was removed): nothing left to discard.
+      res.json({ sessionDeleted: false, matchRemoved: true });
+      return;
+    }
+    const [mine, sessions, invites] = await Promise.all([
+      db.select({ id: playersTable.id }).from(playersTable).where(eq(playersTable.clerkUserId, userId)),
+      sessionRequested
+        ? db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, sessionId))
+        : Promise.resolve([] as (typeof ballBoiSessionsTable.$inferSelect)[]),
+      db
+        .select({ placeholderPlayerId: matchInvitesTable.placeholderPlayerId })
+        .from(matchInvitesTable)
+        .where(and(eq(matchInvitesTable.matchId, matchId), isNull(matchInvitesTable.claimedByClerkUserId))),
+    ]);
+    const others = await db
+      .select({ id: ballBoiSessionsTable.id })
+      .from(ballBoiSessionsTable)
+      .where(
+        sessionRequested
+          ? and(eq(ballBoiSessionsTable.matchId, matchId), ne(ballBoiSessionsTable.id, sessionId))
+          : eq(ballBoiSessionsTable.matchId, matchId),
+      );
+    const plan = planDiscard({
+      match,
+      matchId,
+      callerPlayerIds: mine.map((p) => p.id),
+      callerClerkUserId: userId,
+      session: sessions[0] ?? null,
+      sessionRequested,
+      unclaimedPlaceholderPlayerId: invites[0]?.placeholderPlayerId ?? null,
+      otherSessionCount: others.length,
+    });
+    if (!plan.ok) {
+      res.status(plan.status).json({ error: plan.error });
+      return;
+    }
+    await db.transaction(async (tx) => {
+      if (plan.deleteSessionId != null) {
+        await tx.delete(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, plan.deleteSessionId));
+      }
+      if (plan.removePlaceholderPlayerId != null) {
+        // Removing the placeholder removes its match and invite with it (foreign keys cascade).
+        await tx
+          .delete(playersTable)
+          .where(and(eq(playersTable.id, plan.removePlaceholderPlayerId), isNull(playersTable.clerkUserId)));
+      }
+    });
+    res.json({ sessionDeleted: plan.deleteSessionId != null, matchRemoved: plan.removePlaceholderPlayerId != null });
+  } catch (err) {
+    logger.error({ err }, "Failed to discard a recording");
+    res.status(500).json({ error: "Couldn't discard the recording. Try again." });
   }
 });
 
