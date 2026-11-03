@@ -16,6 +16,8 @@ export interface LeagueMembership {
   playerId: number | null;
   isPlaying: boolean;
   hasLeft: boolean;
+  /** The caller is this league's only admin, so they can't leave until someone else is a co-admin */
+  onlyAdmin: boolean;
   /**
    * For a player who joined after week 1, the week they joined ("You joined in week 3 of 8")
    * @nullable

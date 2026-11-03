@@ -39,7 +39,7 @@ router.get("/me/league-week", async (req, res) => {
   // inArray needs at least one id; -1 matches nothing.
   const ids = myIds.length ? myIds : [-1];
   const [leagues, rounds, matches, byes] = await Promise.all([
-    db.select({ id: leaguesTable.id, name: leaguesTable.name, leagueType: leaguesTable.leagueType }).from(leaguesTable).where(inArray(leaguesTable.id, leagueIds)),
+    db.select({ id: leaguesTable.id, name: leaguesTable.name, leagueType: leaguesTable.leagueType, endedAt: leaguesTable.endedAt }).from(leaguesTable).where(inArray(leaguesTable.id, leagueIds)),
     db.select().from(leagueRoundsTable).where(inArray(leagueRoundsTable.leagueId, leagueIds)),
     db
       .select()
@@ -62,7 +62,8 @@ router.get("/me/league-week", async (req, res) => {
       today,
       myPlayers,
       leagues,
-      rounds,
+      // An ended league has no week to play (decision 31).
+      rounds: rounds.filter((r) => !leagues.find((l) => l.id === r.leagueId)?.endedAt),
       matches: matches.filter((m) => m.leagueId != null && leagueIds.includes(m.leagueId)),
       byes,
       names: new Map(nameRows.map((r) => [r.id, r.name])),

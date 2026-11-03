@@ -1,7 +1,7 @@
 import { useAuth } from "@clerk/expo";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
-import { ActionSheetIOS, ActivityIndicator, Alert, RefreshControl, ScrollView, Share, View } from "react-native";
+import { AccessibilityInfo, ActionSheetIOS, ActivityIndicator, Alert, RefreshControl, ScrollView, Share, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -13,10 +13,13 @@ import {
   getGetLeagueRosterQueryKey,
   getGetLeagueScheduleQueryKey,
   getGetLeagueStandingsQueryKey,
+  getGetLeaguesQueryKey,
   useApproveLeagueJoinRequest,
   useCreateLeagueInvite,
   useDeclineLeagueJoinRequest,
+  useDeleteLeague,
   useDraftNextLeagueRound,
+  useEndLeague,
   useGetLeague,
   useGetLeagueAdmins,
   useGetLeagueInvites,
@@ -74,6 +77,8 @@ export default function ManageLeagueScreen() {
   const approve = useApproveLeagueJoinRequest();
   const decline = useDeclineLeagueJoinRequest();
   const createInvite = useCreateLeagueInvite();
+  const endLeague = useEndLeague();
+  const deleteLeague = useDeleteLeague();
 
   const league = leagueQ.data;
   const myRole = membershipQ.data?.role ?? null;
@@ -85,6 +90,7 @@ export default function ManageLeagueScreen() {
   const waitlist = (requestsQ.data ?? []).filter((r) => r.kind === "waitlist");
   const invite = invitesQ.data?.find((i) => i.isActive);
   const seasonOver = !!league && league.status === "completed";
+  const ended = !!league?.endedAt;
 
   const refreshAll = () =>
     Promise.all(
@@ -98,6 +104,65 @@ export default function ManageLeagueScreen() {
         getGetLeagueInvitesQueryKey(leagueId),
       ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
     );
+
+  // Decision 31: end the league. Standings freeze; history stays.
+  function confirmEnd() {
+    if (!league || endLeague.isPending) return;
+    Alert.alert(
+      `End ${league.name}?`,
+      "Standings freeze where they are and no more scores can be entered. Pairings that haven't gone out are cancelled. Everything played stays, and the league moves to Past.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "End league",
+          style: "destructive",
+          onPress: () =>
+            endLeague
+              .mutateAsync({ leagueId })
+              .then(async () => {
+                await Promise.all([refreshAll(), queryClient.invalidateQueries({ queryKey: getGetLeaguesQueryKey().slice(0, 1) })]);
+                AccessibilityInfo.announceForAccessibility(`${league.name} has ended`);
+              })
+              .catch((e) => Alert.alert("Couldn't end the league", errorText(e, "Try again in a moment."))),
+        },
+      ],
+    );
+  }
+
+  // C10: delete the league, with its name typed to confirm.
+  function confirmDelete() {
+    if (!league || deleteLeague.isPending) return;
+    const name = league.name;
+    Alert.prompt(
+      `Delete ${name}?`,
+      `This deletes the league, its rounds and its matches for everyone, and can't be undone. Players' Ball Boi recordings and stats stay with them. Type ${name} to confirm.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete league",
+          style: "destructive",
+          onPress: (typed?: string) => {
+            const tidy = (t: string) => t.trim().replace(/\s+/g, " ").toLowerCase();
+            if (tidy(typed ?? "") !== tidy(name)) {
+              Alert.alert("The name doesn't match", `Type ${name} exactly to delete it.`);
+              return;
+            }
+            deleteLeague
+              .mutateAsync({ leagueId, data: { confirmName: typed ?? "" } })
+              .then(async () => {
+                await queryClient.invalidateQueries({ queryKey: getGetLeaguesQueryKey().slice(0, 1) });
+                AccessibilityInfo.announceForAccessibility(`${name} was deleted`);
+                router.dismissTo("/(tabs)/leagues");
+              })
+              .catch((e) => Alert.alert("Couldn't delete the league", errorText(e, "Try again in a moment.")));
+          },
+        },
+      ],
+      "plain-text",
+      "",
+      "default",
+    );
+  }
 
   async function prepareNext() {
     try {
@@ -371,7 +436,32 @@ export default function ManageLeagueScreen() {
         />
       </Card>
 
-      <TestingTools leagueId={leagueId} onChanged={refreshAll} />
+      <SectionLabel>League</SectionLabel>
+      <Card style={{ padding: 0, overflow: "hidden" }}>
+        {ended ? (
+          <ListRow title="This league has ended" subtitle="Standings are final. Everything played stays." symbol="flag.checkered" />
+        ) : (
+          <ListRow
+            title="End league"
+            subtitle="Freeze standings and move it to Past."
+            symbol="flag.checkered"
+            destructive
+            onPress={confirmEnd}
+            accessibilityHint="Asks you to confirm"
+          />
+        )}
+        <ListRow
+          title="Delete league"
+          subtitle="Remove it for everyone. Type its name to confirm."
+          symbol="trash"
+          destructive
+          onPress={confirmDelete}
+          accessibilityHint="Asks you to type the league's name"
+          last
+        />
+      </Card>
+
+      {!ended ? <TestingTools leagueId={leagueId} onChanged={refreshAll} /> : null}
     </ScrollView>
   );
 }

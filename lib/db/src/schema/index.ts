@@ -5,6 +5,7 @@ export * from "./matches";
 export * from "./users";
 export * from "./leagueInvites";
 export * from "./leagueJoinRequests";
+export * from "./leagueNotices";
 export * from "./pushSubscriptions";
 export * from "./comments";
 export * from "./courts";

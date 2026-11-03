@@ -46,6 +46,10 @@ export const GetLeaguesResponseItem = zod.object({
   matchCount: zod.number(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
+  endedAt: zod
+    .string()
+    .nullish()
+    .describe("An admin ended the league (decision 31). Standings are frozen."),
 });
 export const GetLeaguesResponse = zod.array(GetLeaguesResponseItem);
 
@@ -135,6 +139,10 @@ export const GetLeagueResponse = zod.object({
   matchCount: zod.number(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
+  endedAt: zod
+    .string()
+    .nullish()
+    .describe("An admin ended the league (decision 31). Standings are frozen."),
 });
 
 /**
@@ -194,13 +202,21 @@ export const UpdateLeagueResponse = zod.object({
   matchCount: zod.number(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
+  endedAt: zod
+    .string()
+    .nullish()
+    .describe("An admin ended the league (decision 31). Standings are frozen."),
 });
 
 /**
- * @summary Delete league
+ * @summary League admins delete the league, with its name typed. Members get a note; Ball Boi recordings stay with the players.
  */
 export const DeleteLeagueParams = zod.object({
   leagueId: zod.coerce.number(),
+});
+
+export const DeleteLeagueBody = zod.object({
+  confirmName: zod.string().describe("The league's name, typed to confirm"),
 });
 
 /**
@@ -687,6 +703,11 @@ export const GetLeagueMembershipResponse = zod.object({
   playerId: zod.number().nullable(),
   isPlaying: zod.boolean(),
   hasLeft: zod.boolean(),
+  onlyAdmin: zod
+    .boolean()
+    .describe(
+      "The caller is this league's only admin, so they can't leave until someone else is a co-admin",
+    ),
   joinedWeek: zod
     .number()
     .nullable()
@@ -780,6 +801,30 @@ export const GetLeagueScheduleResponse = zod.object({
           player1Name: zod.string(),
           player2Id: zod.number(),
           player2Name: zod.string(),
+          player1Rating: zod.union([
+            zod
+              .object({
+                rating: zod.number(),
+                source: zod.enum(["self", "verified"]),
+              })
+              .describe(
+                "A player's Ball Boi Rating and where it came from, for the rating badge",
+              ),
+            zod.null(),
+          ]),
+          player2Rating: zod.union([
+            zod
+              .object({
+                rating: zod.number(),
+                source: zod.enum(["self", "verified"]),
+              })
+              .describe(
+                "A player's Ball Boi Rating and where it came from, for the rating badge",
+              ),
+            zod.null(),
+          ]),
+          player1HasAccount: zod.boolean(),
+          player2HasAccount: zod.boolean(),
           status: zod.string(),
           score: zod.string().nullable().describe("From player 1's side"),
           winnerId: zod.number().nullable(),
@@ -1093,6 +1138,39 @@ export const UndoLeagueScoreResponse = zod.object({
 });
 
 /**
+ * @summary League admins end the league. Standings freeze, unpublished rounds are cancelled, history stays.
+ */
+export const EndLeagueParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const EndLeagueResponse = zod.object({
+  leagueId: zod.number(),
+  status: zod.string(),
+  endedAt: zod.string(),
+  cancelledRounds: zod.number(),
+});
+
+/**
+ * @summary One-line notes about leagues you were in, such as one being deleted
+ */
+export const GetMyLeagueNoticesResponseItem = zod.object({
+  id: zod.number(),
+  message: zod.string(),
+  createdAt: zod.string(),
+});
+export const GetMyLeagueNoticesResponse = zod.array(
+  GetMyLeagueNoticesResponseItem,
+);
+
+/**
+ * @summary Clear a league note
+ */
+export const DismissMyLeagueNoticeParams = zod.object({
+  noticeId: zod.coerce.number(),
+});
+
+/**
  * @summary Pending requests and the waitlist (admins only)
  */
 export const GetLeagueJoinRequestsParams = zod.object({
@@ -1217,6 +1295,30 @@ export const DraftNextLeagueRoundResponse = zod.object({
       player1Name: zod.string(),
       player2Id: zod.number(),
       player2Name: zod.string(),
+      player1Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            "A player's Ball Boi Rating and where it came from, for the rating badge",
+          ),
+        zod.null(),
+      ]),
+      player2Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            "A player's Ball Boi Rating and where it came from, for the rating badge",
+          ),
+        zod.null(),
+      ]),
+      player1HasAccount: zod.boolean(),
+      player2HasAccount: zod.boolean(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -1279,6 +1381,30 @@ export const RepairLeagueRoundResponse = zod.object({
       player1Name: zod.string(),
       player2Id: zod.number(),
       player2Name: zod.string(),
+      player1Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            "A player's Ball Boi Rating and where it came from, for the rating badge",
+          ),
+        zod.null(),
+      ]),
+      player2Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            "A player's Ball Boi Rating and where it came from, for the rating badge",
+          ),
+        zod.null(),
+      ]),
+      player1HasAccount: zod.boolean(),
+      player2HasAccount: zod.boolean(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -1341,6 +1467,30 @@ export const PublishLeagueRoundResponse = zod.object({
       player1Name: zod.string(),
       player2Id: zod.number(),
       player2Name: zod.string(),
+      player1Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            "A player's Ball Boi Rating and where it came from, for the rating badge",
+          ),
+        zod.null(),
+      ]),
+      player2Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            "A player's Ball Boi Rating and where it came from, for the rating badge",
+          ),
+        zod.null(),
+      ]),
+      player1HasAccount: zod.boolean(),
+      player2HasAccount: zod.boolean(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -1408,6 +1558,30 @@ export const SwapLeagueRoundPlayersResponse = zod.object({
       player1Name: zod.string(),
       player2Id: zod.number(),
       player2Name: zod.string(),
+      player1Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            "A player's Ball Boi Rating and where it came from, for the rating badge",
+          ),
+        zod.null(),
+      ]),
+      player2Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            "A player's Ball Boi Rating and where it came from, for the rating badge",
+          ),
+        zod.null(),
+      ]),
+      player1HasAccount: zod.boolean(),
+      player2HasAccount: zod.boolean(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -1474,6 +1648,30 @@ export const AddLeagueRoundByeResponse = zod.object({
       player1Name: zod.string(),
       player2Id: zod.number(),
       player2Name: zod.string(),
+      player1Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            "A player's Ball Boi Rating and where it came from, for the rating badge",
+          ),
+        zod.null(),
+      ]),
+      player2Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            "A player's Ball Boi Rating and where it came from, for the rating badge",
+          ),
+        zod.null(),
+      ]),
+      player1HasAccount: zod.boolean(),
+      player2HasAccount: zod.boolean(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -1537,6 +1735,30 @@ export const RemoveLeagueRoundByeResponse = zod.object({
       player1Name: zod.string(),
       player2Id: zod.number(),
       player2Name: zod.string(),
+      player1Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            "A player's Ball Boi Rating and where it came from, for the rating badge",
+          ),
+        zod.null(),
+      ]),
+      player2Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            "A player's Ball Boi Rating and where it came from, for the rating badge",
+          ),
+        zod.null(),
+      ]),
+      player1HasAccount: zod.boolean(),
+      player2HasAccount: zod.boolean(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -1604,6 +1826,30 @@ export const LockLeagueRoundMatchResponse = zod.object({
       player1Name: zod.string(),
       player2Id: zod.number(),
       player2Name: zod.string(),
+      player1Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            "A player's Ball Boi Rating and where it came from, for the rating badge",
+          ),
+        zod.null(),
+      ]),
+      player2Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            "A player's Ball Boi Rating and where it came from, for the rating badge",
+          ),
+        zod.null(),
+      ]),
+      player1HasAccount: zod.boolean(),
+      player2HasAccount: zod.boolean(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),

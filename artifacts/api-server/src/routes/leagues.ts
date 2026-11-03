@@ -78,6 +78,7 @@ router.get("/leagues", async (req, res) => {
       matchCount: mcMap[l.id] ?? 0,
       createdAt: l.createdAt.toISOString(),
       updatedAt: l.updatedAt.toISOString(),
+      endedAt: l.endedAt ? l.endedAt.toISOString() : null,
     }))
   ); return; }
 });
@@ -156,6 +157,7 @@ router.post("/leagues", requireAuth, async (req, res) => {
     matchCount: 0,
     createdAt: league.createdAt.toISOString(),
     updatedAt: league.updatedAt.toISOString(),
+    endedAt: league.endedAt ? league.endedAt.toISOString() : null,
   }); return; }
 });
 
@@ -179,6 +181,7 @@ router.get("/leagues/:leagueId", async (req, res) => {
     matchCount: Number(mc?.count ?? 0),
     createdAt: league.createdAt.toISOString(),
     updatedAt: league.updatedAt.toISOString(),
+    endedAt: league.endedAt ? league.endedAt.toISOString() : null,
   }); return; }
 });
 
@@ -217,15 +220,11 @@ router.patch("/leagues/:leagueId", requireAdmin, async (req, res) => {
     matchCount: Number(mc?.count ?? 0),
     createdAt: league.createdAt.toISOString(),
     updatedAt: league.updatedAt.toISOString(),
+    endedAt: league.endedAt ? league.endedAt.toISOString() : null,
   }); return; }
 });
 
-router.delete("/leagues/:leagueId", requireAdmin, async (req, res) => {
-  const leagueId = parseInt(String(req.params.leagueId));
-  if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid id" }); return; }
-  await db.delete(leaguesTable).where(eq(leaguesTable.id, leagueId));
-  { res.status(204).send(); return; }
-});
+// Deleting a league is for its own admins now (C10): routes/leagueLifecycle.ts.
 
 router.post("/leagues/:leagueId/reset", requireAdmin, async (req, res) => {
   const leagueId = parseInt(String(req.params.leagueId));

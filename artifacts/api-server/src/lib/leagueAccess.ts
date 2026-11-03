@@ -21,3 +21,11 @@ export async function getLeagueRole(leagueId: number, clerkUserId: string): Prom
 export async function isLeagueAdmin(leagueId: number, clerkUserId: string): Promise<boolean> {
   return (await getLeagueRole(leagueId, clerkUserId)) !== null;
 }
+
+/** How many people run the league. A league with no admin rows is run by its creator. */
+export async function leagueAdminCount(leagueId: number): Promise<number> {
+  const rows = await db.select({ id: leagueAdminsTable.id }).from(leagueAdminsTable).where(eq(leagueAdminsTable.leagueId, leagueId));
+  if (rows.length) return rows.length;
+  const [league] = await db.select({ createdBy: leaguesTable.createdByClerkUserId }).from(leaguesTable).where(eq(leaguesTable.id, leagueId));
+  return league?.createdBy ? 1 : 0;
+}
