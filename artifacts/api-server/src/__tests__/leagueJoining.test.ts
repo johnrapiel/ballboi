@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { approveOutcome, joinOutcome, matchesToVoid, ratingRangeLabel } from "../lib/leagueJoining.js";
+import { approveOutcome, joinedWeek, joinOutcome, matchesToVoid, PRIVATE_REQUEST_MESSAGE, ratingRangeLabel } from "../lib/leagueJoining.js";
 
-// Spec: Leagues > Joining and leaving (decisions 26, 27); Discover > Joining an Open league.
+// Spec: Leagues > Joining and leaving (decisions 26, 27, 30); Discover > Joining an Open league.
 
 const open = { startDate: "2026-11-05", visibility: "open", rosterCap: 8, minRating: "3.0", maxRating: "4.0" };
 const priv = { ...open, visibility: "private", minRating: null, maxRating: null, rosterCap: null };
@@ -17,17 +17,28 @@ describe("joinOutcome", () => {
     ).toEqual({ kind: "request" });
   });
 
-  it("waitlists every league once the season starts, invite or not", () => {
-    for (const league of [open, priv]) {
-      const out = joinOutcome({ league, activePlayerCount: 3, today: "2026-11-05", via: "invite" });
-      expect(out.kind).toBe("waitlist");
-      if (out.kind === "waitlist") expect(out.reason).toMatch(/waitlist for next season/);
-    }
+  it("waitlists an Open league once the season starts", () => {
+    const out = joinOutcome({ league: open, activePlayerCount: 3, today: "2026-11-05", via: "invite" });
+    expect(out.kind).toBe("waitlist");
+    if (out.kind === "waitlist") expect(out.reason).toMatch(/waitlist for next season/);
   });
 
-  it("waitlists a full league", () => {
+  it("waitlists a full Open league", () => {
     const out = joinOutcome({ league: open, activePlayerCount: 8, today: "2026-11-01", via: "invite" });
     expect(out.kind).toBe("waitlist");
+  });
+
+  it("turns a Private code entered after the start into a join request (decision 30)", () => {
+    expect(joinOutcome({ league: priv, activePlayerCount: 3, today: "2026-11-05", via: "invite" })).toEqual({
+      kind: "request",
+      reason: PRIVATE_REQUEST_MESSAGE,
+    });
+  });
+
+  it("asks the organizer when a Private league is full, never a waitlist", () => {
+    const out = joinOutcome({ league: { ...priv, rosterCap: 4 }, activePlayerCount: 4, today: "2026-11-01", via: "invite" });
+    expect(out.kind).toBe("request");
+    if (out.kind === "request") expect(out.reason).toMatch(/full/);
   });
 
   it("keeps Private leagues invite-only", () => {
@@ -64,10 +75,28 @@ describe("approveOutcome", () => {
     ).toMatchObject({ ok: false, moveToWaitlist: false });
   });
 
+  it("approves a Private request mid-season (decision 30)", () => {
+    expect(approveOutcome({ league: priv, activePlayerCount: 3, today: "2026-11-20", request })).toEqual({ ok: true });
+  });
+
   it("refuses a request that was already handled", () => {
     expect(
       approveOutcome({ league: open, activePlayerCount: 3, today: "2026-11-01", request: { ...request, status: "declined" } }),
     ).toMatchObject({ ok: false });
+  });
+});
+
+describe("joinedWeek", () => {
+  it("is null for someone who joined before the season", () => {
+    expect(joinedWeek("2026-11-05", "2026-11-01", 8)).toBeNull();
+  });
+  it("counts weeks from the season start (C3)", () => {
+    expect(joinedWeek("2026-11-05", "2026-11-05", 8)).toBe(1);
+    expect(joinedWeek("2026-11-05", "2026-11-18", 8)).toBe(2);
+    expect(joinedWeek("2026-11-05", "2026-11-19", 8)).toBe(3);
+  });
+  it("never passes the last week", () => {
+    expect(joinedWeek("2026-11-05", "2027-03-01", 8)).toBe(8);
   });
 });
 

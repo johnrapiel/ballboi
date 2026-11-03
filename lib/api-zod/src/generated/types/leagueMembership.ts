@@ -16,4 +16,11 @@ export interface LeagueMembership {
   playerId: number | null;
   isPlaying: boolean;
   hasLeft: boolean;
+  /**
+   * For a player who joined after week 1, the week they joined ("You joined in week 3 of 8")
+   * @nullable
+   */
+  joinedWeek: number | null;
+  /** @nullable */
+  seasonWeeks: number | null;
 }

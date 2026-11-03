@@ -14,4 +14,6 @@ export interface JoinLeagueResponse {
   message: string;
   /** True when the season has started or the league is full; no player is created */
   waitlisted?: boolean;
+  /** True when a Private league had started or was full, so the organizer was asked (decision 30); no player is created */
+  requested?: boolean;
 }

@@ -676,6 +676,32 @@ paths:
                   - $ref: "#/components/schemas/LeagueBracket"
                   - type: "null"
 
+  /me/join-requests:
+    get:
+      operationId: getMyJoinRequests
+      tags: [leagues]
+      summary: The signed-in player's pending requests, and declined ones not yet dismissed
+      responses:
+        "200":
+          description: Requests, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MyJoinRequest"
+
+  /me/join-requests/{requestId}/dismiss:
+    post:
+      operationId: dismissMyJoinRequest
+      tags: [leagues]
+      summary: Dismiss the note for a declined request
+      parameters:
+        - $ref: "#/components/parameters/RequestIdParam"
+      responses:
+        "204":
+          description: Dismissed
+
   /me/league-week:
     get:
       operationId: getMyLeagueWeek
@@ -1904,7 +1930,12 @@ components:
           type: boolean
         hasLeft:
           type: boolean
-      required: [leagueId, role, isAdmin, playerId, isPlaying, hasLeft]
+        joinedWeek:
+          type: ["integer", "null"]
+          description: For a player who joined after week 1, the week they joined ("You joined in week 3 of 8")
+        seasonWeeks:
+          type: ["integer", "null"]
+      required: [leagueId, role, isAdmin, playerId, isPlaying, hasLeft, joinedWeek, seasonWeeks]
 
     LeagueAdmin:
       type: object
@@ -1986,6 +2017,22 @@ components:
         countsForStandings:
           type: boolean
       required: [matchId, status, score, winnerId, inGrace, countsForStandings]
+
+    MyJoinRequest:
+      type: object
+      properties:
+        id: { type: integer }
+        leagueId: { type: integer }
+        leagueName: { type: string }
+        kind:
+          type: string
+          enum: [request, waitlist]
+        status:
+          type: string
+          enum: [pending, declined]
+        createdAt: { type: string }
+        decidedAt: { type: ["string", "null"] }
+      required: [id, leagueId, leagueName, kind, status, createdAt, decidedAt]
 
     LeagueWeekItem:
       type: object
@@ -3326,6 +3373,22 @@ components:
           type: ["string", "null"]
         playerCount:
           type: ["integer", "null"]
+        startDate:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        joinAction:
+          type: string
+          enum: [join, request, waitlist]
+          description: What Join does now. request = Private league that started or is full (decision 30); waitlist = Open league that started or is full
+        joinNote:
+          type: ["string", "null"]
+          description: What the player is told when Join doesn't add them right away
+        alreadyMember:
+          type: boolean
+        pendingRequest:
+          type: ["string", "null"]
+          description: The signed-in player's pending request kind for this league (request or waitlist), if any
         waitlistOnly:
           type: boolean
           description: Joining now puts the player on the waitlist (season started or league full)
@@ -3387,6 +3450,9 @@ components:
         waitlisted:
           type: boolean
           description: True when the season has started or the league is full; no player is created
+        requested:
+          type: boolean
+          description: True when a Private league had started or was full, so the organizer was asked (decision 30); no player is created
       required:
         - league
         - message

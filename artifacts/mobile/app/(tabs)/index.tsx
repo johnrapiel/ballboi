@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -13,6 +13,7 @@ import { TabScreen } from "@/components/TabHeader";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { takePendingJoinCode } from "@/lib/leagueInvite";
 import { dateRange, shortDate } from "@/lib/leagueSchedule";
 
 // Home (spec: Navigation > Home: upcoming matches, this week's pairings,
@@ -47,6 +48,13 @@ export default function HomeScreen() {
   const router = useRouter();
   const weekQ = useGetMyLeagueWeek();
   const week = weekQ.data;
+
+  // A league invite link opened before signing in opens now (C1).
+  useEffect(() => {
+    takePendingJoinCode().then((code) => {
+      if (code) router.push({ pathname: "/join/[code]", params: { code } });
+    });
+  }, [router]);
 
   const openLeague = (leagueId: number) => router.push(`/league/${leagueId}`);
   const enterScore = (leagueId: number, matchId: number) => router.push(`/league/${leagueId}/score/${matchId}`);
