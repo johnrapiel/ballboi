@@ -8,20 +8,27 @@ import { useColors } from "@/hooks/useColors";
 import { stepLabel, type Step } from "@/lib/onboarding";
 
 /**
- * Shared layout for onboarding steps 3 to 6: step count, title, a short line
- * under it, scrolling content, and the primary action pinned at the bottom
- * (same action, same place on every step). The back button is the standard
- * header back at the top left, from the onboarding stack.
+ * Shared layout for onboarding steps 3 to 6: step count, title, an optional
+ * one-line reason, a short line under it, scrolling content, and the primary
+ * action pinned at the bottom (same action, same place on every step). The
+ * back button is the standard header back at the top left, from the
+ * onboarding stack.
  */
 export function OnboardingStep({
   step,
   title,
+  reason,
   subtitle,
   footer,
   children,
 }: {
   step: Step;
   title: string;
+  /**
+   * Why we ask, in one line, right under the title (Wave 1 review A4).
+   * VoiceOver reads it with the title as one heading.
+   */
+  reason?: string;
   subtitle?: string;
   /** The Continue button, plus anything that sits with it. */
   footer: React.ReactNode;
@@ -41,9 +48,23 @@ export function OnboardingStep({
           <Text variant="label" tone="inkMuted">
             {stepLabel(step)}
           </Text>
-          <Text variant="displayL" accessibilityRole="header">
-            {title}
-          </Text>
+          {reason ? (
+            // Tight to the title so it reads as part of the heading, with clear
+            // space before the subtitle so the two muted lines don't run together.
+            <View
+              accessible
+              accessibilityRole="header"
+              accessibilityLabel={`${title}. ${reason}`}
+              style={{ gap: spacing.space1, marginBottom: spacing.space2 }}
+            >
+              <Text variant="displayL">{title}</Text>
+              <Text tone="inkMuted">{reason}</Text>
+            </View>
+          ) : (
+            <Text variant="displayL" accessibilityRole="header">
+              {title}
+            </Text>
+          )}
           {subtitle ? <Text tone="inkMuted">{subtitle}</Text> : null}
         </View>
         {children}
