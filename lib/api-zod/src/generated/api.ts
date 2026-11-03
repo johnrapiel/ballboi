@@ -938,6 +938,63 @@ export const GetMyLeagueWeekResponse = zod.object({
 });
 
 /**
+ * @summary Development only. What the Testing tools section in Manage shows. 404 in production.
+ */
+export const GetDevLeagueToolsParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const GetDevLeagueToolsResponse = zod.object({
+  available: zod.boolean(),
+  today: zod.string(),
+  startDate: zod.string().nullable(),
+  seasonStarted: zod.boolean(),
+  targetRound: zod.union([
+    zod.object({
+      roundNumber: zod.number(),
+      deadline: zod.string(),
+    }),
+    zod.null(),
+  ]),
+});
+
+/**
+ * @summary Development only. Moves the league's dates earlier, as if time passed. League admins only.
+ */
+export const MoveDevLeagueTimeParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const MoveDevLeagueTimeBody = zod.object({
+  action: zod.enum([
+    "season_started",
+    "deadline_passed",
+    "in_grace",
+    "grace_over",
+  ]),
+});
+
+export const MoveDevLeagueTimeResponse = zod.object({
+  ok: zod.boolean(),
+  message: zod.string(),
+  days: zod.number(),
+});
+
+/**
+ * @summary Development only. Drafts the next round now, for review. League admins only.
+ */
+export const DevPairLeagueNowParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const DevPairLeagueNowResponse = zod.object({
+  ok: zod.boolean(),
+  message: zod.string(),
+  roundId: zod.number().optional(),
+  roundNumber: zod.number().optional(),
+});
+
+/**
  * @summary Enter a league match score from your own side. The first score entered stands.
  */
 export const EnterLeagueScoreParams = zod.object({

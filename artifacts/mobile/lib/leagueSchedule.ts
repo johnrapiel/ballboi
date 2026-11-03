@@ -3,6 +3,13 @@ import type { LeagueSchedule, ScheduleMatch, ScheduleRound } from "@workspace/ap
 // Helpers for the league schedule (spec: Leagues > Weekly loop, Scores and
 // standings). Dates are YYYY-MM-DD in the league's time zone.
 
+/** A YYYY-MM-DD date moved by `days` (negative for earlier). */
+export function addDays(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 /** "Thu, Nov 5" */
 export function shortDate(date: string): string {
   return new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {

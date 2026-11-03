@@ -6,7 +6,7 @@ import { getLeagueRole } from "../lib/leagueAccess.js";
 import { graceEndFor, leagueToday, roundPhase, roundWindow, LEAGUE_TIME_ZONE } from "../lib/leagueCalendar.js";
 import { planBye, planLock, planSwap, unpairedPlayers } from "../lib/roundEdits.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
-import { ensureDraft, loadDraftRound, publishRound, repairRound, usesWeeklyRounds } from "../services/leagueRounds.js";
+import { draftNextRound, loadDraftRound, publishRound, repairRound, usesWeeklyRounds } from "../services/leagueRounds.js";
 import { bracketFor } from "../services/leaguePlayoffs.js";
 
 // League schedule and the admin's weekly review (spec: Leagues > Weekly loop).
@@ -146,20 +146,12 @@ router.post("/leagues/:leagueId/rounds/draft-next", requireLeagueAdmin, async (_
   const leagueId = res.locals.leagueId as number;
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
-  if (!usesWeeklyRounds(league)) { res.status(400).json({ error: "This league's rounds can't be drafted here." }); return; }
-
-  const rounds = await db.select().from(leagueRoundsTable).where(eq(leagueRoundsTable.leagueId, leagueId));
-  const today = leagueToday();
-  for (let n = 1; n <= league.seasonWeeks!; n++) {
-    const existing = rounds.find((r) => r.roundNumber === n);
-    if (existing?.publishedAt) continue;
-    if (roundWindow(league.startDate!, n).deadline < today) continue;
-    const result = await ensureDraft(league, n);
-    if (!result) { res.status(409).json({ error: "A league needs at least 2 players to pair." }); return; }
-    await respondWithRound(res, league, result.round.id);
+  const result = await draftNextRound(league);
+  if ("error" in result) {
+    res.status(usesWeeklyRounds(league) ? 409 : 400).json({ error: result.error });
     return;
   }
-  res.status(409).json({ error: "Every round this season has gone out." });
+  await respondWithRound(res, league, result.round.id);
 });
 
 /** Admins: re-pair a draft, keeping locked matches and byes you set. */

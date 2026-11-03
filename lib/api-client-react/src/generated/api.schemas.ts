@@ -169,6 +169,47 @@ export interface LeagueWeek {
   recent: LeagueWeekResult[];
 }
 
+export type DevLeagueToolsTargetRound = {
+  roundNumber: number;
+  deadline: string;
+} | null;
+
+export interface DevLeagueTools {
+  available: boolean;
+  today: string;
+  /** @nullable */
+  startDate: string | null;
+  seasonStarted: boolean;
+  targetRound: DevLeagueToolsTargetRound;
+}
+
+export type DevTimeBodyAction =
+  (typeof DevTimeBodyAction)[keyof typeof DevTimeBodyAction];
+
+export const DevTimeBodyAction = {
+  season_started: "season_started",
+  deadline_passed: "deadline_passed",
+  in_grace: "in_grace",
+  grace_over: "grace_over",
+} as const;
+
+export interface DevTimeBody {
+  action: DevTimeBodyAction;
+}
+
+export interface DevTimeResult {
+  ok: boolean;
+  message: string;
+  days: number;
+}
+
+export interface DevPairResult {
+  ok: boolean;
+  message: string;
+  roundId?: number;
+  roundNumber?: number;
+}
+
 export interface BracketSeed {
   seed: number;
   playerId: number;
