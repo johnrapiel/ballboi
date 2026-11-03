@@ -33,7 +33,7 @@ vi.mock("@workspace/db", () => ({
 }));
 
 import usersRouter from "../routes/users";
-import { parseHomeArea } from "../lib/onboarding";
+import { parseHomeArea, parseIntents } from "../lib/onboarding";
 
 function app() {
   const a = express();
@@ -94,11 +94,56 @@ describe("PUT /users/me/home-area", () => {
 describe("PUT /users/me/intent", () => {
   it("saves the answer and completes onboarding", async () => {
     await app().put("/api/users/me/intent").send({ intent: "join_league" }).expect(200);
-    expect(updates).toEqual([{ intent: "join_league", onboardingComplete: true }]);
+    expect(updates).toEqual([{ intent: "join_league", intents: ["join_league"], onboardingComplete: true }]);
   });
 
   it("only accepts the four options", async () => {
     await app().put("/api/users/me/intent").send({ intent: "coach" }).expect(400);
     expect(updates).toHaveLength(0);
+  });
+});
+
+describe("parseIntents", () => {
+  it("accepts any number of the four options, including none", () => {
+    expect(parseIntents({ intents: [] })).toEqual([]);
+    expect(parseIntents({ intents: ["record", "run_league"] })).toEqual(["run_league", "record"]);
+    expect(parseIntents({ intents: ["run_league", "join_league", "find_matches", "record"] })).toHaveLength(4);
+  });
+
+  it("collapses duplicates", () => {
+    expect(parseIntents({ intents: ["record", "record"] })).toEqual(["record"]);
+  });
+
+  it("rejects unknown options and anything that isn't a list", () => {
+    expect(parseIntents({ intents: ["coach"] })).toHaveProperty("error");
+    expect(parseIntents({ intents: "record" })).toHaveProperty("error");
+    expect(parseIntents({})).toHaveProperty("error");
+  });
+});
+
+describe("PUT /users/me/intents", () => {
+  it("needs sign-in", async () => {
+    mockUserId = null;
+    await app().put("/api/users/me/intents").send({ intents: [] }).expect(401);
+  });
+
+  it("saves the picks and completes onboarding", async () => {
+    await app().put("/api/users/me/intents").send({ intents: ["find_matches", "record"] }).expect(200);
+    expect(updates).toEqual([{ intents: ["find_matches", "record"], onboardingComplete: true }]);
+  });
+
+  it("saves an empty list on Skip, so skipping is told apart from never answering", async () => {
+    await app().put("/api/users/me/intents").send({ intents: [] }).expect(200);
+    expect(updates).toEqual([{ intents: [], onboardingComplete: true }]);
+  });
+
+  it("rejects options that aren't offered", async () => {
+    await app().put("/api/users/me/intents").send({ intents: ["coach"] }).expect(400);
+    expect(updates).toHaveLength(0);
+  });
+
+  it("404s before the profile exists", async () => {
+    returned = [];
+    await app().put("/api/users/me/intents").send({ intents: [] }).expect(404);
   });
 });
