@@ -10,6 +10,13 @@ describe("parseCommand", () => {
     expect(parseCommand([])).toEqual({ kind: "help" });
   });
 
+  it("reads demo, defaulting to Test League 1", () => {
+    expect(parseCommand(["demo"])).toEqual({ kind: "demo", me: null, leagueId: null, name: "Test League 1" });
+    expect(parseCommand(["demo", "--league", "7", "--me", "j@x.com"])).toEqual({ kind: "demo", me: "j@x.com", leagueId: 7, name: "Test League 1" });
+    expect(parseCommand(["demo", "--name", "Tuesday Night"])).toEqual({ kind: "demo", me: null, leagueId: null, name: "Tuesday Night" });
+    expect(parseCommand(["demo", "--league", "abc"])).toHaveProperty("error");
+  });
+
   it("reads acting as B, C or D", () => {
     expect(parseCommand(["as", "c", "message", "a", "Want", "to", "hit?"])).toEqual({ kind: "message", as: "C", to: "A", text: "Want to hit?" });
     expect(parseCommand(["as", "B", "join", "abc23456"])).toEqual({ kind: "join", as: "B", code: "abc23456" });

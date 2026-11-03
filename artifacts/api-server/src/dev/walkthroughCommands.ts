@@ -16,6 +16,7 @@ import {
 } from "../lib/walkthrough.js";
 import { applyTimeAction, pairNow } from "../services/devLeagueTime.js";
 import { fullName, idFor, Problem, seed, seededIds, seededLeague } from "./walkthroughData.js";
+import { seedDemo } from "./demoSeed.js";
 
 
 // ─── Acting as B, C or D ─────────────────────────────────────────────────────
@@ -195,6 +196,31 @@ Today's match (match id ${s.matchId})
   ${s.john.name} vs ${fullName("B")}, 6:00 PM at Memorial Park. Round 1, play by ${shortDate(s.deadline)}.
 
 Next: pnpm walkthrough help
+`);
+      return 0;
+    }
+    case "demo": {
+      const d = await seedDemo(cmd);
+      const when = d.johnsMatchToday
+        ? new Date(d.johnsMatchToday.at).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })
+        : "";
+      console.log(`
+Demo data is ready. Pull to refresh in the app.
+
+${d.league.name} (id ${d.league.id})
+  ${d.leaguePlayers} players joined, so 13 with you. Season moved to start ${shortDate(d.league.startDate)} (${d.league.weeks} weeks): today is week 4.
+  Weeks 1 to 3: ${d.completed} matches played, ${d.inGrace} entered late in the grace week, ${d.notPlayed} never played.
+  Your record: ${d.johnRecord.wins} and ${d.johnRecord.losses}.${d.league.inviteCode ? `  Invite code: ${d.league.inviteCode}` : ""}
+${d.johnsMatchToday ? `  Tonight: you vs ${d.johnsMatchToday.opponent}, ${when} at ${d.johnsMatchToday.location}.` : ""}
+
+Not in your league
+  ${d.nearby} players within about 30 miles of 12590, and ${d.farAway} far away (Brooklyn, Manhattan, Cambridge) that Discover should never show you.
+  Open leagues starting soon: ${d.openLeagues.join(", ")}.
+
+Sign in as any demo player with Email: ballboi-demo-first-last+clerk_test@example.com, code ${TEST_EMAIL_CODE}
+  (for example ballboi-demo-maya-chen+clerk_test@example.com)
+
+Run it again any time to reset to this same data.
 `);
       return 0;
     }

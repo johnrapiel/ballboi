@@ -11,6 +11,7 @@
     "storage:setup": "sh scripts/with-env.sh node scripts/setup-storage.mjs",
     "db:down": "docker compose down",
     "db:push": "sh scripts/with-env.sh pnpm --filter @workspace/db run push",
+    "seed:demo": "sh scripts/with-env.sh pnpm --silent --filter @workspace/api-server run walkthrough demo",
     "seed:walkthrough": "sh scripts/with-env.sh pnpm --silent --filter @workspace/api-server run walkthrough seed",
     "dev": "sh scripts/dev.sh",
     "dev:mobile": "sh scripts/dev-mobile.sh",
