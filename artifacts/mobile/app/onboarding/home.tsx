@@ -2,19 +2,22 @@
 // and privacy). A zip is all it takes. "Use my location" is an optional
 // shortcut that asks for While Using permission only, fills the zip, and keeps
 // an approximate location (the API rounds it). Denying location never blocks.
+// Also Profile > Edit profile > Home area (mode="edit"), prefilled.
 
 import { useAuth } from "@clerk/expo";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 
 import { OnboardingStep, StepError } from "@/components/OnboardingStep";
+import { EditLoading } from "@/components/profile/EditLoading";
 import { Button, Field, Text } from "@/components/ui";
-import { isZip, saveHomeArea } from "@/lib/onboarding";
+import { fetchProfile, isZip, saveHomeArea, type FormMode } from "@/lib/onboarding";
 
 type Coords = { latitude: number; longitude: number };
 
-export default function HomeAreaStep() {
+export default function HomeAreaStep({ mode = "onboarding" }: { mode?: FormMode }) {
+  const editing = mode === "edit";
   const router = useRouter();
   const { getToken } = useAuth();
 
@@ -27,6 +30,24 @@ export default function HomeAreaStep() {
   const [error, setError] = useState<string | null>(null);
 
   const valid = isZip(zip);
+
+  // Edit mode starts from the saved zip, and Save waits until it has loaded.
+  const [savedZip, setSavedZip] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(!editing);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const load = useCallback(() => {
+    if (!editing) return;
+    setLoadError(null);
+    fetchProfile(getToken)
+      .then((p) => {
+        if (!p) return setLoadError("We couldn't find your profile.");
+        setSavedZip(p.homeZip);
+        setZip(p.homeZip ?? "");
+        setLoaded(true);
+      })
+      .catch(() => setLoadError("We couldn't load your profile. Check your connection and try again."));
+  }, [getToken, editing]);
+  useEffect(load, [load]);
 
   async function locate() {
     setNote(null);
@@ -57,11 +78,15 @@ export default function HomeAreaStep() {
 
   async function next() {
     if (!valid) return;
+    // Nothing changed: saving the zip alone would drop the approximate
+    // location from an earlier "Use my location".
+    if (editing && !coords && zip.trim() === savedZip) return router.back();
     setError(null);
     setBusy(true);
     try {
       await saveHomeArea(getToken, { zip: zip.trim(), ...(coords ?? {}) });
-      router.push("/onboarding/rating");
+      if (editing) router.back();
+      else router.push("/onboarding/rating");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong. Try again.");
     } finally {
@@ -69,13 +94,15 @@ export default function HomeAreaStep() {
     }
   }
 
+  if (!loaded) return <EditLoading error={loadError} onRetry={load} />;
+
   return (
     <OnboardingStep
-      step="home"
+      step={editing ? undefined : "home"}
       title="Where do you play?"
       reason="So we can match you with players nearby."
       subtitle="We show players and leagues near your home area. Others only see an approximate distance, never where you are."
-      footer={<Button label="Continue" onPress={next} loading={busy} disabled={!valid} />}
+      footer={<Button label={editing ? "Save" : "Continue"} onPress={next} loading={busy} disabled={!valid} />}
     >
       <Field
         label="Zip code"
