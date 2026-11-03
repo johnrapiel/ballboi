@@ -177,3 +177,12 @@ export async function saveSelfRating(getToken: TokenGetter, rating: number) {
 export async function saveIntent(getToken: TokenGetter, intent: Intent) {
   await send("/api/users/me/intent", getToken, "PUT", { intent }, "We couldn't save that. Try again.");
 }
+
+// ─── Edit mode ───────────────────────────────────────────────────────────────
+
+/**
+ * The onboarding screens double as Profile > Edit profile screens. In edit
+ * mode they're prefilled, say Save instead of Continue, show no step count,
+ * and go back to the Edit profile list after saving.
+ */
+export type FormMode = "onboarding" | "edit";

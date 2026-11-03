@@ -18,6 +18,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { TabScreen } from "@/components/TabHeader";
+import { EditProfileRow } from "@/components/profile/EditProfileRow";
 import { useColors } from "@/hooks/useColors";
 
 const API_BASE = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
@@ -377,6 +378,7 @@ export default function ProfileScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Account</Text>
+          <EditProfileRow />
           <Pressable
             style={({ pressed }) => [styles.signOutBtn, { opacity: pressed ? 0.7 : 1 }]}
             onPress={handleSignOut}

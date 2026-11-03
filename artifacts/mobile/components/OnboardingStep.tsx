@@ -1,5 +1,5 @@
-import React from "react";
-import { ScrollView, View } from "react-native";
+import React, { useEffect } from "react";
+import { AccessibilityInfo, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { KeyboardScreen, Text } from "@/components/ui";
@@ -20,11 +20,12 @@ export function OnboardingStep({
   footer,
   children,
 }: {
-  step: Step;
+  /** The step count. Leave it out in edit mode (Profile > Edit profile). */
+  step?: Step;
   title: string;
   subtitle?: string;
-  /** The Continue button, plus anything that sits with it. */
-  footer: React.ReactNode;
+  /** The Continue or Save button, plus anything that sits with it. */
+  footer?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const c = useColors();
@@ -38,9 +39,11 @@ export function OnboardingStep({
         contentContainerStyle={{ padding: spacing.space4, paddingBottom: spacing.space8, gap: spacing.space6 }}
       >
         <View style={{ gap: spacing.space2 }}>
-          <Text variant="label" tone="inkMuted">
-            {stepLabel(step)}
-          </Text>
+          {step ? (
+            <Text variant="label" tone="inkMuted">
+              {stepLabel(step)}
+            </Text>
+          ) : null}
           <Text variant="displayL" accessibilityRole="header">
             {title}
           </Text>
@@ -48,25 +51,33 @@ export function OnboardingStep({
         </View>
         {children}
       </ScrollView>
-      <View
-        style={{
-          backgroundColor: c.paper,
-          borderTopWidth: 1,
-          borderTopColor: c.hairline,
-          paddingHorizontal: spacing.space4,
-          paddingTop: spacing.space3,
-          paddingBottom: insets.bottom + spacing.space3,
-          gap: spacing.space3,
-        }}
-      >
-        {footer}
-      </View>
+      {footer ? (
+        <View
+          style={{
+            backgroundColor: c.paper,
+            borderTopWidth: 1,
+            borderTopColor: c.hairline,
+            paddingHorizontal: spacing.space4,
+            paddingTop: spacing.space3,
+            paddingBottom: insets.bottom + spacing.space3,
+            gap: spacing.space3,
+          }}
+        >
+          {footer}
+        </View>
+      ) : null}
     </KeyboardScreen>
   );
 }
 
-/** Error line under a step's content. Announced when it appears. */
+/**
+ * Error line under a step's content. Spoken when it appears: iOS ignores
+ * accessibilityLiveRegion, so VoiceOver gets an explicit announcement.
+ */
 export function StepError({ message }: { message: string | null }) {
+  useEffect(() => {
+    if (message) AccessibilityInfo.announceForAccessibility(message);
+  }, [message]);
   if (!message) return null;
   return (
     <Text tone="danger" accessibilityRole="alert" accessibilityLiveRegion="polite">
