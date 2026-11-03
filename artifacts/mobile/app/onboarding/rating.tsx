@@ -41,6 +41,7 @@ export default function RatingStep() {
     <OnboardingStep
       step="rating"
       title="How do you play?"
+      reason="So your matches are fair."
       subtitle="Pick the one that sounds most like you. It sets your Ball Boi Rating, which we use to match you with players at your level. You can change it later."
       footer={<Button label="Continue" onPress={next} loading={busy} disabled={rating == null} />}
     >

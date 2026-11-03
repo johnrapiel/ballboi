@@ -73,6 +73,7 @@ export default function HomeAreaStep() {
     <OnboardingStep
       step="home"
       title="Where do you play?"
+      reason="So we can match you with players nearby."
       subtitle="We show players and leagues near your home area. Others only see an approximate distance, never where you are."
       footer={<Button label="Continue" onPress={next} loading={busy} disabled={!valid} />}
     >
