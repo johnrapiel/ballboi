@@ -20,28 +20,11 @@ import { consentKey, saveRecordingConsent } from "@/lib/recording/api";
 export const TRAINING_COPY =
   "We use match video to train our shot tracking. Your personal information is never shared or sold. Turn this off anytime in Settings.";
 
-function Point({
-  symbol,
-  title,
-  body,
-}: {
-  symbol: SFSymbol;
-  title: string;
-  body: string;
-}) {
+function Point({ symbol, title, body }: { symbol: SFSymbol; title: string; body: string }) {
   const c = useColors();
   return (
-    <View
-      accessible
-      accessibilityLabel={`${title}. ${body}`}
-      style={{ flexDirection: "row", gap: spacing.space3 }}
-    >
-      <SymbolView
-        name={symbol}
-        size={22}
-        tintColor={c.ink}
-        style={{ marginTop: 2 }}
-      />
+    <View accessible accessibilityLabel={`${title}. ${body}`} style={{ flexDirection: "row", gap: spacing.space3 }}>
+      <SymbolView name={symbol} size={22} tintColor={c.ink} style={{ marginTop: 2 }} />
       <View style={{ flex: 1, gap: spacing.space1 }}>
         <Text variant="bodyStrong">{title}</Text>
         <Text tone="inkMuted">{body}</Text>
@@ -50,13 +33,7 @@ function Point({
   );
 }
 
-export function ConsentScreen({
-  onAgree,
-  onCancel,
-}: {
-  onAgree: () => void;
-  onCancel: () => void;
-}) {
+export function ConsentScreen({ onAgree, onCancel }: { onAgree: () => void; onCancel: () => void }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const { getToken } = useAuth();
@@ -73,11 +50,7 @@ export function ConsentScreen({
       queryClient.setQueryData(consentKey, saved);
       onAgree();
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Couldn't save your choice. Try again.",
-      );
+      setError(e instanceof Error ? e.message : "Couldn't save your choice. Try again.");
     } finally {
       setSaving(false);
     }
@@ -116,20 +89,8 @@ export function ConsentScreen({
         </View>
 
         <Card style={{ gap: spacing.space3 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: spacing.space3,
-              minHeight: MIN_TAP,
-            }}
-          >
-            <Text
-              variant="bodyStrong"
-              style={{ flex: 1 }}
-              importantForAccessibility="no"
-              accessibilityElementsHidden
-            >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3, minHeight: MIN_TAP }}>
+            <Text variant="bodyStrong" style={{ flex: 1 }} importantForAccessibility="no" accessibilityElementsHidden>
               Help Ball Boi get smarter
             </Text>
             <Toggle
@@ -141,8 +102,8 @@ export function ConsentScreen({
           </View>
           <Text tone="inkMuted">{TRAINING_COPY}</Text>
           <Text variant="small" tone="inkMuted">
-            A match is used for training only if every player leaves this on.
-            Players who haven't joined Ball Boi are never included.
+            A match is used for training only if every player leaves this on. Players who haven't joined Ball Boi are never
+            included.
           </Text>
         </Card>
 
@@ -165,12 +126,7 @@ export function ConsentScreen({
         }}
       >
         <Button label="Continue" loading={saving} onPress={agree} />
-        <Button
-          variant="secondary"
-          label="Not now"
-          onPress={onCancel}
-          disabled={saving}
-        />
+        <Button variant="secondary" label="Not now" onPress={onCancel} disabled={saving} />
       </View>
     </View>
   );

@@ -1,18 +1,9 @@
 import { useUser } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
-import DateTimePicker, {
-  type DateTimePickerEvent,
-} from "@react-native-community/datetimepicker";
+import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import React, { useMemo, useRef, useState } from "react";
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  TextInput,
-  View,
-  useColorScheme,
-} from "react-native";
+import { Alert, Pressable, ScrollView, TextInput, View, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -57,31 +48,16 @@ function nextMonday(): Date {
 const dateKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const weekday = (d: Date) => d.toLocaleDateString("en-US", { weekday: "long" });
-const shortDate = (d: Date) =>
-  d.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
+const shortDate = (d: Date) => d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 
-function HeaderButton({
-  label,
-  onPress,
-}: {
-  label: string;
-  onPress: () => void;
-}) {
+function HeaderButton({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
       hitSlop={8}
-      style={{
-        minHeight: MIN_TAP,
-        minWidth: MIN_TAP,
-        justifyContent: "center",
-      }}
+      style={{ minHeight: MIN_TAP, minWidth: MIN_TAP, justifyContent: "center" }}
     >
       <Text>{label}</Text>
     </Pressable>
@@ -89,17 +65,7 @@ function HeaderButton({
 }
 
 /** Round minus or plus button for the weeks stepper, 44×44pt. */
-function StepButton({
-  symbol,
-  label,
-  onPress,
-  disabled,
-}: {
-  symbol: string;
-  label: string;
-  onPress: () => void;
-  disabled: boolean;
-}) {
+function StepButton({ symbol, label, onPress, disabled }: { symbol: string; label: string; onPress: () => void; disabled: boolean }) {
   const c = useColors();
   return (
     <Pressable
@@ -119,11 +85,7 @@ function StepButton({
         opacity: disabled ? 0.4 : pressed ? 0.7 : 1,
       })}
     >
-      <Text
-        variant="bodyStrong"
-        importantForAccessibility="no"
-        accessibilityElementsHidden
-      >
+      <Text variant="bodyStrong" importantForAccessibility="no" accessibilityElementsHidden>
         {symbol}
       </Text>
     </Pressable>
@@ -131,13 +93,7 @@ function StepButton({
 }
 
 /** Weeks: a number field with minus and plus. Typing is clamped to the allowed range on blur. */
-function WeeksStepper({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (n: number) => void;
-}) {
+function WeeksStepper({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   const c = useColors();
   const [draft, setDraft] = useState(String(value));
   const set = (n: number) => {
@@ -147,26 +103,11 @@ function WeeksStepper({
   };
   return (
     <View style={{ gap: spacing.space2 }}>
-      <Text
-        variant="label"
-        importantForAccessibility="no"
-        accessibilityElementsHidden
-      >
+      <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
         Weeks
       </Text>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: spacing.space3,
-        }}
-      >
-        <StepButton
-          symbol="−"
-          label="Fewer weeks"
-          onPress={() => set(value - 1)}
-          disabled={value <= MIN_WEEKS}
-        />
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3 }}>
+        <StepButton symbol="−" label="Fewer weeks" onPress={() => set(value - 1)} disabled={value <= MIN_WEEKS} />
         <TextInput
           value={draft}
           onChangeText={(t) => setDraft(t.replace(/[^0-9]/g, "").slice(0, 2))}
@@ -192,12 +133,7 @@ function WeeksStepper({
             },
           ]}
         />
-        <StepButton
-          symbol="+"
-          label="More weeks"
-          onPress={() => set(value + 1)}
-          disabled={value >= MAX_WEEKS}
-        />
+        <StepButton symbol="+" label="More weeks" onPress={() => set(value + 1)} disabled={value >= MAX_WEEKS} />
       </View>
       <Text variant="small" tone="inkMuted">
         {MIN_WEEKS} to {MAX_WEEKS} weeks
@@ -206,13 +142,7 @@ function WeeksStepper({
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <View style={{ gap: spacing.space2 }}>
       <Text variant="label" tone="inkMuted" accessibilityRole="header">
@@ -246,10 +176,7 @@ export default function StartLeagueScreen() {
   const [nameMissing, setNameMissing] = useState(false);
 
   const playerName =
-    user?.fullName?.trim() ||
-    user?.firstName?.trim() ||
-    user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
-    "";
+    user?.fullName?.trim() || user?.firstName?.trim() || user?.primaryEmailAddress?.emailAddress?.split("@")[0] || "";
 
   const end = new Date(start);
   end.setDate(end.getDate() + weeks * 7 - 1);
@@ -285,22 +212,14 @@ export default function StartLeagueScreen() {
       // Every league gets an invite code right away, so the admin can share it.
       await createLeagueInvite(league.id, {}).catch(() => undefined);
       await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: getGetLeaguesQueryKey().slice(0, 1),
-        }),
+        queryClient.invalidateQueries({ queryKey: getGetLeaguesQueryKey().slice(0, 1) }),
         queryClient.invalidateQueries({ queryKey: getGetMyPlayersQueryKey() }),
       ]);
-      router.replace({
-        pathname: "/league/invite/[leagueId]",
-        params: { leagueId: String(league.id) },
-      });
+      router.replace({ pathname: "/league/invite/[leagueId]", params: { leagueId: String(league.id) } });
     } catch (e) {
       setSaving(false);
       const message = (e as { data?: { error?: string } }).data?.error;
-      Alert.alert(
-        "Couldn't start the league",
-        message ?? "Something went wrong. Try again in a moment.",
-      );
+      Alert.alert("Couldn't start the league", message ?? "Something went wrong. Try again in a moment.");
     }
   }
 
@@ -308,19 +227,13 @@ export default function StartLeagueScreen() {
     <>
       <Stack.Screen
         options={{
-          headerLeft: () => (
-            <HeaderButton label="Cancel" onPress={() => router.back()} />
-          ),
+          headerLeft: () => <HeaderButton label="Cancel" onPress={() => router.back()} />,
         }}
       />
       <ScrollView
         ref={scrollRef}
         style={{ flex: 1, backgroundColor: c.paper }}
-        contentContainerStyle={{
-          padding: spacing.space4,
-          paddingBottom: spacing.space8,
-          gap: spacing.space6,
-        }}
+        contentContainerStyle={{ padding: spacing.space4, paddingBottom: spacing.space8, gap: spacing.space6 }}
         keyboardShouldPersistTaps="handled"
       >
         <Section title="League">
@@ -335,9 +248,7 @@ export default function StartLeagueScreen() {
             maxLength={60}
             autoFocus
             error={nameMissing}
-            hint={
-              nameMissing ? "Give your league a name to create it." : undefined
-            }
+            hint={nameMissing ? "Give your league a name to create it." : undefined}
           />
           <Field
             label="Where you play (optional)"
@@ -374,13 +285,11 @@ export default function StartLeagueScreen() {
           />
           {playType !== "singles" ? (
             <Text variant="small" tone="inkMuted">
-              Weekly pairing for doubles is coming soon. Singles leagues get
-              weekly pairings today.
+              Weekly pairing for doubles is coming soon. Singles leagues get weekly pairings today.
             </Text>
           ) : null}
           <Text variant="small" tone="inkMuted">
-            Each round runs a week. Unplayed matches get a 1-week grace period:
-            scores then count for Ball Boi stats, not standings.
+            Each round runs a week. Unplayed matches get a 1-week grace period: scores then count for Ball Boi stats, not standings.
           </Text>
         </Section>
 
@@ -389,19 +298,8 @@ export default function StartLeagueScreen() {
         </Section>
 
         <Section title="Season">
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: spacing.space3,
-            }}
-          >
-            <Text
-              variant="label"
-              importantForAccessibility="no"
-              accessibilityElementsHidden
-            >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.space3 }}>
+            <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
               Starts
             </Text>
             {/* Native iOS date button: tap for the calendar, any day from today on. */}
@@ -422,11 +320,7 @@ export default function StartLeagueScreen() {
             />
           </View>
           <WeeksStepper value={weeks} onChange={setWeeks} />
-          <Text
-            variant="small"
-            tone="inkMuted"
-            accessibilityLiveRegion="polite"
-          >
+          <Text variant="small" tone="inkMuted" accessibilityLiveRegion="polite">
             Runs {shortDate(start)} to {shortDate(end)}
           </Text>
           <ChoiceGroup<0 | 4 | 8>
@@ -441,19 +335,11 @@ export default function StartLeagueScreen() {
           />
         </Section>
 
-        <Card
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.space3,
-          }}
-        >
+        <Card style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3 }}>
           <View style={{ flex: 1, gap: 2 }}>
             <Text variant="bodyStrong">I'm playing in this league</Text>
             <Text variant="small" tone="inkMuted">
-              {playing
-                ? "You'll be paired like everyone else."
-                : "You'll run the league without playing."}
+              {playing ? "You'll be paired like everyone else." : "You'll run the league without playing."}
             </Text>
           </View>
           <Toggle
