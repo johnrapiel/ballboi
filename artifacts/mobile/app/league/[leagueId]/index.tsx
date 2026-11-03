@@ -75,13 +75,16 @@ function YourWeek({
     router.push({ pathname: "/conversation/[id]", params: { id: "new", playerId: String(opponentId), name: opponent } });
   const played = match.status === "completed" && !!match.score;
   const corrected = correctionLine(match);
+  // After an undo, the opponent sees who cleared it until a new score is in.
+  const clearedNote = !played && match.scoreClearedBy ? `Score cleared by ${match.scoreClearedBy}. ` : "";
   const when = played
     ? [resultLine(match), corrected].filter(Boolean).join(". ")
-    : round.phase === "upcoming"
+    : clearedNote +
+      (round.phase === "upcoming"
       ? `Starts ${shortDate(round.startDate)}. Play by ${shortDate(round.deadline)}.`
       : round.phase === "grace"
         ? `Grace week until ${shortDate(round.graceEnd)}. A score now counts for Ball Boi stats, not standings.`
-        : `Play by ${shortDate(round.deadline)}.`;
+        : `Play by ${shortDate(round.deadline)}.`);
 
   return (
     <Card style={{ gap: spacing.space3 }}>

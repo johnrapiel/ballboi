@@ -95,13 +95,14 @@ export default function EnterScoreScreen() {
     : undefined;
   const match = weekly ?? (playoffSlot ? { matchId } : undefined);
   const opponent = correcting
-    ? weekly?.player2Name ?? "Player 2"
+    ? weekly?.player2Name ?? playoffSlot?.player2?.playerName ?? "Player 2"
     : weekly && myPlayerId != null
       ? opponentName(weekly, myPlayerId)
       : playoffOpponent ?? "your opponent";
   const opponentShort = opponent.split(" ")[0];
   // Correcting: the first row is player 1, the second player 2.
-  const firstName = correcting ? weekly?.player1Name ?? "Player 1" : "You";
+  const firstName = correcting ? weekly?.player1Name ?? playoffSlot?.player1?.playerName ?? "Player 1" : "You";
+  const currentScore = weekly?.score ?? playoffSlot?.score ?? null;
   const firstShort = firstName.split(" ")[0];
 
   const [sets, setSets] = useState<SetEntry[]>([emptySet(), emptySet(), emptySet()]);
@@ -114,11 +115,11 @@ export default function EnterScoreScreen() {
 
   // Correcting starts from the score as it stands.
   useEffect(() => {
-    if (correcting && !prefilled && weekly?.score) {
-      setSets(setsFromScore(weekly.score, 3));
+    if (correcting && !prefilled && currentScore) {
+      setSets(setsFromScore(currentScore, 3));
       setPrefilled(true);
     }
-  }, [correcting, prefilled, weekly?.score]);
+  }, [correcting, prefilled, currentScore]);
 
   const update = (i: number, patch: Partial<SetEntry>) => {
     setServerError(null);
@@ -200,9 +201,15 @@ export default function EnterScoreScreen() {
           </Text>
         ) : null}
         <Text variant="title">{correcting ? `${firstName} vs. ${opponent}` : `You vs. ${opponent}`}</Text>
-        {correcting && weekly ? (
+        {correcting ? (
           <Text variant="small" tone="inkMuted">
-            {[`Now: ${weekly.score ? weekly.score : "no score"}`, correctionLine(weekly)].filter(Boolean).join(". ")}
+            {[
+              `Now: ${currentScore ?? "no score"}`,
+              weekly ? correctionLine(weekly) : null,
+              playoffSlot ? "Allowed until the next playoff round is played. The corrected winner takes that spot." : null,
+            ]
+              .filter(Boolean)
+              .join(". ")}
           </Text>
         ) : null}
         {!correcting && round?.phase === "grace" ? (

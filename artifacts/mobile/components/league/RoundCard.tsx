@@ -35,9 +35,11 @@ function MatchRow({
   const mine = isMine(m, myPlayerId);
   const result = resultLine(m, round);
   const notPlayed = isNotPlayed(round, m);
-  const notes = [m.inGrace ? "Grace week: counts for Ball Boi stats, not standings" : null, correctionLine(m)].filter(
-    (n): n is string => !!n,
-  );
+  const notes = [
+    m.inGrace ? "Grace week: counts for Ball Boi stats, not standings" : null,
+    correctionLine(m),
+    m.status !== "completed" && m.scoreClearedBy ? `Score cleared by ${m.scoreClearedBy}` : null,
+  ].filter((n): n is string => !!n);
   const scoreable = mine && !frozen && canEnterScore(round, m);
   const summary = `${m.player1Name} versus ${m.player2Name}. ${result}.${notes.map((n) => ` ${n}.`).join("")}`;
 
