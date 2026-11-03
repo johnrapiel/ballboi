@@ -63,6 +63,7 @@ vi.mock("@workspace/db", () => ({
   contentReportsTable: { __name: "content_reports", id: {}, status: {}, createdAt: {} },
   userBlocksTable: { __name: "user_blocks", blockerClerkUserId: {}, blockedClerkUserId: {}, createdAt: {} },
   playersTable: { __name: "players", id: {}, name: {}, clerkUserId: {} },
+  usersTable: { __name: "users", clerkUserId: {}, avatarUrl: {}, displayName: {} },
   REPORT_TARGET_TYPES: ["player", "league", "ball_boi_session", "match", "message", "account"],
   REPORT_REASONS: ["harassment", "inappropriate_content", "impersonation", "spam", "cheating", "other"],
   REPORT_STATUSES: ["open", "reviewed", "actioned", "dismissed"],
@@ -202,9 +203,10 @@ describe("blocking", () => {
     const at = new Date("2026-10-21T12:00:00Z");
     selectQueue.push([{ blockedClerkUserId: "user_target", createdAt: at }]);
     selectQueue.push([{ id: 5, name: "Mike Okafor", clerkUserId: "user_target" }]);
+    selectQueue.push([{ clerkUserId: "user_target", avatarUrl: "/objects/photos/mike.jpg" }]);
     const res = await supertest(await buildApp()).get("/api/blocks");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([{ playerId: 5, name: "Mike Okafor", blockedAt: at.toISOString() }]);
+    expect(res.body).toEqual([{ playerId: 5, name: "Mike Okafor", avatarUrl: "/objects/photos/mike.jpg", blockedAt: at.toISOString() }]);
   });
 });
 

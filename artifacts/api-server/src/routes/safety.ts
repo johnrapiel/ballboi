@@ -186,11 +186,26 @@ router.get("/blocks", requireAuth, async (req, res) => {
         .from(playersTable)
         .where(inArray(playersTable.clerkUserId, blockedIds))
     : [];
+  // Profile photos, for the Blocked players list (initials when there's none).
+  const photos = blockedIds.length
+    ? await db
+        .select({ clerkUserId: usersTable.clerkUserId, avatarUrl: usersTable.avatarUrl })
+        .from(usersTable)
+        .where(inArray(usersTable.clerkUserId, blockedIds))
+    : [];
   res.json(
-    blocks.map((b) => {
-      const p = players.find((x) => x.clerkUserId === b.blockedClerkUserId);
-      return { playerId: p?.id ?? null, name: p?.name ?? "Player", blockedAt: b.createdAt.toISOString() };
-    }),
+    blocks
+      .map((b) => {
+        const p = players.find((x) => x.clerkUserId === b.blockedClerkUserId);
+        return {
+          playerId: p?.id ?? null,
+          name: p?.name ?? "Player",
+          avatarUrl: photos.find((u) => u.clerkUserId === b.blockedClerkUserId)?.avatarUrl ?? null,
+          blockedAt: b.createdAt.toISOString(),
+        };
+      })
+      // Most recent first.
+      .sort((x, y) => y.blockedAt.localeCompare(x.blockedAt)),
   );
 });
 
