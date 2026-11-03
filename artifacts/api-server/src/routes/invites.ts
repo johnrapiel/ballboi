@@ -88,16 +88,41 @@ router.get("/invites/:code", async (req, res) => {
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, invite.leagueId));
   const players = await db.select().from(playersTable).where(eq(playersTable.leagueId, invite.leagueId));
   const activeCount = players.filter((p) => !p.leftAt).length;
-  // Tells the join screen up front whether joining now means the waitlist.
+  // Tells the join screen up front what Join will do: join now, ask the
+  // organizer (Private, started or full), or join the waitlist (Open).
   const outcome = league
     ? joinOutcome({ league, activePlayerCount: activeCount, today: leagueToday(), via: "invite" })
     : null;
+  const { userId } = getAuth(req);
+  const [mine] = userId
+    ? await db
+        .select({ leftAt: playersTable.leftAt })
+        .from(playersTable)
+        .where(and(eq(playersTable.leagueId, invite.leagueId), eq(playersTable.clerkUserId, userId)))
+    : [];
+  const [pending] = userId
+    ? await db
+        .select({ kind: leagueJoinRequestsTable.kind })
+        .from(leagueJoinRequestsTable)
+        .where(and(
+          eq(leagueJoinRequestsTable.leagueId, invite.leagueId),
+          eq(leagueJoinRequestsTable.clerkUserId, userId),
+          eq(leagueJoinRequestsTable.status, "pending"),
+        ))
+    : [];
 
   return res.json({
     ...invite,
     leagueName: league?.name ?? "Unknown",
     leagueSport: null, // leagues have no sport column; kept for the API contract
     playerCount: activeCount,
+    startDate: league?.startDate ?? null,
+    location: league?.location ?? null,
+    joinAction: outcome?.kind === "waitlist" ? "waitlist" : outcome?.kind === "request" ? "request" : "join",
+    joinNote: outcome && (outcome.kind === "waitlist" || outcome.kind === "request") ? outcome.reason ?? null : null,
+    alreadyMember: !!mine && !mine.leftAt,
+    pendingRequest: pending ? pending.kind : null,
+    // Kept for older app builds.
     waitlistOnly: outcome?.kind === "waitlist",
     waitlistReason: outcome?.kind === "waitlist" ? outcome.reason : null,
   });
@@ -147,14 +172,16 @@ router.post("/invites/:code/join", requireAuth, async (req, res) => {
       }
       if (!league) return { status: 404, payload: { error: "League not found" } };
 
-      // Every league locks to new joins once its season starts, and a full
-      // league can't take more players. Both go to the waitlist (decision 26).
+      // Every league locks to direct joins once its season starts, and a full
+      // league can't take more players. Open leagues waitlist; Private leagues
+      // send the organizer a request instead (decisions 26 and 30).
       const active = await tx
         .select({ id: playersTable.id })
         .from(playersTable)
         .where(and(eq(playersTable.leagueId, invite.leagueId), isNull(playersTable.leftAt)));
       const outcome = joinOutcome({ league, activePlayerCount: active.length, today: leagueToday(), via: "invite" });
-      if (outcome.kind === "waitlist") {
+      if (outcome.kind === "waitlist" || (outcome.kind === "request" && outcome.reason)) {
+        const kind = outcome.kind === "waitlist" ? "waitlist" : "request";
         await tx
           .insert(leagueJoinRequestsTable)
           .values({
@@ -162,12 +189,17 @@ router.post("/invites/:code/join", requireAuth, async (req, res) => {
             clerkUserId: userId!,
             playerName: playerName.trim(),
             skillLevel: nextSkillLevel,
-            kind: "waitlist",
+            kind,
           })
           .onConflictDoNothing();
         return {
           status: 202,
-          payload: { waitlisted: true, league: { id: league.id, name: league.name }, message: outcome.reason },
+          payload: {
+            waitlisted: kind === "waitlist",
+            requested: kind === "request",
+            league: { id: league.id, name: league.name },
+            message: outcome.reason,
+          },
         };
       }
 

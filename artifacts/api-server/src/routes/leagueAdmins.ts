@@ -1,8 +1,10 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { getAuth } from "@clerk/express";
-import { db, leagueAdminsTable, leaguesTable, playersTable, usersTable } from "@workspace/db";
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { db, leagueAdminsTable, leagueJoinRequestsTable, leaguesTable, playersTable, usersTable } from "@workspace/db";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { getLeagueRole } from "../lib/leagueAccess.js";
+import { leagueToday } from "../lib/leagueCalendar.js";
+import { joinedWeek } from "../lib/leagueJoining.js";
 import { promoteProblem, removeAdminProblem, type LeagueRole } from "../lib/leagueRoles.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
 
@@ -22,24 +24,45 @@ router.get("/leagues/:leagueId/membership", requireAuth, async (req, res) => {
   const leagueId = parseInt(String(req.params.leagueId));
   if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid league ID" }); return; }
 
-  const [league] = await db.select({ id: leaguesTable.id }).from(leaguesTable).where(eq(leaguesTable.id, leagueId));
+  const [league] = await db
+    .select({ id: leaguesTable.id, startDate: leaguesTable.startDate, seasonWeeks: leaguesTable.seasonWeeks })
+    .from(leaguesTable)
+    .where(eq(leaguesTable.id, leagueId));
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
 
-  const [role, [player]] = await Promise.all([
+  const [role, [player], [approved]] = await Promise.all([
     getLeagueRole(leagueId, userId!),
     db
-      .select({ id: playersTable.id, leftAt: playersTable.leftAt })
+      .select({ id: playersTable.id, leftAt: playersTable.leftAt, createdAt: playersTable.createdAt })
       .from(playersTable)
       .where(and(eq(playersTable.leagueId, leagueId), eq(playersTable.clerkUserId, userId!))),
+    db
+      .select({ decidedAt: leagueJoinRequestsTable.decidedAt })
+      .from(leagueJoinRequestsTable)
+      .where(and(
+        eq(leagueJoinRequestsTable.leagueId, leagueId),
+        eq(leagueJoinRequestsTable.clerkUserId, userId!),
+        eq(leagueJoinRequestsTable.status, "approved"),
+      ))
+      .orderBy(desc(leagueJoinRequestsTable.decidedAt))
+      .limit(1),
   ]);
+
+  // Late joiners see "You joined in week 3 of 8" (decision 30, C3). The join
+  // day is when the organizer approved them, else when they joined.
+  const playing = !!player && !player.leftAt;
+  const joinedAt = approved?.decidedAt ?? player?.createdAt ?? null;
+  const week = playing && joinedAt ? joinedWeek(league.startDate, leagueToday(joinedAt), league.seasonWeeks) : null;
 
   res.json({
     leagueId,
     role,
     isAdmin: role !== null,
-    playerId: player && !player.leftAt ? player.id : null,
-    isPlaying: !!player && !player.leftAt,
+    playerId: playing ? player!.id : null,
+    isPlaying: playing,
     hasLeft: !!player?.leftAt,
+    joinedWeek: week !== null && week > 1 ? week : null,
+    seasonWeeks: league.seasonWeeks ?? null,
   });
 });
 

@@ -71,6 +71,7 @@ import type {
   MatchBallBoiShotCallbackBody,
   MatchShot,
   MatchStatistics,
+  MyJoinRequest,
   MyMatchesResponse,
   MyScheduleResponse,
   Player,
@@ -2835,6 +2836,165 @@ export function useGetLeagueBracket<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary The signed-in player's pending requests, and declined ones not yet dismissed
+ */
+export const getGetMyJoinRequestsUrl = () => {
+  return `/api/me/join-requests`;
+};
+
+export const getMyJoinRequests = async (
+  options?: RequestInit,
+): Promise<MyJoinRequest[]> => {
+  return customFetch<MyJoinRequest[]>(getGetMyJoinRequestsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyJoinRequestsQueryKey = () => {
+  return [`/api/me/join-requests`] as const;
+};
+
+export const getGetMyJoinRequestsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyJoinRequests>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyJoinRequests>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyJoinRequestsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMyJoinRequests>>
+  > = ({ signal }) => getMyJoinRequests({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyJoinRequests>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyJoinRequestsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyJoinRequests>>
+>;
+export type GetMyJoinRequestsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary The signed-in player's pending requests, and declined ones not yet dismissed
+ */
+
+export function useGetMyJoinRequests<
+  TData = Awaited<ReturnType<typeof getMyJoinRequests>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyJoinRequests>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyJoinRequestsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Dismiss the note for a declined request
+ */
+export const getDismissMyJoinRequestUrl = (requestId: number) => {
+  return `/api/me/join-requests/${requestId}/dismiss`;
+};
+
+export const dismissMyJoinRequest = async (
+  requestId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDismissMyJoinRequestUrl(requestId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getDismissMyJoinRequestMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dismissMyJoinRequest>>,
+    TError,
+    { requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof dismissMyJoinRequest>>,
+  TError,
+  { requestId: number },
+  TContext
+> => {
+  const mutationKey = ["dismissMyJoinRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof dismissMyJoinRequest>>,
+    { requestId: number }
+  > = (props) => {
+    const { requestId } = props ?? {};
+
+    return dismissMyJoinRequest(requestId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DismissMyJoinRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof dismissMyJoinRequest>>
+>;
+
+export type DismissMyJoinRequestMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Dismiss the note for a declined request
+ */
+export const useDismissMyJoinRequest = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dismissMyJoinRequest>>,
+    TError,
+    { requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof dismissMyJoinRequest>>,
+  TError,
+  { requestId: number },
+  TContext
+> => {
+  return useMutation(getDismissMyJoinRequestMutationOptions(options));
+};
 
 /**
  * @summary Home tab's league section - this week's matches and byes, playoff matches, drafts to review, recent results

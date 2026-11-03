@@ -23,6 +23,9 @@ export const leagueJoinRequestsTable = pgTable(
     status: text("status").$type<JoinRequestStatus>().notNull().default("pending"),
     decidedByClerkUserId: text("decided_by_clerk_user_id"),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
+    // When the player dismissed the "declined" note on their Leagues tab.
+    // Migration 20261101_c_join_request_dismissed.sql.
+    playerDismissedAt: timestamp("player_dismissed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

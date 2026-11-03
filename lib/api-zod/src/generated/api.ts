@@ -687,6 +687,13 @@ export const GetLeagueMembershipResponse = zod.object({
   playerId: zod.number().nullable(),
   isPlaying: zod.boolean(),
   hasLeft: zod.boolean(),
+  joinedWeek: zod
+    .number()
+    .nullable()
+    .describe(
+      'For a player who joined after week 1, the week they joined (\"You joined in week 3 of 8\")',
+    ),
+  seasonWeeks: zod.number().nullable(),
 });
 
 /**
@@ -878,6 +885,29 @@ export const GetLeagueBracketResponse = zod.union([
   }),
   zod.null(),
 ]);
+
+/**
+ * @summary The signed-in player's pending requests, and declined ones not yet dismissed
+ */
+export const GetMyJoinRequestsResponseItem = zod.object({
+  id: zod.number(),
+  leagueId: zod.number(),
+  leagueName: zod.string(),
+  kind: zod.enum(["request", "waitlist"]),
+  status: zod.enum(["pending", "declined"]),
+  createdAt: zod.string(),
+  decidedAt: zod.string().nullable(),
+});
+export const GetMyJoinRequestsResponse = zod.array(
+  GetMyJoinRequestsResponseItem,
+);
+
+/**
+ * @summary Dismiss the note for a declined request
+ */
+export const DismissMyJoinRequestParams = zod.object({
+  requestId: zod.coerce.number(),
+});
 
 /**
  * @summary Home tab's league section - this week's matches and byes, playoff matches, drafts to review, recent results
@@ -1796,6 +1826,25 @@ export const GetLeagueInvitesResponseItem = zod.object({
   leagueName: zod.string().nullish(),
   leagueSport: zod.string().nullish(),
   playerCount: zod.number().nullish(),
+  startDate: zod.string().nullish(),
+  location: zod.string().nullish(),
+  joinAction: zod
+    .enum(["join", "request", "waitlist"])
+    .optional()
+    .describe(
+      "What Join does now. request = Private league that started or is full (decision 30); waitlist = Open league that started or is full",
+    ),
+  joinNote: zod
+    .string()
+    .nullish()
+    .describe("What the player is told when Join doesn't add them right away"),
+  alreadyMember: zod.boolean().optional(),
+  pendingRequest: zod
+    .string()
+    .nullish()
+    .describe(
+      "The signed-in player's pending request kind for this league (request or waitlist), if any",
+    ),
   waitlistOnly: zod
     .boolean()
     .optional()
@@ -1838,6 +1887,25 @@ export const GetInviteResponse = zod.object({
   leagueName: zod.string().nullish(),
   leagueSport: zod.string().nullish(),
   playerCount: zod.number().nullish(),
+  startDate: zod.string().nullish(),
+  location: zod.string().nullish(),
+  joinAction: zod
+    .enum(["join", "request", "waitlist"])
+    .optional()
+    .describe(
+      "What Join does now. request = Private league that started or is full (decision 30); waitlist = Open league that started or is full",
+    ),
+  joinNote: zod
+    .string()
+    .nullish()
+    .describe("What the player is told when Join doesn't add them right away"),
+  alreadyMember: zod.boolean().optional(),
+  pendingRequest: zod
+    .string()
+    .nullish()
+    .describe(
+      "The signed-in player's pending request kind for this league (request or waitlist), if any",
+    ),
   waitlistOnly: zod
     .boolean()
     .optional()

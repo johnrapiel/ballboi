@@ -219,6 +219,12 @@ export default function LeagueScreen() {
             <Text variant="small" tone="inkMuted">
               {[playersLabel(league.playerCount), season].filter(Boolean).join(" · ")}
             </Text>
+            {/* A late joiner starts at zero wins and enters the next round (C3). */}
+            {membershipQ.data?.joinedWeek && membershipQ.data.seasonWeeks && league.status !== "completed" ? (
+              <Text variant="small" tone="inkMuted">
+                {`You joined in week ${membershipQ.data.joinedWeek} of ${membershipQ.data.seasonWeeks}.`}
+              </Text>
+            ) : null}
           </View>
 
           {playoff ? (

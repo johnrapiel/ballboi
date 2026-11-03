@@ -292,8 +292,8 @@ describe("POST /api/invites/:code/join", () => {
     expect(executeCalls).toHaveLength(2);
   });
 
-  it("puts the player on the waitlist once the season has started (decision 26)", async () => {
-    let inserted: Record<string, unknown> | null = null;
+  function lateJoin(visibility: string) {
+    const captured: { inserted: Record<string, unknown> | null } = { inserted: null };
     mockDb.transaction.mockImplementation(async (cb: (tx: unknown) => unknown) => {
       let selectCall = 0;
       const tx = {
@@ -301,12 +301,12 @@ describe("POST /api/invites/:code/join", () => {
         select: vi.fn().mockImplementation(() => {
           selectCall++;
           if (selectCall === 1) return mockChain([sampleInvite]);
-          if (selectCall === 2) return mockChain([{ ...sampleLeague, startDate: "2020-01-02", visibility: "private" }]);
+          if (selectCall === 2) return mockChain([{ ...sampleLeague, startDate: "2020-01-02", visibility }]);
           return mockChain([]);
         }),
         insert: vi.fn().mockImplementation(() => ({
           values: (vals: Record<string, unknown>) => {
-            inserted = vals;
+            captured.inserted = vals;
             return mockChain([]);
           },
         })),
@@ -314,7 +314,11 @@ describe("POST /api/invites/:code/join", () => {
       };
       return cb(tx);
     });
+    return captured;
+  }
 
+  it("puts the player on an Open league's waitlist once the season has started (decisions 26, 30)", async () => {
+    const captured = lateJoin("open");
     const res = await supertest(app)
       .post("/api/invites/test-invite-code/join")
       .set("Authorization", "Bearer token")
@@ -323,7 +327,23 @@ describe("POST /api/invites/:code/join", () => {
     expect(res.status).toBe(202);
     expect(res.body.waitlisted).toBe(true);
     expect(res.body.message).toMatch(/waitlist for next season/);
-    expect(inserted).toMatchObject({ kind: "waitlist", playerName: "Late Larry" });
+    expect(captured.inserted).toMatchObject({ kind: "waitlist", playerName: "Late Larry" });
+  });
+
+  it("turns a Private code entered mid-season into a join request (decision 30)", async () => {
+    const captured = lateJoin("private");
+    const res = await supertest(app)
+      .post("/api/invites/test-invite-code/join")
+      .set("Authorization", "Bearer token")
+      .send({ playerName: "Late Larry", skillLevel: "3.5" });
+
+    expect(res.status).toBe(202);
+    expect(res.body.requested).toBe(true);
+    expect(res.body.waitlisted).toBe(false);
+    expect(res.body.message).toBe(
+      "This season's already started, but we've let the organizer know you'd like to join. You'll hear back here.",
+    );
+    expect(captured.inserted).toMatchObject({ kind: "request", playerName: "Late Larry" });
   });
 
   it("returns 500 and does not crash the server when the transaction throws", async () => {
