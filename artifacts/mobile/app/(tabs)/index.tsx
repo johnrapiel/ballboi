@@ -63,7 +63,7 @@ export default function HomeScreen() {
     !!week && week.thisWeek.length === 0 && week.playoffs.length === 0 && week.drafts.length === 0 && week.recent.length === 0;
 
   return (
-    <TabScreen title="Home">
+    <TabScreen title="Home" roundel>
       {weekQ.isLoading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <ActivityIndicator color={c.ink} accessibilityLabel="Loading" />

@@ -8,7 +8,7 @@ export default function DiscoverScreen() {
   return (
     <TabScreen title="Discover">
       <EmptyState
-        symbol="safari"
+        roundel
         title="Nothing here yet"
         message="Players near you, Open leagues, and Open matches show up here."
       />
