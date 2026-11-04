@@ -1,7 +1,7 @@
 // What the Home tab shows from leagues (spec: Navigation > Home: upcoming
 // matches, this week's pairings, recent results). Pure, so it's easy to test.
 
-import { graceEndFor, roundPhase, type RoundPhase } from "./leagueCalendar.js";
+import { graceEndFor, leagueZone, roundPhase, todayFor, type RoundPhase } from "./leagueCalendar.js";
 
 export interface HomeRound {
   id: number;
@@ -33,10 +33,11 @@ export interface HomeMatch {
 }
 
 export interface HomeInput {
-  today: string;
+  /** Now, so each league's "today" follows its own time zone. */
+  now: Date;
   /** The viewer's player rows, one per league. */
   myPlayers: { id: number; leagueId: number | null; leftAt: Date | null }[];
-  leagues: { id: number; name: string; leagueType: string }[];
+  leagues: { id: number; name: string; leagueType: string; timeZone?: string | null }[];
   rounds: HomeRound[];
   matches: HomeMatch[];
   byes: { roundId: number; playerId: number }[];
@@ -61,6 +62,10 @@ export interface HomeWeekItem {
   singles: boolean;
   scheduledAt: string | null;
   location: string | null;
+  /** A score is in, so there's nothing left to enter or record. */
+  played: boolean;
+  /** The league's time zone, for its deadlines. */
+  timeZone: string;
 }
 
 export interface HomePlayoffItem {
@@ -70,6 +75,7 @@ export interface HomePlayoffItem {
   round: string;
   opponentName: string;
   singles: boolean;
+  timeZone: string;
 }
 
 export interface HomeResult {
@@ -91,6 +97,8 @@ export interface HomeDraft {
   roundId: number;
   roundNumber: number;
   startDate: string;
+  /** The league's time zone: the round goes out at 7am there. */
+  timeZone: string;
 }
 
 function flip(score: string): string {
@@ -120,6 +128,8 @@ function opponentOf(m: HomeMatch, side: 1 | 2, names: Map<number, string>): stri
 export function buildLeagueHome(input: HomeInput) {
   const leagueName = (id: number) => input.leagues.find((l) => l.id === id)?.name ?? "League";
   const singles = (id: number) => (input.leagues.find((l) => l.id === id)?.leagueType ?? "singles") === "singles";
+  const zone = (id: number) => leagueZone(input.leagues.find((l) => l.id === id));
+  const todayIn = (id: number) => todayFor(input.leagues.find((l) => l.id === id), input.now);
   const live = input.matches.filter((m) => !m.voidedAt);
 
   const thisWeek: HomeWeekItem[] = [];
@@ -127,7 +137,7 @@ export function buildLeagueHome(input: HomeInput) {
     if (me.leftAt || me.leagueId == null) continue;
     const rounds = input.rounds.filter((r) => r.leagueId === me.leagueId && r.publishedAt);
     for (const r of rounds) {
-      const phase = roundPhase(r, input.today);
+      const phase = roundPhase(r, todayIn(me.leagueId));
       if (phase !== "open" && phase !== "upcoming" && phase !== "grace") continue;
       const base = {
         leagueId: me.leagueId,
@@ -140,6 +150,7 @@ export function buildLeagueHome(input: HomeInput) {
         graceEnd: graceEndFor(r.endDate),
         myPlayerId: me.id,
         singles: singles(me.leagueId),
+        timeZone: zone(me.leagueId),
       };
       const match = live.find((m) => m.roundId === r.id && sideOf(m, me.id) !== null);
       // Grace-week rounds only matter while there's still a score to enter.
@@ -152,9 +163,10 @@ export function buildLeagueHome(input: HomeInput) {
           opponentName: opponentOf(match, sideOf(match, me.id)!, input.names),
           scheduledAt: match.scheduledAt,
           location: match.location,
+          played: match.status === "completed" || !!match.score,
         });
       } else if (input.byes.some((b) => b.roundId === r.id && b.playerId === me.id)) {
-        thisWeek.push({ ...base, bye: true, matchId: null, opponentName: null, scheduledAt: null, location: null });
+        thisWeek.push({ ...base, bye: true, matchId: null, opponentName: null, scheduledAt: null, location: null, played: false });
       }
     }
   }
@@ -188,6 +200,7 @@ export function buildLeagueHome(input: HomeInput) {
       round: m.playoffRound ?? "playoff",
       opponentName: opponentOf(m, mySide(m)!, input.names),
       singles: singles(m.leagueId!),
+      timeZone: zone(m.leagueId!),
     }));
 
   const recent: HomeResult[] = live
@@ -212,7 +225,7 @@ export function buildLeagueHome(input: HomeInput) {
   const drafts: HomeDraft[] = input.rounds
     .filter((r) => !r.publishedAt && input.adminLeagueIds.includes(r.leagueId))
     .sort((a, b) => a.startDate.localeCompare(b.startDate))
-    .map((r) => ({ leagueId: r.leagueId, leagueName: leagueName(r.leagueId), roundId: r.id, roundNumber: r.roundNumber, startDate: r.startDate }));
+    .map((r) => ({ leagueId: r.leagueId, leagueName: leagueName(r.leagueId), roundId: r.id, roundNumber: r.roundNumber, startDate: r.startDate, timeZone: zone(r.leagueId) }));
 
-  return { today: input.today, thisWeek: week, playoffs, drafts, recent };
+  return { today: todayFor(null, input.now), thisWeek: week, playoffs, drafts, recent };
 }

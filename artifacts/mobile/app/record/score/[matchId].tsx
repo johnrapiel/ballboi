@@ -11,6 +11,13 @@ import React, { useState } from "react";
 import { AccessibilityInfo, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import {
+  getGetLeagueBracketQueryKey,
+  getGetLeagueScheduleQueryKey,
+  getGetLeagueStandingsQueryKey,
+  getGetMyLeagueWeekQueryKey,
+} from "@workspace/api-client-react";
+
 import { LocalProcessingCard } from "@/components/record/ProcessingCard";
 import { Button, Card, Field, KeyboardScreen, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
@@ -78,6 +85,13 @@ export default function ScorePromptScreen() {
       setDone(result.ok ? "saved" : "already");
       queryClient.invalidateQueries({ queryKey: todaysMatchesKey });
       queryClient.invalidateQueries({ queryKey: recordingsKey });
+      // The league shows the result, and Home drops Record for this match.
+      queryClient.invalidateQueries({ queryKey: getGetMyLeagueWeekQueryKey() });
+      if (leagueId != null) {
+        queryClient.invalidateQueries({ queryKey: getGetLeagueScheduleQueryKey(leagueId) });
+        queryClient.invalidateQueries({ queryKey: getGetLeagueStandingsQueryKey(leagueId) });
+        queryClient.invalidateQueries({ queryKey: getGetLeagueBracketQueryKey(leagueId) });
+      }
       AccessibilityInfo.announceForAccessibility(result.ok ? `Score saved, ${score}` : "A score is already in for this match");
     } else {
       setError(result.error);

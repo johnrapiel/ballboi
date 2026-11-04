@@ -10,7 +10,7 @@ import {
   playersTable,
 } from "@workspace/db";
 import { eq, inArray, or } from "drizzle-orm";
-import { leagueToday } from "../lib/leagueCalendar.js";
+import { todayFor } from "../lib/leagueCalendar.js";
 import { buildLeagueHome } from "../lib/leagueHome.js";
 
 // Home tab's league section (spec: Navigation > Home): this week's matches
@@ -30,16 +30,16 @@ router.get("/me/league-week", async (req, res) => {
   const myIds = myPlayers.map((p) => p.id);
   const adminLeagueIds = adminRows.map((a) => a.leagueId);
   const leagueIds = [...new Set([...myPlayers.map((p) => p.leagueId).filter((id): id is number => id != null), ...adminLeagueIds])];
-  const today = leagueToday();
+  const now = new Date();
   if (leagueIds.length === 0) {
-    res.json({ today, thisWeek: [], playoffs: [], drafts: [], recent: [] });
+    res.json({ today: todayFor(null, now), thisWeek: [], playoffs: [], drafts: [], recent: [] });
     return;
   }
 
   // inArray needs at least one id; -1 matches nothing.
   const ids = myIds.length ? myIds : [-1];
   const [leagues, rounds, matches, byes] = await Promise.all([
-    db.select({ id: leaguesTable.id, name: leaguesTable.name, leagueType: leaguesTable.leagueType, endedAt: leaguesTable.endedAt }).from(leaguesTable).where(inArray(leaguesTable.id, leagueIds)),
+    db.select({ id: leaguesTable.id, name: leaguesTable.name, leagueType: leaguesTable.leagueType, endedAt: leaguesTable.endedAt, timeZone: leaguesTable.timeZone }).from(leaguesTable).where(inArray(leaguesTable.id, leagueIds)),
     db.select().from(leagueRoundsTable).where(inArray(leagueRoundsTable.leagueId, leagueIds)),
     db
       .select()
@@ -59,7 +59,7 @@ router.get("/me/league-week", async (req, res) => {
 
   res.json(
     buildLeagueHome({
-      today,
+      now,
       myPlayers,
       leagues,
       // An ended league has no week to play (decision 31).

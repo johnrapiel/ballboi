@@ -20,7 +20,7 @@ import {
 import { Button, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { correctionLine, opponentName, shortDate } from "@/lib/leagueSchedule";
+import { correctionLine, deadlineDate, opponentName } from "@/lib/leagueSchedule";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
 import { emptySet, isTiebreakSet, readScore, setsFromScore, type SetEntry } from "@/lib/scoreEntry";
 
@@ -193,7 +193,7 @@ export default function EnterScoreScreen() {
       <View style={{ gap: spacing.space1 }}>
         {round ? (
           <Text variant="label" tone="inkMuted">
-            {correcting ? `Round ${round.roundNumber}` : `Round ${round.roundNumber} · Play by ${shortDate(round.deadline)}`}
+            {correcting ? `Round ${round.roundNumber}` : `Round ${round.roundNumber} · Play by ${deadlineDate(round.deadline, scheduleQ.data?.timeZone)}`}
           </Text>
         ) : playoffSlot ? (
           <Text variant="label" tone="inkMuted">

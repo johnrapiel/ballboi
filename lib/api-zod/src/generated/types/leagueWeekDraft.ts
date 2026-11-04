@@ -12,4 +12,6 @@ export interface LeagueWeekDraft {
   roundId: number;
   roundNumber: number;
   startDate: string;
+  /** The league's time zone. The round goes out at 7am there. */
+  timeZone: string;
 }

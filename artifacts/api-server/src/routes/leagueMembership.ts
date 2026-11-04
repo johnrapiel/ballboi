@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { getAuth } from "@clerk/express";
 import { db, leagueJoinRequestsTable, leagueRoundByesTable, leaguesTable, matchesTable, playersTable } from "@workspace/db";
 import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
-import { leagueToday } from "../lib/leagueCalendar.js";
+import { todayFor } from "../lib/leagueCalendar.js";
 import { getLeagueRole, leagueAdminCount } from "../lib/leagueAccess.js";
 import { approveOutcome, joinOutcome, matchesToVoid } from "../lib/leagueJoining.js";
 import { leaveCheck } from "../lib/leagueLifecycle.js";
@@ -128,7 +128,7 @@ router.post("/leagues/:leagueId/join-requests", requireAuth, async (req, res) =>
   const outcome = joinOutcome({
     league,
     activePlayerCount: await activePlayerCount(leagueId),
-    today: leagueToday(),
+    today: todayFor(league),
     via: "request",
     skillLevel,
   });
@@ -213,7 +213,7 @@ router.post("/leagues/:leagueId/join-requests/:requestId/approve", requireLeague
   const outcome = approveOutcome({
     league,
     activePlayerCount: await activePlayerCount(leagueId),
-    today: leagueToday(),
+    today: todayFor(league),
     request,
   });
   if (!outcome.ok) {

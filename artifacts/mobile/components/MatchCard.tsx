@@ -24,6 +24,7 @@ export function MatchCard({
   secondary,
   onOpen,
   openHint,
+  footer,
 }: {
   /** League and round, e.g. "Tuesday Flex · Round 3". */
   eyebrow: string;
@@ -38,6 +39,8 @@ export function MatchCard({
   /** Opens the match's league. */
   onOpen?: () => void;
   openHint?: string;
+  /** Shown under the buttons, e.g. the doubles "Record with Ball Boi" state. */
+  footer?: React.ReactNode;
 }) {
   const summary = [eyebrow, title, detail, note].filter(Boolean).join(". ");
   const body = (
@@ -83,6 +86,7 @@ export function MatchCard({
           ) : null}
         </View>
       ) : null}
+      {footer}
     </Card>
   );
 }

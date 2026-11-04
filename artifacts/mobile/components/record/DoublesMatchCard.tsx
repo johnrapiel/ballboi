@@ -15,7 +15,6 @@ import { DOUBLES_MESSAGE, logDoublesView, type RecordableMatch } from "@/lib/rec
  * (spec: Ball Boi > Recording, Doubles). Each view is logged as demand.
  */
 export function DoublesMatchCard({ match }: { match: RecordableMatch }) {
-  const c = useColors();
   const { getToken } = useAuth();
 
   useEffect(() => {
@@ -38,6 +37,26 @@ export function DoublesMatchCard({ match }: { match: RecordableMatch }) {
           {meta}
         </Text>
       </View>
+      <DoublesRecordButton matchId={match.id} logView={false} />
+    </Card>
+  );
+}
+
+/**
+ * The dimmed "Record with Ball Boi" button on a doubles match, with the reason
+ * as visible text that VoiceOver reads. Used on the Ball Boi tab and on Home's
+ * match cards. Logs the view as demand unless the caller already does.
+ */
+export function DoublesRecordButton({ matchId, logView = true }: { matchId: number; logView?: boolean }) {
+  const c = useColors();
+  const { getToken } = useAuth();
+
+  useEffect(() => {
+    if (logView) logDoublesView(matchId, getToken);
+  }, [logView, matchId, getToken]);
+
+  return (
+    <View style={{ gap: spacing.space2 }}>
       <Button label="Record with Ball Boi" disabled accessibilityHint={DOUBLES_MESSAGE} />
       <View
         accessible
@@ -49,6 +68,6 @@ export function DoublesMatchCard({ match }: { match: RecordableMatch }) {
           {DOUBLES_MESSAGE}
         </Text>
       </View>
-    </Card>
+    </View>
   );
 }

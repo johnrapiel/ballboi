@@ -1,9 +1,8 @@
 // The one way into the recorder, so every entry point (Ball Boi tab, match
 // cards, Quick match) goes through the same checks.
 //
-// Session C's match card calls this for "Record with Ball Boi":
-//   import { openRecorder } from "@/lib/recording/start";
-//   openRecorder(router, { matchId, opponentName, leagueId });
+// Used by the Ball Boi tab's "Record a match" and Home's singles match cards
+// ("Record with Ball Boi", PR 4).
 
 import type { useRouter } from "expo-router";
 
