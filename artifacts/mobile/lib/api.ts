@@ -2,13 +2,15 @@
 // Prefer the generated React Query hooks from @workspace/api-client-react once an
 // endpoint is in lib/api-spec/openapi.yaml.
 
+import { isAccountBlockedError, reportAccountBlocked } from "@/lib/accountBlocked";
+
 const API_BASE = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
 
 export type TokenGetter = () => Promise<string | null>;
 
 export async function apiFetch(path: string, getToken: TokenGetter, init: RequestInit = {}): Promise<Response> {
   const token = await getToken();
-  return fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -16,6 +18,17 @@ export async function apiFetch(path: string, getToken: TokenGetter, init: Reques
       ...((init.headers as Record<string, string> | undefined) ?? {}),
     },
   });
+  // A ban or suspension that started mid-session: recheck the account (A7).
+  if (res.status === 403) {
+    res
+      .clone()
+      .json()
+      .then((body: unknown) => {
+        if (isAccountBlockedError(res.status, body)) reportAccountBlocked();
+      })
+      .catch(() => {});
+  }
+  return res;
 }
 
 /** Reads `{ error }` from a failed response, or falls back to a plain message. */

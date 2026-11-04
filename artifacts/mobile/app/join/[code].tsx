@@ -16,6 +16,7 @@ import {
 import { Button, Card, Text } from "@/components/ui";
 import { radius, spacing, type } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { useGate } from "@/hooks/useGate";
 import { useProfile } from "@/hooks/useProfile";
 import { cleanCode, savePendingJoinCode } from "@/lib/leagueInvite";
 import { shortDate } from "@/lib/leagueSchedule";
@@ -69,6 +70,10 @@ export default function JoinLeagueScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Done | null>(null);
+  // Signed in but not past the age check or onboarding (or blocked): the root
+  // gate moves them on and keeps this link for later, so show nothing here (A3).
+  const gate = useGate();
+  const held = !!isSignedIn && gate !== "app";
 
   // Signed out: remember the link so it opens again after sign-in.
   useEffect(() => {
@@ -78,7 +83,7 @@ export default function JoinLeagueScreen() {
   const inviteQ = useQuery({
     queryKey: ["invite", code],
     queryFn: () => getInvite(code),
-    enabled: !!code && !!isSignedIn,
+    enabled: !!code && !!isSignedIn && !held,
     retry: false,
   });
   const invite = inviteQ.data;
@@ -125,6 +130,13 @@ export default function JoinLeagueScreen() {
   }
 
   if (!isLoaded) return <Page>{null}</Page>;
+  if (held) {
+    return (
+      <Page>
+        <ActivityIndicator color={c.ink} accessibilityLabel="Loading" />
+      </Page>
+    );
+  }
 
   // ── Signed out ────────────────────────────────────────────────────────────
   if (!isSignedIn) {

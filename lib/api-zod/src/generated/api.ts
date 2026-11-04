@@ -21,6 +21,9 @@ export const GetLeaguesQueryParams = zod.object({
   clerkUserId: zod.coerce.string().nullish(),
 });
 
+export const getLeaguesResponseMatchDayMin = 0;
+export const getLeaguesResponseMatchDayMax = 6;
+
 export const GetLeaguesResponseItem = zod.object({
   id: zod.number(),
   name: zod.string(),
@@ -50,6 +53,25 @@ export const GetLeaguesResponseItem = zod.object({
     .string()
     .nullish()
     .describe("An admin ended the league (decision 31). Standings are frozen."),
+  timeZone: zod
+    .string()
+    .describe(
+      "The league's time zone (IANA name). Pairing at 7am, week starts and ends, and deadlines follow it.",
+    ),
+  matchDay: zod
+    .number()
+    .min(getLeaguesResponseMatchDayMin)
+    .max(getLeaguesResponseMatchDayMax)
+    .nullish()
+    .describe(
+      "A club's weekly match day, 0 Sunday to 6 Saturday. Null when players pick their own time.",
+    ),
+  matchTime: zod
+    .string()
+    .nullish()
+    .describe(
+      "A club's weekly match time, 24-hour HH:MM in the league's time zone. Null when players pick.",
+    ),
 });
 export const GetLeaguesResponse = zod.array(GetLeaguesResponseItem);
 
@@ -62,6 +84,9 @@ export const createLeagueBodyRosterCapMin = 2;
 export const createLeagueBodyRosterCapMax = 64;
 
 export const createLeagueBodySeasonWeeksMax = 24;
+
+export const createLeagueBodyMatchDayMin = 0;
+export const createLeagueBodyMatchDayMax = 6;
 
 export const CreateLeagueBody = zod
   .object({
@@ -102,6 +127,24 @@ export const CreateLeagueBody = zod
       .nullish()
       .describe("The admin's name in the league, when playing"),
     skillLevel: zod.string().nullish(),
+    timeZone: zod
+      .string()
+      .nullish()
+      .describe(
+        "The creator's phone time zone (IANA name). The league runs on it. Eastern when missing.",
+      ),
+    matchDay: zod
+      .number()
+      .min(createLeagueBodyMatchDayMin)
+      .max(createLeagueBodyMatchDayMax)
+      .nullish()
+      .describe(
+        "Weekly match day, 0 Sunday to 6 Saturday. Send with matchTime, or leave both out so players pick.",
+      ),
+    matchTime: zod
+      .string()
+      .nullish()
+      .describe("Weekly match time, 24-hour HH:MM in the league's time zone."),
   })
   .describe(
     "Start a league (spec: Leagues > Setup). Anyone signed in can start one and becomes its admin. With playing true, the admin also joins as a player.",
@@ -113,6 +156,9 @@ export const CreateLeagueBody = zod
 export const GetLeagueParams = zod.object({
   leagueId: zod.coerce.number(),
 });
+
+export const getLeagueResponseMatchDayMin = 0;
+export const getLeagueResponseMatchDayMax = 6;
 
 export const GetLeagueResponse = zod.object({
   id: zod.number(),
@@ -143,6 +189,25 @@ export const GetLeagueResponse = zod.object({
     .string()
     .nullish()
     .describe("An admin ended the league (decision 31). Standings are frozen."),
+  timeZone: zod
+    .string()
+    .describe(
+      "The league's time zone (IANA name). Pairing at 7am, week starts and ends, and deadlines follow it.",
+    ),
+  matchDay: zod
+    .number()
+    .min(getLeagueResponseMatchDayMin)
+    .max(getLeagueResponseMatchDayMax)
+    .nullish()
+    .describe(
+      "A club's weekly match day, 0 Sunday to 6 Saturday. Null when players pick their own time.",
+    ),
+  matchTime: zod
+    .string()
+    .nullish()
+    .describe(
+      "A club's weekly match time, 24-hour HH:MM in the league's time zone. Null when players pick.",
+    ),
 });
 
 /**
@@ -177,6 +242,9 @@ export const UpdateLeagueBody = zod.object({
   location: zod.string().nullish(),
 });
 
+export const updateLeagueResponseMatchDayMin = 0;
+export const updateLeagueResponseMatchDayMax = 6;
+
 export const UpdateLeagueResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
@@ -206,6 +274,25 @@ export const UpdateLeagueResponse = zod.object({
     .string()
     .nullish()
     .describe("An admin ended the league (decision 31). Standings are frozen."),
+  timeZone: zod
+    .string()
+    .describe(
+      "The league's time zone (IANA name). Pairing at 7am, week starts and ends, and deadlines follow it.",
+    ),
+  matchDay: zod
+    .number()
+    .min(updateLeagueResponseMatchDayMin)
+    .max(updateLeagueResponseMatchDayMax)
+    .nullish()
+    .describe(
+      "A club's weekly match day, 0 Sunday to 6 Saturday. Null when players pick their own time.",
+    ),
+  matchTime: zod
+    .string()
+    .nullish()
+    .describe(
+      "A club's weekly match time, 24-hour HH:MM in the league's time zone. Null when players pick.",
+    ),
 });
 
 /**
@@ -1018,6 +1105,12 @@ export const GetMyLeagueWeekResponse = zod.object({
       singles: zod.boolean(),
       scheduledAt: zod.string().nullable(),
       location: zod.string().nullable(),
+      played: zod
+        .boolean()
+        .describe("A score is in, so there's nothing left to enter or record"),
+      timeZone: zod
+        .string()
+        .describe("The league's time zone, for its deadlines"),
     }),
   ),
   playoffs: zod.array(
@@ -1028,6 +1121,7 @@ export const GetMyLeagueWeekResponse = zod.object({
       round: zod.string(),
       opponentName: zod.string(),
       singles: zod.boolean(),
+      timeZone: zod.string(),
     }),
   ),
   drafts: zod.array(
@@ -1037,6 +1131,9 @@ export const GetMyLeagueWeekResponse = zod.object({
       roundId: zod.number(),
       roundNumber: zod.number(),
       startDate: zod.string(),
+      timeZone: zod
+        .string()
+        .describe("The league's time zone. The round goes out at 7am there."),
     }),
   ),
   recent: zod.array(
@@ -1149,6 +1246,61 @@ export const CorrectLeagueScoreResponse = zod.object({
   winnerId: zod.number().nullable(),
   correctedAt: zod.string(),
   correctedBy: zod.string(),
+});
+
+/**
+ * @summary Either player in the match, or a league admin, sets its date and time inside the match's week. In a league with a weekly match time, only admins can change it.
+ */
+export const SetLeagueMatchTimeParams = zod.object({
+  leagueId: zod.coerce.number(),
+  matchId: zod.coerce.number(),
+});
+
+export const SetLeagueMatchTimeBody = zod.object({
+  scheduledAt: zod
+    .string()
+    .nullable()
+    .describe(
+      "ISO date and time inside the match's week (league time zone), or null to clear it",
+    ),
+});
+
+export const SetLeagueMatchTimeResponse = zod.object({
+  matchId: zod.number(),
+  scheduledAt: zod.string().nullable(),
+  timeZone: zod.string(),
+});
+
+/**
+ * @summary League admins set the weekly match day and time, or clear it so players pick.
+ */
+export const SetLeagueWeeklyMatchTimeParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const setLeagueWeeklyMatchTimeBodyMatchDayMin = 0;
+export const setLeagueWeeklyMatchTimeBodyMatchDayMax = 6;
+
+export const SetLeagueWeeklyMatchTimeBody = zod
+  .object({
+    matchDay: zod
+      .number()
+      .min(setLeagueWeeklyMatchTimeBodyMatchDayMin)
+      .max(setLeagueWeeklyMatchTimeBodyMatchDayMax)
+      .nullable(),
+    matchTime: zod
+      .string()
+      .nullable()
+      .describe("24-hour HH:MM in the league's time zone"),
+  })
+  .describe(
+    "Both set for a weekly match day and time, or both null so players pick.",
+  );
+
+export const SetLeagueWeeklyMatchTimeResponse = zod.object({
+  matchDay: zod.number().nullable(),
+  matchTime: zod.string().nullable(),
+  timeZone: zod.string(),
 });
 
 /**

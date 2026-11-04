@@ -88,7 +88,12 @@ vi.mock("@workspace/db", () => ({
   ...tables,
 }));
 
-vi.mock("../lib/leagueAccountDeletion", () => ({ deleteLeagueDataFor: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("../lib/leagueAccountDeletion", () => ({
+  deleteLeagueDataFor: vi.fn().mockResolvedValue([]),
+  parseNewAdmins: () => ({}),
+  leaguesRunAlone: vi.fn().mockResolvedValue([]),
+  successorsByLeague: vi.fn().mockResolvedValue(new Map()),
+}));
 
 vi.mock("drizzle-orm", () => ({
   eq: (a: unknown, b: unknown) => ({ a, b }),
@@ -223,6 +228,13 @@ describe("deleteAccount", () => {
     expect(storage.deleteObject).toHaveBeenCalledWith("/objects/uploads/photo");
   });
 
+  it("passes the picked new league admins to the league cleanup", async () => {
+    const { deleteAccount } = await import("../lib/accountDeletion.js");
+    const { deleteLeagueDataFor } = await import("../lib/leagueAccountDeletion");
+    await deleteAccount("user_delete_me", log, { storage: { deleteObject: vi.fn() }, deleteClerkUser: vi.fn() }, { newAdmins: { 1: 11 } });
+    expect(deleteLeagueDataFor).toHaveBeenCalledWith(expect.anything(), "user_delete_me", { 1: 11 });
+  });
+
   it("still deletes the account when a video file can't be removed", async () => {
     const { deleteAccount } = await import("../lib/accountDeletion.js");
     selectResults.ball_boi_sessions = [{ id: 1, matchId: 100, videoObjectPath: "/objects/uploads/a" }];
@@ -281,7 +293,7 @@ describe("DELETE /api/users/me", () => {
     const res = await supertest(app).delete("/api/users/me").send({ confirm: "DELETE" });
     expect(res.status).toBe(200);
     expect(res.body.deleted).toBe(true);
-    expect(deleteAccount).toHaveBeenCalledWith("user_delete_me", expect.anything());
+    expect(deleteAccount).toHaveBeenCalledWith("user_delete_me", expect.anything(), {}, { newAdmins: {} });
   });
 
   it("returns a plain error when deletion fails", async () => {

@@ -13,4 +13,5 @@ export interface LeagueWeekPlayoff {
   round: string;
   opponentName: string;
   singles: boolean;
+  timeZone: string;
 }

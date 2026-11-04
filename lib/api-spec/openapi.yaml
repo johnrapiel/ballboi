@@ -840,6 +840,65 @@ paths:
         "409":
           description: The match isn't played, was cancelled, or is a playoff match
 
+  /leagues/{leagueId}/matches/{matchId}/time:
+    put:
+      operationId: setLeagueMatchTime
+      tags: [leagues]
+      summary: >-
+        Either player in the match, or a league admin, sets its date and time inside the
+        match's week. In a league with a weekly match time, only admins can change it.
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetMatchTimeBody"
+      responses:
+        "200":
+          description: Time saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchTime"
+        "400":
+          description: The date isn't in the match's week
+        "403":
+          description: Not a player in the match or a league admin
+        "409":
+          description: The match is played, cancelled, or its week is over
+
+  /leagues/{leagueId}/match-time:
+    put:
+      operationId: setLeagueWeeklyMatchTime
+      tags: [leagues]
+      summary: League admins set the weekly match day and time, or clear it so players pick.
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeagueMatchTimeBody"
+      responses:
+        "200":
+          description: Saved. Pairings still in review pick it up.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueMatchTime"
+        "400":
+          description: Day or time missing or not valid
+        "403":
+          description: Not a league admin
+
   /leagues/{leagueId}/matches/{matchId}/score/undo:
     post:
       operationId: undoLeagueScore
@@ -2257,7 +2316,13 @@ components:
         singles: { type: boolean }
         scheduledAt: { type: ["string", "null"] }
         location: { type: ["string", "null"] }
-      required: [leagueId, leagueName, roundId, roundNumber, phase, startDate, deadline, graceEnd, bye, matchId, myPlayerId, opponentName, singles, scheduledAt, location]
+        played:
+          type: boolean
+          description: A score is in, so there's nothing left to enter or record
+        timeZone:
+          type: string
+          description: The league's time zone, for its deadlines
+      required: [leagueId, leagueName, roundId, roundNumber, phase, startDate, deadline, graceEnd, bye, matchId, myPlayerId, opponentName, singles, scheduledAt, location, played, timeZone]
 
     LeagueWeekPlayoff:
       type: object
@@ -2268,7 +2333,8 @@ components:
         round: { type: string }
         opponentName: { type: string }
         singles: { type: boolean }
-      required: [leagueId, leagueName, matchId, round, opponentName, singles]
+        timeZone: { type: string }
+      required: [leagueId, leagueName, matchId, round, opponentName, singles, timeZone]
 
     LeagueWeekDraft:
       type: object
@@ -2278,7 +2344,47 @@ components:
         roundId: { type: integer }
         roundNumber: { type: integer }
         startDate: { type: string }
-      required: [leagueId, leagueName, roundId, roundNumber, startDate]
+        timeZone:
+          type: string
+          description: The league's time zone. The round goes out at 7am there.
+      required: [leagueId, leagueName, roundId, roundNumber, startDate, timeZone]
+
+    SetMatchTimeBody:
+      type: object
+      properties:
+        scheduledAt:
+          type: ["string", "null"]
+          description: ISO date and time inside the match's week (league time zone), or null to clear it
+      required: [scheduledAt]
+
+    MatchTime:
+      type: object
+      properties:
+        matchId: { type: integer }
+        scheduledAt: { type: ["string", "null"] }
+        timeZone: { type: string }
+      required: [matchId, scheduledAt, timeZone]
+
+    LeagueMatchTimeBody:
+      type: object
+      description: Both set for a weekly match day and time, or both null so players pick.
+      properties:
+        matchDay:
+          type: ["integer", "null"]
+          minimum: 0
+          maximum: 6
+        matchTime:
+          type: ["string", "null"]
+          description: 24-hour HH:MM in the league's time zone
+      required: [matchDay, matchTime]
+
+    LeagueMatchTime:
+      type: object
+      properties:
+        matchDay: { type: ["integer", "null"] }
+        matchTime: { type: ["string", "null"] }
+        timeZone: { type: string }
+      required: [matchDay, matchTime, timeZone]
 
     LeagueWeekResult:
       type: object
@@ -2880,11 +2986,23 @@ components:
         endedAt:
           type: ["string", "null"]
           description: An admin ended the league (decision 31). Standings are frozen.
+        timeZone:
+          type: string
+          description: The league's time zone (IANA name). Pairing at 7am, week starts and ends, and deadlines follow it.
+        matchDay:
+          type: ["integer", "null"]
+          minimum: 0
+          maximum: 6
+          description: A club's weekly match day, 0 Sunday to 6 Saturday. Null when players pick their own time.
+        matchTime:
+          type: ["string", "null"]
+          description: A club's weekly match time, 24-hour HH:MM in the league's time zone. Null when players pick.
       required:
         - id
         - name
         - format
         - status
+        - timeZone
         - playerCount
         - visibility
         - playoffSize
@@ -2953,6 +3071,17 @@ components:
           description: The admin's name in the league, when playing
         skillLevel:
           type: ["string", "null"]
+        timeZone:
+          type: ["string", "null"]
+          description: The creator's phone time zone (IANA name). The league runs on it. Eastern when missing.
+        matchDay:
+          type: ["integer", "null"]
+          minimum: 0
+          maximum: 6
+          description: Weekly match day, 0 Sunday to 6 Saturday. Send with matchTime, or leave both out so players pick.
+        matchTime:
+          type: ["string", "null"]
+          description: Weekly match time, 24-hour HH:MM in the league's time zone.
       required:
         - name
         - format

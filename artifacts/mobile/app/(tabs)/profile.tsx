@@ -26,6 +26,7 @@ import { Text as UIText } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useProfile } from "@/hooks/useProfile";
+import { confirmSignOut } from "@/lib/confirmSignOut";
 import { photoUrl } from "@/lib/photos";
 
 /**
@@ -184,7 +185,7 @@ export default function ProfileScreen() {
 
   const handleSignOut = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await signOut();
+    if (!(await confirmSignOut(signOut))) return;
     router.replace("/(auth)/welcome");
   };
 

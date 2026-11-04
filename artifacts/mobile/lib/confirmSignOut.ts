@@ -1,0 +1,37 @@
+// Every Sign out button goes through here, so the warning about recordings
+// that haven't uploaded shows wherever someone signs out.
+
+import { Alert } from "react-native";
+
+import { loadQueue } from "@/lib/recording/queue";
+import { signOutWarning } from "@/lib/signOutWarning";
+
+/**
+ * Runs signOut straight away when no recordings are waiting. Otherwise asks
+ * first, and runs it only on "Sign out anyway". Resolves true when it signed out.
+ */
+export async function confirmSignOut(signOut: () => Promise<unknown>): Promise<boolean> {
+  let waiting = 0;
+  try {
+    waiting = (await loadQueue()).length;
+  } catch {
+    waiting = 0;
+  }
+  const warning = signOutWarning(waiting);
+  if (warning) {
+    const go = await new Promise<boolean>((resolve) => {
+      Alert.alert(
+        warning.title,
+        warning.message,
+        [
+          { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+          { text: warning.confirmLabel, style: "destructive", onPress: () => resolve(true) },
+        ],
+        { cancelable: true, onDismiss: () => resolve(false) },
+      );
+    });
+    if (!go) return false;
+  }
+  await signOut();
+  return true;
+}

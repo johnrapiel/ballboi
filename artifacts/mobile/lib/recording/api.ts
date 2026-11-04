@@ -15,6 +15,10 @@ export interface RecordableMatch {
   format: "singles" | "doubles";
   opponentName: string;
   partnerName: string | null;
+  /** Last day to play a league round match (YYYY-MM-DD, league time zone). */
+  playBy?: string | null;
+  /** The league's time zone, for playBy. */
+  timeZone?: string | null;
 }
 
 /** Start and end of the phone's local day. */
@@ -26,7 +30,11 @@ export function localDay(now = new Date()): { from: Date; to: Date } {
 
 export const todaysMatchesKey = ["recording", "todays-matches"] as const;
 
-/** The signed-in player's unplayed matches today, earliest first. */
+/**
+ * What the signed-in player can record now: every unplayed league match this
+ * week (grace week included) and today's Quick matches. A match with a set
+ * time today comes first.
+ */
 export function useTodaysMatches() {
   const { getToken } = useAuth();
   return useQuery({
@@ -41,12 +49,14 @@ export function useTodaysMatches() {
   });
 }
 
-/** "6:00 PM", or null when there's no time. */
-export function matchTime(scheduledAt: string | null): string | null {
+/** "6:00 PM" today, "Thu 6:00 PM" another day, or null when there's no time. */
+export function matchTime(scheduledAt: string | null, now: Date = new Date()): string | null {
   if (!scheduledAt) return null;
   const d = new Date(scheduledAt);
   if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  if (d.toDateString() === now.toDateString()) return time;
+  return `${d.toLocaleDateString("en-US", { weekday: "short" })} ${time}`;
 }
 
 /** Shown wherever Ball Boi is unavailable on a doubles match (spec wording). */

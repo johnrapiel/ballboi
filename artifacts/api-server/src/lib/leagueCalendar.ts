@@ -6,18 +6,118 @@
 // 1-week grace period (decision 25).
 
 /**
- * Leagues don't store a time zone yet, so "today" for a league is the date on
- * the US East Coast, where Ball Boi launches. A league time zone, from the
- * admin's home area, is a follow-up once home areas exist.
+ * A league runs on its creator's time zone, sent by their phone when they
+ * start it (PR 4). Leagues made before then run on Eastern time, where Ball
+ * Boi launched.
  */
-export const LEAGUE_TIME_ZONE = "America/New_York";
+export const DEFAULT_LEAGUE_TIME_ZONE = "America/New_York";
 
 export const GRACE_DAYS = 7;
 
-/** Today's date in the league time zone. */
-export function leagueToday(now: Date = new Date(), timeZone: string = LEAGUE_TIME_ZONE): string {
+/** True for an IANA time zone name the server can use, like "America/Los_Angeles". */
+export function isTimeZone(tz: unknown): tz is string {
+  if (typeof tz !== "string" || !tz || tz.length > 64) return false;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The league's time zone, falling back to Eastern for a missing or unknown one. */
+export function leagueZone(league: { timeZone?: string | null } | null | undefined): string {
+  return isTimeZone(league?.timeZone) ? league!.timeZone! : DEFAULT_LEAGUE_TIME_ZONE;
+}
+
+/** Today's date in a time zone (Eastern unless given). */
+export function leagueToday(now: Date = new Date(), timeZone: string = DEFAULT_LEAGUE_TIME_ZONE): string {
   // en-CA formats dates as YYYY-MM-DD.
   return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
+
+/** Today's date for a league, in its own time zone. */
+export function todayFor(league: { timeZone?: string | null } | null | undefined, now: Date = new Date()): string {
+  return leagueToday(now, leagueZone(league));
+}
+
+function clock(at: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(at);
+  const n = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  return { year: n("year"), month: n("month"), day: n("day"), hour: n("hour") % 24, minute: n("minute"), second: n("second") };
+}
+
+/** The hour (0 to 23) on the clock in `timeZone` at `now`. */
+export function localHour(now: Date, timeZone: string): number {
+  return clock(now, timeZone).hour;
+}
+
+/** How far `timeZone` is ahead of UTC at instant `at`, in milliseconds. */
+function offsetAt(at: number, timeZone: string): number {
+  const c = clock(new Date(at), timeZone);
+  const wall = Date.UTC(c.year, c.month - 1, c.day, c.hour, c.minute, c.second);
+  return wall - Math.floor(at / 1000) * 1000;
+}
+
+/** The instant when the clock in `timeZone` reads `date` (YYYY-MM-DD) at `time` (HH:MM). */
+export function zonedTime(date: string, time: string, timeZone: string): Date {
+  const [y, m, d] = date.split("-").map(Number);
+  const [hh, mm] = time.split(":").map(Number);
+  const wall = Date.UTC(y, m - 1, d, hh, mm);
+  // Two passes settle the offset on either side of a daylight-saving change.
+  let at = wall - offsetAt(wall, timeZone);
+  at = wall - offsetAt(at, timeZone);
+  return new Date(at);
+}
+
+/** The local date (YYYY-MM-DD) of an instant in `timeZone`. */
+export function localDate(at: Date | string, timeZone: string): string {
+  return leagueToday(new Date(at), timeZone);
+}
+
+/** Start (inclusive) and end (exclusive) of a local day in `timeZone`. */
+export function dayBounds(date: string, timeZone: string): { from: Date; to: Date } {
+  return { from: zonedTime(date, "00:00", timeZone), to: zonedTime(addDays(date, 1), "00:00", timeZone) };
+}
+
+/** 0 for Sunday to 6 for Saturday. */
+export function weekdayOf(date: string): number {
+  return new Date(`${date}T12:00:00Z`).getUTCDay();
+}
+
+/** A 24-hour "HH:MM" time, like "18:30". */
+export function isMatchTime(v: unknown): v is string {
+  return typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
+}
+
+/** A weekday number, 0 (Sunday) to 6 (Saturday). */
+export function isMatchDay(v: unknown): v is number {
+  return Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 6;
+}
+
+/**
+ * The set time for a round's matches when the league has a weekly match day
+ * and time (PR 4): the round's day that falls on that weekday, at that time in
+ * the league's zone. Null when the league leaves times to the players.
+ */
+export function roundMatchTime(
+  league: { matchDay?: number | null; matchTime?: string | null; timeZone?: string | null },
+  round: { startDate: string; endDate: string },
+): string | null {
+  if (!isMatchDay(league.matchDay) || !isMatchTime(league.matchTime)) return null;
+  for (let d = round.startDate; d <= round.endDate; d = addDays(d, 1)) {
+    if (weekdayOf(d) === league.matchDay) return zonedTime(d, league.matchTime, leagueZone(league)).toISOString();
+  }
+  return null;
 }
 
 export function addDays(date: string, days: number): string {

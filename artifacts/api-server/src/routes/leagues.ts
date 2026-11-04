@@ -13,6 +13,8 @@ import { getPastSeasonNames } from "../services/seasonService.js";
 import { computeStandings } from "../lib/leagueStandings.js";
 import { SKILL_LEVELS, seasonDates, validateLeagueSetup } from "../lib/leagueSetup.js";
 import { loadProfiles, playerLevelText } from "../lib/playerProfile.js";
+import { DEFAULT_LEAGUE_TIME_ZONE, isTimeZone } from "../lib/leagueCalendar.js";
+import { checkLeagueMatchTime } from "../lib/matchTimes.js";
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   const { userId } = getAuth(req);
@@ -91,6 +93,11 @@ router.post("/leagues", requireAuth, async (req, res) => {
   const body = parsed.data;
   const problem = validateLeagueSetup(body);
   if (problem) { res.status(400).json({ error: problem }); return; }
+  // A weekly match day and time for clubs, or neither so players pick (PR 4).
+  const matchTime = checkLeagueMatchTime(body);
+  if (!matchTime.ok) { res.status(400).json({ error: matchTime.error }); return; }
+  // The league runs on its creator's time zone, sent by their phone.
+  const timeZone = isTimeZone(body.timeZone) ? body.timeZone : DEFAULT_LEAGUE_TIME_ZONE;
 
   const playing = body.playing !== false;
   const { endDate, status } = seasonDates(body.startDate, body.seasonWeeks);
@@ -123,6 +130,9 @@ router.post("/leagues", requireAuth, async (req, res) => {
         // Unplayed matches follow the fixed 1-week grace period (decision 25); the
         // old per-league rule is no longer set.
         location: body.location?.trim() || undefined,
+        timeZone,
+        matchDay: matchTime.matchDay,
+        matchTime: matchTime.matchTime,
         createdByClerkUserId: userId!,
       })
       .returning();

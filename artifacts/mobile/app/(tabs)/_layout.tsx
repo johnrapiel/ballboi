@@ -1,18 +1,16 @@
-import { useAuth, useUser } from "@clerk/expo";
-import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
-import { Redirect, Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { NativeTabs } from "expo-router/native-tabs";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import React, { useEffect } from "react";
 import { Image, Platform, StyleSheet, useColorScheme, type ImageSourcePropType } from "react-native";
 
-import { useAccountStatus } from "@/hooks/useAccountStatus";
 import { useColors } from "@/hooks/useColors";
-import { isAgeCheckPassed } from "@/lib/ageCheck";
-import { isOnboarded } from "@/lib/onboarding";
+import { useGate } from "@/hooks/useGate";
+import { takePendingJoinCode } from "@/lib/leagueInvite";
+import { takePendingInvite } from "@/lib/recording/pendingInvite";
 import { useUploadRunner } from "@/lib/recording/uploader";
 
 // The five tabs, in order, with Ball Boi in the center (spec: Navigation).
@@ -107,23 +105,31 @@ function ClassicTabLayout() {
   );
 }
 
-export default function TabLayout() {
-  const { isSignedIn, isLoaded, getToken } = useAuth();
-  const { user } = useUser();
-  const account = useAccountStatus(!!isSignedIn);
-
+/**
+ * Invite links opened before the person was in the app (signed out, or
+ * stopped at the age check or onboarding) open here, once, the first time
+ * the tabs show: league invites and Quick match invites alike (A9, D8).
+ */
+function useOpenPendingLinks(ready: boolean) {
+  const router = useRouter();
   useEffect(() => {
-    setAuthTokenGetter(() => getToken());
-  }, [getToken]);
+    if (!ready) return;
+    void (async () => {
+      const [league, match] = await Promise.all([takePendingJoinCode(), takePendingInvite()]);
+      if (league) router.push({ pathname: "/join/[code]", params: { code: league } });
+      if (match) router.push({ pathname: "/record/invite/[code]", params: { code: match } });
+    })();
+  }, [ready, router]);
+}
+
+export default function TabLayout() {
+  // The root layout moves anyone who can't be here yet (app/_layout.tsx).
+  const ready = useGate() === "app";
+  useOpenPendingLinks(ready);
   // Ball Boi uploads: resume at launch, on foreground, and when Wi-Fi comes back.
   useUploadRunner();
 
-  if (!isLoaded) return null;
-  if (!isSignedIn) return <Redirect href="/(auth)/welcome" />;
-  if (!user) return null;
-  if (account.data && account.data.status !== "ok") return <Redirect href="/account-blocked" />;
-  if (!isAgeCheckPassed(user.unsafeMetadata)) return <Redirect href="/age-check" />;
-  if (!isOnboarded(user.unsafeMetadata)) return <Redirect href="/onboarding" />;
+  if (!ready) return null;
 
   if (isLiquidGlassAvailable()) {
     return <NativeTabLayout />;

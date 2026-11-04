@@ -45,6 +45,9 @@ Carried over from the original web app's project notes. Describes how the API, s
 - Automatic schedule generation pairs players from shared availability and rematch rules only.
 - Player home location, travel radius, managed courts, distance estimates, and geocoding are not used by app code.
 - Match location remains a simple optional free-text field on the match record.
+- Leagues run on their creator's time zone (`leagues.time_zone`, IANA name, Eastern for leagues made before Nov 4, 2026). Today's date, week starts and ends, score deadlines, 7am pairing and the 8am day-before reminder all follow it (`lib/leagueCalendar.ts`; the scheduler runs hourly and acts when a league's clock reaches the hour).
+- A club league can have a weekly match day and time (`match_day` 0 to 6, `match_time` "HH:MM" in the league's zone). New rounds set every match's `scheduledAt` from it. Without one, either player (or a league admin) sets a match's time inside its week with `PUT /leagues/:id/matches/:matchId/time`.
+- A set time never gates recording: every unplayed league match in its round's week, grace week included, is recordable (`lib/recordableMatches.ts`). A set time today only sorts it first.
 
 ## API Endpoints
 

@@ -4,24 +4,28 @@ import {
   ballBoiDoublesViewsTable,
   ballBoiSessionsTable,
   db,
+  leagueRoundsTable,
   leaguesTable,
   matchesTable,
   matchInvitesTable,
   playersTable,
+  playoffBracketsTable,
 } from "@workspace/db";
 import { and, desc, eq, gte, inArray, isNull, ne, or } from "drizzle-orm";
 import pino from "pino";
 import {
-  byScheduledTime,
-  isRecordableToday,
+  isRecordableNow,
   parseWhen,
+  playByFor,
+  recordListOrder,
   recordingStage,
   toRecordableMatch,
   type RecordableMatch,
+  type RecordContext,
 } from "../lib/recordableMatches";
 import { planDiscard } from "../lib/recordingDiscard";
 
-// Ball Boi recording: the matches a player can record today.
+// Ball Boi recording: the matches a player can record now.
 // Spec: Ball Boi > Recording ("Every recording starts from a match").
 
 const logger = pino({ name: "recording" });
@@ -40,8 +44,11 @@ const MAX_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 /**
  * GET /recording/todays-matches?from=<ISO>&to=<ISO>
- * The caller's unplayed matches scheduled in [from, to), earliest first.
- * Singles and doubles both come back; the app shows doubles as disabled.
+ * What the caller can record now (PR 4): every unplayed league match in its
+ * round's week, grace week included, any day that week; playoff matches
+ * while the bracket is on; and Quick matches scheduled in [from, to). A match
+ * with a set time in [from, to) comes first. Singles and doubles both come
+ * back; the app shows doubles as disabled.
  */
 router.get("/recording/todays-matches", requireAuth, async (req: Request, res: Response) => {
   const userId = getAuth(req).userId!;
@@ -69,27 +76,52 @@ router.get("/recording/todays-matches", requireAuth, async (req: Request, res: R
           inArray(matchesTable.player4Id, myIds),
         ),
       );
-    const today = rows.filter((m) => isRecordableToday(m, from, to));
-    if (today.length === 0) {
+    const unplayed = rows.filter((m) => !m.score && !m.voidedAt && m.status !== "completed");
+    // inArray needs at least one id; -1 matches nothing.
+    const ids = (xs: (number | null)[]) => {
+      const out = [...new Set(xs.filter((x): x is number => x != null))];
+      return out.length ? out : [-1];
+    };
+    const [rounds, leagues, brackets] = await Promise.all([
+      db
+        .select({ id: leagueRoundsTable.id, startDate: leagueRoundsTable.startDate, endDate: leagueRoundsTable.endDate, publishedAt: leagueRoundsTable.publishedAt })
+        .from(leagueRoundsTable)
+        .where(inArray(leagueRoundsTable.id, ids(unplayed.map((m) => m.roundId)))),
+      db
+        .select({ id: leaguesTable.id, name: leaguesTable.name, timeZone: leaguesTable.timeZone, endedAt: leaguesTable.endedAt })
+        .from(leaguesTable)
+        .where(inArray(leaguesTable.id, ids(unplayed.map((m) => m.leagueId)))),
+      db
+        .select({ id: playoffBracketsTable.id, status: playoffBracketsTable.status })
+        .from(playoffBracketsTable)
+        .where(inArray(playoffBracketsTable.id, ids(unplayed.map((m) => m.playoffBracketId)))),
+    ]);
+    const ctx: RecordContext = {
+      now: new Date(),
+      from,
+      to,
+      rounds: new Map(rounds.map((r) => [r.id, r])),
+      leagues: new Map(leagues.map((l) => [l.id, l])),
+      activeBrackets: new Set(brackets.filter((b) => b.status === "active").map((b) => b.id)),
+    };
+    const recordable = unplayed.filter((m) => isRecordableNow(m, ctx));
+    if (recordable.length === 0) {
       res.json([]);
       return;
     }
     const playerIds = [
-      ...new Set(today.flatMap((m) => [m.player1Id, m.player2Id, m.player3Id, m.player4Id]).filter((id): id is number => id != null)),
+      ...new Set(recordable.flatMap((m) => [m.player1Id, m.player2Id, m.player3Id, m.player4Id]).filter((id): id is number => id != null)),
     ];
-    const leagueIds = [...new Set(today.map((m) => m.leagueId).filter((id): id is number => id != null))];
-    const [players, leagues] = await Promise.all([
-      db.select({ id: playersTable.id, name: playersTable.name }).from(playersTable).where(inArray(playersTable.id, playerIds)),
-      leagueIds.length
-        ? db.select({ id: leaguesTable.id, name: leaguesTable.name }).from(leaguesTable).where(inArray(leaguesTable.id, leagueIds))
-        : Promise.resolve([] as { id: number; name: string }[]),
-    ]);
+    const players = await db.select({ id: playersTable.id, name: playersTable.name }).from(playersTable).where(inArray(playersTable.id, playerIds));
     const names = Object.fromEntries(players.map((p) => [p.id, p.name]));
     const leagueNames = Object.fromEntries(leagues.map((l) => [l.id, l.name]));
-    const out = today
-      .map((m) => toRecordableMatch(m, myIds, names, leagueNames))
+    const out = recordable
+      .map((m) => {
+        const described = toRecordableMatch(m, myIds, names, leagueNames);
+        return described ? { ...described, ...playByFor(m, ctx) } : null;
+      })
       .filter((m): m is RecordableMatch => m != null)
-      .sort(byScheduledTime);
+      .sort(recordListOrder(from, to));
     res.json(out);
   } catch (err) {
     logger.error({ err }, "Failed to list today's matches");

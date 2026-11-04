@@ -40,7 +40,7 @@ import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { inviteMessage } from "@/lib/leagueInvite";
-import { shortDate } from "@/lib/leagueSchedule";
+import { pairingTime, shortDate, weeklyMatchTime } from "@/lib/leagueSchedule";
 import { leagueLevelLabel } from "@/lib/onboarding";
 
 // Manage (spec: Roles: "Admin tools appear in context only: a Manage entry
@@ -315,7 +315,7 @@ export default function ManageLeagueScreen() {
         ) : draft ? (
           <ListRow
             title={`Review Round ${draft.roundNumber} pairings`}
-            subtitle={`Goes out to players ${shortDate(draft.startDate)} at 7am, or send it sooner.`}
+            subtitle={`Goes out to players ${shortDate(draft.startDate)} at ${pairingTime(schedule?.timeZone)}, or send it sooner.`}
             symbol="person.2"
             onPress={() => router.push(`/league/${leagueId}/round/${draft.roundId}`)}
             last
@@ -331,6 +331,23 @@ export default function ManageLeagueScreen() {
           </View>
         )}
       </Card>
+
+      {/* PR 4: a club's weekly match day and time, or players pick. */}
+      {schedule?.weeklyRounds && !league?.endedAt ? (
+        <>
+          <SectionLabel>Match time</SectionLabel>
+          <Card style={{ padding: 0, overflow: "hidden" }}>
+            <ListRow
+              title="Weekly match time"
+              subtitle={weeklyMatchTime(league?.matchDay, league?.matchTime, league?.timeZone) ?? "Players pick a time for each match."}
+              symbol="calendar"
+              onPress={() => router.push(`/league/${leagueId}/match-time`)}
+              accessibilityHint="Set one day and time for every match, or let players pick"
+              last
+            />
+          </Card>
+        </>
+      ) : null}
 
       {schedule?.weeklyRounds ? (
         <>
