@@ -36,6 +36,7 @@ import {
   formatBirthday,
   neutralStartDate,
 } from "@/lib/ageCheck";
+import { confirmSignOut } from "@/lib/confirmSignOut";
 
 export default function AgeCheckScreen() {
   const router = useRouter();
@@ -96,7 +97,7 @@ export default function AgeCheckScreen() {
 
       <View style={{ marginTop: "auto", gap: spacing.space2 }}>
         <Button label="Continue" loading={busy} disabled={!birthDate} onPress={submit} />
-        <TextButton label="Sign out" disabled={busy} onPress={() => void signOut().catch(() => undefined)} />
+        <TextButton label="Sign out" disabled={busy} onPress={() => void confirmSignOut(signOut).catch(() => undefined)} />
       </View>
 
       <BirthdaySheet

@@ -7,6 +7,7 @@ import { Button, Card, ScrollScreen, Screen, Text, TextLink } from "@/components
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useAccountStatus, useSendAppeal } from "@/hooks/useAccountStatus";
+import { confirmSignOut } from "@/lib/confirmSignOut";
 
 // Shown instead of the app when an account is banned or suspended (spec:
 // Enforcement ladder steps 5 and 6; checklist 3a "Bans stick", "One appeal by
@@ -126,7 +127,7 @@ export default function AccountBlockedScreen() {
           onPress={() => void checkAgain()}
           accessibilityHint="Checks whether your account can use Ball Boi again"
         />
-        <Button label="Sign out" variant="secondary" onPress={() => void signOut().catch(() => undefined)} />
+        <Button label="Sign out" variant="secondary" onPress={() => void confirmSignOut(signOut).catch(() => undefined)} />
         <Button label="Delete account" variant="destructive" onPress={() => router.push("/delete-account")} />
       </View>
     </ScrollScreen>

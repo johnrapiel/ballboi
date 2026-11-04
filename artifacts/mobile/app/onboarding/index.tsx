@@ -17,6 +17,7 @@ import { Button, Field, Text, TextButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { NAME_MAX, fetchProfile, saveNameAndPhoto, uploadPhoto, type FormMode } from "@/lib/onboarding";
 import { photoUrl } from "@/lib/photos";
+import { confirmSignOut } from "@/lib/confirmSignOut";
 
 type Photo =
   | { kind: "none" }
@@ -117,7 +118,7 @@ export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
         <>
           <Button label={editing ? "Save" : "Continue"} onPress={next} loading={busy} disabled={!trimmed} />
           {editing ? null : (
-            <TextButton label="Sign out" disabled={busy} onPress={() => void signOut().catch(() => undefined)} />
+            <TextButton label="Sign out" disabled={busy} onPress={() => void confirmSignOut(signOut).catch(() => undefined)} />
           )}
         </>
       }
