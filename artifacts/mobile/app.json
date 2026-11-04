@@ -113,6 +113,9 @@
       "expo-font",
       "expo-web-browser",
       "expo-secure-store",
+      "@clerk/expo",
+      "@clerk/expo-google-signin",
+      "expo-apple-authentication",
       [
         "expo-notifications",
         {
