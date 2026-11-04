@@ -4,6 +4,8 @@ import { logger } from "../lib/logger";
 import { courtCalibrationFromMetadata } from "../lib/ballBoiUtils";
 import { isMlServiceUnreachable } from "../lib/mlServiceErrors";
 import { keepForTraining } from "../lib/videoRetention";
+import { mlVideoFields, segmentPathsOf } from "../lib/mlDispatch";
+import { RETRY_BACKOFF_MINUTES } from "../lib/analysisFailure";
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL ?? "http://localhost:8000";
 const ML_SECRET = process.env.ML_SECRET;
@@ -11,7 +13,6 @@ const API_BASE_URL = process.env.API_BASE_URL ?? `http://localhost:${process.env
 
 export const ML_UNAVAILABLE_MARKER = "temporarily unavailable";
 
-const RETRY_BACKOFF_MINUTES = [1, 5, 15] as const;
 export const MAX_RETRIES = RETRY_BACKOFF_MINUTES.length;
 
 export function computeNextRetryAt(retryCount: number): Date {
@@ -62,7 +63,6 @@ export async function retryFailedBallBoiSessions(): Promise<void> {
       continue;
     }
 
-    const videoUrl = `${API_BASE_URL}/api/storage${session.videoObjectPath}`;
     const callbackUrl = `${API_BASE_URL}/api/ball-boi/sessions/${session.id}/ml-callback?token=${encodeURIComponent(mlCallbackToken)}`;
 
     logger.info({ sessionId: session.id, retryCount, attempt: retryCount + 1 }, "BallBoi retry: dispatching to ML service");
@@ -74,7 +74,7 @@ export async function retryFailedBallBoiSessions(): Promise<void> {
           status: "processing",
           processingStatus: "processing",
           processingError: null,
-          metadata: { ...metadata, retryCount, nextRetryAt: null },
+          metadata: { ...metadata, retryCount, nextRetryAt: null, analysisStartedAt: new Date().toISOString() },
         })
         .where(eq(ballBoiSessionsTable.id, session.id));
 
@@ -85,7 +85,7 @@ export async function retryFailedBallBoiSessions(): Promise<void> {
           ...(ML_SECRET ? { "X-ML-Secret": ML_SECRET } : {}),
         },
         body: JSON.stringify({
-          video_url: videoUrl,
+          ...mlVideoFields(API_BASE_URL, session.videoObjectPath, segmentPathsOf(session.metadata)),
           session_id: session.id,
           match_id: session.matchId,
           callback_url: callbackUrl,

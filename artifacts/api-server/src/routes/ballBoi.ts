@@ -10,8 +10,8 @@ import {
   matchStatisticsTable,
   playersTable,
 } from "@workspace/db";
-import { desc, eq, inArray, sql } from "drizzle-orm";
-import { ObjectStorageService } from "../lib/objectStorage";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage";
 import { logger } from "../lib/logger";
 import { gateNarrative, gateSession, gateShot, gateStatistics, hiddenStats, shownStats } from "../lib/statGates";
 import {
@@ -28,6 +28,19 @@ import {
 import { computeNextRetryAt } from "../services/ballBoiRetry";
 import { isMlServiceUnreachable } from "../lib/mlServiceErrors";
 import { keepForTraining, settleSessionVideo } from "../lib/videoRetention";
+import {
+  missingParts,
+  partCountFor,
+  partSizeFor,
+  partsComplete,
+  segmentUploads,
+  validSegment,
+  validSegmentSize,
+  MAX_SEGMENTS,
+  type SegmentUpload,
+} from "../lib/multipartUpload";
+import { mlVideoFields } from "../lib/mlDispatch";
+import { parseRecordedAt } from "../lib/recordableMatches";
 
 const router = Router();
 
@@ -52,13 +65,16 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+// One account has a player row per league, plus one for Quick matches and
+// one per claimed invite, so every row counts (Wave 1 review D3: checking
+// only the first row turned away anyone in two leagues).
 async function canAccessMatch(matchId: number, userId: string) {
   const [match] = await db.select().from(matchesTable).where(eq(matchesTable.id, matchId));
   if (!match) return { allowed: false, match: null };
-  const callerPlayers = await db.select().from(playersTable).where(eq(playersTable.clerkUserId, userId));
-  const callerPlayer = callerPlayers[0] ?? null;
+  const callerPlayers = await db.select({ id: playersTable.id }).from(playersTable).where(eq(playersTable.clerkUserId, userId));
+  const mine = new Set(callerPlayers.map((p) => p.id));
   const participantIds = [match.player1Id, match.player2Id, match.player3Id, match.player4Id].filter((id): id is number => id != null);
-  const isParticipant = callerPlayer != null && participantIds.includes(callerPlayer.id);
+  const isParticipant = participantIds.some((id) => mine.has(id));
   let isLeagueCreator = false;
   if (!isParticipant && match.leagueId != null) {
     const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, match.leagueId));
@@ -198,12 +214,20 @@ router.post("/ball-boi/matches/:matchId/sessions/start", requireAuth, async (req
     const access = await canAccessMatch(matchId, userId);
     if (!access.match) { res.status(404).json({ error: "Match not found" }); return; }
     if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
+    // Only plain facts from the phone go into metadata; the server's own keys
+    // (callback token, uploads, stat gates) are never taken from a request.
+    const sent = asRecord(req.body?.metadata);
+    const metadata: Record<string, unknown> = {};
+    if (typeof sent.source === "string" && sent.source.length <= 20) metadata.source = sent.source;
     const [session] = await db.insert(ballBoiSessionsTable).values({
       matchId,
       recordedByClerkUserId: userId,
       status: "recording",
       processingStatus: "pending",
-      metadata: req.body?.metadata ?? {},
+      // When the match was recorded, not when the upload started (D19), so a
+      // card uploaded on Wednesday for Monday's match says Monday.
+      recordingStartedAt: parseRecordedAt(req.body?.recordedAt, new Date()),
+      metadata,
     }).returning();
     res.status(201).json(session);
   } catch (err) {
@@ -226,6 +250,159 @@ router.post("/ball-boi/sessions/:sessionId/upload-url", requireAuth, async (req:
   } catch (err) {
     logger.error({ err }, "Failed to create Ball Boi upload URL");
     res.status(500).json({ error: "Failed to create upload URL" });
+  }
+});
+
+/**
+ * The recorder's own session, still waiting for its video. Sends the error
+ * and returns null otherwise.
+ */
+async function ownUploadingSession(req: Request, res: Response) {
+  const { userId } = getAuth(req);
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return null; }
+  const sessionId = parseInt(String(req.params.sessionId));
+  if (isNaN(sessionId)) { res.status(400).json({ error: "Invalid session id" }); return null; }
+  const [session] = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, sessionId));
+  if (!session) { res.status(404).json({ error: "Session not found" }); return null; }
+  if (session.recordedByClerkUserId !== userId) { res.status(403).json({ error: "Forbidden" }); return null; }
+  if (session.status !== "recording") { res.status(409).json({ error: "This recording is already uploaded." }); return null; }
+  return session;
+}
+
+async function saveUpload(session: typeof ballBoiSessionsTable.$inferSelect, segment: number, upload: SegmentUpload | null) {
+  const metadata = asRecord(session.metadata);
+  const uploads = { ...segmentUploads(metadata) };
+  if (upload) uploads[String(segment)] = upload;
+  else delete uploads[String(segment)];
+  const next = { ...metadata, uploads };
+  await db.update(ballBoiSessionsTable).set({ metadata: next }).where(eq(ballBoiSessionsTable.id, session.id));
+  session.metadata = next;
+}
+
+function uploadView(upload: SegmentUpload, uploadedParts: number[]) {
+  const partCount = partCountFor(upload.sizeBytes, upload.partSize);
+  return {
+    objectPath: upload.objectPath,
+    sizeBytes: upload.sizeBytes,
+    partSize: upload.partSize,
+    partCount,
+    uploadedParts,
+    missingParts: upload.completedAt ? [] : missingParts(partCount, uploadedParts),
+    completed: !!upload.completedAt,
+  };
+}
+
+/**
+ * POST /ball-boi/sessions/:sessionId/multipart { segment, sizeBytes }
+ * Starts sending one piece of a recording in parts, or picks up where an
+ * earlier try left off: the answer lists the parts storage already has, so
+ * the phone sends only the rest (Wave 1 review D4).
+ */
+router.post("/ball-boi/sessions/:sessionId/multipart", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const session = await ownUploadingSession(req, res);
+    if (!session) return;
+    const segment = req.body?.segment ?? 0;
+    const sizeBytes = req.body?.sizeBytes;
+    if (!validSegment(segment)) { res.status(400).json({ error: `segment must be a whole number from 0 to ${MAX_SEGMENTS - 1}` }); return; }
+    if (!validSegmentSize(sizeBytes)) { res.status(400).json({ error: "sizeBytes must be the file's size in bytes" }); return; }
+    let upload: SegmentUpload | undefined = segmentUploads(session.metadata)[String(segment)];
+    if (upload && upload.sizeBytes !== sizeBytes) {
+      // A different file for this piece: start over.
+      if (!upload.completedAt) await storage.abortMultipartUpload(upload.objectPath, upload.uploadId).catch(() => {});
+      upload = undefined;
+    }
+    if (upload?.completedAt) {
+      res.json(uploadView(upload, Array.from({ length: partCountFor(upload.sizeBytes, upload.partSize) }, (_, i) => i + 1)));
+      return;
+    }
+    if (upload) {
+      try {
+        const parts = await storage.listUploadedParts(upload.objectPath, upload.uploadId);
+        res.json(uploadView(upload, parts.map((p) => p.partNumber)));
+        return;
+      } catch (err) {
+        if (!(err instanceof ObjectNotFoundError)) throw err;
+        // Storage dropped the unfinished upload (R2 does after 7 days): start a new one.
+      }
+    }
+    const created = await storage.createMultipartUpload("video/quicktime");
+    const fresh: SegmentUpload = { ...created, sizeBytes, partSize: partSizeFor(sizeBytes) };
+    await saveUpload(session, segment, fresh);
+    res.json(uploadView(fresh, []));
+  } catch (err) {
+    logger.error({ err }, "Failed to start a multipart upload");
+    res.status(500).json({ error: "Couldn't start the upload. Try again." });
+  }
+});
+
+/**
+ * POST /ball-boi/sessions/:sessionId/multipart/part-url { segment, partNumber }
+ * A presigned PUT address for one part, good for an hour.
+ */
+router.post("/ball-boi/sessions/:sessionId/multipart/part-url", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const session = await ownUploadingSession(req, res);
+    if (!session) return;
+    const segment = req.body?.segment ?? 0;
+    const partNumber = req.body?.partNumber;
+    if (!validSegment(segment)) { res.status(400).json({ error: "Invalid segment" }); return; }
+    const upload = segmentUploads(session.metadata)[String(segment)];
+    if (!upload || upload.completedAt) { res.status(409).json({ error: "Start this upload first." }); return; }
+    const count = partCountFor(upload.sizeBytes, upload.partSize);
+    if (typeof partNumber !== "number" || !Number.isInteger(partNumber) || partNumber < 1 || partNumber > count) {
+      res.status(400).json({ error: `partNumber must be from 1 to ${count}` });
+      return;
+    }
+    const url = await storage.createUploadPartURL(upload.objectPath, upload.uploadId, partNumber);
+    res.json({ url, partNumber });
+  } catch (err) {
+    logger.error({ err }, "Failed to create a part upload URL");
+    res.status(500).json({ error: "Couldn't create the upload address. Try again." });
+  }
+});
+
+/**
+ * POST /ball-boi/sessions/:sessionId/multipart/complete { segment }
+ * Joins the parts into one stored video once storage has every part. Safe
+ * to call again: a piece that's already joined just answers with its path.
+ */
+router.post("/ball-boi/sessions/:sessionId/multipart/complete", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const session = await ownUploadingSession(req, res);
+    if (!session) return;
+    const segment = req.body?.segment ?? 0;
+    if (!validSegment(segment)) { res.status(400).json({ error: "Invalid segment" }); return; }
+    const upload = segmentUploads(session.metadata)[String(segment)];
+    if (!upload) { res.status(409).json({ error: "Start this upload first." }); return; }
+    if (upload.completedAt) { res.json({ objectPath: upload.objectPath, sizeBytes: upload.sizeBytes }); return; }
+    let parts;
+    try {
+      parts = await storage.listUploadedParts(upload.objectPath, upload.uploadId);
+    } catch (err) {
+      if (!(err instanceof ObjectNotFoundError)) throw err;
+      // Joined already, but the answer never reached the phone: the object is there.
+      const head = await storage.headObject(upload.objectPath).catch(() => null);
+      if (head && head.contentLength === upload.sizeBytes) {
+        await saveUpload(session, segment, { ...upload, completedAt: new Date().toISOString() });
+        res.json({ objectPath: upload.objectPath, sizeBytes: upload.sizeBytes });
+        return;
+      }
+      await saveUpload(session, segment, null);
+      res.status(409).json({ error: "This upload expired. Start it again.", restart: true });
+      return;
+    }
+    const count = partCountFor(upload.sizeBytes, upload.partSize);
+    if (!partsComplete(upload, parts)) {
+      res.status(409).json({ error: "Some parts are missing.", missingParts: missingParts(count, parts.map((p) => p.partNumber)) });
+      return;
+    }
+    await storage.completeMultipartUpload(upload.objectPath, upload.uploadId, parts.filter((p) => p.partNumber <= count));
+    await saveUpload(session, segment, { ...upload, completedAt: new Date().toISOString() });
+    res.json({ objectPath: upload.objectPath, sizeBytes: upload.sizeBytes });
+  } catch (err) {
+    logger.error({ err }, "Failed to finish a multipart upload");
+    res.status(500).json({ error: "Couldn't finish the upload. Try again." });
   }
 });
 
@@ -301,6 +478,25 @@ router.post("/ball-boi/sessions/:sessionId/live-shot", requireAuth, async (req: 
   }
 });
 
+/** A 32-bit column; the size is informational only. */
+const MAX_INT32 = 2_147_483_647;
+
+interface SentSegment { objectPath: string; sizeBytes: number; durationSeconds: number }
+
+/** The pieces the phone says make up this recording, in order. Null when the list isn't usable. */
+function readSegments(body: UnknownRecord): SentSegment[] | null {
+  const raw = body.segments;
+  if (raw == null) return [];
+  if (!Array.isArray(raw) || raw.length > MAX_SEGMENTS) return null;
+  const out: SentSegment[] = [];
+  for (const item of raw) {
+    const r = asRecord(item);
+    if (typeof r.objectPath !== "string" || !r.objectPath.startsWith("/objects/")) return null;
+    out.push({ objectPath: r.objectPath, sizeBytes: normalizeNumber(r.sizeBytes, 0), durationSeconds: normalizeNumber(r.durationSeconds, 0) });
+  }
+  return out;
+}
+
 router.post("/ball-boi/sessions/:sessionId/complete", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
@@ -309,29 +505,59 @@ router.post("/ball-boi/sessions/:sessionId/complete", requireAuth, async (req: R
     const [session] = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, sessionId));
     if (!session) { res.status(404).json({ error: "Session not found" }); return; }
     if (session.recordedByClerkUserId !== userId) { res.status(403).json({ error: "Forbidden" }); return; }
-    const { objectPath, contentType, sizeBytes, durationSeconds } = req.body ?? {};
-    if (!objectPath) { res.status(400).json({ error: "objectPath required" }); return; }
+    // Told twice (the first answer was lost and the phone tried again):
+    // analysis already started, so answer with the session and start nothing (D33).
+    if (session.status !== "recording") { res.json(session); return; }
+    const body = asRecord(req.body);
+    const segments = readSegments(body);
+    const objectPath = segments && segments.length > 0 ? segments[0].objectPath : body.objectPath;
+    if (!objectPath || typeof objectPath !== "string") { res.status(400).json({ error: "objectPath required" }); return; }
+    if (!segments) { res.status(400).json({ error: "segments must be a list of uploaded pieces" }); return; }
+    // Sent in parts: every piece must be one this session uploaded and joined.
+    const uploads = Object.values(segmentUploads(session.metadata));
+    const paths = segments.length > 0 ? segments.map((x) => x.objectPath) : [objectPath];
+    if (uploads.length > 0) {
+      const joined = new Set(uploads.filter((u) => u.completedAt).map((u) => u.objectPath));
+      if (!paths.every((p) => joined.has(p))) { res.status(409).json({ error: "Finish uploading every part first." }); return; }
+    }
+    const extraPaths = paths.slice(1);
+    const totalSeconds = segments.length > 0
+      ? segments.reduce((sum, x) => sum + x.durationSeconds, 0)
+      : normalizeNumber(body.durationSeconds, 0);
+    const totalBytes = segments.length > 0 ? segments.reduce((sum, x) => sum + x.sizeBytes, 0) : normalizeNumber(body.sizeBytes, 0);
+    const metadata = asRecord(session.metadata);
+    const mlCallbackToken = typeof metadata.mlCallbackToken === "string" ? metadata.mlCallbackToken : randomUUID();
+    const startedMetadata: Record<string, unknown> = {
+      ...metadata,
+      mlCallbackToken,
+      chunks: Array.isArray(body.chunks) ? body.chunks : [],
+      analysisStartedAt: new Date().toISOString(),
+      ...(extraPaths.length > 0 ? { segmentPaths: extraPaths } : {}),
+    };
+    // Only one call moves the session on, so analysis starts once.
     const [updated] = await db.update(ballBoiSessionsTable).set({
       status: "processing",
       processingStatus: "processing",
       recordingStoppedAt: new Date(),
       videoObjectPath: objectPath,
-      videoContentType: contentType ?? null,
-      videoSizeBytes: sizeBytes ?? null,
-      durationSeconds: Math.round(normalizeNumber(durationSeconds, 0)),
-    }).where(eq(ballBoiSessionsTable.id, sessionId)).returning();
+      videoContentType: typeof body.contentType === "string" ? body.contentType : null,
+      videoSizeBytes: totalBytes > 0 ? Math.min(Math.round(totalBytes), MAX_INT32) : null,
+      durationSeconds: Math.round(totalSeconds),
+      metadata: startedMetadata,
+    }).where(and(eq(ballBoiSessionsTable.id, sessionId), eq(ballBoiSessionsTable.status, "recording"))).returning();
+    if (!updated) {
+      const [current] = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, sessionId));
+      res.json(current ?? session);
+      return;
+    }
 
-    const metadata = (session.metadata as Record<string, unknown> | null) ?? {};
-    const mlCallbackToken = typeof metadata.mlCallbackToken === "string" ? metadata.mlCallbackToken : randomUUID();
-    await db.update(ballBoiSessionsTable).set({ metadata: { ...metadata, mlCallbackToken, chunks: req.body?.chunks ?? [] } }).where(eq(ballBoiSessionsTable.id, sessionId));
-    const videoUrl = `${API_BASE_URL}/api/storage${objectPath}`;
     const callbackUrl = `${API_BASE_URL}/api/ball-boi/sessions/${sessionId}/ml-callback?token=${encodeURIComponent(mlCallbackToken)}`;
     try {
       const mlRes = await fetch(`${ML_SERVICE_URL}/analyze-match-batch`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(ML_SECRET ? { "X-ML-Secret": ML_SECRET } : {}) },
         body: JSON.stringify({
-          video_url: videoUrl,
+          ...mlVideoFields(API_BASE_URL, objectPath, extraPaths),
           session_id: sessionId,
           match_id: session.matchId,
           callback_url: callbackUrl,
@@ -358,10 +584,9 @@ router.post("/ball-boi/sessions/:sessionId/complete", requireAuth, async (req: R
           aiNarrative: buildNarrative("The match", stats, liveShots),
         }).where(eq(ballBoiSessionsTable.id, sessionId));
       } else {
-        const mergedMetadata = { ...metadata, mlCallbackToken, chunks: req.body?.chunks ?? [] };
         const failedMetadata = isUnreachable
-          ? { ...mergedMetadata, retryCount: 0, nextRetryAt: computeNextRetryAt(0).toISOString() }
-          : mergedMetadata;
+          ? { ...startedMetadata, retryCount: 0, nextRetryAt: computeNextRetryAt(0).toISOString() }
+          : startedMetadata;
         await db.update(ballBoiSessionsTable).set({
           status: "failed",
           processingStatus: "failed",
