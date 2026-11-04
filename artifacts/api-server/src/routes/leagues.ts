@@ -12,6 +12,7 @@ import { logger } from "../lib/logger.js";
 import { getPastSeasonNames } from "../services/seasonService.js";
 import { computeStandings } from "../lib/leagueStandings.js";
 import { SKILL_LEVELS, seasonDates, validateLeagueSetup } from "../lib/leagueSetup.js";
+import { loadProfiles, playerLevelText } from "../lib/playerProfile.js";
 import { DEFAULT_LEAGUE_TIME_ZONE, isTimeZone } from "../lib/leagueCalendar.js";
 import { checkLeagueMatchTime } from "../lib/matchTimes.js";
 
@@ -102,7 +103,11 @@ router.post("/leagues", requireAuth, async (req, res) => {
   const { endDate, status } = seasonDates(body.startDate, body.seasonWeeks);
   const doubles = body.leagueType === "doubles";
   const open = body.visibility === "open";
-  const skillLevel = (SKILL_LEVELS as readonly string[]).includes(body.skillLevel ?? "") ? body.skillLevel! : "3.0";
+  const sentLevel = (SKILL_LEVELS as readonly string[]).includes(body.skillLevel ?? "") ? body.skillLevel! : "3.0";
+  // A1: the creator's league row starts from their profile name and level.
+  const profiles = playing ? await loadProfiles([userId]) : new Map();
+  const playerName = profiles.get(userId!)?.displayName?.trim() || body.playerName?.trim() || "";
+  const skillLevel = playerLevelText({ clerkUserId: userId, skillLevel: sentLevel }, profiles);
 
   const { league, playerCount } = await db.transaction(async (tx) => {
     const [league] = await tx
@@ -137,7 +142,7 @@ router.post("/leagues", requireAuth, async (req, res) => {
 
     if (playing) {
       await tx.insert(playersTable).values({
-        name: body.playerName!.trim(),
+        name: playerName,
         clerkUserId: userId!,
         leagueId: league.id,
         skillLevel,

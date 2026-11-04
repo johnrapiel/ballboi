@@ -16,12 +16,26 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Avatar } from "@/components/Avatar";
+import { RatingBadge } from "@/components/RatingBadge";
 import { BlockedPlayersRow } from "@/components/safety/BlockedPlayersRow";
 import { TabScreen } from "@/components/TabHeader";
 import { EditProfileRow } from "@/components/profile/EditProfileRow";
 import { Toggle } from "@/components/Toggle";
+import { Text as UIText } from "@/components/ui";
+import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { useProfile } from "@/hooks/useProfile";
 import { confirmSignOut } from "@/lib/confirmSignOut";
+import { photoUrl } from "@/lib/photos";
+
+/**
+ * Wave 1 review S8: the "Match day reminders" switch stays hidden until Wave 2
+ * (Session G), which asks for notifications with a reason first (spec decision
+ * 11). Turning it on fired the iOS notification prompt with no lead-in, and a
+ * declined prompt can't be asked again. The code stays for Wave 2.
+ */
+const SHOW_MATCH_DAY_REMINDERS = false;
 
 const API_BASE = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
 
@@ -57,6 +71,9 @@ export default function ProfileScreen() {
   const { signOut, getToken } = useAuth();
   const { user } = useUser();
   const router = useRouter();
+  // A1: the header shows the saved profile (name, photo, level), reloaded each
+  // time the tab comes into focus, so an Edit profile save shows right away.
+  const { profile } = useProfile();
 
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
@@ -77,7 +94,7 @@ export default function ProfileScreen() {
   }, [getToken]);
 
   useEffect(() => {
-    loadPushStatus();
+    if (SHOW_MATCH_DAY_REMINDERS) loadPushStatus();
   }, [loadPushStatus]);
 
   const registerPushToken = useCallback(async (): Promise<string | null> => {
@@ -191,34 +208,9 @@ export default function ProfileScreen() {
       gap: 16,
       marginBottom: 32,
     },
-    avatar: {
-      width: 72,
-      height: 72,
-      borderRadius: 36,
-      backgroundColor: colors.primary,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    avatarText: {
-      fontSize: 28,
-      fontWeight: "700" as const,
-      color: colors.primaryForeground,
-      fontFamily: "DMSans_700Bold",
-    },
     userInfo: {
       flex: 1,
-    },
-    userName: {
-      fontSize: 18,
-      fontWeight: "700" as const,
-      color: colors.foreground,
-      fontFamily: "DMSans_700Bold",
-    },
-    userEmail: {
-      fontSize: 14,
-      color: colors.mutedForeground,
-      marginTop: 4,
-      fontFamily: "DMSans_400Regular",
+      gap: spacing.space1,
     },
     section: {
       marginBottom: 24,
@@ -298,13 +290,8 @@ export default function ProfileScreen() {
     },
   });
 
-  const initials = user?.firstName
-    ? `${user.firstName[0]}${user.lastName ? user.lastName[0] : ""}`.toUpperCase()
-    : user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ?? "?";
-
-  const fullName = user?.firstName
-    ? [user.firstName, user.lastName].filter(Boolean).join(" ")
-    : "Player";
+  // Until the profile loads, the Clerk name (never part of the email).
+  const displayName = profile?.displayName?.trim() || user?.fullName?.trim() || "";
 
   return (
     <TabScreen title="Profile">
@@ -314,18 +301,23 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.avatarRow}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
+          <Avatar name={displayName} uri={photoUrl(profile?.avatarUrl)} size={72} />
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>{fullName}</Text>
-            <Text style={styles.userEmail}>
-              {user?.emailAddresses?.[0]?.emailAddress ?? ""}
-            </Text>
+            <UIText variant="title" accessibilityRole="header">
+              {displayName}
+            </UIText>
+            <UIText variant="small" tone="inkMuted">
+              {user?.primaryEmailAddress?.emailAddress ?? ""}
+            </UIText>
+            {profile?.rating != null ? (
+              <View style={{ marginTop: spacing.space1 }}>
+                <RatingBadge rating={profile.rating} source={profile.ratingSource ?? "self"} />
+              </View>
+            ) : null}
           </View>
         </View>
 
-        {Platform.OS !== "web" && (
+        {SHOW_MATCH_DAY_REMINDERS && Platform.OS !== "web" && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Notifications</Text>
             <View style={styles.card}>
@@ -384,6 +376,8 @@ export default function ProfileScreen() {
           <Pressable
             style={({ pressed }) => [styles.signOutBtn, { opacity: pressed ? 0.7 : 1 }]}
             onPress={handleSignOut}
+            accessibilityRole="button"
+            accessibilityLabel="Sign out"
           >
             <Ionicons name="log-out-outline" size={20} color={colors.destructive} />
             <Text style={styles.signOutText}>Sign out</Text>

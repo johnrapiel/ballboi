@@ -28,13 +28,17 @@ async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDe
     db.select().from(matchesTable).where(inArray(matchesTable.roundId, ids)),
     db.select().from(leagueRoundByesTable).where(inArray(leagueRoundByesTable.roundId, ids)),
     db
-      .select({ id: playersTable.id, name: playersTable.name, leftAt: playersTable.leftAt, clerkUserId: playersTable.clerkUserId, rating: usersTable.rating, ratingSource: usersTable.ratingSource })
+      .select({ id: playersTable.id, name: playersTable.name, leftAt: playersTable.leftAt, clerkUserId: playersTable.clerkUserId, displayName: usersTable.displayName, rating: usersTable.rating, ratingSource: usersTable.ratingSource })
       .from(playersTable)
       .leftJoin(usersTable, eq(usersTable.clerkUserId, playersTable.clerkUserId))
       .where(eq(playersTable.leagueId, league.id)),
   ]);
-  const name = (id: number) => players.find((p) => p.id === id)?.name ?? "Player";
-  // C7: the Ball Boi Rating badge next to the opponent's name.
+  // A1: a signed-up player's profile name; a placeholder's name from the row.
+  const name = (id: number) => {
+    const p = players.find((x) => x.id === id);
+    return (p?.clerkUserId ? p.displayName?.trim() : null) || p?.name || "Player";
+  };
+  // C7: the level badge (self-rated level) next to the opponent's name.
   const rating = (id: number) => {
     const p = players.find((x) => x.id === id);
     return p?.rating != null ? { rating: Number(p.rating), source: p.ratingSource === "verified" ? "verified" : "self" } : null;

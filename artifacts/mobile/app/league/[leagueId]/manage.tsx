@@ -41,6 +41,7 @@ import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { inviteMessage } from "@/lib/leagueInvite";
 import { pairingTime, shortDate, weeklyMatchTime } from "@/lib/leagueSchedule";
+import { leagueLevelLabel } from "@/lib/onboarding";
 
 // Manage (spec: Roles: "Admin tools appear in context only: a Manage entry
 // inside leagues you run"). Pairings for review, requests and the waitlist,
@@ -244,7 +245,7 @@ export default function ManageLeagueScreen() {
     }
     const options = ["Approve", "Decline", "Cancel"];
     ActionSheetIOS.showActionSheetWithOptions(
-      { title: `${r.playerName} · ${r.skillLevel}`, options, destructiveButtonIndex: 1, cancelButtonIndex: 2 },
+      { title: `${r.playerName} · ${leagueLevelLabel(r)}`, options, destructiveButtonIndex: 1, cancelButtonIndex: 2 },
       (i) => {
         if (i === 0) {
           approve
@@ -371,7 +372,7 @@ export default function ManageLeagueScreen() {
               <ListRow
                 key={r.id}
                 title={r.playerName}
-                subtitle={`Rating ${r.skillLevel}`}
+                subtitle={leagueLevelLabel(r)}
                 trailing="Review"
                 onPress={() => requestMenu(r)}
                 accessibilityHint="Approve or decline"
@@ -390,7 +391,7 @@ export default function ManageLeagueScreen() {
               <ListRow
                 key={r.id}
                 title={r.playerName}
-                subtitle={`Rating ${r.skillLevel} · Asked ${shortDate(r.createdAt.slice(0, 10))}`}
+                subtitle={`${leagueLevelLabel(r)} · Asked ${shortDate(r.createdAt.slice(0, 10))}`}
                 onPress={() => requestMenu(r)}
                 accessibilityHint="Remove from the waitlist"
                 last={i === waitlist.length - 1}
@@ -409,7 +410,7 @@ export default function ManageLeagueScreen() {
             <ListRow
               key={p.playerId}
               title={p.name}
-              subtitle={`Rating ${p.skillLevel}`}
+              subtitle={leagueLevelLabel(p)}
               trailing={roleLabel(p.role)}
               onPress={() => playerMenu(p)}
               accessibilityHint={p.hasAccount && !p.role ? "Make co-admin or remove from league" : "Remove from league"}

@@ -51,6 +51,14 @@ vi.mock("@workspace/db", () => ({
 
 vi.mock("../lib/leagueAccess.js", () => ({ isLeagueAdmin: vi.fn().mockResolvedValue(true) }));
 
+// The signed-in person's profile (users row), read by the route through lib/playerProfile.
+const mockProfiles = new Map<string, { displayName: string | null; avatarUrl: string | null; rating: number | null; ratingSource: string | null }>();
+vi.mock("../lib/playerProfile.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/playerProfile.js")>()),
+  loadProfiles: async () => mockProfiles,
+  profileNameFor: async (id: string, fallback: string) => mockProfiles.get(id)?.displayName || fallback,
+}));
+
 vi.mock("drizzle-orm", () => {
   const sqlTag = (_strings: TemplateStringsArray, ..._values: unknown[]) => ({
     queryChunks: [],
@@ -109,6 +117,7 @@ const samplePlayer = {
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  mockProfiles.clear();
   mockGetAuth = () => ({ userId: mockUserId });
   app = await buildApp();
 });
@@ -391,5 +400,38 @@ describe("POST /api/invites/:code/join", () => {
       .send({ playerName: "Alice", skillLevel: "9.9" });
 
     expect((capturedInsertValues as Record<string, unknown> | null)?.skillLevel).toBe("3.0");
+  });
+
+  it("starts the league row from the profile's name and level, never the name the app sent (A1)", async () => {
+    mockProfiles.set(mockUserId, { displayName: "Alex Kim", avatarUrl: null, rating: 4.5, ratingSource: "self" });
+    let capturedInsertValues: Record<string, unknown> | null = null;
+    mockDb.transaction.mockImplementation(async (cb: (tx: unknown) => unknown) => {
+      let selectCall = 0;
+      const tx = {
+        execute: vi.fn().mockResolvedValue(undefined),
+        select: vi.fn().mockImplementation(() => {
+          selectCall++;
+          if (selectCall === 1) return mockChain([sampleInvite]);
+          if (selectCall === 2) return mockChain([sampleLeague]);
+          return mockChain([]);
+        }),
+        insert: vi.fn().mockImplementation(() => ({
+          values: (vals: Record<string, unknown>) => {
+            capturedInsertValues = vals;
+            return mockChain([{ ...samplePlayer, ...vals }]);
+          },
+        })),
+        update: vi.fn().mockReturnValue(mockChain([{ ...sampleInvite, usageCount: 1 }])),
+      };
+      return cb(tx);
+    });
+
+    const res = await supertest(app)
+      .post("/api/invites/test-invite-code/join")
+      .set("Authorization", "Bearer token")
+      .send({ playerName: "akim", skillLevel: "3.0" });
+
+    expect(res.status).toBe(201);
+    expect(capturedInsertValues).toMatchObject({ name: "Alex Kim", skillLevel: "4.5" });
   });
 });

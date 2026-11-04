@@ -21,6 +21,7 @@ import { Button, Card, Field, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
 import { Toggle } from "@/components/Toggle";
 import { useColors } from "@/hooks/useColors";
+import { useProfile } from "@/hooks/useProfile";
 
 // Start a league (spec: Leagues > Setup and Onboarding > Run a league;
 // canvas: Admin · Create league). Anyone can start one and becomes its admin.
@@ -180,8 +181,10 @@ export default function StartLeagueScreen() {
   const [saving, setSaving] = useState(false);
   const [nameMissing, setNameMissing] = useState(false);
 
-  const playerName =
-    user?.fullName?.trim() || user?.firstName?.trim() || user?.primaryEmailAddress?.emailAddress?.split("@")[0] || "";
+  // A1: the league shows the profile name, never any part of the email. The
+  // API uses the saved profile too; this is only its fallback.
+  const { profile } = useProfile();
+  const playerName = profile?.displayName?.trim() || user?.fullName?.trim() || "";
 
   const end = new Date(start);
   end.setDate(end.getDate() + weeks * 7 - 1);
@@ -278,7 +281,7 @@ export default function StartLeagueScreen() {
             ]}
             hint={
               format === "flex"
-                ? `We pair players every ${weekday(start)} by rating, availability, and who hasn't played whom.`
+                ? `We pair players every ${weekday(start)} by level and who hasn't played whom.`
                 : `Everyone plays everyone once over the season. New pairings go out every ${weekday(start)}.`
             }
           />

@@ -2213,15 +2213,22 @@ components:
           type: integer
         name:
           type: string
+          description: The player's profile name if they're on Ball Boi, else the name the admin typed
         skillLevel:
           type: string
+          description: The level pairing uses, like "3.5". A signed-up player's profile level; a placeholder's admin-set level
+        rating:
+          description: A signed-up player's profile level and its source, for the level badge. Null for placeholders and players who haven't set one
+          oneOf:
+            - $ref: "#/components/schemas/MatchPlayerRating"
+            - type: "null"
         hasAccount:
           type: boolean
           description: False for players an admin added by name; they can't be co-admins
         role:
           type: ["string", "null"]
           enum: [owner, co_admin, null]
-      required: [playerId, name, skillLevel, hasAccount, role]
+      required: [playerId, name, skillLevel, rating, hasAccount, role]
 
     PlayerIdBody:
       type: object
@@ -2628,7 +2635,7 @@ components:
 
     MatchPlayerRating:
       type: object
-      description: A player's Ball Boi Rating and where it came from, for the rating badge
+      description: A player's level and where it came from, for the level badge. "self" is their self-rated level from Edit profile; "verified" is for a future linked rating source
       properties:
         rating: { type: number }
         source:
@@ -2716,8 +2723,15 @@ components:
           type: integer
         playerName:
           type: string
+          description: The asker's current profile name
         skillLevel:
           type: string
+          description: The asker's current profile level, like "3.5"
+        rating:
+          description: The asker's profile level and its source, for the level badge. Null if they haven't set one
+          oneOf:
+            - $ref: "#/components/schemas/MatchPlayerRating"
+            - type: "null"
         kind:
           type: string
           enum: [request, waitlist]

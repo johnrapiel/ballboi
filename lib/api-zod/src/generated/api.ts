@@ -839,8 +839,31 @@ export const GetLeagueRosterParams = zod.object({
 
 export const GetLeagueRosterResponseItem = zod.object({
   playerId: zod.number(),
-  name: zod.string(),
-  skillLevel: zod.string(),
+  name: zod
+    .string()
+    .describe(
+      "The player's profile name if they're on Ball Boi, else the name the admin typed",
+    ),
+  skillLevel: zod
+    .string()
+    .describe(
+      "The level pairing uses, like \"3.5\". A signed-up player's profile level; a placeholder's admin-set level",
+    ),
+  rating: zod
+    .union([
+      zod
+        .object({
+          rating: zod.number(),
+          source: zod.enum(["self", "verified"]),
+        })
+        .describe(
+          'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+        ),
+      zod.null(),
+    ])
+    .describe(
+      "A signed-up player's profile level and its source, for the level badge. Null for placeholders and players who haven't set one",
+    ),
   hasAccount: zod
     .boolean()
     .describe(
@@ -895,7 +918,7 @@ export const GetLeagueScheduleResponse = zod.object({
                 source: zod.enum(["self", "verified"]),
               })
               .describe(
-                "A player's Ball Boi Rating and where it came from, for the rating badge",
+                'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
               ),
             zod.null(),
           ]),
@@ -906,7 +929,7 @@ export const GetLeagueScheduleResponse = zod.object({
                 source: zod.enum(["self", "verified"]),
               })
               .describe(
-                "A player's Ball Boi Rating and where it came from, for the rating badge",
+                'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
               ),
             zod.null(),
           ]),
@@ -1338,8 +1361,26 @@ export const GetLeagueJoinRequestsParams = zod.object({
 export const GetLeagueJoinRequestsResponseItem = zod.object({
   id: zod.number(),
   leagueId: zod.number(),
-  playerName: zod.string(),
-  skillLevel: zod.string(),
+  playerName: zod.string().describe("The asker's current profile name"),
+  skillLevel: zod
+    .string()
+    .describe('The asker\'s current profile level, like \"3.5\"'),
+  rating: zod
+    .union([
+      zod
+        .object({
+          rating: zod.number(),
+          source: zod.enum(["self", "verified"]),
+        })
+        .describe(
+          'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+        ),
+      zod.null(),
+    ])
+    .optional()
+    .describe(
+      "The asker's profile level and its source, for the level badge. Null if they haven't set one",
+    ),
   kind: zod.enum(["request", "waitlist"]),
   status: zod.enum(["pending", "approved", "declined", "withdrawn"]),
   createdAt: zod.string(),
@@ -1372,8 +1413,26 @@ export const GetMyLeagueJoinRequestResponse = zod.union([
   zod.object({
     id: zod.number(),
     leagueId: zod.number(),
-    playerName: zod.string(),
-    skillLevel: zod.string(),
+    playerName: zod.string().describe("The asker's current profile name"),
+    skillLevel: zod
+      .string()
+      .describe('The asker\'s current profile level, like \"3.5\"'),
+    rating: zod
+      .union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+          ),
+        zod.null(),
+      ])
+      .optional()
+      .describe(
+        "The asker's profile level and its source, for the level badge. Null if they haven't set one",
+      ),
     kind: zod.enum(["request", "waitlist"]),
     status: zod.enum(["pending", "approved", "declined", "withdrawn"]),
     createdAt: zod.string(),
@@ -1460,7 +1519,7 @@ export const DraftNextLeagueRoundResponse = zod.object({
             source: zod.enum(["self", "verified"]),
           })
           .describe(
-            "A player's Ball Boi Rating and where it came from, for the rating badge",
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
           ),
         zod.null(),
       ]),
@@ -1471,7 +1530,7 @@ export const DraftNextLeagueRoundResponse = zod.object({
             source: zod.enum(["self", "verified"]),
           })
           .describe(
-            "A player's Ball Boi Rating and where it came from, for the rating badge",
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
           ),
         zod.null(),
       ]),
@@ -1552,7 +1611,7 @@ export const RepairLeagueRoundResponse = zod.object({
             source: zod.enum(["self", "verified"]),
           })
           .describe(
-            "A player's Ball Boi Rating and where it came from, for the rating badge",
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
           ),
         zod.null(),
       ]),
@@ -1563,7 +1622,7 @@ export const RepairLeagueRoundResponse = zod.object({
             source: zod.enum(["self", "verified"]),
           })
           .describe(
-            "A player's Ball Boi Rating and where it came from, for the rating badge",
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
           ),
         zod.null(),
       ]),
@@ -1644,7 +1703,7 @@ export const PublishLeagueRoundResponse = zod.object({
             source: zod.enum(["self", "verified"]),
           })
           .describe(
-            "A player's Ball Boi Rating and where it came from, for the rating badge",
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
           ),
         zod.null(),
       ]),
@@ -1655,7 +1714,7 @@ export const PublishLeagueRoundResponse = zod.object({
             source: zod.enum(["self", "verified"]),
           })
           .describe(
-            "A player's Ball Boi Rating and where it came from, for the rating badge",
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
           ),
         zod.null(),
       ]),
@@ -1741,7 +1800,7 @@ export const SwapLeagueRoundPlayersResponse = zod.object({
             source: zod.enum(["self", "verified"]),
           })
           .describe(
-            "A player's Ball Boi Rating and where it came from, for the rating badge",
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
           ),
         zod.null(),
       ]),
@@ -1752,7 +1811,7 @@ export const SwapLeagueRoundPlayersResponse = zod.object({
             source: zod.enum(["self", "verified"]),
           })
           .describe(
-            "A player's Ball Boi Rating and where it came from, for the rating badge",
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
           ),
         zod.null(),
       ]),
@@ -1837,7 +1896,7 @@ export const AddLeagueRoundByeResponse = zod.object({
             source: zod.enum(["self", "verified"]),
           })
           .describe(
-            "A player's Ball Boi Rating and where it came from, for the rating badge",
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
           ),
         zod.null(),
       ]),
@@ -1848,7 +1907,7 @@ export const AddLeagueRoundByeResponse = zod.object({
             source: zod.enum(["self", "verified"]),
           })
           .describe(
-            "A player's Ball Boi Rating and where it came from, for the rating badge",
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
           ),
         zod.null(),
       ]),
@@ -1930,7 +1989,7 @@ export const RemoveLeagueRoundByeResponse = zod.object({
             source: zod.enum(["self", "verified"]),
           })
           .describe(
-            "A player's Ball Boi Rating and where it came from, for the rating badge",
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
           ),
         zod.null(),
       ]),
@@ -1941,7 +2000,7 @@ export const RemoveLeagueRoundByeResponse = zod.object({
             source: zod.enum(["self", "verified"]),
           })
           .describe(
-            "A player's Ball Boi Rating and where it came from, for the rating badge",
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
           ),
         zod.null(),
       ]),
@@ -2027,7 +2086,7 @@ export const LockLeagueRoundMatchResponse = zod.object({
             source: zod.enum(["self", "verified"]),
           })
           .describe(
-            "A player's Ball Boi Rating and where it came from, for the rating badge",
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
           ),
         zod.null(),
       ]),
@@ -2038,7 +2097,7 @@ export const LockLeagueRoundMatchResponse = zod.object({
             source: zod.enum(["self", "verified"]),
           })
           .describe(
-            "A player's Ball Boi Rating and where it came from, for the rating badge",
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
           ),
         zod.null(),
       ]),

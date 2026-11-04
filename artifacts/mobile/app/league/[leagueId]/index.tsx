@@ -31,7 +31,7 @@ import { Button, Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { RatingBadge } from "@/components/RatingBadge";
-import { formatRating } from "@/lib/onboarding";
+import { levelSpoken } from "@/lib/onboarding";
 import { canEnterScore, correctionLine, dateRange, deadlineDate, matchWhen, myWeek, opponentName, pairingTime, resultLine, shortDate, weeklyMatchTime } from "@/lib/leagueSchedule";
 import { formatLabel, playersLabel, playTypeLabel } from "@/lib/leagues";
 
@@ -142,7 +142,7 @@ function YourWeek({
       <View
         accessible
         accessibilityLabel={`Your match. ${label}. You versus ${opponent}${
-          opponentRating ? `, Ball Boi Rating ${formatRating(opponentRating.rating)}, ${opponentRating.source === "verified" ? "Verified" : "Self-rated"}` : ""
+          opponentRating ? `, ${levelSpoken(opponentRating.rating, opponentRating.source)}` : ""
         }. ${when}`}
         style={{ gap: spacing.space1 }}
       >

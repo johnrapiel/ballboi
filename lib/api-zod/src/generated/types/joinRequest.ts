@@ -7,12 +7,17 @@
  */
 import type { JoinRequestKind } from "./joinRequestKind";
 import type { JoinRequestStatus } from "./joinRequestStatus";
+import type { MatchPlayerRating } from "./matchPlayerRating";
 
 export interface JoinRequest {
   id: number;
   leagueId: number;
+  /** The asker's current profile name */
   playerName: string;
+  /** The asker's current profile level, like "3.5" */
   skillLevel: string;
+  /** The asker's profile level and its source, for the level badge. Null if they haven't set one */
+  rating?: MatchPlayerRating | null;
   kind: JoinRequestKind;
   status: JoinRequestStatus;
   createdAt: string;

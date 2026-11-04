@@ -79,6 +79,7 @@ vi.mock("@workspace/db", () => ({
   playerAvailabilityTable: table("player_availability"),
   playersTable: table("players"),
   playoffBracketsTable: table("playoff_brackets"),
+  usersTable: table("users"),
 }));
 vi.mock("drizzle-orm", () => ({
   and: (...a: Filter[]) => ({ and: a.filter(Boolean) }),

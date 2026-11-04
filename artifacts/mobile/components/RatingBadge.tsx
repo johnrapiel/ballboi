@@ -5,23 +5,26 @@ import { View } from "react-native";
 import { Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { formatRating, type RatingSource } from "@/lib/onboarding";
+import { formatRating, levelSourceWord, levelSpoken, type RatingSource } from "@/lib/onboarding";
 
 /**
- * Ball Boi Rating with its source (spec: Ball Boi Rating; checklist 5, rating
- * badges not color-only). Verified and Self-rated differ by icon and word, never
- * by color: both are ink. VoiceOver reads it as one element, "3.5, Self-rated".
+ * A player's level with its source (spec: Ball Boi Rating; checklist 5, badges
+ * not color-only; Wave 1 review S9). Reads "Level 3.5, Self-rated". The source
+ * word comes from `source`, so a verified source (a future USTA or NTRP link)
+ * replaces "Self-rated" with its own word and icon. Sources differ by icon and
+ * word, never by color: both are ink. VoiceOver reads it as one element,
+ * "Level 3.5, self-rated".
  */
 export function RatingBadge({ rating, source }: { rating: number; source: RatingSource }) {
   const c = useColors();
   const verified = source === "verified";
-  const word = verified ? "Verified" : "Self-rated";
+  const word = levelSourceWord(source);
   const value = formatRating(rating);
   return (
     <View
       accessible
       accessibilityRole="text"
-      accessibilityLabel={`Ball Boi Rating ${value}, ${word}`}
+      accessibilityLabel={levelSpoken(rating, source)}
       style={{
         alignSelf: "flex-start",
         flexDirection: "row",
@@ -37,7 +40,7 @@ export function RatingBadge({ rating, source }: { rating: number; source: Rating
       }}
     >
       <Text variant="bodyStrong" style={{ fontVariant: ["tabular-nums"] }}>
-        {value}
+        {`Level ${value},`}
       </Text>
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space1 }}>
         <SymbolView

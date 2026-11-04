@@ -8,6 +8,7 @@ import { approveOutcome, joinOutcome, matchesToVoid } from "../lib/leagueJoining
 import { leaveCheck } from "../lib/leagueLifecycle.js";
 import { SKILL_LEVELS } from "../lib/leagueSetup.js";
 import { logger } from "../lib/logger.js";
+import { loadProfiles, playerDisplayName, playerLevelText, playerProfileLevel, profileNameFor, type ProfileMap } from "../lib/playerProfile.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
 import { sendPushToUsers } from "./notifications.js";
 
@@ -35,12 +36,18 @@ async function activePlayerCount(leagueId: number): Promise<number> {
   return rows.length;
 }
 
-function requestJson(r: typeof leagueJoinRequestsTable.$inferSelect) {
+/**
+ * A request as the admin sees it: the asker's current profile name and level
+ * (A1, S6), falling back to what was saved with the request.
+ */
+function requestJson(r: typeof leagueJoinRequestsTable.$inferSelect, profiles: ProfileMap = new Map()) {
+  const asker = { clerkUserId: r.clerkUserId, name: r.playerName, skillLevel: r.skillLevel };
   return {
     id: r.id,
     leagueId: r.leagueId,
-    playerName: r.playerName,
-    skillLevel: r.skillLevel,
+    playerName: playerDisplayName(asker, profiles),
+    skillLevel: playerLevelText(asker, profiles),
+    rating: playerProfileLevel(asker, profiles),
     kind: r.kind,
     status: r.status,
     createdAt: r.createdAt.toISOString(),
@@ -102,9 +109,13 @@ router.post("/leagues/:leagueId/join-requests", requireAuth, async (req, res) =>
   const { userId } = getAuth(req);
   const leagueId = parseLeagueId(req);
   if (leagueId === null) { res.status(400).json({ error: "Invalid league ID" }); return; }
-  const playerName = typeof req.body?.playerName === "string" ? req.body.playerName.trim() : "";
+  const sentName = typeof req.body?.playerName === "string" ? req.body.playerName.trim() : "";
+  const profiles = await loadProfiles([userId]);
+  // The profile's name and level win over anything the app sends (A1).
+  const playerName = profiles.get(userId!)?.displayName?.trim() || sentName;
   if (!playerName) { res.status(400).json({ error: "Your name is required" }); return; }
-  const skillLevel = (SKILL_LEVELS as readonly string[]).includes(req.body?.skillLevel) ? String(req.body.skillLevel) : "3.0";
+  const sentLevel = (SKILL_LEVELS as readonly string[]).includes(req.body?.skillLevel) ? String(req.body.skillLevel) : "3.0";
+  const skillLevel = playerLevelText({ clerkUserId: userId, skillLevel: sentLevel }, profiles);
 
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
@@ -123,7 +134,7 @@ router.post("/leagues/:leagueId/join-requests", requireAuth, async (req, res) =>
       eq(leagueJoinRequestsTable.clerkUserId, userId!),
       eq(leagueJoinRequestsTable.status, "pending"),
     ));
-  if (pending) { res.status(200).json(requestJson(pending)); return; }
+  if (pending) { res.status(200).json(requestJson(pending, profiles)); return; }
 
   const outcome = joinOutcome({
     league,
@@ -143,7 +154,7 @@ router.post("/leagues/:leagueId/join-requests", requireAuth, async (req, res) =>
   if (!created) { res.status(409).json({ error: "You already asked to join this league" }); return; }
 
   res.status(kind === "waitlist" ? 202 : 201).json({
-    ...requestJson(created),
+    ...requestJson(created, profiles),
     message: outcome.kind === "waitlist" ? outcome.reason : "Request sent. The league's admin will approve it.",
   });
 });
@@ -188,7 +199,8 @@ router.get("/leagues/:leagueId/join-requests", requireLeagueAdmin, async (_req, 
     .from(leagueJoinRequestsTable)
     .where(and(eq(leagueJoinRequestsTable.leagueId, leagueId), eq(leagueJoinRequestsTable.status, "pending")))
     .orderBy(leagueJoinRequestsTable.createdAt);
-  res.json(rows.map(requestJson));
+  const profiles = await loadProfiles(rows.map((r) => r.clerkUserId));
+  res.json(rows.map((r) => requestJson(r, profiles)));
 });
 
 async function loadPendingRequest(leagueId: number, requestId: number) {
@@ -224,6 +236,7 @@ router.post("/leagues/:leagueId/join-requests/:requestId/approve", requireLeague
     return;
   }
 
+  const playerName = await profileNameFor(request.clerkUserId, request.playerName);
   const player = await db.transaction(async (tx) => {
     const [decided] = await tx
       .update(leagueJoinRequestsTable)
@@ -238,7 +251,7 @@ router.post("/leagues/:leagueId/join-requests/:requestId/approve", requireLeague
     if (existing) {
       const [back] = await tx
         .update(playersTable)
-        .set({ leftAt: null, name: request.playerName })
+        .set({ leftAt: null, name: playerName })
         .where(eq(playersTable.id, existing.id))
         .returning();
       return back;
@@ -246,7 +259,7 @@ router.post("/leagues/:leagueId/join-requests/:requestId/approve", requireLeague
     const [created] = await tx
       .insert(playersTable)
       .values({
-        name: request.playerName,
+        name: playerName,
         clerkUserId: request.clerkUserId,
         leagueId,
         skillLevel: request.skillLevel,

@@ -5,6 +5,7 @@ import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { getLeagueRole, leagueAdminCount } from "../lib/leagueAccess.js";
 import { leagueToday, leagueZone } from "../lib/leagueCalendar.js";
 import { joinedWeek } from "../lib/leagueJoining.js";
+import { loadProfiles, playerDisplayName, playerLevelText, playerProfileLevel } from "../lib/playerProfile.js";
 import { promoteProblem, removeAdminProblem, type LeagueRole } from "../lib/leagueRoles.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
 import { requireLeagueViewer } from "../middlewares/requireLeagueViewer.js";
@@ -97,7 +98,7 @@ router.get("/leagues/:leagueId/admins", requireLeagueViewer, async (req, res) =>
       clerkUserId: a.clerkUserId,
       role: a.role,
       playerId: player?.id ?? null,
-      name: player?.name ?? user?.displayName ?? "League admin",
+      name: user?.displayName?.trim() || player?.name || "League admin",
     };
   });
   rows.sort((x, y) => (x.role === y.role ? x.name.localeCompare(y.name) : x.role === "owner" ? -1 : 1));
@@ -115,15 +116,18 @@ router.get("/leagues/:leagueId/roster", requireLeagueAdmin, async (_req, res) =>
       .orderBy(asc(playersTable.name)),
     db.select().from(leagueAdminsTable).where(eq(leagueAdminsTable.leagueId, leagueId)),
   ]);
-  res.json(
-    players.map((p) => ({
-      playerId: p.id,
-      name: p.name,
-      skillLevel: p.skillLevel,
-      hasAccount: !!p.clerkUserId,
-      role: admins.find((a) => p.clerkUserId && a.clerkUserId === p.clerkUserId)?.role ?? null,
-    })),
-  );
+  // A1, S6: signed-up players show their current profile name and level.
+  const profiles = await loadProfiles(players.map((p) => p.clerkUserId));
+  const rows = players.map((p) => ({
+    playerId: p.id,
+    name: playerDisplayName(p, profiles),
+    skillLevel: playerLevelText(p, profiles),
+    rating: playerProfileLevel(p, profiles),
+    hasAccount: !!p.clerkUserId,
+    role: admins.find((a) => p.clerkUserId && a.clerkUserId === p.clerkUserId)?.role ?? null,
+  }));
+  rows.sort((x, y) => x.name.localeCompare(y.name));
+  res.json(rows);
 });
 
 /** Promote a member to co-admin. Any admin can do this. */
