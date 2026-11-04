@@ -113,6 +113,15 @@ router.patch("/players/:playerId", requireAuth, async (req, res) => {
   if (touchesContact && !isSelf && existingPlayer.clerkUserId) {
     { res.status(403).json({ error: "Only the player can change their own contact details" }); return; }
   }
+  // A1, S6: a signed-up player's name and level come from their profile, and
+  // only they change them, in Edit profile. Nobody sets them here, not even the
+  // player. Admins set a level only for placeholder players not on Ball Boi.
+  if (existingPlayer.clerkUserId && parsed.data.skillLevel != null) {
+    { res.status(403).json({ error: isSelf ? "Change your level in Edit profile." : "This player sets their own level in Edit profile." }); return; }
+  }
+  if (existingPlayer.clerkUserId && parsed.data.name != null) {
+    { res.status(403).json({ error: isSelf ? "Change your name in Edit profile." : "This player sets their own name in Edit profile." }); return; }
+  }
 
   const updates: Partial<typeof playersTable.$inferInsert> = {};
   if (parsed.data.name !== undefined && parsed.data.name !== null) updates.name = parsed.data.name;

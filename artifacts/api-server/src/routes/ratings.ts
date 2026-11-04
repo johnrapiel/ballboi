@@ -42,7 +42,7 @@ router.post("/users/me/rating/self", requireAuth, async (req, res) => {
       return;
     }
     if (user.ratingSource === "verified") {
-      res.status(409).json({ error: "Your rating comes from your linked UTR account." });
+      res.status(409).json({ error: "Your level comes from your linked UTR account." });
       return;
     }
     const [updated] = await db
@@ -53,7 +53,7 @@ router.post("/users/me/rating/self", requireAuth, async (req, res) => {
     res.json({ rating: updated.rating, source: updated.ratingSource });
   } catch (err) {
     logger.error({ err }, "Self rating failed");
-    res.status(500).json({ error: "We couldn't save your rating. Try again." });
+    res.status(500).json({ error: "We couldn't save your level. Try again." });
   }
 });
 

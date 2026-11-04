@@ -63,10 +63,12 @@ async function linkablePlayers(email: string): Promise<{ id: number }[]> {
 }
 
 /** Links one record. The `clerkUserId IS NULL` predicate means a linked record is never taken over. */
-async function link(playerId: number, clerkUserId: string): Promise<boolean> {
+async function link(playerId: number, clerkUserId: string, profileName?: string | null): Promise<boolean> {
+  // Once claimed, the spot shows the player's own profile name (A1).
+  const name = profileName?.trim();
   const updated = await db
     .update(playersTable)
-    .set({ clerkUserId })
+    .set({ clerkUserId, ...(name ? { name } : {}) })
     .where(and(eq(playersTable.id, playerId), isNull(playersTable.clerkUserId)))
     .returning({ id: playersTable.id });
   return updated.length > 0;
@@ -96,12 +98,12 @@ export async function autoLinkPlayer(player: {
 
   // Only accounts that have made a Ball Boi profile.
   const [profile] = await db
-    .select({ clerkUserId: usersTable.clerkUserId })
+    .select({ clerkUserId: usersTable.clerkUserId, displayName: usersTable.displayName })
     .from(usersTable)
     .where(eq(usersTable.clerkUserId, clerkUserId));
   if (!profile) return null;
 
-  return (await link(player.id, clerkUserId)) ? clerkUserId : null;
+  return (await link(player.id, clerkUserId, profile.displayName)) ? clerkUserId : null;
 }
 
 /**

@@ -26,13 +26,13 @@ import {
   ROUND_ROBIN_WEIGHTS,
   pairKey,
   pairRound,
-  ratingValue,
   slotKeys,
   type PairingPlayer,
 } from "../lib/pairing.js";
 import { unpairedPlayers, type DraftRound } from "../lib/roundEdits.js";
 import { logger } from "../lib/logger.js";
 import { sendPushToUsers } from "../routes/notifications.js";
+import { loadProfiles, playerLevelValue } from "../lib/playerProfile.js";
 import { getAutoSeason } from "./seasonService.js";
 import { startPlayoffs } from "./leaguePlayoffs.js";
 
@@ -113,9 +113,12 @@ async function pairOpenPlayers(league: League, round: LeagueRound, playerIds: nu
   // Pairings already in this round count as history too, so nobody is paired twice.
   for (const m of keep.matches) history.set(pairKey(m.player1Id, m.player2Id), (history.get(pairKey(m.player1Id, m.player2Id)) ?? 0) + 1);
 
+  // Flex pairs on each player's current profile level (self-rated), never a
+  // copy on the league row; placeholders use the level their admin set.
+  const profiles = await loadProfiles(players.map((p) => p.clerkUserId));
   const pairingPlayers: PairingPlayer[] = players.map((p) => ({
     id: p.id,
-    rating: ratingValue(p.skillLevel),
+    rating: playerLevelValue(p, profiles),
     slots: slotKeys(availability.find((a) => a.playerId === p.id)?.slots),
     byes: byeCounts.get(p.id) ?? 0,
   }));

@@ -8,10 +8,20 @@ import { autoLinkPlayersForUser } from "../lib/autoLinkPlayer.js";
 import { deleteOldPhoto, newPhotoProblem } from "../lib/profilePhoto.js";
 import { deleteAccount } from "../lib/accountDeletion.js";
 import { isUserIntent, parseHomeArea, parseIntents } from "../lib/onboarding.js";
+import { syncProfileName } from "../lib/playerProfile.js";
 
 const logger = pino({ name: "users" });
 
 const router = Router();
+
+/**
+ * A1, S6: a name change shows in every league right away. Rosters, pairings
+ * and Manage read the profile; this also updates the copy on league rows that
+ * standings, scores and notifications read. A failure never fails the save.
+ */
+async function syncNameToLeagues(clerkUserId: string, displayName: string) {
+  await syncProfileName(clerkUserId, displayName).catch((err) => logger.error({ err }, "Couldn't copy the profile name to leagues"));
+}
 
 function requireAuth(req: any, res: any, next: any) {
   const { userId } = getAuth(req);
@@ -39,6 +49,7 @@ router.post("/users/me", requireAuth, async (req, res) => {
   }
 
   if (existing) {
+    const previousName = existing.displayName;
     const [updated] = await db
       .update(usersTable)
       .set({
@@ -54,6 +65,7 @@ router.post("/users/me", requireAuth, async (req, res) => {
       .where(eq(usersTable.clerkUserId, userId!))
       .returning();
     await deleteOldPhoto(existing.avatarUrl, updated.avatarUrl, logger);
+    if (updated.displayName !== previousName) await syncNameToLeagues(userId!, updated.displayName);
     return res.json(updated);
   }
 
@@ -74,6 +86,7 @@ router.post("/users/me", requireAuth, async (req, res) => {
   // A2: runs once, when the profile is made, on the verified email from Clerk.
   await autoLinkPlayersForUser(userId!)
     .catch((err) => logger.error({ err }, "Auto-link failed on user create"));
+  await syncNameToLeagues(userId!, created.displayName);
   return res.status(201).json(created);
 });
 
@@ -99,8 +112,10 @@ router.put("/users/me", requireAuth, async (req, res) => {
   if (onboardingComplete !== undefined) updateData.onboardingComplete = onboardingComplete;
 
   if (Object.keys(updateData).length === 0) return res.json(existing);
+  const previousName = existing.displayName;
   const [updated] = await db.update(usersTable).set(updateData).where(eq(usersTable.clerkUserId, userId!)).returning();
   await deleteOldPhoto(existing.avatarUrl, updated.avatarUrl, logger);
+  if (updated.displayName !== previousName) await syncNameToLeagues(userId!, updated.displayName);
   return res.json(updated);
 });
 

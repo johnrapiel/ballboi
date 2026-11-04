@@ -5,12 +5,17 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+import type { MatchPlayerRating } from "./matchPlayerRating";
 import type { RosterPlayerRole } from "./rosterPlayerRole";
 
 export interface RosterPlayer {
   playerId: number;
+  /** The player's profile name if they're on Ball Boi, else the name the admin typed */
   name: string;
+  /** The level pairing uses, like "3.5". A signed-up player's profile level; a placeholder's admin-set level */
   skillLevel: string;
+  /** A signed-up player's profile level and its source, for the level badge. Null for placeholders and players who haven't set one */
+  rating: MatchPlayerRating | null;
   /** False for players an admin added by name; they can't be co-admins */
   hasAccount: boolean;
   /** @nullable */

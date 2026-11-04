@@ -51,6 +51,7 @@ export function fakeDb(rows: Record<string, Row[]>) {
     const q: Record<string, unknown> = {
       where: (f: Filter) => query(tableName, fields, f),
       leftJoin: () => q,
+      innerJoin: () => q,
       orderBy: () => q,
       groupBy: () => q,
       limit: () => q,
@@ -63,10 +64,13 @@ export function fakeDb(rows: Record<string, Row[]>) {
     /** Raw SQL isn't run; it reads as no rows. */
     execute: async () => ({ rows: [] as Row[] }),
     insert: (t: { __name: string }) => ({
-      values: (v: Row) => {
-        const row = { id: (rows[t.__name]?.length ?? 0) + 1000, ...v };
-        (rows[t.__name] ??= []).push(row);
-        return { returning: async () => [row], then: (ok: (v: unknown) => unknown) => Promise.resolve(undefined).then(ok) };
+      values: (v: Row | Row[]) => {
+        const added = (Array.isArray(v) ? v : [v]).map((one) => {
+          const row = { id: (rows[t.__name]?.length ?? 0) + 1000, ...one };
+          (rows[t.__name] ??= []).push(row);
+          return row;
+        });
+        return { returning: async () => added, then: (ok: (v: unknown) => unknown) => Promise.resolve(undefined).then(ok) };
       },
     }),
     delete: (t: { __name: string }) => ({

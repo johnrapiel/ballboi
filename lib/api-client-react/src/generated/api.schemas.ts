@@ -83,10 +83,30 @@ export const RosterPlayerRole = {
   co_admin: "co_admin",
 } as const;
 
+export type MatchPlayerRatingSource =
+  (typeof MatchPlayerRatingSource)[keyof typeof MatchPlayerRatingSource];
+
+export const MatchPlayerRatingSource = {
+  self: "self",
+  verified: "verified",
+} as const;
+
+/**
+ * A player's level and where it came from, for the level badge. "self" is their self-rated level from Edit profile; "verified" is for a future linked rating source
+ */
+export interface MatchPlayerRating {
+  rating: number;
+  source: MatchPlayerRatingSource;
+}
+
 export interface RosterPlayer {
   playerId: number;
+  /** The player's profile name if they're on Ball Boi, else the name the admin typed */
   name: string;
+  /** The level pairing uses, like "3.5". A signed-up player's profile level; a placeholder's admin-set level */
   skillLevel: string;
+  /** A signed-up player's profile level and its source, for the level badge. Null for placeholders and players who haven't set one */
+  rating: MatchPlayerRating | null;
   /** False for players an admin added by name; they can't be co-admins */
   hasAccount: boolean;
   /** @nullable */
@@ -368,22 +388,6 @@ export interface CorrectedScore {
   correctedBy: string;
 }
 
-export type MatchPlayerRatingSource =
-  (typeof MatchPlayerRatingSource)[keyof typeof MatchPlayerRatingSource];
-
-export const MatchPlayerRatingSource = {
-  self: "self",
-  verified: "verified",
-} as const;
-
-/**
- * A player's Ball Boi Rating and where it came from, for the rating badge
- */
-export interface MatchPlayerRating {
-  rating: number;
-  source: MatchPlayerRatingSource;
-}
-
 export interface ScheduleMatch {
   matchId: number;
   player1Id: number;
@@ -494,8 +498,12 @@ export const JoinRequestStatus = {
 export interface JoinRequest {
   id: number;
   leagueId: number;
+  /** The asker's current profile name */
   playerName: string;
+  /** The asker's current profile level, like "3.5" */
   skillLevel: string;
+  /** The asker's profile level and its source, for the level badge. Null if they haven't set one */
+  rating?: MatchPlayerRating | null;
   kind: JoinRequestKind;
   status: JoinRequestStatus;
   createdAt: string;

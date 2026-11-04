@@ -7,6 +7,7 @@ import { customAlphabet } from "nanoid";
 import { isLeagueAdmin } from "../lib/leagueAccess.js";
 import { leagueToday } from "../lib/leagueCalendar.js";
 import { joinOutcome } from "../lib/leagueJoining.js";
+import { loadProfiles, playerLevelText } from "../lib/playerProfile.js";
 
 const router = Router();
 
@@ -132,11 +133,18 @@ router.get("/invites/:code", async (req, res) => {
 router.post("/invites/:code/join", requireAuth, async (req, res) => {
   const { code } = req.params;
   const { userId } = getAuth(req);
-  const { playerName, skillLevel } = req.body;
+  const { skillLevel } = req.body;
   const allowedSkillLevels = new Set(["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"]);
-  const nextSkillLevel = allowedSkillLevels.has(skillLevel) ? skillLevel : "3.0";
+  // A1: the league row starts from the profile's name and level. Leagues read
+  // the profile itself from then on; what the app sends is only a fallback.
+  const profiles = await loadProfiles([userId]);
+  const playerName: string = profiles.get(userId!)?.displayName?.trim() || String(req.body?.playerName ?? "");
+  const nextSkillLevel = playerLevelText(
+    { clerkUserId: userId, skillLevel: allowedSkillLevels.has(skillLevel) ? skillLevel : "3.0" },
+    profiles,
+  );
 
-  if (!playerName?.trim()) return res.status(400).json({ error: "playerName is required" });
+  if (!playerName.trim()) return res.status(400).json({ error: "playerName is required" });
 
   try {
     const result = await db.transaction(async (tx) => {

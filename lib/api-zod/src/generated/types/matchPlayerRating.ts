@@ -8,7 +8,7 @@
 import type { MatchPlayerRatingSource } from "./matchPlayerRatingSource";
 
 /**
- * A player's Ball Boi Rating and where it came from, for the rating badge
+ * A player's level and where it came from, for the level badge. "self" is their self-rated level from Edit profile; "verified" is for a future linked rating source
  */
 export interface MatchPlayerRating {
   rating: number;

@@ -180,10 +180,16 @@ describe("PATCH /players/:id", () => {
     expect(rows.players.find((p) => p.id === 21)!.name).toBe("Stranger");
   });
 
-  it("a player can update their own profile", async () => {
-    const res = await (await app()).patch("/api/players/11").send({ name: "Me Again", dayBeforeMatchReminderEnabled: false });
+  it("a player can update their own reminders", async () => {
+    const res = await (await app()).patch("/api/players/11").send({ dayBeforeMatchReminderEnabled: false });
     expect(res.status).toBe(200);
-    expect(rows.players.find((p) => p.id === 11)).toMatchObject({ name: "Me Again", dayBeforeMatchReminderEnabled: false });
+    expect(rows.players.find((p) => p.id === 11)).toMatchObject({ dayBeforeMatchReminderEnabled: false });
+  });
+
+  it("a signed-up player's name and level come from Edit profile, never from here", async () => {
+    expect((await (await app()).patch("/api/players/11").send({ name: "Me Again" })).status).toBe(403);
+    expect((await (await app()).patch("/api/players/11").send({ skillLevel: "4.5" })).status).toBe(403);
+    expect(rows.players.find((p) => p.id === 11)!.name).toBe("Me");
   });
 
   it("never moves a player to another league or relinks them", async () => {
@@ -200,14 +206,18 @@ describe("PATCH /players/:id", () => {
   });
 
   it("a co-admin counts as an admin", async () => {
-    rows.league_admins = [{ leagueId: 1, clerkUserId: "user_me", role: "co_admin" }];
-    expect((await (await app()).patch("/api/players/12").send({ skillLevel: "4.0" })).status).toBe(200);
+    rows.league_admins = [{ leagueId: 4, clerkUserId: "user_b", role: "co_admin" }];
+    mockUserId = "user_b";
+    expect((await (await app()).patch("/api/players/41").send({ skillLevel: "4.0" })).status).toBe(200);
   });
 
-  it("an admin can't change a signed-up player's contact details or reminders", async () => {
+  it("an admin can't change a signed-up player's contact details, reminders, name or level", async () => {
     expect((await (await app()).patch("/api/players/42").send({ email: "x@example.com" })).status).toBe(403);
     expect((await (await app()).patch("/api/players/42").send({ dayBeforeMatchReminderEnabled: false })).status).toBe(403);
-    expect((await (await app()).patch("/api/players/42").send({ skillLevel: "4.0" })).status).toBe(200);
+    expect((await (await app()).patch("/api/players/42").send({ name: "Renamed" })).status).toBe(403);
+    const res = await (await app()).patch("/api/players/42").send({ skillLevel: "4.0" });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/Edit profile/);
   });
 
   it("a Deleted player record can't be edited", async () => {
