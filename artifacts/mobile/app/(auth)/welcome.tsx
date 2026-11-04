@@ -1,43 +1,46 @@
 // Welcome / sign in.
 // Spec: Roles and onboarding, step 1 (Apple, Google, or email code).
 // Canvas: "Welcome / Sign in".
+//
+// Apple and Google use their own sign-in (Clerk's useSignInWithApple and
+// useSignInWithGoogle) instead of Clerk's browser sheet. A new account from either
+// lands signed in, and the root gate (app/_layout.tsx) takes it through the
+// age check and onboarding, the same as email.
 
-import { useSSO } from "@clerk/expo";
+import { useSignInWithApple } from "@clerk/expo/apple";
+import { useSignInWithGoogle } from "@clerk/expo/google";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { View } from "react-native";
 
+import {
+  AppleSignInButton,
+  GoogleSignInButton,
+  SIGN_IN_BUTTON_HEIGHT,
+  useSignInOptions,
+} from "@/components/SocialSignInButtons";
 import { Button, ScrollScreen, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { friendlyAuthError } from "@/lib/authErrors";
 
-// Lets the Apple and Google browser sheet hand the session back to the app.
-WebBrowser.maybeCompleteAuthSession();
-
-type Provider = "oauth_apple" | "oauth_google";
+type Provider = "apple" | "google";
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { startSSOFlow } = useSSO();
+  const options = useSignInOptions();
+  const { startAppleAuthenticationFlow } = useSignInWithApple();
+  const { startGoogleAuthenticationFlow } = useSignInWithGoogle();
   const [busy, setBusy] = useState<Provider | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Opening the browser sheet is faster when it's warmed up first.
-  useEffect(() => {
-    void WebBrowser.warmUpAsync();
-    return () => {
-      void WebBrowser.coolDownAsync();
-    };
-  }, []);
-
-  async function signInWith(strategy: Provider) {
+  async function signInWith(provider: Provider) {
     setError(null);
-    setBusy(strategy);
+    setBusy(provider);
     try {
-      const { createdSessionId, setActive } = await startSSOFlow({ strategy });
-      // A null session means the person closed the sheet: not an error.
+      const { createdSessionId, setActive } =
+        provider === "apple" ? await startAppleAuthenticationFlow() : await startGoogleAuthenticationFlow();
+      // A null session means the person closed Apple's or Google's sheet: not an error.
       if (createdSessionId && setActive) await setActive({ session: createdSessionId });
     } catch (err) {
       setError(friendlyAuthError(err));
@@ -60,7 +63,7 @@ export default function WelcomeScreen() {
           Club tennis, done properly.
         </Text>
         <Text tone="inkMuted" style={{ textAlign: "center" }}>
-          Your league, your matches and a ball boi in your pocket that tracks every shot.
+          Your league, your matches and a Ball Boi in your pocket that tracks every shot.
         </Text>
       </View>
 
@@ -70,23 +73,21 @@ export default function WelcomeScreen() {
             {error}
           </Text>
         ) : null}
-        <Button
-          label="Sign in with Apple"
-          loading={busy === "oauth_apple"}
-          disabled={busy !== null}
-          onPress={() => signInWith("oauth_apple")}
-        />
-        <Button
-          label="Continue with Google"
-          variant="secondary"
-          loading={busy === "oauth_google"}
-          disabled={busy !== null}
-          onPress={() => signInWith("oauth_google")}
-        />
+        {options?.apple ? (
+          <AppleSignInButton disabled={busy !== null} onPress={() => signInWith("apple")} />
+        ) : null}
+        {options?.google ? (
+          <GoogleSignInButton
+            loading={busy === "google"}
+            disabled={busy !== null}
+            onPress={() => signInWith("google")}
+          />
+        ) : null}
         <Button
           label="Continue with email"
           variant="secondary"
           disabled={busy !== null}
+          style={{ minHeight: SIGN_IN_BUTTON_HEIGHT }}
           onPress={() => router.push("/(auth)/email")}
         />
         <Text variant="small" tone="inkMuted" style={{ textAlign: "center" }}>

@@ -1,20 +1,20 @@
-<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-11-02 with rev 74). The live doc wins if they differ. Refresh this file when the live doc changes. -->
+<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-11-02 with rev 74). Updated in the repo on 2026-11-04 with the Wave 1 review decisions (48 to 78), which the live doc still needs. The live doc wins if they differ. Refresh this file when the live doc changes. -->
 
 # Ball Boi: Flows and Feature Spec
 
-2026-11-02 · @John
+2026-11-04 · @John
 
 ## Overview
 
-Ball Boi launches in the US as one app for finding local players, running leagues, and recording matches with shot analysis. SwingVision covers recording and Find Your Court covers courts; neither ties discovery, league play, and match analysis into one rating and one profile.
+Ball Boi launches in the US as one app for finding local players, running leagues, and recording matches with shot analysis. SwingVision covers recording and Find Your Court covers courts; neither ties discovery, league play, and match analysis into one level and one profile.
 
 **v1 launch scope**
 
 - **Discover:** local-only discovery of players and Open leagues, nationwide availability
 - **Leagues:** Flex and Round robin formats, singles and doubles, one league chat with pins
 - **Ball Boi:** recording, core shot stats, simulated replay, and trends (singles analysis only)
-- **Ball Boi Rating:** one NTRP-scale rating used everywhere for matching
-- **Messaging:** direct messages with a Message Requests inbox, match threads, moderation ladder
+- **Self-rated level:** one NTRP-scale level the player sets, used everywhere for matching. "Ball Boi Rating" stays out of the app until a USTA or NTRP sync
+- **Messaging:** direct messages with a Message Requests inbox, a direct chat with your league opponent (full match threads come with Discover), moderation ladder
 - **Profile:** baseball-card player card, career stats, head-to-head
 - **Extras:** court directory, head-to-head records, shareable match recaps
 - **Pricing:** playing is free; Ball Boi Pro (analysis, replay, trends, career stats) is $7.99/month or $59.99/year after 3 free months
@@ -37,22 +37,15 @@ Everyone has the same account type. Admin is a role on a specific league, so one
 **Onboarding (target: under 60 seconds to first value)**
 
 1. **Sign in:** Apple, Google, or email code
-2. **Age check:** Apple's Declared Age Range API, with a self-attested birth date as the fallback. Under 18s see a friendly "Ball Boi is 18+ for now" screen and no account is created. Only a pass/fail flag is stored, never the birth date. The birth date uses the native iOS date picker in wheels style, in a bottom sheet with a Done button: no calendar grid, no typed fields. The prompt reads "What's your birthday?" with no mention of 18+, the field stays empty until confirmed, the wheel never starts at exactly 18 years ago, and the latest selectable date is today
-3. **Name and photo:** name required, photo skippable with an initials avatar
+2. **Age check:** Apple's Declared Age Range API, with a self-attested birth date as the fallback. Under 18s see a friendly "Ball Boi is 18+ for now" screen and no account is created. Only a pass/fail flag is stored, never the birth date. The birth date uses the native iOS date picker in wheels style, in a bottom sheet with a Done button: no calendar grid, no typed fields. The prompt reads "What's your birthday?" with no mention of 18+, the field stays empty until confirmed, the wheel starts on January 1, 30 years back (never exactly 18 years ago), Done stays off until a wheel moves, and the latest selectable date is today. A quiet Sign out text button sits on this step
+3. **Name and photo:** name required, photo skippable with an initials avatar. A quiet Sign out text button sits on this step too
 4. **Home area:** zip code, with an optional "Use my location" shortcut
-5. **Rating quiz:** 4 to 5 plain-language descriptions that set a starting Ball Boi Rating, or "Link UTR instead"
-6. **What brings you here?** Run a league, Join a league, Find matches near me, Record my play
-
-**Intent paths**
-
-- **Run a league:** name, format, Private or Open, season start date and length, then a share link
-- **Join a league:** paste an invite code, or browse Open leagues nearby
-- **Find matches:** set weekly availability, then land on Discover
-- **Record my play:** 30-second phone mounting guide, camera and mic permission asked here
+5. **Level quiz:** 4 to 5 plain-language descriptions that set the player's self-rated level, with "This is your self-rated level. We use it to match you with players near your level. You can change it anytime in Edit profile." "Link UTR instead" shows disabled until the UTR integration
+6. **What do you want to do on Ball Boi?** An optional research question (Nov 2): "Pick all that apply" from Run a league, Join a league, Find matches near me and Record my play, or none. Skip and Continue both finish onboarding and land everyone on Home. The answer never changes where you go; it's saved for the team and never shown back to the player
 
 **Permissions are asked only when needed**
 
-- **Notifications:** provisional (quiet) notifications from sign-in, delivered to Notification Center with Keep and Turn Off buttons, no prompt. The full prompt, with a reason screen first, comes after joining a league or sending a first request. If denied, a one-line Home banner links to Settings; never a repeat nag
+- **Notifications:** provisional (quiet) notifications from sign-in, delivered to Notification Center with Keep and Turn Off buttons, no prompt. The full prompt, with a reason screen first, comes after joining a league or sending a first request. If denied, a one-line Home banner links to Settings; never a repeat nag. Match day reminders are on by default (Wave 2) and still reach a player only once iOS allows notifications
 - **Location:** only for travel mode or the zip shortcut
 - **Camera and mic:** at first recording
 
@@ -68,19 +61,20 @@ Five tabs, with Ball Boi in the center. Messages opens from the button in the to
 | Discover | Players near you, Open leagues, Open matches (including your own) |
 | Profile | Player card, career stats, linked UTR, subscription, settings (including training data), account deletion |
 
-**Messages (top corner):** direct chats, Message Requests, and match threads. A 44pt button in the top-right of every tab with an unread count VoiceOver reads ("Messages, 3 unread").
+**Messages (top corner):** direct chats, including Message opponent from a league match, and Message Requests. Full match threads come with Discover. A 44pt button in the top-right of every tab with an unread count VoiceOver reads ("Messages, 3 unread").
 
 League chat lives inside each league, not in Messages, so busy leagues never bury direct conversations. Every tab has an icon plus a text label, and badge counts are read by VoiceOver.
 
-## Ball Boi Rating
+## Self-rated level
 
-One in-app rating on the NTRP scale (2.5 to 5.0+) drives all matching. It avoids USTA's no-caching rule and works for players with no external rating.
+One level on the NTRP scale (2.5 to 5.0+) drives all matching. Players set it themselves, so it avoids USTA's no-caching rule and works for players with no external rating. Until a USTA or NTRP sync lands, the app calls it "self-rated level", never "Ball Boi Rating".
 
-- **Starts self-rated:** onboarding quiz with plain descriptions, labeled "Self-rated" with icon and text
-- **Verified by UTR link:** OAuth via the UTR Engage API seeds the rating and shows a "Verified" badge with icon and text
-- **Adjusts from results:** every entered score nudges both players' ratings, including matches played in a league's grace period; doubles results count at half weight
+- **Set by the player:** onboarding quiz with plain descriptions, changed anytime in Edit profile
+- **Labels:** Edit profile row "Self-rated level"; badge "Level 3.5, Self-rated" with icon and text, read by VoiceOver as "Level 3.5, self-rated"; Manage roster and requests "Level 3.5, self-rated". A placeholder player shows "Level 3.0" and a signed-up player with no level shows "Level not set"
+- **Verified by UTR link:** OAuth via the UTR Engage API seeds the level and shows a "Verified" badge with icon and text
+- **Results never move it (Oct 29, confirmed Nov 4):** no score, grace-period match or doubles result changes anyone's level. It changes only when the player edits it, or later through a USTA or NTRP sync
+- **One source:** the profile holds each player's name, photo and level, and every league reads the current profile. Admins set a level only for placeholder players not on Ball Boi, and the player's own level replaces it when they claim the spot
 - **Match range:** ±0.5 by default, widenable to ±1.0
-- **Rating history:** shown as a trend line on the profile
 
 ## Discover
 
@@ -93,13 +87,13 @@ Discover is always local: results are bounded by distance, never a national feed
 - **Approximate distance only:** "~4 mi away," never an exact location
 - **Optional home court:** picked from the court directory, shown on the player card as a natural meetup spot
 - **Travel mode:** search from current location for up to 7 days, then revert to home
-- **List, not map:** sorted by distance and rating fit, no map of players
+- **List, not map:** sorted by distance and level fit, no map of players
 - **Hidden profile:** opt out of discovery while keeping leagues and Ball Boi
 
 **What the page shows**
 
-- **Players near you:** filtered by rating range, singles or doubles, availability
-- **Open leagues:** distance, rating range, format, start date, spots left
+- **Players near you:** filtered by level range, singles or doubles, availability
+- **Open leagues:** distance, level range, format, start date, spots left
 - **Open matches:** post date, time window, court, skill range, and format; nearby matching players get notified
 - **Need 1 / Need 2:** fill a spot in an existing doubles game
 - **Empty state:** widen radius, post an open match, or invite a friend by link
@@ -110,7 +104,7 @@ Discover is always local: results are bounded by distance, never a national feed
 2. Request holds date and time window, court, singles or practice hit, optional note
 3. Recipient accepts, counters with a new time, or declines
 4. Both players confirm the day before; reminder 2 hours out
-5. Either player enters the score; the first score entered stands, and both ratings update
+5. Either player enters the score; the first score entered stands
 6. Reliability shows on player cards: "Played 12 · 1 no-show"
 
 **Joining an Open league:** request a spot before the season starts, admin approves. Once the season starts the league locks to new joins; full and locked leagues hold requests on a waitlist for next season.
@@ -143,7 +137,7 @@ Players can message before committing to a match, so safety is built into the in
 3. **Review:** John gets a push alert on every report and is the primary moderator. If no action within 6 hours, a Claude agent reviews the report snapshot, reporter note, and account history, and can hide messages, restrict the account, or dismiss with a logged reason. The agent treats reported messages as untrusted data, has only hide / restrict / dismiss / escalate tools, and restricts and escalates when unsure
 4. **Human confirms:** John confirms or undoes every agent decision; suspensions and bans are human-only
 5. **Ban sticks:** blocks the Apple ID, email, and device
-6. **One appeal:** by email
+6. **One appeal:** by email, decided by John; the agent never reviews appeals
 
 No end-to-end encryption at launch, since it would block message review on reports.
 
@@ -154,10 +148,12 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 **Setup (admin)**
 
 - **Visibility:** Private (default, invite link or code) or Open (listed in Discover, request to join)
-- **Eligibility:** rating range and roster cap for Open leagues
-- **Format:** Flex or Round robin; Ladder comes later
-- **Play type:** singles, fixed-partner doubles, or rotating-partner doubles
-- **Season start:** any day, chosen with a calendar picker
+- **Eligibility:** level range and roster cap for Open leagues
+- **Format:** Flex or Round robin ("Pairs you with someone new each week"); Ladder comes later
+- **Play type:** singles, fixed-partner doubles, or rotating-partner doubles. Doubles stays hidden in Start a league until doubles pairing is built (Nov 4)
+- **Season start:** any day from tomorrow on, chosen with a calendar picker
+- **Match day and time (optional):** a club league can set a weekly match day and time, and every match in a new round gets it. Without one, either player sets their match's date and time inside its week
+- **Time zone:** the league runs on its creator's time zone, taken from their phone at creation. Deadlines name the zone when it isn't the viewer's
 - **Season length:** a number input with − and + buttons, 8 weeks by default, 1 to 24 weeks; optional playoff for top 4 or 8
 - **Deadline:** weekly deadline for each round, then a fixed 1-week grace period for every league (not an admin setting)
 - **League fee (optional):** a fee and payment instructions, collected outside the app (see Pricing > League fees)
@@ -167,20 +163,25 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 
 - **Standings rank on wins only**
 - **The first score entered stands:** either player enters it; there's no confirm or dispute step
-- **Grace period:** a match played in the week after its round's deadline updates both players' ratings and Ball Boi stats, but not standings
+- **Grace period:** a match played in the week after its round's deadline updates Ball Boi stats, but not standings
+- **Opponent retired:** enter the score so far; it counts as a win and shows RET
+- **Playoffs:** each round gets two weeks, a play week plus a grace week, then the admin enters the result or a walkover
+- **Corrections lock when a league ends:** Correct a score is hidden and final standings never change
 
 **Joining and leaving**
 
 - **Every league locks to new joins once the season starts,** Private and Open alike. The waitlist holds requests for next season
-- **Dropouts:** when a player leaves mid-season, their played matches stay, their remaining matches are voided, and they're removed from standings
+- **Dropouts:** when a player leaves mid-season, their played matches stay, their remaining matches are voided, and they're removed from standings. A bracket player who leaves gives their opponent a walkover, shown as W/O
+- **Admins who leave stay admin:** they stop playing but still manage the league. A league's only admin who deletes their account picks the new admin first; Skip hands it to the longest-standing member, so deletion is never blocked
+- **Ended leagues:** an ended league's invite code shows "This league has ended" and sends no request
 
 **Weekly loop (Flex)**
 
-1. App pairs players each week on the morning of the season's start weekday (a season starting on a Thursday pairs every Thursday), by rating, availability, and who hasn't played whom
+1. App pairs players each week on the morning of the season's start weekday (a season starting on a Thursday pairs every Thursday), by level, availability, and who hasn't played whom
 2. Admin can swap pairings, mark a bye, or lock a match before publishing
-3. Players schedule inside the match thread using the same request flow as Discover
+3. Players work out a time in a direct chat with their opponent (Message opponent). In a league with no set match time, either player saves the match's date and time inside its week. Full match threads with the Discover request flow come with Discover (Oct 31)
 4. Either player enters the score; the first score entered stands and standings update
-5. Unplayed matches get a 1-week grace period after the round's deadline; matches played in it update ratings and Ball Boi stats but not standings
+5. Unplayed matches get a 1-week grace period after the round's deadline; matches played in it update Ball Boi stats but not standings
 
 **League chat**
 
@@ -198,8 +199,8 @@ Ball Boi launches as stats, a simulated replay, and trends, with no coaching adv
 
 The phone films with the rear camera, so its screen faces away from the court. Voice and the players' own phones are the interface; nobody touches the fence after mounting.
 
-- **Every recording starts from a match:** on match day, "Record with Ball Boi" is the primary action on a singles match card; Enter score takes over once the match is played. The Ball Boi tab's "Record a match" lists today's matches, then Quick match
-- **Quick match:** format first (singles by default), then any opponent. A non-user becomes a placeholder with an invite link; you get solo controls, and nothing counts toward standings until they join
+- **Every recording starts from a match:** any unplayed league match in its round's week, grace week included, can be recorded. "Record with Ball Boi" is the primary action on a singles match card, with Enter score under it; once a score is in, the card shows the result instead. The Ball Boi tab's "Record a match" lists this week's matches, with today's set times first, then Quick match
+- **Quick match:** format first (singles by default), then any opponent. A non-user becomes a placeholder with an invite link; you get solo controls, and nothing counts toward standings until they join. Leaving the invite screen or the camera before recording removes the Quick match and its placeholder
 - **Doubles:** Ball Boi shows disabled on doubles matches with "Ball Boi analyzes singles for now. Doubles is coming." Views are counted as a demand signal
 - **Voice positioning coach:** on-device court detection drives spoken guidance, one step at a time, in court terms ("Tilt up," "Toward the center of the court"), ending with "Court locked" and a chime. Plays on silent; mute toggle; shorter mode after the first few sessions
 - **Court won't lock:** a spoken tip, then Record anyway after about 20 seconds; court lines get fixed later in the replay
@@ -210,14 +211,15 @@ The phone films with the rear camera, so its screen faces away from the court. V
 - **Live Activity on both phones:** court lock status, recording time, mounted phone battery, and Start match / Stop; either player has full controls; voice cues mirror here as captions, and to Apple Watch where available
 - **Stop:** from either player's phone, or press and hold anywhere on the mounted phone for 2 seconds
 - **Safety cap:** auto-stop and save at low battery, low storage, or 4 hours
+- **Calls and interruptions:** a ringing call pauses recording. If it isn't picked up, recording carries on in the same match and only the ringing seconds are lost. An answered call, a manual lock or an app switch stops and saves, and coming back shows Resume recording, which adds to the same match. The screen stays awake while recording. A hint by Record reads "Put your phone on Do Not Disturb before you hit record so the video isn't interrupted."
 - **Audio:** recorded for shot detection only; never played back, deleted after processing, excluded from training on non-users. The labeled test set decides whether audio stays for launch
 - **Consent screen before a user's first recording:** covers recording other players, audio for analysis, and the training toggle (see Video and training data)
 
 **After the match**
 
-- **Score prompt at stop** posts to standings right away (ratings and stats only if the match is in its grace period); the first score entered stands
-- **Replay processing card:** no video playback; the match shows upload and analysis status ("Waiting for Wi-Fi · Upload now on cellular," then "Analyzing")
-- **Upload:** Wi-Fi by default with a cellular toggle in settings; background upload survives the app closing; video stays on the phone until the server confirms
+- **Score prompt at stop** posts to standings right away (only Ball Boi stats if the match is in its grace period); the first score entered stands
+- **Replay processing card:** no video playback; the match shows upload and analysis status ("Waiting for Wi-Fi · Upload now on cellular," then "Analyzing"). Both players see it: the recorder, the opponent and a claimed placeholder. If analysis can't finish, the card says "Ball Boi couldn't analyze this match" with a short reason (like "We couldn't see the court") and Remove, with no Try again
+- **Upload:** Wi-Fi by default with an "Upload on cellular" switch in Settings; background upload survives the app closing; video stays on the phone until the server confirms. Signing out with recordings that haven't uploaded warns first ("2 recordings haven't uploaded. Signing out deletes them.") with Cancel and Sign out anyway
 - **Push** when the simulated replay and stats are ready
 - **Court-line fix** appears only when detection confidence is low: drag four handles on a still frame captured on the phone before upload
 - **3 free months of Pro, from the first use of any Pro feature:** full replay and stats, then Ball Boi Pro (see Pricing). A match is analyzed if either player has Pro
@@ -272,15 +274,15 @@ The player card is a brag sheet, never a scouting report: it shows strengths and
 
 | Element | Visibility |
 | --- | --- |
-| Name, photo, Ball Boi Rating (Verified or Self-rated) | Public |
+| Name, photo, level (Self-rated or Verified) | Public |
 | Town, app win-loss record, reliability | Public |
 | Ball Boi highlights (forehand winners, aces, first serve %, win streak) | Public, season or career toggle |
 | Head-to-head record vs. the viewer | Visible to that viewer |
 | Error patterns, heatmaps, trends | Private, except an opponent from the same match sees its full breakdown when both players have Pro |
 | Match video | Never shown; raw video deleted after analysis unless kept for training |
 
-- **No Ball Boi data yet:** card shows rating and record with a "No Ball Boi matches yet" prompt
-- **VoiceOver reads the card as one summary,** e.g. "Alex Kim, 3.5 Verified, 14 and 6, 22 aces this season"
+- **No Ball Boi data yet:** card shows level and record with a "No Ball Boi matches yet" prompt
+- **VoiceOver reads the card as one summary,** e.g. "Alex Kim, Level 3.5, Verified, 14 and 6, 22 aces this season"
 - **Career stats:** full personal history, reached from Profile
 
 **Shareable match recap:** auto-generated after each match's score is entered with score, aces, and winners, sized for Instagram Stories and texts, carrying the Ball Boi logo.
@@ -293,7 +295,7 @@ Four moments get a short animation and a haptic. Everything else uses standard i
 
 | Moment | Animation | Haptic |
 | --- | --- | --- |
-| Score entered | Score settles in; Ball Boi Rating counts to its new value and shows the change | Success |
+| Score entered | Score settles in | Success |
 | New career milestone | Badge scales in as a ring draws around it, then the title fades up. Launch set: first win, first Ball Boi match, 5- and 10-match win streaks | Success |
 | Player card reveal | Card flips from the Ball Boi back to the front, on the first view of each player only | Light |
 | Ball Boi analysis ready | Shot markers drop onto the court one by one, then "Your replay is ready" | Light ticks |
@@ -301,7 +303,7 @@ Four moments get a short animation and a haptic. Everything else uses standard i
 - **Short and once:** each runs under 1 second, plays once, and never blocks input
 - **Built with Reanimated**
 - **Reduce Motion:** every moment becomes a 200ms fade with the final state shown at once; haptics still fire
-- **VoiceOver:** each outcome is announced in text, e.g. "Rating up 0.04 to 3.54" or "Milestone: First win"
+- **VoiceOver:** each outcome is announced in text, e.g. "Milestone: First win"
 
 ## Pricing
 
@@ -342,7 +344,7 @@ These decisions add launch-blocking items to the submission checklist. Strangers
 | Ball Boi Pro | IAP subscription after 3 free months, clear price and renewal terms | 3.1.1, 3.1.2 |
 | UTR linking | Disclose shared data and unlink path in privacy policy and labels; no partner logos without approval | 5.1.1, 5.2.1 |
 | User-to-user messaging | Re-answer age rating questionnaire; set 18+ | Age rating |
-| Account deletion | Deletes messages, video, ratings, removes footage from future training; revokes UTR link and Apple token | 5.1.1(v) |
+| Account deletion | Deletes messages, video, level, removes footage from future training; revokes UTR link and Apple token | 5.1.1(v) |
 | Reviewer demo account | Password sign-in for that account only; seeded league, two Ball Boi matches, message thread, Message Request, open match; 3 free months marked expired server-side so the paywall is live; 60-second on-court recording in review notes | 2.1 |
 | Opponent recording notification and remote controls | APNs push-to-start Live Activities with interactive Start / Stop buttons; connections only | 4.5.4 |
 | Filming other players and training on video | Opponent recording notification, first-recording consent screen with training toggle, both-players rule, no training on non-users until they join; microphone purpose string for analysis-only audio | 5.1.1, 5.1.2 |
@@ -351,7 +353,7 @@ These decisions add launch-blocking items to the submission checklist. Strangers
 **WCAG 2.2 AA additions**
 
 - **Birthday picker:** visible and accessible "Birthday" label, VoiceOver announces each wheel change, Done button at 44×44pt, label and button scale at the largest Dynamic Type sizes. Test the year wheel with VoiceOver before locking the starting date (1.3.1, 4.1.2, 2.5.8, 1.4.4)
-- **Rating badges, admin labels, reliability:** icon plus text, never color alone (1.4.1)
+- **Level badges, admin labels, reliability:** icon plus text, never color alone (1.4.1)
 - **Heatmaps and replay markers:** labels and patterns (1.4.1)
 - **Simulated replay:** the court animation is decorative; each shot's type, player, outcome, and time is in the accessible shot list (1.1.1, 1.3.1)
 - **"Close call" label:** icon plus text, never color alone (1.4.1)
@@ -359,7 +361,7 @@ These decisions add launch-blocking items to the submission checklist. Strangers
 - **Message bubbles:** sender, text, and time in one swipe; new messages announced (1.3.1, 4.1.3)
 - **Swipe actions:** long-press menu and VoiceOver custom actions as alternatives (2.5.7)
 - **Voice cues:** captions mirror to the Live Activity, never audio-only; Start and Stop buttons labeled for VoiceOver (1.1.1, 1.3.3, 4.1.2)
-- **Radius and rating range controls:** 44×44pt targets, Dynamic Type safe (2.5.8, 1.4.4)
+- **Radius and level range controls:** 44×44pt targets, Dynamic Type safe (2.5.8, 1.4.4)
 - **Milestone animations:** a 200ms fade replaces motion under Reduce Motion; each moment's outcome is announced to VoiceOver in text (2.3.3, 4.1.3)
 
 ## Roadmap
@@ -384,7 +386,7 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 6 | Training on by default, both players must leave it on, no face blurring, "personal information is never shared or sold" copy |
 | 7 | Simulated replay only; raw video deleted after analysis unless kept for training; "Close call" labels; close-call clips in v1.1 |
 | 8 | Stream Chat on the Maker plan, headless, behind Ball Boi's own interface |
-| 9 | Moderation: John primary, Claude agent after 6 hours with reversible actions only, bans human-only. Instant auto-restrict removed by decision 43 |
+| 9 | Moderation: John primary, Claude agent after 6 hours with reversible actions only, bans human-only. Instant auto-restrict removed by decision 48 (Nov 4) |
 | 10 | Reviewer: password demo account, seeded data, live paywall, on-court screen recording |
 | 11 | Notifications: provisional from sign-in, full prompt at the contextual moment, Settings banner if denied |
 | 12 | Every recording starts from a match; Quick match covers casual hits, with placeholder opponents and invite links for non-users |
@@ -400,13 +402,13 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 22 | League seasons run 1 to 24 weeks, 8 by default, set with a number input and − / + buttons (replaces 6 to 12 weeks); seasons start on any day from a calendar picker; Create is the primary button at the bottom of the new league flow (Oct 29) |
 | 23 | Standings rank on wins only (Oct 29) |
 | 24 | The first score entered stands; no confirm or dispute flow in Leagues or Discover (Oct 29) |
-| 25 | Every league gets a fixed 1-week grace period after a round's deadline; matches played in it update ratings and Ball Boi stats but not standings. Replaces the admin's forfeit or no-result rule (Oct 29) |
+| 25 | Every league gets a fixed 1-week grace period after a round's deadline; matches played in it update ratings and Ball Boi stats but not standings. Replaces the admin's forfeit or no-result rule (Oct 29). Results never move levels, so only Ball Boi stats update (decision 75) |
 | 26 | Every league locks to new joins once the season starts; the waitlist holds requests for next season (Oct 29) |
 | 27 | A player who drops out keeps their played matches; their remaining matches are voided and they're removed from standings (Oct 29) |
 | 28 | Subtle animations at four moments (Oct 29): score entered, career milestone, player card reveal (first view only), Ball Boi analysis ready. League standings change dropped. Reanimated with a haptic; a fade under Reduce Motion |
 | 29 | Flex pairings go out each week on the season's start weekday, not always Monday (Oct 29) |
 | 30 | Waitlists are Open-only. A Private league's code entered after its season starts creates a join request for the admin; approved players enter the next round at zero wins (Oct 31) |
-| 31 | League admins can end and delete their league. End freezes standings and keeps history; Delete removes it and notifies members. A league's only admin can't leave without promoting a co-admin (Oct 31) |
+| 31 | League admins can end and delete their league. End freezes standings and keeps history; Delete removes it and notifies members. A league's only admin can't leave without promoting a co-admin (Oct 31). The leave rule is replaced by decision 53 |
 | 32 | Playing stays free forever: leagues, Discover, match requests, scores, messaging, and the player card (Nov 2) |
 | 33 | Pro at launch is shot analysis, replay, trends, and full career stats; travel mode, deeper head-to-head, and AI insights join Pro as they ship, at the same price (Nov 2) |
 | 34 | Every account gets 3 free months of Pro, starting at the first use of any Pro feature with a "starts today" message. Replaces "from the first recording" in decision 3 (Nov 2) |
@@ -418,9 +420,39 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 40 | Opponent breakdowns are mutual: a player sees an opponent's full breakdown for matches they played together only when both have Pro (Nov 2) |
 | 41 | Placeholder opponents who join later get the "recorded your match" notice and training toggle, then the 4-game teaser and free-months offer (Nov 2) |
 | 42 | When Pro lapses, players keep everything already unlocked, including past opponent breakdowns; new analysis and trends need Pro (Nov 2) |
-| 43 | Moderation stays at the minimum Apple requires: Report, Block, and the Moderation queue. No account is restricted automatically, by reports (2 or more people), Stream flags or behavior signals. Reports go to John, then the Claude agent after 6 hours, and nothing happens to the account until one of them acts. The agent never reviews appeals (Nov 4) |
 | 43 | The Organizer plan comes after launch, once real leagues are running (Nov 2) |
 | 44 | Casual leagues collect fees outside the app (Venmo or anything else); Ball Boi takes no cut (Nov 2) |
 | 45 | Organizers can add an optional fee and payment instructions, visible to everyone in Discover, on the league page, and on the join screen, plus a paid checklist in Manage (Nov 2) |
 | 46 | The fee note and paid checklist ship before launch, in Wave 4 (Nov 2) |
 | 47 | In-app league fee collection is a club enterprise offer after all waves, folded into the Organizer plan; pricing decided then (Nov 2) |
+| 48 | Moderation stays at the minimum Apple requires: Report, Block, and the Moderation queue. No account is restricted automatically, by reports (2 or more people), Stream flags or behavior signals. Reports go to John, then the Claude agent after 6 hours, and nothing happens to the account until one of them acts. The agent never reviews appeals (Nov 4) |
+| 49 | Leagues can have a set match time: an admin can set a weekly match day and time (clubs). When none is set, either player sets a date and time for their match inside its week (rec leagues) (Nov 4) |
+| 50 | Any unplayed match this week, grace week included, can be recorded. A set time only moves the match to the top of Home and the Ball Boi tab on that day (Nov 4) |
+| 51 | Doubles is hidden in Start a league until a later wave builds doubles pairing, after a partner flow review (Nov 4) |
+| 52 | Calls mid-recording: a ringing call pauses recording; if it isn't picked up, recording carries on in the same match. An answered call stops and saves, then Resume recording adds to the same match. A manual lock or app switch acts like an answered call. No Focus setup; a hint by Record suggests Do Not Disturb (Nov 4) |
+| 53 | An admin who leaves stops playing but stays admin, and the only-admin block on leaving is gone. Replaces the leave rule in decision 31 (Nov 4) |
+| 54 | A league's only admin who deletes their account picks the new admin first. Skip hands it to the longest-standing member, so deletion is never blocked (Apple 5.1.1(v)) (Nov 4) |
+| 55 | When a bracket player leaves, their opponent advances on a walkover, shown as W/O (Nov 4) |
+| 56 | Each playoff round gets two weeks, a play week plus a grace week. After that the admin enters the result or a walkover (Nov 4) |
+| 57 | Score entry has Opponent retired: enter the score so far, it counts as a win, and the result shows RET (Nov 4) |
+| 58 | The earliest league start date is tomorrow (Nov 4) |
+| 59 | An ended league's invite code shows "This league has ended" and sends no request (Nov 4) |
+| 60 | Score corrections lock when a league ends, and Correct a score is hidden (Nov 4) |
+| 61 | Round robin's description reads "Pairs you with someone new each week" (Nov 4) |
+| 62 | A league runs on its creator's time zone, taken from the admin's phone when the league is made (Nov 4) |
+| 63 | No report email alerts and no new moderation tools for now. Lift and unhide buttons, reporter notes, snapshot retention, appeal timing and the appeal email subject stay as built (Nov 4) |
+| 64 | Settings gets "Help Ball Boi get smarter" (the training opt-out) and "Upload on cellular" now, and changes stick after closing the app (Nov 4) |
+| 65 | Both players in a match (the recorder, the opponent and a claimed placeholder) see its uploading, analyzing and ready card (Nov 4) |
+| 66 | Failed analysis says "Ball Boi couldn't analyze this match" with a short reason, like "We couldn't see the court", and a Remove button. No Try again (Nov 4) |
+| 67 | The court-line corner fix moves to Wave 2, built alongside on-device court detection (Nov 4) |
+| 68 | A Quick match and its placeholder are removed automatically when you leave the invite screen or the camera before recording (Nov 4) |
+| 69 | The birthday wheel keeps its neutral start (January 1, 30 years back), and Done stays off until a wheel moves (Nov 4) |
+| 70 | The age check and onboarding step 1 get a quiet Sign out text button (Nov 4) |
+| 71 | Rosters, pairings and Manage always show a player's current profile name and level (Nov 4) |
+| 72 | Welcome switches from the browser sheet to Apple's and Google's native sign-in buttons (Nov 4) |
+| 73 | The Match day reminders switch is hidden until Wave 2. In Wave 2 reminders are on by default, still behind iOS's permission: provisional from sign-in, the full prompt after joining a league or sending a match request (decision 11) (Nov 4) |
+| 74 | The app says "self-rated level", never "Ball Boi Rating", until a USTA or NTRP sync. Edit profile row "Self-rated level"; badge "Level 3.5, Self-rated"; Manage and requests "Level 3.5, self-rated"; VoiceOver "Level 3.5, self-rated". Once a sync lands, the source word replaces Self-rated (Nov 4) |
+| 75 | A player's level changes only when they edit it, or later through a USTA or NTRP sync. Match results never move it (confirms the Oct 29 call). Leagues read the profile's level; admins set one only for placeholder players, and the player's own replaces it when they claim the spot (Nov 4) |
+| 76 | Sign out warns first when recordings haven't uploaded, with the count, Cancel and Sign out anyway (Nov 4) |
+| 77 | League opponents talk in a direct chat (Message opponent) for now; full match threads come with Discover (Oct 31, logged Nov 4) |
+| 78 | The last onboarding step is an optional research question, "What do you want to do on Ball Boi?": pick any of four options or none, and everyone lands on Home. Replaces the four setup paths (Nov 2, logged Nov 4) |
