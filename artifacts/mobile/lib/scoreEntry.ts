@@ -45,9 +45,12 @@ export type ScoreDraft =
  * Reads the boxes. `message` is null while the sheet is just incomplete, and
  * the reason a score isn't real otherwise. With `retired`, the opponent
  * stopped mid-match: the sets so far count as my win, shown as RET (Q6).
+ * With `quick`, it's a Quick match: every row counts, empty ones are skipped,
+ * and one set or more saves (no best of three).
  */
-export function readScore(sets: SetEntry[], opts: { retired?: boolean } = {}): ScoreDraft {
-  const shown = sets.slice(0, setRowsToShow(sets));
+export function readScore(sets: SetEntry[], opts: { retired?: boolean; quick?: boolean } = {}): ScoreDraft {
+  const quick = !!opts.quick;
+  const shown = quick ? sets : sets.slice(0, setRowsToShow(sets));
   const parts: string[] = [];
   for (const s of shown) {
     if (s.me === "" && s.them === "") continue;
@@ -59,11 +62,11 @@ export function readScore(sets: SetEntry[], opts: { retired?: boolean } = {}): S
     parts.push(part);
   }
   if (parts.length === 0) return { ok: false, message: null };
-  const check = checkTennisScore(parts.join(", "), opts);
+  const check = checkTennisScore(parts.join(", "), quick ? { quick } : { retired: opts.retired });
   if (!check.ok) {
-    // One finished set is a sheet in progress, not a mistake yet.
+    // One finished set is a league sheet in progress, not a mistake yet.
     const only = shown.find(filled);
-    if (!opts.retired && parts.length === 1 && only && isCompleteSet(games(only))) return { ok: false, message: null };
+    if (!quick && !opts.retired && parts.length === 1 && only && isCompleteSet(games(only))) return { ok: false, message: null };
     return { ok: false, message: check.error };
   }
   let won = 0;
@@ -74,7 +77,7 @@ export function readScore(sets: SetEntry[], opts: { retired?: boolean } = {}): S
     if (a > b) won++;
     else lost++;
   }
-  const score = check.sets.join(", ") + (opts.retired ? RETIRED_SUFFIX : "");
+  const score = check.sets.join(", ") + (opts.retired && !quick ? RETIRED_SUFFIX : "");
   return { ok: true, score, iWon: check.winnerSide === 1, setsWon: won, setsLost: lost };
 }
 

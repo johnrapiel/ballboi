@@ -73,12 +73,13 @@ export type ScoreParse = { ok: true; score: string; winnerSide: 1 | 2 } | { ok: 
 
 /**
  * Reads a score written from the side of the player entering it ("6-3, 7-6(4)":
- * their games first). Same rules as league scores (C10): best of three, and
- * only real tennis sets.
+ * their games first). Only real tennis sets (C10), but as many as were
+ * played, one to five: Quick matches aren't best of three. The winner has
+ * more sets, then more games; level on both is refused.
  */
 export function parseSideScore(raw: unknown): ScoreParse {
   if (typeof raw !== "string") return { ok: false, error: "Enter the score for each set, like 6-4." };
-  const check = checkTennisScore(raw);
+  const check = checkTennisScore(raw, { quick: true });
   if (!check.ok) return check;
   return { ok: true, score: check.sets.join(", "), winnerSide: check.winnerSide };
 }

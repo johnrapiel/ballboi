@@ -30,6 +30,7 @@ import {
 } from "@/lib/recording/api";
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { readScore, setRowsToShow } from "@/lib/scoreEntry";
+import { QUICK_MAX_SETS } from "@/lib/tennisScore";
 import { useQueuedRecording } from "@/lib/recording/queue";
 import { STOP_MESSAGES, type StopReason } from "@/lib/recording/safety";
 
@@ -60,7 +61,9 @@ export default function ScorePromptScreen() {
   const rec = useQueuedRecording(params.rec ?? null);
   const stopped = params.stopped as Exclude<StopReason, "user"> | undefined;
 
-  const [sets, setSets] = useState<SetEntry[]>([empty(), empty(), empty()]);
+  // A Quick match is however many sets were played: two rows, and Add another set.
+  const quick = leagueId == null;
+  const [sets, setSets] = useState<SetEntry[]>(() => (quick ? [empty(), empty()] : [empty(), empty(), empty()]));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<"saved" | "already" | null>(null);
@@ -69,9 +72,9 @@ export default function ScorePromptScreen() {
   // A discarded placeholder Quick match no longer exists, so there is no score to enter.
   const matchGone = discarded === "match";
 
-  const draft = readScore(sets.map(asSheet));
+  const draft = readScore(sets.map(asSheet), { quick });
   const score = draft.ok ? draft.score : "";
-  const rows = setRowsToShow(sets.map(asSheet));
+  const rows = quick ? sets.length : setRowsToShow(sets.map(asSheet));
   // A weekly league match can be undone for 10 minutes; a playoff or Quick match can't.
   const scheduleQ = useGetLeagueSchedule(leagueId ?? 0, {
     query: { enabled: leagueId != null, queryKey: getGetLeagueScheduleQueryKey(leagueId ?? 0) },
@@ -80,7 +83,10 @@ export default function ScorePromptScreen() {
 
   function update(i: number, patch: Partial<SetEntry>) {
     setError(null);
-    setSets((prev) => keepShownSets(prev.map((s, j) => (j === i ? { ...s, ...patch } : s))));
+    setSets((prev) => {
+      const next = prev.map((s, j) => (j === i ? { ...s, ...patch } : s));
+      return quick ? next : keepShownSets(next);
+    });
   }
 
   async function save() {
@@ -187,8 +193,17 @@ export default function ScorePromptScreen() {
             <Text variant="small" tone="inkMuted" accessibilityLiveRegion="polite">
               {draft.ok
                 ? `${draft.iWon ? "You won" : `${opponent} won`} ${draft.score}`
-                : draft.message ?? (rows === 3 ? "Set 3 can be a match tiebreak, like 10-7." : "A third set shows if you split the first two.")}
+                : draft.message ??
+                  (quick
+                    ? "Enter the sets you played. The last can be a match tiebreak, like 10-7."
+                    : rows === 3
+                      ? "Set 3 can be a match tiebreak, like 10-7."
+                      : "A third set shows if you split the first two.")}
             </Text>
+
+            {quick && sets.length < QUICK_MAX_SETS ? (
+              <Button variant="secondary" label="Add another set" onPress={() => setSets((prev) => [...prev, empty()])} />
+            ) : null}
 
             {error ? (
               <Text tone="danger" accessibilityRole="alert">

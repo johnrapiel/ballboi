@@ -169,3 +169,42 @@ describe("Leagues tab (C5)", () => {
     expect(pastLabel({ endedAt: "2026-11-01T00:00:00Z", youLeft: false })).toBe("Ended");
   });
 });
+
+describe("readScore for a Quick match (Nov 4, John)", () => {
+  const quick = { quick: true };
+
+  it("saves one set, and skips empty rows", () => {
+    expect(readScore([set("6", "4"), emptySet()], quick)).toEqual({ ok: true, score: "6-4", iWon: true, setsWon: 1, setsLost: 0 });
+    expect(readScore([emptySet(), set("3", "6")], quick)).toMatchObject({ ok: true, score: "3-6", iWon: false });
+  });
+
+  it("saves two sets, with one set all decided on games", () => {
+    expect(readScore([set("6", "2"), set("4", "6")], quick)).toMatchObject({ ok: true, score: "6-2, 4-6", iWon: true, setsWon: 1, setsLost: 1 });
+  });
+
+  it("saves four sets, past two sets won", () => {
+    expect(readScore([set("6", "3"), set("6", "4"), set("3", "6"), set("6", "1")], quick)).toMatchObject({
+      ok: true,
+      score: "6-3, 6-4, 3-6, 6-1",
+      setsWon: 3,
+      setsLost: 1,
+    });
+  });
+
+  it("refuses level sets and games, and sets that aren't real", () => {
+    expect(readScore([set("6", "4"), set("4", "6")], quick)).toEqual({
+      ok: false,
+      message: "The sets and games are level, so there's no winner. Add the set or tiebreak that decided it.",
+    });
+    expect(readScore([set("9", "2"), emptySet()], quick)).toEqual({ ok: false, message: "9-2 isn't a valid set. A set ends 6-0 to 6-4, 7-5 or 7-6." });
+  });
+
+  it("waits quietly while a row is half filled", () => {
+    expect(readScore([set("6", ""), emptySet()], quick)).toEqual({ ok: false, message: null });
+    expect(readScore([emptySet(), emptySet()], quick)).toEqual({ ok: false, message: null });
+  });
+
+  it("leaves league matches best of three", () => {
+    expect(readScore([set("6", "4"), emptySet(), emptySet()])).toEqual({ ok: false, message: null });
+  });
+});

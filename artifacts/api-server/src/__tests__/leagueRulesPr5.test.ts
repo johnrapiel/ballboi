@@ -218,3 +218,16 @@ describe("blocked players are never paired (B10)", () => {
     expect([...byes].sort()).toEqual([1, 2]);
   });
 });
+
+describe("league scores stay best of three next to Quick match mode", () => {
+  it("refuses one set and four sets in a league", () => {
+    expect(checkTennisScore("6-4")).toMatchObject({ ok: false });
+    expect(checkTennisScore("6-3, 4-6, 6-2, 6-1")).toMatchObject({ ok: false });
+    expect(checkTennisScore("6-4", { quick: true })).toMatchObject({ ok: true });
+  });
+
+  it("counts any number of sets in stats", () => {
+    expect(accumulateScoreTotals(["6-3, 4-6, 6-2, 6-1"], [true])).toEqual({ gamesWon: 22, gamesLost: 12, setsWon: 3, setsLost: 1 });
+    expect(accumulateScoreTotals(["6-4"], [false])).toEqual({ gamesWon: 4, gamesLost: 6, setsWon: 0, setsLost: 1 });
+  });
+});

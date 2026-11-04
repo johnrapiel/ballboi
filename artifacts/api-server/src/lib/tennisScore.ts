@@ -11,6 +11,10 @@
 // - "Opponent retired": the sets so far, where the last one can be unfinished.
 //   It counts as a win for the player who entered it, and shows as RET.
 // - A walkover (W/O) has no sets at all; the score string is just "W/O".
+// - A Quick match is however many sets the players played, one to five
+//   (`quick`). Each set is still a real set, and the last one can be a match
+//   tiebreak. The winner has more sets; with sets level, more games (a match
+//   tiebreak counts as one game). Level on both is refused: there's no winner.
 
 export const RETIRED_SUFFIX = " RET";
 export const WALKOVER_SCORE = "W/O";
@@ -66,7 +70,8 @@ export type TennisScoreCheck =
  * the opponent stopped mid-match: the sets so far, and the player who entered
  * it (side 1) wins. Returns the tidied sets and the winning side.
  */
-export function checkTennisScore(raw: string, opts: { retired?: boolean } = {}): TennisScoreCheck {
+export function checkTennisScore(raw: string, opts: { retired?: boolean; quick?: boolean } = {}): TennisScoreCheck {
+  if (opts.quick) return checkQuickScore(raw);
   const retired = !!opts.retired;
   const parts = raw
     .replace(/\s*RET\s*$/i, "")
@@ -121,6 +126,55 @@ export function checkTennisScore(raw: string, opts: { retired?: boolean } = {}):
   }
   if (side1 < 2 && side2 < 2) return { ok: false, error: "Enter the second set. A match is best of three sets." };
   return { ok: true, sets, winnerSide: side1 > side2 ? 1 : 2 };
+}
+
+export const QUICK_MAX_SETS = 5;
+
+/**
+ * A Quick match score: any number of real sets from one to five, no
+ * best-of-three rules. Empty parts are skipped. Side 1 is the player
+ * entering it.
+ */
+function checkQuickScore(raw: string): TennisScoreCheck {
+  const parts = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return { ok: false, error: "Enter the score for each set, like 6-4." };
+  if (parts.length > QUICK_MAX_SETS) return { ok: false, error: `A Quick match can have up to ${QUICK_MAX_SETS} sets.` };
+  let sets1 = 0;
+  let sets2 = 0;
+  let games1 = 0;
+  let games2 = 0;
+  const sets: string[] = [];
+  for (let i = 0; i < parts.length; i++) {
+    const set = readSet(parts[i]);
+    if (!set) return { ok: false, error: `"${parts[i]}" isn't a set score. Use a format like 6-4.` };
+    const label = `Set ${i + 1}`;
+    const last = i === parts.length - 1;
+    const tiebreakDecider = last && i > 0 && !isCompleteSet(set) && isMatchTiebreak(set);
+    if (set.tiebreak != null && !(isCompleteSet(set) && Math.max(set.a, set.b) === 7 && Math.min(set.a, set.b) === 6)) {
+      return { ok: false, error: `${label}: only a 7-6 set has a tiebreak score.` };
+    }
+    if (!isCompleteSet(set) && !tiebreakDecider) {
+      if (set.a === set.b) return { ok: false, error: `${label} is tied at ${set.a}-${set.b}. Every set needs a winner.` };
+      return { ok: false, error: `${set.a}-${set.b} isn't a valid set. ${SET_HINT}${i > 0 ? " The last set can also be a match tiebreak, like 10-7." : ""}` };
+    }
+    if (set.a > set.b) sets1++;
+    else sets2++;
+    // A match tiebreak counts as one game to its winner.
+    if (tiebreakDecider) {
+      if (set.a > set.b) games1++;
+      else games2++;
+    } else {
+      games1 += set.a;
+      games2 += set.b;
+    }
+    sets.push(`${set.a}-${set.b}${set.tiebreak != null ? `(${set.tiebreak})` : ""}`);
+  }
+  if (sets1 !== sets2) return { ok: true, sets, winnerSide: sets1 > sets2 ? 1 : 2 };
+  if (games1 !== games2) return { ok: true, sets, winnerSide: games1 > games2 ? 1 : 2 };
+  return { ok: false, error: "The sets and games are level, so there's no winner. Add the set or tiebreak that decided it." };
 }
 
 /** True for a stored score that ended in a retirement, like "6-3, 2-1 RET". */

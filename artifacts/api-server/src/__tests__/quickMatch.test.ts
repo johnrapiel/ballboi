@@ -60,6 +60,7 @@ describe("parseSideScore and flipScore", () => {
 
   it("explains impossible scores", () => {
     expect(parseSideScore("6-6")).toMatchObject({ ok: false });
+    // Sets and games level: no winner.
     expect(parseSideScore("6-3, 3-6")).toMatchObject({ ok: false });
     expect(parseSideScore("six-three")).toMatchObject({ ok: false });
     expect(parseSideScore("")).toMatchObject({ ok: false });
@@ -178,5 +179,44 @@ describe("POST /recording/invites/:code/claim", () => {
   it("needs the training choice", async () => {
     const res = await (await app()).post("/api/recording/invites/ABCD2345/claim").send({});
     expect(res.status).toBe(400);
+  });
+});
+
+describe("Quick match scores: as many sets as were played (Nov 4, John)", () => {
+  it("saves one set", () => {
+    expect(parseSideScore("6-4")).toEqual({ ok: true, score: "6-4", winnerSide: 1 });
+    expect(parseSideScore("5-7")).toEqual({ ok: true, score: "5-7", winnerSide: 2 });
+  });
+
+  it("saves two sets, including one set all decided on games", () => {
+    expect(parseSideScore("6-3, 6-4")).toEqual({ ok: true, score: "6-3, 6-4", winnerSide: 1 });
+    expect(parseSideScore("6-2, 4-6")).toEqual({ ok: true, score: "6-2, 4-6", winnerSide: 1 });
+    expect(parseSideScore("6-4, 0-6")).toEqual({ ok: true, score: "6-4, 0-6", winnerSide: 2 });
+  });
+
+  it("saves four sets, and keeps going after someone has won two", () => {
+    expect(parseSideScore("6-3, 4-6, 6-2, 6-1")).toEqual({ ok: true, score: "6-3, 4-6, 6-2, 6-1", winnerSide: 1 });
+    // Two sets all: games decide it, 17-19.
+    expect(parseSideScore("6-3, 6-4, 2-6, 3-6")).toEqual({ ok: true, score: "6-3, 6-4, 2-6, 3-6", winnerSide: 2 });
+    expect(parseSideScore("6-3, 6-4, 6-1")).toMatchObject({ ok: true, winnerSide: 1 });
+  });
+
+  it("takes a match tiebreak as the last set, counted as one game", () => {
+    expect(parseSideScore("6-4, 4-6, 7-10")).toEqual({ ok: true, score: "6-4, 4-6, 7-10", winnerSide: 2 });
+    expect(parseSideScore("10-7")).toMatchObject({ ok: false });
+    expect(parseSideScore("10-7, 6-3")).toMatchObject({ ok: false });
+  });
+
+  it("refuses level sets and games, with a reason", () => {
+    expect(parseSideScore("6-4, 4-6")).toEqual({ ok: false, error: "The sets and games are level, so there's no winner. Add the set or tiebreak that decided it." });
+  });
+
+  it("still refuses a set that isn't real, with the same reason as leagues", () => {
+    expect(parseSideScore("9-2")).toEqual({ ok: false, error: "9-2 isn't a valid set. A set ends 6-0 to 6-4, 7-5 or 7-6." });
+    expect(parseSideScore("6-3, 6-5")).toEqual({
+      ok: false,
+      error: "6-5 isn't a valid set. A set ends 6-0 to 6-4, 7-5 or 7-6. The last set can also be a match tiebreak, like 10-7.",
+    });
+    expect(parseSideScore("6-3, 6-3, 6-3, 6-3, 6-3, 6-3")).toEqual({ ok: false, error: "A Quick match can have up to 5 sets." });
   });
 });
