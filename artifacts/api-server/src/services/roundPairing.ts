@@ -245,12 +245,17 @@ export async function generateAllRounds(
       }
     }
 
+    // Legacy rounds have no admin review: they go out to players as they're
+    // made (the admin's Generate, or the legacy scheduler job), so they count
+    // as published (decision 29; migration 20261029_c_league_rules.sql did the
+    // same for rounds made before it).
     const [newRound] = await db.insert(leagueRoundsTable).values({
       leagueId,
       roundNumber,
       startDate: roundStart,
       endDate: roundEnd,
       status,
+      publishedAt: new Date(),
     }).returning();
 
     const matchups: GeneratedRound["matchups"] = [];

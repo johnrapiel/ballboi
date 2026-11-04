@@ -8,6 +8,8 @@ import { requireAdmin } from "../middlewares/requireAdmin";
 import { getPlayerNameMap } from "../lib/lookups.js";
 import { requireLeagueViewer } from "../middlewares/requireLeagueViewer.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
+import { getLeagueRole } from "../lib/leagueAccess.js";
+import { withoutDraftMatches } from "../lib/draftRounds.js";
 
 const router = Router();
 
@@ -147,10 +149,16 @@ router.get("/scheduling/:leagueId/:weekOf", requireLeagueViewer, async (req, res
       .from(scheduleGenerationLogsTable)
       .where(and(eq(scheduleGenerationLogsTable.leagueId, leagueId), eq(scheduleGenerationLogsTable.weekOf, weekOf), isScheduleStatus()));
 
-    const matchRows = await db
-      .select()
-      .from(matchesTable)
-      .where(and(eq(matchesTable.leagueId, leagueId), eq(matchesTable.weekOf, weekOf)));
+    // A round's pairings that haven't gone out show only to the league's admins.
+    const { userId } = getAuth(req);
+    const isAdmin = !!userId && (await getLeagueRole(leagueId, userId)) !== null;
+    const matchRows = await withoutDraftMatches(
+      await db
+        .select()
+        .from(matchesTable)
+        .where(and(eq(matchesTable.leagueId, leagueId), eq(matchesTable.weekOf, weekOf))),
+      isAdmin ? [leagueId] : [],
+    );
 
     const matchesWithDetails = await buildMatchResponses(matchRows);
 

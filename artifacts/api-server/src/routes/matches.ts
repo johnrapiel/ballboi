@@ -7,6 +7,7 @@ import { eq, desc, inArray, and, or, isNull, type SQL } from "drizzle-orm";
 import { sendPushToUsers } from "./notifications";
 import { isLeagueAdmin } from "../lib/leagueAccess.js";
 import { canSeeMatch, readScope } from "../lib/matchAccess.js";
+import { withoutDraftMatches } from "../lib/draftRounds.js";
 import { getAutoSeason } from "../services/seasonService.js";
 import { getPlayerNameMap, getLeagueNameMap, getRoundMap, matchPlayerIds } from "../lib/lookups.js";
 
@@ -76,11 +77,15 @@ router.get("/matches", async (req, res) => {
   }
   if (status) filters.push(eq(matchesTable.status, status));
 
-  const rows = await db
-    .select()
-    .from(matchesTable)
-    .where(and(...filters))
-    .orderBy(desc(matchesTable.createdAt));
+  // Pairings in a round that hasn't gone out stay with the league's admins.
+  const rows = await withoutDraftMatches(
+    await db
+      .select()
+      .from(matchesTable)
+      .where(and(...filters))
+      .orderBy(desc(matchesTable.createdAt)),
+    scope.adminLeagueIds,
+  );
 
   const matchIds = rows.map((m) => m.id);
 
@@ -235,8 +240,10 @@ router.get("/matches/:matchId", async (req, res) => {
   const matchId = parseInt(req.params.matchId);
   if (isNaN(matchId)) return res.status(400).json({ error: "Invalid id" });
   const [match] = await db.select().from(matchesTable).where(eq(matchesTable.id, matchId));
-  // Same answer for a match that doesn't exist and one the caller can't see.
-  if (!match || !canSeeMatch(await readScope(userId, { openLeagues: true }), match)) {
+  // Same answer for a match that doesn't exist and one the caller can't see,
+  // including a pairing in a round that hasn't gone out to players yet.
+  const scope = match ? await readScope(userId, { openLeagues: true }) : null;
+  if (!match || !scope || !canSeeMatch(scope, match) || !(await withoutDraftMatches([match], scope.adminLeagueIds)).length) {
     return res.status(404).json({ error: "Match not found" });
   }
   return res.json(await buildMatchResponse(match));
