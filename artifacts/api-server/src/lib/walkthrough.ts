@@ -38,6 +38,8 @@ export const SEEDED_LETTERS = Object.keys(WALKTHROUGH_ACCOUNTS) as SeededLetter[
 export const TEST_EMAIL_CODE = "424242";
 
 export const SEEDED_LEAGUE_NAME = "Walkthrough League";
+/** The league `pnpm seed:demo` fills, unless --league or --name says otherwise. */
+export const DEMO_LEAGUE_NAME = "Test League 1";
 /** How the seed recognizes its own league when it runs again. */
 export const SEEDED_LEAGUE_MARKER = "Seeded by pnpm seed:walkthrough. Safe to delete.";
 
@@ -46,6 +48,7 @@ export const REPORT_REASONS = ["harassment", "inappropriate_content", "impersona
 export type Command =
   | { kind: "help" }
   | { kind: "seed"; me: string | null }
+  | { kind: "demo"; me: string | null; leagueId: number | null; name: string }
   | { kind: "accounts" }
   | { kind: "message"; as: SeededLetter; to: Letter; text: string }
   | { kind: "join"; as: SeededLetter; code: string }
@@ -85,6 +88,12 @@ export function parseCommand(argv: string[]): Command | { error: string } {
   if (!verb || verb === "help" || verb === "--help") return { kind: "help" };
   if (verb === "seed") return { kind: "seed", me: flag(rest, "--me") };
   if (verb === "accounts") return { kind: "accounts" };
+  if (verb === "demo") {
+    const raw = flag(rest, "--league");
+    const leagueId = raw === null ? null : Number(raw);
+    if (leagueId !== null && !(Number.isInteger(leagueId) && leagueId > 0)) return { error: 'Usage: demo [--league <id>] [--name "League name"] [--me <email>]' };
+    return { kind: "demo", me: flag(rest, "--me"), leagueId, name: flag(rest, "--name") ?? DEMO_LEAGUE_NAME };
+  }
 
   if (verb === "time") {
     const league = leagueArg(rest.length > 1 ? rest[0] : "seeded");
@@ -145,6 +154,9 @@ export const HELP = `Ball Boi walkthrough tools (development only)
 
   pnpm seed:walkthrough                    Reset and create the walkthrough test data
   pnpm walkthrough accounts                List the seeded accounts and how to sign in as them
+  pnpm seed:demo                           Fill "Test League 1" with 12 players and 3 weeks of
+                                           results, plus 25 players and 2 Open leagues nearby
+                                           (--league <id> or --name "..." for another league)
 
 Act as B, C or D (needs the API running: pnpm dev)
   pnpm walkthrough as C message A "Hi"     Send a message (starts a conversation if needed)
