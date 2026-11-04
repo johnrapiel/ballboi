@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { usersTable, playersTable, matchInvitesTable } from "@workspace/db";
 import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import pino from "pino";
-import { DELETED_PLAYER_NAME } from "./accountDeletion.js";
+import { DELETED_PLAYER_NAME } from "./deletedPlayer.js";
 
 const logger = pino({ name: "autoLinkPlayer" });
 

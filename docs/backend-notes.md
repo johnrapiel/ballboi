@@ -14,8 +14,10 @@ Carried over from the original web app's project notes. Describes how the API, s
 
 ## Access rules (Wave 1 review)
 
-- `GET /api/leagues`, `GET /api/leagues/:id` and `GET /api/leagues/:id/standings` need sign-in. A Private league shows only to its players (current or past) and admins; Open leagues show to anyone signed in. `GET /api/leagues?clerkUserId=` only accepts the caller's own id. The invite join screen uses `GET /api/invites/:code`, which stays open.
+- `GET /api/leagues`, `GET /api/leagues/:id`, `/standings`, `/schedule`, `/bracket`, `/seasons` and `/seasons/active` need sign-in. A Private league shows only to its players (current or past) and admins; Open leagues show to anyone signed in. `GET /api/leagues?clerkUserId=` only accepts the caller's own id. The invite join screen uses `GET /api/invites/:code`, which stays open.
 - `POST /api/matches`, `PATCH /api/matches/:id` and `DELETE /api/matches/:id` are for that league's admins only and never change a result: no score, winner or status. Scores go through the league score routes only (enter, 10-minute undo, admin correction). A completed or playoff match can't be deleted.
+- `GET /api/matches` and `GET /api/matches/:id` need sign-in and return only matches the caller played in or in leagues they can see (`lib/matchAccess.ts`).
+- `GET /api/players`, `/players/:id` and `/players/:id/stats` need sign-in and show only the caller's own records and players in leagues they can see. Email and phone show only to the player and their league's admins. `PATCH /api/players/:id` is for the player themselves or an admin of their league (co-admins included); an admin changes contact details only for players who haven't signed up, reminder settings stay the player's own, and it never changes a player's league or linked account or edits a "Deleted player" record.
 - `GET /api/stats/top-players`, `/recent-activity` and `/head-to-head` need sign-in and only count matches in the caller's leagues or matches they played.
 - `POST /api/storage/uploads/request-url` needs sign-in and takes JPEG, PNG, HEIC/HEIF or WebP up to 10 MB. Saving a profile re-checks the stored file. `GET /api/storage/objects/*` serves only current profile photos (no sign-in, since the app loads them as plain image links) and everything to the ML server with `X-ML-Secret`. A replaced or removed photo's file is deleted.
 - Admin-added league players link to an account only by the account's verified primary email from Clerk: when the admin adds them (if the account exists) or when the person first creates their profile. Never by display name or a typed-in email, never onto a record linked to another account, a "Deleted player" record or a quick match placeholder.
@@ -72,6 +74,8 @@ Carried over from the original web app's project notes. Describes how the API, s
 - `POST /api/users/me` — upsert user profile
 - `PUT /api/users/me` — update user profile fields
 - `GET /api/stats/dashboard`
+- `GET /api/matches` and `GET /api/matches/:id` need sign-in and return only matches the caller played in or in leagues they can see (`lib/matchAccess.ts`).
+- `GET /api/players`, `/players/:id` and `/players/:id/stats` need sign-in and show only the caller's own records and players in leagues they can see. Email and phone show only to the player and their league's admins. `PATCH /api/players/:id` is for the player themselves or an admin of their league (co-admins included); an admin changes contact details only for players who haven't signed up, reminder settings stay the player's own, and it never changes a player's league or linked account or edits a "Deleted player" record.
 - `GET /api/stats/top-players`
 - `GET /api/stats/recent-activity`
 - `GET /api/stats/head-to-head`

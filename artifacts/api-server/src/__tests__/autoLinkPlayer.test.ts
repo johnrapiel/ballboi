@@ -8,7 +8,6 @@ const getUser = vi.fn();
 const getUserList = vi.fn();
 vi.mock("@clerk/express", () => ({ clerkClient: { users: { getUser: (...a: unknown[]) => getUser(...a), getUserList: (...a: unknown[]) => getUserList(...a) } } }));
 vi.mock("pino", () => ({ default: () => ({ warn: vi.fn(), info: vi.fn(), error: vi.fn() }) }));
-vi.mock("../lib/accountDeletion.js", () => ({ DELETED_PLAYER_NAME: "Deleted player" }));
 
 type Player = { id: number; name: string; email: string | null; clerkUserId: string | null };
 let players: Player[] = [];

@@ -6,6 +6,7 @@ import { CreateMatchBody, UpdateMatchBody } from "@workspace/api-zod";
 import { eq, desc, inArray, and, or, isNull, type SQL } from "drizzle-orm";
 import { sendPushToUsers } from "./notifications";
 import { isLeagueAdmin } from "../lib/leagueAccess.js";
+import { canSeeMatch, readScope } from "../lib/matchAccess.js";
 import { getAutoSeason } from "../services/seasonService.js";
 import { getPlayerNameMap, getLeagueNameMap, getRoundMap, matchPlayerIds } from "../lib/lookups.js";
 
@@ -52,12 +53,16 @@ async function buildMatchResponse(m: typeof matchesTable.$inferSelect) {
   };
 }
 
+// Signed in only: matches the caller played in, or in leagues they can see.
 router.get("/matches", async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  const scope = await readScope(userId, { openLeagues: true });
   const leagueId = req.query.leagueId ? parseInt(req.query.leagueId as string) : null;
   const playerId = req.query.playerId ? parseInt(req.query.playerId as string) : null;
   const status = (req.query.status as string) ?? null;
 
-  const filters: SQL[] = [];
+  const filters: SQL[] = [scope.matchFilter];
   if (leagueId && !isNaN(leagueId)) filters.push(eq(matchesTable.leagueId, leagueId));
   if (playerId && !isNaN(playerId)) {
     filters.push(
@@ -74,7 +79,7 @@ router.get("/matches", async (req, res) => {
   const rows = await db
     .select()
     .from(matchesTable)
-    .where(filters.length ? and(...filters) : undefined)
+    .where(and(...filters))
     .orderBy(desc(matchesTable.createdAt));
 
   const matchIds = rows.map((m) => m.id);
@@ -225,10 +230,15 @@ router.post("/matches", async (req, res) => {
 });
 
 router.get("/matches/:matchId", async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
   const matchId = parseInt(req.params.matchId);
   if (isNaN(matchId)) return res.status(400).json({ error: "Invalid id" });
   const [match] = await db.select().from(matchesTable).where(eq(matchesTable.id, matchId));
-  if (!match) return res.status(404).json({ error: "Match not found" });
+  // Same answer for a match that doesn't exist and one the caller can't see.
+  if (!match || !canSeeMatch(await readScope(userId, { openLeagues: true }), match)) {
+    return res.status(404).json({ error: "Match not found" });
+  }
   return res.json(await buildMatchResponse(match));
 });
 

@@ -1,6 +1,8 @@
-import { Router } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
+import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
-import { seasonsTable } from "@workspace/db";
+import { leaguesTable, seasonsTable } from "@workspace/db";
+import { canViewLeague, PRIVATE_LEAGUE } from "../lib/leagueAccess.js";
 import { eq, isNull } from "drizzle-orm";
 import { requireAdmin } from "../middlewares/requireAdmin.js";
 import { getSeasonsForLeague, findOverlappingSeason } from "../services/seasonService.js";
@@ -9,6 +11,21 @@ import { logger } from "../lib/logger";
 const router = Router();
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Signed in, and the league is one the caller can see (Private: players and admins only). */
+async function requireViewer(req: Request, res: Response, next: NextFunction) {
+  const { userId } = getAuth(req);
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const leagueId = parseInt(String(req.params.leagueId));
+  if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid leagueId" }); return; }
+  const [league] = await db
+    .select({ id: leaguesTable.id, visibility: leaguesTable.visibility, createdByClerkUserId: leaguesTable.createdByClerkUserId })
+    .from(leaguesTable)
+    .where(eq(leaguesTable.id, leagueId));
+  if (!league) { res.status(404).json({ error: "League not found" }); return; }
+  if (!(await canViewLeague(league, userId))) { res.status(403).json({ error: PRIVATE_LEAGUE }); return; }
+  next();
+}
 
 function formatSeason(s: typeof seasonsTable.$inferSelect) {
   const today = new Date().toISOString().slice(0, 10);
@@ -25,8 +42,8 @@ function formatSeason(s: typeof seasonsTable.$inferSelect) {
 }
 
 // GET /leagues/:leagueId/seasons — list seasons visible to this league (own + global)
-router.get("/leagues/:leagueId/seasons", async (req, res) => {
-  const leagueId = parseInt(req.params.leagueId);
+router.get("/leagues/:leagueId/seasons", requireViewer, async (req, res) => {
+  const leagueId = parseInt(String(req.params.leagueId));
   if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid leagueId" });
 
   try {
@@ -39,8 +56,8 @@ router.get("/leagues/:leagueId/seasons", async (req, res) => {
 });
 
 // GET /leagues/:leagueId/seasons/active — get the currently active season
-router.get("/leagues/:leagueId/seasons/active", async (req, res) => {
-  const leagueId = parseInt(req.params.leagueId);
+router.get("/leagues/:leagueId/seasons/active", requireViewer, async (req, res) => {
+  const leagueId = parseInt(String(req.params.leagueId));
   if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid leagueId" });
 
   const today = new Date().toISOString().slice(0, 10);

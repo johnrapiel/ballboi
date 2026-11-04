@@ -6,7 +6,7 @@ import { shownStats } from "../lib/statGates";
 import { matchesTable, playersTable, leaguesTable, scheduleGenerationLogsTable, ballBoiSessionsTable, matchStatisticsTable, leagueRoundsTable } from "@workspace/db";
 import { eq, and, or, desc, inArray, ne, isNull } from "drizzle-orm";
 import { getPlayerNameMap, getLeagueNameMap, matchPlayerIds } from "../lib/lookups.js";
-import { memberLeagueIds } from "../lib/leagueAccess.js";
+import { readScope } from "../lib/matchAccess.js";
 
 const router = Router();
 
@@ -18,25 +18,12 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
 
 /**
  * What a signed-in person may see in the stats below: matches in leagues they
- * belong to, and matches they played in themselves (D13).
+ * belong to, and matches they played in themselves (D13). Open leagues they
+ * aren't in don't count here.
  */
 async function statsScope(clerkUserId: string) {
-  const [leagueIds, mine] = await Promise.all([
-    memberLeagueIds(clerkUserId),
-    db.select({ id: playersTable.id }).from(playersTable).where(eq(playersTable.clerkUserId, clerkUserId)),
-  ]);
-  const myPlayerIds = mine.map((p) => p.id);
-  // inArray needs at least one id; -1 matches nothing.
-  const leagues = leagueIds.length ? leagueIds : [-1];
-  const players = myPlayerIds.length ? myPlayerIds : [-1];
-  const visibleMatch = or(
-    inArray(matchesTable.leagueId, leagues),
-    inArray(matchesTable.player1Id, players),
-    inArray(matchesTable.player2Id, players),
-    inArray(matchesTable.player3Id, players),
-    inArray(matchesTable.player4Id, players),
-  )!;
-  return { leagueIds, myPlayerIds, visibleMatch };
+  const scope = await readScope(clerkUserId, { openLeagues: false });
+  return { leagueIds: scope.leagueIds, myPlayerIds: scope.myPlayerIds, visibleMatch: scope.matchFilter };
 }
 
 function getLinkedPlayerIdForMatch(

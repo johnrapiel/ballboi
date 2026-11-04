@@ -16,9 +16,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import express from "express";
 import supertest from "supertest";
 
+// Signed in as the player themselves; who-can-see rules have their own tests
+// (playerAccess.test.ts), so the scope here lets this player be seen.
 vi.mock("@clerk/express", () => ({
-  getAuth: (_req: unknown) => ({ userId: null }),
+  getAuth: (_req: unknown) => ({ userId: "user_abc" }),
   clerkMiddleware: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+vi.mock("../lib/matchAccess.js", () => ({
+  readScope: async () => ({ leagueIds: [1], adminLeagueIds: [], myPlayerIds: [42], matchFilter: {} }),
+  canSeePlayer: () => true,
+  canSeeContact: () => true,
 }));
 
 vi.mock("../lib/logger", () => ({

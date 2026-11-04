@@ -31,12 +31,25 @@ export function matchesFilter(row: Row, f: Filter | undefined): boolean {
   }
 }
 
-/** db.select() over `rows[tableName]`, honoring where() filters. */
+function project(row: Row, fields?: Record<string, unknown>): Row {
+  if (!fields) return row;
+  const out: Row = {};
+  for (const [key, col] of Object.entries(fields)) {
+    out[key] = col && typeof col === "object" && "col" in col ? row[(col as Col).col] : undefined;
+  }
+  return out;
+}
+
+/**
+ * db.select(fields?) over `rows[tableName]`, honoring where() filters and
+ * picked fields; db.update(t).set(v).where(f).returning() edits the rows.
+ */
 export function fakeDb(rows: Record<string, Row[]>) {
-  const query = (tableName: string, filter?: Filter) => {
-    const result = () => (rows[tableName] ?? []).filter((r) => matchesFilter(r, filter));
+  const query = (tableName: string, fields?: Record<string, unknown>, filter?: Filter) => {
+    const result = () => (rows[tableName] ?? []).filter((r) => matchesFilter(r, filter)).map((r) => project(r, fields));
     const q: Record<string, unknown> = {
-      where: (f: Filter) => query(tableName, f),
+      where: (f: Filter) => query(tableName, fields, f),
+      leftJoin: () => q,
       orderBy: () => q,
       groupBy: () => q,
       limit: () => q,
@@ -45,7 +58,18 @@ export function fakeDb(rows: Record<string, Row[]>) {
     return q;
   };
   return {
-    select: () => ({ from: (t: { __name: string }) => query(t.__name) }),
+    select: (fields?: Record<string, unknown>) => ({ from: (t: { __name: string }) => query(t.__name, fields) }),
+    update: (t: { __name: string }) => ({
+      set: (values: Row) => ({
+        where: (f: Filter) => ({
+          returning: async () => {
+            const hit = (rows[t.__name] ?? []).filter((r) => matchesFilter(r, f));
+            for (const r of hit) Object.assign(r, values);
+            return hit;
+          },
+        }),
+      }),
+    }),
   };
 }
 

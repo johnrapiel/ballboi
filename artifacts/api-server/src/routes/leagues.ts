@@ -6,7 +6,7 @@ import { CreateLeagueBody, UpdateLeagueBody } from "@workspace/api-zod";
 import { and, eq, count, isNull } from "drizzle-orm";
 import { autoLinkPlayer } from "../lib/autoLinkPlayer.js";
 import { requireAdmin } from "../middlewares/requireAdmin.js";
-import { canViewLeague, isLeagueAdmin, memberLeagueIds } from "../lib/leagueAccess.js";
+import { canViewLeague, isLeagueAdmin, memberLeagueIds, PRIVATE_LEAGUE } from "../lib/leagueAccess.js";
 import { runLeagueDay } from "../services/leagueRounds.js";
 import { logger } from "../lib/logger.js";
 import { getPastSeasonNames } from "../services/seasonService.js";
@@ -20,8 +20,6 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
 }
 
 const router = Router();
-
-const PRIVATE_LEAGUE = "This league is private. Only its players and admins can see it.";
 
 // Signed in only. Lists the caller's own leagues (started, admin of, or a
 // player in). Without `clerkUserId`, Open leagues are listed too; Private
