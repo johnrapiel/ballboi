@@ -6,7 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { UserProfileDominantHand } from "./userProfileDominantHand";
-import type { UserProfileSkillLevel } from "./userProfileSkillLevel";
+import type { UserProfileIntentsItem } from "./userProfileIntentsItem";
+import type { UserProfileRatingSource } from "./userProfileRatingSource";
 
 export interface UserProfile {
   id: number;
@@ -18,11 +19,35 @@ export interface UserProfile {
   phone?: string | null;
   /** @nullable */
   avatarUrl?: string | null;
-  skillLevel: UserProfileSkillLevel;
+  /** Legacy. New profiles get "intermediate"; the player's level is rating. */
+  skillLevel: string;
   dominantHand: UserProfileDominantHand;
   /** @nullable */
   bio?: string | null;
   onboardingComplete: boolean;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Ball Boi Rating (NTRP scale). Null until the quiz or a UTR link sets it.
+   * @nullable
+   */
+  rating?: number | null;
+  /** @nullable */
+  ratingSource?: UserProfileRatingSource;
+  /** @nullable */
+  homeZip?: string | null;
+  /**
+   * Approximate (two decimals), only from Use my location
+   * @nullable
+   */
+  homeLatitude?: number | null;
+  /** @nullable */
+  homeLongitude?: number | null;
+  /**
+   * Legacy single onboarding answer
+   * @nullable
+   */
+  intent?: string | null;
+  /** @nullable */
+  intents?: UserProfileIntentsItem[] | null;
 }

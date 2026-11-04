@@ -12,6 +12,11 @@ Carried over from the original web app's project notes. Describes how the API, s
 - Public routes: /, /sign-in, /sign-up, /join/:code (invite acceptance)
 - Profile onboarding at /onboarding after first sign-up
 
+## API contract
+
+- `lib/api-spec/openapi.yaml` lists every route the app calls, including the ones it calls with `apiFetch` (messages, safety and moderation, bans and appeals, recording, onboarding, push tokens, photos), with the responses the server really sends. Errors are `{ error, code? }` (`ErrorResponse`). After changing the spec, run `pnpm --filter @workspace/api-spec run codegen`.
+- `artifacts/api-server/src/__tests__/apiContract.test.ts` fails when a spec route is missing from the server, when the app calls an address or method the spec doesn't list, or when the generated client wasn't regenerated. It also checks messaging and ban/appeal bodies against the generated schemas.
+
 ## Access rules (Wave 1 review)
 
 - `GET /api/leagues`, `GET /api/leagues/:id`, `/standings`, `/schedule`, `/bracket`, `/seasons` and `/seasons/active` need sign-in. A Private league shows only to its players (current or past) and admins; Open leagues show to anyone signed in. `GET /api/leagues?clerkUserId=` only accepts the caller's own id. The invite join screen uses `GET /api/invites/:code`, which stays open.

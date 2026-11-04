@@ -14,4 +14,5 @@ export const MyMatchItemStatus = {
   in_progress: "in_progress",
   completed: "completed",
   cancelled: "cancelled",
+  voided: "voided",
 } as const;

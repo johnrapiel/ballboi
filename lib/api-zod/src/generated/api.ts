@@ -768,7 +768,13 @@ export const GetPlayerStatsResponse = zod.object({
       player4Id: zod.number().nullish(),
       player4Name: zod.string().nullish(),
       winnerId: zod.number().nullish(),
-      status: zod.enum(["scheduled", "in_progress", "completed", "cancelled"]),
+      status: zod.enum([
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "voided",
+      ]),
       scheduledAt: zod.string().nullish(),
       startedAt: zod.string().nullish(),
       completedAt: zod.string().nullish(),
@@ -785,7 +791,10 @@ export const GetPlayerStatsResponse = zod.object({
       playoffRound: zod.string().nullish(),
       playoffSlot: zod.number().nullish(),
       season: zod.string().nullish(),
-      hasBallBoi: zod.boolean(),
+      hasBallBoi: zod
+        .boolean()
+        .optional()
+        .describe("Only in the GET \/matches list"),
       createdAt: zod.string(),
       updatedAt: zod.string(),
     }),
@@ -1473,6 +1482,35 @@ export const RequestToJoinLeagueParams = zod.object({
 export const RequestToJoinLeagueBody = zod.object({
   playerName: zod.string(),
   skillLevel: zod.string().nullish(),
+});
+
+export const RequestToJoinLeagueResponse = zod.object({
+  id: zod.number(),
+  leagueId: zod.number(),
+  playerName: zod.string().describe("The asker's current profile name"),
+  skillLevel: zod
+    .string()
+    .describe('The asker\'s current profile level, like \"3.5\"'),
+  rating: zod
+    .union([
+      zod
+        .object({
+          rating: zod.number(),
+          source: zod.enum(["self", "verified"]),
+        })
+        .describe(
+          'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+        ),
+      zod.null(),
+    ])
+    .optional()
+    .describe(
+      "The asker's profile level and its source, for the level badge. Null if they haven't set one",
+    ),
+  kind: zod.enum(["request", "waitlist"]),
+  status: zod.enum(["pending", "approved", "declined", "withdrawn"]),
+  createdAt: zod.string(),
+  message: zod.string().optional(),
 });
 
 /**
@@ -2260,7 +2298,13 @@ export const GetMatchesResponseItem = zod.object({
   player4Id: zod.number().nullish(),
   player4Name: zod.string().nullish(),
   winnerId: zod.number().nullish(),
-  status: zod.enum(["scheduled", "in_progress", "completed", "cancelled"]),
+  status: zod.enum([
+    "scheduled",
+    "in_progress",
+    "completed",
+    "cancelled",
+    "voided",
+  ]),
   scheduledAt: zod.string().nullish(),
   startedAt: zod.string().nullish(),
   completedAt: zod.string().nullish(),
@@ -2277,7 +2321,10 @@ export const GetMatchesResponseItem = zod.object({
   playoffRound: zod.string().nullish(),
   playoffSlot: zod.number().nullish(),
   season: zod.string().nullish(),
-  hasBallBoi: zod.boolean(),
+  hasBallBoi: zod
+    .boolean()
+    .optional()
+    .describe("Only in the GET \/matches list"),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -2319,7 +2366,13 @@ export const GetMatchResponse = zod.object({
   player4Id: zod.number().nullish(),
   player4Name: zod.string().nullish(),
   winnerId: zod.number().nullish(),
-  status: zod.enum(["scheduled", "in_progress", "completed", "cancelled"]),
+  status: zod.enum([
+    "scheduled",
+    "in_progress",
+    "completed",
+    "cancelled",
+    "voided",
+  ]),
   scheduledAt: zod.string().nullish(),
   startedAt: zod.string().nullish(),
   completedAt: zod.string().nullish(),
@@ -2336,7 +2389,10 @@ export const GetMatchResponse = zod.object({
   playoffRound: zod.string().nullish(),
   playoffSlot: zod.number().nullish(),
   season: zod.string().nullish(),
-  hasBallBoi: zod.boolean(),
+  hasBallBoi: zod
+    .boolean()
+    .optional()
+    .describe("Only in the GET \/matches list"),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -2383,7 +2439,13 @@ export const UpdateMatchResponse = zod.object({
   player4Id: zod.number().nullish(),
   player4Name: zod.string().nullish(),
   winnerId: zod.number().nullish(),
-  status: zod.enum(["scheduled", "in_progress", "completed", "cancelled"]),
+  status: zod.enum([
+    "scheduled",
+    "in_progress",
+    "completed",
+    "cancelled",
+    "voided",
+  ]),
   scheduledAt: zod.string().nullish(),
   startedAt: zod.string().nullish(),
   completedAt: zod.string().nullish(),
@@ -2400,7 +2462,10 @@ export const UpdateMatchResponse = zod.object({
   playoffRound: zod.string().nullish(),
   playoffSlot: zod.number().nullish(),
   season: zod.string().nullish(),
-  hasBallBoi: zod.boolean(),
+  hasBallBoi: zod
+    .boolean()
+    .optional()
+    .describe("Only in the GET \/matches list"),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -2422,12 +2487,35 @@ export const GetMyProfileResponse = zod.object({
   email: zod.string().nullish(),
   phone: zod.string().nullish(),
   avatarUrl: zod.string().nullish(),
-  skillLevel: zod.enum(["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"]),
+  skillLevel: zod
+    .string()
+    .describe(
+      'Legacy. New profiles get \"intermediate\"; the player\'s level is rating.',
+    ),
   dominantHand: zod.enum(["left", "right"]),
   bio: zod.string().nullish(),
   onboardingComplete: zod.boolean(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
+  rating: zod
+    .number()
+    .nullish()
+    .describe(
+      "Ball Boi Rating (NTRP scale). Null until the quiz or a UTR link sets it.",
+    ),
+  ratingSource: zod
+    .union([zod.literal("self"), zod.literal("verified"), zod.literal(null)])
+    .nullish(),
+  homeZip: zod.string().nullish(),
+  homeLatitude: zod
+    .number()
+    .nullish()
+    .describe("Approximate (two decimals), only from Use my location"),
+  homeLongitude: zod.number().nullish(),
+  intent: zod.string().nullish().describe("Legacy single onboarding answer"),
+  intents: zod
+    .array(zod.enum(["run_league", "join_league", "find_matches", "record"]))
+    .nullish(),
 });
 
 /**
@@ -2451,12 +2539,35 @@ export const UpsertMyProfileResponse = zod.object({
   email: zod.string().nullish(),
   phone: zod.string().nullish(),
   avatarUrl: zod.string().nullish(),
-  skillLevel: zod.enum(["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"]),
+  skillLevel: zod
+    .string()
+    .describe(
+      'Legacy. New profiles get \"intermediate\"; the player\'s level is rating.',
+    ),
   dominantHand: zod.enum(["left", "right"]),
   bio: zod.string().nullish(),
   onboardingComplete: zod.boolean(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
+  rating: zod
+    .number()
+    .nullish()
+    .describe(
+      "Ball Boi Rating (NTRP scale). Null until the quiz or a UTR link sets it.",
+    ),
+  ratingSource: zod
+    .union([zod.literal("self"), zod.literal("verified"), zod.literal(null)])
+    .nullish(),
+  homeZip: zod.string().nullish(),
+  homeLatitude: zod
+    .number()
+    .nullish()
+    .describe("Approximate (two decimals), only from Use my location"),
+  homeLongitude: zod.number().nullish(),
+  intent: zod.string().nullish().describe("Legacy single onboarding answer"),
+  intents: zod
+    .array(zod.enum(["run_league", "join_league", "find_matches", "record"]))
+    .nullish(),
 });
 
 /**
@@ -2480,12 +2591,60 @@ export const UpdateMyProfileResponse = zod.object({
   email: zod.string().nullish(),
   phone: zod.string().nullish(),
   avatarUrl: zod.string().nullish(),
-  skillLevel: zod.enum(["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"]),
+  skillLevel: zod
+    .string()
+    .describe(
+      'Legacy. New profiles get \"intermediate\"; the player\'s level is rating.',
+    ),
   dominantHand: zod.enum(["left", "right"]),
   bio: zod.string().nullish(),
   onboardingComplete: zod.boolean(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
+  rating: zod
+    .number()
+    .nullish()
+    .describe(
+      "Ball Boi Rating (NTRP scale). Null until the quiz or a UTR link sets it.",
+    ),
+  ratingSource: zod
+    .union([zod.literal("self"), zod.literal("verified"), zod.literal(null)])
+    .nullish(),
+  homeZip: zod.string().nullish(),
+  homeLatitude: zod
+    .number()
+    .nullish()
+    .describe("Approximate (two decimals), only from Use my location"),
+  homeLongitude: zod.number().nullish(),
+  intent: zod.string().nullish().describe("Legacy single onboarding answer"),
+  intents: zod
+    .array(zod.enum(["run_league", "join_league", "find_matches", "record"]))
+    .nullish(),
+});
+
+/**
+ * newAdmins names who takes over each league the person runs alone; leagues left out go to the longest-standing member.
+ * @summary Delete the signed-in person's account and personal data. Works while banned.
+ */
+export const DeleteMyAccountBody = zod.object({
+  confirm: zod.enum(["DELETE"]),
+  newAdmins: zod
+    .array(
+      zod.object({
+        leagueId: zod.number(),
+        playerId: zod.number(),
+      }),
+    )
+    .optional(),
+});
+
+export const DeleteMyAccountResponse = zod.object({
+  deleted: zod.literal(true),
+  playersAnonymized: zod.number(),
+  recordingsDeleted: zod.number(),
+  recordingsKeptForOpponents: zod.number(),
+  videosDeleted: zod.number(),
+  videoDeleteFailures: zod.number(),
 });
 
 /**
@@ -2669,6 +2828,43 @@ export const JoinLeagueViaInviteBody = zod.object({
   skillLevel: zod.string().nullish(),
 });
 
+export const JoinLeagueViaInviteResponse = zod.object({
+  player: zod
+    .object({
+      id: zod.number(),
+      name: zod.string(),
+      email: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      skillLevel: zod.enum(["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"]),
+      dominantHand: zod.enum(["left", "right"]),
+      bio: zod.string().nullish(),
+      dayBeforeMatchReminderEnabled: zod.boolean(),
+      leagueId: zod.number().nullish(),
+      wins: zod.number(),
+      losses: zod.number(),
+      createdAt: zod.string(),
+      updatedAt: zod.string(),
+    })
+    .optional(),
+  league: zod.object({
+    id: zod.number().optional(),
+    name: zod.string().optional(),
+  }),
+  message: zod.string(),
+  waitlisted: zod
+    .boolean()
+    .optional()
+    .describe(
+      "True when the season has started or the league is full; no player is created",
+    ),
+  requested: zod
+    .boolean()
+    .optional()
+    .describe(
+      "True when a Private league had started or was full, so the organizer was asked (decision 30); no player is created",
+    ),
+});
+
 /**
  * @summary Get dashboard overview stats
  */
@@ -2694,7 +2890,13 @@ export const GetDashboardStatsResponse = zod.object({
       player4Id: zod.number().nullish(),
       player4Name: zod.string().nullish(),
       winnerId: zod.number().nullish(),
-      status: zod.enum(["scheduled", "in_progress", "completed", "cancelled"]),
+      status: zod.enum([
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "voided",
+      ]),
       scheduledAt: zod.string().nullish(),
       startedAt: zod.string().nullish(),
       completedAt: zod.string().nullish(),
@@ -2711,7 +2913,10 @@ export const GetDashboardStatsResponse = zod.object({
       playoffRound: zod.string().nullish(),
       playoffSlot: zod.number().nullish(),
       season: zod.string().nullish(),
-      hasBallBoi: zod.boolean(),
+      hasBallBoi: zod
+        .boolean()
+        .optional()
+        .describe("Only in the GET \/matches list"),
       createdAt: zod.string(),
       updatedAt: zod.string(),
     }),
@@ -2776,7 +2981,13 @@ export const GetMyMatchesResponse = zod.object({
       opponentId: zod.number(),
       opponentName: zod.string(),
       scheduledAt: zod.string().nullish(),
-      status: zod.enum(["scheduled", "in_progress", "completed", "cancelled"]),
+      status: zod.enum([
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "voided",
+      ]),
       leagueId: zod.number().nullish(),
       leagueName: zod.string().nullish(),
       location: zod.string().nullish(),
@@ -2800,7 +3011,13 @@ export const GetMyMatchesResponse = zod.object({
       opponentId: zod.number(),
       opponentName: zod.string(),
       scheduledAt: zod.string().nullish(),
-      status: zod.enum(["scheduled", "in_progress", "completed", "cancelled"]),
+      status: zod.enum([
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "voided",
+      ]),
       leagueId: zod.number().nullish(),
       leagueName: zod.string().nullish(),
       location: zod.string().nullish(),
@@ -2838,7 +3055,7 @@ export const GetMyScheduleResponse = zod.object({
       location: zod.string().nullish(),
       score: zod.string().nullish(),
       winnerId: zod.number().nullish(),
-      hasBallBoiReplay: zod.boolean(),
+      hasBallBoiReplay: zod.boolean().optional(),
       ballBoiProcessingStatus: zod.string().nullish(),
       ballBoiShotCount: zod.number().nullish(),
       ballBoiAvgShotSpeedMph: zod.number().nullish(),
@@ -2877,7 +3094,13 @@ export const GetHeadToHeadResponse = zod.object({
       player4Id: zod.number().nullish(),
       player4Name: zod.string().nullish(),
       winnerId: zod.number().nullish(),
-      status: zod.enum(["scheduled", "in_progress", "completed", "cancelled"]),
+      status: zod.enum([
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "voided",
+      ]),
       scheduledAt: zod.string().nullish(),
       startedAt: zod.string().nullish(),
       completedAt: zod.string().nullish(),
@@ -2894,7 +3117,10 @@ export const GetHeadToHeadResponse = zod.object({
       playoffRound: zod.string().nullish(),
       playoffSlot: zod.number().nullish(),
       season: zod.string().nullish(),
-      hasBallBoi: zod.boolean(),
+      hasBallBoi: zod
+        .boolean()
+        .optional()
+        .describe("Only in the GET \/matches list"),
       createdAt: zod.string(),
       updatedAt: zod.string(),
     }),
@@ -3000,7 +3226,13 @@ export const GetBallBoiReplayResponse = zod.object({
     player4Id: zod.number().nullish(),
     player4Name: zod.string().nullish(),
     winnerId: zod.number().nullish(),
-    status: zod.enum(["scheduled", "in_progress", "completed", "cancelled"]),
+    status: zod.enum([
+      "scheduled",
+      "in_progress",
+      "completed",
+      "cancelled",
+      "voided",
+    ]),
     scheduledAt: zod.string().nullish(),
     startedAt: zod.string().nullish(),
     completedAt: zod.string().nullish(),
@@ -3017,7 +3249,10 @@ export const GetBallBoiReplayResponse = zod.object({
     playoffRound: zod.string().nullish(),
     playoffSlot: zod.number().nullish(),
     season: zod.string().nullish(),
-    hasBallBoi: zod.boolean(),
+    hasBallBoi: zod
+      .boolean()
+      .optional()
+      .describe("Only in the GET \/matches list"),
     createdAt: zod.string(),
     updatedAt: zod.string(),
   }),
@@ -3189,7 +3424,13 @@ export const GetMatchScopedBallBoiReplayResponse = zod.object({
     player4Id: zod.number().nullish(),
     player4Name: zod.string().nullish(),
     winnerId: zod.number().nullish(),
-    status: zod.enum(["scheduled", "in_progress", "completed", "cancelled"]),
+    status: zod.enum([
+      "scheduled",
+      "in_progress",
+      "completed",
+      "cancelled",
+      "voided",
+    ]),
     scheduledAt: zod.string().nullish(),
     startedAt: zod.string().nullish(),
     completedAt: zod.string().nullish(),
@@ -3206,7 +3447,10 @@ export const GetMatchScopedBallBoiReplayResponse = zod.object({
     playoffRound: zod.string().nullish(),
     playoffSlot: zod.number().nullish(),
     season: zod.string().nullish(),
-    hasBallBoi: zod.boolean(),
+    hasBallBoi: zod
+      .boolean()
+      .optional()
+      .describe("Only in the GET \/matches list"),
     createdAt: zod.string(),
     updatedAt: zod.string(),
   }),
@@ -3754,7 +3998,13 @@ export const GetBallBoiReplayMetadataResponse = zod.object({
       player4Id: zod.number().nullish(),
       player4Name: zod.string().nullish(),
       winnerId: zod.number().nullish(),
-      status: zod.enum(["scheduled", "in_progress", "completed", "cancelled"]),
+      status: zod.enum([
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "voided",
+      ]),
       scheduledAt: zod.string().nullish(),
       startedAt: zod.string().nullish(),
       completedAt: zod.string().nullish(),
@@ -3771,7 +4021,10 @@ export const GetBallBoiReplayMetadataResponse = zod.object({
       playoffRound: zod.string().nullish(),
       playoffSlot: zod.number().nullish(),
       season: zod.string().nullish(),
-      hasBallBoi: zod.boolean(),
+      hasBallBoi: zod
+        .boolean()
+        .optional()
+        .describe("Only in the GET \/matches list"),
       createdAt: zod.string(),
       updatedAt: zod.string(),
     }),
@@ -3810,4 +4063,944 @@ export const GetBallBoiNarrativeParams = zod.object({
 export const GetBallBoiNarrativeResponse = zod.object({
   sessionId: zod.number(),
   narrative: zod.string().nullable(),
+});
+
+/**
+ * @summary Save the home area: a 5-digit zip, with approximate coordinates when the player used their location
+ */
+export const updateMyHomeAreaBodyZipRegExp = new RegExp("^\\d{5}$");
+
+export const UpdateMyHomeAreaBody = zod
+  .object({
+    zip: zod.string().regex(updateMyHomeAreaBodyZipRegExp),
+    latitude: zod.number().nullish(),
+    longitude: zod.number().nullish(),
+  })
+  .describe("Send both coordinates or neither.");
+
+export const UpdateMyHomeAreaResponse = zod.object({
+  id: zod.number(),
+  clerkUserId: zod.string(),
+  displayName: zod.string(),
+  email: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  avatarUrl: zod.string().nullish(),
+  skillLevel: zod
+    .string()
+    .describe(
+      'Legacy. New profiles get \"intermediate\"; the player\'s level is rating.',
+    ),
+  dominantHand: zod.enum(["left", "right"]),
+  bio: zod.string().nullish(),
+  onboardingComplete: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+  rating: zod
+    .number()
+    .nullish()
+    .describe(
+      "Ball Boi Rating (NTRP scale). Null until the quiz or a UTR link sets it.",
+    ),
+  ratingSource: zod
+    .union([zod.literal("self"), zod.literal("verified"), zod.literal(null)])
+    .nullish(),
+  homeZip: zod.string().nullish(),
+  homeLatitude: zod
+    .number()
+    .nullish()
+    .describe("Approximate (two decimals), only from Use my location"),
+  homeLongitude: zod.number().nullish(),
+  intent: zod.string().nullish().describe("Legacy single onboarding answer"),
+  intents: zod
+    .array(zod.enum(["run_league", "join_league", "find_matches", "record"]))
+    .nullish(),
+});
+
+/**
+ * @summary Save what the player wants to do on Ball Boi (zero or more picks) and finish onboarding
+ */
+export const UpdateMyIntentsBody = zod.object({
+  intents: zod.array(
+    zod.enum(["run_league", "join_league", "find_matches", "record"]),
+  ),
+});
+
+export const UpdateMyIntentsResponse = zod.object({
+  id: zod.number(),
+  clerkUserId: zod.string(),
+  displayName: zod.string(),
+  email: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  avatarUrl: zod.string().nullish(),
+  skillLevel: zod
+    .string()
+    .describe(
+      'Legacy. New profiles get \"intermediate\"; the player\'s level is rating.',
+    ),
+  dominantHand: zod.enum(["left", "right"]),
+  bio: zod.string().nullish(),
+  onboardingComplete: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+  rating: zod
+    .number()
+    .nullish()
+    .describe(
+      "Ball Boi Rating (NTRP scale). Null until the quiz or a UTR link sets it.",
+    ),
+  ratingSource: zod
+    .union([zod.literal("self"), zod.literal("verified"), zod.literal(null)])
+    .nullish(),
+  homeZip: zod.string().nullish(),
+  homeLatitude: zod
+    .number()
+    .nullish()
+    .describe("Approximate (two decimals), only from Use my location"),
+  homeLongitude: zod.number().nullish(),
+  intent: zod.string().nullish().describe("Legacy single onboarding answer"),
+  intents: zod
+    .array(zod.enum(["run_league", "join_league", "find_matches", "record"]))
+    .nullish(),
+});
+
+/**
+ * @summary Set the player's level from the onboarding quiz, labeled Self-rated
+ */
+export const SetMySelfRatingBody = zod.object({
+  rating: zod.union([
+    zod.literal(2.5),
+    zod.literal(3),
+    zod.literal(3.5),
+    zod.literal(4),
+    zod.literal(4.5),
+  ]),
+});
+
+export const SetMySelfRatingResponse = zod.object({
+  rating: zod.number().nullable(),
+  source: zod
+    .union([zod.literal("self"), zod.literal("verified"), zod.literal(null)])
+    .nullable(),
+});
+
+/**
+ * @summary Leagues the person runs alone, with the members who could take over (Delete account screen)
+ */
+export const GetMyLeagueHandoffResponse = zod.object({
+  leagues: zod.array(
+    zod.object({
+      leagueId: zod.number(),
+      name: zod.string(),
+      members: zod.array(
+        zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          joinedAt: zod.string().describe("ISO 8601 date and time"),
+        }),
+      ),
+    }),
+  ),
+});
+
+/**
+ * @summary Register this phone's Expo push token for the signed-in person
+ */
+export const RegisterExpoPushTokenBody = zod.object({
+  token: zod.string(),
+});
+
+export const RegisterExpoPushTokenResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Stop sending pushes to this phone's Expo token
+ */
+export const UnregisterExpoPushTokenBody = zod.object({
+  token: zod.string(),
+});
+
+export const UnregisterExpoPushTokenResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Whether the person has a phone registered for pushes
+ */
+export const GetExpoPushTokenStatusResponse = zod.object({
+  registered: zod.boolean(),
+});
+
+/**
+ * @summary Get a one-time address to upload a profile photo to (images up to 10 MB)
+ */
+export const RequestProfilePhotoUploadUrlBody = zod.object({
+  name: zod.string(),
+  size: zod.number(),
+  contentType: zod.string(),
+});
+
+export const RequestProfilePhotoUploadUrlResponse = zod.object({
+  uploadURL: zod.string(),
+  objectPath: zod.string(),
+  metadata: zod.object({
+    name: zod.string(),
+    size: zod.number(),
+    contentType: zod.string(),
+  }),
+});
+
+/**
+ * @summary Load an uploaded file, such as a profile photo. Needs sign-in (A17); the app sends its sign-in header with photo loads.
+ */
+export const GetStorageObjectParams = zod.object({
+  objectPath: zod.coerce
+    .string()
+    .describe(
+      "The rest of the path after \/storage\/objects\/, slashes included",
+    ),
+});
+
+/**
+ * @summary Players the person has blocked, newest first
+ */
+export const GetMyBlocksResponseItem = zod.object({
+  playerId: zod.number().nullable(),
+  name: zod.string(),
+  avatarUrl: zod.string().nullable(),
+  blockedAt: zod.string().describe("ISO 8601 date and time"),
+});
+export const GetMyBlocksResponse = zod.array(GetMyBlocksResponseItem);
+
+/**
+ * @summary Block a player's account
+ */
+export const BlockPlayerParams = zod.object({
+  playerId: zod.coerce.number(),
+});
+
+/**
+ * @summary Unblock a player
+ */
+export const UnblockPlayerParams = zod.object({
+  playerId: zod.coerce.number(),
+});
+
+/**
+ * @summary Report a player, league, recording or match. Messages are reported from the conversation.
+ */
+export const createReportBodyTargetIdMax = 100;
+
+export const CreateReportBody = zod.object({
+  targetType: zod.enum(["player", "league", "ball_boi_session", "match"]),
+  targetId: zod.string().max(createReportBodyTargetIdMax),
+  reason: zod.enum([
+    "harassment",
+    "inappropriate_content",
+    "impersonation",
+    "spam",
+    "cheating",
+    "other",
+  ]),
+  details: zod.string().nullish().describe("Kept to 1000 characters"),
+});
+
+/**
+ * @summary The reports queue: open reports oldest first, closed ones newest first
+ */
+export const getAdminReportsQueryStatusDefault = `open`;
+
+export const GetAdminReportsQueryParams = zod.object({
+  status: zod
+    .enum(["open", "reviewed", "actioned", "dismissed"])
+    .default(getAdminReportsQueryStatusDefault),
+});
+
+export const GetAdminReportsResponseItem = zod
+  .object({
+    id: zod.number(),
+    reporterClerkUserId: zod.string().nullable(),
+    targetType: zod.string(),
+    targetId: zod.string(),
+    reason: zod.string(),
+    details: zod.string().nullable(),
+    status: zod.enum(["open", "reviewed", "actioned", "dismissed"]),
+    source: zod.enum(["user", "auto", "stream", "appeal"]),
+    subjectClerkUserId: zod.string().nullable(),
+    createdAt: zod.string().describe("ISO 8601 date and time"),
+    reviewedAt: zod.string().nullable().describe("ISO 8601 date and time"),
+  })
+  .and(
+    zod.object({
+      subjectName: zod.string().nullable(),
+      snapshot: zod.union([
+        zod.object({
+          conversationId: zod.number().nullable(),
+          messages: zod.array(
+            zod.object({
+              id: zod.string(),
+              senderClerkUserId: zod.string(),
+              senderName: zod.string(),
+              text: zod.string(),
+              at: zod.string(),
+              reported: zod.boolean(),
+            }),
+          ),
+        }),
+        zod.null(),
+      ]),
+    }),
+  );
+export const GetAdminReportsResponse = zod.array(GetAdminReportsResponseItem);
+
+/**
+ * @summary One report, with the conversation snapshot for a message report
+ */
+export const GetAdminReportParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetAdminReportResponse = zod
+  .object({
+    id: zod.number(),
+    reporterClerkUserId: zod.string().nullable(),
+    targetType: zod.string(),
+    targetId: zod.string(),
+    reason: zod.string(),
+    details: zod.string().nullable(),
+    status: zod.enum(["open", "reviewed", "actioned", "dismissed"]),
+    source: zod.enum(["user", "auto", "stream", "appeal"]),
+    subjectClerkUserId: zod.string().nullable(),
+    createdAt: zod.string().describe("ISO 8601 date and time"),
+    reviewedAt: zod.string().nullable().describe("ISO 8601 date and time"),
+  })
+  .and(
+    zod.object({
+      subjectName: zod.string().nullable(),
+      snapshot: zod.union([
+        zod.object({
+          conversationId: zod.number().nullable(),
+          messages: zod.array(
+            zod.object({
+              id: zod.string(),
+              senderClerkUserId: zod.string(),
+              senderName: zod.string(),
+              text: zod.string(),
+              at: zod.string(),
+              reported: zod.boolean(),
+            }),
+          ),
+        }),
+        zod.null(),
+      ]),
+    }),
+  );
+
+/**
+ * @summary Set a report's status
+ */
+export const UpdateAdminReportParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateAdminReportBody = zod.object({
+  status: zod.enum(["open", "reviewed", "actioned", "dismissed"]),
+});
+
+export const UpdateAdminReportResponse = zod.object({
+  id: zod.number(),
+  reporterClerkUserId: zod.string().nullable(),
+  targetType: zod.string(),
+  targetId: zod.string(),
+  reason: zod.string(),
+  details: zod.string().nullable(),
+  status: zod.enum(["open", "reviewed", "actioned", "dismissed"]),
+  source: zod.enum(["user", "auto", "stream", "appeal"]),
+  subjectClerkUserId: zod.string().nullable(),
+  createdAt: zod.string().describe("ISO 8601 date and time"),
+  reviewedAt: zod.string().nullable().describe("ISO 8601 date and time"),
+});
+
+/**
+ * @summary What the moderation agent did, for the moderator to confirm or undo
+ */
+export const getAgentDecisionsQueryPendingDefault = `true`;
+
+export const GetAgentDecisionsQueryParams = zod.object({
+  pending: zod
+    .enum(["true", "false"])
+    .default(getAgentDecisionsQueryPendingDefault)
+    .describe("false lists every decision, not only the ones waiting"),
+});
+
+export const GetAgentDecisionsResponseItem = zod.object({
+  id: zod.number(),
+  reportId: zod.number(),
+  action: zod.string(),
+  reason: zod.string(),
+  messageId: zod.string().nullish(),
+  subjectClerkUserId: zod.string().nullish(),
+  restrictionId: zod.number().nullish(),
+  previousStatus: zod.string(),
+  model: zod.string(),
+  createdAt: zod.string().describe("ISO 8601 date and time"),
+  confirmedAt: zod.string().nullable().describe("ISO 8601 date and time"),
+  undoneAt: zod.string().nullable().describe("ISO 8601 date and time"),
+  reviewedBy: zod.string().nullish(),
+});
+export const GetAgentDecisionsResponse = zod.array(
+  GetAgentDecisionsResponseItem,
+);
+
+/**
+ * @summary Confirm or undo one of the agent's decisions
+ */
+export const ReviewAgentDecisionParams = zod.object({
+  id: zod.coerce.number(),
+  verb: zod.enum(["confirm", "undo"]),
+});
+
+export const ReviewAgentDecisionResponse = zod.object({
+  id: zod.number(),
+  reportId: zod.number(),
+  action: zod.string(),
+  reason: zod.string(),
+  messageId: zod.string().nullish(),
+  subjectClerkUserId: zod.string().nullish(),
+  restrictionId: zod.number().nullish(),
+  previousStatus: zod.string(),
+  model: zod.string(),
+  createdAt: zod.string().describe("ISO 8601 date and time"),
+  confirmedAt: zod.string().nullable().describe("ISO 8601 date and time"),
+  undoneAt: zod.string().nullable().describe("ISO 8601 date and time"),
+  reviewedBy: zod.string().nullish(),
+});
+
+/**
+ * @summary Hide a message from both people, or show it again with hidden false
+ */
+export const HideMessageParams = zod.object({
+  messageId: zod.coerce.string(),
+});
+
+export const hideMessageBodyHiddenDefault = true;
+
+export const HideMessageBody = zod.object({
+  hidden: zod.boolean().default(hideMessageBodyHiddenDefault),
+});
+
+export const HideMessageResponse = zod.object({
+  messageId: zod.string(),
+  hidden: zod.boolean(),
+});
+
+/**
+ * @summary Stop an account from starting new conversations while it's reviewed
+ */
+export const RestrictAccountParams = zod.object({
+  clerkUserId: zod.coerce.string(),
+});
+
+export const RestrictAccountBody = zod.object({
+  reason: zod.string().optional(),
+  reportId: zod.number().optional(),
+});
+
+/**
+ * @summary Ban an account, with its Apple ID and emails
+ */
+export const BanAccountParams = zod.object({
+  clerkUserId: zod.coerce.string(),
+});
+
+export const banAccountBodyDaysMax = 90;
+
+export const BanAccountBody = zod.object({
+  reason: zod.string(),
+  days: zod
+    .number()
+    .min(1)
+    .max(banAccountBodyDaysMax)
+    .optional()
+    .describe("Suspensions only"),
+  reportId: zod.number().optional(),
+});
+
+/**
+ * @summary Suspend an account for 1 to 90 days
+ */
+export const SuspendAccountParams = zod.object({
+  clerkUserId: zod.coerce.string(),
+});
+
+export const suspendAccountBodyDaysMax = 90;
+
+export const SuspendAccountBody = zod.object({
+  reason: zod.string(),
+  days: zod
+    .number()
+    .min(1)
+    .max(suspendAccountBodyDaysMax)
+    .optional()
+    .describe("Suspensions only"),
+  reportId: zod.number().optional(),
+});
+
+/**
+ * @summary Ban and suspension appeals, with the sanction and the person's name
+ */
+export const getAppealsQueryOpenDefault = `true`;
+
+export const GetAppealsQueryParams = zod.object({
+  open: zod
+    .enum(["true", "false"])
+    .default(getAppealsQueryOpenDefault)
+    .describe("false lists decided appeals too"),
+});
+
+export const GetAppealsResponseItem = zod
+  .object({
+    id: zod.number(),
+    sanctionId: zod.number(),
+    clerkUserId: zod.string(),
+    reportId: zod.number().nullish(),
+    createdAt: zod.string().describe("ISO 8601 date and time"),
+    outcome: zod
+      .union([
+        zod.literal("upheld"),
+        zod.literal("overturned"),
+        zod.literal(null),
+      ])
+      .nullable(),
+    note: zod.string().nullish(),
+    decidedAt: zod.string().nullable().describe("ISO 8601 date and time"),
+    decidedBy: zod.string().nullish(),
+  })
+  .and(
+    zod.object({
+      reference: zod
+        .string()
+        .describe("Like BB-00012, from the appeal email's subject"),
+      name: zod.string().nullable(),
+      sanction: zod.union([
+        zod.object({
+          id: zod.number(),
+          kind: zod.enum(["ban", "suspend"]),
+          reason: zod.string(),
+          endsAt: zod.string().nullable().describe("ISO 8601 date and time"),
+          liftedAt: zod.string().nullable().describe("ISO 8601 date and time"),
+          createdAt: zod.string().describe("ISO 8601 date and time"),
+        }),
+        zod.null(),
+      ]),
+    }),
+  );
+export const GetAppealsResponse = zod.array(GetAppealsResponseItem);
+
+/**
+ * @summary Uphold or overturn an appeal. Overturning lifts the sanction.
+ */
+export const DecideAppealParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DecideAppealBody = zod.object({
+  outcome: zod.enum(["upheld", "overturned"]),
+  note: zod.string().optional(),
+});
+
+export const DecideAppealResponse = zod.object({
+  appeal: zod.object({
+    id: zod.number(),
+    sanctionId: zod.number(),
+    clerkUserId: zod.string(),
+    reportId: zod.number().nullish(),
+    createdAt: zod.string().describe("ISO 8601 date and time"),
+    outcome: zod
+      .union([
+        zod.literal("upheld"),
+        zod.literal("overturned"),
+        zod.literal(null),
+      ])
+      .nullable(),
+    note: zod.string().nullish(),
+    decidedAt: zod.string().nullable().describe("ISO 8601 date and time"),
+    decidedBy: zod.string().nullish(),
+  }),
+});
+
+/**
+ * @summary Whether the signed-in person is the app's moderator, for showing Moderation
+ */
+export const GetAdminMeResponse = zod.object({
+  admin: zod.boolean(),
+});
+
+/**
+ * @summary Whether the account is banned or suspended, shown right after sign-in. Works while banned.
+ */
+export const GetAccountStatusResponse = zod.object({
+  status: zod.enum(["ok", "banned", "suspended"]),
+  endsAt: zod.string().nullable().describe("Suspensions only"),
+  appeal: zod.union([
+    zod.object({
+      submittedAt: zod.string().describe("ISO 8601 date and time"),
+      outcome: zod
+        .union([
+          zod.literal("upheld"),
+          zod.literal("overturned"),
+          zod.literal(null),
+        ])
+        .nullable(),
+    }),
+    zod.null(),
+  ]),
+  canAppeal: zod.boolean(),
+  supportEmail: zod.string(),
+  appealReference: zod.string().nullable(),
+});
+
+/**
+ * @summary The inbox or the requests box, with unread and request counts
+ */
+export const getConversationsQueryBoxDefault = `messages`;
+
+export const GetConversationsQueryParams = zod.object({
+  box: zod
+    .enum(["messages", "requests"])
+    .default(getConversationsQueryBoxDefault),
+});
+
+export const GetConversationsResponse = zod
+  .object({
+    unread: zod.number(),
+    requests: zod.number(),
+  })
+  .and(
+    zod.object({
+      conversations: zod.array(
+        zod.object({
+          id: zod.number(),
+          state: zod.enum(["active", "awaiting_reply", "request"]),
+          other: zod.object({
+            name: zod.string(),
+            playerId: zod.number().nullable(),
+          }),
+          lastMessage: zod.union([
+            zod.object({
+              text: zod.string(),
+              fromMe: zod.boolean(),
+              at: zod.string(),
+            }),
+            zod.null(),
+          ]),
+          unread: zod.number(),
+          canSend: zod.boolean(),
+          sendBlockedReason: zod
+            .string()
+            .nullable()
+            .describe("Why the composer is off, in plain words"),
+        }),
+      ),
+    }),
+  );
+
+/**
+ * @summary Send a first message to a player. Someone outside your leagues gets it as a request.
+ */
+export const StartConversationBody = zod.object({
+  playerId: zod.number(),
+  text: zod.string(),
+  clientMessageId: zod.string().optional(),
+});
+
+/**
+ * @summary Unread messages and waiting requests, for the badge
+ */
+export const GetMessagesSummaryResponse = zod.object({
+  unread: zod.number(),
+  requests: zod.number(),
+});
+
+/**
+ * @summary People the person can message: league mates and past opponents, without blocked ones
+ */
+export const GetMessageContactsResponse = zod.object({
+  contacts: zod.array(
+    zod.object({
+      name: zod.string(),
+      playerId: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary The conversation with a player, if there is one
+ */
+export const GetConversationWithPlayerParams = zod.object({
+  playerId: zod.coerce.string(),
+});
+
+export const GetConversationWithPlayerResponse = zod.object({
+  conversationId: zod.number().nullable(),
+});
+
+/**
+ * @summary A conversation's latest messages, or older ones with before. Marks it read.
+ */
+export const GetConversationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetConversationQueryParams = zod.object({
+  before: zod.coerce
+    .string()
+    .optional()
+    .describe("olderCursor from the previous page"),
+});
+
+export const GetConversationResponse = zod.object({
+  conversation: zod.object({
+    id: zod.number(),
+    state: zod.enum(["active", "awaiting_reply", "request"]),
+    other: zod.object({
+      name: zod.string(),
+      playerId: zod.number().nullable(),
+    }),
+    lastMessage: zod.union([
+      zod.object({
+        text: zod.string(),
+        fromMe: zod.boolean(),
+        at: zod.string(),
+      }),
+      zod.null(),
+    ]),
+    unread: zod.number(),
+    canSend: zod.boolean(),
+    sendBlockedReason: zod
+      .string()
+      .nullable()
+      .describe("Why the composer is off, in plain words"),
+  }),
+  messages: zod.array(
+    zod.object({
+      id: zod.string(),
+      text: zod.string(),
+      fromMe: zod.boolean(),
+      at: zod.string(),
+    }),
+  ),
+  olderCursor: zod.string().nullable(),
+});
+
+/**
+ * @summary Send a message in a conversation
+ */
+export const SendMessageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SendMessageBody = zod.object({
+  text: zod.string(),
+  clientMessageId: zod
+    .string()
+    .optional()
+    .describe("Lets a retried send come back as the same message"),
+});
+
+/**
+ * @summary Decline a message request
+ */
+export const DeclineMessageRequestParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Report a message. A snapshot of the conversation goes with the report.
+ */
+export const ReportMessageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ReportMessageBody = zod.object({
+  messageId: zod.string(),
+  reason: zod.enum([
+    "harassment",
+    "inappropriate_content",
+    "impersonation",
+    "spam",
+    "cheating",
+    "other",
+  ]),
+  details: zod.string().nullish(),
+});
+
+/**
+ * @summary Whether the person agreed to recording, and whether their video may train Ball Boi
+ */
+export const GetRecordingConsentResponse = zod.object({
+  consented: zod.boolean(),
+  consentedAt: zod.string().nullable().describe("ISO 8601 date and time"),
+  trainingEnabled: zod.boolean(),
+});
+
+/**
+ * @summary Agree to recording on the first-recording screen, with the training choice
+ */
+export const GiveRecordingConsentBody = zod.object({
+  trainingEnabled: zod.boolean(),
+});
+
+export const GiveRecordingConsentResponse = zod.object({
+  consented: zod.boolean(),
+  consentedAt: zod.string().nullable().describe("ISO 8601 date and time"),
+  trainingEnabled: zod.boolean(),
+});
+
+/**
+ * @summary Change whether the person's video may train Ball Boi
+ */
+export const SetRecordingTrainingBody = zod.object({
+  trainingEnabled: zod.boolean(),
+});
+
+export const SetRecordingTrainingResponse = zod.object({
+  consented: zod.boolean(),
+  consentedAt: zod.string().nullable().describe("ISO 8601 date and time"),
+  trainingEnabled: zod.boolean(),
+});
+
+/**
+ * @summary Players to pick for a Quick match: league mates and past opponents
+ */
+export const GetRecordingOpponentsResponseItem = zod.object({
+  playerId: zod.number(),
+  name: zod.string(),
+});
+export const GetRecordingOpponentsResponse = zod.array(
+  GetRecordingOpponentsResponseItem,
+);
+
+/**
+ * @summary Start a Quick match against a picked player, or a typed name (which makes an invite link)
+ */
+export const createQuickMatchBodyFormatDefault = `singles`;
+
+export const CreateQuickMatchBody = zod
+  .object({
+    format: zod
+      .enum(["singles", "doubles"])
+      .default(createQuickMatchBodyFormatDefault)
+      .describe("Doubles is refused for now"),
+    opponentPlayerId: zod.number().optional(),
+    opponentName: zod.string().optional(),
+  })
+  .describe("Send opponentPlayerId or opponentName, not both.");
+
+/**
+ * @summary Enter a Quick match's score from your side. The first score entered stands.
+ */
+export const ScoreQuickMatchParams = zod.object({
+  matchId: zod.coerce.number(),
+});
+
+export const ScoreQuickMatchBody = zod.object({
+  score: zod.string().describe("Sets from your side, like 6-4, 3-6, 10-8"),
+});
+
+export const ScoreQuickMatchResponse = zod.object({
+  matchId: zod.number(),
+  score: zod.string(),
+});
+
+/**
+ * @summary A Quick match invite link: who recorded it and who it's for
+ */
+export const GetRecordingInviteParams = zod.object({
+  code: zod.coerce.string(),
+});
+
+export const GetRecordingInviteResponse = zod.object({
+  code: zod.string(),
+  recorderName: zod.string(),
+  yourName: zod.string(),
+  recordedAt: zod.string(),
+  claimed: zod.boolean(),
+  claimedByYou: zod.boolean(),
+  isYourInvite: zod.boolean(),
+});
+
+/**
+ * @summary Add a Quick match from an invite link to your account
+ */
+export const ClaimRecordingInviteParams = zod.object({
+  code: zod.coerce.string(),
+});
+
+export const ClaimRecordingInviteBody = zod.object({
+  trainingEnabled: zod.boolean(),
+});
+
+export const ClaimRecordingInviteResponse = zod.object({
+  matchId: zod.number(),
+});
+
+/**
+ * @summary Matches the person can record in the window (the phone's local day), most fitting first
+ */
+export const GetTodaysRecordableMatchesQueryParams = zod.object({
+  from: zod.coerce.string(),
+  to: zod.coerce.string(),
+});
+
+export const GetTodaysRecordableMatchesResponseItem = zod.object({
+  id: zod.number(),
+  scheduledAt: zod.string().nullable(),
+  location: zod.string().nullable(),
+  leagueId: zod.number().nullable(),
+  leagueName: zod.string().nullable(),
+  format: zod.enum(["singles", "doubles"]),
+  opponentName: zod.string(),
+  partnerName: zod.string().nullable(),
+  playBy: zod
+    .string()
+    .nullable()
+    .describe("Last day to play (YYYY-MM-DD, the league's zone)"),
+  timeZone: zod.string().nullable(),
+});
+export const GetTodaysRecordableMatchesResponse = zod.array(
+  GetTodaysRecordableMatchesResponseItem,
+);
+
+/**
+ * @summary The person's recordings, newest first, with where each one is
+ */
+export const GetMyRecordingsResponseItem = zod.object({
+  sessionId: zod.number(),
+  matchId: zod.number(),
+  opponentName: zod.string(),
+  recordedAt: zod.string().describe("ISO 8601 date and time"),
+  stage: zod.enum(["uploading", "analyzing", "ready", "failed"]),
+  scoreEntered: zod.boolean(),
+});
+export const GetMyRecordingsResponse = zod.array(GetMyRecordingsResponseItem);
+
+/**
+ * @summary Count that someone saw the doubles-is-coming note on a doubles match, once per match
+ */
+export const LogDoublesViewBody = zod.object({
+  matchId: zod.number(),
+});
+
+/**
+ * @summary Discard a recording that never uploaded, and a Quick match with nothing else in it
+ */
+export const DiscardRecordingBody = zod.object({
+  matchId: zod.number(),
+  sessionId: zod.number().optional(),
+});
+
+export const DiscardRecordingResponse = zod.object({
+  sessionDeleted: zod.boolean(),
+  matchRemoved: zod.boolean(),
 });
