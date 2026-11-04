@@ -1,9 +1,8 @@
-import { useAuth, useUser } from "@clerk/expo";
-import { Redirect, Stack } from "expo-router";
+import { Stack } from "expo-router";
 import React from "react";
 
 import { useColors } from "@/hooks/useColors";
-import { isAgeCheckPassed } from "@/lib/ageCheck";
+import { useGate } from "@/hooks/useGate";
 
 // Onboarding steps 3 to 6 (spec: Roles and onboarding): name and photo, home
 // area, rating quiz, "What brings you here?". Standard iOS stack: back at the
@@ -12,13 +11,12 @@ import { isAgeCheckPassed } from "@/lib/ageCheck";
 
 export default function OnboardingLayout() {
   const c = useColors();
-  const { isLoaded, isSignedIn } = useAuth();
-  const { user } = useUser();
+  const gate = useGate();
 
-  if (!isLoaded) return null;
-  if (!isSignedIn) return <Redirect href="/(auth)/welcome" />;
-  if (!user) return null;
-  if (!isAgeCheckPassed(user.unsafeMetadata)) return <Redirect href="/age-check" />;
+  // The root gate (app/_layout.tsx) sends anyone signed out, blocked or
+  // before the age check elsewhere (A6); render nothing for them meanwhile.
+  // "app" covers the moment the last step finishes and moves on to Home.
+  if (gate !== "onboarding" && gate !== "app") return null;
 
   return (
     <Stack

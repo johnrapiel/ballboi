@@ -50,3 +50,13 @@ export function resendSecondsLeft(lastSentAt: number | null, now: number): numbe
   const left = RESEND_COOLDOWN_SECONDS - Math.floor((now - lastSentAt) / 1000);
   return Math.max(0, Math.min(RESEND_COOLDOWN_SECONDS, left));
 }
+
+/**
+ * Seconds before Send code works on the email step (Wave 1 review A13).
+ * Going Back to the email step doesn't skip the wait: the same address keeps
+ * the countdown from the last code. A different address can send right away.
+ */
+export function sendCodeSecondsLeft(prev: Attempts, email: string, lastSentAt: number | null, now: number): number {
+  if (!prev.email || !sameEmail(prev.email, email)) return 0;
+  return resendSecondsLeft(lastSentAt, now);
+}

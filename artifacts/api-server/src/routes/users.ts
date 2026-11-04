@@ -7,6 +7,7 @@ import pino from "pino";
 import { autoLinkPlayersForUser } from "../lib/autoLinkPlayer.js";
 import { deleteOldPhoto, newPhotoProblem } from "../lib/profilePhoto.js";
 import { deleteAccount } from "../lib/accountDeletion.js";
+import { leaguesRunAlone, parseNewAdmins, successorsByLeague } from "../lib/leagueAccountDeletion.js";
 import { isUserIntent, parseHomeArea, parseIntents } from "../lib/onboarding.js";
 
 const logger = pino({ name: "users" });
@@ -160,10 +161,36 @@ router.put("/users/me/intent", requireAuth, async (req, res) => {
 });
 
 /**
+ * GET /users/me/league-handoff
+ * For the Delete account screen (Wave 1 review S4): the active leagues the
+ * person runs alone, each with the members who could take over,
+ * longest-standing first. Leagues nobody can take over are left out.
+ */
+router.get("/users/me/league-handoff", requireAuth, async (req, res) => {
+  const { userId } = getAuth(req);
+  const alone = (await leaguesRunAlone(db, userId!)).filter((l) => !l.endedAt);
+  const successors = await successorsByLeague(db, alone.map((l) => l.leagueId), userId!);
+  const leagues = alone
+    .map((l) => ({
+      leagueId: l.leagueId,
+      name: l.name,
+      members: (successors.get(l.leagueId) ?? []).map((m) => ({
+        playerId: m.playerId,
+        name: m.name,
+        joinedAt: m.createdAt.toISOString(),
+      })),
+    }))
+    .filter((l) => l.members.length > 0);
+  return res.json({ leagues });
+});
+
+/**
  * DELETE /users/me
  * Permanently deletes the signed-in person's account and personal data
  * (App Store guideline 5.1.1(v)). The body must be { "confirm": "DELETE" }
- * so a stray request can't wipe an account.
+ * so a stray request can't wipe an account. Optional
+ * `newAdmins: [{ leagueId, playerId }]` names who takes over each league they
+ * run alone; leagues left out go to the longest-standing member.
  */
 router.delete("/users/me", requireAuth, async (req, res) => {
   const { userId } = getAuth(req);
@@ -171,7 +198,7 @@ router.delete("/users/me", requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Send { "confirm": "DELETE" } to delete your account.' });
   }
   try {
-    const summary = await deleteAccount(userId!, logger);
+    const summary = await deleteAccount(userId!, logger, {}, { newAdmins: parseNewAdmins(req.body?.newAdmins) });
     return res.json({ deleted: true, ...summary });
   } catch (err) {
     logger.error({ err, userId }, "Account deletion failed");

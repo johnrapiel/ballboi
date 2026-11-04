@@ -55,7 +55,7 @@ pnpm dev                    # API on :8080 (scripts/dev.sh; loads .env)
 pnpm dev:mobile             # Expo app in Expo Go on a phone (run alongside pnpm dev)
 pnpm dev:ml                 # optional FastAPI ML server on :8000
 
-pnpm test                   # api-server vitest suite
+pnpm test                   # contrast check, mobile helper tests, api-server vitest suite
 pnpm typecheck              # tsc --build for lib/*, then per-package typecheck
 pnpm build                  # typecheck + build all packages
 ```
@@ -69,7 +69,7 @@ cd artifacts/ml-server && .venv/bin/python -m pytest tests/test_court_detection.
 
 `pnpm typecheck` passes everywhere, including `artifacts/api-server`, and CI fails on any type error. The ML server needs Python 3.10+ and OpenCV below 5.
 
-API tests live in `src/__tests__/`, run in the node environment, and mock `@clerk/express`, the logger, object storage, and `@workspace/db` with `vi.mock`, then exercise routers through `supertest`. No live database is needed.
+Mobile unit tests cover pure helpers only (`artifacts/mobile/lib/__tests__/`, vitest in Node, so no React Native imports). API tests live in `src/__tests__/`, run in the node environment, and mock `@clerk/express`, the logger, object storage, and `@workspace/db` with `vi.mock`, then exercise routers through `supertest`. No live database is needed.
 
 `scripts/with-env.sh <cmd>` runs any command with `.env` loaded.
 

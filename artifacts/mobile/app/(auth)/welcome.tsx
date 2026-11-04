@@ -9,7 +9,7 @@ import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useState } from "react";
 import { View } from "react-native";
 
-import { Button, Screen, Text } from "@/components/ui";
+import { Button, ScrollScreen, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { friendlyAuthError } from "@/lib/authErrors";
 
@@ -47,53 +47,52 @@ export default function WelcomeScreen() {
   }
 
   return (
-    <View style={{ flex: 1 }}>
-      <Screen style={{ paddingTop: spacing.space12, alignItems: "center", gap: spacing.space6 }}>
-        <Image
-          source={require("@/assets/images/roundel.png")}
-          style={{ width: 200, height: 200, borderRadius: 100 }}
-          accessibilityLabel="Ball Boi"
-          accessibilityRole="image"
-        />
-        <View style={{ gap: spacing.space3, maxWidth: 320, alignItems: "center" }}>
-          <Text variant="displayL" accessibilityRole="header" style={{ textAlign: "center" }}>
-            Club tennis, done properly.
-          </Text>
-          <Text tone="inkMuted" style={{ textAlign: "center" }}>
-            Your league, your matches and a ball boi in your pocket that tracks every shot.
-          </Text>
-        </View>
+    // Scrolls at the largest text sizes, so the sign-in buttons stay reachable (A8).
+    <ScrollScreen style={{ paddingTop: spacing.space12, alignItems: "center", gap: spacing.space6 }}>
+      <Image
+        source={require("@/assets/images/roundel.png")}
+        style={{ width: 200, height: 200, borderRadius: 100 }}
+        accessibilityLabel="Ball Boi"
+        accessibilityRole="image"
+      />
+      <View style={{ gap: spacing.space3, maxWidth: 320, alignItems: "center" }}>
+        <Text variant="displayL" accessibilityRole="header" style={{ textAlign: "center" }}>
+          Club tennis, done properly.
+        </Text>
+        <Text tone="inkMuted" style={{ textAlign: "center" }}>
+          Your league, your matches and a ball boi in your pocket that tracks every shot.
+        </Text>
+      </View>
 
-        <View style={{ marginTop: "auto", width: "100%", gap: spacing.space3 }}>
-          {error ? (
-            <Text tone="danger" accessibilityRole="alert" style={{ textAlign: "center" }}>
-              {error}
-            </Text>
-          ) : null}
-          <Button
-            label="Sign in with Apple"
-            loading={busy === "oauth_apple"}
-            disabled={busy !== null}
-            onPress={() => signInWith("oauth_apple")}
-          />
-          <Button
-            label="Continue with Google"
-            variant="secondary"
-            loading={busy === "oauth_google"}
-            disabled={busy !== null}
-            onPress={() => signInWith("oauth_google")}
-          />
-          <Button
-            label="Continue with email"
-            variant="secondary"
-            disabled={busy !== null}
-            onPress={() => router.push("/(auth)/email")}
-          />
-          <Text variant="small" tone="inkMuted" style={{ textAlign: "center" }}>
-            Got an invite link? Sign in first and it'll open right after.
+      <View style={{ marginTop: "auto", width: "100%", gap: spacing.space3 }}>
+        {error ? (
+          <Text tone="danger" accessibilityRole="alert" style={{ textAlign: "center" }}>
+            {error}
           </Text>
-        </View>
-      </Screen>
-    </View>
+        ) : null}
+        <Button
+          label="Sign in with Apple"
+          loading={busy === "oauth_apple"}
+          disabled={busy !== null}
+          onPress={() => signInWith("oauth_apple")}
+        />
+        <Button
+          label="Continue with Google"
+          variant="secondary"
+          loading={busy === "oauth_google"}
+          disabled={busy !== null}
+          onPress={() => signInWith("oauth_google")}
+        />
+        <Button
+          label="Continue with email"
+          variant="secondary"
+          disabled={busy !== null}
+          onPress={() => router.push("/(auth)/email")}
+        />
+        <Text variant="small" tone="inkMuted" style={{ textAlign: "center" }}>
+          Got an invite link? Sign in first and it'll open right after.
+        </Text>
+      </View>
+    </ScrollScreen>
   );
 }
