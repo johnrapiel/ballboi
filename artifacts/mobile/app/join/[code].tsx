@@ -6,9 +6,7 @@ import { AccessibilityInfo, ActivityIndicator, ScrollView, View } from "react-na
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
-  getGetLeaguesQueryKey,
   getGetMyJoinRequestsQueryKey,
-  getGetMyPlayersQueryKey,
   getInvite,
   joinLeagueViaInvite,
 } from "@workspace/api-client-react";
@@ -19,6 +17,7 @@ import { useColors } from "@/hooks/useColors";
 import { useGate } from "@/hooks/useGate";
 import { useProfile } from "@/hooks/useProfile";
 import { cleanCode, savePendingJoinCode } from "@/lib/leagueInvite";
+import { refreshLeague } from "@/lib/leagueRefresh";
 import { shortDate } from "@/lib/leagueSchedule";
 import { playersLabel } from "@/lib/leagues";
 
@@ -88,6 +87,8 @@ export default function JoinLeagueScreen() {
   });
   const invite = inviteQ.data;
   const status = (inviteQ.error as { status?: number } | null)?.status;
+  // The league itself has ended, not just this invite. Nothing is sent to the admin.
+  const leagueEnded = (inviteQ.error as { data?: { code?: string } | null } | null)?.data?.code === "league_ended";
 
   const close = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)/leagues"));
   const openLeague = (leagueId: number) => router.replace({ pathname: "/league/[leagueId]", params: { leagueId: String(leagueId) } });
@@ -104,8 +105,7 @@ export default function JoinLeagueScreen() {
     try {
       const result = await joinLeagueViaInvite(code, { playerName });
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: getGetLeaguesQueryKey().slice(0, 1) }),
-        queryClient.invalidateQueries({ queryKey: getGetMyPlayersQueryKey() }),
+        refreshLeague(queryClient, result.league.id ?? null),
         queryClient.invalidateQueries({ queryKey: getGetMyJoinRequestsQueryKey() }),
       ]);
       const next: Done = result.requested
@@ -117,8 +117,11 @@ export default function JoinLeagueScreen() {
       AccessibilityInfo.announceForAccessibility(next.message);
     } catch (e) {
       const s = (e as { status?: number }).status;
+      const code = (e as { data?: { code?: string } | null }).data?.code;
       setError(
-        s === 410
+        s === 410 && code === "league_ended"
+          ? "This league has ended"
+          : s === 410
           ? "This invite has ended. Ask the organizer for a new one."
           : s
             ? errorText(e, "Couldn't join. Try again in a moment.")
@@ -168,10 +171,12 @@ export default function JoinLeagueScreen() {
       <Page>
         <View style={{ gap: spacing.space2 }}>
           <Text variant="title" accessibilityRole="header">
-            {ended ? "This invite has ended" : missing ? "That code didn't work" : "Couldn't load this invite"}
+            {leagueEnded ? "This league has ended" : ended ? "This invite has ended" : missing ? "That code didn't work" : "Couldn't load this invite"}
           </Text>
           <Text tone="inkMuted">
-            {ended
+            {leagueEnded
+              ? "Its season is over, so it isn't taking new players."
+              : ended
               ? "Ask the organizer for a new invite."
               : missing
                 ? code

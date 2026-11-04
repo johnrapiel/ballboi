@@ -2,6 +2,8 @@
 // matches, this week's pairings, recent results). Pure, so it's easy to test.
 
 import { graceEndFor, leagueZone, roundPhase, todayFor, type RoundPhase } from "./leagueCalendar.js";
+import { leagueHasEnded } from "./leagueLifecycle.js";
+import { flipScore as flip } from "./tennisScore.js";
 
 export interface HomeRound {
   id: number;
@@ -37,13 +39,15 @@ export interface HomeInput {
   now: Date;
   /** The viewer's player rows, one per league. */
   myPlayers: { id: number; leagueId: number | null; leftAt: Date | null }[];
-  leagues: { id: number; name: string; leagueType: string; timeZone?: string | null }[];
+  leagues: { id: number; name: string; leagueType: string; timeZone?: string | null; endedAt?: Date | null; status?: string }[];
   rounds: HomeRound[];
   matches: HomeMatch[];
   byes: { roundId: number; playerId: number }[];
   names: Map<number, string>;
   /** Leagues the viewer runs. */
   adminLeagueIds: number[];
+  /** Q5b: each playoff match's play-by date, by match id. */
+  playoffPlayBy?: Map<number, string>;
 }
 
 export interface HomeWeekItem {
@@ -76,6 +80,10 @@ export interface HomePlayoffItem {
   opponentName: string;
   singles: boolean;
   timeZone: string;
+  /** Last day to play this round (Q5b): a play week plus a grace week. */
+  playBy: string | null;
+  /** The play-by date has passed, so the league admin enters the result. */
+  pastPlayBy: boolean;
 }
 
 export interface HomeResult {
@@ -101,15 +109,6 @@ export interface HomeDraft {
   timeZone: string;
 }
 
-function flip(score: string): string {
-  return score
-    .split(",")
-    .map((set) => {
-      const x = set.trim().match(/^(\d+)-(\d+)(\(\d+\))?$/);
-      return x ? `${x[2]}-${x[1]}${x[3] ?? ""}` : set.trim();
-    })
-    .join(", ");
-}
 
 function sideOf(m: HomeMatch, playerId: number): 1 | 2 | null {
   if (m.player1Id === playerId || m.player3Id === playerId) return 1;
@@ -191,17 +190,24 @@ export function buildLeagueHome(input: HomeInput) {
   };
 
   const activeIds = new Set(input.myPlayers.filter((p) => !p.leftAt).map((p) => p.id));
+  // C15: an ended league has no playoff match left to play.
+  const ended = (id: number) => leagueHasEnded(input.leagues.find((l) => l.id === id));
   const playoffs: HomePlayoffItem[] = live
-    .filter((m) => m.playoffBracketId && m.status !== "completed" && [...activeIds].some((id) => sideOf(m, id)))
-    .map((m) => ({
-      leagueId: m.leagueId!,
-      leagueName: leagueName(m.leagueId!),
-      matchId: m.id,
-      round: m.playoffRound ?? "playoff",
-      opponentName: opponentOf(m, mySide(m)!, input.names),
-      singles: singles(m.leagueId!),
-      timeZone: zone(m.leagueId!),
-    }));
+    .filter((m) => m.playoffBracketId && m.status !== "completed" && !ended(m.leagueId!) && [...activeIds].some((id) => sideOf(m, id)))
+    .map((m) => {
+      const playBy = input.playoffPlayBy?.get(m.id) ?? null;
+      return {
+        leagueId: m.leagueId!,
+        leagueName: leagueName(m.leagueId!),
+        matchId: m.id,
+        round: m.playoffRound ?? "playoff",
+        opponentName: opponentOf(m, mySide(m)!, input.names),
+        singles: singles(m.leagueId!),
+        timeZone: zone(m.leagueId!),
+        playBy,
+        pastPlayBy: !!playBy && todayIn(m.leagueId!) > playBy,
+      };
+    });
 
   const recent: HomeResult[] = live
     .filter((m) => m.status === "completed" && m.score && m.winnerId != null && mySide(m) && m.leagueId != null)

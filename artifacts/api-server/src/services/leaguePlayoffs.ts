@@ -4,7 +4,8 @@
 // score is entered. Rules live in lib/playoffs.ts.
 
 import { db, leaguesTable, matchesTable, playersTable, playoffBracketsTable, type League, type PlayoffSeeding } from "@workspace/db";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne } from "drizzle-orm";
+import { todayFor } from "../lib/leagueCalendar.js";
 import { computeStandings } from "../lib/leagueStandings.js";
 import {
   advanceTo,
@@ -13,8 +14,10 @@ import {
   firstRoundSeeds,
   nextRound,
   partnerSlot,
+  playoffRoundWindow,
   roundNameFor,
   seedOrder,
+  walkoverResult,
   type BracketSeed,
   type PlayoffRound,
 } from "../lib/playoffs.js";
@@ -126,17 +129,48 @@ export async function advancePlayoff(match: typeof matchesTable.$inferSelect, wi
   if (existing) return;
 
   const [p1, p2] = to.position === 1 ? [winnerId, other.winnerId] : [other.winnerId, winnerId];
-  await db.insert(matchesTable).values({
-    leagueId,
-    player1Id: p1,
-    player2Id: p2,
-    status: "scheduled",
-    generatedFrom: "playoff",
-    playoffBracketId,
-    playoffRound: next,
-    playoffSlot: to.slot,
-  });
+  const [created] = await db
+    .insert(matchesTable)
+    .values({
+      leagueId,
+      player1Id: p1,
+      player2Id: p2,
+      status: "scheduled",
+      generatedFrom: "playoff",
+      playoffBracketId,
+      playoffRound: next,
+      playoffSlot: to.slot,
+    })
+    .returning();
+
+  // Q5: someone who left the league after winning their way here hands their
+  // opponent a walkover, so the bracket keeps moving.
+  const gone = await db
+    .select({ id: playersTable.id, leftAt: playersTable.leftAt })
+    .from(playersTable)
+    .where(inArray(playersTable.id, [p1, p2]));
+  const left = (id: number) => !!gone.find((g) => g.id === id)?.leftAt;
+  if (created && left(p1) !== left(p2)) {
+    await walkover(created, left(p1) ? p2 : p1);
+    return;
+  }
   await notifyPlayers([p1, p2], next === "final" ? "You're in the final" : "You're in the semifinal", `${league?.name ?? "Your league"}: check your next opponent.`, leagueId);
+}
+
+/**
+ * Q5: a playoff match goes to `winnerId` on a walkover (shown as W/O), and
+ * the winner moves on. Used when a bracket player leaves, and by an admin
+ * after a round's play-by date. Only an unplayed match changes.
+ */
+export async function walkover(match: typeof matchesTable.$inferSelect, winnerId: number): Promise<boolean> {
+  const [saved] = await db
+    .update(matchesTable)
+    .set(walkoverResult(winnerId))
+    .where(and(eq(matchesTable.id, match.id), isNull(matchesTable.voidedAt), ne(matchesTable.status, "completed")))
+    .returning();
+  if (!saved) return false;
+  await advancePlayoff(saved, winnerId);
+  return true;
 }
 
 /** The bracket for the app: every slot, played or to come, and the champion. */
@@ -153,5 +187,16 @@ export async function bracketFor(league: League) {
     .select()
     .from(matchesTable)
     .where(and(eq(matchesTable.playoffBracketId, bracket.id), isNull(matchesTable.voidedAt)));
-  return { bracketId: bracket.id, status: bracket.status, ...bracketView(size, seeds, matches) };
+  // Q5b: each round's play-by date, for leagues on the weekly calendar.
+  const calendar = league.startDate && league.seasonWeeks ? { league: { startDate: league.startDate, seasonWeeks: league.seasonWeeks }, today: todayFor(league) } : null;
+  return { bracketId: bracket.id, status: bracket.status, ...bracketView(size, seeds, matches, calendar) };
+}
+
+/** A playoff match's play-by date (Q5b), or null for leagues without the weekly calendar. */
+export async function playoffPlayBy(league: League, match: { playoffBracketId: number | null; playoffRound: string | null }): Promise<string | null> {
+  if (!match.playoffBracketId || !match.playoffRound || !league.startDate || !league.seasonWeeks) return null;
+  const [bracket] = await db.select().from(playoffBracketsTable).where(eq(playoffBracketsTable.id, match.playoffBracketId));
+  if (!bracket) return null;
+  const size = (bracket.seedings as PlayoffSeeding[]).length >= 8 ? 8 : 4;
+  return playoffRoundWindow({ startDate: league.startDate, seasonWeeks: league.seasonWeeks }, size, match.playoffRound as PlayoffRound)?.playBy ?? null;
 }

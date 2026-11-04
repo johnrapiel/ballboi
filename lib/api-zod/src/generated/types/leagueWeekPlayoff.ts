@@ -14,4 +14,11 @@ export interface LeagueWeekPlayoff {
   opponentName: string;
   singles: boolean;
   timeZone: string;
+  /**
+   * Last day to play this playoff round (two weeks per round)
+   * @nullable
+   */
+  playBy: string | null;
+  /** The play-by date has passed, so the league admin enters the result */
+  pastPlayBy: boolean;
 }

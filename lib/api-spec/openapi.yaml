@@ -838,7 +838,43 @@ paths:
         "403":
           description: Not a league admin
         "409":
-          description: The match isn't played, was cancelled, or is a playoff match
+          description: >-
+            The match isn't played or was cancelled, the playoff match it feeds has been played,
+            or the league has ended (its scores are final)
+
+  /leagues/{leagueId}/matches/{matchId}/result:
+    post:
+      operationId: settlePlayoffMatch
+      tags: [leagues]
+      summary: >-
+        League admins settle an unplayed playoff match after its round's play-by date:
+        a score from player 1's side, or a walkover. The winner moves on.
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettleMatchBody"
+      responses:
+        "201":
+          description: Result saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoreResult"
+        "400":
+          description: Not a valid score, or the walkover isn't to a player in the match
+        "403":
+          description: Not a league admin
+        "409":
+          description: The league has ended, the match is played or cancelled, or its play-by date hasn't passed
 
   /leagues/{leagueId}/matches/{matchId}/time:
     put:
@@ -1070,7 +1106,9 @@ paths:
     post:
       operationId: leaveLeague
       tags: [leagues]
-      summary: Leave a league. Played matches stay; remaining matches are voided.
+      summary: >-
+        Leave a league. Played matches stay; remaining weekly matches are voided, and a playoff
+        match still to play goes to the opponent on a walkover. An admin who leaves stays an admin.
       parameters:
         - $ref: "#/components/parameters/LeagueIdParam"
       responses:
@@ -1085,7 +1123,7 @@ paths:
     post:
       operationId: removeLeaguePlayer
       tags: [leagues]
-      summary: Remove a player (admins only). Same rules as leaving.
+      summary: Remove a player (admins only). Same rules as leaving. Admins can't remove themselves; they leave instead.
       parameters:
         - $ref: "#/components/parameters/LeagueIdParam"
         - name: playerId
@@ -1100,6 +1138,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DropoutResult"
+        "409":
+          description: That's you. Use Leave league instead
 
   /leagues/{leagueId}/rounds/draft-next:
     post:
@@ -1535,6 +1575,10 @@ paths:
                 $ref: "#/components/schemas/LeagueInvite"
         "404":
           description: Not found
+        "410":
+          description: >-
+            The invite is no longer active, or its league has ended. An ended league answers
+            with code "league_ended" and the error "This league has ended".
     delete:
       operationId: deactivateInvite
       tags: [leagues]
@@ -1573,6 +1617,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/JoinLeagueResponse"
+        "410":
+          description: >-
+            The invite is used up, expired or inactive, or its league has ended (code
+            "league_ended"). An ended league never creates a join request.
 
   /stats/dashboard:
     get:
@@ -2159,7 +2207,7 @@ components:
           type: boolean
         onlyAdmin:
           type: boolean
-          description: The caller is this league's only admin, so they can't leave until someone else is a co-admin
+          description: The caller is this league's only admin. They can still leave; they stay admin and keep managing it
         joinedWeek:
           type: ["integer", "null"]
           description: For a player who joined after week 1, the week they joined ("You joined in week 3 of 8")
@@ -2258,8 +2306,27 @@ components:
       properties:
         score:
           type: string
-          description: Sets from your own side, like "6-3, 4-6, 10-7". Your games first.
+          description: >-
+            Sets from your own side, like "6-3, 4-6, 10-7". Your games first. Best of three;
+            a set ends 6-0 to 6-4, 7-5 or 7-6, and a third set can be a match tiebreak (10-7).
+        retired:
+          type: boolean
+          description: >-
+            The opponent retired. The score is the sets so far (the last can be unfinished),
+            it counts as the caller's win, and it's stored with RET at the end, like "6-3, 2-1 RET".
+            Admin corrections ignore it.
       required: [score]
+
+    SettleMatchBody:
+      type: object
+      description: Either a score from player 1's side, or a walkover to one of the two players.
+      properties:
+        score:
+          type: string
+          description: Sets from player 1's side, like "6-3, 6-4"
+        walkoverWinnerId:
+          type: ["integer", "null"]
+          description: The player who wins on a walkover (W/O)
 
     ScoreResult:
       type: object
@@ -2334,7 +2401,13 @@ components:
         opponentName: { type: string }
         singles: { type: boolean }
         timeZone: { type: string }
-      required: [leagueId, leagueName, matchId, round, opponentName, singles, timeZone]
+        playBy:
+          type: ["string", "null"]
+          description: Last day to play this playoff round (two weeks per round)
+        pastPlayBy:
+          type: boolean
+          description: The play-by date has passed, so the league admin enters the result
+      required: [leagueId, leagueName, matchId, round, opponentName, singles, timeZone, playBy, pastPlayBy]
 
     LeagueWeekDraft:
       type: object
@@ -2512,7 +2585,15 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BracketSlot"
-      required: [round, slots]
+        playBy:
+          type: ["string", "null"]
+          description: >-
+            Last day to play this round (YYYY-MM-DD, league time zone): two weeks, a play week
+            plus a grace week. Null for leagues without the weekly calendar.
+        pastPlayBy:
+          type: boolean
+          description: The play-by date has passed. Players can't enter a score; an admin settles the match.
+      required: [round, slots, playBy, pastPlayBy]
 
     LeagueBracket:
       type: object
@@ -2764,6 +2845,9 @@ components:
           type: boolean
         voidedMatches:
           type: integer
+        stillAdmin:
+          type: boolean
+          description: After leaving, the caller still runs the league as an admin
       required: [voidedMatches]
 
     Season:
@@ -2986,6 +3070,9 @@ components:
         endedAt:
           type: ["string", "null"]
           description: An admin ended the league (decision 31). Standings are frozen.
+        youLeft:
+          type: boolean
+          description: In the signed-in player's own list, they left this league and don't run it, so it shows under Past.
         timeZone:
           type: string
           description: The league's time zone (IANA name). Pairing at 7am, week starts and ends, and deadlines follow it.

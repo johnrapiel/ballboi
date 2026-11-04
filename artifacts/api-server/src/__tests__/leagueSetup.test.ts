@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 
-import { seasonDates, validateLeagueSetup, type LeagueSetupInput } from "../lib/leagueSetup.js";
+import {
+  checkStartDate,
+  DOUBLES_NOT_YET,
+  seasonDates,
+  START_TOMORROW,
+  validateLeagueSetup,
+  type LeagueSetupInput,
+} from "../lib/leagueSetup.js";
 
 const base: LeagueSetupInput = {
   format: "flex",
@@ -38,9 +45,9 @@ describe("validateLeagueSetup", () => {
     expect(validateLeagueSetup({ ...base, startDate: "2026-13-40" })).toMatch(/Start date/);
   });
 
-  it("needs a partner mode for doubles, and none for singles", () => {
-    expect(validateLeagueSetup({ ...base, leagueType: "doubles" })).toMatch(/fixed or rotating/);
-    expect(validateLeagueSetup({ ...base, leagueType: "doubles", partnerMode: "rotating" })).toBeNull();
+  it("refuses doubles for now (decision Q4), and partners on a singles league", () => {
+    expect(validateLeagueSetup({ ...base, leagueType: "doubles" })).toBe(DOUBLES_NOT_YET);
+    expect(validateLeagueSetup({ ...base, leagueType: "doubles", partnerMode: "rotating" })).toBe(DOUBLES_NOT_YET);
     expect(validateLeagueSetup({ ...base, partnerMode: "fixed" })).toMatch(/Only doubles/);
   });
 
@@ -69,5 +76,25 @@ describe("seasonDates", () => {
     expect(seasonDates("2026-11-02", 8, today).status).toBe("upcoming");
     expect(seasonDates("2026-10-21", 8, today).status).toBe("active");
     expect(seasonDates("2026-10-01", 8, today).status).toBe("active");
+  });
+});
+
+describe("checkStartDate", () => {
+  // 11pm on Nov 4 in Los Angeles is already Nov 5 in New York.
+  const lateInLA = new Date("2026-11-05T07:00:00Z");
+
+  it("allows tomorrow at the earliest, in the league's time zone", () => {
+    expect(checkStartDate("2026-11-05", "America/Los_Angeles", lateInLA)).toBeNull();
+    expect(checkStartDate("2026-11-04", "America/Los_Angeles", lateInLA)).toBe(START_TOMORROW);
+  });
+  it("uses the league's day, not the server's", () => {
+    // It's already Nov 5 in New York, so Nov 5 is today there and too early.
+    expect(checkStartDate("2026-11-05", "America/New_York", lateInLA)).toBe(START_TOMORROW);
+    expect(checkStartDate("2026-11-06", "America/New_York", lateInLA)).toBeNull();
+  });
+  it("refuses today", () => {
+    const noon = new Date("2026-11-04T20:00:00Z");
+    expect(checkStartDate("2026-11-04", "America/Los_Angeles", noon)).toBe(START_TOMORROW);
+    expect(checkStartDate("2026-11-05", "America/Los_Angeles", noon)).toBeNull();
   });
 });

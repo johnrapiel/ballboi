@@ -90,6 +90,7 @@ vi.mock("drizzle-orm", () => ({
   asc: (x: unknown) => x,
 }));
 vi.mock("../lib/logger.js", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
+vi.mock("../lib/blocks.js", () => ({ blockedPlayerPairs: async () => new Set<string>() }));
 vi.mock("../routes/notifications.js", () => ({ sendPushToUsers: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../services/seasonService.js", () => ({ getAutoSeason: vi.fn().mockResolvedValue(null) }));
 vi.mock("../services/leaguePlayoffs.js", () => ({ startPlayoffs: vi.fn() }));

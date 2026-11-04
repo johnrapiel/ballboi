@@ -17,6 +17,7 @@ import {
 import { ChoiceGroup } from "@/components/Choice";
 import { MatchTimeFields, hhmm, timeFromHHMM } from "@/components/league/MatchTimeFields";
 import { phoneTimeZone } from "@/lib/leagueSchedule";
+import { MAX_WEEKS, MIN_WEEKS, readWeeks } from "@/lib/scoreEntry";
 import { Button, Card, Field, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
 import { Toggle } from "@/components/Toggle";
@@ -25,13 +26,12 @@ import { useProfile } from "@/hooks/useProfile";
 
 // Start a league (spec: Leagues > Setup and Onboarding > Run a league;
 // canvas: Admin · Create league). Anyone can start one and becomes its admin.
+// Singles only for now (Q4). A season starts tomorrow at the earliest, so a
+// friend who joins on the day it's made is in from round 1.
 
 type Format = "flex" | "round_robin";
-type PlayType = "singles" | "fixed" | "rotating";
 
 // Season length limits match the spec (Leagues > Setup: 1 to 24 weeks) and the API.
-const MIN_WEEKS = 1;
-const MAX_WEEKS = 24;
 const DEFAULT_WEEKS = 8;
 
 const today = () => {
@@ -40,7 +40,13 @@ const today = () => {
   return d;
 };
 
-/** Default start: next Monday. Any day can be picked; pairings go out on the start weekday each week (decision 29). */
+const tomorrow = () => {
+  const d = today();
+  d.setDate(d.getDate() + 1);
+  return d;
+};
+
+/** Default start: next Monday. Any day from tomorrow can be picked; pairings go out on the start weekday each week (decision 29). */
 function nextMonday(): Date {
   const d = today();
   const daysToMonday = (8 - d.getDay()) % 7 || 7;
@@ -95,27 +101,38 @@ function StepButton({ symbol, label, onPress, disabled }: { symbol: string; labe
   );
 }
 
-/** Weeks: a number field with minus and plus. Typing is clamped to the allowed range on blur. */
-function WeeksStepper({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+/**
+ * Weeks: a number field with minus and plus. The season length follows the
+ * field as you type (C8); 30 or 0 snap to 24 or 1 with a note.
+ */
+function WeeksStepper({
+  text,
+  onTextChange,
+  onDone,
+  weeks,
+  note,
+}: {
+  text: string;
+  onTextChange: (t: string) => void;
+  /** The field lost focus: show the length it snapped to. */
+  onDone: () => void;
+  weeks: number;
+  note: string | null;
+}) {
   const c = useColors();
-  const [draft, setDraft] = useState(String(value));
-  const set = (n: number) => {
-    const next = Math.min(MAX_WEEKS, Math.max(MIN_WEEKS, n));
-    onChange(next);
-    setDraft(String(next));
-  };
+  const set = (n: number) => onTextChange(String(Math.min(MAX_WEEKS, Math.max(MIN_WEEKS, n))));
   return (
     <View style={{ gap: spacing.space2 }}>
       <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
         Weeks
       </Text>
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3 }}>
-        <StepButton symbol="−" label="Fewer weeks" onPress={() => set(value - 1)} disabled={value <= MIN_WEEKS} />
+        <StepButton symbol="−" label="Fewer weeks" onPress={() => set(weeks - 1)} disabled={weeks <= MIN_WEEKS} />
         <TextInput
-          value={draft}
-          onChangeText={(t) => setDraft(t.replace(/[^0-9]/g, "").slice(0, 2))}
-          onBlur={() => set(Number(draft) || value)}
-          onSubmitEditing={() => set(Number(draft) || value)}
+          value={text}
+          onChangeText={(t) => onTextChange(t.replace(/[^0-9]/g, "").slice(0, 2))}
+          onBlur={onDone}
+          onSubmitEditing={onDone}
           keyboardType="number-pad"
           returnKeyType="done"
           selectTextOnFocus
@@ -136,10 +153,10 @@ function WeeksStepper({ value, onChange }: { value: number; onChange: (n: number
             },
           ]}
         />
-        <StepButton symbol="+" label="More weeks" onPress={() => set(value + 1)} disabled={value >= MAX_WEEKS} />
+        <StepButton symbol="+" label="More weeks" onPress={() => set(weeks + 1)} disabled={weeks >= MAX_WEEKS} />
       </View>
-      <Text variant="small" tone="inkMuted">
-        {MIN_WEEKS} to {MAX_WEEKS} weeks
+      <Text variant="small" tone={note ? "ink" : "inkMuted"} accessibilityLiveRegion="polite">
+        {note ?? `${MIN_WEEKS} to ${MAX_WEEKS} weeks`}
       </Text>
     </View>
   );
@@ -165,14 +182,28 @@ export default function StartLeagueScreen() {
 
   const scheme = useColorScheme();
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
-  const minStart = useMemo(today, []);
+  const minStart = useMemo(tomorrow, []);
 
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
   const [format, setFormat] = useState<Format>("flex");
-  const [playType, setPlayType] = useState<PlayType>("singles");
   const [start, setStart] = useState<Date>(nextMonday);
-  const [weeks, setWeeks] = useState(DEFAULT_WEEKS);
+  const [weeksText, setWeeksText] = useState(String(DEFAULT_WEEKS));
+  const lastWeeks = useRef(DEFAULT_WEEKS);
+  const typedWeeks = readWeeks(weeksText);
+  if (typedWeeks.weeks != null) lastWeeks.current = typedWeeks.weeks;
+  // A blank field keeps the last length until something is typed.
+  const weeks = typedWeeks.weeks ?? lastWeeks.current;
+  // The note stays after the field snaps (30 shows 24), until the next edit.
+  const [snapNote, setSnapNote] = useState<string | null>(null);
+  const editWeeks = (t: string) => {
+    setSnapNote(null);
+    setWeeksText(t);
+  };
+  const snapWeeks = () => {
+    if (typedWeeks.note) setSnapNote(typedWeeks.note);
+    setWeeksText(String(weeks));
+  };
   const [playoffs, setPlayoffs] = useState<0 | 4 | 8>(0);
   const [playing, setPlaying] = useState(true);
   const [setTime, setSetTime] = useState(false);
@@ -200,8 +231,9 @@ export default function StartLeagueScreen() {
     const body: CreateLeagueBody = {
       name: name.trim(),
       format,
-      leagueType: playType === "singles" ? "singles" : "doubles",
-      partnerMode: playType === "singles" ? null : playType,
+      // Q4: doubles leagues come later.
+      leagueType: "singles",
+      partnerMode: null,
       // Open leagues (listed in Discover, with join requests) come back once
       // Discover and join requests are built. Until then every league is private.
       visibility: "private",
@@ -282,24 +314,9 @@ export default function StartLeagueScreen() {
             hint={
               format === "flex"
                 ? `We pair players every ${weekday(start)} by level and who hasn't played whom.`
-                : `Everyone plays everyone once over the season. New pairings go out every ${weekday(start)}.`
+                : "Pairs you with someone new each week."
             }
           />
-          <ChoiceGroup<PlayType>
-            label="Play"
-            value={playType}
-            onChange={setPlayType}
-            options={[
-              { value: "singles", label: "Singles" },
-              { value: "fixed", label: "Doubles, fixed partners" },
-              { value: "rotating", label: "Doubles, rotating partners" },
-            ]}
-          />
-          {playType !== "singles" ? (
-            <Text variant="small" tone="inkMuted">
-              Weekly pairing for doubles is coming soon. Singles leagues get weekly pairings today.
-            </Text>
-          ) : null}
           <Text variant="small" tone="inkMuted">
             Each round runs a week. Unplayed matches get a 1-week grace period: scores then count for Ball Boi stats, not standings.
           </Text>
@@ -314,7 +331,7 @@ export default function StartLeagueScreen() {
             <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
               Starts
             </Text>
-            {/* Native iOS date button: tap for the calendar, any day from today on. */}
+            {/* Native iOS date button: tap for the calendar, any day from tomorrow on. */}
             <DateTimePicker
               value={start}
               mode="date"
@@ -331,7 +348,7 @@ export default function StartLeagueScreen() {
               }}
             />
           </View>
-          <WeeksStepper value={weeks} onChange={setWeeks} />
+          <WeeksStepper text={weeksText} onTextChange={editWeeks} onDone={snapWeeks} weeks={weeks} note={typedWeeks.note ?? snapNote} />
           <Text variant="small" tone="inkMuted" accessibilityLiveRegion="polite">
             Runs {shortDate(start)} to {shortDate(end)}
           </Text>

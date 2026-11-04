@@ -55,3 +55,16 @@ export function ordinal(n: number): string {
 export function playersLabel(count: number): string {
   return `${count} ${count === 1 ? "player" : "players"}`;
 }
+
+/**
+ * Past on the Leagues tab: finished, ended, or a league you left as a player
+ * (C5). An admin who left still runs it, so it stays under Current.
+ */
+export function isPastLeague(league: Pick<League, "status" | "endedAt" | "youLeft">): boolean {
+  return league.status === "completed" || !!league.endedAt || !!league.youLeft;
+}
+
+/** The chip on a Past row: "Left", "Ended" or "Done". */
+export function pastLabel(league: Pick<League, "endedAt" | "youLeft">): string {
+  return league.youLeft ? "Left" : league.endedAt ? "Ended" : "Done";
+}

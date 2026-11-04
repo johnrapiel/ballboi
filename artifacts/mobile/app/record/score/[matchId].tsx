@@ -2,6 +2,10 @@
 // stop posts to standings right away (ratings and stats only if the match is
 // in its grace period); the first score entered stands." Under it, the
 // recording's processing card, so it's clear the match is saved.
+//
+// C23: the same sets as league score entry (best of three, real set scores,
+// the third set only at one set all), and a weekly league match mentions the
+// 10-minute undo. Saving refreshes the league's standings, round and Home.
 
 import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
@@ -11,12 +15,7 @@ import React, { useState } from "react";
 import { AccessibilityInfo, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import {
-  getGetLeagueBracketQueryKey,
-  getGetLeagueScheduleQueryKey,
-  getGetLeagueStandingsQueryKey,
-  getGetMyLeagueWeekQueryKey,
-} from "@workspace/api-client-react";
+import { getGetLeagueScheduleQueryKey, getGetMyLeagueWeekQueryKey, useGetLeagueSchedule } from "@workspace/api-client-react";
 
 import { LocalProcessingCard } from "@/components/record/ProcessingCard";
 import { Button, Card, Field, KeyboardScreen, Text } from "@/components/ui";
@@ -25,16 +24,21 @@ import { useColors } from "@/hooks/useColors";
 import {
   isTiebreakSet,
   recordingsKey,
-  scoreString,
   submitScore,
   todaysMatchesKey,
   type SetEntry,
 } from "@/lib/recording/api";
+import { refreshLeague } from "@/lib/leagueRefresh";
+import { readScore, setRowsToShow } from "@/lib/scoreEntry";
 import { useQueuedRecording } from "@/lib/recording/queue";
 import { STOP_MESSAGES, type StopReason } from "@/lib/recording/safety";
 
-const MAX_SETS = 5;
 const empty = (): SetEntry => ({ mine: "", theirs: "", tiebreak: "" });
+// The league sheet's rules read these boxes too (lib/scoreEntry).
+const asSheet = (s: SetEntry) => ({ me: s.mine, them: s.theirs, tbMe: s.tiebreak, tbThem: s.tiebreak });
+/** Best of three: the third set's boxes go away unless the first two are split. */
+const keepShownSets = (sets: SetEntry[]) =>
+  setRowsToShow(sets.map(asSheet)) === 3 ? sets : sets.map((s, i) => (i === 2 ? empty() : s));
 const digits = (v: string) => v.replace(/[^0-9]/g, "").slice(0, 2);
 
 export default function ScorePromptScreen() {
@@ -56,7 +60,7 @@ export default function ScorePromptScreen() {
   const rec = useQueuedRecording(params.rec ?? null);
   const stopped = params.stopped as Exclude<StopReason, "user"> | undefined;
 
-  const [sets, setSets] = useState<SetEntry[]>([empty(), empty()]);
+  const [sets, setSets] = useState<SetEntry[]>([empty(), empty(), empty()]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<"saved" | "already" | null>(null);
@@ -65,10 +69,18 @@ export default function ScorePromptScreen() {
   // A discarded placeholder Quick match no longer exists, so there is no score to enter.
   const matchGone = discarded === "match";
 
-  const score = scoreString(sets);
+  const draft = readScore(sets.map(asSheet));
+  const score = draft.ok ? draft.score : "";
+  const rows = setRowsToShow(sets.map(asSheet));
+  // A weekly league match can be undone for 10 minutes; a playoff or Quick match can't.
+  const scheduleQ = useGetLeagueSchedule(leagueId ?? 0, {
+    query: { enabled: leagueId != null, queryKey: getGetLeagueScheduleQueryKey(leagueId ?? 0) },
+  });
+  const weeklyLeagueMatch = !!scheduleQ.data?.rounds.some((r) => r.matches.some((m) => m.matchId === matchId));
 
   function update(i: number, patch: Partial<SetEntry>) {
-    setSets((prev) => prev.map((s, j) => (j === i ? { ...s, ...patch } : s)));
+    setError(null);
+    setSets((prev) => keepShownSets(prev.map((s, j) => (j === i ? { ...s, ...patch } : s))));
   }
 
   async function save() {
@@ -87,11 +99,7 @@ export default function ScorePromptScreen() {
       queryClient.invalidateQueries({ queryKey: recordingsKey });
       // The league shows the result, and Home drops Record for this match.
       queryClient.invalidateQueries({ queryKey: getGetMyLeagueWeekQueryKey() });
-      if (leagueId != null) {
-        queryClient.invalidateQueries({ queryKey: getGetLeagueScheduleQueryKey(leagueId) });
-        queryClient.invalidateQueries({ queryKey: getGetLeagueStandingsQueryKey(leagueId) });
-        queryClient.invalidateQueries({ queryKey: getGetLeagueBracketQueryKey(leagueId) });
-      }
+      if (leagueId != null) void refreshLeague(queryClient, leagueId);
       AccessibilityInfo.announceForAccessibility(result.ok ? `Score saved, ${score}` : "A score is already in for this match");
     } else {
       setError(result.error);
@@ -131,10 +139,14 @@ export default function ScorePromptScreen() {
               <Text variant="title" accessibilityRole="header">
                 How did it go?
               </Text>
-              <Text tone="inkMuted">Enter the score from your side, vs {opponent}. The first score entered stands.</Text>
+              <Text tone="inkMuted">
+                {`Enter the score from your side, vs ${opponent}. The first score entered stands.${
+                  weeklyLeagueMatch ? " You can undo for 10 minutes after you save." : ""
+                }`}
+              </Text>
             </View>
 
-            {sets.map((s, i) => (
+            {sets.slice(0, rows).map((s, i) => (
               <Card key={i} style={{ gap: spacing.space3 }}>
                 <Text variant="label" accessibilityRole="header">
                   Set {i + 1}
@@ -172,14 +184,11 @@ export default function ScorePromptScreen() {
               </Card>
             ))}
 
-            {sets.length < MAX_SETS ? (
-              <Button
-                variant="secondary"
-                label="Add a set"
-                accessibilityHint="For a third set or a match tiebreak, like 10-7"
-                onPress={() => setSets((prev) => [...prev, empty()])}
-              />
-            ) : null}
+            <Text variant="small" tone="inkMuted" accessibilityLiveRegion="polite">
+              {draft.ok
+                ? `${draft.iWon ? "You won" : `${opponent} won`} ${draft.score}`
+                : draft.message ?? (rows === 3 ? "Set 3 can be a match tiebreak, like 10-7." : "A third set shows if you split the first two.")}
+            </Text>
 
             {error ? (
               <Text tone="danger" accessibilityRole="alert">

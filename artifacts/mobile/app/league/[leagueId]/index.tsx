@@ -6,18 +6,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
-  getGetLeagueMembershipQueryKey,
-  getGetLeagueQueryKey,
-  getGetLeagueScheduleQueryKey,
-  getGetLeagueStandingsQueryKey,
-  getGetLeaguesQueryKey,
-  getGetMyPlayersQueryKey,
   useGetLeague,
   useGetLeagueBracket,
   useGetLeagueMembership,
   useLeaveLeague,
   useGetLeagueSchedule,
   useGetLeagueStandings,
+  useSettlePlayoffMatch,
+  type BracketSlot,
   type ScheduleMatch,
 } from "@workspace/api-client-react";
 
@@ -32,7 +28,21 @@ import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { RatingBadge } from "@/components/RatingBadge";
 import { levelSpoken } from "@/lib/onboarding";
-import { canEnterScore, correctionLine, dateRange, deadlineDate, matchWhen, myWeek, opponentName, pairingTime, resultLine, shortDate, weeklyMatchTime } from "@/lib/leagueSchedule";
+import {
+  canEnterScore,
+  correctionLine,
+  dateRange,
+  deadlineDate,
+  matchWhen,
+  myWeek,
+  opponentName,
+  pairingTime,
+  playoffLine,
+  resultLine,
+  shortDate,
+  weeklyMatchTime,
+} from "@/lib/leagueSchedule";
+import { refreshLeague } from "@/lib/leagueRefresh";
 import { formatLabel, playersLabel, playTypeLabel } from "@/lib/leagues";
 
 // League (spec: Leagues; canvas: League · Standings, Rounds, Playoffs).
@@ -92,13 +102,18 @@ function YourWeek({
   myPlayerId,
   timeZone,
   canSetTime,
+  ended,
 }: {
   leagueId: number;
   week: NonNullable<ReturnType<typeof myWeek>>;
   myPlayerId: number;
   timeZone: string | null;
   canSetTime: boolean;
+  ended: boolean;
 }) {
+  // C6: hooks before any early return, so a bye week turning into a match
+  // doesn't change the hook order.
+  const { fontScale } = useWindowDimensions();
   const { round, match, bye } = week;
   const label = `Round ${round.roundNumber} · ${dateRange(round.startDate, round.deadline)}`;
 
@@ -118,8 +133,7 @@ function YourWeek({
   const opponentId = match.player1Id === myPlayerId ? match.player2Id : match.player1Id;
   const opponentRating = match.player1Id === myPlayerId ? match.player2Rating : match.player1Rating;
   const canMessage = match.player1Id === myPlayerId ? match.player2HasAccount : match.player1HasAccount;
-  const scoreable = canEnterScore(round, match);
-  const { fontScale } = useWindowDimensions();
+  const scoreable = canEnterScore(round, match, ended);
   // C7: a direct chat with your opponent. League mates skip Message Requests.
   const message = () =>
     router.push({ pathname: "/conversation/[id]", params: { id: "new", playerId: String(opponentId), name: opponent } });
@@ -128,7 +142,7 @@ function YourWeek({
   // After an undo, the opponent sees who cleared it until a new score is in.
   const clearedNote = !played && match.scoreClearedBy ? `Score cleared by ${match.scoreClearedBy}. ` : "";
   const when = played
-    ? [resultLine(match), corrected].filter(Boolean).join(". ")
+    ? [resultLine(match, round, ended), corrected].filter(Boolean).join(". ")
     : clearedNote +
       (round.phase === "upcoming"
       ? `Starts ${shortDate(round.startDate)}. Play by ${deadlineDate(round.deadline, timeZone)}.`
@@ -179,7 +193,7 @@ function YourWeek({
         ) : null}
       </View>
       {!scoreable ? <UndoScore leagueId={leagueId} matchId={match.matchId} undoUntil={match.undoUntil} align="flex-start" /> : null}
-      {!played && !match.voided && round.phase !== "closed" ? (
+      {!played && !match.voided && round.phase !== "closed" && !ended ? (
         <MatchTimeRow
           when={matchTime}
           canSet={canSetTime && scoreable}
@@ -198,6 +212,7 @@ export default function LeagueScreen() {
   const [tab, setTab] = useState<Tab>("standings");
   const queryClient = useQueryClient();
   const leave = useLeaveLeague();
+  const settle = useSettlePlayoffMatch();
 
   const leagueQ = useGetLeague(leagueId);
   const membershipQ = useGetLeagueMembership(leagueId);
@@ -240,25 +255,29 @@ export default function LeagueScreen() {
     league?.startDate && league.endDate ? `Season ${dateRange(league.startDate, league.endDate)}` : null;
 
   const draft = schedule?.rounds.find((r) => r.phase === "draft");
-  const ended = !!league?.endedAt;
+  // An admin ended it (decision 31), or the season finished. Scores are final (Q9).
+  const ended = !!league?.endedAt || league?.status === "completed";
   const started = !!league?.startDate && !!schedule && schedule.today >= league.startDate;
+  const isAdmin = !!membershipQ.data?.isAdmin;
+  // Q4: doubles leagues don't run yet. One made before then says so.
+  const doublesOnHold = league?.leagueType === "doubles" && !ended;
+  const playoffsNote = league ? playoffLine(league.playoffSize, league.playerCount) : null;
 
   // Dropouts (decision 27): played matches stay, the rest are cancelled.
+  // Q4: an admin who leaves stops playing but still manages the league.
   function confirmLeave() {
     if (!league) return;
-    // C8: the only admin hands the league on first.
-    if (membershipQ.data?.onlyAdmin) {
-      Alert.alert("Make someone a co-admin first", `You're the only admin of ${league.name}. Make another player a co-admin in Manage, then you can leave.`, [
-        { text: "Cancel", style: "cancel" },
-        { text: "Open Manage", onPress: () => router.push(`/league/${leagueId}/manage`) },
-      ]);
-      return;
-    }
+    const matchesNote = started
+      ? "Your played matches stay. Your remaining matches are cancelled, your opponents are told, and you leave the standings."
+      : null;
+    const message = isAdmin
+      ? ["You'll stop playing but still manage this league.", matchesNote].filter(Boolean).join(" ")
+      : started
+        ? `${matchesNote} To come back, you'll need the admin to approve you.`
+        : "You can rejoin with the invite code until the season starts.";
     Alert.alert(
       `Leave ${league.name}?`,
-      started
-        ? "Your played matches stay. Your remaining matches are cancelled, your opponents are told, and you leave the standings. You can't rejoin this season."
-        : "You can rejoin with the invite code until the season starts.",
+      message,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -267,19 +286,11 @@ export default function LeagueScreen() {
           onPress: () =>
             leave
               .mutateAsync({ leagueId })
-              .then(async () => {
-                await Promise.all(
-                  [
-                    getGetLeagueMembershipQueryKey(leagueId),
-                    getGetLeagueQueryKey(leagueId),
-                    getGetLeagueScheduleQueryKey(leagueId),
-                    getGetLeagueStandingsQueryKey(leagueId),
-                    getGetLeaguesQueryKey().slice(0, 1),
-                    getGetMyPlayersQueryKey(),
-                  ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
-                );
+              .then(async (out) => {
+                await refreshLeague(queryClient, leagueId);
                 AccessibilityInfo.announceForAccessibility(`You left ${league.name}`);
-                router.back();
+                // An admin stays on the league to keep managing it.
+                if (!(out.stillAdmin ?? isAdmin)) router.back();
               })
               .catch((e) =>
                 Alert.alert(
@@ -292,6 +303,28 @@ export default function LeagueScreen() {
     );
   }
 
+  // Q5b: after a playoff round's play-by date, the admin enters the result.
+  function settlePlayoff(slot: BracketSlot) {
+    if (slot.matchId == null || !slot.player1 || !slot.player2) return;
+    const matchId = slot.matchId;
+    const walkover = (winner: NonNullable<BracketSlot["player1"]>) =>
+      settle
+        .mutateAsync({ leagueId, matchId, data: { walkoverWinnerId: winner.playerId } })
+        .then(async () => {
+          await refreshLeague(queryClient, leagueId);
+          AccessibilityInfo.announceForAccessibility(`${winner.playerName} moves on by walkover`);
+        })
+        .catch((e) =>
+          Alert.alert("Couldn't enter the result", (e as { data?: { error?: string } | null }).data?.error ?? "Try again in a moment."),
+        );
+    Alert.alert(`${slot.player1.playerName} vs. ${slot.player2.playerName}`, "The play-by date has passed. Enter the score, or give one player a walkover (W/O).", [
+      { text: "Enter score", onPress: () => router.push(`/league/${leagueId}/score/${matchId}?settle=1`) },
+      { text: `Walkover to ${slot.player1.playerName}`, onPress: () => void walkover(slot.player1!) },
+      { text: `Walkover to ${slot.player2.playerName}`, onPress: () => void walkover(slot.player2!) },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
@@ -301,7 +334,7 @@ export default function LeagueScreen() {
       {/* Admin tools appear in context only (spec: Roles). */}
       <Stack.Screen
         options={{
-          headerRight: membershipQ.data?.isAdmin
+          headerRight: isAdmin
             ? () => (
                 <IconButton symbol="slider.horizontal.3" label="Manage" onPress={() => router.push(`/league/${leagueId}/manage`)} />
               )
@@ -341,15 +374,24 @@ export default function LeagueScreen() {
           </View>
 
           {ended ? (
-            // Decision 31: an admin ended the league. Standings are final.
+            // Decision 31: an admin ended the league, or the season finished. Standings are final.
             <Card accessible style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3 }}>
               <SymbolView name="flag.checkered" size={20} tintColor={c.ink} />
               <View style={{ flex: 1, gap: 2 }}>
                 <Text variant="bodyStrong">This league has ended</Text>
                 <Text variant="small" tone="inkMuted">
-                  {`Standings are final as of ${new Date(league.endedAt!).toLocaleDateString("en-US", { month: "short", day: "numeric" })}. Everything played stays.`}
+                  {league.endedAt
+                    ? `Standings are final as of ${new Date(league.endedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}. Everything played stays.`
+                    : "Standings are final. Everything played stays."}
                 </Text>
               </View>
+            </Card>
+          ) : doublesOnHold ? (
+            <Card accessible style={{ gap: spacing.space1 }}>
+              <Text variant="bodyStrong">This doubles league isn't running yet</Text>
+              <Text variant="small" tone="inkMuted">
+                Weekly pairings are for singles leagues for now. Your league and its players are saved.
+              </Text>
             </Card>
           ) : playoff ? (
             <Card style={{ gap: spacing.space3 }}>
@@ -362,12 +404,21 @@ export default function LeagueScreen() {
                   {`Playoffs · ${ROUND_SINGULAR[playoff.slot.round]}`}
                 </Text>
                 <Text variant="title">{`You vs. ${playoff.opponent?.playerName ?? "to be decided"}`}</Text>
+                {playoff.playBy ? (
+                  <Text variant="small" tone="inkMuted">
+                    {playoff.pastPlayBy
+                      ? `The play-by date was ${deadlineDate(playoff.playBy, schedule?.timeZone)}. Your league admin can enter the result.`
+                      : `Play by ${deadlineDate(playoff.playBy, schedule?.timeZone)}.`}
+                  </Text>
+                ) : null}
               </View>
-              <Button
-                label="Enter score"
-                accessibilityHint={`For your ${ROUND_SINGULAR[playoff.slot.round].toLowerCase()}`}
-                onPress={() => router.push(`/league/${leagueId}/score/${playoff.slot.matchId}`)}
-              />
+              {!playoff.pastPlayBy ? (
+                <Button
+                  label="Enter score"
+                  accessibilityHint={`For your ${ROUND_SINGULAR[playoff.slot.round].toLowerCase()}`}
+                  onPress={() => router.push(`/league/${leagueId}/score/${playoff.slot.matchId}`)}
+                />
+              ) : null}
             </Card>
           ) : week && myPlayerId != null ? (
             <YourWeek
@@ -376,10 +427,11 @@ export default function LeagueScreen() {
               myPlayerId={myPlayerId}
               timeZone={schedule?.timeZone ?? null}
               canSetTime={league?.matchDay == null || !!schedule?.isAdmin}
+              ended={ended}
             />
           ) : null}
 
-          {draft && membershipQ.data?.isAdmin ? (
+          {draft && isAdmin && !ended ? (
             <Card style={{ gap: spacing.space3 }}>
               <View accessible style={{ gap: spacing.space1 }}>
                 <Text variant="label" tone="inkMuted">
@@ -394,6 +446,8 @@ export default function LeagueScreen() {
             </Card>
           ) : null}
 
+          {doublesOnHold ? null : (
+          <>
           <SegmentedTabs
             label="League sections"
             value={tab}
@@ -417,9 +471,7 @@ export default function LeagueScreen() {
                 <StandingsTable standings={standings} myPlayerId={myPlayerId} />
               )}
               <Text variant="small" tone="inkMuted">
-                {`Ranked on wins. Players with the same wins share a rank.${
-                  league.playoffSize ? ` Top ${league.playoffSize} make the playoffs.` : ""
-                }`}
+                {`Ranked on wins. Players with the same wins share a rank.${playoffsNote ? ` ${playoffsNote}` : ""}`}
               </Text>
             </View>
           ) : null}
@@ -439,7 +491,7 @@ export default function LeagueScreen() {
               ) : (
                 <>
                   {rounds.map((r) => (
-                    <RoundCard key={r.roundId} leagueId={leagueId} round={r} myPlayerId={myPlayerId} onEnterScore={enterScore} frozen={ended} timeZone={schedule?.timeZone} />
+                    <RoundCard key={r.roundId} leagueId={leagueId} round={r} myPlayerId={myPlayerId} onEnterScore={enterScore} ended={ended} timeZone={schedule?.timeZone} />
                   ))}
                   {schedule && schedule.upcoming.length > 0 ? (
                     <View style={{ gap: spacing.space2 }}>
@@ -459,14 +511,25 @@ export default function LeagueScreen() {
           ) : null}
 
           {tab === "playoffs" && bracket ? (
-            <BracketView bracket={bracket} myPlayerId={myPlayerId} onEnterScore={(id) => router.push(`/league/${leagueId}/score/${id}`)} />
+            <BracketView
+              bracket={bracket}
+              myPlayerId={myPlayerId}
+              onEnterScore={(id) => router.push(`/league/${leagueId}/score/${id}`)}
+              onSettle={settlePlayoff}
+              isAdmin={isAdmin}
+              ended={ended}
+              timeZone={schedule?.timeZone}
+            />
           ) : null}
 
           {tab === "playoffs" && !bracket ? (
             <Card style={{ gap: spacing.space2 }}>
-              {league.playoffSize ? (
+              {league.playoffSize && league.playerCount < 4 ? (
+                // C21: a bracket needs at least 4 players.
+                <Text tone="inkMuted">Not enough players for playoffs this season.</Text>
+              ) : league.playoffSize ? (
                 <>
-                  <Text variant="bodyStrong">{`Top ${league.playoffSize} make the playoffs`}</Text>
+                  <Text variant="bodyStrong">{(playoffsNote ?? "").replace(/\.$/, "")}</Text>
                   <Text tone="inkMuted">
                     {league.endDate
                       ? `Seeds are set from the standings the day after the regular season ends ${shortDate(league.endDate)}. Ties on wins go to head-to-head, then sets, then games.`
@@ -479,7 +542,10 @@ export default function LeagueScreen() {
             </Card>
           ) : null}
 
-          {membershipQ.data?.isPlaying && league.status !== "completed" ? (
+          </>
+          )}
+
+          {membershipQ.data?.isPlaying && !ended ? (
             <Button
               label="Leave league"
               variant="destructive"

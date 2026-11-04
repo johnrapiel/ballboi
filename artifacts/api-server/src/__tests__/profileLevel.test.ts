@@ -42,7 +42,10 @@ vi.mock("drizzle-orm", async () => (await import("./fakeDb")).drizzleFake);
 vi.mock("@workspace/api-zod", () => ({
   UpdatePlayerBody: { safeParse: (v: unknown) => ({ success: true, data: v }) },
 }));
-vi.mock("../lib/blocks.js", () => ({ blockedAccountsFor: async () => new Set<string>() }));
+vi.mock("../lib/blocks.js", () => ({
+  blockedAccountsFor: async () => new Set<string>(),
+  blockedPlayerPairs: async () => new Set<string>(),
+}));
 vi.mock("../routes/notifications.js", () => ({ sendPushToUsers: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../services/seasonService.js", () => ({ getAutoSeason: vi.fn().mockResolvedValue(null) }));
 vi.mock("../services/leaguePlayoffs.js", () => ({ startPlayoffs: vi.fn() }));

@@ -7,6 +7,9 @@
 // - Playoff scores move the winner on to the next round, so they can't be
 //   undone. An admin can correct one while the match it feeds is unplayed;
 //   the corrected winner takes that spot.
+// - Once a league ends, its scores are final: no undo and no corrections (Q9).
+//   A league ends when an admin taps End, or on its own once the season and
+//   any playoffs are done.
 //
 // Pure functions, so they're easy to test.
 
@@ -25,6 +28,9 @@ export interface ChangeableMatch {
 
 export type ChangeCheck = { ok: true } | { ok: false; status: number; error: string };
 
+export const FINAL_SCORES_MESSAGE = "This league has ended, so its scores are final.";
+
+
 /** When the caller's undo runs out, as an ISO time, or null if they can't undo. */
 export function undoDeadline(match: ChangeableMatch, userId: string | null, now: Date): string | null {
   if (!userId || match.status !== "completed" || match.voidedAt || match.playoffBracketId || match.correctedAt) return null;
@@ -34,7 +40,8 @@ export function undoDeadline(match: ChangeableMatch, userId: string | null, now:
   return new Date(until).toISOString();
 }
 
-export function checkUndo(match: ChangeableMatch, userId: string, now: Date): ChangeCheck {
+export function checkUndo(match: ChangeableMatch, userId: string, now: Date, leagueEnded = false): ChangeCheck {
+  if (leagueEnded) return { ok: false, status: 409, error: FINAL_SCORES_MESSAGE };
   if (match.status !== "completed" || !match.score) return { ok: false, status: 409, error: "There's no score to undo." };
   if (match.playoffBracketId) return { ok: false, status: 409, error: "Playoff scores can't be undone." };
   if (match.correctedAt) return { ok: false, status: 409, error: "An admin corrected this score, so it can't be undone." };
@@ -51,7 +58,8 @@ export function checkUndo(match: ChangeableMatch, userId: string, now: Date): Ch
  * `next` is the playoff match this one feeds: null when there isn't one yet
  * (or this is the final). Once that match is played, the score stands.
  */
-export function checkCorrection(match: ChangeableMatch, next: { status: string } | null = null): ChangeCheck {
+export function checkCorrection(match: ChangeableMatch, next: { status: string } | null = null, leagueEnded = false): ChangeCheck {
+  if (leagueEnded) return { ok: false, status: 409, error: FINAL_SCORES_MESSAGE };
   if (match.voidedAt) return { ok: false, status: 409, error: "This match was cancelled when a player left the league." };
   if (match.status !== "completed" || !match.score) {
     return { ok: false, status: 409, error: "Only played matches can be corrected." };

@@ -4,6 +4,7 @@
 // until they join."
 
 import { customAlphabet } from "nanoid";
+import { checkTennisScore } from "./tennisScore.js";
 
 /** No 0/O or 1/I, so a code read aloud or typed can't be misread. */
 export const newInviteCode = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 8);
@@ -72,29 +73,14 @@ export type ScoreParse = { ok: true; score: string; winnerSide: 1 | 2 } | { ok: 
 
 /**
  * Reads a score written from the side of the player entering it ("6-3, 7-6(4)":
- * their games first). Same rules as league scores: every set has a winner, and
- * a split match needs a deciding set or match tiebreak.
+ * their games first). Same rules as league scores (C10): best of three, and
+ * only real tennis sets.
  */
 export function parseSideScore(raw: unknown): ScoreParse {
   if (typeof raw !== "string") return { ok: false, error: "Enter the score for each set, like 6-4." };
-  const sets = raw.split(",").map((s) => s.trim()).filter(Boolean);
-  if (sets.length === 0) return { ok: false, error: "Enter the score for each set, like 6-4." };
-  if (sets.length > 5) return { ok: false, error: "A match has at most 5 sets." };
-  let mine = 0;
-  let theirs = 0;
-  for (const set of sets) {
-    const m = set.match(/^(\d{1,2})-(\d{1,2})(\((\d{1,2})\))?$/);
-    if (!m) return { ok: false, error: `"${set}" isn't a set score. Use a format like 6-4.` };
-    const a = Number(m[1]);
-    const b = Number(m[2]);
-    if (a === b) return { ok: false, error: `"${set}" is tied. Every set needs a winner.` };
-    if (a > b) mine++;
-    else theirs++;
-  }
-  if (mine === theirs) {
-    return { ok: false, error: "The sets are tied. If you played a match tiebreak, add it as the last set (like 10-7)." };
-  }
-  return { ok: true, score: sets.join(", "), winnerSide: mine > theirs ? 1 : 2 };
+  const check = checkTennisScore(raw);
+  if (!check.ok) return check;
+  return { ok: true, score: check.sets.join(", "), winnerSide: check.winnerSide };
 }
 
 /** Flips a score to the other side's view: "6-3, 7-6(4)" becomes "3-6, 6-7(4)". */

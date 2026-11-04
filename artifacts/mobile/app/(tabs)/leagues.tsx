@@ -25,7 +25,7 @@ import { TabScreen } from "@/components/TabHeader";
 import { Button, Card, Chip, Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { formatLabel, ordinal, playersLabel, playTypeLabel, statusLabel } from "@/lib/leagues";
+import { formatLabel, isPastLeague, ordinal, pastLabel, playersLabel, playTypeLabel, statusLabel } from "@/lib/leagues";
 
 // Leagues tab (spec: Leagues; canvas: Leagues). Notes about deleted leagues,
 // your current leagues as cards with your rank, leagues you've asked to join
@@ -156,7 +156,7 @@ function PastLeagueRow({ league, standing, onPress, last }: { league: League; st
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${league.name}. ${sub}. ${league.endedAt ? "Ended" : "Done"}`}
+      accessibilityLabel={`${league.name}. ${sub}. ${pastLabel(league)}`}
       style={({ pressed }) => ({
         minHeight: 56,
         flexDirection: "row",
@@ -175,7 +175,7 @@ function PastLeagueRow({ league, standing, onPress, last }: { league: League; st
           {sub}
         </Text>
       </View>
-      <Chip label={league.endedAt ? "Ended" : "Done"} />
+      <Chip label={pastLabel(league)} />
     </Pressable>
   );
 }
@@ -322,8 +322,8 @@ export default function LeaguesScreen() {
     router.push({ pathname: "/league/[leagueId]", params: { leagueId: String(league.id) } });
 
   const indexed = leagues.map((league, i) => ({ league, i }));
-  const current = indexed.filter(({ league }) => league.status !== "completed");
-  const past = indexed.filter(({ league }) => league.status === "completed");
+  const current = indexed.filter(({ league }) => !isPastLeague(league));
+  const past = indexed.filter(({ league }) => isPastLeague(league));
 
   const refreshing = leaguesQ.isRefetching;
   const refresh = () => {

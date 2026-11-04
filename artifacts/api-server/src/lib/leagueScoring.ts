@@ -9,7 +9,7 @@
 //
 // Pure functions, so they're easy to test.
 
-import { parseSet } from "./scoringUtils.js";
+import { checkTennisScore, flipScore, RETIRED_SUFFIX } from "./tennisScore.js";
 import { graceEndFor, shortDate } from "./leagueCalendar.js";
 
 export interface ScoreableMatch {
@@ -42,6 +42,8 @@ export function checkScoreEntry(input: {
   round: ScoreableRound | null;
   today: string;
   callerPlayerIds: number[];
+  /** A playoff match's last day to play (Q5b), when its league has one. */
+  playoffPlayBy?: string | null;
 }): ScoreCheck {
   const { match, round, today } = input;
   if (match.voidedAt) return { ok: false, status: 409, error: "This match was cancelled when a player left the league." };
@@ -52,8 +54,19 @@ export function checkScoreEntry(input: {
   if (!input.callerPlayerIds.some((id) => players.includes(id))) {
     return { ok: false, status: 403, error: "Only the players in this match can enter its score." };
   }
-  // Playoff matches aren't tied to a weekly round.
-  if (match.playoffBracketId || !round) return { ok: true, inGrace: false };
+  // Playoff rounds get two weeks, a play week and a grace week (Q5b). After
+  // that the admin enters the result or a walkover.
+  if (match.playoffBracketId) {
+    if (input.playoffPlayBy && today > input.playoffPlayBy) {
+      return {
+        ok: false,
+        status: 409,
+        error: `The play-by date for this match was ${shortDate(input.playoffPlayBy)}. Your league admin can enter the result.`,
+      };
+    }
+    return { ok: true, inGrace: false };
+  }
+  if (!round) return { ok: true, inGrace: false };
 
   if (!round.publishedAt) return { ok: false, status: 409, error: "This round's pairings haven't gone out yet." };
   if (today < round.startDate) {
@@ -72,26 +85,15 @@ export type ScoreParse =
 
 /**
  * Reads a score written from player 1's (team 1's) side, like "6-3, 4-6, 10-7".
+ * Only real tennis scores pass (C10, lib/tennisScore.ts). With `retired`, the
+ * other side stopped mid-match: side 1 wins and the score ends in RET (Q6).
  * Returns the tidied score and which side won.
  */
-export function parseMatchScore(raw: string): ScoreParse {
-  const sets = raw.split(",").map((s) => s.trim()).filter(Boolean);
-  if (sets.length === 0) return { ok: false, error: "Enter the score for each set, like 6-4." };
-  if (sets.length > 5) return { ok: false, error: "A match has at most 5 sets." };
-  let side1 = 0;
-  let side2 = 0;
-  for (const set of sets) {
-    const parsed = parseSet(set);
-    if (!parsed) return { ok: false, error: `"${set}" isn't a set score. Use a format like 6-4.` };
-    if (parsed.myGames < 0 || parsed.oppGames < 0) return { ok: false, error: `"${set}" isn't a set score.` };
-    if (parsed.myGames === parsed.oppGames) return { ok: false, error: `"${set}" is tied. Every set needs a winner.` };
-    if (parsed.myGames > parsed.oppGames) side1++;
-    else side2++;
-  }
-  if (side1 === side2) {
-    return { ok: false, error: "The sets are tied. If you played a match tiebreak, add it as the last set (like 10-7)." };
-  }
-  return { ok: true, score: sets.join(", "), winnerSide: side1 > side2 ? 1 : 2 };
+export function parseMatchScore(raw: string, opts: { retired?: boolean } = {}): ScoreParse {
+  const check = checkTennisScore(raw, opts);
+  if (!check.ok) return check;
+  const score = check.sets.join(", ") + (opts.retired ? RETIRED_SUFFIX : "");
+  return { ok: true, score, winnerSide: check.winnerSide };
 }
 
 /** The winning player's id. Doubles store the team by its first player (player1 or player2). */
@@ -99,14 +101,7 @@ export function winnerIdFor(match: ScoreableMatch, side: 1 | 2): number {
   return side === 1 ? match.player1Id : match.player2Id;
 }
 
-/** Score as the player on `side` sees it: their games first. */
+/** Score as the player on `side` sees it: their games first. RET and W/O carry over. */
 export function scoreFromSide(score: string, side: 1 | 2): string {
-  if (side === 1) return score;
-  return score
-    .split(",")
-    .map((set) => {
-      const m = set.trim().match(/^(\d+)-(\d+)(\(\d+\))?$/);
-      return m ? `${m[2]}-${m[1]}${m[3] ?? ""}` : set.trim();
-    })
-    .join(", ");
+  return side === 1 ? score : flipScore(score);
 }

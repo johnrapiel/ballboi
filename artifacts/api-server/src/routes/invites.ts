@@ -7,6 +7,10 @@ import { customAlphabet } from "nanoid";
 import { isLeagueAdmin } from "../lib/leagueAccess.js";
 import { todayFor } from "../lib/leagueCalendar.js";
 import { joinOutcome } from "../lib/leagueJoining.js";
+import { ENDED_MESSAGE, leagueHasEnded } from "../lib/leagueLifecycle.js";
+
+/** Q8: an ended league's code just says so. No join, and no request for the admin. */
+const LEAGUE_ENDED = { error: ENDED_MESSAGE, code: "league_ended" } as const;
 import { loadProfiles, playerLevelText } from "../lib/playerProfile.js";
 
 const router = Router();
@@ -87,6 +91,7 @@ router.get("/invites/:code", async (req, res) => {
   if (!invite.isActive) return res.status(410).json({ error: "Invite is no longer active" });
 
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, invite.leagueId));
+  if (leagueHasEnded(league)) return res.status(410).json({ ...LEAGUE_ENDED, leagueName: league!.name });
   const players = await db.select().from(playersTable).where(eq(playersTable.leagueId, invite.leagueId));
   const activeCount = players.filter((p) => !p.leftAt).length;
   // Tells the join screen up front what Join will do: join now, ask the
@@ -161,6 +166,7 @@ router.post("/invites/:code/join", requireAuth, async (req, res) => {
       }
 
       const [league] = await tx.select().from(leaguesTable).where(eq(leaguesTable.id, invite.leagueId));
+      if (leagueHasEnded(league)) return { status: 410, payload: { ...LEAGUE_ENDED, leagueName: league!.name } };
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${String(invite.leagueId)}), hashtext(${userId!}))`);
 
       const [existing] = await tx
