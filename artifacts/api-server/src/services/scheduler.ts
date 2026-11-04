@@ -8,6 +8,7 @@ import { logger } from "../lib/logger";
 import { retryFailedBallBoiSessions } from "./ballBoiRetry";
 import { runAllLeagueDays } from "./leagueRounds";
 import { sweepSessionVideos } from "../lib/videoRetention";
+import { DEFAULT_LEAGUE_TIME_ZONE, addDays, dayBounds, leagueToday, leagueZone, localHour } from "../lib/leagueCalendar";
 
 function getMondayOf(date: Date): string {
   const d = new Date(date);
@@ -210,68 +211,50 @@ async function upcomingMatchesReminder() {
   }
 }
 
-// Returns the UTC timestamp for midnight of a given "YYYY-MM-DD" date in the ET timezone.
-// Tries UTC-4 (EDT) and UTC-5 (EST) and picks whichever lands on 00:00 ET for that date.
-function getUTCForETMidnight(etDateStr: string): Date {
-  for (const offsetHours of [4, 5]) {
-    const [year, month, day] = etDateStr.split("-").map(Number);
-    const candidate = new Date(Date.UTC(year, month - 1, day, offsetHours, 0, 0, 0));
-    const dateCheck = candidate.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-    const timeCheck = candidate.toLocaleTimeString("en-US", {
-      timeZone: "America/New_York",
-      hour12: false,
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    if (dateCheck === etDateStr && timeCheck === "00:00") {
-      return candidate;
+// The day-before reminder goes out at 8am on each league's own clock (PR 4:
+// leagues run on their creator's time zone). Matches outside a league use
+// Eastern time.
+const REMINDER_HOUR = 8;
+
+// Hourly: for every time zone where it's now 8am, remind players about
+// matches the following day there. Each reminder is claimed in
+// match_reminders_log first, so it goes out at most once.
+async function dayBeforeMatchReminder(now: Date = new Date()) {
+  try {
+    const leagues = await db.select({ id: leaguesTable.id, timeZone: leaguesTable.timeZone }).from(leaguesTable);
+    const zoneOf = new Map(leagues.map((l) => [l.id, leagueZone(l)]));
+    const zones = new Set([DEFAULT_LEAGUE_TIME_ZONE, ...zoneOf.values()]);
+    for (const zone of zones) {
+      if (localHour(now, zone) !== REMINDER_HOUR) continue;
+      await remindForZone(zone, now, zoneOf);
     }
+  } catch (err) {
+    logger.error({ err }, "CRON: Failed to run day-before match reminder job");
   }
-  // Fallback: treat as UTC-5 (EST)
-  const [year, month, day] = etDateStr.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day, 5, 0, 0, 0));
 }
 
-// Returns the UTC ISO range for "tomorrow" in America/New_York timezone (half-open: [start, end))
-function getTomorrowRangeET(): { windowStart: string; windowEnd: string; reminderForDate: string } {
-  const now = new Date();
-
-  // Get tomorrow's calendar date in ET, then the day after.
-  // Adding 24h is always safe for finding the next calendar day (DST shift is only ±1h).
-  const tomorrowDateET = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-    .toLocaleDateString("en-CA", { timeZone: "America/New_York" }); // "YYYY-MM-DD"
-  const dayAfterDateET = new Date(now.getTime() + 48 * 60 * 60 * 1000)
-    .toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-
-  const windowStart = getUTCForETMidnight(tomorrowDateET);
-  const windowEnd = getUTCForETMidnight(dayAfterDateET);
-
-  return { windowStart: windowStart.toISOString(), windowEnd: windowEnd.toISOString(), reminderForDate: tomorrowDateET };
-}
-
-// Daily 8AM: send day-before match reminders to players with a match the following day
-async function dayBeforeMatchReminder() {
-  logger.info("CRON: Running day-before match reminders");
-
-  // Target the full calendar day of "tomorrow" in ET
-  const { windowStart: windowStartStr, windowEnd: windowEndStr, reminderForDate } = getTomorrowRangeET();
-  logger.info({ windowStart: windowStartStr, windowEnd: windowEndStr, reminderForDate }, "CRON: Day-before reminder window");
+async function remindForZone(zone: string, now: Date, zoneOf: Map<number, string>) {
+  const reminderForDate = addDays(leagueToday(now, zone), 1);
+  const { from, to } = dayBounds(reminderForDate, zone);
+  logger.info({ zone, windowStart: from.toISOString(), windowEnd: to.toISOString(), reminderForDate }, "CRON: Day-before reminder window");
 
   try {
-    // Fetch only scheduled matches whose scheduledAt falls within tomorrow (ET)
-    const tomorrowMatches = await db
-      .select()
-      .from(matchesTable)
-      .where(
-        and(
-          eq(matchesTable.status, "scheduled"),
-          gte(matchesTable.scheduledAt, windowStartStr),
-          lt(matchesTable.scheduledAt, windowEndStr)
+    // Scheduled matches whose scheduledAt falls within tomorrow in this zone
+    const tomorrowMatches = (
+      await db
+        .select()
+        .from(matchesTable)
+        .where(
+          and(
+            eq(matchesTable.status, "scheduled"),
+            gte(matchesTable.scheduledAt, from.toISOString()),
+            lt(matchesTable.scheduledAt, to.toISOString())
+          )
         )
-      );
+    ).filter((m) => (m.leagueId != null ? (zoneOf.get(m.leagueId) ?? DEFAULT_LEAGUE_TIME_ZONE) : DEFAULT_LEAGUE_TIME_ZONE) === zone);
 
     if (!tomorrowMatches.length) {
-      logger.info("CRON: No day-before matches to remind");
+      logger.info({ zone }, "CRON: No day-before matches to remind");
       return;
     }
 
@@ -330,7 +313,8 @@ async function dayBeforeMatchReminder() {
           day: "numeric",
           hour: "2-digit",
           minute: "2-digit",
-          timeZone: "America/New_York",
+          timeZone: zone,
+          timeZoneName: "short",
         });
 
         const locationStr = match.location ?? "Location TBD";
@@ -391,7 +375,7 @@ async function dayBeforeMatchReminder() {
       }
     }
   } catch (err) {
-    logger.error({ err }, "CRON: Failed to run day-before match reminder job");
+    logger.error({ err, zone }, "CRON: Failed to run day-before match reminders for a time zone");
   }
 }
 
@@ -472,12 +456,11 @@ export function startScheduler() {
     timezone: "America/New_York",
   });
 
-  // Daily at 7:00 AM — weekly league loop: draft tomorrow's pairings for admin
-  // review, send out rounds that start today (spec: Leagues > Weekly loop).
-  cron.schedule("0 7 * * *", () => {
+  // Hourly — weekly league loop: at 7:00 AM on each league's own clock, draft
+  // tomorrow's pairings for admin review and send out rounds that start today
+  // (spec: Leagues > Weekly loop). Leagues run on their creator's time zone.
+  cron.schedule("0 * * * *", () => {
     runAllLeagueDays().catch((err) => logger.error({ err }, "CRON: League day failed"));
-  }, {
-    timezone: "America/New_York",
   });
 
   // Thursday at 9:00 AM — auto-generate availability-based schedules
@@ -495,9 +478,10 @@ export function startScheduler() {
     timezone: "America/New_York",
   });
 
-  // Daily at 8:00 AM — remind players about matches the next day
-  cron.schedule("0 8 * * *", dayBeforeMatchReminder, {
-    timezone: "America/New_York",
+  // Hourly — at 8:00 AM in each league's time zone, remind players about
+  // matches the next day
+  cron.schedule("0 * * * *", () => {
+    void dayBeforeMatchReminder();
   });
 
   // Every minute — retry Ball Boi sessions that failed due to ML service unavailability
@@ -513,5 +497,5 @@ export function startScheduler() {
     sweepSessionVideos().catch((err) => logger.error({ err }, "CRON: Video retention sweep failed"));
   });
 
-  logger.info("Scheduler started: Daily 7AM (league rounds), Thu 9AM (auto-generate), Wed 5PM (availability reminder), Sun 9AM (match reminder), Daily 8AM (day-before reminder), every 1min (Ball Boi retry), hourly (video retention)");
+  logger.info("Scheduler started: 7AM league time (league rounds), Thu 9AM (auto-generate), Wed 5PM (availability reminder), Sun 9AM (match reminder), 8AM league time (day-before reminder), every 1min (Ball Boi retry), hourly (video retention)");
 }

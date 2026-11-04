@@ -2,7 +2,7 @@ import { Router } from "express";
 import { getAuth } from "@clerk/express";
 import { db, leagueRoundsTable, leaguesTable, matchesTable, playersTable, usersTable } from "@workspace/db";
 import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
-import { leagueToday } from "../lib/leagueCalendar.js";
+import { todayFor } from "../lib/leagueCalendar.js";
 import {
   checkScoreEntry,
   matchParticipantIds,
@@ -41,7 +41,7 @@ router.post("/leagues/:leagueId/matches/:matchId/score", async (req, res) => {
   if (!match) { res.status(404).json({ error: "Match not found" }); return; }
 
   // An ended league's standings are frozen (decision 31).
-  const [owner] = await db.select({ endedAt: leaguesTable.endedAt }).from(leaguesTable).where(eq(leaguesTable.id, leagueId));
+  const [owner] = await db.select({ endedAt: leaguesTable.endedAt, timeZone: leaguesTable.timeZone }).from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (owner?.endedAt) { res.status(409).json({ error: "This league has ended, so scores can't be entered." }); return; }
 
   const [[round], callerPlayers] = await Promise.all([
@@ -57,7 +57,7 @@ router.post("/leagues/:leagueId/matches/:matchId/score", async (req, res) => {
   const check = checkScoreEntry({
     match,
     round: round ?? null,
-    today: leagueToday(),
+    today: todayFor(owner),
     callerPlayerIds: callerPlayers.map((p) => p.id),
   });
   if (!check.ok) { res.status(check.status).json({ error: check.error }); return; }

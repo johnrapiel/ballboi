@@ -3,7 +3,7 @@ import { getAuth } from "@clerk/express";
 import { db, leagueAdminsTable, leagueJoinRequestsTable, leaguesTable, playersTable, usersTable } from "@workspace/db";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { getLeagueRole, leagueAdminCount } from "../lib/leagueAccess.js";
-import { leagueToday } from "../lib/leagueCalendar.js";
+import { leagueToday, leagueZone } from "../lib/leagueCalendar.js";
 import { joinedWeek } from "../lib/leagueJoining.js";
 import { promoteProblem, removeAdminProblem, type LeagueRole } from "../lib/leagueRoles.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
@@ -26,7 +26,7 @@ router.get("/leagues/:leagueId/membership", requireAuth, async (req, res) => {
   if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid league ID" }); return; }
 
   const [league] = await db
-    .select({ id: leaguesTable.id, startDate: leaguesTable.startDate, seasonWeeks: leaguesTable.seasonWeeks })
+    .select({ id: leaguesTable.id, startDate: leaguesTable.startDate, seasonWeeks: leaguesTable.seasonWeeks, timeZone: leaguesTable.timeZone })
     .from(leaguesTable)
     .where(eq(leaguesTable.id, leagueId));
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
@@ -54,7 +54,7 @@ router.get("/leagues/:leagueId/membership", requireAuth, async (req, res) => {
   // day is when the organizer approved them, else when they joined.
   const playing = !!player && !player.leftAt;
   const joinedAt = approved?.decidedAt ?? player?.createdAt ?? null;
-  const week = playing && joinedAt ? joinedWeek(league.startDate, leagueToday(joinedAt), league.seasonWeeks) : null;
+  const week = playing && joinedAt ? joinedWeek(league.startDate, leagueToday(joinedAt, leagueZone(league)), league.seasonWeeks) : null;
 
   res.json({
     // C8: the only admin can't leave until someone else is a co-admin.

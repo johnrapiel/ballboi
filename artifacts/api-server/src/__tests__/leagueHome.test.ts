@@ -14,7 +14,7 @@ function match(id: number, roundId: number | null, p1: number, p2: number, extra
 
 function input(extra: Partial<HomeInput> = {}): HomeInput {
   return {
-    today: "2026-11-13",
+    now: new Date("2026-11-13T17:00:00Z"),
     myPlayers: [{ id: 10, leagueId: 1, leftAt: null }],
     leagues: [{ id: 1, name: "Tuesday Flex", leagueType: "singles" }],
     rounds: [
@@ -69,11 +69,41 @@ describe("buildLeagueHome", () => {
 
   it("shows my unscored playoff match", () => {
     const home = buildLeagueHome(input({ matches: [match(200, null, 10, 20, { playoffBracketId: 5, playoffRound: "semifinal" })] }));
-    expect(home.playoffs).toEqual([{ leagueId: 1, leagueName: "Tuesday Flex", matchId: 200, round: "semifinal", opponentName: "Alex", singles: true }]);
+    expect(home.playoffs).toEqual([{ leagueId: 1, leagueName: "Tuesday Flex", matchId: 200, round: "semifinal", opponentName: "Alex", singles: true, timeZone: "America/New_York" }]);
   });
 
   it("leaves out leagues I've left", () => {
     const home = buildLeagueHome(input({ myPlayers: [{ id: 10, leagueId: 1, leftAt: new Date() }], matches: [match(101, 2, 30, 10)] }));
     expect(home.thisWeek).toEqual([]);
+  });
+});
+
+describe("buildLeagueHome time zones and played matches (PR 4)", () => {
+  it("runs each league's week on its own time zone", () => {
+    // 06:00 UTC on Nov 12 is Nov 12 in New York but still Nov 11 in Los Angeles,
+    // so the Los Angeles league's round 2 hasn't started there yet.
+    const at = new Date("2026-11-12T06:00:00Z");
+    const east = buildLeagueHome(input({ now: at, matches: [match(101, 2, 10, 20)] }));
+    expect(east.thisWeek.find((i) => i.roundId === 2)?.phase).toBe("open");
+    const west = buildLeagueHome(
+      input({
+        now: at,
+        leagues: [{ id: 1, name: "Tuesday Flex", leagueType: "singles", timeZone: "America/Los_Angeles" }],
+        matches: [match(101, 2, 10, 20)],
+      }),
+    );
+    const item = west.thisWeek.find((i) => i.roundId === 2);
+    expect(item?.phase).toBe("upcoming");
+    expect(item?.timeZone).toBe("America/Los_Angeles");
+  });
+
+  it("marks a match with a score as played, so it offers nothing to enter or record", () => {
+    const home = buildLeagueHome(
+      input({ matches: [match(101, 2, 10, 20, { status: "completed", score: "6-3, 6-4", winnerId: 10 }), match(102, 1, 10, 30)] }),
+    );
+    expect(home.thisWeek.map((i) => [i.matchId, i.played])).toEqual([
+      [102, false],
+      [101, true],
+    ]);
   });
 });

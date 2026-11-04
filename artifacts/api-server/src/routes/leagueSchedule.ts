@@ -3,7 +3,7 @@ import { getAuth } from "@clerk/express";
 import { db, leagueRoundByesTable, leagueRoundsTable, leaguesTable, matchesTable, playersTable, usersTable, type League, type LeagueRound } from "@workspace/db";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { canViewLeague, getLeagueRole, PRIVATE_LEAGUE } from "../lib/leagueAccess.js";
-import { graceEndFor, leagueToday, roundPhase, roundWindow, LEAGUE_TIME_ZONE } from "../lib/leagueCalendar.js";
+import { graceEndFor, leagueZone, roundPhase, roundWindow, todayFor } from "../lib/leagueCalendar.js";
 import { undoDeadline } from "../lib/leagueScoreChanges.js";
 import { planBye, planLock, planSwap, unpairedPlayers } from "../lib/roundEdits.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
@@ -108,7 +108,7 @@ router.get("/leagues/:leagueId/schedule", requireAuth, async (req, res) => {
   if (!(await canViewLeague(league, userId!))) { res.status(403).json({ error: PRIVATE_LEAGUE }); return; }
 
   const isAdmin = (await getLeagueRole(leagueId, userId!)) !== null;
-  const today = leagueToday();
+  const today = todayFor(league);
   const all = await db.select().from(leagueRoundsTable).where(eq(leagueRoundsTable.leagueId, leagueId)).orderBy(asc(leagueRoundsTable.roundNumber));
   const visible = all.filter((r) => isAdmin || r.publishedAt);
   const rounds = await buildRounds(league, visible, isAdmin, today, userId ?? null);
@@ -124,7 +124,7 @@ router.get("/leagues/:leagueId/schedule", requireAuth, async (req, res) => {
   res.json({
     leagueId,
     today,
-    timeZone: LEAGUE_TIME_ZONE,
+    timeZone: leagueZone(league),
     weeklyRounds: weekly,
     isAdmin,
     rounds,
@@ -162,7 +162,7 @@ async function adminRound(req: Request, res: Response): Promise<{ league: League
 
 async function respondWithRound(res: Response, league: League, roundId: number) {
   const [round] = await db.select().from(leagueRoundsTable).where(eq(leagueRoundsTable.id, roundId));
-  const [built] = await buildRounds(league, [round], true, leagueToday(), getAuth(res.req).userId ?? null);
+  const [built] = await buildRounds(league, [round], true, todayFor(league), getAuth(res.req).userId ?? null);
   res.json(built);
 }
 

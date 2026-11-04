@@ -64,4 +64,21 @@ export interface CreateLeagueBody {
   playerName?: string | null;
   /** @nullable */
   skillLevel?: string | null;
+  /**
+   * The creator's phone time zone (IANA name). The league runs on it. Eastern when missing.
+   * @nullable
+   */
+  timeZone?: string | null;
+  /**
+   * Weekly match day, 0 Sunday to 6 Saturday. Send with matchTime, or leave both out so players pick.
+   * @minimum 0
+   * @maximum 6
+   * @nullable
+   */
+  matchDay?: number | null;
+  /**
+   * Weekly match time, 24-hour HH:MM in the league's time zone.
+   * @nullable
+   */
+  matchTime?: string | null;
 }

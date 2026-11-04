@@ -15,6 +15,8 @@ import {
 } from "@workspace/api-client-react";
 
 import { ChoiceGroup } from "@/components/Choice";
+import { MatchTimeFields, hhmm, timeFromHHMM } from "@/components/league/MatchTimeFields";
+import { phoneTimeZone } from "@/lib/leagueSchedule";
 import { Button, Card, Field, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
 import { Toggle } from "@/components/Toggle";
@@ -172,6 +174,9 @@ export default function StartLeagueScreen() {
   const [weeks, setWeeks] = useState(DEFAULT_WEEKS);
   const [playoffs, setPlayoffs] = useState<0 | 4 | 8>(0);
   const [playing, setPlaying] = useState(true);
+  const [setTime, setSetTime] = useState(false);
+  const [matchDay, setMatchDay] = useState<number>(() => nextMonday().getDay());
+  const [matchClock, setMatchClock] = useState<Date>(() => timeFromHHMM(null));
   const [saving, setSaving] = useState(false);
   const [nameMissing, setNameMissing] = useState(false);
 
@@ -206,6 +211,10 @@ export default function StartLeagueScreen() {
       location: location.trim() || null,
       playing,
       playerName: playing ? playerName || "Admin" : null,
+      // The league runs on this phone's time zone (PR 4).
+      timeZone: phoneTimeZone() || null,
+      matchDay: setTime ? matchDay : null,
+      matchTime: setTime ? hhmm(matchClock) : null,
     };
     try {
       const league = await createLeague(body);
@@ -323,6 +332,18 @@ export default function StartLeagueScreen() {
           <Text variant="small" tone="inkMuted" accessibilityLiveRegion="polite">
             Runs {shortDate(start)} to {shortDate(end)}
           </Text>
+          <MatchTimeFields
+            enabled={setTime}
+            onEnabledChange={(on) => {
+              // Start on the season's weekday, the day pairings go out.
+              if (on && !setTime) setMatchDay(start.getDay());
+              setSetTime(on);
+            }}
+            day={matchDay}
+            onDayChange={setMatchDay}
+            time={matchClock}
+            onTimeChange={setMatchClock}
+          />
           <ChoiceGroup<0 | 4 | 8>
             label="Playoffs"
             value={playoffs}

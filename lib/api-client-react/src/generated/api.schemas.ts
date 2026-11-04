@@ -182,6 +182,10 @@ export interface LeagueWeekItem {
   scheduledAt: string | null;
   /** @nullable */
   location: string | null;
+  /** A score is in, so there's nothing left to enter or record */
+  played: boolean;
+  /** The league's time zone, for its deadlines */
+  timeZone: string;
 }
 
 export interface LeagueWeekPlayoff {
@@ -191,6 +195,7 @@ export interface LeagueWeekPlayoff {
   round: string;
   opponentName: string;
   singles: boolean;
+  timeZone: string;
 }
 
 export interface LeagueWeekDraft {
@@ -199,6 +204,48 @@ export interface LeagueWeekDraft {
   roundId: number;
   roundNumber: number;
   startDate: string;
+  /** The league's time zone. The round goes out at 7am there. */
+  timeZone: string;
+}
+
+export interface SetMatchTimeBody {
+  /**
+   * ISO date and time inside the match's week (league time zone), or null to clear it
+   * @nullable
+   */
+  scheduledAt: string | null;
+}
+
+export interface MatchTime {
+  matchId: number;
+  /** @nullable */
+  scheduledAt: string | null;
+  timeZone: string;
+}
+
+/**
+ * Both set for a weekly match day and time, or both null so players pick.
+ */
+export interface LeagueMatchTimeBody {
+  /**
+   * @minimum 0
+   * @maximum 6
+   * @nullable
+   */
+  matchDay: number | null;
+  /**
+   * 24-hour HH:MM in the league's time zone
+   * @nullable
+   */
+  matchTime: string | null;
+}
+
+export interface LeagueMatchTime {
+  /** @nullable */
+  matchDay: number | null;
+  /** @nullable */
+  matchTime: string | null;
+  timeZone: string;
 }
 
 export interface LeagueWeekResult {
@@ -680,6 +727,20 @@ export interface League {
    * @nullable
    */
   endedAt?: string | null;
+  /** The league's time zone (IANA name). Pairing at 7am, week starts and ends, and deadlines follow it. */
+  timeZone: string;
+  /**
+   * A club's weekly match day, 0 Sunday to 6 Saturday. Null when players pick their own time.
+   * @minimum 0
+   * @maximum 6
+   * @nullable
+   */
+  matchDay?: number | null;
+  /**
+   * A club's weekly match time, 24-hour HH:MM in the league's time zone. Null when players pick.
+   * @nullable
+   */
+  matchTime?: string | null;
 }
 
 export type CreateLeagueBodyFormat =
@@ -801,6 +862,23 @@ export interface CreateLeagueBody {
   playerName?: string | null;
   /** @nullable */
   skillLevel?: string | null;
+  /**
+   * The creator's phone time zone (IANA name). The league runs on it. Eastern when missing.
+   * @nullable
+   */
+  timeZone?: string | null;
+  /**
+   * Weekly match day, 0 Sunday to 6 Saturday. Send with matchTime, or leave both out so players pick.
+   * @minimum 0
+   * @maximum 6
+   * @nullable
+   */
+  matchDay?: number | null;
+  /**
+   * Weekly match time, 24-hour HH:MM in the league's time zone.
+   * @nullable
+   */
+  matchTime?: string | null;
 }
 
 /**

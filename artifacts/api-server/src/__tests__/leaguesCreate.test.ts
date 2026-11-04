@@ -133,6 +133,22 @@ describe("POST /api/leagues", () => {
     expect(league?.values).not.toHaveProperty("unplayedRule");
   });
 
+  it("runs the league on the creator's phone time zone, Eastern when none is sent (PR 4)", async () => {
+    await supertest(app).post("/api/leagues").send({ ...valid, timeZone: "America/Los_Angeles" });
+    expect(inserted.find((i) => i.table === "leagues")?.values).toMatchObject({ timeZone: "America/Los_Angeles", matchDay: null, matchTime: null });
+    inserted = [];
+    await supertest(app).post("/api/leagues").send({ ...valid, timeZone: "Not/AZone" });
+    expect(inserted.find((i) => i.table === "leagues")?.values).toMatchObject({ timeZone: "America/New_York" });
+  });
+
+  it("stores a weekly match day and time, and needs both (PR 4)", async () => {
+    const res = await supertest(app).post("/api/leagues").send({ ...valid, matchDay: 2, matchTime: "18:30" });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ matchDay: 2, matchTime: "18:30" });
+    const half = await supertest(app).post("/api/leagues").send({ ...valid, matchDay: 2 });
+    expect(half.status).toBe(400);
+  });
+
   it("records the creator as the league's owner", async () => {
     await supertest(app).post("/api/leagues").send(valid);
     const admin = inserted.find((i) => i.table === "league_admins");

@@ -5,7 +5,7 @@ import { leagueInvitesTable, leaguesTable, playersTable, leagueJoinRequestsTable
 import { eq, and, sql, isNull } from "drizzle-orm";
 import { customAlphabet } from "nanoid";
 import { isLeagueAdmin } from "../lib/leagueAccess.js";
-import { leagueToday } from "../lib/leagueCalendar.js";
+import { todayFor } from "../lib/leagueCalendar.js";
 import { joinOutcome } from "../lib/leagueJoining.js";
 
 const router = Router();
@@ -91,7 +91,7 @@ router.get("/invites/:code", async (req, res) => {
   // Tells the join screen up front what Join will do: join now, ask the
   // organizer (Private, started or full), or join the waitlist (Open).
   const outcome = league
-    ? joinOutcome({ league, activePlayerCount: activeCount, today: leagueToday(), via: "invite" })
+    ? joinOutcome({ league, activePlayerCount: activeCount, today: todayFor(league), via: "invite" })
     : null;
   const { userId } = getAuth(req);
   const [mine] = userId
@@ -179,7 +179,7 @@ router.post("/invites/:code/join", requireAuth, async (req, res) => {
         .select({ id: playersTable.id })
         .from(playersTable)
         .where(and(eq(playersTable.leagueId, invite.leagueId), isNull(playersTable.leftAt)));
-      const outcome = joinOutcome({ league, activePlayerCount: active.length, today: leagueToday(), via: "invite" });
+      const outcome = joinOutcome({ league, activePlayerCount: active.length, today: todayFor(league), via: "invite" });
       if (outcome.kind === "waitlist" || (outcome.kind === "request" && outcome.reason)) {
         const kind = outcome.kind === "waitlist" ? "waitlist" : "request";
         await tx
