@@ -5,7 +5,7 @@
 import { useAuth, useUser } from "@clerk/expo";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 
 import { Avatar } from "@/components/Avatar";
@@ -38,15 +38,18 @@ export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // Start from what's saved: after closing the app mid-onboarding, or always
-  // in edit mode, where Save waits until this has loaded.
+  // in edit mode, where Save waits until this has loaded. A slow load never
+  // replaces a name or photo the person already changed (A14).
+  const nameTouched = useRef(false);
+  const photoTouched = useRef(false);
   const load = useCallback(() => {
     setLoadError(null);
     fetchProfile(getToken)
       .then((p) => {
         if (p) {
           setProfileExists(true);
-          if (p.displayName) setName(p.displayName);
-          setPhoto(p.avatarUrl ? { kind: "saved", path: p.avatarUrl } : { kind: "none" });
+          if (p.displayName && !nameTouched.current) setName(p.displayName);
+          if (!photoTouched.current) setPhoto(p.avatarUrl ? { kind: "saved", path: p.avatarUrl } : { kind: "none" });
         } else if (editing) {
           return setLoadError("We couldn't find your profile.");
         }
@@ -71,7 +74,10 @@ export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
       aspect: [1, 1],
       quality: 0.7,
     });
-    if (!result.canceled && result.assets[0]) setPhoto({ kind: "picked", asset: result.assets[0] });
+    if (!result.canceled && result.assets[0]) {
+      photoTouched.current = true;
+      setPhoto({ kind: "picked", asset: result.assets[0] });
+    }
   }
 
   async function next() {
@@ -116,7 +122,10 @@ export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
       <Field
         label="Name"
         value={name}
-        onChangeText={setName}
+        onChangeText={(v) => {
+          nameTouched.current = true;
+          setName(v);
+        }}
         maxLength={NAME_MAX}
         autoComplete="name"
         textContentType="name"
@@ -139,7 +148,14 @@ export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
               onPress={pickPhoto}
             />
             {photo.kind !== "none" ? (
-              <Button label="Remove photo" variant="secondary" onPress={() => setPhoto({ kind: "none" })} />
+              <Button
+                label="Remove photo"
+                variant="secondary"
+                onPress={() => {
+                  photoTouched.current = true;
+                  setPhoto({ kind: "none" });
+                }}
+              />
             ) : null}
           </View>
         </View>

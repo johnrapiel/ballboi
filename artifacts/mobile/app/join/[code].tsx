@@ -16,6 +16,7 @@ import {
 import { Button, Card, Text } from "@/components/ui";
 import { radius, spacing, type } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { useProfile } from "@/hooks/useProfile";
 import { cleanCode, savePendingJoinCode } from "@/lib/leagueInvite";
 import { shortDate } from "@/lib/leagueSchedule";
 import { playersLabel } from "@/lib/leagues";
@@ -86,8 +87,10 @@ export default function JoinLeagueScreen() {
   const close = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)/leagues"));
   const openLeague = (leagueId: number) => router.replace({ pathname: "/league/[leagueId]", params: { leagueId: String(leagueId) } });
 
-  const playerName =
-    user?.fullName?.trim() || user?.firstName?.trim() || user?.primaryEmailAddress?.emailAddress?.split("@")[0] || "Player";
+  // A1: the league shows the profile name, never any part of the email. The
+  // API uses the saved profile too; this is only its fallback.
+  const { profile } = useProfile();
+  const playerName = profile?.displayName?.trim() || user?.fullName?.trim() || "Player";
 
   async function join() {
     if (busy) return;

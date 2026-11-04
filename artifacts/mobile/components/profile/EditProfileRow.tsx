@@ -19,7 +19,7 @@ export function EditProfileRow() {
         title="Edit profile"
         symbol="person.crop.circle"
         onPress={() => router.push("/profile/edit")}
-        accessibilityHint="Change your name and photo, home area, or level"
+        accessibilityHint="Change your name and photo, home area, or self-rated level"
         last
       />
     </Card>

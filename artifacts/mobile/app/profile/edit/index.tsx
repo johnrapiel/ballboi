@@ -52,10 +52,10 @@ export default function EditProfileList() {
               accessibilityHint="Opens your home area"
             />
             <ListRow
-              title="Your level"
+              title="Self-rated level"
               subtitle={levelValue(profile)}
               onPress={() => router.push("/profile/edit/level")}
-              accessibilityHint="Opens your level"
+              accessibilityHint="Opens your self-rated level"
               last
             />
           </Card>

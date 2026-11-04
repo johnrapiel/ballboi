@@ -82,6 +82,36 @@ export function formatRating(n: number): string {
 
 export type RatingSource = "self" | "verified";
 
+// ─── Level labels (Wave 1 review S9) ─────────────────────────────────────────
+// The number is the player's "self-rated level": only they change it, in Edit
+// profile, and match results never move it. The source word is kept separate
+// so a verified source can replace "Self-rated" later.
+
+/** "Self-rated" or "Verified", for the badge. */
+export function levelSourceWord(source: RatingSource): string {
+  return source === "verified" ? "Verified" : "Self-rated";
+}
+
+/** "Level 3.5, self-rated": Manage rows and what VoiceOver reads for the badge. */
+export function levelSpoken(rating: number, source: RatingSource): string {
+  return `Level ${formatRating(rating)}, ${levelSourceWord(source).toLowerCase()}`;
+}
+
+/**
+ * A league player's level for Manage and pairing rows. A signed-up player's
+ * profile level, "Level 3.5, self-rated"; a placeholder's admin-set level,
+ * "Level 3.0"; "Level not set" for a signed-up player who hasn't picked one.
+ */
+export function leagueLevelLabel(p: {
+  rating?: { rating: number; source: RatingSource } | null;
+  skillLevel: string;
+  hasAccount?: boolean;
+}): string {
+  if (p.rating) return levelSpoken(p.rating.rating, p.rating.source);
+  if (p.hasAccount === false) return `Level ${p.skillLevel}`;
+  return "Level not set";
+}
+
 // ─── Intent ──────────────────────────────────────────────────────────────────
 // Options for "What do you want to do on Ball Boi?". Research only: the
 // answer never changes where the app goes.
@@ -173,7 +203,7 @@ export async function saveHomeArea(
 
 /** Step 5. Returns the saved rating, labeled Self-rated. */
 export async function saveSelfRating(getToken: TokenGetter, rating: number) {
-  const res = await send("/api/users/me/rating/self", getToken, "POST", { rating }, "We couldn't save your rating. Try again.");
+  const res = await send("/api/users/me/rating/self", getToken, "POST", { rating }, "We couldn't save your level. Try again.");
   return (await res.json()) as { rating: number; source: RatingSource };
 }
 
