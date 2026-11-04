@@ -28,8 +28,10 @@ export function useAccountStatus(enabled = true) {
       if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't check your account."));
       return (await res.json()) as AccountStatus;
     },
-    // Recheck when the app comes back, so a lifted ban or an ended suspension clears.
     staleTime: 60_000,
+    // Recheck every time the app comes back, so a lifted ban or an ended
+    // suspension clears (focus is wired to AppState in app/_layout.tsx).
+    refetchOnWindowFocus: "always",
     // If the check can't run, don't lock anyone out: the server still enforces.
     retry: 1,
   });

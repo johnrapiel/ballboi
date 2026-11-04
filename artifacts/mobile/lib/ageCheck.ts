@@ -12,7 +12,8 @@ export const EARLIEST_BIRTH_DATE = new Date(1900, 0, 1);
 /**
  * Where the birthday wheels start before anyone touches them: January 1,
  * 30 years ago. Spec: the wheel never starts at exactly 18 years ago, so the
- * cutoff isn't hinted and tapping Done without scrolling doesn't pass the check.
+ * cutoff isn't hinted. Done stays off until a wheel moves (app/age-check.tsx),
+ * so the untouched start date can't pass the check.
  */
 export function neutralStartDate(today: Date): Date {
   return new Date(today.getFullYear() - 30, 0, 1);

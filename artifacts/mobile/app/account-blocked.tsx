@@ -1,9 +1,9 @@
 import { useAuth } from "@clerk/expo";
-import { Redirect, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { ActivityIndicator, Alert, Linking, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, Linking, View } from "react-native";
 
-import { Button, Card, Screen, Text, TextLink } from "@/components/ui";
+import { Button, Card, ScrollScreen, Screen, Text, TextLink } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useAccountStatus, useSendAppeal } from "@/hooks/useAccountStatus";
@@ -12,6 +12,11 @@ import { useAccountStatus, useSendAppeal } from "@/hooks/useAccountStatus";
 // Enforcement ladder steps 5 and 6; checklist 3a "Bans stick", "One appeal by
 // email"). The person can appeal once by email, sign out, or delete their
 // account (5.1.1(v): deletion always stays available).
+//
+// The status rechecks every time the app comes back and on "Check again"
+// (Wave 1 review A7); the root gate (app/_layout.tsx) sends the person back
+// into the app once it clears, and here whenever the server refuses a
+// request because the account is blocked.
 
 function longDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
@@ -24,8 +29,10 @@ export default function AccountBlockedScreen() {
   const status = useAccountStatus(!!isSignedIn);
   const sendAppeal = useSendAppeal();
   const [sending, setSending] = useState(false);
+  const [checking, setChecking] = useState(false);
 
-  if (!isSignedIn) return <Redirect href="/(auth)/welcome" />;
+  // The root gate moves anyone signed out or not blocked somewhere else.
+  if (!isSignedIn) return null;
   if (status.isPending) {
     return (
       <Screen style={{ justifyContent: "center" }}>
@@ -34,7 +41,7 @@ export default function AccountBlockedScreen() {
     );
   }
   const s = status.data;
-  if (!s || s.status === "ok") return <Redirect href="/(tabs)" />;
+  if (!s || s.status === "ok") return null;
 
   const banned = s.status === "banned";
   const title = banned ? "Your account is banned" : "Your account is suspended";
@@ -48,6 +55,19 @@ export default function AccountBlockedScreen() {
     Linking.openURL(mail).catch(() =>
       Alert.alert("No email app", `Email ${s.supportEmail} with "Appeal ${reference ?? ""}" in the subject.`),
     );
+  };
+
+  const checkAgain = async () => {
+    setChecking(true);
+    try {
+      const next = await status.refetch();
+      const still = next.data?.status;
+      if (still === "banned" || still === "suspended") {
+        AccessibilityInfo.announceForAccessibility(`Your account is still ${still}.`);
+      }
+    } finally {
+      setChecking(false);
+    }
   };
 
   const appeal = () => {
@@ -71,7 +91,8 @@ export default function AccountBlockedScreen() {
   };
 
   return (
-    <Screen style={{ justifyContent: "center", gap: spacing.space6 }}>
+    // Scrolls at the largest text sizes, so every button stays reachable (A8).
+    <ScrollScreen style={{ justifyContent: "center", gap: spacing.space6 }}>
       <View style={{ gap: spacing.space3 }}>
         <Text variant="displayL" accessibilityRole="header">
           {title}
@@ -98,10 +119,17 @@ export default function AccountBlockedScreen() {
             .
           </Text>
         )}
-        <Button label="Sign out" variant="secondary" onPress={() => signOut()} />
+        <Button
+          label="Check again"
+          variant="secondary"
+          loading={checking}
+          onPress={() => void checkAgain()}
+          accessibilityHint="Checks whether your account can use Ball Boi again"
+        />
+        <Button label="Sign out" variant="secondary" onPress={() => void signOut().catch(() => undefined)} />
         <Button label="Delete account" variant="destructive" onPress={() => router.push("/delete-account")} />
       </View>
-    </Screen>
+    </ScrollScreen>
   );
 }
 

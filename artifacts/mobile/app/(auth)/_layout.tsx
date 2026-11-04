@@ -1,13 +1,14 @@
 import { useAuth } from "@clerk/expo";
-import { Redirect, Stack } from "expo-router";
+import { Stack } from "expo-router";
 import React from "react";
 
 export default function AuthLayout() {
   const { isSignedIn, isLoaded } = useAuth();
 
   if (!isLoaded) return null;
-  // Signed-in players continue to the age check, then the app.
-  if (isSignedIn) return <Redirect href="/age-check" />;
+  // Signed-in players move on from here through the root gate
+  // (app/_layout.tsx): account check, age check, onboarding, then the app.
+  if (isSignedIn) return null;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

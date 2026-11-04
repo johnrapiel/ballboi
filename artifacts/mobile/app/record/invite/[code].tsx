@@ -13,6 +13,7 @@ import { Button, Card, Screen, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { Toggle } from "@/components/Toggle";
 import { useColors } from "@/hooks/useColors";
+import { useGate } from "@/hooks/useGate";
 import { claimMatchInvite, recordingsKey, useMatchInvite } from "@/lib/recording/api";
 import { savePendingInvite } from "@/lib/recording/pendingInvite";
 
@@ -28,7 +29,11 @@ export default function MatchInviteScreen() {
   const queryClient = useQueryClient();
   const params = useLocalSearchParams<{ code: string }>();
   const code = String(params.code ?? "").toUpperCase();
-  const invite = useMatchInvite(code, !!isSignedIn);
+  // Signed in but not past the age check or onboarding (or blocked): the root
+  // gate moves them on and keeps this link for later, so show nothing here (A3).
+  const gate = useGate();
+  const held = !!isSignedIn && gate !== "app";
+  const invite = useMatchInvite(code, !!isSignedIn && !held);
   const [training, setTraining] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +47,13 @@ export default function MatchInviteScreen() {
   const close = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)/ballboi"));
 
   if (!isLoaded) return <Screen />;
+  if (held) {
+    return (
+      <Screen style={{ justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator color={c.ink} accessibilityLabel="Loading" />
+      </Screen>
+    );
+  }
 
   if (!isSignedIn) {
     return (
