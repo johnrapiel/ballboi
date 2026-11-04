@@ -35,6 +35,8 @@ import { deleteRecordingData } from "./recordingCleanup";
  * - League player records are anonymized, not deleted, so opponents' match
  *   history and standings stay correct. The name becomes "Deleted player";
  *   email, phone and bio are cleared and the account link is removed.
+ * - A league they run alone gets a new admin: the member they picked, or the
+ *   longest-standing member (lib/leagueAccountDeletion.ts).
  * - Their profile photo file is deleted with the profile.
  * - Messages they sent and every conversation they're in are deleted
  *   (messaging/accountDeletion.ts).
@@ -64,7 +66,18 @@ export interface DeletionDeps {
   deleteClerkUser?: (id: string) => Promise<unknown>;
 }
 
-export async function deleteAccount(clerkUserId: string, log: Log, deps: DeletionDeps = {}): Promise<DeletionSummary> {
+/** Choices the person made on the Delete account screen. */
+export interface DeletionChoices {
+  /** League ID to the player who takes over a league they run alone (S4). */
+  newAdmins?: Record<number, number>;
+}
+
+export async function deleteAccount(
+  clerkUserId: string,
+  log: Log,
+  deps: DeletionDeps = {},
+  choices: DeletionChoices = {},
+): Promise<DeletionSummary> {
   const storage = deps.storage ?? new ObjectStorageService();
   const deleteClerkUser = deps.deleteClerkUser ?? ((id: string) => clerkClient.users.deleteUser(id));
 
@@ -162,7 +175,8 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
       .update(contentReportsTable)
       .set({ reporterClerkUserId: null })
       .where(eq(contentReportsTable.reporterClerkUserId, clerkUserId));
-    await deleteLeagueDataFor(tx, clerkUserId);
+    const promotions = await deleteLeagueDataFor(tx, clerkUserId, choices.newAdmins ?? {});
+    if (promotions.length) log.info({ promotions }, "Account deletion: leagues handed to a new admin");
     const profiles = await tx
       .select({ avatarUrl: usersTable.avatarUrl })
       .from(usersTable)
