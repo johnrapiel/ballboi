@@ -7,6 +7,7 @@ import { leagueToday } from "../lib/leagueCalendar.js";
 import { joinedWeek } from "../lib/leagueJoining.js";
 import { promoteProblem, removeAdminProblem, type LeagueRole } from "../lib/leagueRoles.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
+import { requireLeagueViewer } from "../middlewares/requireLeagueViewer.js";
 
 // Co-admins and the viewer's own role in a league (spec: Roles and onboarding).
 
@@ -70,7 +71,7 @@ router.get("/leagues/:leagueId/membership", requireAuth, async (req, res) => {
 });
 
 /** Everyone who runs the league, owner first. */
-router.get("/leagues/:leagueId/admins", requireAuth, async (req, res) => {
+router.get("/leagues/:leagueId/admins", requireLeagueViewer, async (req, res) => {
   const leagueId = parseInt(String(req.params.leagueId));
   if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid league ID" }); return; }
 

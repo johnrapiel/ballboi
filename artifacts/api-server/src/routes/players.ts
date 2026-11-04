@@ -129,6 +129,9 @@ router.patch("/players/:playerId", requireAuth, async (req, res) => {
   { res.json(formatPlayer(player, true)); return; }
 });
 
+// League admins only. A player who has played (or is scheduled for) any match
+// can't be hard-deleted, since that would orphan match history; use the
+// remove-player flow in Manage (POST /leagues/:leagueId/players/:playerId/remove).
 router.delete("/players/:playerId", requireAuth, async (req, res) => {
   const { userId } = getAuth(req);
   const playerId = parseInt(String(req.params.playerId));
@@ -137,14 +140,29 @@ router.delete("/players/:playerId", requireAuth, async (req, res) => {
   const [existingPlayer] = await db.select().from(playersTable).where(eq(playersTable.id, playerId));
   if (!existingPlayer) { res.status(404).json({ error: "Player not found" }); return; }
 
-  let canDelete = existingPlayer.clerkUserId === userId;
-  if (!canDelete && existingPlayer.leagueId) {
-    const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, existingPlayer.leagueId));
-    canDelete = league?.createdByClerkUserId === userId;
+  if (!existingPlayer.leagueId || !(await isLeagueAdmin(existingPlayer.leagueId, userId!))) {
+    res.status(403).json({ error: "Only this league's admins can delete a player" });
+    return;
   }
 
-  if (!canDelete) {
-    { res.status(403).json({ error: "You can only remove your own player profile or players in leagues you created" }); return; }
+  const [anyMatch] = await db
+    .select({ id: matchesTable.id })
+    .from(matchesTable)
+    .where(
+      or(
+        eq(matchesTable.player1Id, playerId),
+        eq(matchesTable.player2Id, playerId),
+        eq(matchesTable.player3Id, playerId),
+        eq(matchesTable.player4Id, playerId),
+      )
+    )
+    .limit(1);
+  if (anyMatch) {
+    res.status(409).json({
+      error: "This player has matches, so they can't be deleted. Remove them from the league in Manage instead.",
+      removePath: `/api/leagues/${existingPlayer.leagueId}/players/${playerId}/remove`,
+    });
+    return;
   }
 
   await db.delete(playersTable).where(eq(playersTable.id, playerId));

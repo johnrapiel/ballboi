@@ -1,6 +1,7 @@
 // A small in-memory stand-in for the Drizzle query chain, for route tests
 // that need filtering by column. Only the pieces the routes under test use:
-// select().from(t).where(...).orderBy()/groupBy()/limit(), awaited.
+// select().from(t).where(...).orderBy()/groupBy()/limit(), awaited, plus
+// simple insert/delete/transaction and an execute() that returns no rows.
 // Pair it with the `drizzleFake` mock of "drizzle-orm" below.
 
 export type Row = Record<string, unknown>;
@@ -57,8 +58,23 @@ export function fakeDb(rows: Record<string, Row[]>) {
     };
     return q;
   };
-  return {
+  const db = {
     select: (fields?: Record<string, unknown>) => ({ from: (t: { __name: string }) => query(t.__name, fields) }),
+    /** Raw SQL isn't run; it reads as no rows. */
+    execute: async () => ({ rows: [] as Row[] }),
+    insert: (t: { __name: string }) => ({
+      values: (v: Row) => {
+        const row = { id: (rows[t.__name]?.length ?? 0) + 1000, ...v };
+        (rows[t.__name] ??= []).push(row);
+        return { returning: async () => [row], then: (ok: (v: unknown) => unknown) => Promise.resolve(undefined).then(ok) };
+      },
+    }),
+    delete: (t: { __name: string }) => ({
+      where: async (f: Filter) => {
+        rows[t.__name] = (rows[t.__name] ?? []).filter((r) => !matchesFilter(r, f));
+      },
+    }),
+    transaction: async <T>(fn: (tx: unknown) => Promise<T>) => fn(db),
     update: (t: { __name: string }) => ({
       set: (values: Row) => ({
         where: (f: Filter) => ({
@@ -71,6 +87,7 @@ export function fakeDb(rows: Record<string, Row[]>) {
       }),
     }),
   };
+  return db;
 }
 
 export const drizzleFake = {
@@ -83,5 +100,8 @@ export const drizzleFake = {
   desc: (x: unknown) => x,
   asc: (x: unknown) => x,
   count: () => ({ op: "any" }),
-  sql: () => ({ op: "any" }),
+  lte: () => ({ op: "any" }),
+  gte: () => ({ op: "any" }),
+  isNotNull: () => ({ op: "any" }),
+  sql: Object.assign(() => ({ op: "any" }), { raw: () => ({ op: "any" }) }),
 };
