@@ -30,6 +30,7 @@ import {
   type PairingPlayer,
 } from "../lib/pairing.js";
 import { unpairedPlayers, type DraftRound } from "../lib/roundEdits.js";
+import { blockedPlayerPairs } from "../lib/blocks.js";
 import { logger } from "../lib/logger.js";
 import { sendPushToUsers } from "../routes/notifications.js";
 import { loadProfiles, playerLevelValue } from "../lib/playerProfile.js";
@@ -122,11 +123,14 @@ async function pairOpenPlayers(league: League, round: LeagueRound, playerIds: nu
     slots: slotKeys(availability.find((a) => a.playerId === p.id)?.slots),
     byes: byeCounts.get(p.id) ?? 0,
   }));
+  // B10: two players where either blocked the other are never paired.
+  const blocked = await blockedPlayerPairs(players.map((p) => p.id));
   const { pairs, byes } = pairRound({
     players: pairingPlayers,
     history,
     weights: league.format === "round_robin" ? ROUND_ROBIN_WEIGHTS : FLEX_WEIGHTS,
     roundNumber: round.roundNumber,
+    blocked,
   });
 
   const season = await getAutoSeason(league.id);

@@ -11,10 +11,11 @@ import {
   winnerIdFor,
 } from "../lib/leagueScoring.js";
 import { checkCorrection, checkUndo, recordChanges } from "../lib/leagueScoreChanges.js";
-import { advanceTo, nextRound, type PlayoffRound } from "../lib/playoffs.js";
+import { leagueHasEnded } from "../lib/leagueLifecycle.js";
+import { advanceTo, nextRound, settleProblem, type PlayoffRound } from "../lib/playoffs.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
 import { advancePlayoffWinner } from "../services/playoffBracket.js";
-import { advancePlayoff } from "../services/leaguePlayoffs.js";
+import { advancePlayoff, playoffPlayBy, walkover } from "../services/leaguePlayoffs.js";
 import { usesWeeklyRounds } from "../services/leagueRounds.js";
 import { sendPushToUsers } from "./notifications.js";
 import { logger } from "../lib/logger.js";
@@ -23,6 +24,9 @@ import { logger } from "../lib/logger.js";
 // enters it, from their own side ("6-3, 6-4" means they won both sets). The
 // first score entered stands, except that the player who entered it can undo
 // it for 10 minutes, and a league admin can correct it from Manage (C4, C5).
+// Only real tennis scores save (C10). "Opponent retired" saves the sets so
+// far as a win for the player entering it, shown as RET (Q6). Once a league
+// ends, its scores are final (Q9).
 
 const router = Router();
 
@@ -40,8 +44,10 @@ router.post("/leagues/:leagueId/matches/:matchId/score", async (req, res) => {
     .where(and(eq(matchesTable.id, matchId), eq(matchesTable.leagueId, leagueId)));
   if (!match) { res.status(404).json({ error: "Match not found" }); return; }
 
+  const retired = req.body?.retired === true;
+
   // An ended league's standings are frozen (decision 31).
-  const [owner] = await db.select({ endedAt: leaguesTable.endedAt, timeZone: leaguesTable.timeZone }).from(leaguesTable).where(eq(leaguesTable.id, leagueId));
+  const [owner] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (owner?.endedAt) { res.status(409).json({ error: "This league has ended, so scores can't be entered." }); return; }
 
   const [[round], callerPlayers] = await Promise.all([
@@ -59,10 +65,12 @@ router.post("/leagues/:leagueId/matches/:matchId/score", async (req, res) => {
     round: round ?? null,
     today: todayFor(owner),
     callerPlayerIds: callerPlayers.map((p) => p.id),
+    playoffPlayBy: owner && match.playoffBracketId ? await playoffPlayBy(owner, match) : null,
   });
   if (!check.ok) { res.status(check.status).json({ error: check.error }); return; }
 
-  const parsed = parseMatchScore(req.body.score);
+  // With "Opponent retired", the caller's side wins (Q6).
+  const parsed = parseMatchScore(req.body.score, { retired });
   if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
 
   // The caller typed their own games first. Store it from player 1's side.
@@ -105,8 +113,7 @@ router.post("/leagues/:leagueId/matches/:matchId/score", async (req, res) => {
     });
   }
   if (match.playoffBracketId) {
-    const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
-    const advance = league && usesWeeklyRounds(league) ? advancePlayoff : advancePlayoffWinner;
+    const advance = owner && usesWeeklyRounds(owner) ? advancePlayoff : advancePlayoffWinner;
     await advance(saved, winnerId).catch((err) => logger.error({ err, matchId }, "Couldn't advance playoff winner"));
   }
 
@@ -190,7 +197,8 @@ router.post("/leagues/:leagueId/matches/:matchId/score/undo", async (req, res) =
     .where(and(eq(matchesTable.id, matchId), eq(matchesTable.leagueId, leagueId)));
   if (!match) { res.status(404).json({ error: "Match not found" }); return; }
 
-  const check = checkUndo(match, userId, new Date());
+  const [league] = await db.select({ endedAt: leaguesTable.endedAt, status: leaguesTable.status }).from(leaguesTable).where(eq(leaguesTable.id, leagueId));
+  const check = checkUndo(match, userId, new Date(), leagueHasEnded(league));
   if (!check.ok) { res.status(check.status).json({ error: check.error }); return; }
   const [me] = await db
     .select({ name: playersTable.name })
@@ -257,9 +265,11 @@ router.put("/leagues/:leagueId/matches/:matchId/score", requireLeagueAdmin, asyn
     .where(and(eq(matchesTable.id, matchId), eq(matchesTable.leagueId, leagueId)));
   if (!match) { res.status(404).json({ error: "Match not found" }); return; }
 
-  // A playoff score can be corrected until the match it feeds is played.
+  // A playoff score can be corrected until the match it feeds is played, and
+  // nothing changes once the league has ended (Q9).
+  const [league] = await db.select({ endedAt: leaguesTable.endedAt, status: leaguesTable.status }).from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   const feeds = await nextPlayoffMatch(match);
-  const check = checkCorrection(match, feeds);
+  const check = checkCorrection(match, feeds, leagueHasEnded(league));
   if (!check.ok) { res.status(check.status).json({ error: check.error }); return; }
 
   // The admin enters the score from player 1's side, as Manage shows it.
@@ -297,6 +307,56 @@ router.put("/leagues/:leagueId/matches/:matchId/score", requireLeagueAdmin, asyn
     correctedAt: saved.correctedAt!.toISOString(),
     correctedBy: saved.correctedByName,
   });
+});
+
+/**
+ * Q5b: after a playoff round's play-by date, a league admin settles a match
+ * nobody scored: the score from player 1's side, or a walkover to one player.
+ * The winner moves on as usual.
+ */
+router.post("/leagues/:leagueId/matches/:matchId/result", requireLeagueAdmin, async (req, res) => {
+  const { userId } = getAuth(req);
+  const leagueId = res.locals.leagueId as number;
+  const matchId = parseInt(String(req.params.matchId));
+  if (isNaN(matchId)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [[match], [league]] = await Promise.all([
+    db.select().from(matchesTable).where(and(eq(matchesTable.id, matchId), eq(matchesTable.leagueId, leagueId))),
+    db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId)),
+  ]);
+  if (!match || !league) { res.status(404).json({ error: "Match not found" }); return; }
+  const problem = settleProblem({
+    match,
+    leagueEnded: leagueHasEnded(league),
+    playBy: await playoffPlayBy(league, match),
+    today: todayFor(league),
+  });
+  if (problem) { res.status(problem.status).json({ error: problem.error }); return; }
+
+  const walkoverTo = req.body?.walkoverWinnerId;
+  if (walkoverTo !== undefined && walkoverTo !== null) {
+    if (walkoverTo !== match.player1Id && walkoverTo !== match.player2Id) {
+      res.status(400).json({ error: "Pick one of the two players for the walkover." });
+      return;
+    }
+    if (!(await walkover(match, walkoverTo))) { res.status(409).json({ error: "This match changed. Pull down to see the latest." }); return; }
+    res.status(201).json({ matchId, status: "completed", score: "W/O", winnerId: walkoverTo, inGrace: false, countsForStandings: false });
+    return;
+  }
+
+  if (typeof req.body?.score !== "string") { res.status(400).json({ error: "Enter the score for each set, like 6-4." }); return; }
+  const parsed = parseMatchScore(req.body.score);
+  if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
+  const winnerId = winnerIdFor(match, parsed.winnerSide);
+  const now = new Date().toISOString();
+  const [saved] = await db
+    .update(matchesTable)
+    .set({ status: "completed", score: parsed.score, winnerId, completedAt: now, recordedAt: now, recordedByClerkUserId: userId!, inGrace: false })
+    .where(and(eq(matchesTable.id, matchId), ne(matchesTable.status, "completed"), isNull(matchesTable.voidedAt)))
+    .returning();
+  if (!saved) { res.status(409).json({ error: "A score is already in for this match. The first score entered stands." }); return; }
+  await advancePlayoff(saved, winnerId).catch((err) => logger.error({ err, matchId }, "Couldn't advance playoff winner"));
+  res.status(201).json({ matchId, status: saved.status, score: saved.score, winnerId, inGrace: false, countsForStandings: false });
 });
 
 export default router;

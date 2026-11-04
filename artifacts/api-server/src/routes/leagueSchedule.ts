@@ -5,6 +5,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { canViewLeague, getLeagueRole, PRIVATE_LEAGUE } from "../lib/leagueAccess.js";
 import { graceEndFor, leagueZone, roundPhase, roundWindow, todayFor } from "../lib/leagueCalendar.js";
 import { undoDeadline } from "../lib/leagueScoreChanges.js";
+import { leagueHasEnded } from "../lib/leagueLifecycle.js";
 import { planBye, planLock, planSwap, unpairedPlayers } from "../lib/roundEdits.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
 import { draftNextRound, loadDraftRound, publishRound, repairRound, usesWeeklyRounds } from "../services/leagueRounds.js";
@@ -44,6 +45,7 @@ async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDe
     return p?.rating != null ? { rating: Number(p.rating), source: p.ratingSource === "verified" ? "verified" : "self" } : null;
   };
   const activeIds = players.filter((p) => !p.leftAt).map((p) => p.id);
+  const ended = leagueHasEnded(league);
 
   return rounds.map((r) => {
     const roundMatches = matches.filter((m) => m.roundId === r.id);
@@ -86,8 +88,9 @@ async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDe
           locked: m.locked,
           scheduledAt: m.scheduledAt ?? null,
           location: m.location ?? null,
-          // C4: set only for the player who entered the score, while they can undo it.
-          undoUntil: undoDeadline(m, userId, now),
+          // C4: set only for the player who entered the score, while they can
+          // undo it. Never once the league has ended: its scores are final (Q9).
+          undoUntil: ended ? null : undoDeadline(m, userId, now),
           // C5: shown to both players and in Manage.
           correctedBy: m.correctedAt ? (m.correctedByName ?? "League admin") : null,
           correctedAt: m.correctedAt ? m.correctedAt.toISOString() : null,

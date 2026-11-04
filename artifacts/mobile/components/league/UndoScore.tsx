@@ -2,16 +2,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import React, { useEffect, useState } from "react";
 import { AccessibilityInfo, Alert, Pressable } from "react-native";
 
-import {
-  getGetLeagueScheduleQueryKey,
-  getGetLeagueStandingsQueryKey,
-  getGetLeaguesQueryKey,
-  useUndoLeagueScore,
-} from "@workspace/api-client-react";
+import { getGetLeagueScheduleQueryKey, useUndoLeagueScore } from "@workspace/api-client-react";
 
 import { Text } from "@/components/ui";
 import { MIN_TAP } from "@/constants/tokens";
 import { countdownLabel, countdownSpoken, undoSecondsLeft } from "@/lib/leagueSchedule";
+import { refreshLeague } from "@/lib/leagueRefresh";
 
 // C4 (Oct 31 review): the player who entered a score can undo it for 10
 // minutes, with a visible countdown. Undo clears the score and standings
@@ -46,12 +42,8 @@ export function UndoScore({
 
   if (!undoUntil || left === 0) return null;
 
-  const refresh = () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: getGetLeagueScheduleQueryKey(leagueId) }),
-      queryClient.invalidateQueries({ queryKey: getGetLeagueStandingsQueryKey(leagueId) }),
-      queryClient.invalidateQueries({ queryKey: getGetLeaguesQueryKey().slice(0, 1) }),
-    ]);
+  // C4: Home, standings and the league all show the match as unplayed again.
+  const refresh = () => refreshLeague(queryClient, leagueId);
 
   function confirm() {
     if (undo.isPending) return;

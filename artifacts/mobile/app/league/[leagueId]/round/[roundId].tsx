@@ -195,6 +195,19 @@ export default function RoundReviewScreen() {
     );
   }
 
+  // C17: offline or a failed load isn't the same as a round that went out.
+  if (!round && (scheduleQ.isError || !scheduleQ.data)) {
+    return (
+      <View style={{ flex: 1, backgroundColor: c.paper, padding: spacing.space4 }}>
+        <Card style={{ gap: spacing.space3 }}>
+          <Text variant="bodyStrong">Couldn't load</Text>
+          <Text tone="inkMuted">Check your connection and try again.</Text>
+          <Button label="Retry" variant="secondary" loading={scheduleQ.isRefetching} onPress={() => void scheduleQ.refetch()} />
+        </Card>
+      </View>
+    );
+  }
+
   if (!round || round.phase !== "draft") {
     return (
       <View style={{ flex: 1, backgroundColor: c.paper, padding: spacing.space4 }}>

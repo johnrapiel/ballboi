@@ -7,6 +7,8 @@
  */
 
 export interface EnterScoreBody {
-  /** Sets from your own side, like "6-3, 4-6, 10-7". Your games first. */
+  /** Sets from your own side, like "6-3, 4-6, 10-7". Your games first. Best of three; a set ends 6-0 to 6-4, 7-5 or 7-6, and a third set can be a match tiebreak (10-7). */
   score: string;
+  /** The opponent retired. The score is the sets so far (the last can be unfinished), it counts as the caller's win, and it's stored with RET at the end, like "6-3, 2-1 RET". Admin corrections ignore it. */
+  retired?: boolean;
 }

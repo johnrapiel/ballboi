@@ -1,5 +1,5 @@
-import { useRouter } from "expo-router";
-import React from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useRef } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -23,6 +23,10 @@ import { openRecorder } from "@/lib/recording/start";
 // PR 4: a singles league match you can play now has "Record with Ball Boi"
 // next to Enter score, any day that week. A match with a set time today comes
 // first, under Today. Doubles shows Record dimmed with the reason.
+//
+// C4: Home refreshes each time you come back to it, so a score, undo, join,
+// leave or end shows straight away. Q5b: a playoff match shows its play-by
+// date; after it, the admin enters the result, so Home offers nothing.
 
 function weekDetail(i: LeagueWeekItem): string {
   const when = matchWhen(i.scheduledAt);
@@ -59,6 +63,18 @@ export default function HomeScreen() {
   const router = useRouter();
   const weekQ = useGetMyLeagueWeek();
   const week = weekQ.data;
+  const { refetch } = weekQ;
+  const firstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      // The first focus is the first load; after that, come back to fresh data.
+      if (firstFocus.current) {
+        firstFocus.current = false;
+        return;
+      }
+      void refetch();
+    }, [refetch]),
+  );
 
   const openLeague = (leagueId: number) => router.push(`/league/${leagueId}`);
   const enterScore = (leagueId: number, matchId: number) => router.push(`/league/${leagueId}/score/${matchId}`);
@@ -107,17 +123,22 @@ export default function HomeScreen() {
     );
   };
 
-  const playoffCard = (p: LeagueWeekPlayoff) => (
-    <MatchCard
-      key={`po-${p.matchId}`}
-      eyebrow={`${p.leagueName} · Playoffs · ${ROUND_SINGULAR[p.round as keyof typeof ROUND_SINGULAR] ?? "Playoff"}`}
-      title={`You vs. ${p.opponentName}`}
-      onOpen={() => openLeague(p.leagueId)}
-      primary={p.singles ? record(p.leagueId, p.matchId, p.opponentName) : scoreAction(p.leagueId, p.matchId, p.opponentName)}
-      secondary={p.singles ? scoreAction(p.leagueId, p.matchId, p.opponentName) : null}
-      footer={p.singles ? null : <DoublesRecordButton matchId={p.matchId} />}
-    />
-  );
+  const playoffCard = (p: LeagueWeekPlayoff) => {
+    const open = !p.pastPlayBy;
+    return (
+      <MatchCard
+        key={`po-${p.matchId}`}
+        eyebrow={`${p.leagueName} · Playoffs · ${ROUND_SINGULAR[p.round as keyof typeof ROUND_SINGULAR] ?? "Playoff"}`}
+        title={`You vs. ${p.opponentName}`}
+        detail={p.playBy ? (open ? `Play by ${deadlineDate(p.playBy, p.timeZone)}.` : `The play-by date was ${deadlineDate(p.playBy, p.timeZone)}.`) : null}
+        note={open ? null : "Your league admin can enter the result."}
+        onOpen={() => openLeague(p.leagueId)}
+        primary={open ? (p.singles ? record(p.leagueId, p.matchId, p.opponentName) : scoreAction(p.leagueId, p.matchId, p.opponentName)) : null}
+        secondary={open && p.singles ? scoreAction(p.leagueId, p.matchId, p.opponentName) : null}
+        footer={open && !p.singles ? <DoublesRecordButton matchId={p.matchId} /> : null}
+      />
+    );
+  };
 
   const nothing =
     !!week && week.thisWeek.length === 0 && week.playoffs.length === 0 && week.drafts.length === 0 && week.recent.length === 0;

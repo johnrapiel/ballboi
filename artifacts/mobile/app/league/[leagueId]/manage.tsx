@@ -9,10 +9,7 @@ import {
   getGetLeagueAdminsQueryKey,
   getGetLeagueInvitesQueryKey,
   getGetLeagueJoinRequestsQueryKey,
-  getGetLeagueQueryKey,
   getGetLeagueRosterQueryKey,
-  getGetLeagueScheduleQueryKey,
-  getGetLeagueStandingsQueryKey,
   getGetLeaguesQueryKey,
   useApproveLeagueJoinRequest,
   useCreateLeagueInvite,
@@ -41,6 +38,7 @@ import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { inviteMessage } from "@/lib/leagueInvite";
 import { pairingTime, shortDate, weeklyMatchTime } from "@/lib/leagueSchedule";
+import { refreshLeague } from "@/lib/leagueRefresh";
 import { leagueLevelLabel } from "@/lib/onboarding";
 
 // Manage (spec: Roles: "Admin tools appear in context only: a Manage entry
@@ -93,18 +91,29 @@ export default function ManageLeagueScreen() {
   const seasonOver = !!league && league.status === "completed";
   const ended = !!league?.endedAt;
 
+  const myPlayerId = membershipQ.data?.playerId ?? null;
+
+  // C4: Manage's own lists, plus everything that shows the league (Home included).
   const refreshAll = () =>
-    Promise.all(
-      [
-        getGetLeagueQueryKey(leagueId),
-        getGetLeagueScheduleQueryKey(leagueId),
+    Promise.all([
+      ...[
         getGetLeagueRosterQueryKey(leagueId),
         getGetLeagueAdminsQueryKey(leagueId),
         getGetLeagueJoinRequestsQueryKey(leagueId),
-        getGetLeagueStandingsQueryKey(leagueId),
         getGetLeagueInvitesQueryKey(leagueId),
       ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
-    );
+      refreshLeague(queryClient, leagueId),
+    ]);
+
+  // C19: a decline that didn't go through says so, and the request stays.
+  const declineRequest = (r: JoinRequest) =>
+    decline
+      .mutateAsync({ leagueId, requestId: r.id })
+      .then(refreshAll)
+      .catch(async () => {
+        Alert.alert("Couldn't decline", "Try again.");
+        await refreshAll().catch(() => undefined);
+      });
 
   // Decision 31: end the league. Standings freeze; history stays.
   function confirmEnd() {
@@ -121,7 +130,7 @@ export default function ManageLeagueScreen() {
             endLeague
               .mutateAsync({ leagueId })
               .then(async () => {
-                await Promise.all([refreshAll(), queryClient.invalidateQueries({ queryKey: getGetLeaguesQueryKey().slice(0, 1) })]);
+                await refreshAll();
                 AccessibilityInfo.announceForAccessibility(`${league.name} has ended`);
               })
               .catch((e) => Alert.alert("Couldn't end the league", errorText(e, "Try again in a moment."))),
@@ -177,9 +186,13 @@ export default function ManageLeagueScreen() {
 
   function playerMenu(p: RosterPlayer) {
     const canPromote = p.hasAccount && !p.role;
-    const options = [...(canPromote ? ["Make co-admin"] : []), "Remove from league", "Cancel"];
+    // C26: you leave from the league's page, so your own row has no Remove.
+    const isMe = myPlayerId != null && p.playerId === myPlayerId;
+    const options = [...(canPromote ? ["Make co-admin"] : []), ...(isMe ? [] : ["Remove from league"]), "Cancel"];
+    if (options.length === 1) return;
+    const destructive = options.indexOf("Remove from league");
     ActionSheetIOS.showActionSheetWithOptions(
-      { title: p.name, options, destructiveButtonIndex: options.indexOf("Remove from league"), cancelButtonIndex: options.length - 1 },
+      { title: p.name, options, destructiveButtonIndex: destructive >= 0 ? destructive : undefined, cancelButtonIndex: options.length - 1 },
       (i) => {
         if (options[i] === "Make co-admin") {
           promote
@@ -238,7 +251,7 @@ export default function ManageLeagueScreen() {
         {
           text: "Remove",
           style: "destructive",
-          onPress: () => decline.mutateAsync({ leagueId, requestId: r.id }).then(refreshAll).catch(() => {}),
+          onPress: () => void declineRequest(r),
         },
       ]);
       return;
@@ -256,7 +269,7 @@ export default function ManageLeagueScreen() {
               Alert.alert("Couldn't approve", errorText(e, "Try again in a moment."));
             });
         }
-        if (i === 1) decline.mutateAsync({ leagueId, requestId: r.id }).then(refreshAll).catch(() => {});
+        if (i === 1) void declineRequest(r);
       },
     );
   }
@@ -349,7 +362,8 @@ export default function ManageLeagueScreen() {
         </>
       ) : null}
 
-      {schedule?.weeklyRounds ? (
+      {/* Q9: after End, scores are final, so there's nothing to correct. */}
+      {schedule?.weeklyRounds && !ended && !seasonOver ? (
         <>
           <SectionLabel>Scores</SectionLabel>
           <Card style={{ padding: 0, overflow: "hidden" }}>
@@ -406,17 +420,21 @@ export default function ManageLeagueScreen() {
         {roster.length === 0 ? (
           <ListRow title="No players yet" subtitle="Share the invite code below." last />
         ) : (
-          roster.map((p, i) => (
-            <ListRow
-              key={p.playerId}
-              title={p.name}
-              subtitle={leagueLevelLabel(p)}
-              trailing={roleLabel(p.role)}
-              onPress={() => playerMenu(p)}
-              accessibilityHint={p.hasAccount && !p.role ? "Make co-admin or remove from league" : "Remove from league"}
-              last={i === roster.length - 1}
-            />
-          ))
+          roster.map((p, i) => {
+            const isMe = myPlayerId != null && p.playerId === myPlayerId;
+            const canPromote = p.hasAccount && !p.role;
+            return (
+              <ListRow
+                key={p.playerId}
+                title={isMe ? `${p.name} (you)` : p.name}
+                subtitle={leagueLevelLabel(p)}
+                trailing={roleLabel(p.role)}
+                onPress={isMe && !canPromote ? undefined : () => playerMenu(p)}
+                accessibilityHint={isMe ? undefined : canPromote ? "Make co-admin or remove from league" : "Remove from league"}
+                last={i === roster.length - 1}
+              />
+            );
+          })
         )}
       </Card>
 

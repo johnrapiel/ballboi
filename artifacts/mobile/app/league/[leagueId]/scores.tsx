@@ -12,12 +12,14 @@ import { Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { correctionLine, dateRange, resultLine } from "@/lib/leagueSchedule";
+import { slotWinningScore } from "@/lib/playoffView";
 
 // Correct a score (Oct 31 review, C5). Manage > Correct a score lists every
 // played match by round, newest first. Tap one to enter the corrected sets
 // and confirm; standings recompute and both players see "Corrected by
 // {admin} on {date}". A playoff score can be corrected until the match it
-// feeds has been played; the corrected winner takes that spot.
+// feeds has been played; the corrected winner takes that spot. Once the
+// league ends, scores are final and nothing here can change (Q9).
 
 export default function CorrectScoresScreen() {
   const c = useColors();
@@ -25,6 +27,7 @@ export default function CorrectScoresScreen() {
   const { leagueId: raw } = useLocalSearchParams<{ leagueId: string }>();
   const leagueId = Number(raw);
   const leagueQ = useGetLeague(leagueId);
+  const ended = !!leagueQ.data?.endedAt || leagueQ.data?.status === "completed";
   const scheduleQ = useGetLeagueSchedule(leagueId);
   const bracketQ = useGetLeagueBracket(leagueId);
   const playoffRounds = (bracketQ.data?.rounds ?? [])
@@ -53,7 +56,11 @@ export default function CorrectScoresScreen() {
         <Text tone="inkMuted">Pick a played match to fix its score. Standings update, and both players see that you corrected it.</Text>
       </View>
 
-      {scheduleQ.isLoading ? (
+      {ended ? (
+        <Card style={{ gap: spacing.space2 }}>
+          <Text variant="bodyStrong">This league has ended, so its scores are final.</Text>
+        </Card>
+      ) : scheduleQ.isLoading ? (
         <ActivityIndicator color={c.ink} accessibilityLabel="Loading matches" style={{ marginTop: spacing.space6 }} />
       ) : scheduleQ.isError ? (
         <Card style={{ gap: spacing.space2 }}>
@@ -81,7 +88,7 @@ export default function CorrectScoresScreen() {
                     <ListRow
                       key={s.matchId}
                       title={`${s.player1?.playerName ?? "Player 1"} vs. ${s.player2?.playerName ?? "Player 2"}`}
-                      subtitle={`${winner ?? "Winner"} won ${s.score}`}
+                      subtitle={`${winner ?? "Winner"} won ${slotWinningScore(s) ?? s.score}`}
                       trailing="Correct"
                       onPress={() =>
                         router.push({

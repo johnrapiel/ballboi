@@ -69,7 +69,7 @@ describe("buildLeagueHome", () => {
 
   it("shows my unscored playoff match", () => {
     const home = buildLeagueHome(input({ matches: [match(200, null, 10, 20, { playoffBracketId: 5, playoffRound: "semifinal" })] }));
-    expect(home.playoffs).toEqual([{ leagueId: 1, leagueName: "Tuesday Flex", matchId: 200, round: "semifinal", opponentName: "Alex", singles: true, timeZone: "America/New_York" }]);
+    expect(home.playoffs).toEqual([{ leagueId: 1, leagueName: "Tuesday Flex", matchId: 200, round: "semifinal", opponentName: "Alex", singles: true, timeZone: "America/New_York", playBy: null, pastPlayBy: false }]);
   });
 
   it("leaves out leagues I've left", () => {
@@ -105,5 +105,30 @@ describe("buildLeagueHome time zones and played matches (PR 4)", () => {
       [102, false],
       [101, true],
     ]);
+  });
+});
+
+describe("buildLeagueHome playoffs (PR 5)", () => {
+  const semi = match(200, null, 10, 20, { playoffBracketId: 5, playoffRound: "semifinal" });
+
+  it("offers no playoff match from an ended league (C15)", () => {
+    const ended = input({ leagues: [{ id: 1, name: "Tuesday Flex", leagueType: "singles", endedAt: new Date() }], matches: [semi] });
+    expect(buildLeagueHome(ended).playoffs).toEqual([]);
+    const finished = input({ leagues: [{ id: 1, name: "Tuesday Flex", leagueType: "singles", status: "completed" }], matches: [semi] });
+    expect(buildLeagueHome(finished).playoffs).toEqual([]);
+  });
+
+  it("shows the round's play-by date, and when it has passed (Q5b)", () => {
+    const home = buildLeagueHome(input({ matches: [semi], playoffPlayBy: new Map([[200, "2026-11-12"]]) }));
+    expect(home.playoffs[0]).toMatchObject({ playBy: "2026-11-12", pastPlayBy: true });
+    const later = buildLeagueHome(input({ matches: [semi], playoffPlayBy: new Map([[200, "2026-11-29"]]) }));
+    expect(later.playoffs[0]).toMatchObject({ playBy: "2026-11-29", pastPlayBy: false });
+  });
+
+  it("shows a retirement from my side", () => {
+    const home = buildLeagueHome(
+      input({ matches: [match(101, 2, 20, 10, { status: "completed", score: "6-3, 2-1 RET", winnerId: 20, completedAt: "2026-11-12T10:00:00Z" })] }),
+    );
+    expect(home.recent[0]).toMatchObject({ score: "3-6, 1-2 RET", won: false });
   });
 });

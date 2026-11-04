@@ -10,4 +10,6 @@ export interface DropoutResult {
   left?: boolean;
   removed?: boolean;
   voidedMatches: number;
+  /** After leaving, the caller still runs the league as an admin */
+  stillAdmin?: boolean;
 }

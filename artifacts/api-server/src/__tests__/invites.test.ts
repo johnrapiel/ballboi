@@ -435,3 +435,41 @@ describe("POST /api/invites/:code/join", () => {
     expect(capturedInsertValues).toMatchObject({ name: "Alex Kim", skillLevel: "4.5" });
   });
 });
+
+describe("an ended league's invite (PR 5)", () => {
+  const endedLeague = { ...sampleLeague, endedAt: new Date("2026-11-01T12:00:00Z"), status: "completed" };
+
+  it("says the league has ended when the invite is opened", async () => {
+    mockDb.select.mockReturnValueOnce(mockChain([sampleInvite])).mockReturnValueOnce(mockChain([endedLeague]));
+    const res = await supertest(app).get("/api/invites/test-invite-code").set("Authorization", "Bearer token");
+    expect(res.status).toBe(410);
+    expect(res.body).toMatchObject({ error: "This league has ended", code: "league_ended", leagueName: "Test League" });
+  });
+
+  it("refuses to join, and sends the admin no request", async () => {
+    const insert = vi.fn().mockReturnValue(mockChain([]));
+    mockDb.transaction.mockImplementation(async (cb: (tx: unknown) => unknown) => {
+      let selectCall = 0;
+      const tx = {
+        execute: vi.fn().mockResolvedValue(undefined),
+        select: vi.fn().mockImplementation(() => {
+          selectCall++;
+          if (selectCall === 1) return mockChain([sampleInvite]);
+          if (selectCall === 2) return mockChain([endedLeague]);
+          return mockChain([]);
+        }),
+        insert,
+        update: vi.fn().mockReturnValue(mockChain([])),
+      };
+      return cb(tx);
+    });
+    const res = await supertest(app)
+      .post("/api/invites/test-invite-code/join")
+      .set("Authorization", "Bearer token")
+      .send({ playerName: "Alice", skillLevel: "3.5" });
+    expect(res.status).toBe(410);
+    expect(res.body).toMatchObject({ error: "This league has ended", code: "league_ended" });
+    expect(insert).not.toHaveBeenCalled();
+    expect(mockDb.insert).not.toHaveBeenCalled();
+  });
+});

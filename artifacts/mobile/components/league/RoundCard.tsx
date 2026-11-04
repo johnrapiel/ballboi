@@ -20,7 +20,7 @@ function MatchRow({
   round,
   myPlayerId,
   onEnterScore,
-  frozen,
+  ended,
   last,
 }: {
   leagueId: number;
@@ -28,19 +28,20 @@ function MatchRow({
   round: ScheduleRound;
   myPlayerId: number | null | undefined;
   onEnterScore: (m: ScheduleMatch) => void;
-  frozen: boolean;
+  ended: boolean;
   last: boolean;
 }) {
   const c = useColors();
   const mine = isMine(m, myPlayerId);
-  const result = resultLine(m, round);
-  const notPlayed = isNotPlayed(round, m);
+  // C24: once the league has ended, nothing is "Not played yet".
+  const result = resultLine(m, round, ended);
+  const notPlayed = isNotPlayed(round, m, ended);
   const notes = [
     m.inGrace ? "Grace week: counts for Ball Boi stats, not standings" : null,
     correctionLine(m),
     m.status !== "completed" && m.scoreClearedBy ? `Score cleared by ${m.scoreClearedBy}` : null,
   ].filter((n): n is string => !!n);
-  const scoreable = mine && !frozen && canEnterScore(round, m);
+  const scoreable = mine && canEnterScore(round, m, ended);
   const summary = `${m.player1Name} versus ${m.player2Name}. ${result}.${notes.map((n) => ` ${n}.`).join("")}`;
 
   return (
@@ -107,7 +108,7 @@ export function RoundCard({
   round,
   myPlayerId,
   onEnterScore,
-  frozen = false,
+  ended = false,
   timeZone,
 }: {
   leagueId: number;
@@ -115,7 +116,7 @@ export function RoundCard({
   myPlayerId: number | null | undefined;
   onEnterScore: (m: ScheduleMatch) => void;
   /** The league has ended (decision 31): no more scores. */
-  frozen?: boolean;
+  ended?: boolean;
   /** The league's time zone, named on deadlines when it isn't the viewer's (PR 4). */
   timeZone?: string | null;
 }) {
@@ -131,12 +132,12 @@ export function RoundCard({
         </View>
         <Chip label={phaseLabel(round.phase)} />
       </View>
-      {!frozen && (round.phase === "open" || round.phase === "upcoming") ? (
+      {!ended && (round.phase === "open" || round.phase === "upcoming") ? (
         <Text variant="small" tone="inkMuted">
           {`Play by ${deadlineDate(round.deadline, timeZone)}. Grace week until ${deadlineDate(round.graceEnd, timeZone)}.`}
         </Text>
       ) : null}
-      {!frozen && round.phase === "grace" ? (
+      {!ended && round.phase === "grace" ? (
         <Text variant="small" tone="inkMuted">
           {`Grace week until ${deadlineDate(round.graceEnd, timeZone)}. Scores now count for Ball Boi stats, not standings.`}
         </Text>
@@ -150,7 +151,7 @@ export function RoundCard({
             round={round}
             myPlayerId={myPlayerId}
             onEnterScore={onEnterScore}
-            frozen={frozen}
+            ended={ended}
             last={i === matches.length - 1 && round.byes.length === 0}
           />
         ))}

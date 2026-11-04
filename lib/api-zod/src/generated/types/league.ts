@@ -51,6 +51,8 @@ export interface League {
    * @nullable
    */
   endedAt?: string | null;
+  /** In the signed-in player's own list, they left this league and don't run it, so it shows under Past. */
+  youLeft?: boolean;
   /** The league's time zone (IANA name). Pairing at 7am, week starts and ends, and deadlines follow it. */
   timeZone: string;
   /**

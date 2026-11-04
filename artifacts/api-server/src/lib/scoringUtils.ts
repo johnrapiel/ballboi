@@ -11,6 +11,8 @@
  * as a 6-0 bagel — the extra game is noise, not dominance.
  */
 
+import { isCompleteSet } from "./tennisScore.js";
+
 export interface SetScore {
   myGames: number;
   oppGames: number;
@@ -55,15 +57,20 @@ export function accumulateScoreTotals(
     const score = scoreStrings[i];
     if (!score) continue;
     const isTeam1 = isTeam1Array[i];
-    const sets = score.split(",").map((s) => s.trim());
-    for (const setStr of sets) {
-      const parsed = parseSet(setStr);
+    // A retirement's last set may be unfinished: its games count, the set doesn't.
+    // A walkover ("W/O") has no sets.
+    const retired = /\sRET$/.test(score.trim());
+    const sets = score.trim().replace(/\s*RET$/, "").split(",").map((s) => s.trim());
+    for (let n = 0; n < sets.length; n++) {
+      const parsed = parseSet(sets[n]);
       if (!parsed) continue;
+      const unfinished = retired && n === sets.length - 1 && !isCompleteSet({ a: parsed.myGames, b: parsed.oppGames });
       const rawMyGames = isTeam1 ? parsed.myGames : parsed.oppGames;
       const rawOppGames = isTeam1 ? parsed.oppGames : parsed.myGames;
       // Cap at 6: a 7-6 tiebreak win shouldn't outscore a 6-0 bagel win
       gamesWon += Math.min(rawMyGames, 6);
       gamesLost += Math.min(rawOppGames, 6);
+      if (unfinished) continue;
       if (rawMyGames > rawOppGames) setsWon++;
       else setsLost++;
     }
