@@ -65,6 +65,8 @@ import type {
   LeagueAdmin,
   LeagueBracket,
   LeagueInvite,
+  LeagueMatchTime,
+  LeagueMatchTimeBody,
   LeagueMembership,
   LeagueNotice,
   LeagueRoundWithMatchups,
@@ -75,6 +77,7 @@ import type {
   MatchBallBoiShotCallbackBody,
   MatchShot,
   MatchStatistics,
+  MatchTime,
   MyJoinRequest,
   MyMatchesResponse,
   MyScheduleResponse,
@@ -88,6 +91,7 @@ import type {
   ScheduleRound,
   ScoreResult,
   Season,
+  SetMatchTimeBody,
   Standing,
   StartBallBoiSessionBody,
   SwapPlayersBody,
@@ -3516,6 +3520,185 @@ export const useCorrectLeagueScore = <
   TContext
 > => {
   return useMutation(getCorrectLeagueScoreMutationOptions(options));
+};
+
+/**
+ * @summary Either player in the match, or a league admin, sets its date and time inside the match's week. In a league with a weekly match time, only admins can change it.
+ */
+export const getSetLeagueMatchTimeUrl = (leagueId: number, matchId: number) => {
+  return `/api/leagues/${leagueId}/matches/${matchId}/time`;
+};
+
+export const setLeagueMatchTime = async (
+  leagueId: number,
+  matchId: number,
+  setMatchTimeBody: SetMatchTimeBody,
+  options?: RequestInit,
+): Promise<MatchTime> => {
+  return customFetch<MatchTime>(getSetLeagueMatchTimeUrl(leagueId, matchId), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(setMatchTimeBody),
+  });
+};
+
+export const getSetLeagueMatchTimeMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setLeagueMatchTime>>,
+    TError,
+    { leagueId: number; matchId: number; data: BodyType<SetMatchTimeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setLeagueMatchTime>>,
+  TError,
+  { leagueId: number; matchId: number; data: BodyType<SetMatchTimeBody> },
+  TContext
+> => {
+  const mutationKey = ["setLeagueMatchTime"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setLeagueMatchTime>>,
+    { leagueId: number; matchId: number; data: BodyType<SetMatchTimeBody> }
+  > = (props) => {
+    const { leagueId, matchId, data } = props ?? {};
+
+    return setLeagueMatchTime(leagueId, matchId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetLeagueMatchTimeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setLeagueMatchTime>>
+>;
+export type SetLeagueMatchTimeMutationBody = BodyType<SetMatchTimeBody>;
+export type SetLeagueMatchTimeMutationError = ErrorType<void>;
+
+/**
+ * @summary Either player in the match, or a league admin, sets its date and time inside the match's week. In a league with a weekly match time, only admins can change it.
+ */
+export const useSetLeagueMatchTime = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setLeagueMatchTime>>,
+    TError,
+    { leagueId: number; matchId: number; data: BodyType<SetMatchTimeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setLeagueMatchTime>>,
+  TError,
+  { leagueId: number; matchId: number; data: BodyType<SetMatchTimeBody> },
+  TContext
+> => {
+  return useMutation(getSetLeagueMatchTimeMutationOptions(options));
+};
+
+/**
+ * @summary League admins set the weekly match day and time, or clear it so players pick.
+ */
+export const getSetLeagueWeeklyMatchTimeUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/match-time`;
+};
+
+export const setLeagueWeeklyMatchTime = async (
+  leagueId: number,
+  leagueMatchTimeBody: LeagueMatchTimeBody,
+  options?: RequestInit,
+): Promise<LeagueMatchTime> => {
+  return customFetch<LeagueMatchTime>(
+    getSetLeagueWeeklyMatchTimeUrl(leagueId),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(leagueMatchTimeBody),
+    },
+  );
+};
+
+export const getSetLeagueWeeklyMatchTimeMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setLeagueWeeklyMatchTime>>,
+    TError,
+    { leagueId: number; data: BodyType<LeagueMatchTimeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setLeagueWeeklyMatchTime>>,
+  TError,
+  { leagueId: number; data: BodyType<LeagueMatchTimeBody> },
+  TContext
+> => {
+  const mutationKey = ["setLeagueWeeklyMatchTime"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setLeagueWeeklyMatchTime>>,
+    { leagueId: number; data: BodyType<LeagueMatchTimeBody> }
+  > = (props) => {
+    const { leagueId, data } = props ?? {};
+
+    return setLeagueWeeklyMatchTime(leagueId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetLeagueWeeklyMatchTimeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setLeagueWeeklyMatchTime>>
+>;
+export type SetLeagueWeeklyMatchTimeMutationBody =
+  BodyType<LeagueMatchTimeBody>;
+export type SetLeagueWeeklyMatchTimeMutationError = ErrorType<void>;
+
+/**
+ * @summary League admins set the weekly match day and time, or clear it so players pick.
+ */
+export const useSetLeagueWeeklyMatchTime = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setLeagueWeeklyMatchTime>>,
+    TError,
+    { leagueId: number; data: BodyType<LeagueMatchTimeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setLeagueWeeklyMatchTime>>,
+  TError,
+  { leagueId: number; data: BodyType<LeagueMatchTimeBody> },
+  TContext
+> => {
+  return useMutation(getSetLeagueWeeklyMatchTimeMutationOptions(options));
 };
 
 /**

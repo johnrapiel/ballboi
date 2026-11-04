@@ -1,7 +1,7 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import React, { useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Alert, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -28,11 +28,11 @@ import { IconButton } from "@/components/Choice";
 import { StandingsTable } from "@/components/league/StandingsTable";
 import { BracketView, myPlayoffMatch, ROUND_SINGULAR } from "@/components/league/Bracket";
 import { Button, Card, Text } from "@/components/ui";
-import { spacing } from "@/constants/tokens";
+import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { RatingBadge } from "@/components/RatingBadge";
 import { formatRating } from "@/lib/onboarding";
-import { canEnterScore, correctionLine, dateRange, myWeek, opponentName, resultLine, shortDate } from "@/lib/leagueSchedule";
+import { canEnterScore, correctionLine, dateRange, deadlineDate, matchWhen, myWeek, opponentName, pairingTime, resultLine, shortDate, weeklyMatchTime } from "@/lib/leagueSchedule";
 import { formatLabel, playersLabel, playTypeLabel } from "@/lib/leagues";
 
 // League (spec: Leagues; canvas: League · Standings, Rounds, Playoffs).
@@ -40,14 +40,64 @@ import { formatLabel, playersLabel, playTypeLabel } from "@/lib/leagues";
 
 type Tab = "standings" | "rounds" | "playoffs";
 
+/**
+ * PR 4: the match's date and time. A row that opens the Match time sheet when
+ * you can set it (leagues with no weekly time, or admins); plain text otherwise.
+ */
+function MatchTimeRow({ when, canSet, onPress }: { when: string | null; canSet: boolean; onPress: () => void }) {
+  const c = useColors();
+  const value = when ?? "Not set";
+  if (!canSet) {
+    return when ? (
+      <View accessible accessibilityLabel={`Match time, ${when}`} style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2 }}>
+        <SymbolView name="calendar" size={16} tintColor={c.inkMuted} />
+        <Text variant="small" tone="inkMuted">
+          {when}
+        </Text>
+      </View>
+    ) : null;
+  }
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Match time, ${value}`}
+      accessibilityHint={when ? "Change the day and time" : "Pick a day and time this week"}
+      style={({ pressed }) => ({
+        minHeight: MIN_TAP,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.space3,
+        borderTopWidth: 1,
+        borderTopColor: c.hairline,
+        paddingTop: spacing.space2,
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <SymbolView name="calendar" size={18} tintColor={c.ink} />
+      <Text variant="bodyStrong" style={{ flex: 1 }}>
+        Match time
+      </Text>
+      <Text variant="small" tone="inkMuted">
+        {when ? value : "Set a time"}
+      </Text>
+      <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} />
+    </Pressable>
+  );
+}
+
 function YourWeek({
   leagueId,
   week,
   myPlayerId,
+  timeZone,
+  canSetTime,
 }: {
   leagueId: number;
   week: NonNullable<ReturnType<typeof myWeek>>;
   myPlayerId: number;
+  timeZone: string | null;
+  canSetTime: boolean;
 }) {
   const { round, match, bye } = week;
   const label = `Round ${round.roundNumber} · ${dateRange(round.startDate, round.deadline)}`;
@@ -81,10 +131,11 @@ function YourWeek({
     ? [resultLine(match), corrected].filter(Boolean).join(". ")
     : clearedNote +
       (round.phase === "upcoming"
-      ? `Starts ${shortDate(round.startDate)}. Play by ${shortDate(round.deadline)}.`
+      ? `Starts ${shortDate(round.startDate)}. Play by ${deadlineDate(round.deadline, timeZone)}.`
       : round.phase === "grace"
-        ? `Grace week until ${shortDate(round.graceEnd)}. A score now counts for Ball Boi stats, not standings.`
-        : `Play by ${shortDate(round.deadline)}.`);
+        ? `Grace week until ${deadlineDate(round.graceEnd, timeZone)}. A score now counts for Ball Boi stats, not standings.`
+        : `Play by ${deadlineDate(round.deadline, timeZone)}.`);
+  const matchTime = matchWhen(match.scheduledAt);
 
   return (
     <Card style={{ gap: spacing.space3 }}>
@@ -128,6 +179,13 @@ function YourWeek({
         ) : null}
       </View>
       {!scoreable ? <UndoScore leagueId={leagueId} matchId={match.matchId} undoUntil={match.undoUntil} align="flex-start" /> : null}
+      {!played && !match.voided && round.phase !== "closed" ? (
+        <MatchTimeRow
+          when={matchTime}
+          canSet={canSetTime && scoreable}
+          onPress={() => router.push(`/league/${leagueId}/time/${match.matchId}`)}
+        />
+      ) : null}
     </Card>
   );
 }
@@ -269,6 +327,11 @@ export default function LeagueScreen() {
             <Text variant="small" tone="inkMuted">
               {[playersLabel(league.playerCount), season].filter(Boolean).join(" · ")}
             </Text>
+            {weeklyMatchTime(league.matchDay, league.matchTime, league.timeZone) ? (
+              <Text variant="small" tone="inkMuted">
+                {`Matches ${weeklyMatchTime(league.matchDay, league.matchTime, league.timeZone)}`}
+              </Text>
+            ) : null}
             {/* A late joiner starts at zero wins and enters the next round (C3). */}
             {membershipQ.data?.joinedWeek && membershipQ.data.seasonWeeks && league.status !== "completed" ? (
               <Text variant="small" tone="inkMuted">
@@ -307,7 +370,13 @@ export default function LeagueScreen() {
               />
             </Card>
           ) : week && myPlayerId != null ? (
-            <YourWeek leagueId={leagueId} week={week} myPlayerId={myPlayerId} />
+            <YourWeek
+              leagueId={leagueId}
+              week={week}
+              myPlayerId={myPlayerId}
+              timeZone={schedule?.timeZone ?? null}
+              canSetTime={league?.matchDay == null || !!schedule?.isAdmin}
+            />
           ) : null}
 
           {draft && membershipQ.data?.isAdmin ? (
@@ -318,7 +387,7 @@ export default function LeagueScreen() {
                 </Text>
                 <Text variant="bodyStrong">{`Round ${draft.roundNumber} pairings are ready to review`}</Text>
                 <Text variant="small" tone="inkMuted">
-                  {`They go out to players ${shortDate(draft.startDate)} at 7am.`}
+                  {`They go out to players ${shortDate(draft.startDate)} at ${pairingTime(schedule?.timeZone)}.`}
                 </Text>
               </View>
               <Button label="Review pairings" variant="secondary" onPress={() => router.push(`/league/${leagueId}/round/${draft.roundId}`)} />
@@ -370,7 +439,7 @@ export default function LeagueScreen() {
               ) : (
                 <>
                   {rounds.map((r) => (
-                    <RoundCard key={r.roundId} leagueId={leagueId} round={r} myPlayerId={myPlayerId} onEnterScore={enterScore} frozen={ended} />
+                    <RoundCard key={r.roundId} leagueId={leagueId} round={r} myPlayerId={myPlayerId} onEnterScore={enterScore} frozen={ended} timeZone={schedule?.timeZone} />
                   ))}
                   {schedule && schedule.upcoming.length > 0 ? (
                     <View style={{ gap: spacing.space2 }}>

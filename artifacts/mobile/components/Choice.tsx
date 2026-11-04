@@ -9,6 +9,8 @@ import { useColors } from "@/hooks/useColors";
 export interface ChoiceOption<T extends string | number> {
   value: T;
   label: string;
+  /** What VoiceOver reads, when the label is short ("Tue" reads "Tuesday"). */
+  accessibilityLabel?: string;
 }
 
 /**
@@ -46,7 +48,7 @@ export function ChoiceGroup<T extends string | number>({
               onPress={() => onChange(o.value)}
               accessibilityRole="radio"
               accessibilityState={{ checked: on }}
-              accessibilityLabel={o.label}
+              accessibilityLabel={o.accessibilityLabel ?? o.label}
               style={({ pressed }) => ({
                 minHeight: MIN_TAP,
                 minWidth: MIN_TAP,

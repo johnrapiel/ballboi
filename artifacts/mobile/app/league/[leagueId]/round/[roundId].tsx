@@ -22,7 +22,7 @@ import { ListRow, SectionLabel } from "@/components/league/ListRow";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { dateRange, shortDate } from "@/lib/leagueSchedule";
+import { dateRange, pairingTime, shortDate } from "@/lib/leagueSchedule";
 
 // Review a round before it goes out (spec: Leagues > Weekly loop, step 2;
 // canvas: Schedule review). Tap any row for its actions: swap a player, give
@@ -225,7 +225,7 @@ export default function RoundReviewScreen() {
           Pairings
         </Text>
         <Text tone="inkMuted">
-          {`Only admins can see these until they go out ${shortDate(round.startDate)} at 7am. Tap a match to swap players, give a bye, or lock it.`}
+          {`Only admins can see these until they go out ${shortDate(round.startDate)} at ${pairingTime(scheduleQ.data?.timeZone)}. Tap a match to swap players, give a bye, or lock it.`}
         </Text>
       </View>
 

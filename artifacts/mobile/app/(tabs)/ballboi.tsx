@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import React, { useEffect } from "react";
+import React from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 
 import { DoublesMatchCard } from "@/components/record/DoublesMatchCard";
@@ -10,12 +10,12 @@ import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useServerRecordings, useTodaysMatches } from "@/lib/recording/api";
-import { takePendingInvite } from "@/lib/recording/pendingInvite";
 import { useQueue } from "@/lib/recording/queue";
 import { openRecorder } from "@/lib/recording/start";
 
 // Ball Boi tab (spec: Navigation, Ball Boi > Recording).
-// "Record a match" lists today's matches first. Every recording starts from a match.
+// "Record a match" lists your unplayed matches this week, with a match set for
+// today first, then Quick match. Every recording starts from a match.
 export default function BallBoiScreen() {
   const c = useColors();
   const router = useRouter();
@@ -28,12 +28,6 @@ export default function BallBoiScreen() {
   const onServer = (server.data ?? []).filter((r) => !onPhone.has(r.sessionId));
   const refreshing = today.isRefetching || server.isRefetching;
 
-  // An invite link opened before signing in opens now.
-  useEffect(() => {
-    takePendingInvite().then((code) => {
-      if (code) router.push({ pathname: "/record/invite/[code]", params: { code } });
-    });
-  }, [router]);
   const refresh = () => {
     today.refetch();
     server.refetch();
@@ -53,14 +47,14 @@ export default function BallBoiScreen() {
           </Text>
 
           {today.isLoading ? (
-            <ActivityIndicator color={c.ink} accessibilityLabel="Loading today's matches" />
+            <ActivityIndicator color={c.ink} accessibilityLabel="Loading your matches" />
           ) : today.isError ? (
             <Card style={{ gap: spacing.space3 }}>
-              <Text>Couldn't load today's matches.</Text>
+              <Text>Couldn't load your matches.</Text>
               <Button variant="secondary" label="Try again" onPress={() => today.refetch()} />
             </Card>
           ) : matches.length === 0 ? (
-            <Text tone="inkMuted">No matches on your schedule today.</Text>
+            <Text tone="inkMuted">No matches to record this week.</Text>
           ) : (
             matches.map((m) =>
               m.format === "doubles" ? (

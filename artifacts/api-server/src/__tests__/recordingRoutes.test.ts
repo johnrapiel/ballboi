@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import supertest from "supertest";
 
@@ -42,9 +42,11 @@ vi.mock("@workspace/db", () => ({
     return mockDb;
   },
   ballBoiDoublesViewsTable: table("ball_boi_doubles_views", ["clerkUserId", "matchId"]),
-  leaguesTable: table("leagues", ["id", "name"]),
+  leagueRoundsTable: table("league_rounds", ["id", "startDate", "endDate", "publishedAt"]),
+  leaguesTable: table("leagues", ["id", "name", "timeZone", "endedAt"]),
   matchesTable: table("matches", ["id", "player1Id", "player2Id", "player3Id", "player4Id"]),
   playersTable: table("players", ["id", "name", "clerkUserId"]),
+  playoffBracketsTable: table("playoff_brackets", ["id", "status"]),
 }));
 
 vi.mock("drizzle-orm", () => ({
@@ -99,16 +101,86 @@ describe("GET /recording/todays-matches", () => {
       { id: 2, leagueId: 7, player1Id: 20, player2Id: 10, player3Id: null, player4Id: null, status: "completed", scheduledAt: "2026-10-29T15:00:00.000Z", location: null },
       { id: 3, leagueId: null, player1Id: 10, player2Id: 30, player3Id: null, player4Id: null, status: "scheduled", scheduledAt: "2026-10-31T15:00:00.000Z", location: null },
     ]);
+    selectQueue.push([]); // rounds
+    selectQueue.push([{ id: 7, name: "Tuesday Flex", timeZone: "America/New_York", endedAt: null }]);
+    selectQueue.push([]); // playoff brackets
     selectQueue.push([
       { id: 10, name: "John" },
       { id: 20, name: "Alex Kim" },
     ]);
-    selectQueue.push([{ id: 7, name: "Tuesday Flex" }]);
     const res = await (await app()).get(`/api/recording/todays-matches?from=${from}&to=${to}`);
     expect(res.status).toBe(200);
     expect(res.body).toEqual([
       expect.objectContaining({ id: 1, opponentName: "Alex Kim", leagueName: "Tuesday Flex", format: "singles" }),
     ]);
+  });
+
+  describe("league matches this week (PR 4)", () => {
+    // Today is Nov 4, 2026. Round 1 runs Nov 2 to 8; round 0's deadline was Oct 31, so it's in its grace week.
+    const week = { from: "2026-11-04T05:00:00.000Z", to: "2026-11-05T05:00:00.000Z" };
+    const pub = new Date("2026-11-01T12:00:00Z");
+    const leagueMatch = (over: Record<string, unknown>) => ({
+      leagueId: 7, player1Id: 10, player2Id: 20, player3Id: null, player4Id: null, status: "scheduled",
+      scheduledAt: null, location: null, score: null, voidedAt: null, playoffBracketId: null, ...over,
+    });
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-11-04T17:00:00Z"));
+    });
+    afterEach(() => vi.useRealTimers());
+
+    it("includes unscheduled matches this week and in the grace week, leaves out scored ones, and puts today's set time first", async () => {
+      selectQueue.push([{ id: 10 }]);
+      selectQueue.push([
+        leagueMatch({ id: 1, roundId: 1 }), // no time: still recordable any day this week
+        leagueMatch({ id: 2, roundId: 1, player1Id: 30, player2Id: 10, scheduledAt: "2026-11-04T23:00:00.000Z" }), // tonight
+        leagueMatch({ id: 3, roundId: 1, player2Id: 40, score: "6-3, 6-4", status: "completed" }), // scored
+        leagueMatch({ id: 4, roundId: 0, player2Id: 50 }), // grace week
+        leagueMatch({ id: 5, roundId: 2, player2Id: 60 }), // next week's round, not out yet
+        leagueMatch({ id: 6, roundId: 1, player2Id: 70, scheduledAt: "2026-11-06T23:00:00.000Z" }), // Friday
+      ]);
+      selectQueue.push([
+        { id: 0, startDate: "2026-10-25", endDate: "2026-10-31", publishedAt: pub },
+        { id: 1, startDate: "2026-11-02", endDate: "2026-11-08", publishedAt: pub },
+        { id: 2, startDate: "2026-11-09", endDate: "2026-11-15", publishedAt: null },
+      ]);
+      selectQueue.push([{ id: 7, name: "Tuesday Flex", timeZone: "America/New_York", endedAt: null }]);
+      selectQueue.push([]);
+      selectQueue.push([
+        { id: 10, name: "John" },
+        { id: 20, name: "Alex Kim" },
+        { id: 30, name: "Sam Lee" },
+        { id: 50, name: "Pat Ruiz" },
+        { id: 70, name: "Kai Moss" },
+      ]);
+      const res = await (await app()).get(`/api/recording/todays-matches?from=${week.from}&to=${week.to}`);
+      expect(res.status).toBe(200);
+      expect(res.body.map((m: { id: number }) => m.id)).toEqual([2, 6, 1, 4]);
+      expect(res.body[0]).toMatchObject({ opponentName: "Sam Lee", playBy: "2026-11-08", timeZone: "America/New_York" });
+      expect(res.body.find((m: { id: number }) => m.id === 4)).toMatchObject({ playBy: "2026-11-07" });
+    });
+
+    it("leaves out matches in a league that has ended", async () => {
+      selectQueue.push([{ id: 10 }]);
+      selectQueue.push([leagueMatch({ id: 1, roundId: 1 })]);
+      selectQueue.push([{ id: 1, startDate: "2026-11-02", endDate: "2026-11-08", publishedAt: pub }]);
+      selectQueue.push([{ id: 7, name: "Tuesday Flex", timeZone: "America/New_York", endedAt: new Date("2026-11-03T12:00:00Z") }]);
+      selectQueue.push([]);
+      const res = await (await app()).get(`/api/recording/todays-matches?from=${week.from}&to=${week.to}`);
+      expect(res.body).toEqual([]);
+    });
+
+    it("includes an unplayed playoff match while the bracket is on", async () => {
+      selectQueue.push([{ id: 10 }]);
+      selectQueue.push([leagueMatch({ id: 8, roundId: null, playoffBracketId: 3 }), leagueMatch({ id: 9, roundId: null, playoffBracketId: 4, player2Id: 30 })]);
+      selectQueue.push([]);
+      selectQueue.push([{ id: 7, name: "Tuesday Flex", timeZone: "America/New_York", endedAt: null }]);
+      selectQueue.push([{ id: 3, status: "active" }, { id: 4, status: "completed" }]);
+      selectQueue.push([{ id: 10, name: "John" }, { id: 20, name: "Alex Kim" }]);
+      const res = await (await app()).get(`/api/recording/todays-matches?from=${week.from}&to=${week.to}`);
+      expect(res.body.map((m: { id: number }) => m.id)).toEqual([8]);
+    });
   });
 });
 

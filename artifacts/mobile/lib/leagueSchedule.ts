@@ -20,6 +20,103 @@ export function shortDate(date: string): string {
   });
 }
 
+/** The phone's own time zone, like "America/Los_Angeles". */
+export function phoneTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Leagues run on their creator's time zone (PR 4). When that isn't the
+ * viewer's, a deadline names it: " PST", " ET". Empty when it's the same.
+ */
+export function zoneSuffix(timeZone: string | null | undefined, at: Date = new Date()): string {
+  if (!timeZone) return "";
+  const mine = phoneTimeZone();
+  if (!mine || mine === timeZone) return "";
+  const name = (tz: string) => {
+    try {
+      return (
+        new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "short" }).formatToParts(at).find((p) => p.type === "timeZoneName")
+          ?.value ?? ""
+      );
+    } catch {
+      return "";
+    }
+  };
+  const theirs = name(timeZone);
+  // Same clock under another name (New York and Toronto): nothing to say.
+  if (!theirs || theirs === name(mine)) return "";
+  return ` ${theirs}`;
+}
+
+/** "Thu, Nov 5" plus the league's time zone when it isn't the viewer's. */
+export function deadlineDate(date: string, timeZone: string | null | undefined): string {
+  return `${shortDate(date)}${zoneSuffix(timeZone)}`;
+}
+
+/** "7am" plus the league's time zone when it isn't the viewer's: when pairings go out. */
+export function pairingTime(timeZone: string | null | undefined): string {
+  return `7am${zoneSuffix(timeZone)}`;
+}
+
+/** True when an ISO time falls on the phone's today. */
+export function isToday(iso: string | null | undefined, now: Date = new Date()): boolean {
+  if (!iso) return false;
+  const d = new Date(iso);
+  return !Number.isNaN(d.getTime()) && d.toDateString() === now.toDateString();
+}
+
+/** "Today at 6:00 PM" or "Thu, Nov 5 at 6:00 PM", on the phone's clock. */
+export function matchWhen(iso: string | null | undefined, now: Date = new Date()): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  if (isToday(iso, now)) return `Today at ${time}`;
+  return `${d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} at ${time}`;
+}
+
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** "Tuesdays at 6:30 PM" for a league's weekly match day and "HH:MM" time, or null. */
+export function weeklyMatchTime(matchDay: number | null | undefined, matchTime: string | null | undefined, timeZone?: string | null): string | null {
+  if (matchDay == null || !matchTime) return null;
+  const [h, m] = matchTime.split(":").map(Number);
+  const clock = new Date(2000, 0, 1, h, m).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `${DAYS[matchDay]}s at ${clock}${zoneSuffix(timeZone)}`;
+}
+
+/** The instant when the clock in `timeZone` reads `date` (YYYY-MM-DD) at `time` (HH:MM). Mirrors the API's leagueCalendar. */
+export function zonedTime(date: string, time: string, timeZone: string): Date {
+  const [y, m, d] = date.split("-").map(Number);
+  const [hh, mm] = time.split(":").map(Number);
+  const wall = Date.UTC(y, m - 1, d, hh, mm);
+  const offsetAt = (at: number) => {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        hourCycle: "h23",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).formatToParts(new Date(at));
+      const n = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+      return Date.UTC(n("year"), n("month") - 1, n("day"), n("hour") % 24, n("minute")) - Math.floor(at / 60000) * 60000;
+    } catch {
+      return -new Date(at).getTimezoneOffset() * 60000;
+    }
+  };
+  let at = wall - offsetAt(wall);
+  at = wall - offsetAt(at);
+  return new Date(at);
+}
+
 /** "Nov 5 to 11" or "Nov 26 to Dec 2" */
 export function dateRange(start: string, end: string): string {
   const s = new Date(`${start}T12:00:00Z`);

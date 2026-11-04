@@ -51,4 +51,18 @@ export interface League {
    * @nullable
    */
   endedAt?: string | null;
+  /** The league's time zone (IANA name). Pairing at 7am, week starts and ends, and deadlines follow it. */
+  timeZone: string;
+  /**
+   * A club's weekly match day, 0 Sunday to 6 Saturday. Null when players pick their own time.
+   * @minimum 0
+   * @maximum 6
+   * @nullable
+   */
+  matchDay?: number | null;
+  /**
+   * A club's weekly match time, 24-hour HH:MM in the league's time zone. Null when players pick.
+   * @nullable
+   */
+  matchTime?: string | null;
 }

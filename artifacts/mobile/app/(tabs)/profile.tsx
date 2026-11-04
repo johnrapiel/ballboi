@@ -21,6 +21,7 @@ import { TabScreen } from "@/components/TabHeader";
 import { EditProfileRow } from "@/components/profile/EditProfileRow";
 import { Toggle } from "@/components/Toggle";
 import { useColors } from "@/hooks/useColors";
+import { confirmSignOut } from "@/lib/confirmSignOut";
 
 const API_BASE = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
 
@@ -167,7 +168,7 @@ export default function ProfileScreen() {
 
   const handleSignOut = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await signOut();
+    if (!(await confirmSignOut(signOut))) return;
     router.replace("/(auth)/welcome");
   };
 

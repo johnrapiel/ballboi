@@ -10,13 +10,15 @@
 //   VoiceOver hears it once, when the code is sent, not every second.
 // - Every error is also spoken: iOS doesn't announce the field's error line
 //   on its own.
+// - Back from the code step clears the code error, and Send code keeps the
+//   same 30-second wait for the same address, so Back can't skip it (A13).
 
 import { useSignIn, useSignUp } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Pressable, View } from "react-native";
 
-import { Button, Field, KeyboardScreen, Screen, Text, TextLink } from "@/components/ui";
+import { Button, Field, KeyboardScreen, ScrollScreen, Text, TextLink } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { clerkErrorCode, friendlyAuthError } from "@/lib/authErrors";
 import {
@@ -27,6 +29,7 @@ import {
   afterWrongCode,
   isWrongCodeError,
   resendSecondsLeft,
+  sendCodeSecondsLeft,
   shouldSteer,
 } from "@/lib/emailCodeAttempts";
 
@@ -61,6 +64,8 @@ export default function EmailScreen() {
 
   const emailLooksValid = /\S+@\S+\.\S+/.test(email.trim());
   const resendIn = resendSecondsLeft(lastSentAt, now);
+  /** The wait on the email step: only for the address the last code went to. */
+  const sendIn = sendCodeSecondsLeft(attempts, email, lastSentAt, now);
   const steer = step === "code" && shouldSteer(attempts);
   // The steer line stands in for wrong-code errors; other errors (no
   // connection, too many tries) still show their own reason.
@@ -123,6 +128,13 @@ export default function EmailScreen() {
   /** "Apple or Google": back to the welcome screen. */
   function chooseAppleOrGoogle() {
     router.dismissTo("/(auth)/welcome");
+  }
+
+  /** Back from the code step to the email step, with no leftover code error. */
+  function backToEmail() {
+    clearError();
+    setCode("");
+    setStep("email");
   }
 
   async function sendCode() {
@@ -203,9 +215,9 @@ export default function EmailScreen() {
 
   return (
     <KeyboardScreen>
-      <Screen style={{ gap: spacing.space6 }}>
+      <ScrollScreen style={{ gap: spacing.space6 }}>
         <Pressable
-          onPress={() => (step === "code" ? setStep("email") : router.back())}
+          onPress={() => (step === "code" ? backToEmail() : router.back())}
           accessibilityRole="button"
           accessibilityLabel="Back"
           hitSlop={8}
@@ -232,11 +244,20 @@ export default function EmailScreen() {
               keyboardType="email-address"
               textContentType="emailAddress"
               returnKeyType="send"
-              onSubmitEditing={() => emailLooksValid && void sendCode()}
+              onSubmitEditing={() => emailLooksValid && sendIn === 0 && void sendCode()}
               hint={error ?? undefined}
               error={!!error}
             />
-            <Button label="Send code" loading={busy} disabled={!emailLooksValid} onPress={sendCode} style={{ marginTop: "auto" }} />
+            <Button
+              label={sendIn > 0 ? `Resend in ${sendIn}s` : "Send code"}
+              // Fixed while counting, so VoiceOver never reads every tick.
+              accessibilityLabel={sendIn > 0 ? "Send code, available shortly" : "Send code"}
+              loading={busy}
+              disabled={!emailLooksValid || sendIn > 0}
+              onPress={() => sendIn === 0 && void sendCode()}
+              // Same dim as Resend while it counts: 75% keeps the countdown readable.
+              style={[{ marginTop: "auto" }, sendIn > 0 && !busy ? { opacity: 0.75 } : null]}
+            />
           </>
         ) : (
           <>
@@ -276,7 +297,7 @@ export default function EmailScreen() {
             <Button label="Continue" loading={busy} disabled={code.length !== CODE_LENGTH} onPress={() => void verifyCode()} style={{ marginTop: "auto" }} />
           </>
         )}
-      </Screen>
+      </ScrollScreen>
     </KeyboardScreen>
   );
 }

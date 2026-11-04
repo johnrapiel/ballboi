@@ -7,7 +7,7 @@ import type { ScheduleMatch, ScheduleRound, ScheduleWeek } from "@workspace/api-
 import { Card, Chip, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { canEnterScore, correctionLine, dateRange, isMine, isNotPlayed, phaseLabel, resultLine, shortDate } from "@/lib/leagueSchedule";
+import { canEnterScore, correctionLine, dateRange, deadlineDate, isMine, isNotPlayed, phaseLabel, resultLine, shortDate } from "@/lib/leagueSchedule";
 
 import { UndoScore } from "./UndoScore";
 
@@ -108,6 +108,7 @@ export function RoundCard({
   myPlayerId,
   onEnterScore,
   frozen = false,
+  timeZone,
 }: {
   leagueId: number;
   round: ScheduleRound;
@@ -115,6 +116,8 @@ export function RoundCard({
   onEnterScore: (m: ScheduleMatch) => void;
   /** The league has ended (decision 31): no more scores. */
   frozen?: boolean;
+  /** The league's time zone, named on deadlines when it isn't the viewer's (PR 4). */
+  timeZone?: string | null;
 }) {
   const matches = round.matches;
   return (
@@ -130,12 +133,12 @@ export function RoundCard({
       </View>
       {!frozen && (round.phase === "open" || round.phase === "upcoming") ? (
         <Text variant="small" tone="inkMuted">
-          {`Play by ${shortDate(round.deadline)}. Grace week until ${shortDate(round.graceEnd)}.`}
+          {`Play by ${deadlineDate(round.deadline, timeZone)}. Grace week until ${deadlineDate(round.graceEnd, timeZone)}.`}
         </Text>
       ) : null}
       {!frozen && round.phase === "grace" ? (
         <Text variant="small" tone="inkMuted">
-          {`Grace week until ${shortDate(round.graceEnd)}. Scores now count for Ball Boi stats, not standings.`}
+          {`Grace week until ${deadlineDate(round.graceEnd, timeZone)}. Scores now count for Ball Boi stats, not standings.`}
         </Text>
       ) : null}
       <View>

@@ -9,12 +9,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   Text as RNText,
   TextInput,
   View,
   useColorScheme,
   type PressableProps,
+  type ScrollViewProps,
+  type StyleProp,
   type TextProps as RNTextProps,
+  type ViewStyle,
   type ViewProps,
 } from "react-native";
 
@@ -305,6 +309,81 @@ export function Screen({ style, children, ...rest }: ViewProps) {
     >
       {children}
     </View>
+  );
+}
+
+export interface ScrollScreenProps extends Omit<ScrollViewProps, "style" | "contentContainerStyle"> {
+  /** Laid out like Screen's style: a column that fills the screen. */
+  style?: StyleProp<ViewStyle>;
+}
+
+/**
+ * Screen that scrolls when its content doesn't fit, as at the largest text
+ * sizes (Wave 1 review A8: layouts reflow, nothing falls off-screen). At
+ * normal sizes it looks like Screen: the content fills the page, so
+ * `marginTop: "auto"` still puts buttons at the bottom and
+ * `justifyContent: "center"` still centers.
+ */
+export function ScrollScreen({ style, children, ...rest }: ScrollScreenProps) {
+  const c = useColors();
+  const insets = useSafeAreaInsets();
+  return (
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      {...rest}
+      style={{ flex: 1, backgroundColor: c.paper }}
+      contentContainerStyle={[
+        {
+          flexGrow: 1,
+          paddingTop: insets.top + spacing.space4,
+          paddingBottom: insets.bottom + spacing.space4,
+          paddingHorizontal: spacing.space4,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </ScrollView>
+  );
+}
+
+export interface TextButtonProps extends Omit<PressableProps, "children"> {
+  label: string;
+  /** Spoken by VoiceOver. Defaults to `label`. */
+  accessibilityLabel?: string;
+}
+
+/**
+ * A quiet text-only button, like iOS's plain button: muted body text with a
+ * 44pt target. For secondary ways out (Sign out) that shouldn't compete with
+ * the primary button.
+ */
+export function TextButton({ label, accessibilityLabel, disabled, style, ...rest }: TextButtonProps) {
+  return (
+    <Pressable
+      {...rest}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled: !!disabled }}
+      hitSlop={spacing.space1}
+      style={(state) => [
+        {
+          minHeight: MIN_TAP,
+          minWidth: MIN_TAP,
+          paddingHorizontal: spacing.space3,
+          alignSelf: "center",
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: disabled ? 0.5 : state.pressed ? 0.6 : 1,
+        },
+        typeof style === "function" ? style(state) : style,
+      ]}
+    >
+      <Text tone="inkMuted" style={{ textAlign: "center" }}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 

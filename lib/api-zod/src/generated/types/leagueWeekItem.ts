@@ -27,4 +27,8 @@ export interface LeagueWeekItem {
   scheduledAt: string | null;
   /** @nullable */
   location: string | null;
+  /** A score is in, so there's nothing left to enter or record */
+  played: boolean;
+  /** The league's time zone, for its deadlines */
+  timeZone: string;
 }

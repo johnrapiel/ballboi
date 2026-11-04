@@ -5,13 +5,13 @@ import { useRouter } from "expo-router";
 import React from "react";
 import { View } from "react-native";
 
-import { Button, Screen, Text } from "@/components/ui";
+import { Button, ScrollScreen, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 
 export default function EighteenPlusScreen() {
   const router = useRouter();
   return (
-    <Screen style={{ justifyContent: "center", gap: spacing.space6 }}>
+    <ScrollScreen style={{ justifyContent: "center", gap: spacing.space6 }}>
       <View style={{ gap: spacing.space3 }}>
         <Text variant="displayL" accessibilityRole="header">
           Ball Boi is 18+ for now.
@@ -21,6 +21,6 @@ export default function EighteenPlusScreen() {
         </Text>
       </View>
       <Button label="Back to start" variant="secondary" onPress={() => router.replace("/(auth)/welcome")} />
-    </Screen>
+    </ScrollScreen>
   );
 }
