@@ -26,7 +26,7 @@ import { useProfile } from "@/hooks/useProfile";
 
 // Start a league (spec: Leagues > Setup and Onboarding > Run a league;
 // canvas: Admin · Create league). Anyone can start one and becomes its admin.
-// Singles only for now (Q4). A season starts tomorrow at the earliest, so a
+// Singles only for now (Q2). A season starts tomorrow at the earliest (Q7), so a
 // friend who joins on the day it's made is in from round 1.
 
 type Format = "flex" | "round_robin";
@@ -231,7 +231,7 @@ export default function StartLeagueScreen() {
     const body: CreateLeagueBody = {
       name: name.trim(),
       format,
-      // Q4: doubles leagues come later.
+      // Q2: doubles leagues come later.
       leagueType: "singles",
       partnerMode: null,
       // Open leagues (listed in Discover, with join requests) come back once

@@ -45,7 +45,7 @@ describe("validateLeagueSetup", () => {
     expect(validateLeagueSetup({ ...base, startDate: "2026-13-40" })).toMatch(/Start date/);
   });
 
-  it("refuses doubles for now (decision Q4), and partners on a singles league", () => {
+  it("refuses doubles for now (decision Q2), and partners on a singles league", () => {
     expect(validateLeagueSetup({ ...base, leagueType: "doubles" })).toBe(DOUBLES_NOT_YET);
     expect(validateLeagueSetup({ ...base, leagueType: "doubles", partnerMode: "rotating" })).toBe(DOUBLES_NOT_YET);
     expect(validateLeagueSetup({ ...base, partnerMode: "fixed" })).toMatch(/Only doubles/);

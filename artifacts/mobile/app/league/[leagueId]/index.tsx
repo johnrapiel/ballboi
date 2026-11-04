@@ -259,7 +259,7 @@ export default function LeagueScreen() {
   const ended = !!league?.endedAt || league?.status === "completed";
   const started = !!league?.startDate && !!schedule && schedule.today >= league.startDate;
   const isAdmin = !!membershipQ.data?.isAdmin;
-  // Q4: doubles leagues don't run yet. One made before then says so.
+  // Q2: doubles leagues don't run yet. One made before then says so.
   const doublesOnHold = league?.leagueType === "doubles" && !ended;
   const playoffsNote = league ? playoffLine(league.playoffSize, league.playerCount) : null;
 
