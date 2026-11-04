@@ -1,8 +1,11 @@
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
 import { db, playerAvailabilityTable, playersTable, leaguesTable, scheduleGenerationLogsTable } from "@workspace/db";
-import { eq, and, desc, sql, or } from "drizzle-orm";
+import { eq, and, desc, sql, or, inArray } from "drizzle-orm";
 import { sendPushToUsers } from "./notifications";
+import { canViewLeague, isLeagueAdmin, PRIVATE_LEAGUE } from "../lib/leagueAccess.js";
+import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
+import { requireLeagueViewer } from "../middlewares/requireLeagueViewer.js";
 
 const router = Router();
 const REMINDER_COOLDOWN_HOURS = 6;
@@ -13,39 +16,19 @@ function requireAuth(req: any, res: any, next: any) {
   next();
 }
 
-async function isLeagueAdmin(userId: string, leagueId: number): Promise<boolean> {
-  const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
-  if (!league) return false;
-  if (!league.createdByClerkUserId) return true;
-  return league.createdByClerkUserId === userId;
-}
-
 function isReminderInCooldown(sentAt: Date) {
   const cutoff = Date.now() - REMINDER_COOLDOWN_HOURS * 60 * 60 * 1000;
   return sentAt.getTime() > cutoff;
 }
 
-// GET /availability/:leagueId/:weekOf — get all availabilities for a league/week (admin or self)
-router.get("/availability/:leagueId/:weekOf", requireAuth, async (req, res) => {
-  try {
-    const leagueId = parseInt(String(req.params.leagueId));
-    const weekOf = req.params.weekOf;
-    const rows = await db
-      .select()
-      .from(playerAvailabilityTable)
-      .where(and(eq(playerAvailabilityTable.leagueId, leagueId), eq(playerAvailabilityTable.weekOf, weekOf)));
-    res.json(rows);
-  } catch {
-    res.status(500).json({ error: "Failed to fetch availabilities" });
-  }
-});
-
 // GET /availability/me/:leagueId/:weekOf — get current player's availability
-router.get("/availability/me/:leagueId/:weekOf", requireAuth, async (req, res) => {
+// Registered before /availability/:leagueId/:weekOf, which would otherwise
+// catch "me" as a league id.
+router.get("/availability/me/:leagueId/:weekOf", requireLeagueViewer, async (req, res) => {
   try {
     const { userId } = getAuth(req);
-    const leagueId = parseInt(String(req.params.leagueId));
-    const weekOf = req.params.weekOf;
+    const leagueId = res.locals.leagueId as number;
+    const weekOf = String(req.params.weekOf);
 
     // Find player by clerkUserId in this league
     const players = await db
@@ -71,19 +54,63 @@ router.get("/availability/me/:leagueId/:weekOf", requireAuth, async (req, res) =
   }
 });
 
+// GET /availability/:leagueId/:weekOf — league admins get everyone's rows;
+// other members of the league get only their own.
+router.get("/availability/:leagueId/:weekOf", requireLeagueViewer, async (req, res) => {
+  try {
+    const { userId } = getAuth(req);
+    const leagueId = res.locals.leagueId as number;
+    const weekOf = String(req.params.weekOf);
+    const conditions = [eq(playerAvailabilityTable.leagueId, leagueId), eq(playerAvailabilityTable.weekOf, weekOf)];
+    if (!(await isLeagueAdmin(leagueId, userId!))) {
+      const mine = await db
+        .select({ id: playersTable.id })
+        .from(playersTable)
+        .where(and(eq(playersTable.clerkUserId, userId!), eq(playersTable.leagueId, leagueId)));
+      if (!mine.length) { res.json([]); return; }
+      conditions.push(inArray(playerAvailabilityTable.playerId, mine.map((p) => p.id)));
+    }
+    const rows = await db
+      .select()
+      .from(playerAvailabilityTable)
+      .where(and(...conditions));
+    res.json(rows);
+  } catch {
+    res.status(500).json({ error: "Failed to fetch availabilities" });
+  }
+});
+
 // POST /availability — save player's weekly availability
 router.post("/availability", requireAuth, async (req, res) => {
   try {
     const { userId } = getAuth(req);
-    const { leagueId, weekOf, slots, playerId: bodyPlayerId } = req.body;
+    const { weekOf, slots, playerId: bodyPlayerId } = req.body;
+    const leagueId = Number(req.body.leagueId);
 
-    if (!leagueId || !weekOf) {
+    if (!Number.isInteger(leagueId) || leagueId <= 0 || !weekOf) {
       { res.status(400).json({ error: "leagueId and weekOf required" }); return; }
     }
 
-    // Resolve playerId from clerkUserId
-    let playerId = bodyPlayerId;
-    if (!playerId) {
+    const [league] = await db
+      .select({ id: leaguesTable.id, visibility: leaguesTable.visibility, createdByClerkUserId: leaguesTable.createdByClerkUserId })
+      .from(leaguesTable)
+      .where(eq(leaguesTable.id, leagueId));
+    if (!league) { res.status(404).json({ error: "League not found" }); return; }
+    if (!(await canViewLeague(league, userId!))) { res.status(403).json({ error: PRIVATE_LEAGUE }); return; }
+
+    // Your own player in this league, unless a league admin names another one.
+    let playerId: number;
+    if (bodyPlayerId != null) {
+      playerId = Number(bodyPlayerId);
+      const [player] = Number.isInteger(playerId)
+        ? await db.select().from(playersTable).where(eq(playersTable.id, playerId))
+        : [];
+      if (!player || player.leagueId !== leagueId) { res.status(404).json({ error: "Player not found in this league" }); return; }
+      if (player.clerkUserId !== userId && !(await isLeagueAdmin(leagueId, userId!))) {
+        res.status(403).json({ error: "You can only set your own availability" });
+        return;
+      }
+    } else {
       const players = await db
         .select()
         .from(playersTable)
@@ -122,15 +149,11 @@ router.post("/availability", requireAuth, async (req, res) => {
 });
 
 // GET /availability/participation/:leagueId/:weekOf — all players with slot counts
-router.get("/availability/participation/:leagueId/:weekOf", requireAuth, async (req, res) => {
+router.get("/availability/participation/:leagueId/:weekOf", requireLeagueAdmin, async (req, res) => {
   try {
     const { userId } = getAuth(req);
-    const leagueId = parseInt(String(req.params.leagueId));
-    const weekOf = req.params.weekOf;
-
-    if (!(await isLeagueAdmin(userId!, leagueId))) {
-      { res.status(403).json({ error: "Forbidden: league admin only" }); return; }
-    }
+    const leagueId = res.locals.leagueId as number;
+    const weekOf = String(req.params.weekOf);
 
     const players = await db
       .select()
@@ -186,15 +209,11 @@ router.get("/availability/participation/:leagueId/:weekOf", requireAuth, async (
 });
 
 // POST /availability/remind/:leagueId/:weekOf — push reminder to players who haven't submitted
-router.post("/availability/remind/:leagueId/:weekOf", requireAuth, async (req, res) => {
+router.post("/availability/remind/:leagueId/:weekOf", requireLeagueAdmin, async (req, res) => {
   try {
     const { userId } = getAuth(req);
-    const leagueId = parseInt(String(req.params.leagueId));
-    const weekOf = req.params.weekOf;
-
-    if (!(await isLeagueAdmin(userId!, leagueId))) {
-      { res.status(403).json({ error: "Forbidden: league admin only" }); return; }
-    }
+    const leagueId = res.locals.leagueId as number;
+    const weekOf = String(req.params.weekOf);
 
     const result = await db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`availability-reminder:${leagueId}:${weekOf}`}))`);

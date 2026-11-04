@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { seasonsTable } from "@workspace/db";
+import { requireLeagueViewer } from "../middlewares/requireLeagueViewer.js";
 import { eq, isNull } from "drizzle-orm";
 import { requireAdmin } from "../middlewares/requireAdmin.js";
 import { getSeasonsForLeague, findOverlappingSeason } from "../services/seasonService.js";
@@ -25,8 +26,8 @@ function formatSeason(s: typeof seasonsTable.$inferSelect) {
 }
 
 // GET /leagues/:leagueId/seasons — list seasons visible to this league (own + global)
-router.get("/leagues/:leagueId/seasons", async (req, res) => {
-  const leagueId = parseInt(req.params.leagueId);
+router.get("/leagues/:leagueId/seasons", requireLeagueViewer, async (req, res) => {
+  const leagueId = parseInt(String(req.params.leagueId));
   if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid leagueId" });
 
   try {
@@ -39,8 +40,8 @@ router.get("/leagues/:leagueId/seasons", async (req, res) => {
 });
 
 // GET /leagues/:leagueId/seasons/active — get the currently active season
-router.get("/leagues/:leagueId/seasons/active", async (req, res) => {
-  const leagueId = parseInt(req.params.leagueId);
+router.get("/leagues/:leagueId/seasons/active", requireLeagueViewer, async (req, res) => {
+  const leagueId = parseInt(String(req.params.leagueId));
   if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid leagueId" });
 
   const today = new Date().toISOString().slice(0, 10);

@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { getAuth } from "@clerk/express";
 import { db, leagueRoundByesTable, leagueRoundsTable, leaguesTable, matchesTable, playersTable, usersTable, type League, type LeagueRound } from "@workspace/db";
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { getLeagueRole } from "../lib/leagueAccess.js";
+import { canViewLeague, getLeagueRole, PRIVATE_LEAGUE } from "../lib/leagueAccess.js";
 import { graceEndFor, leagueToday, roundPhase, roundWindow, LEAGUE_TIME_ZONE } from "../lib/leagueCalendar.js";
 import { undoDeadline } from "../lib/leagueScoreChanges.js";
 import { planBye, planLock, planSwap, unpairedPlayers } from "../lib/roundEdits.js";
@@ -105,6 +105,7 @@ router.get("/leagues/:leagueId/schedule", requireAuth, async (req, res) => {
   if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid league ID" }); return; }
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
+  if (!(await canViewLeague(league, userId!))) { res.status(403).json({ error: PRIVATE_LEAGUE }); return; }
 
   const isAdmin = (await getLeagueRole(leagueId, userId!)) !== null;
   const today = leagueToday();
@@ -137,6 +138,7 @@ router.get("/leagues/:leagueId/bracket", requireAuth, async (req, res) => {
   if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid league ID" }); return; }
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
+  if (!(await canViewLeague(league, getAuth(req).userId!))) { res.status(403).json({ error: PRIVATE_LEAGUE }); return; }
   res.json(await bracketFor(league));
 });
 

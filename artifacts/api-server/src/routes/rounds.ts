@@ -1,19 +1,13 @@
 import { Router } from "express";
-import { getAuth } from "@clerk/express";
 import { db, leagueRoundsTable, matchesTable, leaguesTable, playersTable } from "@workspace/db";
 import { eq, desc, and, lte, gte, asc, inArray, isNotNull } from "drizzle-orm";
 import { requireAdmin } from "../middlewares/requireAdmin";
 import { generateAllRounds, buildRoundResponse } from "../services/roundPairing";
 import { sendPushToUsers } from "./notifications";
 import { logger } from "../lib/logger";
+import { requireLeagueViewer } from "../middlewares/requireLeagueViewer.js";
 
 const router = Router();
-
-function requireAuth(req: any, res: any, next: any) {
-  const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: "Unauthorized" });
-  next();
-}
 
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
@@ -132,7 +126,7 @@ router.post("/leagues/:leagueId/rounds/generate", requireAdmin, async (req, res)
   }
 });
 
-router.get("/leagues/:leagueId/rounds/current", requireAuth, async (req, res) => {
+router.get("/leagues/:leagueId/rounds/current", requireLeagueViewer, async (req, res) => {
   try {
     const leagueId = parseInt(String(req.params.leagueId));
     if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid league ID" });
@@ -193,7 +187,7 @@ router.get("/leagues/:leagueId/rounds/current", requireAuth, async (req, res) =>
   }
 });
 
-router.get("/leagues/:leagueId/rounds", requireAuth, async (req, res) => {
+router.get("/leagues/:leagueId/rounds", requireLeagueViewer, async (req, res) => {
   try {
     const leagueId = parseInt(String(req.params.leagueId));
     if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid league ID" });

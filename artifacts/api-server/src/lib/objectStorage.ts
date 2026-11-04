@@ -110,6 +110,19 @@ export class ObjectStorageService {
     return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: ttlSec });
   }
 
+  /** An object's stored type and size, or throws ObjectNotFoundError. */
+  async headObject(objectPath: string): Promise<{ contentType: string; contentLength: number | null }> {
+    const { client, bucket } = getConfig();
+    const key = objectKeyFromPath(objectPath);
+    try {
+      const res = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+      return { contentType: res.ContentType || "application/octet-stream", contentLength: res.ContentLength ?? null };
+    } catch (err) {
+      if (isNotFound(err)) throw new ObjectNotFoundError();
+      throw err;
+    }
+  }
+
   async getObject(objectPath: string): Promise<StoredObject> {
     const { client, bucket } = getConfig();
     const key = objectKeyFromPath(objectPath);

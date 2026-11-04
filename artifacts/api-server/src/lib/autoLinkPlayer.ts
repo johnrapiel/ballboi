@@ -1,60 +1,81 @@
+import { clerkClient } from "@clerk/express";
 import { db } from "@workspace/db";
 import { usersTable, playersTable, matchInvitesTable } from "@workspace/db";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import pino from "pino";
+import { DELETED_PLAYER_NAME } from "./deletedPlayer.js";
 
 const logger = pino({ name: "autoLinkPlayer" });
 
-/**
- * Find a unique Clerk user ID that matches the given player name / email.
- *
- * Priority:
- *   1. Exact email match (case-insensitive, trimmed) — preferred
- *   2. Exact display-name match (case-insensitive, trimmed) — only when unique
- *
- * Returns null when:
- *   - No match exists
- *   - A name match is ambiguous (multiple users share that display name)
- */
-export async function findMatchingClerkUserId(
-  playerName: string,
-  playerEmail?: string | null
-): Promise<string | null> {
-  const allUsers = await db.select().from(usersTable);
+// A2: a league player record an admin added (name plus email) links to a Ball
+// Boi account only by that account's verified primary email, read from Clerk
+// on the server. Never by display name, never by an email someone typed into
+// their profile, never onto a record already linked to another account, and
+// never onto a "Deleted player" record left by account deletion.
 
-  if (playerEmail?.trim()) {
-    const emailNorm = playerEmail.trim().toLowerCase();
-    const emailMatches = allUsers.filter(
-      (u) => u.email?.trim().toLowerCase() === emailNorm
-    );
-    if (emailMatches.length === 1) return emailMatches[0].clerkUserId;
-    if (emailMatches.length > 1) return null;
-  }
+function normalize(email: string | null | undefined): string | null {
+  const e = email?.trim().toLowerCase();
+  return e ? e : null;
+}
 
-  const nameTrim = playerName.trim().toLowerCase();
-  const nameMatches = allUsers.filter(
-    (u) => u.displayName.trim().toLowerCase() === nameTrim
-  );
-  if (nameMatches.length === 1) return nameMatches[0].clerkUserId;
+type ClerkEmail = { id: string; emailAddress: string; verification?: { status?: string | null } | null };
+type ClerkUser = { id: string; primaryEmailAddressId: string | null; emailAddresses: ClerkEmail[] };
 
-  return null;
+function verifiedPrimary(user: ClerkUser): string | null {
+  const primary = user.emailAddresses.find((e) => e.id === user.primaryEmailAddressId);
+  if (!primary || primary.verification?.status !== "verified") return null;
+  return normalize(primary.emailAddress);
+}
+
+/** The user's verified primary email from Clerk, lowercased, or null. */
+export async function verifiedPrimaryEmail(clerkUserId: string): Promise<string | null> {
+  const user = (await clerkClient.users.getUser(clerkUserId)) as unknown as ClerkUser;
+  return verifiedPrimary(user);
 }
 
 /**
  * Quick match placeholders (players someone typed in by name) join only
- * through their invite link, never by a name or email match, so a stranger
- * with the same name never gets someone else's match.
+ * through their invite link, never by an email match.
  */
-async function placeholderPlayerIds(): Promise<Set<number>> {
-  const rows = await db.select({ id: matchInvitesTable.placeholderPlayerId }).from(matchInvitesTable);
+async function placeholderIdsAmong(playerIds: number[]): Promise<Set<number>> {
+  if (!playerIds.length) return new Set();
+  const rows = await db
+    .select({ id: matchInvitesTable.placeholderPlayerId })
+    .from(matchInvitesTable)
+    .where(inArray(matchInvitesTable.placeholderPlayerId, playerIds));
   return new Set(rows.map((r) => r.id));
 }
 
+/** Unlinked league records carrying this email, minus deleted-account and placeholder rows. */
+async function linkablePlayers(email: string): Promise<{ id: number }[]> {
+  const rows = await db
+    .select({ id: playersTable.id })
+    .from(playersTable)
+    .where(
+      and(
+        isNull(playersTable.clerkUserId),
+        ne(playersTable.name, DELETED_PLAYER_NAME),
+        sql`lower(trim(${playersTable.email})) = ${email}`,
+      ),
+    );
+  const placeholders = await placeholderIdsAmong(rows.map((r) => r.id));
+  return rows.filter((r) => !placeholders.has(r.id));
+}
+
+/** Links one record. The `clerkUserId IS NULL` predicate means a linked record is never taken over. */
+async function link(playerId: number, clerkUserId: string): Promise<boolean> {
+  const updated = await db
+    .update(playersTable)
+    .set({ clerkUserId })
+    .where(and(eq(playersTable.id, playerId), isNull(playersTable.clerkUserId)))
+    .returning({ id: playersTable.id });
+  return updated.length > 0;
+}
+
 /**
- * Attempt to auto-link a single player record that has no clerkUserId.
- * The update predicate includes `clerkUserId IS NULL` so an already-linked
- * player is never overwritten, even under concurrent requests.
- * Returns the clerkUserId that was linked, or null if no confident match.
+ * An admin just added a player with an email. If a Ball Boi account already
+ * has that address as its verified primary email, link the record to it.
+ * Returns the linked clerkUserId, or null.
  */
 export async function autoLinkPlayer(player: {
   id: number;
@@ -63,88 +84,57 @@ export async function autoLinkPlayer(player: {
   clerkUserId?: string | null;
 }): Promise<string | null> {
   if (player.clerkUserId) return player.clerkUserId;
-  if ((await placeholderPlayerIds()).has(player.id)) return null;
-  const clerkUserId = await findMatchingClerkUserId(player.name, player.email);
-  if (!clerkUserId) return null;
-  await db
-    .update(playersTable)
-    .set({ clerkUserId })
-    .where(and(eq(playersTable.id, player.id), isNull(playersTable.clerkUserId)));
-  return clerkUserId;
+  if (player.name === DELETED_PLAYER_NAME) return null;
+  const email = normalize(player.email);
+  if (!email) return null;
+  if ((await placeholderIdsAmong([player.id])).has(player.id)) return null;
+
+  const { data } = (await clerkClient.users.getUserList({ emailAddress: [email] })) as unknown as { data: ClerkUser[] };
+  const owners = data.filter((u) => verifiedPrimary(u) === email);
+  if (owners.length !== 1) return null;
+  const clerkUserId = owners[0].id;
+
+  // Only accounts that have made a Ball Boi profile.
+  const [profile] = await db
+    .select({ clerkUserId: usersTable.clerkUserId })
+    .from(usersTable)
+    .where(eq(usersTable.clerkUserId, clerkUserId));
+  if (!profile) return null;
+
+  return (await link(player.id, clerkUserId)) ? clerkUserId : null;
 }
 
 /**
- * When a user profile is created or updated, scan all unlinked player records
- * and link any whose canonical best match (per findMatchingClerkUserId) resolves
- * to THIS user's clerkUserId.
- *
- * This delegates all matching + ambiguity logic to findMatchingClerkUserId,
- * so email-over-name precedence and uniqueness checks are identical in both
- * the forward (player→user) and reverse (user→player) directions.
- *
- * The DB update includes `clerkUserId IS NULL` so already-linked rows are
- * never overwritten even under concurrent requests.
- *
- * Returns the count of players that were linked.
+ * Runs once, when a person creates their Ball Boi profile: links the unlinked
+ * league records an admin added with their verified primary email. Returns
+ * how many were linked.
  */
-export async function autoLinkPlayersForUser(user: {
-  clerkUserId: string;
-  displayName: string;
-  email?: string | null;
-}): Promise<number> {
-  const unlinked = await db
-    .select()
-    .from(playersTable)
-    .where(isNull(playersTable.clerkUserId));
+export async function autoLinkPlayersForUser(clerkUserId: string): Promise<number> {
+  const email = await verifiedPrimaryEmail(clerkUserId);
+  if (!email) return 0;
 
-  if (unlinked.length === 0) return 0;
-
-  const placeholders = await placeholderPlayerIds();
   let linked = 0;
-
-  for (const player of unlinked) {
-    if (placeholders.has(player.id)) continue;
-    const resolvedId = await findMatchingClerkUserId(player.name, player.email);
-    if (resolvedId !== user.clerkUserId) continue;
-
-    await db
-      .update(playersTable)
-      .set({ clerkUserId: user.clerkUserId })
-      .where(and(eq(playersTable.id, player.id), isNull(playersTable.clerkUserId)));
-    linked++;
+  for (const player of await linkablePlayers(email)) {
+    if (await link(player.id, clerkUserId)) linked++;
   }
-
-  if (linked > 0) {
-    logger.info({ clerkUserId: user.clerkUserId, linked }, "Auto-linked players to user");
-  }
-
+  if (linked > 0) logger.info({ clerkUserId, linked }, "Auto-linked players to user");
   return linked;
 }
 
 /**
- * Backfill: iterate all unlinked players and attempt to auto-link each one.
- * Returns counts of matched, skipped (ambiguous / no match), and already-linked.
+ * Backfill: try to link every unlinked player record by email. Returns counts
+ * of matched, skipped (no verified match), and already-linked.
  */
-export async function backfillAutoLink(): Promise<{
-  matched: number;
-  skipped: number;
-  alreadyLinked: number;
-}> {
+export async function backfillAutoLink(): Promise<{ matched: number; skipped: number; alreadyLinked: number }> {
   const players = await db.select().from(playersTable);
   let matched = 0;
   let skipped = 0;
   let alreadyLinked = 0;
-
   for (const player of players) {
-    if (player.clerkUserId) {
-      alreadyLinked++;
-      continue;
-    }
-    const linked = await autoLinkPlayer(player);
-    if (linked) matched++;
+    if (player.clerkUserId) { alreadyLinked++; continue; }
+    if (await autoLinkPlayer(player)) matched++;
     else skipped++;
   }
-
   logger.info({ matched, skipped, alreadyLinked }, "Auto-link backfill complete");
   return { matched, skipped, alreadyLinked };
 }

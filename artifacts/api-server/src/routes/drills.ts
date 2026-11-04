@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { requireAdmin } from "../middlewares/requireAdmin";
+import { requireLeagueViewer } from "../middlewares/requireLeagueViewer.js";
 
 const router = Router();
 
@@ -14,7 +15,7 @@ function requireAuth(req: any, res: any, next: any) {
 }
 
 // GET /drills/:leagueId — list drills for a league
-router.get("/drills/:leagueId", requireAuth, async (req: any, res: any) => {
+router.get("/drills/:leagueId", requireLeagueViewer, async (req: any, res: any) => {
   try {
     const leagueId = parseInt(req.params.leagueId);
     const result = await db.execute(sql`

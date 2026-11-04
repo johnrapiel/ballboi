@@ -13,6 +13,7 @@ import {
   usersTable,
 } from "@workspace/db";
 import { eq, inArray, or, sql } from "drizzle-orm";
+import { DELETED_PLAYER_NAME } from "./deletedPlayer";
 import { deleteLeagueDataFor } from "./leagueAccountDeletion";
 import { deleteMessagingData } from "../messaging/accountDeletion";
 import { ObjectStorageService } from "./objectStorage";
@@ -44,7 +45,7 @@ import { deleteRecordingData } from "./recordingCleanup";
  * Each of those features must hook in here when it lands.
  */
 
-export const DELETED_PLAYER_NAME = "Deleted player";
+export { DELETED_PLAYER_NAME };
 /** Stands in for the recorder's Clerk ID on recordings kept for the opponent. */
 export const DELETED_RECORDER_ID = "deleted";
 
