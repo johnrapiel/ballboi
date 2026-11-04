@@ -11,4 +11,11 @@ import type { BracketSlot } from "./bracketSlot";
 export interface BracketRound {
   round: BracketRoundRound;
   slots: BracketSlot[];
+  /**
+   * Last day to play this round (YYYY-MM-DD, league time zone): two weeks, a play week plus a grace week. Null for leagues without the weekly calendar.
+   * @nullable
+   */
+  playBy: string | null;
+  /** The play-by date has passed. Players can't enter a score; an admin settles the match. */
+  pastPlayBy: boolean;
 }

@@ -1,21 +1,37 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import express from "express";
 import supertest from "supertest";
-import { deletedNotice, deleteNameMatches, leaveCheck, splitMatchesForDelete } from "../lib/leagueLifecycle.js";
+import {
+  deletedNotice,
+  deleteNameMatches,
+  leagueHasEnded,
+  REMOVE_SELF_MESSAGE,
+  removeCheck,
+  splitMatchesForDelete,
+} from "../lib/leagueLifecycle.js";
 
 // Oct 31 review: C8 (only admin can't leave), C9 (end league), C10 (delete league). Decision 31.
 
-describe("leaveCheck", () => {
-  it("stops the only admin", () => {
-    const out = leaveCheck({ isAdmin: true, adminCount: 1 });
-    expect(out).toMatchObject({ ok: false, status: 409, code: "only_admin" });
-    if (!out.ok) expect(out.error).toMatch(/^Make someone a co-admin first/);
+describe("leagueHasEnded", () => {
+  it("is true once the admin ends the league or the season finishes", () => {
+    expect(leagueHasEnded({ endedAt: new Date(), status: "active" })).toBe(true);
+    expect(leagueHasEnded({ endedAt: null, status: "completed" })).toBe(true);
+    expect(leagueHasEnded({ endedAt: null, status: "active" })).toBe(false);
+    expect(leagueHasEnded({})).toBe(false);
   });
-  it("lets an admin leave when there's another", () => {
-    expect(leaveCheck({ isAdmin: true, adminCount: 2 })).toEqual({ ok: true });
+});
+
+describe("removeCheck", () => {
+  it("won't let an admin remove themselves (C26)", () => {
+    expect(removeCheck({ playerClerkUserId: "u1", callerClerkUserId: "u1" })).toEqual({
+      ok: false,
+      status: 409,
+      error: REMOVE_SELF_MESSAGE,
+    });
   });
-  it("lets players leave as before", () => {
-    expect(leaveCheck({ isAdmin: false, adminCount: 1 })).toEqual({ ok: true });
+  it("removes anyone else, placeholders included", () => {
+    expect(removeCheck({ playerClerkUserId: "u2", callerClerkUserId: "u1" })).toEqual({ ok: true });
+    expect(removeCheck({ playerClerkUserId: null, callerClerkUserId: "u1" })).toEqual({ ok: true });
   });
 });
 

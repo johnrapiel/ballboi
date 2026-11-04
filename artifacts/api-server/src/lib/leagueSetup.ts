@@ -1,5 +1,14 @@
 // Rules for starting a league (spec: Leagues > Setup) that the request schema
 // can't express on its own. Pure functions, so they're easy to test.
+//
+// Nov 4 decisions: Doubles is hidden until doubles pairing is built (Q2), and
+// a season starts tomorrow at the earliest, in the league's time zone (Q7),
+// so friends who join on the day it's made are in, not waiting on approval.
+
+import { addDays, leagueToday } from "./leagueCalendar.js";
+
+export const DOUBLES_NOT_YET = "Doubles leagues aren't available yet. Start a singles league for now.";
+export const START_TOMORROW = "A season can start tomorrow at the earliest.";
 
 export const SKILL_LEVELS = ["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"] as const;
 
@@ -27,11 +36,8 @@ export function validateLeagueSetup(input: LeagueSetupInput): string | null {
   if (!Number.isInteger(input.seasonWeeks) || input.seasonWeeks < 1 || input.seasonWeeks > 24) {
     return "A season runs 1 to 24 weeks";
   }
-  const doubles = input.leagueType === "doubles";
-  if (doubles && input.partnerMode !== "fixed" && input.partnerMode !== "rotating") {
-    return "Doubles leagues need fixed or rotating partners";
-  }
-  if (!doubles && input.partnerMode) {
+  if (input.leagueType === "doubles") return DOUBLES_NOT_YET;
+  if (input.partnerMode) {
     return "Only doubles leagues have partners";
   }
   const levels: readonly string[] = SKILL_LEVELS;
@@ -48,6 +54,11 @@ export function validateLeagueSetup(input: LeagueSetupInput): string | null {
     return "Your name is required when you're playing";
   }
   return null;
+}
+
+/** Q7: the start date is tomorrow or later on the league's own clock. Returns the problem, or null. */
+export function checkStartDate(startDate: string, timeZone: string, now: Date = new Date()): string | null {
+  return startDate < addDays(leagueToday(now, timeZone), 1) ? START_TOMORROW : null;
 }
 
 /** End date (last day of the final week) and status, from the start date and length. */

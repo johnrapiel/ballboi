@@ -98,6 +98,7 @@ import type {
   ScoreResult,
   Season,
   SetMatchTimeBody,
+  SettleMatchBody,
   Standing,
   StartBallBoiSessionBody,
   SwapPlayersBody,
@@ -3529,6 +3530,94 @@ export const useCorrectLeagueScore = <
 };
 
 /**
+ * @summary League admins settle an unplayed playoff match after its round's play-by date: a score from player 1's side, or a walkover. The winner moves on.
+ */
+export const getSettlePlayoffMatchUrl = (leagueId: number, matchId: number) => {
+  return `/api/leagues/${leagueId}/matches/${matchId}/result`;
+};
+
+export const settlePlayoffMatch = async (
+  leagueId: number,
+  matchId: number,
+  settleMatchBody: SettleMatchBody,
+  options?: RequestInit,
+): Promise<ScoreResult> => {
+  return customFetch<ScoreResult>(getSettlePlayoffMatchUrl(leagueId, matchId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(settleMatchBody),
+  });
+};
+
+export const getSettlePlayoffMatchMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof settlePlayoffMatch>>,
+    TError,
+    { leagueId: number; matchId: number; data: BodyType<SettleMatchBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof settlePlayoffMatch>>,
+  TError,
+  { leagueId: number; matchId: number; data: BodyType<SettleMatchBody> },
+  TContext
+> => {
+  const mutationKey = ["settlePlayoffMatch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof settlePlayoffMatch>>,
+    { leagueId: number; matchId: number; data: BodyType<SettleMatchBody> }
+  > = (props) => {
+    const { leagueId, matchId, data } = props ?? {};
+
+    return settlePlayoffMatch(leagueId, matchId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SettlePlayoffMatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof settlePlayoffMatch>>
+>;
+export type SettlePlayoffMatchMutationBody = BodyType<SettleMatchBody>;
+export type SettlePlayoffMatchMutationError = ErrorType<void>;
+
+/**
+ * @summary League admins settle an unplayed playoff match after its round's play-by date: a score from player 1's side, or a walkover. The winner moves on.
+ */
+export const useSettlePlayoffMatch = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof settlePlayoffMatch>>,
+    TError,
+    { leagueId: number; matchId: number; data: BodyType<SettleMatchBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof settlePlayoffMatch>>,
+  TError,
+  { leagueId: number; matchId: number; data: BodyType<SettleMatchBody> },
+  TContext
+> => {
+  return useMutation(getSettlePlayoffMatchMutationOptions(options));
+};
+
+/**
  * @summary Either player in the match, or a league admin, sets its date and time inside the match's week. In a league with a weekly match time, only admins can change it.
  */
 export const getSetLeagueMatchTimeUrl = (leagueId: number, matchId: number) => {
@@ -4570,7 +4659,7 @@ export const useDeclineLeagueJoinRequest = <
 };
 
 /**
- * @summary Leave a league. Played matches stay; remaining matches are voided.
+ * @summary Leave a league. Played matches stay; remaining weekly matches are voided, and a playoff match still to play goes to the opponent on a walkover. An admin who leaves stays an admin.
  */
 export const getLeaveLeagueUrl = (leagueId: number) => {
   return `/api/leagues/${leagueId}/leave`;
@@ -4631,7 +4720,7 @@ export type LeaveLeagueMutationResult = NonNullable<
 export type LeaveLeagueMutationError = ErrorType<unknown>;
 
 /**
- * @summary Leave a league. Played matches stay; remaining matches are voided.
+ * @summary Leave a league. Played matches stay; remaining weekly matches are voided, and a playoff match still to play goes to the opponent on a walkover. An admin who leaves stays an admin.
  */
 export const useLeaveLeague = <
   TError = ErrorType<unknown>,
@@ -4654,7 +4743,7 @@ export const useLeaveLeague = <
 };
 
 /**
- * @summary Remove a player (admins only). Same rules as leaving.
+ * @summary Remove a player (admins only). Same rules as leaving. Admins can't remove themselves; they leave instead.
  */
 export const getRemoveLeaguePlayerUrl = (
   leagueId: number,
@@ -4678,7 +4767,7 @@ export const removeLeaguePlayer = async (
 };
 
 export const getRemoveLeaguePlayerMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4719,13 +4808,13 @@ export type RemoveLeaguePlayerMutationResult = NonNullable<
   Awaited<ReturnType<typeof removeLeaguePlayer>>
 >;
 
-export type RemoveLeaguePlayerMutationError = ErrorType<unknown>;
+export type RemoveLeaguePlayerMutationError = ErrorType<void>;
 
 /**
- * @summary Remove a player (admins only). Same rules as leaving.
+ * @summary Remove a player (admins only). Same rules as leaving. Admins can't remove themselves; they leave instead.
  */
 export const useRemoveLeaguePlayer = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -6661,7 +6750,7 @@ export const joinLeagueViaInvite = async (
 };
 
 export const getJoinLeagueViaInviteMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -6702,13 +6791,13 @@ export type JoinLeagueViaInviteMutationResult = NonNullable<
   Awaited<ReturnType<typeof joinLeagueViaInvite>>
 >;
 export type JoinLeagueViaInviteMutationBody = BodyType<JoinLeagueBody>;
-export type JoinLeagueViaInviteMutationError = ErrorType<unknown>;
+export type JoinLeagueViaInviteMutationError = ErrorType<void>;
 
 /**
  * @summary Join a league using an invite code
  */
 export const useJoinLeagueViaInvite = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<

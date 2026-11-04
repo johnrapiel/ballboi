@@ -284,7 +284,7 @@ function RootLayoutNav() {
           options={{
             headerShown: true,
             presentation: "modal",
-            title: "Score",
+            title: "Enter score",
             headerShadowVisible: false,
             headerTintColor: colors.ink,
             headerStyle: { backgroundColor: colors.paper },

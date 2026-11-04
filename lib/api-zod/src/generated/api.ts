@@ -53,6 +53,12 @@ export const GetLeaguesResponseItem = zod.object({
     .string()
     .nullish()
     .describe("An admin ended the league (decision 31). Standings are frozen."),
+  youLeft: zod
+    .boolean()
+    .optional()
+    .describe(
+      "In the signed-in player's own list, they left this league and don't run it, so it shows under Past.",
+    ),
   timeZone: zod
     .string()
     .describe(
@@ -189,6 +195,12 @@ export const GetLeagueResponse = zod.object({
     .string()
     .nullish()
     .describe("An admin ended the league (decision 31). Standings are frozen."),
+  youLeft: zod
+    .boolean()
+    .optional()
+    .describe(
+      "In the signed-in player's own list, they left this league and don't run it, so it shows under Past.",
+    ),
   timeZone: zod
     .string()
     .describe(
@@ -274,6 +286,12 @@ export const UpdateLeagueResponse = zod.object({
     .string()
     .nullish()
     .describe("An admin ended the league (decision 31). Standings are frozen."),
+  youLeft: zod
+    .boolean()
+    .optional()
+    .describe(
+      "In the signed-in player's own list, they left this league and don't run it, so it shows under Past.",
+    ),
   timeZone: zod
     .string()
     .describe(
@@ -793,7 +811,7 @@ export const GetLeagueMembershipResponse = zod.object({
   onlyAdmin: zod
     .boolean()
     .describe(
-      "The caller is this league's only admin, so they can't leave until someone else is a co-admin",
+      "The caller is this league's only admin. They can still leave; they stay admin and keep managing it",
     ),
   joinedWeek: zod
     .number()
@@ -1046,6 +1064,17 @@ export const GetLeagueBracketResponse = zod.union([
             winnerId: zod.number().nullable(),
           }),
         ),
+        playBy: zod
+          .string()
+          .nullable()
+          .describe(
+            "Last day to play this round (YYYY-MM-DD, league time zone): two weeks, a play week plus a grace week. Null for leagues without the weekly calendar.",
+          ),
+        pastPlayBy: zod
+          .boolean()
+          .describe(
+            "The play-by date has passed. Players can't enter a score; an admin settles the match.",
+          ),
       }),
     ),
     champion: zod.union([
@@ -1122,6 +1151,15 @@ export const GetMyLeagueWeekResponse = zod.object({
       opponentName: zod.string(),
       singles: zod.boolean(),
       timeZone: zod.string(),
+      playBy: zod
+        .string()
+        .nullable()
+        .describe("Last day to play this playoff round (two weeks per round)"),
+      pastPlayBy: zod
+        .boolean()
+        .describe(
+          "The play-by date has passed, so the league admin enters the result",
+        ),
     }),
   ),
   drafts: zod.array(
@@ -1220,7 +1258,13 @@ export const EnterLeagueScoreBody = zod.object({
   score: zod
     .string()
     .describe(
-      'Sets from your own side, like \"6-3, 4-6, 10-7\". Your games first.',
+      'Sets from your own side, like \"6-3, 4-6, 10-7\". Your games first. Best of three; a set ends 6-0 to 6-4, 7-5 or 7-6, and a third set can be a match tiebreak (10-7).',
+    ),
+  retired: zod
+    .boolean()
+    .optional()
+    .describe(
+      "The opponent retired. The score is the sets so far (the last can be unfinished), it counts as the caller's win, and it's stored with RET at the end, like \"6-3, 2-1 RET\". Admin corrections ignore it.",
     ),
 });
 
@@ -1236,7 +1280,13 @@ export const CorrectLeagueScoreBody = zod.object({
   score: zod
     .string()
     .describe(
-      'Sets from your own side, like \"6-3, 4-6, 10-7\". Your games first.',
+      'Sets from your own side, like \"6-3, 4-6, 10-7\". Your games first. Best of three; a set ends 6-0 to 6-4, 7-5 or 7-6, and a third set can be a match tiebreak (10-7).',
+    ),
+  retired: zod
+    .boolean()
+    .optional()
+    .describe(
+      "The opponent retired. The score is the sets so far (the last can be unfinished), it counts as the caller's win, and it's stored with RET at the end, like \"6-3, 2-1 RET\". Admin corrections ignore it.",
     ),
 });
 
@@ -1247,6 +1297,29 @@ export const CorrectLeagueScoreResponse = zod.object({
   correctedAt: zod.string(),
   correctedBy: zod.string(),
 });
+
+/**
+ * @summary League admins settle an unplayed playoff match after its round's play-by date: a score from player 1's side, or a walkover. The winner moves on.
+ */
+export const SettlePlayoffMatchParams = zod.object({
+  leagueId: zod.coerce.number(),
+  matchId: zod.coerce.number(),
+});
+
+export const SettlePlayoffMatchBody = zod
+  .object({
+    score: zod
+      .string()
+      .optional()
+      .describe('Sets from player 1\'s side, like \"6-3, 6-4\"'),
+    walkoverWinnerId: zod
+      .number()
+      .nullish()
+      .describe("The player who wins on a walkover (W\/O)"),
+  })
+  .describe(
+    "Either a score from player 1's side, or a walkover to one of the two players.",
+  );
 
 /**
  * @summary Either player in the match, or a league admin, sets its date and time inside the match's week. In a league with a weekly match time, only admins can change it.
@@ -1465,7 +1538,7 @@ export const DeclineLeagueJoinRequestParams = zod.object({
 });
 
 /**
- * @summary Leave a league. Played matches stay; remaining matches are voided.
+ * @summary Leave a league. Played matches stay; remaining weekly matches are voided, and a playoff match still to play goes to the opponent on a walkover. An admin who leaves stays an admin.
  */
 export const LeaveLeagueParams = zod.object({
   leagueId: zod.coerce.number(),
@@ -1475,10 +1548,14 @@ export const LeaveLeagueResponse = zod.object({
   left: zod.boolean().optional(),
   removed: zod.boolean().optional(),
   voidedMatches: zod.number(),
+  stillAdmin: zod
+    .boolean()
+    .optional()
+    .describe("After leaving, the caller still runs the league as an admin"),
 });
 
 /**
- * @summary Remove a player (admins only). Same rules as leaving.
+ * @summary Remove a player (admins only). Same rules as leaving. Admins can't remove themselves; they leave instead.
  */
 export const RemoveLeaguePlayerParams = zod.object({
   leagueId: zod.coerce.number(),
@@ -1489,6 +1566,10 @@ export const RemoveLeaguePlayerResponse = zod.object({
   left: zod.boolean().optional(),
   removed: zod.boolean().optional(),
   voidedMatches: zod.number(),
+  stillAdmin: zod
+    .boolean()
+    .optional()
+    .describe("After leaving, the caller still runs the league as an admin"),
 });
 
 /**

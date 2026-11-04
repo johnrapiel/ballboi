@@ -1,5 +1,7 @@
 import type { LeagueSchedule, ScheduleMatch, ScheduleRound } from "@workspace/api-client-react";
 
+import { flipScore, WALKOVER_SCORE } from "./tennisScore";
+
 // Helpers for the league schedule (spec: Leagues > Weekly loop, Scores and
 // standings). Dates are YYYY-MM-DD in the league's time zone.
 
@@ -152,33 +154,32 @@ export function isMine(m: ScheduleMatch, myPlayerId: number | null | undefined):
   return myPlayerId != null && (m.player1Id === myPlayerId || m.player2Id === myPlayerId);
 }
 
-/** A stored score (player 1's side) as the given player sees it: their games first. */
+/** A stored score (player 1's side) as the given player sees it: their games first. RET and W/O stay. */
 export function scoreForPlayer(score: string, m: Pick<ScheduleMatch, "player1Id">, playerId: number): string {
-  if (m.player1Id === playerId) return score;
-  return score
-    .split(",")
-    .map((set) => {
-      const x = set.trim().match(/^(\d+)-(\d+)(\(\d+\))?$/);
-      return x ? `${x[2]}-${x[1]}${x[3] ?? ""}` : set.trim();
-    })
-    .join(", ");
+  return m.player1Id === playerId ? score : flipScore(score);
+}
+
+/** "6-3, 6-4" from the winner's side, or "by W/O" for a walkover (C18, Q5). */
+export function winningScore(score: string, m: Pick<ScheduleMatch, "player1Id">, winnerId: number): string {
+  return score.trim() === WALKOVER_SCORE ? `by ${WALKOVER_SCORE}` : scoreForPlayer(score, m, winnerId);
 }
 
 /**
- * C6: an unplayed match whose grace week has passed. It shows "Not played"
- * and has no effect on standings.
+ * C6: an unplayed match whose grace week has passed, or any unplayed match
+ * once the league has ended (C24). It shows "Not played" and has no effect
+ * on standings.
  */
-export function isNotPlayed(round: Pick<ScheduleRound, "phase">, m: ScheduleMatch): boolean {
-  return round.phase === "closed" && !m.voided && m.status !== "completed";
+export function isNotPlayed(round: Pick<ScheduleRound, "phase">, m: ScheduleMatch, ended = false): boolean {
+  return (ended || round.phase === "closed") && !m.voided && m.status !== "completed";
 }
 
 /** "Alex Kim won 6-3, 6-4" from the winner's side, or a status in words. */
-export function resultLine(m: ScheduleMatch, round?: Pick<ScheduleRound, "phase">): string {
+export function resultLine(m: ScheduleMatch, round?: Pick<ScheduleRound, "phase">, ended = false): string {
   if (m.voided) return "Cancelled";
-  if (round && isNotPlayed(round, m)) return "Not played";
-  if (m.status !== "completed" || !m.score || m.winnerId == null) return "Not played yet";
+  if (round && isNotPlayed(round, m, ended)) return "Not played";
+  if (m.status !== "completed" || !m.score || m.winnerId == null) return ended ? "Not played" : "Not played yet";
   const winner = m.winnerId === m.player1Id ? m.player1Name : m.player2Name;
-  return `${winner} won ${scoreForPlayer(m.score, m, m.winnerId)}`;
+  return `${winner} won ${winningScore(m.score, m, m.winnerId)}`;
 }
 
 export interface MyWeek {
@@ -210,9 +211,16 @@ export function myWeek(schedule: LeagueSchedule | undefined, myPlayerId: number 
   return null;
 }
 
-/** Whether a match can be scored now: it's out, unplayed, not voided, and not past its grace week. */
-export function canEnterScore(round: ScheduleRound, m: ScheduleMatch): boolean {
-  return (round.phase === "open" || round.phase === "grace") && m.status !== "completed" && !m.voided;
+/** Whether a match can be scored now: it's out, unplayed, not voided, not past its grace week, and the league is still on. */
+export function canEnterScore(round: ScheduleRound, m: ScheduleMatch, ended = false): boolean {
+  return !ended && (round.phase === "open" || round.phase === "grace") && m.status !== "completed" && !m.voided;
+}
+
+/** C21: the playoff line under the standings, or null with no playoffs. */
+export function playoffLine(playoffSize: number | null | undefined, activePlayers: number): string | null {
+  if (!playoffSize) return null;
+  if (activePlayers < 4) return "Not enough players for playoffs this season.";
+  return `Top ${activePlayers >= 8 && playoffSize >= 8 ? 8 : 4} make the playoffs.`;
 }
 
 /** C5: "Corrected by Sam Lee on Nov 6", shown to both players and in Manage. */

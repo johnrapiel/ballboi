@@ -159,6 +159,7 @@ export * from "./scheduleWeek";
 export * from "./scoreResult";
 export * from "./season";
 export * from "./setMatchTimeBody";
+export * from "./settleMatchBody";
 export * from "./standing";
 export * from "./startBallBoiSessionBody";
 export * from "./startBallBoiSessionBodyMetadata";

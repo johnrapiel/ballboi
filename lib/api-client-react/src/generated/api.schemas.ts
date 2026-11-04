@@ -26,7 +26,7 @@ export interface LeagueMembership {
   playerId: number | null;
   isPlaying: boolean;
   hasLeft: boolean;
-  /** The caller is this league's only admin, so they can't leave until someone else is a co-admin */
+  /** The caller is this league's only admin. They can still leave; they stay admin and keep managing it */
   onlyAdmin: boolean;
   /**
    * For a player who joined after week 1, the week they joined ("You joined in week 3 of 8")
@@ -127,8 +127,23 @@ export interface LockMatchBody {
 }
 
 export interface EnterScoreBody {
-  /** Sets from your own side, like "6-3, 4-6, 10-7". Your games first. */
+  /** Sets from your own side, like "6-3, 4-6, 10-7". Your games first. Best of three; a set ends 6-0 to 6-4, 7-5 or 7-6, and a third set can be a match tiebreak (10-7). */
   score: string;
+  /** The opponent retired. The score is the sets so far (the last can be unfinished), it counts as the caller's win, and it's stored with RET at the end, like "6-3, 2-1 RET". Admin corrections ignore it. */
+  retired?: boolean;
+}
+
+/**
+ * Either a score from player 1's side, or a walkover to one of the two players.
+ */
+export interface SettleMatchBody {
+  /** Sets from player 1's side, like "6-3, 6-4" */
+  score?: string;
+  /**
+   * The player who wins on a walkover (W/O)
+   * @nullable
+   */
+  walkoverWinnerId?: number | null;
 }
 
 export interface ScoreResult {
@@ -216,6 +231,13 @@ export interface LeagueWeekPlayoff {
   opponentName: string;
   singles: boolean;
   timeZone: string;
+  /**
+   * Last day to play this playoff round (two weeks per round)
+   * @nullable
+   */
+  playBy: string | null;
+  /** The play-by date has passed, so the league admin enters the result */
+  pastPlayBy: boolean;
 }
 
 export interface LeagueWeekDraft {
@@ -379,6 +401,13 @@ export const BracketRoundRound = {
 export interface BracketRound {
   round: BracketRoundRound;
   slots: BracketSlot[];
+  /**
+   * Last day to play this round (YYYY-MM-DD, league time zone): two weeks, a play week plus a grace week. Null for leagues without the weekly calendar.
+   * @nullable
+   */
+  playBy: string | null;
+  /** The play-by date has passed. Players can't enter a score; an admin settles the match. */
+  pastPlayBy: boolean;
 }
 
 export type LeagueBracketStatus =
@@ -567,6 +596,8 @@ export interface DropoutResult {
   left?: boolean;
   removed?: boolean;
   voidedMatches: number;
+  /** After leaving, the caller still runs the league as an admin */
+  stillAdmin?: boolean;
 }
 
 export interface Season {
@@ -735,6 +766,8 @@ export interface League {
    * @nullable
    */
   endedAt?: string | null;
+  /** In the signed-in player's own list, they left this league and don't run it, so it shows under Past. */
+  youLeft?: boolean;
   /** The league's time zone (IANA name). Pairing at 7am, week starts and ends, and deadlines follow it. */
   timeZone: string;
   /**

@@ -6,12 +6,12 @@ import { CreateLeagueBody, UpdateLeagueBody } from "@workspace/api-zod";
 import { and, eq, count, isNull } from "drizzle-orm";
 import { autoLinkPlayer } from "../lib/autoLinkPlayer.js";
 import { requireAdmin } from "../middlewares/requireAdmin.js";
-import { canViewLeague, isLeagueAdmin, memberLeagueIds, PRIVATE_LEAGUE } from "../lib/leagueAccess.js";
+import { adminLeagueIds, canViewLeague, isLeagueAdmin, memberLeagueIds, PRIVATE_LEAGUE } from "../lib/leagueAccess.js";
 import { runLeagueDay } from "../services/leagueRounds.js";
 import { logger } from "../lib/logger.js";
 import { getPastSeasonNames } from "../services/seasonService.js";
 import { computeStandings } from "../lib/leagueStandings.js";
-import { SKILL_LEVELS, seasonDates, validateLeagueSetup } from "../lib/leagueSetup.js";
+import { SKILL_LEVELS, checkStartDate, seasonDates, validateLeagueSetup } from "../lib/leagueSetup.js";
 import { loadProfiles, playerLevelText } from "../lib/playerProfile.js";
 import { DEFAULT_LEAGUE_TIME_ZONE, isTimeZone } from "../lib/leagueCalendar.js";
 import { checkLeagueMatchTime } from "../lib/matchTimes.js";
@@ -35,10 +35,17 @@ router.get("/leagues", requireAuth, async (req, res) => {
     return;
   }
   const mineOnly = asked !== undefined;
-  const [all, mine] = await Promise.all([
+  const [all, mine, myRows, adminOf] = await Promise.all([
     db.select().from(leaguesTable).orderBy(leaguesTable.createdAt),
     memberLeagueIds(userId!),
+    db.select({ leagueId: playersTable.leagueId, leftAt: playersTable.leftAt }).from(playersTable).where(eq(playersTable.clerkUserId, userId!)),
+    adminLeagueIds(userId!),
   ]);
+  // C5: a player who left (and doesn't run it) sees the league under Past.
+  const youLeft = (leagueId: number) => {
+    const rows = myRows.filter((r) => r.leagueId === leagueId);
+    return rows.length > 0 && rows.every((r) => r.leftAt) && !adminOf.includes(leagueId);
+  };
   const leagues = all.filter(
     (l) => mine.includes(l.id) || l.createdByClerkUserId === userId || (!mineOnly && l.visibility === "open"),
   );
@@ -78,6 +85,7 @@ router.get("/leagues", requireAuth, async (req, res) => {
       createdAt: l.createdAt.toISOString(),
       updatedAt: l.updatedAt.toISOString(),
       endedAt: l.endedAt ? l.endedAt.toISOString() : null,
+      youLeft: youLeft(l.id),
     }))
   ); return; }
 });
@@ -98,6 +106,8 @@ router.post("/leagues", requireAuth, async (req, res) => {
   if (!matchTime.ok) { res.status(400).json({ error: matchTime.error }); return; }
   // The league runs on its creator's time zone, sent by their phone.
   const timeZone = isTimeZone(body.timeZone) ? body.timeZone : DEFAULT_LEAGUE_TIME_ZONE;
+  const tooSoon = checkStartDate(body.startDate, timeZone);
+  if (tooSoon) { res.status(400).json({ error: tooSoon }); return; }
 
   const playing = body.playing !== false;
   const { endDate, status } = seasonDates(body.startDate, body.seasonWeeks);
@@ -153,7 +163,7 @@ router.post("/leagues", requireAuth, async (req, res) => {
     return { league, playerCount: playing ? 1 : 0 };
   });
 
-  // A season starting today or tomorrow gets its first round right away.
+  // A season starting tomorrow gets its first round drafted right away.
   runLeagueDay(league).catch((err) => logger.error({ err, leagueId: league.id }, "First league day failed"));
 
   { res.status(201).json({

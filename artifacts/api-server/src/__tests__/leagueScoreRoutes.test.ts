@@ -26,12 +26,27 @@ const chain = (value: unknown, calls?: Call[]) => {
 
 const mockDb = { select: vi.fn(), update: vi.fn(), insert: vi.fn(), transaction: vi.fn() };
 const table = new Proxy({}, { get: (_t, p) => ({ col: String(p) }) });
+// The league lookup (has it ended?) answers from mockLeague, so each test's
+// select sequence covers only matches and players.
+const leaguesTable = new Proxy({}, { get: (_t, p) => ({ col: String(p) }) });
+let mockLeague: Record<string, unknown> = {};
+const db = {
+  ...mockDb,
+  update: (...a: unknown[]) => mockDb.update(...a),
+  insert: (...a: unknown[]) => mockDb.insert(...a),
+  transaction: (...a: unknown[]) => mockDb.transaction(...a),
+  select: (...a: unknown[]) => ({
+    from: (t: unknown) => (t === leaguesTable ? chain([mockLeague]) : mockDb.select(...a).from(t)),
+  }),
+};
 vi.mock("@workspace/db", () => ({
   get db() {
-    return mockDb;
+    return db;
   },
   leagueRoundsTable: table,
-  leaguesTable: table,
+  get leaguesTable() {
+    return leaguesTable;
+  },
   matchesTable: table,
   playersTable: table,
   usersTable: table,
@@ -89,8 +104,10 @@ const match = (over: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  for (const fn of Object.values(mockDb)) fn.mockReset();
   mockUserId = "user_a";
   mockIsAdmin = true;
+  mockLeague = { id: 1, endedAt: null, status: "active", startDate: "2026-10-01", seasonWeeks: 8, timeZone: "America/New_York" };
 });
 
 describe("POST /api/leagues/:leagueId/matches/:matchId/score/undo", () => {
@@ -206,5 +223,57 @@ describe("PUT /api/leagues/:leagueId/matches/:matchId/score", () => {
     mockDb.select.mockReturnValueOnce(chain([match()]));
     const res = await supertest(await buildApp()).put("/api/leagues/1/matches/7/score").send({ score: "6-6" });
     expect(res.status).toBe(400);
+  });
+});
+
+describe("scores are final once the league ends (Q9)", () => {
+  it("refuses a correction", async () => {
+    mockLeague = { ...mockLeague, endedAt: new Date(), status: "completed" };
+    mockDb.select.mockReturnValueOnce(chain([match()]));
+    const res = await supertest(await buildApp()).put("/api/leagues/1/matches/7/score").send({ score: "3-6, 4-6" });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe("This league has ended, so its scores are final.");
+    expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it("refuses an undo", async () => {
+    mockLeague = { ...mockLeague, endedAt: new Date() };
+    mockDb.select.mockReturnValue(chain([match()]));
+    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score/undo");
+    expect(res.status).toBe(409);
+    expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it("refuses a new score", async () => {
+    mockLeague = { ...mockLeague, endedAt: new Date() };
+    mockDb.select.mockReturnValueOnce(chain([match({ status: "scheduled", score: null, winnerId: null })]));
+    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score").send({ score: "6-3, 6-4" });
+    expect(res.status).toBe(409);
+  });
+});
+
+describe("POST /api/leagues/:leagueId/matches/:matchId/score with Opponent retired (Q6)", () => {
+  it("stores the sets so far with RET, as a win for the player entering it", async () => {
+    mockUserId = "user_b";
+    const sets: Call[] = [];
+    mockDb.select
+      .mockReturnValueOnce(chain([match({ status: "scheduled", score: null, winnerId: null })]))
+      .mockReturnValueOnce(chain([{ id: 20, name: "Sam Lee" }]))
+      .mockReturnValue(chain([]));
+    mockDb.update.mockReturnValue(chain([{ ...match(), score: "3-6, 1-2 RET", winnerId: 20 }], sets));
+    mockDb.transaction.mockImplementation(async (cb: (tx: unknown) => unknown) => cb({ update: () => chain(undefined) }));
+    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score").send({ score: "6-3, 2-1", retired: true });
+    expect(res.status).toBe(201);
+    // Player 2 entered it, so it's stored from player 1's side.
+    expect(sets.find((c) => c.method === "set")?.args[0]).toMatchObject({ score: "3-6, 1-2 RET", winnerId: 20 });
+  });
+
+  it("refuses a bad score with a reason", async () => {
+    mockDb.select
+      .mockReturnValueOnce(chain([match({ status: "scheduled", score: null, winnerId: null })]))
+      .mockReturnValueOnce(chain([{ id: 10, name: "Alex Kim" }]));
+    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score").send({ score: "9-2, 6-5" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("9-2 isn't a valid set. A set ends 6-0 to 6-4, 7-5 or 7-6.");
   });
 });
