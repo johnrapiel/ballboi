@@ -114,9 +114,9 @@
     mode = 'rain'; balls = [];
     const p = pillCenter();
     for (let i = 0; i < 60; i++) {
-      const x = Math.random() * W, y = -20 - Math.random() * H * 0.9;
+      const x = Math.random() * W, y = -20 - Math.random() * H * 0.6;
       balls.push({
-        x, y, x0: x, y0: y, vx: 0, vy: 1 + Math.random() * 1.5,
+        x, y, x0: x, y0: y, vx: 0, vy: 3 + Math.random() * 2,
         tx: p.x + (Math.random() - 0.5) * p.w * 0.7, sp: sprites[i % sprites.length],
         rot: Math.random() * 6.28, al: 1, s: 1, dis: false
       });
@@ -164,10 +164,10 @@
         } else {
           // Fall under gravity; x eases from the start point to a spot inside the pill,
           // so every ball lands in it.
-          b.vy = Math.min(b.vy + 0.2, 8); b.y += b.vy;
+          b.vy = Math.min(b.vy + 0.45, 16); b.y += b.vy;
           const t = Math.max(0, Math.min(1, (b.y - b.y0) / (p.y - b.y0)));
           b.x = b.x0 + (b.tx - b.x0) * t * t * (3 - 2 * t);
-          b.rot += 0.06;
+          b.rot += 0.1;
           if (b.y >= p.y - p.h / 2 + 4) { b.dis = true; pulse(now); }
         }
         continue;
@@ -194,6 +194,6 @@
     pill.addEventListener('pointerleave', burst);
     document.addEventListener('visibilitychange', () => { if (document.hidden) burst(); });
   } else {
-    setTimeout(startRain, 500);
+    setTimeout(startRain, 300);
   }
 })();
