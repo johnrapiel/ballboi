@@ -7,7 +7,7 @@ Update the status column in the same PR that changes it.
 
 _Last updated: 2026-11-02 (pricing review: Pro at $7.99/$59.99, 3 free months from first use of any Pro feature, mixed matchup rules, league fee note; spec decisions 32 to 47). Previously 2026-10-31 (R2 staging bucket created) and 2026-10-29 against `main` at `298969c` (merge queue landed: #16, #17, #19, #20, #22 via #29, #23, #24, #25, #27, #32, #33, #34, #37). Includes milestone animations (decision 28) and the design system accessibility pass (PR #31, open). Synced with the launch-blocking items in `docs/product-spec.md` (decisions 1 to 47). Where this list and the spec disagree, the spec wins._
 
-**Moderation:** every report is acted on within 24 hours. Reports list at `GET /api/admin/reports`. Message reports (including Stream moderation events), league chat reports, and auto-restrict flags land in the same queue. Coverage: John is primary and gets a push alert on every report; after 6 hours with no action, a Claude agent reviews and can hide, restrict, or dismiss with a logged reason. Suspensions and bans are human-only. Enforcement ladder: auto-detect, auto-restrict, review, human confirms, ban sticks, one appeal by email.
+**Moderation:** every report is acted on within 24 hours. Reports list at `GET /api/admin/reports`. Message reports (including Stream moderation events) and league chat reports land in the same queue, oldest first. Coverage: John is primary and gets a push alert on every report; after 6 hours with no action, a Claude agent reviews and can hide, restrict, or dismiss with a logged reason. Suspensions and bans are human-only. Enforcement ladder: auto-detect, review, human confirms, ban sticks, one appeal by email. Nothing restricts an account automatically (decision 43).
 
 ## 1. Native app
 
@@ -70,7 +70,7 @@ _Last updated: 2026-11-02 (pricing review: Pro at $7.99/$59.99, 3 free months fr
 | Report a message (long-press + accessible menu action) | 1.2 | ❌ | Report stores a server-side snapshot of the reported messages so moderators can act |
 | Objectionable content filter on send | 1.2 | ❌ | Links, phone numbers, and slurs blocked in first messages until the request is accepted |
 | New-account throttle | 1.2 | ❌ | Max 5 new conversations per day for the first week |
-| Auto-restrict flagged accounts | 1.2 | ❌ | Stream AI moderation flags, 2+ reports from different people, or behavior signals (unanswered first messages, repeated blocks, copy-paste openers) drop the account to zero new conversations and hide pending requests instantly, until reviewed |
+| Flagged accounts wait for review (no auto-restrict) | 1.2 | ✅ | Decided Nov 4 (decision 43): no automatic restriction. Stream flags and player reports go to the queue; the account is untouched until John, or the Claude agent after 6 hours, acts. The agent never reviews appeals |
 | 24-hour review, staffed | 1.2 | 🟡 | Decided: John primary with push alert on every report. Claude agent after 6 hours: reads snapshot, reporter note, account history; can hide, restrict, dismiss with logged reason, or escalate. Treats reported text as untrusted; restricts and escalates when unsure. John confirms or undoes every agent decision. Admin queue API merged (`GET /api/admin/reports`) |
 | Moderator can remove messages and suspend senders | 1.2 | ❌ | Extend admin reports view; add agent decision log with confirm / undo |
 | Bans stick | 1.2, 5.1.2 | ❌ | Human-only. Ban the Sign in with Apple user ID and email. Use DeviceCheck for device bans; Apple bans fingerprinting |

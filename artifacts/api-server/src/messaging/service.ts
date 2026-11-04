@@ -4,8 +4,9 @@
 // 1. You can't message yourself, or anyone either of you has blocked.
 // 2. League mates and players who've had a match together message freely.
 //    Anyone else's first message lands in the recipient's Message Requests.
-// 3. Starting a conversation: restricted accounts can't, and accounts in their
-//    first week can start at most 5 a day.
+// 3. Starting a conversation: accounts a moderator restricted can't, and
+//    accounts in their first week can start at most 5 a day. Nothing restricts
+//    an account automatically; reports and flags wait for a moderator.
 // 4. A first message to a non-connection can't include links, phone numbers or
 //    blocked terms, and the sender can't send again until the recipient replies.
 // 5. The recipient replying accepts the request. Nobody ever sees whether the
@@ -13,7 +14,7 @@
 
 import { createHash } from "node:crypto";
 import { REPORT_REASONS, type ReportReason, type SnapshotMessage } from "@workspace/db";
-import type { AutoRestrict, ModerationRepo } from "./moderation";
+import type { ModerationRepo } from "./moderation";
 import { FILTER_MESSAGES, FirstMessageFilter } from "./filter";
 import type { MessagingProvider, ProviderMessage } from "./provider";
 import { pairKeyFor, type ConversationRecord, type MessagingRepo } from "./repo";
@@ -71,12 +72,15 @@ export interface MessagingServiceDeps {
   onNewMessage?: (event: NewMessageEvent) => void | Promise<void>;
   /** Development only: sample players reply to you after a few seconds. */
   devAutoReply?: boolean;
-  /** Auto-restrict and report storage. Optional so tests can leave it out. */
-  moderation?: { auto: AutoRestrict; repo: ModerationRepo };
+  /** Report and restriction storage. Optional so tests can leave it out. */
+  moderation?: { repo: ModerationRepo };
 }
 
 /** Messages kept in a report snapshot: the reported one and up to this many before it. */
 export const SNAPSHOT_CONTEXT = 19;
+
+/** Messages per page when opening or scrolling back through a conversation. */
+export const THREAD_PAGE = 50;
 
 export const DEV_SAMPLE_PREFIX = "dev_sample_";
 
@@ -166,14 +170,18 @@ export class MessagingService {
     return this.views(me, rows);
   }
 
-  /** For the Messages button badge and the Requests count. */
+  /**
+   * For the Messages button badge and the Message Requests count. `unread`
+   * counts unread messages everywhere, Message Requests included, so a request
+   * you've opened stops counting. `requests` is every request still waiting.
+   */
   async summary(me: string): Promise<{ unread: number; requests: number }> {
     const rows = await this.visibleFor(me);
     let unread = 0;
     let requests = 0;
     for (const { c, state } of rows) {
       if (state === "request") requests += 1;
-      else unread += c.userA === me ? c.aUnread : c.bUnread;
+      unread += c.userA === me ? c.aUnread : c.bUnread;
     }
     return { unread, requests };
   }
@@ -187,16 +195,28 @@ export class MessagingService {
     return { c, state };
   }
 
-  /** Opens a conversation and marks it read for you. */
-  async thread(me: string, id: number, opts: { before?: string } = {}): Promise<{ conversation: ConversationView; messages: MessageView[] }> {
+  /**
+   * Opens a conversation and marks it read for you. Returns the latest
+   * THREAD_PAGE messages, or the page before `before` (a message id) when
+   * scrolling back. `olderCursor` is the `before` for the next page back, or
+   * null at the first message.
+   */
+  async thread(
+    me: string,
+    id: number,
+    opts: { before?: string } = {},
+  ): Promise<{ conversation: ConversationView; messages: MessageView[]; olderCursor: string | null }> {
     let { c, state } = await this.conversationFor(me, id);
     if (c.userA === me && c.aUnread > 0) c = await this.repo.update(c.id, { aUnread: 0 });
     if (c.userB === me && c.bUnread > 0) c = await this.repo.update(c.id, { bUnread: 0 });
-    const messages = await this.provider.listMessages(c.channelId, { limit: 50, before: opts.before });
+    const messages = await this.provider.listMessages(c.channelId, { limit: THREAD_PAGE, before: opts.before });
     const [conversation] = await this.views(me, [{ c, state }]);
     return {
       conversation,
       messages: messages.filter((m) => !m.hidden).map((m) => this.messageView(m, me)),
+      // A full page means there may be more before it. The cursor is the
+      // oldest message fetched, hidden or not, so a page of hidden ones can't stall paging.
+      olderCursor: messages.length >= THREAD_PAGE ? messages[0].id : null,
     };
   }
 
@@ -256,10 +276,6 @@ export class MessagingService {
     if (!connected) {
       const verdict = this.filter.check(text);
       if (!verdict.ok) throw new MessagingError(422, `filtered_${verdict.reason}`, FILTER_MESSAGES[verdict.reason!]);
-      // Copy-paste openers and piles of unanswered requests restrict the account.
-      if (this.moderation && (await this.moderation.auto.evaluate(me, { kind: "request", openingHash: openingHash(text) }))) {
-        throw new MessagingError(403, "restricted", "You can't start new conversations right now while we review your account.");
-      }
     }
 
     const pairKey = pairKeyFor(me, other);
@@ -313,10 +329,23 @@ export class MessagingService {
     const blocked = await this.repo.blockedSetFor(me);
     if (blocked.has(other)) throw new MessagingError(403, "blocked", "You can't message this player.");
 
+    // A retry of a message that already went through (the reply was lost on
+    // the way back): confirm it, never send it twice. Checked before the
+    // "wait for a reply" rule, which that first message itself set off.
+    const already = await this.provider.getMessage(this.messageIdFor(c, clientId));
+    if (already) {
+      // It reached Stream but the conversation never recorded it: record it now so the other player sees it.
+      if (!c.lastMessageAt) await this.repo.recordMessage(c.id, { sender: already.senderId, text: already.text, at: already.createdAt });
+      return { conversationId: c.id, message: this.messageView(already, me) };
+    }
+
     if (c.status !== "active") {
       if (c.requester === me) {
         // Becoming league mates after the request upgrades it; otherwise wait.
         if (!(await this.repo.areConnected(me, other))) {
+          // The request was created but its first message never arrived, so
+          // nobody can see it yet: this send is that first message.
+          if (c.status === "request" && !c.lastMessageAt) return this.deliverFirstAgain(me, c, text, clientId);
           const people = await this.repo.people([other]);
           const name = people.get(other)?.name ?? "this player";
           throw new MessagingError(409, "awaiting_reply", `You can send more once ${name} replies.`);
@@ -324,12 +353,28 @@ export class MessagingService {
       }
       c = await this.repo.update(c.id, { status: "active", acceptedAt: this.now() });
     }
-    return this.deliver(me, c, text, clientId);
+    return this.deliver(me, c, text, clientId, true);
   }
 
-  private async deliver(me: string, c: ConversationRecord, text: string, clientId: string) {
-    const messageId = `${c.channelId}-${clientId}`;
-    const already = await this.provider.getMessage(messageId);
+  /** The first message of a request that never arrived. Same checks as a first message, then sent as the request. */
+  private async deliverFirstAgain(me: string, c: ConversationRecord, text: string, clientId: string) {
+    const restricted = await this.repo.restrictedSet([me]);
+    if (restricted.has(me)) {
+      throw new MessagingError(403, "restricted", "You can't start new conversations right now while we review your account.");
+    }
+    const verdict = this.filter.check(text);
+    if (!verdict.ok) throw new MessagingError(422, `filtered_${verdict.reason}`, FILTER_MESSAGES[verdict.reason!]);
+    return this.deliver(me, c, text, clientId, true);
+  }
+
+  private messageIdFor(c: ConversationRecord, clientId: string): string {
+    return `${c.channelId}-${clientId}`;
+  }
+
+  /** Sends once per client id. `checked`: the caller already looked for an earlier copy. */
+  private async deliver(me: string, c: ConversationRecord, text: string, clientId: string, checked = false) {
+    const messageId = this.messageIdFor(c, clientId);
+    const already = checked ? null : await this.provider.getMessage(messageId);
     if (already) return { conversationId: c.id, message: this.messageView(already, me) };
 
     const message = await this.provider.sendMessage({ channelId: c.channelId, messageId, senderId: me, text });
@@ -367,7 +412,8 @@ export class MessagingService {
   /**
    * Reports a message from the other person. Stores a snapshot of it and the
    * messages before it, so moderators see what was said even if it's later
-   * deleted. Two different reporters restrict the sender.
+   * deleted. The report waits for a moderator; the sender's account is
+   * untouched until one acts.
    */
   async reportMessage(me: string, id: number, input: { messageId: unknown; reason: unknown; details: unknown }) {
     if (!this.moderation) throw new MessagingError(503, "unavailable", "Reporting isn't available right now.");
@@ -394,7 +440,6 @@ export class MessagingService {
       subject: message.senderId,
       snapshot: { conversationId: c.id, messages: snapshot },
     });
-    await this.moderation.auto.evaluate(message.senderId, { kind: "report" });
     return { id: reportId };
   }
 
@@ -416,9 +461,9 @@ export class MessagingService {
 
   /**
    * A message flagged by the provider's moderation (Stream AI moderation).
-   * Files a report with a snapshot into the admin queue and restricts the
-   * sender until a moderator reviews it. Returns the report id, or null if
-   * the message isn't one of ours.
+   * Files a report with a snapshot into the admin queue for a moderator. The
+   * sender's account is untouched until one acts. Returns the report id, or
+   * null if the message isn't one of ours.
    */
   async recordProviderFlag(input: { messageId: string; details: string; reason: ReportReason }): Promise<number | null> {
     if (!this.moderation) return null;
@@ -434,12 +479,6 @@ export class MessagingService {
       source: "stream",
       subject: message.senderId,
       snapshot: { conversationId: c.id, messages: await this.snapshotFor(c, message) },
-    });
-    await this.moderation.repo.restrict({
-      subject: message.senderId,
-      reason: `Flagged by Stream moderation: ${input.details}`.slice(0, 500),
-      source: "stream",
-      reportId,
     });
     return reportId;
   }

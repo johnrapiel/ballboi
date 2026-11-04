@@ -3,6 +3,7 @@ import express from "express";
 import supertest from "supertest";
 
 let mockUserId: string | null = "user_reporter";
+let mockIsAdmin = false;
 
 vi.mock("@clerk/express", () => ({
   getAuth: () => ({ userId: mockUserId }),
@@ -10,13 +11,8 @@ vi.mock("@clerk/express", () => ({
 }));
 
 vi.mock("../middlewares/requireAdmin", () => ({
-  requireAdmin: (_req: unknown, res: { status: (n: number) => { json: (b: unknown) => void } }) =>
-    res.status(403).json({ error: "Forbidden" }),
-}));
-
-const { restrictCalls } = vi.hoisted(() => ({ restrictCalls: [] as unknown[] }));
-vi.mock("../messaging", () => ({
-  getAutoRestrict: () => ({ evaluate: async (...a: unknown[]) => void restrictCalls.push(a) }),
+  requireAdmin: (_req: unknown, res: { status: (n: number) => { json: (b: unknown) => void } }, next: () => void) =>
+    mockIsAdmin ? next() : res.status(403).json({ error: "Forbidden" }),
 }));
 
 vi.mock("../routes/sanctions", async () => {
@@ -30,10 +26,15 @@ vi.mock("pino", () => ({ default: () => ({ warn: vi.fn(), info: vi.fn(), error: 
 const selectQueue: unknown[][] = [];
 const inserted: { table: string; values: unknown }[] = [];
 const deleted: string[] = [];
+const orderedBy: unknown[] = [];
 
 function chain(result: () => unknown[]) {
   const c: Record<string, unknown> = {};
-  for (const m of ["from", "where", "orderBy", "limit"]) c[m] = () => c;
+  for (const m of ["from", "where", "limit"]) c[m] = () => c;
+  c.orderBy = (...a: unknown[]) => {
+    orderedBy.push(...a);
+    return c;
+  };
   c.then = (ok: (v: unknown) => unknown) => Promise.resolve(result()).then(ok);
   return c;
 }
@@ -60,7 +61,8 @@ vi.mock("@workspace/db", () => ({
   get db() {
     return mockDb;
   },
-  contentReportsTable: { __name: "content_reports", id: {}, status: {}, createdAt: {} },
+  contentReportsTable: { __name: "content_reports", id: {}, status: {}, createdAt: { __col: "created_at" } },
+  messageReportSnapshotsTable: { __name: "message_report_snapshots", reportId: {} },
   userBlocksTable: { __name: "user_blocks", blockerClerkUserId: {}, blockedClerkUserId: {}, createdAt: {} },
   playersTable: { __name: "players", id: {}, name: {}, clerkUserId: {} },
   usersTable: { __name: "users", clerkUserId: {}, avatarUrl: {}, displayName: {} },
@@ -72,7 +74,8 @@ vi.mock("@workspace/db", () => ({
 vi.mock("drizzle-orm", () => ({
   eq: (a: unknown, b: unknown) => ({ a, b }),
   and: (...a: unknown[]) => a,
-  desc: (a: unknown) => a,
+  asc: (a: unknown) => ({ asc: a }),
+  desc: (a: unknown) => ({ desc: a }),
   inArray: (a: unknown, b: unknown) => ({ a, b }),
 }));
 
@@ -86,10 +89,11 @@ async function buildApp() {
 
 beforeEach(() => {
   mockUserId = "user_reporter";
+  mockIsAdmin = false;
   selectQueue.length = 0;
   inserted.length = 0;
   deleted.length = 0;
-  restrictCalls.length = 0;
+  orderedBy.length = 0;
 });
 
 describe("parseReport", () => {
@@ -137,12 +141,23 @@ describe("POST /api/reports", () => {
     });
   });
 
-  it("records who the report is about and checks auto-restrict", async () => {
+  it("records who the report is about and does nothing to their account", async () => {
     selectQueue.push([{ clerkUserId: "user_target" }]);
     const res = await supertest(await buildApp()).post("/api/reports").send({ targetType: "player", targetId: 7, reason: "harassment" });
     expect(res.status).toBe(201);
     expect((inserted[0].values as { subjectClerkUserId: string }).subjectClerkUserId).toBe("user_target");
-    expect(restrictCalls).toEqual([["user_target", { kind: "report" }]]);
+    // Only the report is written: no restriction, however many people report.
+    expect(inserted.map((i) => i.table)).toEqual(["content_reports"]);
+  });
+
+  it("two different reporters don't restrict the player", async () => {
+    for (const reporter of ["user_one", "user_two"]) {
+      mockUserId = reporter;
+      selectQueue.push([{ clerkUserId: "user_target" }]);
+      const res = await supertest(await buildApp()).post("/api/reports").send({ targetType: "player", targetId: 7, reason: "harassment" });
+      expect(res.status).toBe(201);
+    }
+    expect(inserted.map((i) => i.table)).toEqual(["content_reports", "content_reports"]);
   });
 
   it("won't take message or account reports here", async () => {
@@ -165,6 +180,22 @@ describe("admin report queue", () => {
     expect(res.status).toBe(403);
     expect((await supertest(await buildApp()).get("/api/admin/reports/3")).status).toBe(403);
   });
+
+  it("lists open reports oldest first, and closed ones newest first", async () => {
+    mockIsAdmin = true;
+    const first = { id: 1, status: "open", createdAt: new Date("2026-11-04T09:00:00Z"), subjectClerkUserId: null };
+    const second = { id: 2, status: "open", createdAt: new Date("2026-11-04T09:05:00Z"), subjectClerkUserId: null };
+    selectQueue.push([first, second], []);
+    const res = await supertest(await buildApp()).get("/api/admin/reports");
+    expect(res.status).toBe(200);
+    expect(orderedBy).toEqual([{ asc: { __col: "created_at" } }]);
+    expect(res.body.map((r: { id: number }) => r.id)).toEqual([1, 2]);
+
+    orderedBy.length = 0;
+    selectQueue.push([]);
+    await supertest(await buildApp()).get("/api/admin/reports?status=dismissed");
+    expect(orderedBy).toEqual([{ desc: { __col: "created_at" } }]);
+  });
 });
 
 describe("blocking", () => {
@@ -176,7 +207,7 @@ describe("blocking", () => {
       table: "user_blocks",
       values: { blockerClerkUserId: "user_reporter", blockedClerkUserId: "user_target" },
     });
-    expect(restrictCalls).toEqual([["user_target", { kind: "block" }]]);
+    expect(inserted).toHaveLength(1);
   });
 
   it("won't block yourself", async () => {

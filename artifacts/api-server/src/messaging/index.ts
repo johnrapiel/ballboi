@@ -1,7 +1,6 @@
 import { logger } from "../lib/logger";
 import { moderationRepo } from "./drizzleModeration";
 import { DrizzleMessagingRepo } from "./drizzleRepo";
-import { AutoRestrict } from "./moderation";
 import { FirstMessageFilter } from "./filter";
 import { MemoryMessagingProvider } from "./memoryProvider";
 import { notifyNewMessage } from "./notify";
@@ -10,17 +9,6 @@ import { StreamMessagingProvider } from "./streamProvider";
 import { MessagingService } from "./service";
 
 let service: MessagingService | null = null;
-let autoRestrict: AutoRestrict | null = null;
-
-/** Shared auto-restrict, also used by reports and blocks in routes/safety.ts. */
-export function getAutoRestrict(): AutoRestrict {
-  autoRestrict ??= new AutoRestrict(moderationRepo(), undefined, (r) =>
-    // Push alert to the moderator comes with APNs (checklist: 24-hour review, staffed).
-    logger.warn({ restrictionId: r.id, reportId: r.reportId, reason: r.reason }, "Account auto-restricted"),
-  );
-  return autoRestrict;
-}
-
 /**
  * Picks the provider from MESSAGING_PROVIDER. "memory" (the default) needs no
  * keys and keeps messages until the API restarts.
@@ -48,7 +36,7 @@ export function getMessagingService(): MessagingService {
       filter,
       onNewMessage: notifyNewMessage,
       devAutoReply: provider.name === "memory" && process.env.NODE_ENV !== "production",
-      moderation: { auto: getAutoRestrict(), repo: moderationRepo() },
+      moderation: { repo: moderationRepo() },
     });
     logger.info({ provider: provider.name, blockedTerms: filter.termCount }, "Messaging ready");
   }

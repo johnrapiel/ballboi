@@ -63,12 +63,16 @@ describe("messages routes", () => {
 
     mockUserId = "casey";
     const requests = await supertest(app()).get("/api/messages?box=requests");
-    expect(requests.body).toMatchObject({ requests: 1, unread: 0 });
+    // The unread request counts toward the badge until it's opened.
+    expect(requests.body).toMatchObject({ requests: 1, unread: 1 });
     expect(requests.body.conversations[0]).toMatchObject({ id, state: "request", other: { name: "Alex Kim", playerId: 1 } });
 
     const thread = await supertest(app()).get(`/api/messages/${id}`);
     expect(thread.status).toBe(200);
     expect(thread.body.messages).toHaveLength(1);
+    expect(thread.body.olderCursor).toBeNull();
+    // Read but not answered: off the badge, still waiting in Message Requests.
+    expect((await supertest(app()).get("/api/messages/summary")).body).toEqual({ unread: 0, requests: 1 });
 
     const reply = await supertest(app()).post(`/api/messages/${id}/messages`).send({ text: "Sure", clientMessageId: "client-0003" });
     expect(reply.status).toBe(201);

@@ -29,6 +29,18 @@ describe("first-message filter: phone numbers", () => {
       expect(filter.check(text)).toEqual({ ok: true });
     }
   });
+
+  it("lets time ranges written without colons through", () => {
+    for (const text of ["Free Sat 930-1100?", "Free Sat 930-1100 or 1200-1330?", "Court 3, 845-1015", "Sun 700 1000 works", "945-0115 tomorrow"]) {
+      expect(filter.check(text)).toEqual({ ok: true });
+    }
+  });
+
+  it("still catches 7-digit numbers, including ones that look like times when calling or texting comes up", () => {
+    for (const text of ["call 555-1234", "555-1234", "my cell 930-1100", "text 845-1015", "555 1000", "930-1100 or 555-1234"]) {
+      expect(filter.check(text)).toEqual({ ok: false, reason: "phone" });
+    }
+  });
 });
 
 describe("first-message filter: blocked terms", () => {

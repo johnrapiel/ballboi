@@ -138,8 +138,8 @@ Players can message before committing to a match, so safety is built into the in
 
 **Enforcement ladder**
 
-1. **Auto-detect:** Stream AI moderation scores messages for spam and harassment, plus behavior signals (many unanswered first messages, repeated blocks, copy-paste openers)
-2. **Auto-restrict:** accounts flagged by AI moderation or reported by 2 or more different people drop to zero new conversations and pending requests are hidden, instantly, until reviewed
+1. **Auto-detect:** Stream AI moderation scores messages for spam and harassment; flagged messages land in the review queue with a snapshot
+2. **No automatic restriction (Nov 4):** reports and flags go to the review queue and nothing happens to the account until John or the Claude agent acts
 3. **Review:** John gets a push alert on every report and is the primary moderator. If no action within 6 hours, a Claude agent reviews the report snapshot, reporter note, and account history, and can hide messages, restrict the account, or dismiss with a logged reason. The agent treats reported messages as untrusted data, has only hide / restrict / dismiss / escalate tools, and restricts and escalates when unsure
 4. **Human confirms:** John confirms or undoes every agent decision; suspensions and bans are human-only
 5. **Ban sticks:** blocks the Apple ID, email, and device
@@ -336,7 +336,7 @@ These decisions add launch-blocking items to the submission checklist. Strangers
 | Decision | Requirement | Guideline |
 | --- | --- | --- |
 | Adults only | Declared Age Range API with birth-date fallback (native wheels picker, neutral prompt), 18+ age rating, block screen for under 18s | Age rating |
-| Strangers can message and meet | Report, block, filtering, action within 24 hours (John, Claude agent after 6 hours, instant auto-restrict), EULA covering messages | 1.2 |
+| Strangers can message and meet | Report, block, filtering, action within 24 hours (John, Claude agent after 6 hours), EULA covering messages | 1.2 |
 | Messaging and match alerts | APNs push with preview-hiding option; provisional notifications from sign-in | 4.5.4 |
 | Home area and travel mode | Location purpose string, While Using only | 5.1.1 |
 | Ball Boi Pro | IAP subscription after 3 free months, clear price and renewal terms | 3.1.1, 3.1.2 |
@@ -372,7 +372,7 @@ _Phases are ordered, not dated. The live doc shows these as a chart._
 
 Coaching tips return only once a coach-authored library exists, and doubles analysis waits on per-player shot attribution.
 
-## Decision log (updated Nov 2, 2026)
+## Decision log (updated Nov 4, 2026)
 
 | # | Decision |
 | --- | --- |
@@ -384,7 +384,7 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 6 | Training on by default, both players must leave it on, no face blurring, "personal information is never shared or sold" copy |
 | 7 | Simulated replay only; raw video deleted after analysis unless kept for training; "Close call" labels; close-call clips in v1.1 |
 | 8 | Stream Chat on the Maker plan, headless, behind Ball Boi's own interface |
-| 9 | Moderation: John primary, Claude agent after 6 hours with reversible actions only, instant auto-restrict, bans human-only |
+| 9 | Moderation: John primary, Claude agent after 6 hours with reversible actions only, bans human-only. Instant auto-restrict removed by decision 43 |
 | 10 | Reviewer: password demo account, seeded data, live paywall, on-court screen recording |
 | 11 | Notifications: provisional from sign-in, full prompt at the contextual moment, Settings banner if denied |
 | 12 | Every recording starts from a match; Quick match covers casual hits, with placeholder opponents and invite links for non-users |
@@ -418,6 +418,7 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 40 | Opponent breakdowns are mutual: a player sees an opponent's full breakdown for matches they played together only when both have Pro (Nov 2) |
 | 41 | Placeholder opponents who join later get the "recorded your match" notice and training toggle, then the 4-game teaser and free-months offer (Nov 2) |
 | 42 | When Pro lapses, players keep everything already unlocked, including past opponent breakdowns; new analysis and trends need Pro (Nov 2) |
+| 43 | Moderation stays at the minimum Apple requires: Report, Block, and the Moderation queue. No account is restricted automatically, by reports (2 or more people), Stream flags or behavior signals. Reports go to John, then the Claude agent after 6 hours, and nothing happens to the account until one of them acts. The agent never reviews appeals (Nov 4) |
 | 43 | The Organizer plan comes after launch, once real leagues are running (Nov 2) |
 | 44 | Casual leagues collect fees outside the app (Venmo or anything else); Ball Boi takes no cut (Nov 2) |
 | 45 | Organizers can add an optional fee and payment instructions, visible to everyone in Discover, on the league page, and on the join screen, plus a paid checklist in Manage (Nov 2) |

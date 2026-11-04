@@ -82,11 +82,12 @@ export default function MessagesScreen() {
           }
           ListEmptyComponent={
             <View style={{ flex: 1, minHeight: 360 }}>
+              {/* Names only what works today. Add Discover back once it can message players (Wave 2). */}
               {box === "messages" ? (
                 <EmptyState
                   symbol="message"
                   title="No messages yet"
-                  message="Message your league mates with New message, or players you find in Discover."
+                  message="Message your league mates with New message."
                 />
               ) : (
                 <EmptyState

@@ -2,13 +2,11 @@ import {
   accountSanctionsTable,
   contentReportsTable,
   db,
-  dmConversationsTable,
   messageReportSnapshotsTable,
   messagingRestrictionsTable,
-  userBlocksTable,
   type RestrictionSource,
 } from "@workspace/db";
-import { and, eq, gt, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, or } from "drizzle-orm";
 import type { ModerationRepo, NewReport, Restriction } from "./moderation";
 
 function toRestriction(row: typeof messagingRestrictionsTable.$inferSelect): Restriction {
@@ -40,46 +38,6 @@ export class DrizzleModerationRepo implements ModerationRepo {
       }
       return row.id;
     });
-  }
-
-  async distinctReportersAgainst(subject: string) {
-    const [row] = await db
-      .select({ n: sql<number>`count(distinct ${contentReportsTable.reporterClerkUserId})::int` })
-      .from(contentReportsTable)
-      .where(
-        and(
-          eq(contentReportsTable.subjectClerkUserId, subject),
-          isNotNull(contentReportsTable.reporterClerkUserId),
-          ne(contentReportsTable.status, "dismissed"),
-        ),
-      );
-    return row?.n ?? 0;
-  }
-
-  async distinctBlockersSince(subject: string, since: Date) {
-    const [row] = await db
-      .select({ n: sql<number>`count(distinct ${userBlocksTable.blockerClerkUserId})::int` })
-      .from(userBlocksTable)
-      .where(and(eq(userBlocksTable.blockedClerkUserId, subject), gte(userBlocksTable.createdAt, since)));
-    return row?.n ?? 0;
-  }
-
-  async unansweredRequests(subject: string, createdBefore: Date, createdAfter: Date) {
-    const t = dmConversationsTable;
-    const [row] = await db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(t)
-      .where(and(eq(t.requester, subject), ne(t.status, "active"), lte(t.createdAt, createdBefore), gte(t.createdAt, createdAfter)));
-    return row?.n ?? 0;
-  }
-
-  async sameOpenerSince(subject: string, openingHash: string, since: Date) {
-    const t = dmConversationsTable;
-    const [row] = await db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(t)
-      .where(and(eq(t.requester, subject), eq(t.openingHash, openingHash), gte(t.createdAt, since)));
-    return row?.n ?? 0;
   }
 
   async activeRestriction(subject: string) {

@@ -93,12 +93,19 @@ describe("Message Requests", () => {
     expect(await svc.list("casey", "messages")).toEqual([]);
     const [req] = await svc.list("casey", "requests");
     expect(req).toMatchObject({ id: conversationId, state: "request", canSend: true });
-    expect(await svc.summary("casey")).toEqual({ unread: 0, requests: 1 });
+    expect(await svc.summary("casey")).toEqual({ unread: 1, requests: 1 });
 
     const [mine] = await svc.list("alex", "messages");
     expect(mine).toMatchObject({ state: "awaiting_reply", canSend: false, sendBlockedReason: "You can send more once Casey Fox replies." });
     await expectError(svc.send("alex", conversationId, { text: "Hello?", clientMessageId: mid() }), "awaiting_reply", 409);
     expect(pushed[0]).toMatchObject({ recipientId: "casey", isRequest: true });
+  });
+
+  it("stop counting toward the badge once read, and still count as waiting", async () => {
+    const { conversationId } = await svc.start("alex", { playerId: 3, text: "Up for a hit?", clientMessageId: mid() });
+    expect(await svc.summary("casey")).toEqual({ unread: 1, requests: 1 });
+    await svc.thread("casey", conversationId);
+    expect(await svc.summary("casey")).toEqual({ unread: 0, requests: 1 });
   });
 
   it("are accepted when the recipient replies", async () => {
@@ -207,6 +214,82 @@ describe("sending", () => {
     expect((await svc.thread("blair", a.conversationId)).messages).toHaveLength(1);
   });
 
+  it("retrying a first message that already went through confirms it, once", async () => {
+    const id = mid();
+    const first = await svc.start("alex", { playerId: 3, text: "Up for a hit?", clientMessageId: id });
+    // The reply was lost; the app retries the same message.
+    const again = await svc.start("alex", { playerId: 3, text: "Up for a hit?", clientMessageId: id });
+    expect(again).toEqual(first);
+    const [req] = await svc.list("casey", "requests");
+    expect(req.lastMessage?.text).toBe("Up for a hit?");
+    expect((await svc.thread("casey", first.conversationId)).messages).toHaveLength(1);
+    expect(pushed).toHaveLength(1);
+    // A new message still has to wait for a reply.
+    await expectError(svc.start("alex", { playerId: 3, text: "Hello?", clientMessageId: mid() }), "awaiting_reply", 409);
+  });
+
+  it("retrying a first message that never arrived sends it once, as the request", async () => {
+    const send = provider.sendMessage.bind(provider);
+    let fail = true;
+    provider.sendMessage = async (input) => {
+      if (fail) {
+        fail = false;
+        throw new Error("timed out");
+      }
+      return send(input);
+    };
+    const id = mid();
+    await expect(svc.start("alex", { playerId: 3, text: "Free Sat 930-1100?", clientMessageId: id })).rejects.toThrow("timed out");
+    // The request exists but nobody can see it yet.
+    expect(repo.conversations).toHaveLength(1);
+    expect(await svc.list("casey", "requests")).toEqual([]);
+
+    const retried = await svc.start("alex", { playerId: 3, text: "Free Sat 930-1100?", clientMessageId: id });
+    expect(retried.message).toMatchObject({ text: "Free Sat 930-1100?", fromMe: true });
+    const requests = await svc.list("casey", "requests");
+    expect(requests).toHaveLength(1);
+    expect((await svc.thread("casey", requests[0].id)).messages.map((m) => m.text)).toEqual(["Free Sat 930-1100?"]);
+    expect((await svc.list("alex", "messages"))[0]).toMatchObject({ state: "awaiting_reply", canSend: false });
+
+    // Tapping retry again changes nothing.
+    expect((await svc.start("alex", { playerId: 3, text: "Free Sat 930-1100?", clientMessageId: id })).message.id).toBe(retried.message.id);
+    expect((await svc.thread("casey", requests[0].id)).messages).toHaveLength(1);
+  });
+
+  it("a first message that never arrived still goes through the filter", async () => {
+    const send = provider.sendMessage.bind(provider);
+    let fail = true;
+    provider.sendMessage = async (input) => {
+      if (fail) {
+        fail = false;
+        throw new Error("timed out");
+      }
+      return send(input);
+    };
+    await expect(svc.start("alex", { playerId: 3, text: "Up for a hit?", clientMessageId: mid() })).rejects.toThrow();
+    await expectError(svc.start("alex", { playerId: 3, text: "call 555-1234", clientMessageId: mid() }), "filtered_phone", 422);
+    expect(await svc.list("casey", "requests")).toEqual([]);
+  });
+
+  it("a first message that reached Stream but wasn't recorded shows up on retry", async () => {
+    const record = repo.recordMessage.bind(repo);
+    let fail = true;
+    repo.recordMessage = async (...a: Parameters<typeof record>) => {
+      if (fail) {
+        fail = false;
+        throw new Error("database blip");
+      }
+      return record(...a);
+    };
+    const id = mid();
+    await expect(svc.start("alex", { playerId: 3, text: "Up for a hit?", clientMessageId: id })).rejects.toThrow("database blip");
+    expect(await svc.list("casey", "requests")).toEqual([]);
+    await svc.start("alex", { playerId: 3, text: "Up for a hit?", clientMessageId: id });
+    const requests = await svc.list("casey", "requests");
+    expect(requests).toHaveLength(1);
+    expect((await svc.thread("casey", requests[0].id)).messages).toHaveLength(1);
+  });
+
   it("rejects empty, long, self and unknown targets", async () => {
     await expectError(svc.start("alex", { playerId: 2, text: "   ", clientMessageId: mid() }), "invalid_text");
     await expectError(svc.start("alex", { playerId: 2, text: "x".repeat(2001), clientMessageId: mid() }), "too_long");
@@ -214,6 +297,27 @@ describe("sending", () => {
     await expectError(svc.start("alex", { playerId: 1, text: "Hi", clientMessageId: mid() }), "self");
     await expectError(svc.start("alex", { playerId: 99, text: "Hi", clientMessageId: mid() }), "no_account", 404);
     await expectError(svc.send("casey", 1, { text: "Hi", clientMessageId: mid() }), "not_found");
+  });
+
+  it("pages back through long conversations until the first message", async () => {
+    let conversationId = 0;
+    for (let i = 0; i < 120; i++) {
+      const sender = i % 2 ? "blair" : "alex";
+      const r = conversationId
+        ? await svc.send(sender, conversationId, { text: `m${i}`, clientMessageId: mid() })
+        : await svc.start(sender, { playerId: 2, text: `m${i}`, clientMessageId: mid() });
+      conversationId = r.conversationId;
+    }
+    const latest = await svc.thread("alex", conversationId);
+    expect(latest.messages).toHaveLength(50);
+    expect(latest.messages[49].text).toBe("m119");
+    expect(latest.olderCursor).toBe(latest.messages[0].id);
+    const page2 = await svc.thread("alex", conversationId, { before: latest.olderCursor! });
+    expect(page2.messages.map((m) => m.text)[0]).toBe("m20");
+    expect(page2.olderCursor).toBeTruthy();
+    const page3 = await svc.thread("alex", conversationId, { before: page2.olderCursor! });
+    expect(page3.messages.map((m) => m.text)).toEqual(Array.from({ length: 20 }, (_, i) => `m${i}`));
+    expect(page3.olderCursor).toBeNull();
   });
 
   it("hides moderator-hidden messages from the thread", async () => {
@@ -258,6 +362,6 @@ describe("development samples", () => {
     const named: string[] = [];
     await svc.seedSamples("alex", async (_id, name) => void named.push(name));
     expect(named).toEqual(["Sam Rivera", "Jordan Lee"]);
-    expect(await svc.summary("alex")).toEqual({ unread: 1, requests: 1 });
+    expect(await svc.summary("alex")).toEqual({ unread: 2, requests: 1 });
   });
 });

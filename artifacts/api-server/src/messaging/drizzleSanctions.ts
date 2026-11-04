@@ -9,7 +9,7 @@ import {
   type SanctionKind,
 } from "@workspace/db";
 import { and, desc, eq, gt, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
-import { appealReference, normalizeEmails, SanctionsService, type AccountIdentity, type NewSanction, type SanctionsRepo } from "./sanctions";
+import { appealDetails, appealReference, normalizeEmails, SanctionsService, type AccountIdentity, type NewSanction, type SanctionsRepo } from "./sanctions";
 
 const activeAt = (now: Date) =>
   and(isNull(accountSanctionsTable.liftedAt), or(isNull(accountSanctionsTable.endsAt), gt(accountSanctionsTable.endsAt, now)));
@@ -134,7 +134,7 @@ export function getSanctionsService(): SanctionsService {
         targetType: "account",
         targetId: clerkUserId,
         reason: "other",
-        details: `Appeal ${appealReference(sanction.id)} against a ${sanction.kind}. The person was told to email their appeal; decide it with POST /api/admin/appeals/:id/decide.`,
+        details: appealDetails(sanction),
         source: "appeal",
         subjectClerkUserId: clerkUserId,
       })

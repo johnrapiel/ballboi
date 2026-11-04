@@ -9,6 +9,7 @@ import { Button, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useBlockedPlayers, useUnblock, type BlockedPlayer } from "@/hooks/useBlockedPlayers";
 import { useColors } from "@/hooks/useColors";
+import { BLOCK_EFFECTS, UNBLOCK_EFFECTS } from "@/hooks/useReportBlock";
 import { photoUrl } from "@/lib/photos";
 
 // Blocked players (opens from Profile; moves under Settings > Privacy in Wave 2).
@@ -43,7 +44,7 @@ export default function BlockedPlayersScreen() {
   const confirmUnblock = (player: BlockedPlayer & { playerId: number }) =>
     Alert.alert(
       `Unblock ${player.name}?`,
-      "They'll be able to message you and appear in your leagues and pairings again.",
+      UNBLOCK_EFFECTS,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -94,7 +95,7 @@ export default function BlockedPlayersScreen() {
           ListHeaderComponent={
             blocked.data.length ? (
               <Text tone="inkMuted" style={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space3, paddingBottom: spacing.space2 }}>
-                You and these players can't message each other or see each other in search, leagues or pairings. They aren't told.
+                {BLOCK_EFFECTS} They aren't told.
               </Text>
             ) : undefined
           }

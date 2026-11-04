@@ -127,7 +127,7 @@ export function ConversationRow({ conversation, onPress }: { conversation: Conve
   );
 }
 
-/** Messages / Requests switch. A tab list for VoiceOver; the selected tab is filled and bold. */
+/** Messages / Message Requests switch. A tab list for VoiceOver; the selected tab is filled and bold. */
 export function BoxSwitch({
   value,
   onChange,
@@ -142,8 +142,8 @@ export function BoxSwitch({
     { key: "messages" as const, label: "Messages", spoken: "Messages" },
     {
       key: "requests" as const,
-      label: requests > 0 ? `Requests (${requests})` : "Requests",
-      spoken: requests > 0 ? `Requests, ${requests} waiting` : "Requests",
+      label: requests > 0 ? `Message Requests (${requests})` : "Message Requests",
+      spoken: requests > 0 ? `Message Requests, ${requests} waiting` : "Message Requests",
     },
   ];
   return (
@@ -176,9 +176,11 @@ export function BoxSwitch({
               alignItems: "center",
               justifyContent: "center",
               paddingHorizontal: spacing.space3,
+              paddingVertical: spacing.space1,
             }}
           >
-            <Text variant="button" tone={on ? "onInk" : "ink"} numberOfLines={1}>
+            {/* Wraps instead of clipping at large text sizes. */}
+            <Text variant="button" tone={on ? "onInk" : "ink"} style={{ textAlign: "center" }}>
               {t.label}
             </Text>
           </Pressable>
