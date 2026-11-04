@@ -1,6 +1,9 @@
 // Opened from a Quick match invite link (spec: Video and training data):
 // "On joining they see '<name> recorded your match on <date>' with their
 // training toggle before the match attaches."
+//
+// Wave 1 review: the toggle starts from the player's saved training choice
+// (D7), and a lost connection says so instead of calling the link broken (D21).
 
 import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,7 +17,14 @@ import { MIN_TAP, spacing } from "@/constants/tokens";
 import { Toggle } from "@/components/Toggle";
 import { useColors } from "@/hooks/useColors";
 import { useGate } from "@/hooks/useGate";
-import { claimMatchInvite, recordingsKey, useMatchInvite } from "@/lib/recording/api";
+import { isOfflineError } from "@/lib/api";
+import {
+  claimMatchInvite,
+  InviteError,
+  recordingsKey,
+  useMatchInvite,
+  useRecordingConsent,
+} from "@/lib/recording/api";
 import { savePendingInvite } from "@/lib/recording/pendingInvite";
 
 function longDate(iso: string): string {
@@ -34,7 +44,10 @@ export default function MatchInviteScreen() {
   const gate = useGate();
   const held = !!isSignedIn && gate !== "app";
   const invite = useMatchInvite(code, !!isSignedIn && !held);
-  const [training, setTraining] = useState(true);
+  // Null until the player touches it: then it follows their saved choice (D7).
+  const [trainingChoice, setTraining] = useState<boolean | null>(null);
+  const consent = useRecordingConsent();
+  const training = trainingChoice ?? consent.data?.trainingEnabled ?? true;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
@@ -67,10 +80,24 @@ export default function MatchInviteScreen() {
     );
   }
 
-  if (invite.isLoading) {
+  if (invite.isLoading || (consent.isLoading && !consent.data)) {
     return (
       <Screen style={{ justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator color={c.ink} accessibilityLabel="Loading" />
+      </Screen>
+    );
+  }
+
+  if (invite.isError && !(invite.error instanceof InviteError && invite.error.status === 404)) {
+    const offline = isOfflineError(invite.error);
+    return (
+      <Screen style={{ justifyContent: "center", gap: spacing.space4 }}>
+        <Text variant="title" accessibilityRole="header">
+          {offline ? "You're offline" : "Couldn't load this match"}
+        </Text>
+        <Text tone="inkMuted">Check your connection and try again.</Text>
+        <Button label="Try again" loading={invite.isRefetching} onPress={() => invite.refetch()} />
+        <Button variant="secondary" label="Close" onPress={close} />
       </Screen>
     );
   }

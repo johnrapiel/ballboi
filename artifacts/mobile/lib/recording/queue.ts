@@ -5,6 +5,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSyncExternalStore } from "react";
 
+import type { RecordedSegment } from "@/lib/recording/segments";
+
 export type UploadState = "waiting" | "uploading" | "failed";
 
 export interface QueuedRecording {
@@ -24,6 +26,15 @@ export interface QueuedRecording {
   failedAt?: string;
   /** Upload this one on cellular even though the setting is Wi-Fi only. */
   allowCellular?: boolean;
+  /**
+   * The pieces of the match, in order, when a call or a lock split the
+   * recording. `uri` is the first. Older entries have none: one file.
+   */
+  segments?: RecordedSegment[];
+  /** The match's league, or null for a Quick match. */
+  leagueId?: number | null;
+  /** True once a score was saved for this match from the phone. */
+  scoreEntered?: boolean;
 }
 
 const KEY = "ballboi.recording.queue.v1";
@@ -46,7 +57,8 @@ async function persist() {
 
 /**
  * Reads the saved list once per launch. Anything that was mid-upload when
- * the app closed goes back to waiting and starts over with a fresh address.
+ * the app closed goes back to waiting, and picks up from the parts storage
+ * doesn't have yet.
  */
 export async function loadQueue(): Promise<QueuedRecording[]> {
   if (loaded) return items;
@@ -95,6 +107,11 @@ export async function clearQueue(): Promise<QueuedRecording[]> {
   return removed;
 }
 
+/** True once the saved list has been read this launch. */
+export function queueLoaded(): boolean {
+  return loaded;
+}
+
 function subscribe(l: () => void) {
   listeners.add(l);
   return () => {
@@ -111,4 +128,9 @@ export function useQueue(): QueuedRecording[] {
 export function useQueuedRecording(id: string | null): QueuedRecording | undefined {
   const all = useQueue();
   return id ? all.find((r) => r.id === id) : undefined;
+}
+
+/** True once the saved list has been read, so "not on this phone" can be trusted. */
+export function useQueueLoaded(): boolean {
+  return useSyncExternalStore(subscribe, queueLoaded, queueLoaded);
 }

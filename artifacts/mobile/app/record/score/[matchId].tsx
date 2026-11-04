@@ -30,7 +30,7 @@ import {
   todaysMatchesKey,
   type SetEntry,
 } from "@/lib/recording/api";
-import { useQueuedRecording } from "@/lib/recording/queue";
+import { updateQueued, useQueuedRecording } from "@/lib/recording/queue";
 import { STOP_MESSAGES, type StopReason } from "@/lib/recording/safety";
 
 const MAX_SETS = 5;
@@ -49,12 +49,15 @@ export default function ScorePromptScreen() {
     league?: string;
     rec?: string;
     stopped?: string;
+    /** Opened from Enter score on a recording card (D6): just the score, no recording section. */
+    fromCard?: string;
   }>();
   const matchId = Number(params.matchId);
   const leagueId = params.league ? Number(params.league) : null;
   const opponent = params.opponent ?? "Opponent";
   const rec = useQueuedRecording(params.rec ?? null);
   const stopped = params.stopped as Exclude<StopReason, "user"> | undefined;
+  const fromCard = params.fromCard === "1";
 
   const [sets, setSets] = useState<SetEntry[]>([empty(), empty()]);
   const [saving, setSaving] = useState(false);
@@ -83,6 +86,8 @@ export default function ScorePromptScreen() {
     setSaving(false);
     if (result.ok || result.alreadyEntered) {
       setDone(result.ok ? "saved" : "already");
+      // The recording's card stops offering Enter score (D6).
+      if (params.rec) updateQueued(params.rec, { scoreEntered: true }).catch(() => {});
       queryClient.invalidateQueries({ queryKey: todaysMatchesKey });
       queryClient.invalidateQueries({ queryKey: recordingsKey });
       // The league shows the result, and Home drops Record for this match.
@@ -189,12 +194,16 @@ export default function ScorePromptScreen() {
           </View>
         )}
 
-        {rec ? (
+        {fromCard ? null : rec ? (
           <View style={{ gap: spacing.space2 }}>
             <Text variant="label" accessibilityRole="header">
               Your recording
             </Text>
-            <LocalProcessingCard rec={rec} onDiscarded={(r) => setDiscarded(r.matchRemoved ? "match" : "recording")} />
+            <LocalProcessingCard
+              rec={rec}
+              showEnterScore={false}
+              onDiscarded={(r) => setDiscarded(r.matchRemoved ? "match" : "recording")}
+            />
           </View>
         ) : (
           <Text tone="inkMuted" accessibilityLiveRegion="polite">

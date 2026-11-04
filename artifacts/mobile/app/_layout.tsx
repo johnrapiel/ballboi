@@ -178,6 +178,7 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="messages" options={{ ...pushedHeader, title: "Messages" }} />
         <Stack.Screen name="delete-account" options={{ ...pushedHeader, title: "Delete account" }} />
+        <Stack.Screen name="settings" options={{ ...pushedHeader, title: "Settings" }} />
         <Stack.Screen
           name="league/new"
           options={{

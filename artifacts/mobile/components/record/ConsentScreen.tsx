@@ -1,7 +1,8 @@
 // First-recording consent (spec: Ball Boi > Recording, Video and training
 // data). Shown once per account before the camera opens. Covers recording
 // other players, audio used only for analysis, and the training toggle,
-// which is on by default.
+// which is on by default. A choice already made (at a Quick match invite,
+// or in Settings) carries over (Wave 1 review D7).
 
 import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
@@ -33,12 +34,21 @@ function Point({ symbol, title, body }: { symbol: SFSymbol; title: string; body:
   );
 }
 
-export function ConsentScreen({ onAgree, onCancel }: { onAgree: () => void; onCancel: () => void }) {
+export function ConsentScreen({
+  onAgree,
+  onCancel,
+  initialTraining = true,
+}: {
+  onAgree: () => void;
+  onCancel: () => void;
+  /** The account's saved training choice, so a "no" made earlier shows as off. */
+  initialTraining?: boolean;
+}) {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
-  const [training, setTraining] = useState(true);
+  const [training, setTraining] = useState(initialTraining);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

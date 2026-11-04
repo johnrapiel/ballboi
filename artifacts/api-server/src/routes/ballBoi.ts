@@ -265,7 +265,8 @@ async function ownUploadingSession(req: Request, res: Response) {
   const [session] = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, sessionId));
   if (!session) { res.status(404).json({ error: "Session not found" }); return null; }
   if (session.recordedByClerkUserId !== userId) { res.status(403).json({ error: "Forbidden" }); return null; }
-  if (session.status !== "recording") { res.status(409).json({ error: "This recording is already uploaded." }); return null; }
+  // The phone's last try finished but its answer was lost: nothing more to send.
+  if (session.status !== "recording") { res.status(409).json({ error: "This recording is already uploaded.", uploaded: true }); return null; }
   return session;
 }
 
