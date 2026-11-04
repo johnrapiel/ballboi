@@ -27,15 +27,39 @@ const LINK_PATTERNS: RegExp[] = [
   /\b(?:t\.me|wa\.me|bit\.ly)\//i,
 ];
 
-// US-style numbers (555-123-4567, (555) 123 4567, 555.123.4567, +1 555...),
-// 7-digit local numbers (123-4567), and long international runs. Tennis scores
-// like "6-3 6-4 7-6(4)" never match: their groups are single digits.
+// US-style numbers (555-123-4567, (555) 123 4567, 555.123.4567, +1 555...)
+// and long international runs. Tennis scores like "6-3 6-4 7-6(4)" never
+// match: their groups are single digits.
 const PHONE_PATTERNS: RegExp[] = [
   /(?:\+?1[\s.-]?)?\(?\b\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/,
-  /\b\d{3}[\s.-]\d{4}\b/,
   /\+\d[\d\s.-]{7,}\d/,
   /\b\d{10,}\b/,
 ];
+
+// 7-digit local numbers (555-1234) look like time ranges written without
+// colons ("930-1100"), so those are checked on their own: see hasLocalPhone.
+const LOCAL_NUMBER = /\b(\d)(\d{2})[\s.-](\d{2})(\d{2})\b/g;
+const CONTACT_WORDS = /\b(?:call|text|txt|phone|cell|mobile|number|num|whatsapp|signal|digits)\b/i;
+const MAX_RANGE_MINUTES = 4 * 60;
+
+/** "930-1100": a start and end time on the hour, half hour or any 5 minutes, ending up to 4 hours later. */
+function isTimeRange(h1: string, m1: string, h2: string, m2: string): boolean {
+  const [sh, sm, eh, em] = [h1, m1, h2, m2].map(Number);
+  if (sm > 59 || em > 59 || eh > 23 || sm % 5 !== 0 || em % 5 !== 0) return false;
+  const start = sh * 60 + sm;
+  let end = eh * 60 + em;
+  // 12-hour clock: an end before the start is later in the day ("945-0115").
+  if (end <= start) end += 12 * 60;
+  return end - start <= MAX_RANGE_MINUTES;
+}
+
+/** A 7-digit local number, unless every match reads as a time range and nothing mentions calling or texting. */
+function hasLocalPhone(text: string): boolean {
+  const matches = [...text.matchAll(LOCAL_NUMBER)];
+  if (!matches.length) return false;
+  if (CONTACT_WORDS.test(text)) return true;
+  return matches.some(([, h1, m1, h2, m2]) => !isTimeRange(h1, m1, h2, m2));
+}
 
 const LEET: Record<string, string> = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", $: "s", "!": "i" };
 
@@ -103,7 +127,7 @@ export class FirstMessageFilter {
 
   check(text: string): FilterResult {
     if (LINK_PATTERNS.some((p) => p.test(text))) return { ok: false, reason: "link" };
-    if (PHONE_PATTERNS.some((p) => p.test(text))) return { ok: false, reason: "phone" };
+    if (PHONE_PATTERNS.some((p) => p.test(text)) || hasLocalPhone(text)) return { ok: false, reason: "phone" };
     if (this.terms.size) {
       for (const w of candidateWords(text)) {
         if (this.terms.has(w) || (w.endsWith("s") && this.terms.has(w.slice(0, -1))) || (w.endsWith("es") && this.terms.has(w.slice(0, -2)))) {

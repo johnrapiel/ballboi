@@ -12,7 +12,7 @@ vi.mock("../lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error:
 vi.mock("../middlewares/requireAdmin", () => ({ requireAdmin: (_q: unknown, _s: unknown, next: () => void) => next() }));
 
 import { createSanctionsGate } from "../messaging/enforceSanctions";
-import { appealReference, MemorySanctionsRepo, SanctionsService, SUPPORT_EMAIL, type AccountIdentity } from "../messaging/sanctions";
+import { appealDetails, appealReference, MemorySanctionsRepo, SanctionsService, SUPPORT_EMAIL, type AccountIdentity } from "../messaging/sanctions";
 import { createSanctionsRouter } from "../routes/sanctions";
 
 const DAY = 86_400_000;
@@ -149,6 +149,14 @@ describe("one appeal", () => {
 
   it("can't be filed without a sanction", async () => {
     await expect(svc.appeal(bad)).rejects.toThrow("isn't banned");
+  });
+});
+
+describe("appeal in the reports queue", () => {
+  it("reads in plain words, with no web addresses or code", () => {
+    expect(appealDetails({ id: 12, kind: "ban" })).toBe("Appeal BB-00012 against a ban. Decide it in Appeals.");
+    expect(appealDetails({ id: 7, kind: "suspend" })).toBe("Appeal BB-00007 against a suspension. Decide it in Appeals.");
+    expect(appealDetails({ id: 12, kind: "ban" })).not.toMatch(/\/|api|POST|:id/);
   });
 });
 

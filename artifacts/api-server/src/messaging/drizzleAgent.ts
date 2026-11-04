@@ -21,6 +21,8 @@ export class DrizzleAgentRepo implements AgentRepo {
       .where(
         and(
           eq(r.status, "open"),
+          // Appeals are human-only (spec step 4); they're decided in Moderation > Appeals.
+          ne(r.source, "appeal"),
           lte(r.createdAt, createdBefore),
           notExists(db.select({ one: sql`1` }).from(moderationAgentDecisionsTable).where(eq(moderationAgentDecisionsTable.reportId, r.id))),
         ),

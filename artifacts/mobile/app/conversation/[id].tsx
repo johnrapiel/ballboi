@@ -19,7 +19,7 @@ import { MessageBubble, type BubbleStatus } from "@/components/messages/MessageB
 import { Button, Card, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { MessagesApiError, useDeclineRequest, useMessagesActions, useThread, type Message } from "@/hooks/useMessages";
+import { MessagesApiError, useDeclineRequest, useMessagesActions, useOlderMessages, useThread, type Message } from "@/hooks/useMessages";
 import { REPORT_REASONS, useReportBlock } from "@/hooks/useReportBlock";
 import { newClientMessageId } from "@/lib/messages";
 
@@ -31,7 +31,10 @@ import { newClientMessageId } from "@/lib/messages";
 //   blocked, with a long press or VoiceOver actions. The More button in the
 //   header does the same without a gesture.
 // - New messages are announced to VoiceOver. Failed sends say "Not sent. Tap
-//   to retry" and keep their text.
+//   to retry", keep their text, and are announced too. Retrying is always
+//   safe: the server sends a message once per client id.
+// - The latest 50 messages stay fresh; scrolling up loads earlier ones, a page
+//   at a time, until the first.
 
 interface Pending {
   clientId: string;
@@ -71,6 +74,7 @@ export default function ConversationScreen() {
   });
   const [lookingUp, setLookingUp] = useState(params.id === "new" && startPlayerId !== null);
   const thread = useThread(conversationId);
+  const history = useOlderMessages(conversationId, thread.data);
   const actions = useMessagesActions();
   const decline = useDeclineRequest();
 
@@ -119,7 +123,12 @@ export default function ConversationScreen() {
     else if (incoming.length > 1) AccessibilityInfo.announceForAccessibility(`${incoming.length} new messages from ${name}`);
   }, [thread.data?.messages, name]);
 
-  const serverMessages: Message[] = thread.data?.messages ?? [];
+  const serverMessages: Message[] = useMemo(() => {
+    const latest = thread.data?.messages ?? [];
+    if (!history.older.length) return latest;
+    const shown = new Set(history.older.map((m) => m.id));
+    return [...history.older, ...latest.filter((m) => !shown.has(m.id))];
+  }, [thread.data?.messages, history.older]);
   const rows: Row[] = useMemo(() => {
     const sent: Row[] = serverMessages.map((m) => ({ key: m.id, text: m.text, at: m.at, fromMe: m.fromMe, status: "sent", serverId: m.id }));
     // A pending message disappears once the server has it (its id ends with our client id).
@@ -148,8 +157,9 @@ export default function ConversationScreen() {
     } catch (e) {
       const err = e as MessagesApiError;
       if (err.status === 0 || err.status >= 500) {
-        // Connection trouble: keep it as a failed bubble the player can retry.
+        // Connection trouble: keep it as a failed bubble the player can retry, and tell VoiceOver.
         setPending((list) => list.map((p) => (p.clientId === clientId ? { ...p, status: "failed" } : p)));
+        AccessibilityInfo.announceForAccessibility("Message not sent. Double-tap it to retry.");
         return;
       }
       // The server said no (filter, waiting for a reply, blocked, limits): put the text back and say why.
@@ -203,7 +213,7 @@ export default function ConversationScreen() {
 
   const deleteRequest = () => {
     if (!conversationId) return;
-    Alert.alert(`Delete ${name}'s request?`, "They won't be told, and they can't send you more messages.", [
+    Alert.alert(`Delete ${name}'s Message Request?`, "They won't be told, and they can't send you more messages.", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -250,7 +260,7 @@ export default function ConversationScreen() {
           <Text>
             {name} isn't in your leagues. Reply to accept. They can't send more until you do, and they don't see if you've read it.
           </Text>
-          <Button label="Delete request" variant="destructive" loading={decline.isPending} onPress={deleteRequest} />
+          <Button label="Delete Message Request" variant="destructive" loading={decline.isPending} onPress={deleteRequest} />
         </Card>
       ) : null}
 
@@ -270,6 +280,21 @@ export default function ConversationScreen() {
           keyExtractor={(r) => r.key}
           contentContainerStyle={{ paddingVertical: spacing.space3 }}
           keyboardDismissMode="interactive"
+          // Inverted: the end is the top, where earlier messages load.
+          onEndReached={history.hasMore ? history.loadMore : undefined}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            history.loading ? (
+              <ActivityIndicator style={{ paddingVertical: spacing.space4 }} color={c.ink} accessibilityLabel="Loading earlier messages" />
+            ) : history.error && history.hasMore ? (
+              <View style={{ alignItems: "center", gap: spacing.space2, paddingVertical: spacing.space4 }}>
+                <Text variant="small" tone="inkMuted" style={{ textAlign: "center" }}>
+                  Earlier messages didn't load. {history.error}
+                </Text>
+                <Button label="Try again" variant="secondary" onPress={history.loadMore} />
+              </View>
+            ) : undefined
+          }
           renderItem={({ item }) => (
             <MessageBubble
               text={item.text}
@@ -326,7 +351,7 @@ export default function ConversationScreen() {
               placeholder={isRequest ? "Reply to accept" : "Message"}
               placeholderTextColor={c.inkMuted}
               accessibilityLabel="Message"
-              accessibilityHint={isRequest ? "Replying accepts the request" : undefined}
+              accessibilityHint={isRequest ? "Replying accepts the Message Request" : undefined}
               multiline
               maxLength={2000}
               style={[

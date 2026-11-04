@@ -26,7 +26,7 @@ export const WALKTHROUGH_ACCOUNTS = {
     email: "ballboi-walkthrough-d+clerk_test@example.com",
     rating: 4.0,
     zip: "12590",
-    role: "Second reporter, for auto-restrict",
+    role: "Second reporter, for the moderation queue",
   },
 } as const;
 

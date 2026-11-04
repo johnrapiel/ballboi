@@ -30,6 +30,14 @@ export const REPORT_REASONS = [
 
 export type ReportReasonCode = (typeof REPORT_REASONS)[number]["code"];
 
+// What blocking really does, messages first, in the same words everywhere
+// (block confirm, after blocking, Blocked players, unblock confirm). Blocks
+// apply to messages both ways, Quick match opponents and Flex pairing; keep
+// this in step with the server if that changes (Round robin is next).
+export const BLOCK_EFFECTS = "You can't message each other, they don't show up as a Quick match opponent, and Flex leagues won't pair you.";
+export const UNBLOCK_EFFECTS =
+  "You'll be able to message each other again, they can show up as a Quick match opponent, and Flex leagues can pair you.";
+
 /** Native action sheet on iOS; an Alert with buttons as the Android fallback. */
 function choose(title: string, options: string[], destructiveIndex: number | undefined, onPick: (i: number) => void) {
   if (Platform.OS === "ios") {
@@ -71,7 +79,7 @@ export function useReportBlock(opts: { onBlocked?: (player: ReportablePlayer) =>
       .then(async (res) => {
         if (!res.ok) throw new Error(await apiErrorMessage(res, "We couldn't block this player. Try again."));
         onBlocked?.(player);
-        Alert.alert(`${player.name} is blocked`, "You won't see each other in search, and we won't pair you.");
+        Alert.alert(`${player.name} is blocked`, BLOCK_EFFECTS);
       })
       .catch((e: Error) => Alert.alert("Not blocked", e.message || "Check your connection and try again."));
   }
@@ -79,7 +87,7 @@ export function useReportBlock(opts: { onBlocked?: (player: ReportablePlayer) =>
   function confirmBlock(player: ReportablePlayer) {
     Alert.alert(
       `Block ${player.name}?`,
-      "You won't see each other in search, and we won't pair you. They aren't told.",
+      `${BLOCK_EFFECTS} They aren't told.`,
       [
         { text: "Cancel", style: "cancel" },
         { text: "Block", style: "destructive", onPress: () => block(player) },

@@ -14,7 +14,7 @@ export function sourceLabel(source: string): string {
     case "stream":
       return "Flagged by message screening";
     case "auto":
-      return "Flagged by auto-restrict";
+      return "Flagged automatically";
     case "appeal":
       return "Appeal";
     default:

@@ -140,7 +140,7 @@ export async function reset(ids: string[]) {
     await db.delete(playersTable).where(inArray(playersTable.id, playerIds));
   }
 
-  // Moderation state about or by them, so auto-restrict, bans and reports can be tried again.
+  // Moderation state about or by them, so restrictions, bans and reports can be tried again.
   await db
     .delete(contentReportsTable)
     .where(or(inArray(contentReportsTable.reporterClerkUserId, ids), inArray(contentReportsTable.subjectClerkUserId, ids)));

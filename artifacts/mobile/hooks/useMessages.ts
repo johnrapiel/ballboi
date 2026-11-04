@@ -4,6 +4,7 @@
 
 import { useAuth } from "@clerk/expo";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiErrorMessage, apiFetch } from "@/lib/api";
 
@@ -27,8 +28,17 @@ export interface Message {
 }
 
 export interface MessagesSummary {
+  /** Unread messages everywhere, Message Requests included. */
   unread: number;
+  /** Message Requests waiting for a reply, read or not. */
   requests: number;
+}
+
+export interface Thread {
+  conversation: Conversation;
+  messages: Message[];
+  /** Pass as `before` to load the page of earlier messages; null at the first message. */
+  olderCursor: string | null;
 }
 
 /** A failed request, with the server's plain-language message and code. */
@@ -86,7 +96,7 @@ export function useConversations(box: "messages" | "requests") {
   });
 }
 
-/** For the Messages button: unread messages plus waiting Message Requests. */
+/** For the Messages button badge and the Message Requests count. */
 export function useMessagesSummary() {
   const call = useApi();
   return useQuery({
@@ -96,9 +106,9 @@ export function useMessagesSummary() {
   });
 }
 
-/** Unread messages plus waiting Message Requests: the Messages button's badge. */
+/** The Messages button's badge: unread messages, Message Requests included. A request you've read stops counting. */
 export function badgeCount(summary: MessagesSummary | undefined): number {
-  return (summary?.unread ?? 0) + (summary?.requests ?? 0);
+  return summary?.unread ?? 0;
 }
 
 export function useThread(id: number | null) {
@@ -107,7 +117,6 @@ export function useThread(id: number | null) {
   return useQuery({
     queryKey: messagesKeys.thread(id ?? 0),
     queryFn: async () => {
-      type Thread = { conversation: Conversation; messages: Message[] };
       const before = qc.getQueryData<Thread>(messagesKeys.thread(id ?? 0));
       const thread = await call<Thread>(`/api/messages/${id}`);
       // Opening a conversation marks it read on the server. When that happens
@@ -124,6 +133,64 @@ export function useThread(id: number | null) {
     enabled: id !== null,
     refetchInterval: 5_000,
   });
+}
+
+/**
+ * Earlier messages, loaded a page at a time as you scroll up past the latest
+ * ones `useThread` keeps fresh. Stops once the first message has loaded.
+ * Show `older` before the latest messages, skipping any id already shown.
+ */
+export function useOlderMessages(id: number | null, latest: Thread | undefined) {
+  const call = useApi();
+  const [older, setOlder] = useState<Message[]>([]);
+  // undefined until the first older page loads; then that page's cursor.
+  const [cursor, setCursor] = useState<string | null | undefined>(undefined);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const busy = useRef(false);
+
+  // A different conversation starts over.
+  useEffect(() => {
+    setOlder([]);
+    setCursor(undefined);
+    setError(null);
+  }, [id]);
+
+  // Once you've scrolled back, keep every message seen. New messages slide the
+  // latest page forward, and nothing between the two may drop out of view.
+  const scrolledBack = cursor !== undefined;
+  useEffect(() => {
+    if (!scrolledBack || !latest) return;
+    setOlder((list) => {
+      const known = new Set(list.map((m) => m.id));
+      const fresh = latest.messages.filter((m) => !known.has(m.id));
+      return fresh.length ? [...list, ...fresh] : list;
+    });
+  }, [scrolledBack, latest]);
+
+  const before = cursor === undefined ? (latest?.olderCursor ?? null) : cursor;
+
+  const loadMore = useCallback(() => {
+    if (!id || !before || busy.current) return;
+    busy.current = true;
+    setLoading(true);
+    setError(null);
+    call<Thread>(`/api/messages/${id}?before=${encodeURIComponent(before)}`)
+      .then((page) => {
+        setOlder((list) => {
+          const known = new Set(list.map((m) => m.id));
+          return [...page.messages.filter((m) => !known.has(m.id)), ...list];
+        });
+        setCursor(page.olderCursor);
+      })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => {
+        busy.current = false;
+        setLoading(false);
+      });
+  }, [call, id, before]);
+
+  return { older, loadMore, loading, hasMore: before !== null, error };
 }
 
 export function useContacts() {

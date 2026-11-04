@@ -9,7 +9,7 @@ vi.mock("../lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error:
 import { FirstMessageFilter } from "../messaging/filter";
 import { MemoryMessagingProvider } from "../messaging/memoryProvider";
 import { MemoryMessagingRepo } from "../messaging/memoryRepo";
-import { AutoRestrict, MemoryModerationRepo } from "../messaging/moderation";
+import { MemoryModerationRepo } from "../messaging/moderation";
 import { MessagingService } from "../messaging/service";
 import { createStreamWebhookRouter, parseFlagEvent, reasonForLabels } from "../routes/streamWebhook";
 
@@ -64,7 +64,7 @@ beforeEach(async () => {
     repo,
     provider: new MemoryMessagingProvider(),
     filter: new FirstMessageFilter(),
-    moderation: { auto: new AutoRestrict(mod), repo: mod },
+    moderation: { repo: mod },
   });
   const sent = await svc.start("bad", { playerId: 2, text: "you're awful", clientMessageId: "client-0001" });
   messageId = sent.message.id;
@@ -76,7 +76,7 @@ describe("Stream moderation webhook", () => {
     expect(mod.reports).toHaveLength(0);
   });
 
-  it("files a message report with a snapshot and restricts the sender", async () => {
+  it("files a message report with a snapshot and leaves the sender's account alone", async () => {
     const res = await post(flagEvent(messageId));
     expect(res.status).toBe(200);
     expect(mod.reports).toHaveLength(1);
@@ -90,7 +90,9 @@ describe("Stream moderation webhook", () => {
       details: "Flagged · HARASSMENT · INSULT · ai_text",
     });
     expect(mod.reports[0].snapshot?.messages[0]).toMatchObject({ text: "you're awful", reported: true, senderName: "Bad Actor" });
-    expect(await mod.restrictedSet(["bad"])).toEqual(new Set(["bad"]));
+    // No automatic restriction: the account waits for a moderator.
+    expect(mod.restrictions).toHaveLength(0);
+    expect(await mod.restrictedSet(["bad"])).toEqual(new Set());
   });
 
   it("handles a retried event once", async () => {

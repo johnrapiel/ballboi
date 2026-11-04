@@ -14,10 +14,9 @@ import {
   type ReportStatus,
   type ReportTargetType,
 } from "@workspace/db";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import pino from "pino";
 import { requireAdmin } from "../middlewares/requireAdmin";
-import { getAutoRestrict } from "../messaging";
 import sanctionsRouter from "./sanctions";
 
 // App Store guideline 1.2: report objectionable content, block abusive users,
@@ -74,27 +73,18 @@ router.post("/reports", requireAuth, async (req, res) => {
     return;
   }
   const { userId } = getAuth(req);
-  // Player reports count toward auto-restrict ("reported by 2 or more different people").
+  // Who a player report is about, for the Moderation screen. The account is
+  // untouched until a moderator acts: nothing restricts it automatically.
   const subject = parsed.targetType === "player" && /^\d+$/.test(parsed.targetId) ? await accountForPlayer(Number(parsed.targetId)) : null;
   const [report] = await db
     .insert(contentReportsTable)
     .values({ reporterClerkUserId: userId!, ...parsed, source: "user", subjectClerkUserId: subject })
     .returning({ id: contentReportsTable.id });
-  if (subject && subject !== userId) await restrictQuietly(subject, "report");
   // Surfaces in logs so a person reviews it within 24 hours. Push alert to the
   // moderator comes with APNs (checklist: 24-hour review, staffed).
   logger.warn({ reportId: report.id, targetType: parsed.targetType, reason: parsed.reason }, "New content report");
   res.status(201).json({ id: report.id, status: "open" });
 });
-
-/** Auto-restrict never blocks the report or block it follows. */
-async function restrictQuietly(subject: string, kind: "report" | "block") {
-  try {
-    await getAutoRestrict().evaluate(subject, { kind });
-  } catch (err) {
-    logger.error({ err }, "Auto-restrict check failed");
-  }
-}
 
 /** Report rows with the subject's name and, for message reports, the conversation snapshot. */
 async function withDetails(rows: (typeof contentReportsTable.$inferSelect)[]) {
@@ -125,11 +115,14 @@ async function withDetails(rows: (typeof contentReportsTable.$inferSelect)[]) {
 
 router.get("/admin/reports", requireAdmin, async (req, res) => {
   const status = isOneOf(REPORT_STATUSES, req.query.status) ? req.query.status : "open";
+  // Open reports oldest first, so the one closest to the 24-hour promise is on
+  // top. Closed ones newest first, as a history.
+  const order = status === "open" ? asc(contentReportsTable.createdAt) : desc(contentReportsTable.createdAt);
   const rows = await db
     .select()
     .from(contentReportsTable)
     .where(eq(contentReportsTable.status, status))
-    .orderBy(desc(contentReportsTable.createdAt))
+    .orderBy(order)
     .limit(200);
   res.json(await withDetails(rows));
 });
@@ -229,7 +222,6 @@ router.post("/players/:playerId/block", requireAuth, async (req, res) => {
     .insert(userBlocksTable)
     .values({ blockerClerkUserId: userId!, blockedClerkUserId: target })
     .onConflictDoNothing();
-  await restrictQuietly(target, "block");
   res.status(201).json({ blocked: true });
 });
 
