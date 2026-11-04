@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import React, { useEffect } from "react";
+import React from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 
 import { DoublesMatchCard } from "@/components/record/DoublesMatchCard";
@@ -10,7 +10,6 @@ import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useServerRecordings, useTodaysMatches } from "@/lib/recording/api";
-import { takePendingInvite } from "@/lib/recording/pendingInvite";
 import { useQueue } from "@/lib/recording/queue";
 import { openRecorder } from "@/lib/recording/start";
 
@@ -28,12 +27,6 @@ export default function BallBoiScreen() {
   const onServer = (server.data ?? []).filter((r) => !onPhone.has(r.sessionId));
   const refreshing = today.isRefetching || server.isRefetching;
 
-  // An invite link opened before signing in opens now.
-  useEffect(() => {
-    takePendingInvite().then((code) => {
-      if (code) router.push({ pathname: "/record/invite/[code]", params: { code } });
-    });
-  }, [router]);
   const refresh = () => {
     today.refetch();
     server.refetch();

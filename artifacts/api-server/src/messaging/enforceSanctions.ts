@@ -13,6 +13,8 @@ const ALLOWED: { method: string; path: RegExp }[] = [
   { method: "GET", path: /^\/account\/status\/?$/ },
   { method: "POST", path: /^\/account\/appeal\/?$/ },
   { method: "DELETE", path: /^\/users\/me\/?$/ },
+  // Part of Delete account: who takes over the leagues they run alone.
+  { method: "GET", path: /^\/users\/me\/league-handoff\/?$/ },
   { method: "GET", path: /^\/healthz?\/?$/ },
 ];
 

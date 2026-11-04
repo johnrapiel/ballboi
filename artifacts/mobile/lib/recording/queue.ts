@@ -85,6 +85,16 @@ export async function removeQueued(id: string) {
   await persist();
 }
 
+/** Empties the list (sign-out and Delete account). Returns what was in it. */
+export async function clearQueue(): Promise<QueuedRecording[]> {
+  await loadQueue();
+  const removed = items;
+  items = [];
+  emit();
+  await persist();
+  return removed;
+}
+
 function subscribe(l: () => void) {
   listeners.add(l);
   return () => {

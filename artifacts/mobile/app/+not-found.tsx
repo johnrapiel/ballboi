@@ -1,45 +1,21 @@
-import { Link, Stack } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { Stack, useRouter } from "expo-router";
+import React from "react";
 
-import { useColors } from "@/hooks/useColors";
+import { Button, ScrollScreen, Text } from "@/components/ui";
+import { spacing } from "@/constants/tokens";
 
+// A link to a screen that doesn't exist (Wave 1 review A16).
 export default function NotFoundScreen() {
-  const colors = useColors();
-
+  const router = useRouter();
   return (
     <>
-      <Stack.Screen options={{ title: "Oops!" }} />
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Text style={[styles.title, { color: colors.foreground }]}>
-          This screen doesn&apos;t exist.
+      <Stack.Screen options={{ headerShown: false }} />
+      <ScrollScreen style={{ justifyContent: "center", gap: spacing.space6 }}>
+        <Text variant="title" accessibilityRole="header">
+          This page doesn't exist.
         </Text>
-
-        <Link href="/" style={styles.link}>
-          <Text style={[styles.linkText, { color: colors.primary }]}>
-            Go to home screen!
-          </Text>
-        </Link>
-      </View>
+        <Button label="Go to Home" onPress={() => router.replace("/")} />
+      </ScrollScreen>
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 20,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-  link: {
-    marginTop: 15,
-    paddingVertical: 15,
-  },
-  linkText: {
-    fontSize: 14,
-  },
-});

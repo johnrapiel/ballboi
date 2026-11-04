@@ -16,7 +16,7 @@ import { AppState } from "react-native";
 import { discardOnServer, DiscardError } from "@/lib/recording/api";
 import { deleteRecording, recordingExists } from "@/lib/recording/files";
 import { loadUploadOnCellular } from "@/lib/recording/prefs";
-import { getQueue, loadQueue, removeQueued, updateQueued, type QueuedRecording } from "@/lib/recording/queue";
+import { clearQueue, getQueue, loadQueue, removeQueued, updateQueued, type QueuedRecording } from "@/lib/recording/queue";
 import { ensureSession, uploadRecording } from "@/lib/recording/upload";
 
 export type Connection = "wifi" | "cellular" | "none";
@@ -67,6 +67,8 @@ export async function drainQueue(): Promise<void> {
       const cellularOn = await loadUploadOnCellular();
       for (const rec of getQueue()) {
         if (rec.state === "uploading" || discarding.has(rec.id)) continue;
+        // Cleared meanwhile (sign-out or Delete account).
+        if (!getQueue().some((r) => r.id === rec.id)) continue;
         // A failed upload tries again on the next trigger (Wi-Fi back, app reopened), not in a tight loop.
         if (rec.state === "failed" && rec.failedAt && Date.now() - new Date(rec.failedAt).getTime() < RETRY_AFTER_MS) {
           continue;
@@ -161,6 +163,17 @@ export async function discardQueued(
   } finally {
     discarding.delete(id);
   }
+}
+
+/**
+ * Sign-out and Delete account (Wave 1 review A10): stops any upload, then
+ * removes every recording waiting on this phone, files included, so nothing
+ * from that account stays on the phone or uploads later.
+ */
+export async function clearUploadQueue(): Promise<void> {
+  for (const { abort } of inFlight.values()) abort.abort();
+  const removed = await clearQueue();
+  for (const rec of removed) deleteRecording(rec.uri);
 }
 
 /** "Upload now on cellular" for one recording. */

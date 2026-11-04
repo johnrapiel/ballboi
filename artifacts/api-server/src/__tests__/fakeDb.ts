@@ -1,7 +1,8 @@
 // A small in-memory stand-in for the Drizzle query chain, for route tests
 // that need filtering by column. Only the pieces the routes under test use:
 // select().from(t).where(...).orderBy()/groupBy()/limit(), awaited, plus
-// simple insert/delete/transaction and an execute() that returns no rows.
+// simple insert (with onConflictDoNothing)/update/delete/transaction and an
+// execute() that returns no rows.
 // Pair it with the `drizzleFake` mock of "drizzle-orm" below.
 
 export type Row = Record<string, unknown>;
@@ -66,7 +67,8 @@ export function fakeDb(rows: Record<string, Row[]>) {
       values: (v: Row) => {
         const row = { id: (rows[t.__name]?.length ?? 0) + 1000, ...v };
         (rows[t.__name] ??= []).push(row);
-        return { returning: async () => [row], then: (ok: (v: unknown) => unknown) => Promise.resolve(undefined).then(ok) };
+        const done = { returning: async () => [row], then: (ok: (v: unknown) => unknown) => Promise.resolve(undefined).then(ok) };
+        return { ...done, onConflictDoNothing: () => done };
       },
     }),
     delete: (t: { __name: string }) => ({
@@ -77,13 +79,18 @@ export function fakeDb(rows: Record<string, Row[]>) {
     transaction: async <T>(fn: (tx: unknown) => Promise<T>) => fn(db),
     update: (t: { __name: string }) => ({
       set: (values: Row) => ({
-        where: (f: Filter) => ({
-          returning: async () => {
+        where: (f: Filter) => {
+          const apply = () => {
             const hit = (rows[t.__name] ?? []).filter((r) => matchesFilter(r, f));
             for (const r of hit) Object.assign(r, values);
             return hit;
-          },
-        }),
+          };
+          // Awaited directly, or with .returning() for the changed rows.
+          return {
+            returning: async () => apply(),
+            then: (ok: (v: unknown) => unknown, bad?: (e: unknown) => unknown) => Promise.resolve().then(apply).then(() => undefined).then(ok, bad),
+          };
+        },
       }),
     }),
   };

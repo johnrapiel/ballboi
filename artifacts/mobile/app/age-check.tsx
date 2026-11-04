@@ -8,7 +8,12 @@
 // The birthday is picked with the native iOS date picker in wheels style, in a
 // bottom sheet with Cancel and Done. No calendar grid, no typed fields.
 // The field stays empty until Done; the wheels start on a neutral date, never
-// exactly 18 years ago; the latest selectable date is today.
+// exactly 18 years ago; the latest selectable date is today. Done stays off
+// until a wheel moves, so the untouched start date can't pass the check
+// (Wave 1 review S2, John's call: option c).
+//
+// A quiet Sign out sits under Continue, so someone who signed in with the
+// wrong account has a way out (S3).
 //
 // TODO(native build): ask Apple's Declared Age Range API first and fall back
 // to this screen only when it returns nothing.
@@ -18,9 +23,10 @@ import { useAuth, useUser } from "@clerk/expo";
 import { Redirect, useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Modal, Pressable, View, useColorScheme } from "react-native";
+import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Button, Screen, Text } from "@/components/ui";
+import { Button, ScrollScreen, Screen, Text, TextButton } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import {
@@ -28,23 +34,24 @@ import {
   EARLIEST_BIRTH_DATE,
   ageOn,
   formatBirthday,
-  isAgeCheckPassed,
   neutralStartDate,
 } from "@/lib/ageCheck";
+import { confirmSignOut } from "@/lib/confirmSignOut";
 
 export default function AgeCheckScreen() {
   const router = useRouter();
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, signOut } = useAuth();
   const { user } = useUser();
 
   const [birthDate, setBirthDate] = useState<Date | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** On the way to the 18+ screen: deleting the account signs them out first. */
+  const [leaving, setLeaving] = useState(false);
 
   if (!isLoaded) return null;
-  if (!isSignedIn || !user) return <Redirect href="/(auth)/welcome" />;
-  if (isAgeCheckPassed(user.unsafeMetadata)) return <Redirect href="/(tabs)" />;
+  if (!isSignedIn || !user) return leaving ? <Screen /> : <Redirect href="/(auth)/welcome" />;
 
   async function submit() {
     if (!user || !birthDate) return;
@@ -52,14 +59,16 @@ export default function AgeCheckScreen() {
     setBusy(true);
     try {
       if (ageOn(birthDate, new Date()) >= 18) {
+        // The root gate moves on to onboarding, or Home, once this is saved.
         await user.update({ unsafeMetadata: { ...user.unsafeMetadata, ageCheck: AGE_CHECK_PASSED } });
-        router.replace("/(tabs)");
       } else {
         // No account for under-18s: remove the one sign-in just created.
+        setLeaving(true);
         await user.delete();
         router.replace("/eighteen-plus");
       }
     } catch {
+      setLeaving(false);
       setError("Something went wrong. Try again.");
     } finally {
       setBusy(false);
@@ -67,7 +76,7 @@ export default function AgeCheckScreen() {
   }
 
   return (
-    <Screen style={{ gap: spacing.space6 }}>
+    <ScrollScreen style={{ gap: spacing.space6 }}>
       <View style={{ gap: spacing.space2, marginTop: spacing.space8 }}>
         <Text variant="label" tone="inkMuted">
           One quick check
@@ -86,18 +95,22 @@ export default function AgeCheckScreen() {
         </Text>
       ) : null}
 
-      <Button label="Continue" loading={busy} disabled={!birthDate} onPress={submit} style={{ marginTop: "auto" }} />
+      <View style={{ marginTop: "auto", gap: spacing.space2 }}>
+        <Button label="Continue" loading={busy} disabled={!birthDate} onPress={submit} />
+        <TextButton label="Sign out" disabled={busy} onPress={() => void confirmSignOut(signOut).catch(() => undefined)} />
+      </View>
 
       <BirthdaySheet
         visible={sheetOpen}
         initial={birthDate ?? neutralStartDate(new Date())}
+        alreadyChosen={!!birthDate}
         onCancel={() => setSheetOpen(false)}
         onDone={(date) => {
           setBirthDate(date);
           setSheetOpen(false);
         }}
       />
-    </Screen>
+    </ScrollScreen>
   );
 }
 
@@ -136,25 +149,35 @@ function BirthdayField({ value, onPress }: { value: Date | null; onPress: () => 
 function BirthdaySheet({
   visible,
   initial,
+  alreadyChosen,
   onCancel,
   onDone,
 }: {
   visible: boolean;
   initial: Date;
+  /** A date was already picked, so Done works right away. */
+  alreadyChosen: boolean;
   onCancel: () => void;
   onDone: (date: Date) => void;
 }) {
   const c = useColors();
   const scheme = useColorScheme();
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotion();
   const [draft, setDraft] = useState(initial);
+  /** Done stays off until a wheel moves (S2). */
+  const [moved, setMoved] = useState(alreadyChosen);
 
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
-      onShow={() => setDraft(initial)}
+      // Reduce Motion: fade in place of the slide up (A22).
+      animationType={reduceMotion ? "fade" : "slide"}
+      onShow={() => {
+        setDraft(initial);
+        setMoved(alreadyChosen);
+      }}
       onRequestClose={onCancel}
     >
       <View style={{ flex: 1, justifyContent: "flex-end" }}>
@@ -190,7 +213,13 @@ function BirthdaySheet({
             <Text variant="bodyStrong" accessibilityRole="header" style={{ flexShrink: 1, textAlign: "center" }}>
               Birthday
             </Text>
-            <SheetAction label="Done" strong onPress={() => onDone(draft)} />
+            <SheetAction
+              label="Done"
+              strong
+              disabled={!moved}
+              accessibilityHint={moved ? undefined : "Turn a wheel to choose your birthday first"}
+              onPress={() => onDone(draft)}
+            />
           </View>
 
           <DateTimePicker
@@ -203,7 +232,10 @@ function BirthdaySheet({
             textColor={c.ink}
             accessibilityLabel="Birthday"
             onChange={(_: DateTimePickerEvent, date?: Date) => {
-              if (date) setDraft(date);
+              if (date) {
+                setDraft(date);
+                setMoved(true);
+              }
             }}
             style={{ alignSelf: "stretch" }}
           />
@@ -214,12 +246,27 @@ function BirthdaySheet({
 }
 
 /** Text button in the sheet header, at least 44×44pt. */
-function SheetAction({ label, strong = false, onPress }: { label: string; strong?: boolean; onPress: () => void }) {
+function SheetAction({
+  label,
+  strong = false,
+  disabled = false,
+  accessibilityHint,
+  onPress,
+}: {
+  label: string;
+  strong?: boolean;
+  disabled?: boolean;
+  accessibilityHint?: string;
+  onPress: () => void;
+}) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled }}
       hitSlop={spacing.space2}
       style={({ pressed }) => ({
         minHeight: MIN_TAP,
@@ -227,7 +274,7 @@ function SheetAction({ label, strong = false, onPress }: { label: string; strong
         paddingHorizontal: spacing.space3,
         alignItems: "center",
         justifyContent: "center",
-        opacity: pressed ? 0.6 : 1,
+        opacity: disabled ? 0.5 : pressed ? 0.6 : 1,
       })}
     >
       <Text variant={strong ? "bodyStrong" : "body"}>{label}</Text>
