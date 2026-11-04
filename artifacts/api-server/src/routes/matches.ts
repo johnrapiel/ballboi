@@ -1,42 +1,15 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { matchesTable, playersTable, leaguesTable, leagueRoundsTable, ballBoiSessionsTable } from "@workspace/db";
 import { CreateMatchBody, UpdateMatchBody } from "@workspace/api-zod";
-import { eq, desc, inArray, and, or, sql, type SQL } from "drizzle-orm";
+import { eq, desc, inArray, and, or, isNull, type SQL } from "drizzle-orm";
 import { sendPushToUsers } from "./notifications";
-import { advancePlayoffWinner } from "../services/playoffBracket";
-import { logger } from "../lib/logger";
+import { isLeagueAdmin } from "../lib/leagueAccess.js";
 import { getAutoSeason } from "../services/seasonService.js";
-import { parseSet } from "../lib/scoringUtils.js";
 import { getPlayerNameMap, getLeagueNameMap, getRoundMap, matchPlayerIds } from "../lib/lookups.js";
 
 const router = Router();
-
-function validateScoreFormat(score: string): string | null {
-  const trimmed = score.trim();
-  if (!trimmed) return null;
-  const sets = trimmed.split(",");
-  for (const set of sets) {
-    if (!parseSet(set)) {
-      return `"${set.trim()}" is not a valid set score. Use a format like 6-4 for each set.`;
-    }
-  }
-  return null;
-}
-
-// Atomic win/loss tally. Increments happen in the database in one transaction,
-// so two results saved at the same moment can't overwrite each other.
-async function recordResult(winnerIds: number[], loserIds: number[]) {
-  await db.transaction(async (tx) => {
-    if (winnerIds.length) {
-      await tx.update(playersTable).set({ wins: sql`${playersTable.wins} + 1` }).where(inArray(playersTable.id, winnerIds));
-    }
-    if (loserIds.length) {
-      await tx.update(playersTable).set({ losses: sql`${playersTable.losses} + 1` }).where(inArray(playersTable.id, loserIds));
-    }
-  });
-}
 
 async function buildMatchResponse(m: typeof matchesTable.$inferSelect) {
   const [playerMap, leagueMap, roundMap] = await Promise.all([
@@ -150,11 +123,41 @@ router.get("/matches", async (req, res) => {
   );
 });
 
+// C3: the app adds league matches through rounds and quick matches through
+// recording, and enters scores through the league score routes. These older
+// match routes stay for league admins only, and never touch a result, so the
+// league score rules (first score stands, grace week, undo, correction) can't
+// be skipped.
+
+const SCORE_ROUTE_ONLY =
+  "Scores are entered from the league's score screen, so the league's score rules apply.";
+
+/** Answers 401/403/404 and returns false unless the caller is an admin of `leagueId`. */
+async function allowLeagueAdmin(req: Request, res: Response, leagueId: number | null | undefined): Promise<boolean> {
+  const { userId } = getAuth(req);
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return false; }
+  if (leagueId == null) {
+    res.status(403).json({ error: "Only league admins can change matches here." });
+    return false;
+  }
+  if (!(await isLeagueAdmin(leagueId, userId))) {
+    res.status(403).json({ error: "Only this league's admins can change its matches." });
+    return false;
+  }
+  return true;
+}
+
 router.post("/matches", async (req, res) => {
+  if (!getAuth(req).userId) return res.status(401).json({ error: "Unauthorized" });
   const parsed = CreateMatchBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
 
   const { player1Id, player2Id, player3Id, player4Id, leagueId } = parsed.data;
+  if (!(await allowLeagueAdmin(req, res, leagueId))) return;
+  if (parsed.data.score != null || parsed.data.winnerId != null) {
+    return res.status(400).json({ error: SCORE_ROUTE_ONLY });
+  }
+
   const hasDoublesPartners = player3Id != null || player4Id != null;
   if (hasDoublesPartners) {
     if (player3Id == null || player4Id == null) {
@@ -170,75 +173,33 @@ router.post("/matches", async (req, res) => {
     }
   }
 
-  if (leagueId) {
-    const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
-    if (league) {
-      const leagueType = league.leagueType ?? "singles";
-      if (leagueType === "doubles" && !hasDoublesPartners) {
-        return res.status(400).json({ error: "This is a doubles league — provide player3Id and player4Id" });
-      }
-      if (leagueType === "singles" && hasDoublesPartners) {
-        return res.status(400).json({ error: "This is a singles league — do not provide player3Id or player4Id" });
-      }
-    }
+  const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId!));
+  if (!league) return res.status(404).json({ error: "League not found" });
+  if (league.endedAt) return res.status(409).json({ error: "This league has ended." });
+  const leagueType = league.leagueType ?? "singles";
+  if (leagueType === "doubles" && !hasDoublesPartners) {
+    return res.status(400).json({ error: "This is a doubles league — provide player3Id and player4Id" });
+  }
+  if (leagueType === "singles" && hasDoublesPartners) {
+    return res.status(400).json({ error: "This is a singles league — do not provide player3Id or player4Id" });
   }
 
-  // Validate score format when provided
-  if (parsed.data.score) {
-    const scoreFormatError = validateScoreFormat(parsed.data.score);
-    if (scoreFormatError) return res.status(400).json({ error: scoreFormatError });
+  // Every player must be in this league.
+  const wanted = [player1Id, player2Id, player3Id, player4Id].filter((id): id is number => id != null);
+  const inLeague = await db
+    .select({ id: playersTable.id })
+    .from(playersTable)
+    .where(and(inArray(playersTable.id, wanted), eq(playersTable.leagueId, leagueId!), isNull(playersTable.leftAt)));
+  if (inLeague.length !== wanted.length) {
+    return res.status(400).json({ error: "Every player must be in this league." });
   }
 
-  // Validate winnerId is a match participant when provided
-  if (parsed.data.winnerId != null) {
-    const participantIds = [player1Id, player2Id, player3Id, player4Id].filter(
-      (id): id is number => id != null
-    );
-    if (!participantIds.includes(parsed.data.winnerId)) {
-      return res.status(400).json({ error: "winnerId must be one of the match participants" });
-    }
-  }
-
-  // Validate winner/score consistency when both are provided
-  // Score is from player1's perspective: first number = player1 games, second = player2 games.
-  if (parsed.data.score && parsed.data.winnerId != null) {
-    const sets = parsed.data.score.trim().split(",");
-    let p1Sets = 0;
-    let p2Sets = 0;
-    for (const set of sets) {
-      const setScore = parseSet(set);
-      if (setScore) {
-        const { myGames: p1Games, oppGames: p2Games } = setScore;
-        if (p1Games > p2Games) p1Sets++;
-        else if (p2Games > p1Games) p2Sets++;
-      }
-    }
-    if (p1Sets === p2Sets) {
-      return res.status(400).json({
-        error:
-          "The set scores are tied. If a match tiebreak was played, include it in the score (e.g. 10-7). Otherwise, check the score.",
-      });
-    }
-    const scoreImpliesPlayer1Wins = p1Sets > p2Sets;
-    const sentWinnerIsPlayer1 =
-      parsed.data.winnerId === player1Id ||
-      parsed.data.winnerId === player3Id;
-    if (scoreImpliesPlayer1Wins !== sentWinnerIsPlayer1) {
-      return res.status(400).json({
-        error: "The score provided is inconsistent with the selected winner.",
-      });
-    }
-  }
-
-  const hasScore = !!(parsed.data.score && parsed.data.winnerId != null);
+  const { score: _score, winnerId: _winnerId, ...fields } = parsed.data;
   const insertData = {
-    ...parsed.data,
-    status: (hasScore ? "completed" : "scheduled") as "completed" | "scheduled",
+    ...fields,
+    status: "scheduled" as const,
     player3Id: parsed.data.player3Id ?? undefined,
     player4Id: parsed.data.player4Id ?? undefined,
-    winnerId: parsed.data.winnerId ?? undefined,
-    score: parsed.data.score ?? undefined,
-    completedAt: hasScore ? new Date().toISOString() : undefined,
     season: (await getAutoSeason(parsed.data.leagueId ?? null)) ?? undefined,
   };
   const [match] = await db.insert(matchesTable).values(insertData).returning();
@@ -272,7 +233,6 @@ router.get("/matches/:matchId", async (req, res) => {
 });
 
 router.patch("/matches/:matchId", async (req, res) => {
-  // Require authentication
   const { userId } = getAuth(req);
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
@@ -283,98 +243,27 @@ router.patch("/matches/:matchId", async (req, res) => {
 
   const [existingMatch] = await db.select().from(matchesTable).where(eq(matchesTable.id, matchId));
   if (!existingMatch) return res.status(404).json({ error: "Match not found" });
+  if (!(await allowLeagueAdmin(req, res, existingMatch.leagueId))) return;
 
-  // Validate score format when provided
-  if (parsed.data.score) {
-    const scoreFormatError = validateScoreFormat(parsed.data.score);
-    if (scoreFormatError) return res.status(400).json({ error: scoreFormatError });
+  // Results only change through the league score routes (enter, undo, correct).
+  const resultFields = ["status", "score", "winnerId", "completedAt", "recordedByClerkUserId", "recordedAt"] as const;
+  if (resultFields.some((f) => (parsed.data as Record<string, unknown>)[f] !== undefined)) {
+    return res.status(400).json({ error: SCORE_ROUTE_ONLY });
   }
 
-  // Validate winnerId is a match participant when provided
-  if (parsed.data.winnerId != null) {
-    const participantIds = [
-      existingMatch.player1Id,
-      existingMatch.player2Id,
-      existingMatch.player3Id,
-      existingMatch.player4Id,
-    ].filter((id): id is number => id != null);
-    if (!participantIds.includes(parsed.data.winnerId)) {
-      return res.status(400).json({ error: "winnerId must be one of the match participants" });
-    }
-  }
-
-  // Look up the caller's player record for score-perspective validation below.
-  const callerPlayers = await db.select().from(playersTable).where(eq(playersTable.clerkUserId, userId));
-  const callerPlayer = callerPlayers[0] ?? null;
-
-  const participantIds = [
-    existingMatch.player1Id,
-    existingMatch.player2Id,
-    existingMatch.player3Id,
-    existingMatch.player4Id,
-  ].filter((id): id is number => id != null);
-
-
-  // The first score entered stands: no corrections or disputes once a match
-  // is completed (decision 24).
-  const changesResult =
-    parsed.data.status != null || parsed.data.score !== undefined || parsed.data.winnerId !== undefined;
-  if (existingMatch.status === "completed" && changesResult) {
-    return res.status(409).json({
-      error: "A score is already in for this match. The first score entered stands.",
-    });
-  }
-  if (existingMatch.voidedAt && changesResult) {
-    return res.status(409).json({ error: "This match was cancelled when a player left the league." });
-  }
-
-  // Winner/score consistency check.
-  // The UI always sends scores from player1's perspective: first number = player1 games, second = player2 games.
-  if (parsed.data.score && parsed.data.winnerId != null) {
-    const sets = parsed.data.score.trim().split(",");
-    let p1Sets = 0;
-    let p2Sets = 0;
-    for (const set of sets) {
-      const setScore = parseSet(set);
-      if (setScore) {
-        const { myGames: p1Games, oppGames: p2Games } = setScore;
-        if (p1Games > p2Games) p1Sets++;
-        else if (p2Games > p1Games) p2Sets++;
-      }
-    }
-    if (p1Sets === p2Sets) {
-      return res.status(400).json({
-        error:
-          "The set scores are tied. If a match tiebreak was played, include it in the score (e.g. 10-7). Otherwise, check the score.",
-      });
-    }
-    const scoreImpliesPlayer1Wins = p1Sets > p2Sets;
-    const sentWinnerIsPlayer1 =
-      parsed.data.winnerId === existingMatch.player1Id ||
-      parsed.data.winnerId === existingMatch.player3Id;
-    if (scoreImpliesPlayer1Wins !== sentWinnerIsPlayer1) {
-      return res.status(400).json({
-        error: "The score provided is inconsistent with the selected winner.",
-      });
-    }
-  }
+  // The caller's player record in this league names them in notifications.
+  const [callerPlayer] = await db
+    .select()
+    .from(playersTable)
+    .where(and(eq(playersTable.clerkUserId, userId), eq(playersTable.leagueId, existingMatch.leagueId!)));
 
   const updates: Partial<typeof matchesTable.$inferInsert> = {};
-  if (parsed.data.status !== undefined && parsed.data.status !== null) updates.status = parsed.data.status;
-  if (parsed.data.winnerId !== undefined) updates.winnerId = parsed.data.winnerId ?? undefined;
-  if (parsed.data.score !== undefined) updates.score = parsed.data.score ?? undefined;
   if (parsed.data.scheduledAt !== undefined) updates.scheduledAt = parsed.data.scheduledAt ?? undefined;
   if (parsed.data.startedAt !== undefined) updates.startedAt = parsed.data.startedAt ?? undefined;
-  if (parsed.data.completedAt !== undefined) updates.completedAt = parsed.data.completedAt ?? undefined;
   if (parsed.data.location !== undefined) updates.location = parsed.data.location ?? undefined;
   if (parsed.data.notes !== undefined) updates.notes = parsed.data.notes ?? undefined;
   if (parsed.data.durationMinutes !== undefined) updates.durationMinutes = parsed.data.durationMinutes ?? undefined;
-  if ("recordedByClerkUserId" in parsed.data && parsed.data.recordedByClerkUserId !== undefined) {
-    updates.recordedByClerkUserId = parsed.data.recordedByClerkUserId ?? undefined;
-  }
-  if ("recordedAt" in parsed.data && parsed.data.recordedAt !== undefined) {
-    updates.recordedAt = parsed.data.recordedAt ?? undefined;
-  }
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: "Nothing to change." });
 
   const [match] = await db.update(matchesTable).set(updates).where(eq(matchesTable.id, matchId)).returning();
 
@@ -400,7 +289,7 @@ router.patch("/matches/:matchId", async (req, res) => {
       .from(playersTable)
       .where(inArray(playersTable.id, allParticipantIds));
 
-    const updaterName = callerPlayer?.name ?? "Your opponent";
+    const updaterName = callerPlayer?.name ?? "Your league admin";
 
     // Build a message that describes what changed
     const effectiveScheduledAt = scheduledAtChanged
@@ -498,74 +387,23 @@ router.patch("/matches/:matchId", async (req, res) => {
     }
   }
 
-  if (
-    updates.status === "completed" &&
-    updates.winnerId &&
-    existingMatch.status !== "completed"
-  ) {
-    const winnerId = updates.winnerId;
-    const isDoubles = existingMatch.player3Id !== null && existingMatch.player3Id !== undefined;
-
-    if (isDoubles) {
-      // Doubles: Team 1 = player1+player3, Team 2 = player2+player4
-      const team1Won = winnerId === existingMatch.player1Id;
-      const winnerIds = team1Won
-        ? [existingMatch.player1Id, existingMatch.player3Id!]
-        : [existingMatch.player2Id, existingMatch.player4Id!];
-      const loserIds = team1Won
-        ? [existingMatch.player2Id, ...(existingMatch.player4Id ? [existingMatch.player4Id] : [])]
-        : [existingMatch.player1Id, ...(existingMatch.player3Id ? [existingMatch.player3Id] : [])];
-
-      await recordResult(winnerIds, loserIds);
-
-      const teamPlayers = await db
-        .select()
-        .from(playersTable)
-        .where(inArray(playersTable.id, [...winnerIds, ...loserIds]));
-      const pMap: Record<number, typeof teamPlayers[0]> = {};
-      for (const p of teamPlayers) pMap[p.id] = p;
-      const clerkIds = [...winnerIds, ...loserIds].map((id) => pMap[id]?.clerkUserId).filter(Boolean) as string[];
-      const winTeamNames = winnerIds.map((id) => pMap[id]?.name ?? "Unknown").join(" & ");
-      const loseTeamNames = loserIds.map((id) => pMap[id]?.name ?? "Unknown").join(" & ");
-      const scoreStr = updates.score ?? "";
-      const body = scoreStr
-        ? `${winTeamNames} defeats ${loseTeamNames} (${scoreStr})`
-        : `${winTeamNames} defeats ${loseTeamNames}`;
-      sendPushToUsers(clerkIds, "Match Result", body, `/matches/${existingMatch.id}`).catch(() => {});
-    } else {
-      // Singles
-      const loserId = existingMatch.player1Id === winnerId ? existingMatch.player2Id : existingMatch.player1Id;
-      await recordResult([winnerId], [loserId]);
-      const pair = await db
-        .select()
-        .from(playersTable)
-        .where(inArray(playersTable.id, [winnerId, loserId]));
-      const winnerPlayer = pair.find((p) => p.id === winnerId);
-      const loserPlayer = pair.find((p) => p.id === loserId);
-
-      const scoreStr = updates.score ?? "";
-      const winnerName = winnerPlayer?.name ?? "Unknown";
-      const loserName = loserPlayer?.name ?? "Unknown";
-      const clerkIds = [winnerPlayer?.clerkUserId, loserPlayer?.clerkUserId].filter(Boolean) as string[];
-      const body = scoreStr
-        ? `${winnerName} defeats ${loserName} (${scoreStr})`
-        : `${winnerName} defeats ${loserName}`;
-      sendPushToUsers(clerkIds, "Match Result", body, `/matches/${existingMatch.id}`).catch(() => {});
-    }
-
-    if (match.playoffBracketId) {
-      advancePlayoffWinner(match, winnerId).catch((err) => {
-        logger.error({ err, matchId: match.id }, "Failed to advance playoff winner");
-      });
-    }
-  }
-
   return res.json(await buildMatchResponse(match));
 });
 
 router.delete("/matches/:matchId", async (req, res) => {
+  if (!getAuth(req).userId) return res.status(401).json({ error: "Unauthorized" });
   const matchId = parseInt(req.params.matchId);
   if (isNaN(matchId)) return res.status(400).json({ error: "Invalid id" });
+  const [match] = await db.select().from(matchesTable).where(eq(matchesTable.id, matchId));
+  if (!match) return res.status(404).json({ error: "Match not found" });
+  if (!(await allowLeagueAdmin(req, res, match.leagueId))) return;
+  // A played match stays: its score is corrected from Manage, never deleted.
+  if (match.status === "completed") {
+    return res.status(409).json({ error: "This match has a score. Correct it from Manage instead." });
+  }
+  if (match.playoffBracketId) {
+    return res.status(409).json({ error: "Playoff matches can't be deleted." });
+  }
   await db.delete(matchesTable).where(eq(matchesTable.id, matchId));
   return res.status(204).send();
 });

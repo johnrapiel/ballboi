@@ -5,6 +5,7 @@ import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import pino from "pino";
 import { autoLinkPlayersForUser } from "../lib/autoLinkPlayer.js";
+import { deleteOldPhoto, newPhotoProblem } from "../lib/profilePhoto.js";
 import { deleteAccount } from "../lib/accountDeletion.js";
 import { isUserIntent, parseHomeArea, parseIntents } from "../lib/onboarding.js";
 
@@ -32,6 +33,10 @@ router.post("/users/me", requireAuth, async (req, res) => {
   if (!displayName) return res.status(400).json({ error: "displayName is required" });
 
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.clerkUserId, userId!));
+  if (avatarUrl !== undefined) {
+    const problem = await newPhotoProblem(avatarUrl, existing?.avatarUrl, userId!);
+    if (problem) return res.status(400).json({ error: problem });
+  }
 
   if (existing) {
     const [updated] = await db
@@ -48,8 +53,7 @@ router.post("/users/me", requireAuth, async (req, res) => {
       })
       .where(eq(usersTable.clerkUserId, userId!))
       .returning();
-    await autoLinkPlayersForUser({ clerkUserId: userId!, displayName, email: email ?? existing.email })
-      .catch((err) => logger.error({ err }, "Auto-link failed on user update"));
+    await deleteOldPhoto(existing.avatarUrl, updated.avatarUrl, logger);
     return res.json(updated);
   }
 
@@ -67,7 +71,8 @@ router.post("/users/me", requireAuth, async (req, res) => {
       onboardingComplete: onboardingComplete ?? false,
     })
     .returning();
-  await autoLinkPlayersForUser({ clerkUserId: userId!, displayName, email })
+  // A2: runs once, when the profile is made, on the verified email from Clerk.
+  await autoLinkPlayersForUser(userId!)
     .catch((err) => logger.error({ err }, "Auto-link failed on user create"));
   return res.status(201).json(created);
 });
@@ -78,6 +83,10 @@ router.put("/users/me", requireAuth, async (req, res) => {
 
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.clerkUserId, userId!));
   if (!existing) return res.status(404).json({ error: "User profile not found" });
+  if (avatarUrl !== undefined) {
+    const problem = await newPhotoProblem(avatarUrl, existing.avatarUrl, userId!);
+    if (problem) return res.status(400).json({ error: problem });
+  }
 
   const updateData: Partial<typeof usersTable.$inferInsert> = {};
   if (displayName !== undefined) updateData.displayName = displayName;
@@ -89,12 +98,9 @@ router.put("/users/me", requireAuth, async (req, res) => {
   if (bio !== undefined) updateData.bio = bio;
   if (onboardingComplete !== undefined) updateData.onboardingComplete = onboardingComplete;
 
+  if (Object.keys(updateData).length === 0) return res.json(existing);
   const [updated] = await db.update(usersTable).set(updateData).where(eq(usersTable.clerkUserId, userId!)).returning();
-  await autoLinkPlayersForUser({
-    clerkUserId: userId!,
-    displayName: updated.displayName,
-    email: updated.email,
-  }).catch((err) => logger.error({ err }, "Auto-link failed on user PUT update"));
+  await deleteOldPhoto(existing.avatarUrl, updated.avatarUrl, logger);
   return res.json(updated);
 });
 
