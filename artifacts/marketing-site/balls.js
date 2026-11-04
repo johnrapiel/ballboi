@@ -158,6 +158,7 @@
         moving = true;
       } else if (mode === 'rain') {
         moving = true;
+        if (!p.w) { b.al = 0; continue; } // pill was tapped open mid-rain: clear the balls
         if (b.dis) {
           b.s *= 0.8; b.al -= 0.15;
           b.x += (p.x - b.x) * 0.2; b.y += (p.y - b.y) * 0.2;
@@ -192,6 +193,7 @@
     addEventListener('pointermove', e => { px = e.clientX; py = e.clientY; if (mode === 'cluster') kick(); }, { passive: true });
     pill.addEventListener('pointerenter', e => { px = e.clientX; py = e.clientY; startCluster(); });
     pill.addEventListener('pointerleave', burst);
+    pill.addEventListener('click', burst); // the pill opens the early-access form, so let the balls go
     document.addEventListener('visibilitychange', () => { if (document.hidden) burst(); });
   } else {
     setTimeout(startRain, 300);

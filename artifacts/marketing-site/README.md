@@ -8,7 +8,9 @@ ballboitennis.com and both `www` addresses serve or redirect to the same site.
 
 | File | What it is |
 |---|---|
-| `index.html` | Home page: roundel, headline, subhead, "Coming soon to iPhone" pill |
+| `index.html` | Home page: roundel, headline, subhead, "Get early access" pill and sign-up form |
+| `_worker.js` | Handles early-access sign-ups at `POST /api/early-access` and serves everything else. Drag-and-drop deploys support this file but not a `functions/` folder |
+| `early-access.js` | Opens the sign-up form from the pill, validates, posts, and shows "You're on the list" |
 | `balls.js` | The pill's ball animation. Desktop: hover the pill. Phones: plays once on load. Off under Reduce Motion |
 | `privacy.html`, `terms.html`, `legal.css` | Legal pages, served at `/privacy` and `/terms` |
 | `assets/roundel-ink.*` | The roundel with no paper (navy strokes, transparent), 888px from the 1024px master |
@@ -23,6 +25,25 @@ ballboitennis.com and both `www` addresses serve or redirect to the same site.
 - **Legal pages** must match the current spec (18+, no video playback, training toggle, analysis-only audio, processors). Update them in the same PR as any decision that changes them.
 - **Cache-busting:** when you replace an image or `balls.js` under the same name, bump its `?v=` number where it's referenced.
 - **At launch:** swap the pill for Apple's official "Download on the App Store" badge linked to the listing. Keep `id="soon"` on whatever the animation targets, or update `balls.js`.
+
+## Early access sign-ups
+
+The pill opens a form: email (required) and zip (optional, to invite local testers first). Sign-ups go to a Cloudflare D1 database. Free: D1 and the worker stay well inside Cloudflare's free limits.
+
+- **Spam:** a hidden "website" field that only bots fill; those sign-ups are dropped silently. If spam gets through anyway, add Cloudflare Turnstile (free).
+- **Duplicates:** signing up twice keeps one row.
+- **Without JavaScript:** the form shows by default and posts normally; the worker redirects back with `?early-access=joined`.
+- **Privacy:** covered in `privacy.html` under "Early access sign-up." Keep them in step.
+
+**One-time setup (before the first deploy that includes `_worker.js`):**
+1. Cloudflare dashboard > Storage & Databases > D1 > **Create database**, named `ballboi-early-access`.
+2. Workers & Pages > `ballboi` > Settings > **Bindings** > Add > **D1 database**. Variable name `DB`, database `ballboi-early-access`, for Production (and Preview if you test there).
+3. Deploy. The table is created on the first sign-up.
+
+**See the list:** D1 > `ballboi-early-access` > Console, then run
+`SELECT email, zip, created_at FROM early_access ORDER BY created_at;`
+
+**Remove someone:** `DELETE FROM early_access WHERE email = 'name@example.com';`
 
 ## Check before deploying
 
