@@ -1218,6 +1218,12 @@ export interface UpdateMatchBody {
   recordedAt?: string | null;
 }
 
+/**
+ * What the server keeps about the recording (source, uploads, stat gates, retries)
+ * @nullable
+ */
+export type BallBoiSessionMetadata = { [key: string]: unknown } | null;
+
 export interface BallBoiSession {
   id: number;
   matchId: number;
@@ -1239,6 +1245,11 @@ export interface BallBoiSession {
   processingError?: string | null;
   /** @nullable */
   aiNarrative?: string | null;
+  /**
+   * What the server keeps about the recording (source, uploads, stat gates, retries)
+   * @nullable
+   */
+  metadata?: BallBoiSessionMetadata;
   createdAt: string;
   updatedAt: string;
 }
@@ -1524,13 +1535,107 @@ export interface BallBoiNarrative {
   narrative: string | null;
 }
 
+export type MatchRecordStatus =
+  (typeof MatchRecordStatus)[keyof typeof MatchRecordStatus];
+
+export const MatchRecordStatus = {
+  scheduled: "scheduled",
+  in_progress: "in_progress",
+  completed: "completed",
+  cancelled: "cancelled",
+  voided: "voided",
+} as const;
+
+/**
+ * The match as stored, without player names (the Ball Boi replay sends this).
+ */
+export interface MatchRecord {
+  id: number;
+  /** @nullable */
+  leagueId: number | null;
+  player1Id: number;
+  player2Id: number;
+  /** @nullable */
+  player3Id: number | null;
+  /** @nullable */
+  player4Id: number | null;
+  /** @nullable */
+  winnerId: number | null;
+  status: MatchRecordStatus;
+  /** @nullable */
+  scheduledAt: string | null;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  /** @nullable */
+  location: string | null;
+  /** @nullable */
+  score: string | null;
+  /** @nullable */
+  notes: string | null;
+  /** @nullable */
+  durationMinutes: number | null;
+  /** @nullable */
+  recordedByClerkUserId: string | null;
+  /** @nullable */
+  recordedAt: string | null;
+  /** @nullable */
+  courtId: number | null;
+  /** @nullable */
+  weekOf: string | null;
+  /** @nullable */
+  generatedFrom: string | null;
+  /** @nullable */
+  estimatedDistanceP1: number | null;
+  /** @nullable */
+  estimatedDistanceP2: number | null;
+  /** @nullable */
+  roundId: number | null;
+  /** @nullable */
+  playoffBracketId: number | null;
+  /** @nullable */
+  playoffRound: string | null;
+  /** @nullable */
+  playoffSlot: number | null;
+  /** @nullable */
+  season: string | null;
+  locked: boolean;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  voidedAt: string | null;
+  inGrace: boolean;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  correctedAt: string | null;
+  /** @nullable */
+  correctedByClerkUserId: string | null;
+  /** @nullable */
+  correctedByName: string | null;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  scoreClearedAt: string | null;
+  /** @nullable */
+  scoreClearedByName: string | null;
+  /** ISO 8601 date and time */
+  createdAt: string;
+  /** ISO 8601 date and time */
+  updatedAt: string;
+}
+
 export interface BallBoiReplay {
-  match: Match;
+  match: MatchRecord;
   session: BallBoiSession | null;
   shots: MatchShot[];
   statistics: MatchStatistics | null;
   /** Stats below their accuracy bar (or not yet measured). Their fields are empty; the app leaves them out rather than showing them with a disclaimer. */
-  hiddenStats?: GatedStat[];
+  hiddenStats: GatedStat[];
 }
 
 export type UserProfileDominantHand =
@@ -2630,11 +2735,20 @@ export const RecordingListItemStage = {
 export interface RecordingListItem {
   sessionId: number;
   matchId: number;
+  /** @nullable */
+  leagueId: number | null;
   opponentName: string;
-  /** ISO 8601 date and time */
+  /** When the match was recorded (ISO 8601), not when it uploaded (D19) */
   recordedAt: string;
   stage: RecordingListItemStage;
   scoreEntered: boolean;
+  /** False on the opponent's copy of the card */
+  recordedByYou: boolean;
+  /**
+   * The short reason shown on a failed card; null unless stage is failed
+   * @nullable
+   */
+  failedReason: string | null;
 }
 
 export interface DiscardResult {
@@ -2666,6 +2780,24 @@ export interface AccountDeletionResult {
   recordingsKeptForOpponents: number;
   videosDeleted: number;
   videoDeleteFailures: number;
+}
+
+export interface RecordingRemoved {
+  removed: boolean;
+  matchRemoved: boolean;
+}
+
+/**
+ * A 409 from the upload routes, with what to do next
+ */
+export interface UploadConflict {
+  error: string;
+  /** The recording is already uploaded */
+  uploaded?: boolean;
+  /** The parts expired in storage: start this piece again */
+  restart?: boolean;
+  /** Part numbers storage doesn't have yet */
+  missingParts?: number[];
 }
 
 export type GetLeaguesParams = {
@@ -2912,4 +3044,8 @@ export type LogDoublesViewBody = {
 export type DiscardRecordingBody = {
   matchId: number;
   sessionId?: number;
+};
+
+export type AbandonQuickMatch200 = {
+  removed: boolean;
 };

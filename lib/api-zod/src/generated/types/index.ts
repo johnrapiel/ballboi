@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./abandonQuickMatch200";
 export * from "./accountDeletionInput";
 export * from "./accountDeletionInputConfirm";
 export * from "./accountDeletionInputNewAdminsItem";
@@ -39,6 +40,7 @@ export * from "./ballBoiPartUrlBody";
 export * from "./ballBoiReplay";
 export * from "./ballBoiReplayMetadata";
 export * from "./ballBoiSession";
+export * from "./ballBoiSessionMetadata";
 export * from "./ballBoiSessionSegment";
 export * from "./ballBoiStatus";
 export * from "./ballBoiUploadUrl";
@@ -170,6 +172,8 @@ export * from "./match";
 export * from "./matchBallBoiShotCallbackBody";
 export * from "./matchPlayerRating";
 export * from "./matchPlayerRatingSource";
+export * from "./matchRecord";
+export * from "./matchRecordStatus";
 export * from "./matchShot";
 export * from "./matchShotHitterSide";
 export * from "./matchShotLineCall";
@@ -228,6 +232,7 @@ export * from "./recordingInvite";
 export * from "./recordingListItem";
 export * from "./recordingListItemStage";
 export * from "./recordingOpponent";
+export * from "./recordingRemoved";
 export * from "./reportReceipt";
 export * from "./reportReceiptStatus";
 export * from "./reportStatusInput";
@@ -276,6 +281,7 @@ export * from "./updatePlayerBody";
 export * from "./updatePlayerBodyDominantHand";
 export * from "./updatePlayerBodySkillLevel";
 export * from "./updateSeasonBody";
+export * from "./uploadConflict";
 export * from "./upsertUserProfileBody";
 export * from "./upsertUserProfileBodyDominantHand";
 export * from "./upsertUserProfileBodySkillLevel";

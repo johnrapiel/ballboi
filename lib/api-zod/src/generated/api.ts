@@ -3286,6 +3286,12 @@ export const CompleteBallBoiSessionResponse = zod.object({
   processingStatus: zod.string(),
   processingError: zod.string().nullish(),
   aiNarrative: zod.string().nullish(),
+  metadata: zod
+    .record(zod.string(), zod.unknown())
+    .nullish()
+    .describe(
+      "What the server keeps about the recording (source, uploads, stat gates, retries)",
+    ),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -3298,49 +3304,58 @@ export const GetBallBoiReplayParams = zod.object({
 });
 
 export const GetBallBoiReplayResponse = zod.object({
-  match: zod.object({
-    id: zod.number(),
-    leagueId: zod.number().nullish(),
-    leagueName: zod.string().nullish(),
-    player1Id: zod.number(),
-    player1Name: zod.string(),
-    player2Id: zod.number(),
-    player2Name: zod.string(),
-    player3Id: zod.number().nullish(),
-    player3Name: zod.string().nullish(),
-    player4Id: zod.number().nullish(),
-    player4Name: zod.string().nullish(),
-    winnerId: zod.number().nullish(),
-    status: zod.enum([
-      "scheduled",
-      "in_progress",
-      "completed",
-      "cancelled",
-      "voided",
-    ]),
-    scheduledAt: zod.string().nullish(),
-    startedAt: zod.string().nullish(),
-    completedAt: zod.string().nullish(),
-    location: zod.string().nullish(),
-    score: zod.string().nullish(),
-    notes: zod.string().nullish(),
-    durationMinutes: zod.number().nullish(),
-    recordedByClerkUserId: zod.string().nullish(),
-    recordedAt: zod.string().nullish(),
-    roundId: zod.number().nullish(),
-    roundNumber: zod.number().nullish(),
-    roundEndDate: zod.string().nullish(),
-    playoffBracketId: zod.number().nullish(),
-    playoffRound: zod.string().nullish(),
-    playoffSlot: zod.number().nullish(),
-    season: zod.string().nullish(),
-    hasBallBoi: zod
-      .boolean()
-      .optional()
-      .describe("Only in the GET \/matches list"),
-    createdAt: zod.string(),
-    updatedAt: zod.string(),
-  }),
+  match: zod
+    .object({
+      id: zod.number(),
+      leagueId: zod.number().nullable(),
+      player1Id: zod.number(),
+      player2Id: zod.number(),
+      player3Id: zod.number().nullable(),
+      player4Id: zod.number().nullable(),
+      winnerId: zod.number().nullable(),
+      status: zod.enum([
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "voided",
+      ]),
+      scheduledAt: zod.string().nullable(),
+      startedAt: zod.string().nullable(),
+      completedAt: zod.string().nullable(),
+      location: zod.string().nullable(),
+      score: zod.string().nullable(),
+      notes: zod.string().nullable(),
+      durationMinutes: zod.number().nullable(),
+      recordedByClerkUserId: zod.string().nullable(),
+      recordedAt: zod.string().nullable(),
+      courtId: zod.number().nullable(),
+      weekOf: zod.string().nullable(),
+      generatedFrom: zod.string().nullable(),
+      estimatedDistanceP1: zod.number().nullable(),
+      estimatedDistanceP2: zod.number().nullable(),
+      roundId: zod.number().nullable(),
+      playoffBracketId: zod.number().nullable(),
+      playoffRound: zod.string().nullable(),
+      playoffSlot: zod.number().nullable(),
+      season: zod.string().nullable(),
+      locked: zod.boolean(),
+      voidedAt: zod.string().nullable().describe("ISO 8601 date and time"),
+      inGrace: zod.boolean(),
+      correctedAt: zod.string().nullable().describe("ISO 8601 date and time"),
+      correctedByClerkUserId: zod.string().nullable(),
+      correctedByName: zod.string().nullable(),
+      scoreClearedAt: zod
+        .string()
+        .nullable()
+        .describe("ISO 8601 date and time"),
+      scoreClearedByName: zod.string().nullable(),
+      createdAt: zod.string().describe("ISO 8601 date and time"),
+      updatedAt: zod.string().describe("ISO 8601 date and time"),
+    })
+    .describe(
+      "The match as stored, without player names (the Ball Boi replay sends this).",
+    ),
   session: zod.union([
     zod.object({
       id: zod.number(),
@@ -3356,6 +3371,12 @@ export const GetBallBoiReplayResponse = zod.object({
       processingStatus: zod.string(),
       processingError: zod.string().nullish(),
       aiNarrative: zod.string().nullish(),
+      metadata: zod
+        .record(zod.string(), zod.unknown())
+        .nullish()
+        .describe(
+          "What the server keeps about the recording (source, uploads, stat gates, retries)",
+        ),
       createdAt: zod.string(),
       updatedAt: zod.string(),
     }),
@@ -3482,7 +3503,6 @@ export const GetBallBoiReplayResponse = zod.object({
           "A Ball Boi stat that is shown only when it meets its accuracy bar.",
         ),
     )
-    .optional()
     .describe(
       "Stats below their accuracy bar (or not yet measured). Their fields are empty; the app leaves them out rather than showing them with a disclaimer.",
     ),
@@ -3496,49 +3516,58 @@ export const GetMatchScopedBallBoiReplayParams = zod.object({
 });
 
 export const GetMatchScopedBallBoiReplayResponse = zod.object({
-  match: zod.object({
-    id: zod.number(),
-    leagueId: zod.number().nullish(),
-    leagueName: zod.string().nullish(),
-    player1Id: zod.number(),
-    player1Name: zod.string(),
-    player2Id: zod.number(),
-    player2Name: zod.string(),
-    player3Id: zod.number().nullish(),
-    player3Name: zod.string().nullish(),
-    player4Id: zod.number().nullish(),
-    player4Name: zod.string().nullish(),
-    winnerId: zod.number().nullish(),
-    status: zod.enum([
-      "scheduled",
-      "in_progress",
-      "completed",
-      "cancelled",
-      "voided",
-    ]),
-    scheduledAt: zod.string().nullish(),
-    startedAt: zod.string().nullish(),
-    completedAt: zod.string().nullish(),
-    location: zod.string().nullish(),
-    score: zod.string().nullish(),
-    notes: zod.string().nullish(),
-    durationMinutes: zod.number().nullish(),
-    recordedByClerkUserId: zod.string().nullish(),
-    recordedAt: zod.string().nullish(),
-    roundId: zod.number().nullish(),
-    roundNumber: zod.number().nullish(),
-    roundEndDate: zod.string().nullish(),
-    playoffBracketId: zod.number().nullish(),
-    playoffRound: zod.string().nullish(),
-    playoffSlot: zod.number().nullish(),
-    season: zod.string().nullish(),
-    hasBallBoi: zod
-      .boolean()
-      .optional()
-      .describe("Only in the GET \/matches list"),
-    createdAt: zod.string(),
-    updatedAt: zod.string(),
-  }),
+  match: zod
+    .object({
+      id: zod.number(),
+      leagueId: zod.number().nullable(),
+      player1Id: zod.number(),
+      player2Id: zod.number(),
+      player3Id: zod.number().nullable(),
+      player4Id: zod.number().nullable(),
+      winnerId: zod.number().nullable(),
+      status: zod.enum([
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "voided",
+      ]),
+      scheduledAt: zod.string().nullable(),
+      startedAt: zod.string().nullable(),
+      completedAt: zod.string().nullable(),
+      location: zod.string().nullable(),
+      score: zod.string().nullable(),
+      notes: zod.string().nullable(),
+      durationMinutes: zod.number().nullable(),
+      recordedByClerkUserId: zod.string().nullable(),
+      recordedAt: zod.string().nullable(),
+      courtId: zod.number().nullable(),
+      weekOf: zod.string().nullable(),
+      generatedFrom: zod.string().nullable(),
+      estimatedDistanceP1: zod.number().nullable(),
+      estimatedDistanceP2: zod.number().nullable(),
+      roundId: zod.number().nullable(),
+      playoffBracketId: zod.number().nullable(),
+      playoffRound: zod.string().nullable(),
+      playoffSlot: zod.number().nullable(),
+      season: zod.string().nullable(),
+      locked: zod.boolean(),
+      voidedAt: zod.string().nullable().describe("ISO 8601 date and time"),
+      inGrace: zod.boolean(),
+      correctedAt: zod.string().nullable().describe("ISO 8601 date and time"),
+      correctedByClerkUserId: zod.string().nullable(),
+      correctedByName: zod.string().nullable(),
+      scoreClearedAt: zod
+        .string()
+        .nullable()
+        .describe("ISO 8601 date and time"),
+      scoreClearedByName: zod.string().nullable(),
+      createdAt: zod.string().describe("ISO 8601 date and time"),
+      updatedAt: zod.string().describe("ISO 8601 date and time"),
+    })
+    .describe(
+      "The match as stored, without player names (the Ball Boi replay sends this).",
+    ),
   session: zod.union([
     zod.object({
       id: zod.number(),
@@ -3554,6 +3583,12 @@ export const GetMatchScopedBallBoiReplayResponse = zod.object({
       processingStatus: zod.string(),
       processingError: zod.string().nullish(),
       aiNarrative: zod.string().nullish(),
+      metadata: zod
+        .record(zod.string(), zod.unknown())
+        .nullish()
+        .describe(
+          "What the server keeps about the recording (source, uploads, stat gates, retries)",
+        ),
       createdAt: zod.string(),
       updatedAt: zod.string(),
     }),
@@ -3680,7 +3715,6 @@ export const GetMatchScopedBallBoiReplayResponse = zod.object({
           "A Ball Boi stat that is shown only when it meets its accuracy bar.",
         ),
     )
-    .optional()
     .describe(
       "Stats below their accuracy bar (or not yet measured). Their fields are empty; the app leaves them out rather than showing them with a disclaimer.",
     ),
@@ -3731,6 +3765,12 @@ export const EndMatchBallBoiResponse = zod.object({
   processingStatus: zod.string(),
   processingError: zod.string().nullish(),
   aiNarrative: zod.string().nullish(),
+  metadata: zod
+    .record(zod.string(), zod.unknown())
+    .nullish()
+    .describe(
+      "What the server keeps about the recording (source, uploads, stat gates, retries)",
+    ),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -3781,6 +3821,12 @@ export const GetMatchBallBoiReplayMetadataResponse = zod.object({
         processingStatus: zod.string(),
         processingError: zod.string().nullish(),
         aiNarrative: zod.string().nullish(),
+        metadata: zod
+          .record(zod.string(), zod.unknown())
+          .nullish()
+          .describe(
+            "What the server keeps about the recording (source, uploads, stat gates, retries)",
+          ),
         createdAt: zod.string(),
         updatedAt: zod.string(),
       }),
@@ -4066,6 +4112,12 @@ export const GetBallBoiReplayMetadataResponse = zod.object({
     processingStatus: zod.string(),
     processingError: zod.string().nullish(),
     aiNarrative: zod.string().nullish(),
+    metadata: zod
+      .record(zod.string(), zod.unknown())
+      .nullish()
+      .describe(
+        "What the server keeps about the recording (source, uploads, stat gates, retries)",
+      ),
     createdAt: zod.string(),
     updatedAt: zod.string(),
   }),
@@ -5058,15 +5110,29 @@ export const GetTodaysRecordableMatchesResponse = zod.array(
 );
 
 /**
- * @summary The person's recordings, newest first, with where each one is
+ * @summary Recent recordings of the person's matches, newest first, whoever recorded them. Both players see a match's card.
  */
 export const GetMyRecordingsResponseItem = zod.object({
   sessionId: zod.number(),
   matchId: zod.number(),
+  leagueId: zod.number().nullable(),
   opponentName: zod.string(),
-  recordedAt: zod.string().describe("ISO 8601 date and time"),
+  recordedAt: zod
+    .string()
+    .describe(
+      "When the match was recorded (ISO 8601), not when it uploaded (D19)",
+    ),
   stage: zod.enum(["uploading", "analyzing", "ready", "failed"]),
   scoreEntered: zod.boolean(),
+  recordedByYou: zod
+    .boolean()
+    .describe("False on the opponent's copy of the card"),
+  failedReason: zod
+    .string()
+    .nullable()
+    .describe(
+      "The short reason shown on a failed card; null unless stage is failed",
+    ),
 });
 export const GetMyRecordingsResponse = zod.array(GetMyRecordingsResponseItem);
 
@@ -5088,4 +5154,27 @@ export const DiscardRecordingBody = zod.object({
 export const DiscardRecordingResponse = zod.object({
   sessionDeleted: zod.boolean(),
   matchRemoved: zod.boolean(),
+});
+
+/**
+ * @summary Remove a recording whose analysis failed or whose upload never finished. The recorder deletes it for both players; the other player takes it off their own list.
+ */
+export const RemoveRecordingParams = zod.object({
+  sessionId: zod.coerce.number(),
+});
+
+export const RemoveRecordingResponse = zod.object({
+  removed: zod.literal(true),
+  matchRemoved: zod.boolean(),
+});
+
+/**
+ * @summary Remove a Quick match left before recording it, with its placeholder opponent and invite
+ */
+export const AbandonQuickMatchParams = zod.object({
+  matchId: zod.coerce.number(),
+});
+
+export const AbandonQuickMatchResponse = zod.object({
+  removed: zod.literal(true),
 });

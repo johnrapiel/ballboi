@@ -7,15 +7,15 @@
  */
 import type { BallBoiSession } from "./ballBoiSession";
 import type { GatedStat } from "./gatedStat";
-import type { Match } from "./match";
+import type { MatchRecord } from "./matchRecord";
 import type { MatchShot } from "./matchShot";
 import type { MatchStatistics } from "./matchStatistics";
 
 export interface BallBoiReplay {
-  match: Match;
+  match: MatchRecord;
   session: BallBoiSession | null;
   shots: MatchShot[];
   statistics: MatchStatistics | null;
   /** Stats below their accuracy bar (or not yet measured). Their fields are empty; the app leaves them out rather than showing them with a disclaimer. */
-  hiddenStats?: GatedStat[];
+  hiddenStats: GatedStat[];
 }

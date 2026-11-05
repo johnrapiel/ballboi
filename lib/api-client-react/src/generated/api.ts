@@ -17,6 +17,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AbandonQuickMatch200,
   AccountDeletionInput,
   AccountDeletionResult,
   AccountStatus,
@@ -142,6 +143,7 @@ import type {
   RecordingInvite,
   RecordingListItem,
   RecordingOpponent,
+  RecordingRemoved,
   ReportReceipt,
   ReportStatusInput,
   ResetLeagueRecords200,
@@ -170,6 +172,7 @@ import type {
   UpdateMatchBody,
   UpdatePlayerBody,
   UpdateSeasonBody,
+  UploadConflict,
   UpsertUserProfileBody,
   UserProfile,
 } from "./api.schemas";
@@ -7500,7 +7503,7 @@ export const startBallBoiSession = async (
 };
 
 export const getStartBallBoiSessionMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7541,13 +7544,13 @@ export type StartBallBoiSessionMutationResult = NonNullable<
   Awaited<ReturnType<typeof startBallBoiSession>>
 >;
 export type StartBallBoiSessionMutationBody = BodyType<StartBallBoiSessionBody>;
-export type StartBallBoiSessionMutationError = ErrorType<unknown>;
+export type StartBallBoiSessionMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Start a Ball Boi match recording session
  */
 export const useStartBallBoiSession = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7590,7 +7593,7 @@ export const startMatchScopedBallBoiSession = async (
 };
 
 export const getStartMatchScopedBallBoiSessionMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7632,13 +7635,14 @@ export type StartMatchScopedBallBoiSessionMutationResult = NonNullable<
 >;
 export type StartMatchScopedBallBoiSessionMutationBody =
   BodyType<StartBallBoiSessionBody>;
-export type StartMatchScopedBallBoiSessionMutationError = ErrorType<unknown>;
+export type StartMatchScopedBallBoiSessionMutationError =
+  ErrorType<ErrorResponse>;
 
 /**
  * @summary Start a Ball Boi match recording session
  */
 export const useStartMatchScopedBallBoiSession = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7678,7 +7682,7 @@ export const requestBallBoiUploadUrl = async (
 };
 
 export const getRequestBallBoiUploadUrlMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7719,13 +7723,13 @@ export type RequestBallBoiUploadUrlMutationResult = NonNullable<
   Awaited<ReturnType<typeof requestBallBoiUploadUrl>>
 >;
 
-export type RequestBallBoiUploadUrlMutationError = ErrorType<unknown>;
+export type RequestBallBoiUploadUrlMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Request a presigned video upload URL
  */
 export const useRequestBallBoiUploadUrl = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7770,7 +7774,7 @@ export const startBallBoiMultipartUpload = async (
 };
 
 export const getStartBallBoiMultipartUploadMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse | UploadConflict>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7812,13 +7816,15 @@ export type StartBallBoiMultipartUploadMutationResult = NonNullable<
 >;
 export type StartBallBoiMultipartUploadMutationBody =
   BodyType<BallBoiMultipartStartBody>;
-export type StartBallBoiMultipartUploadMutationError = ErrorType<unknown>;
+export type StartBallBoiMultipartUploadMutationError = ErrorType<
+  ErrorResponse | UploadConflict
+>;
 
 /**
  * @summary Start or resume sending one piece of a recording in parts
  */
 export const useStartBallBoiMultipartUpload = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse | UploadConflict>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7861,7 +7867,7 @@ export const requestBallBoiUploadPartUrl = async (
 };
 
 export const getRequestBallBoiUploadPartUrlMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse | UploadConflict>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7903,13 +7909,15 @@ export type RequestBallBoiUploadPartUrlMutationResult = NonNullable<
 >;
 export type RequestBallBoiUploadPartUrlMutationBody =
   BodyType<BallBoiPartUrlBody>;
-export type RequestBallBoiUploadPartUrlMutationError = ErrorType<unknown>;
+export type RequestBallBoiUploadPartUrlMutationError = ErrorType<
+  ErrorResponse | UploadConflict
+>;
 
 /**
  * @summary Request a presigned upload URL for one part
  */
 export const useRequestBallBoiUploadPartUrl = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse | UploadConflict>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7952,7 +7960,7 @@ export const completeBallBoiMultipartUpload = async (
 };
 
 export const getCompleteBallBoiMultipartUploadMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse | UploadConflict>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7994,13 +8002,15 @@ export type CompleteBallBoiMultipartUploadMutationResult = NonNullable<
 >;
 export type CompleteBallBoiMultipartUploadMutationBody =
   BodyType<BallBoiMultipartCompleteBody>;
-export type CompleteBallBoiMultipartUploadMutationError = ErrorType<unknown>;
+export type CompleteBallBoiMultipartUploadMutationError = ErrorType<
+  ErrorResponse | UploadConflict
+>;
 
 /**
  * @summary Join a piece's parts into one stored video
  */
 export const useCompleteBallBoiMultipartUpload = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse | UploadConflict>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -8127,7 +8137,7 @@ export const completeBallBoiSession = async (
 };
 
 export const getCompleteBallBoiSessionMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -8169,13 +8179,13 @@ export type CompleteBallBoiSessionMutationResult = NonNullable<
 >;
 export type CompleteBallBoiSessionMutationBody =
   BodyType<CompleteBallBoiSessionBody>;
-export type CompleteBallBoiSessionMutationError = ErrorType<unknown>;
+export type CompleteBallBoiSessionMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Complete a Ball Boi session and start batch processing
  */
 export const useCompleteBallBoiSession = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -8217,7 +8227,7 @@ export const getGetBallBoiReplayQueryKey = (matchId: number) => {
 
 export const getGetBallBoiReplayQueryOptions = <
   TData = Awaited<ReturnType<typeof getBallBoiReplay>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   matchId: number,
   options?: {
@@ -8253,7 +8263,7 @@ export const getGetBallBoiReplayQueryOptions = <
 export type GetBallBoiReplayQueryResult = NonNullable<
   Awaited<ReturnType<typeof getBallBoiReplay>>
 >;
-export type GetBallBoiReplayQueryError = ErrorType<unknown>;
+export type GetBallBoiReplayQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Get the latest Ball Boi replay for a match
@@ -8261,7 +8271,7 @@ export type GetBallBoiReplayQueryError = ErrorType<unknown>;
 
 export function useGetBallBoiReplay<
   TData = Awaited<ReturnType<typeof getBallBoiReplay>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   matchId: number,
   options?: {
@@ -8308,7 +8318,7 @@ export const getGetMatchScopedBallBoiReplayQueryKey = (matchId: number) => {
 
 export const getGetMatchScopedBallBoiReplayQueryOptions = <
   TData = Awaited<ReturnType<typeof getMatchScopedBallBoiReplay>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   matchId: number,
   options?: {
@@ -8345,7 +8355,7 @@ export const getGetMatchScopedBallBoiReplayQueryOptions = <
 export type GetMatchScopedBallBoiReplayQueryResult = NonNullable<
   Awaited<ReturnType<typeof getMatchScopedBallBoiReplay>>
 >;
-export type GetMatchScopedBallBoiReplayQueryError = ErrorType<unknown>;
+export type GetMatchScopedBallBoiReplayQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Get the latest Ball Boi replay for a match
@@ -8353,7 +8363,7 @@ export type GetMatchScopedBallBoiReplayQueryError = ErrorType<unknown>;
 
 export function useGetMatchScopedBallBoiReplay<
   TData = Awaited<ReturnType<typeof getMatchScopedBallBoiReplay>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   matchId: number,
   options?: {
@@ -8487,7 +8497,7 @@ export const endMatchBallBoi = async (
 };
 
 export const getEndMatchBallBoiMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -8528,13 +8538,13 @@ export type EndMatchBallBoiMutationResult = NonNullable<
   Awaited<ReturnType<typeof endMatchBallBoi>>
 >;
 export type EndMatchBallBoiMutationBody = BodyType<EndMatchBallBoiBody>;
-export type EndMatchBallBoiMutationError = ErrorType<unknown>;
+export type EndMatchBallBoiMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary End latest Ball Boi recording for a match
  */
 export const useEndMatchBallBoi = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -13425,7 +13435,7 @@ export function useGetTodaysRecordableMatches<
 }
 
 /**
- * @summary The person's recordings, newest first, with where each one is
+ * @summary Recent recordings of the person's matches, newest first, whoever recorded them. Both players see a match's card.
  */
 export const getGetMyRecordingsUrl = () => {
   return `/api/recording/sessions`;
@@ -13476,7 +13486,7 @@ export type GetMyRecordingsQueryResult = NonNullable<
 export type GetMyRecordingsQueryError = ErrorType<ErrorResponse>;
 
 /**
- * @summary The person's recordings, newest first, with where each one is
+ * @summary Recent recordings of the person's matches, newest first, whoever recorded them. Both players see a match's card.
  */
 
 export function useGetMyRecordings<
@@ -13669,4 +13679,172 @@ export const useDiscardRecording = <
   TContext
 > => {
   return useMutation(getDiscardRecordingMutationOptions(options));
+};
+
+/**
+ * @summary Remove a recording whose analysis failed or whose upload never finished. The recorder deletes it for both players; the other player takes it off their own list.
+ */
+export const getRemoveRecordingUrl = (sessionId: number) => {
+  return `/api/recording/sessions/${sessionId}/remove`;
+};
+
+export const removeRecording = async (
+  sessionId: number,
+  options?: RequestInit,
+): Promise<RecordingRemoved> => {
+  return customFetch<RecordingRemoved>(getRemoveRecordingUrl(sessionId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRemoveRecordingMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeRecording>>,
+    TError,
+    { sessionId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof removeRecording>>,
+  TError,
+  { sessionId: number },
+  TContext
+> => {
+  const mutationKey = ["removeRecording"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof removeRecording>>,
+    { sessionId: number }
+  > = (props) => {
+    const { sessionId } = props ?? {};
+
+    return removeRecording(sessionId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RemoveRecordingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof removeRecording>>
+>;
+
+export type RemoveRecordingMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Remove a recording whose analysis failed or whose upload never finished. The recorder deletes it for both players; the other player takes it off their own list.
+ */
+export const useRemoveRecording = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeRecording>>,
+    TError,
+    { sessionId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof removeRecording>>,
+  TError,
+  { sessionId: number },
+  TContext
+> => {
+  return useMutation(getRemoveRecordingMutationOptions(options));
+};
+
+/**
+ * @summary Remove a Quick match left before recording it, with its placeholder opponent and invite
+ */
+export const getAbandonQuickMatchUrl = (matchId: number) => {
+  return `/api/recording/quick-matches/${matchId}/abandon`;
+};
+
+export const abandonQuickMatch = async (
+  matchId: number,
+  options?: RequestInit,
+): Promise<AbandonQuickMatch200> => {
+  return customFetch<AbandonQuickMatch200>(getAbandonQuickMatchUrl(matchId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAbandonQuickMatchMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof abandonQuickMatch>>,
+    TError,
+    { matchId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof abandonQuickMatch>>,
+  TError,
+  { matchId: number },
+  TContext
+> => {
+  const mutationKey = ["abandonQuickMatch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof abandonQuickMatch>>,
+    { matchId: number }
+  > = (props) => {
+    const { matchId } = props ?? {};
+
+    return abandonQuickMatch(matchId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AbandonQuickMatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof abandonQuickMatch>>
+>;
+
+export type AbandonQuickMatchMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Remove a Quick match left before recording it, with its placeholder opponent and invite
+ */
+export const useAbandonQuickMatch = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof abandonQuickMatch>>,
+    TError,
+    { matchId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof abandonQuickMatch>>,
+  TError,
+  { matchId: number },
+  TContext
+> => {
+  return useMutation(getAbandonQuickMatchMutationOptions(options));
 };

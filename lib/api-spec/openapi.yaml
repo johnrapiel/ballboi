@@ -2948,6 +2948,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiSession"
+        "400":
+          description: "Invalid match id"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not a player in the match or the league's creator"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Match not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /matches/{matchId}/ball-boi/sessions/start:
     post:
@@ -2973,6 +2991,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiSession"
+        "400":
+          description: "Invalid match id"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not a player in the match or the league's creator"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Match not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /ball-boi/sessions/{sessionId}/upload-url:
     post:
@@ -2992,6 +3028,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiUploadUrl"
+        "400":
+          description: "Invalid session id"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not the person who recorded it"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Session not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /ball-boi/sessions/{sessionId}/multipart:
     post:
@@ -3022,6 +3076,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiMultipartUpload"
+        "400":
+          description: "Invalid session id, segment or size"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not the person who recorded it"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Session not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Already uploaded (uploaded is true)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadConflict"
 
   /ball-boi/sessions/{sessionId}/multipart/part-url:
     post:
@@ -3047,6 +3125,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiPartUrl"
+        "400":
+          description: "Invalid session id, segment or part number"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not the person who recorded it"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Session not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Already uploaded, or this piece wasn't started"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadConflict"
 
   /ball-boi/sessions/{sessionId}/multipart/complete:
     post:
@@ -3072,6 +3174,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiMultipartComplete"
+        "400":
+          description: "Invalid session id or segment"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not the person who recorded it"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Session not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Already uploaded, not started, expired (restart is true) or parts missing (missingParts)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadConflict"
 
   /ball-boi/sessions/{sessionId}/live-shot:
     post:
@@ -3122,6 +3248,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiSession"
+        "400":
+          description: "objectPath or segments missing"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not the person who recorded it"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Session not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Some parts haven't finished uploading"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /ball-boi/matches/{matchId}/replay:
     get:
@@ -3141,6 +3291,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiReplay"
+        "400":
+          description: "Invalid match id"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not a player in the match or the league's creator"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Match not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /matches/{matchId}/ball-boi/replay:
     get:
@@ -3160,6 +3328,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiReplay"
+        "400":
+          description: "Invalid match id"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not a player in the match or the league's creator"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Match not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /matches/{matchId}/ball-boi/status:
     get:
@@ -3217,6 +3403,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiSession"
+        "400":
+          description: "objectPath missing"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not a player in the match or the league's creator"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Match or Ball Boi session not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /matches/{matchId}/ball-boi/shot-callback:
     post:
@@ -5158,7 +5362,7 @@ paths:
     get:
       operationId: getMyRecordings
       tags: [recording]
-      summary: The person's recordings, newest first, with where each one is
+      summary: Recent recordings of the person's matches, newest first, whoever recorded them. Both players see a match's card.
       responses:
         '200':
           description: Recordings
@@ -5266,6 +5470,108 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Couldn't discard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /recording/sessions/{sessionId}/remove:
+    post:
+      operationId: removeRecording
+      tags: [recording]
+      summary: Remove a recording whose analysis failed or whose upload never finished. The recorder deletes it for both players; the other player takes it off their own list.
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Removed (also when it was already gone)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordingRemoved'
+        '400':
+          description: Invalid recording id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not a player in the match
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Analyzing or ready, so it can't be removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't remove
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /recording/quick-matches/{matchId}/abandon:
+    post:
+      operationId: abandonQuickMatch
+      tags: [recording]
+      summary: Remove a Quick match left before recording it, with its placeholder opponent and invite
+      parameters:
+      - name: matchId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Removed (also when it was already gone)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  removed:
+                    type: boolean
+                    enum: [true]
+                required: [removed]
+        '400':
+          description: Invalid match id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not the player who started the match
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Not a Quick match, or it has a recording or a score
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't remove
           content:
             application/json:
               schema:
@@ -6621,6 +6927,10 @@ components:
           type: ["string", "null"]
         aiNarrative:
           type: ["string", "null"]
+        metadata:
+          type: ["object", "null"]
+          additionalProperties: true
+          description: What the server keeps about the recording (source, uploads, stat gates, retries)
         createdAt:
           type: string
         updatedAt:
@@ -7015,7 +7325,7 @@ components:
       type: object
       properties:
         match:
-          $ref: "#/components/schemas/Match"
+          $ref: "#/components/schemas/MatchRecord"
         session:
           anyOf:
             - $ref: "#/components/schemas/BallBoiSession"
@@ -7040,6 +7350,7 @@ components:
         - session
         - shots
         - statistics
+        - hiddenStats
 
     UserProfile:
       type: object
@@ -8366,17 +8677,25 @@ components:
           type: integer
         matchId:
           type: integer
+        leagueId:
+          type: [integer, 'null']
         opponentName:
           type: string
         recordedAt:
           type: string
-          description: ISO 8601 date and time
+          description: When the match was recorded (ISO 8601), not when it uploaded (D19)
         stage:
           type: string
           enum: [uploading, analyzing, ready, failed]
         scoreEntered:
           type: boolean
-      required: [sessionId, matchId, opponentName, recordedAt, stage, scoreEntered]
+        recordedByYou:
+          type: boolean
+          description: False on the opponent's copy of the card
+        failedReason:
+          type: [string, 'null']
+          description: The short reason shown on a failed card; null unless stage is failed
+      required: [sessionId, matchId, leagueId, opponentName, recordedAt, stage, scoreEntered, recordedByYou, failedReason]
     DiscardResult:
       type: object
       properties:
@@ -8419,3 +8738,118 @@ components:
         videoDeleteFailures:
           type: integer
       required: [deleted, playersAnonymized, recordingsDeleted, recordingsKeptForOpponents, videosDeleted, videoDeleteFailures]
+
+    MatchRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        leagueId:
+          type: [integer, 'null']
+        player1Id:
+          type: integer
+        player2Id:
+          type: integer
+        player3Id:
+          type: [integer, 'null']
+        player4Id:
+          type: [integer, 'null']
+        winnerId:
+          type: [integer, 'null']
+        status:
+          type: string
+          enum: [scheduled, in_progress, completed, cancelled, voided]
+        scheduledAt:
+          type: [string, 'null']
+        startedAt:
+          type: [string, 'null']
+        completedAt:
+          type: [string, 'null']
+        location:
+          type: [string, 'null']
+        score:
+          type: [string, 'null']
+        notes:
+          type: [string, 'null']
+        durationMinutes:
+          type: [integer, 'null']
+        recordedByClerkUserId:
+          type: [string, 'null']
+        recordedAt:
+          type: [string, 'null']
+        courtId:
+          type: [integer, 'null']
+        weekOf:
+          type: [string, 'null']
+        generatedFrom:
+          type: [string, 'null']
+        estimatedDistanceP1:
+          type: [number, 'null']
+        estimatedDistanceP2:
+          type: [number, 'null']
+        roundId:
+          type: [integer, 'null']
+        playoffBracketId:
+          type: [integer, 'null']
+        playoffRound:
+          type: [string, 'null']
+        playoffSlot:
+          type: [integer, 'null']
+        season:
+          type: [string, 'null']
+        locked:
+          type: boolean
+        voidedAt:
+          type: [string, 'null']
+          description: ISO 8601 date and time
+        inGrace:
+          type: boolean
+        correctedAt:
+          type: [string, 'null']
+          description: ISO 8601 date and time
+        correctedByClerkUserId:
+          type: [string, 'null']
+        correctedByName:
+          type: [string, 'null']
+        scoreClearedAt:
+          type: [string, 'null']
+          description: ISO 8601 date and time
+        scoreClearedByName:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          description: ISO 8601 date and time
+        updatedAt:
+          type: string
+          description: ISO 8601 date and time
+      required: [id, leagueId, player1Id, player2Id, player3Id, player4Id, winnerId, status, scheduledAt, startedAt, completedAt, location, score, notes, durationMinutes, recordedByClerkUserId, recordedAt,
+        courtId, weekOf, generatedFrom, estimatedDistanceP1, estimatedDistanceP2, roundId, playoffBracketId, playoffRound, playoffSlot, season, locked, voidedAt, inGrace, correctedAt, correctedByClerkUserId,
+        correctedByName, scoreClearedAt, scoreClearedByName, createdAt, updatedAt]
+      description: The match as stored, without player names (the Ball Boi replay sends this).
+    RecordingRemoved:
+      type: object
+      properties:
+        removed:
+          type: boolean
+          enum: [true]
+        matchRemoved:
+          type: boolean
+      required: [removed, matchRemoved]
+    UploadConflict:
+      type: object
+      properties:
+        error:
+          type: string
+        uploaded:
+          type: boolean
+          description: The recording is already uploaded
+        restart:
+          type: boolean
+          description: 'The parts expired in storage: start this piece again'
+        missingParts:
+          type: array
+          items:
+            type: integer
+          description: Part numbers storage doesn't have yet
+      required: [error]
+      description: A 409 from the upload routes, with what to do next

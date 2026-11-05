@@ -5,6 +5,7 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+import type { BallBoiSessionMetadata } from "./ballBoiSessionMetadata";
 
 export interface BallBoiSession {
   id: number;
@@ -27,6 +28,11 @@ export interface BallBoiSession {
   processingError?: string | null;
   /** @nullable */
   aiNarrative?: string | null;
+  /**
+   * What the server keeps about the recording (source, uploads, stat gates, retries)
+   * @nullable
+   */
+  metadata?: BallBoiSessionMetadata;
   createdAt: string;
   updatedAt: string;
 }

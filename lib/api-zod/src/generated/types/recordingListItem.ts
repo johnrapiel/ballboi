@@ -10,9 +10,18 @@ import type { RecordingListItemStage } from "./recordingListItemStage";
 export interface RecordingListItem {
   sessionId: number;
   matchId: number;
+  /** @nullable */
+  leagueId: number | null;
   opponentName: string;
-  /** ISO 8601 date and time */
+  /** When the match was recorded (ISO 8601), not when it uploaded (D19) */
   recordedAt: string;
   stage: RecordingListItemStage;
   scoreEntered: boolean;
+  /** False on the opponent's copy of the card */
+  recordedByYou: boolean;
+  /**
+   * The short reason shown on a failed card; null unless stage is failed
+   * @nullable
+   */
+  failedReason: string | null;
 }
