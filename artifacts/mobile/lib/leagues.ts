@@ -17,8 +17,11 @@ export function formatLabel(format: League["format"]): string {
 }
 
 /** Singles or doubles, from the league's type. */
-export function playTypeLabel(leagueType: League["leagueType"]): string {
-  return leagueType === "doubles" ? "Doubles" : "Singles";
+export function playTypeLabel(leagueType: League["leagueType"], partnerMode?: League["partnerMode"] | null): string {
+  if (leagueType !== "doubles") return "Singles";
+  if (partnerMode === "fixed") return "Doubles, fixed partners";
+  if (partnerMode === "rotating") return "Doubles, rotating partners";
+  return "Doubles";
 }
 
 /** Chip text for a league's status. */

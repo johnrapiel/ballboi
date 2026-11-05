@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 
 import {
   checkStartDate,
-  DOUBLES_NOT_YET,
+  NO_DOUBLES_PLAYOFFS,
+  PICK_PARTNERS,
   seasonDates,
   START_TOMORROW,
   validateLeagueSetup,
@@ -45,9 +46,11 @@ describe("validateLeagueSetup", () => {
     expect(validateLeagueSetup({ ...base, startDate: "2026-13-40" })).toMatch(/Start date/);
   });
 
-  it("refuses doubles for now (decision Q2), and partners on a singles league", () => {
-    expect(validateLeagueSetup({ ...base, leagueType: "doubles" })).toBe(DOUBLES_NOT_YET);
-    expect(validateLeagueSetup({ ...base, leagueType: "doubles", partnerMode: "rotating" })).toBe(DOUBLES_NOT_YET);
+  it("takes doubles with fixed or rotating partners (Wave 2), and refuses partners on a singles league", () => {
+    expect(validateLeagueSetup({ ...base, leagueType: "doubles" })).toBe(PICK_PARTNERS);
+    expect(validateLeagueSetup({ ...base, leagueType: "doubles", partnerMode: "rotating" })).toBeNull();
+    expect(validateLeagueSetup({ ...base, leagueType: "doubles", partnerMode: "fixed" })).toBeNull();
+    expect(validateLeagueSetup({ ...base, leagueType: "doubles", partnerMode: "fixed", playoffSize: 4 })).toBe(NO_DOUBLES_PLAYOFFS);
     expect(validateLeagueSetup({ ...base, partnerMode: "fixed" })).toMatch(/Only doubles/);
   });
 

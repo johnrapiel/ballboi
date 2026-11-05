@@ -22,7 +22,7 @@ import { ListRow, SectionLabel } from "@/components/league/ListRow";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { dateRange, pairingTime, shortDate } from "@/lib/leagueSchedule";
+import { dateRange, isDoublesMatch, matchPlayers, matchTitle, pairingTime, shortDate } from "@/lib/leagueSchedule";
 
 // Review a round before it goes out (spec: Leagues > Weekly loop, step 2;
 // canvas: Schedule review). Tap any row for its actions: swap a player, give
@@ -38,10 +38,7 @@ function errorText(e: unknown): string {
 /** Everyone placed in the round, for "Swap with…". */
 function everyone(round: ScheduleRound): Person[] {
   return [
-    ...round.matches.flatMap((m) => [
-      { playerId: m.player1Id, name: m.player1Name },
-      { playerId: m.player2Id, name: m.player2Name },
-    ]),
+    ...round.matches.flatMap((m) => matchPlayers(m)),
     ...round.byes.map((b) => ({ playerId: b.playerId, name: b.playerName })),
     ...round.unpaired.map((u) => ({ playerId: u.playerId, name: u.playerName })),
   ];
@@ -67,6 +64,8 @@ export default function RoundReviewScreen() {
   const publish = usePublishLeagueRound();
 
   const round = scheduleQ.data?.rounds.find((r) => r.roundId === roundId);
+  // Doubles drafts have four players a match (Wave 2).
+  const doubles = scheduleQ.data?.rounds.some((r) => r.matches.some(isDoublesMatch)) ?? false;
   const rating = (id: number) => rosterQ.data?.find((p) => p.playerId === id)?.skillLevel;
 
   /** Runs an edit, then shows the updated round and says what changed. */
@@ -107,8 +106,8 @@ export default function RoundReviewScreen() {
   }
 
   function matchMenu(r: ScheduleRound, m: ScheduleMatch) {
-    const a = { playerId: m.player1Id, name: m.player1Name };
-    const b = { playerId: m.player2Id, name: m.player2Name };
+    // Doubles has four players; every one of them can be swapped or given a bye.
+    const four = matchPlayers(m);
     const actions: { label: string; go: () => void }[] = m.locked
       ? [
           {
@@ -117,10 +116,8 @@ export default function RoundReviewScreen() {
           },
         ]
       : [
-          { label: `Swap ${a.name} with…`, go: () => swapWith(r, a) },
-          { label: `Swap ${b.name} with…`, go: () => swapWith(r, b) },
-          { label: `Give ${a.name} a bye`, go: () => giveBye(a) },
-          { label: `Give ${b.name} a bye`, go: () => giveBye(b) },
+          ...four.map((p) => ({ label: `Swap ${p.name} with…`, go: () => swapWith(r, p) })),
+          ...four.map((p) => ({ label: `Give ${p.name} a bye`, go: () => giveBye(p) })),
           {
             label: "Lock match",
             go: () => void run(() => lock.mutateAsync({ leagueId, roundId, matchId: m.matchId, data: { locked: true } }), "Match locked"),
@@ -129,7 +126,7 @@ export default function RoundReviewScreen() {
     const options = [...actions.map((x) => x.label), "Cancel"];
     ActionSheetIOS.showActionSheetWithOptions(
       {
-        title: `${a.name} vs. ${b.name}`,
+        title: matchTitle(m),
         message: m.locked ? "Locked matches stay as they are when you re-pair." : undefined,
         options,
         cancelButtonIndex: options.length - 1,
@@ -142,7 +139,7 @@ export default function RoundReviewScreen() {
     const actions = [
       {
         label: `Take away ${p.name}'s bye`,
-        go: () => void run(() => removeBye.mutateAsync({ leagueId, roundId, playerId: p.playerId }), `${p.name} needs an opponent`),
+        go: () => void run(() => removeBye.mutateAsync({ leagueId, roundId, playerId: p.playerId }), doubles ? `${p.name} needs a match` : `${p.name} needs an opponent`),
       },
       { label: `Swap ${p.name} with…`, go: () => swapWith(r, p) },
     ];
@@ -173,7 +170,9 @@ export default function RoundReviewScreen() {
   function confirmPublish(r: ScheduleRound) {
     Alert.alert(
       `Send Round ${r.roundNumber} to players now?`,
-      "Everyone gets a notification with their opponent. You can't change the pairings after this.",
+      doubles
+        ? "Everyone gets a notification with their partner and opponents. You can't change the pairings after this."
+        : "Everyone gets a notification with their opponent. You can't change the pairings after this.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -250,8 +249,10 @@ export default function RoundReviewScreen() {
           round.matches.map((m, i) => (
             <ListRow
               key={m.matchId}
-              title={`${m.player1Name} vs. ${m.player2Name}`}
-              subtitle={[label(m.player1Id, m.player1Name), label(m.player2Id, m.player2Name)].join(" · ")}
+              title={matchTitle(m)}
+              subtitle={matchPlayers(m)
+                .map((p) => label(p.playerId, p.name))
+                .join(" · ")}
               trailing={m.locked ? "Locked" : null}
               symbol={m.locked ? "lock.fill" : undefined}
               onPress={() => matchMenu(round, m)}
@@ -282,7 +283,7 @@ export default function RoundReviewScreen() {
 
       {round.unpaired.length > 0 ? (
         <>
-          <SectionLabel>Needs an opponent</SectionLabel>
+          <SectionLabel>{doubles ? "Needs a match" : "Needs an opponent"}</SectionLabel>
           <Card style={{ padding: 0, overflow: "hidden" }}>
             {round.unpaired.map((u, i) => (
               <ListRow

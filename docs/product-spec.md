@@ -150,7 +150,7 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 - **Visibility:** Private (default, invite link or code) or Open (listed in Discover, request to join)
 - **Eligibility:** level range and roster cap for Open leagues
 - **Format:** Flex or Round robin ("Pairs you with someone new each week"); Ladder comes later
-- **Play type:** singles, fixed-partner doubles, or rotating-partner doubles. Doubles stays hidden in Start a league until doubles pairing is built (Nov 4)
+- **Play type:** singles, fixed-partner doubles, or rotating-partner doubles. Start a league shows Play (Singles or Doubles) and, for doubles, Partners (Fixed partners or Rotating partners). See Doubles below (Wave 2)
 - **Season start:** any day from tomorrow on, chosen with a calendar picker
 - **Match day and time (optional):** a club league can set a weekly match day and time, and every match in a new round gets it. Without one, either player sets their match's date and time inside its week
 - **Time zone:** the league runs on its creator's time zone, taken from their phone at creation. Deadlines name the zone when it isn't the viewer's
@@ -182,6 +182,21 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 3. Players work out a time in a direct chat with their opponent (Message opponent). In a league with no set match time, either player saves the match's date and time inside its week. Full match threads with the Discover request flow come with Discover (Oct 31)
 4. Either player enters the score; the first score entered stands and standings update
 5. Unplayed matches get a 1-week grace period after the round's deadline; matches played in it update Ball Boi stats but not standings
+
+**Doubles (Wave 2)**
+
+Doubles pairing replaces decision 51's hidden state. These are the defaults built in Wave 2, pending John's partner flow review; none is logged as a decision yet.
+
+- **At least 4 players:** a doubles league pairs once it has 4 players
+- **Fixed partners:** each player keeps one partner all season. Admins team players up or split a team in Manage > Teams. Anyone without a partner when a round is drafted is teamed with the closest level and keeps that partner. With an odd count, the newest player waits for a partner and gets a bye
+- **Rotating partners:** each week players are grouped in fours by level, availability and who they've played with, then split into even teams with a new partner. Leftover players (1 to 3) get byes, fewest byes first
+- **Teams on the week:** a fixed team plays only when both partners are open that week; otherwise both have a bye
+- **Standings stay per player:** both partners get the win
+- **No playoffs for doubles yet:** Start a league hides Playoffs for doubles
+- **Admin edits:** the round review swaps any of the four players, including a partner with an opponent, and gives any of them a bye. Team changes apply to rounds prepared afterward; re-pair a draft to pick them up
+- **Blocks:** two players where one blocked the other are never on court together; if a four can't avoid it, those four sit out
+- **Messaging:** Message on your week opens a picker of your partner or either opponent
+- **Notifications:** "You and Sam Lee are playing Alex Kim and Jo Park. Play by Sunday, Nov 15."
 
 **League chat**
 

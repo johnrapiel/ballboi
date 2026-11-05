@@ -1,13 +1,15 @@
 // Rules for starting a league (spec: Leagues > Setup) that the request schema
 // can't express on its own. Pure functions, so they're easy to test.
 //
-// Nov 4 decisions: Doubles is hidden until doubles pairing is built (Q2), and
-// a season starts tomorrow at the earliest, in the league's time zone (Q7),
-// so friends who join on the day it's made are in, not waiting on approval.
+// Nov 4 decisions: a season starts tomorrow at the earliest, in the league's
+// time zone (Q7), so friends who join on the day it's made are in, not waiting
+// on approval. Doubles was hidden until doubles pairing was built (Q2); Wave 2
+// builds it, with fixed or rotating partners and no playoffs for now.
 
 import { addDays, leagueToday } from "./leagueCalendar.js";
 
-export const DOUBLES_NOT_YET = "Doubles leagues aren't available yet. Start a singles league for now.";
+export const PICK_PARTNERS = "Choose fixed or rotating partners for a doubles league.";
+export const NO_DOUBLES_PLAYOFFS = "Playoffs are for singles leagues for now.";
 export const START_TOMORROW = "A season can start tomorrow at the earliest.";
 
 export const SKILL_LEVELS = ["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"] as const;
@@ -21,6 +23,7 @@ export interface LeagueSetupInput {
   maxRating?: string | null;
   startDate: string;
   seasonWeeks: number;
+  playoffSize?: number | null;
   playing?: boolean | null;
   playerName?: string | null;
 }
@@ -36,8 +39,10 @@ export function validateLeagueSetup(input: LeagueSetupInput): string | null {
   if (!Number.isInteger(input.seasonWeeks) || input.seasonWeeks < 1 || input.seasonWeeks > 24) {
     return "A season runs 1 to 24 weeks";
   }
-  if (input.leagueType === "doubles") return DOUBLES_NOT_YET;
-  if (input.partnerMode) {
+  if (input.leagueType === "doubles") {
+    if (input.partnerMode !== "fixed" && input.partnerMode !== "rotating") return PICK_PARTNERS;
+    if (input.playoffSize) return NO_DOUBLES_PLAYOFFS;
+  } else if (input.partnerMode) {
     return "Only doubles leagues have partners";
   }
   const levels: readonly string[] = SKILL_LEVELS;

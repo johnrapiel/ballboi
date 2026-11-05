@@ -7,7 +7,19 @@ import type { ScheduleMatch, ScheduleRound, ScheduleWeek } from "@workspace/api-
 import { Card, Chip, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { canEnterScore, correctionLine, dateRange, deadlineDate, isMine, isNotPlayed, phaseLabel, resultLine, shortDate } from "@/lib/leagueSchedule";
+import {
+  canEnterScore,
+  correctionLine,
+  dateRange,
+  deadlineDate,
+  isMine,
+  isNotPlayed,
+  matchTitle,
+  opponentName,
+  phaseLabel,
+  resultLine,
+  shortDate,
+} from "@/lib/leagueSchedule";
 
 import { UndoScore } from "./UndoScore";
 
@@ -42,7 +54,7 @@ function MatchRow({
     m.status !== "completed" && m.scoreClearedBy ? `Score cleared by ${m.scoreClearedBy}` : null,
   ].filter((n): n is string => !!n);
   const scoreable = mine && canEnterScore(round, m, ended);
-  const summary = `${m.player1Name} versus ${m.player2Name}. ${result}.${notes.map((n) => ` ${n}.`).join("")}`;
+  const summary = `${matchTitle(m).replace(" vs. ", " versus ")}. ${result}.${notes.map((n) => ` ${n}.`).join("")}`;
 
   return (
     <View
@@ -56,9 +68,7 @@ function MatchRow({
       }}
     >
       <View accessible accessibilityLabel={`${mine ? "Your match. " : ""}${summary}`} style={{ flex: 1, gap: 2 }}>
-        <Text variant="bodyStrong">
-          {m.player1Name} vs. {m.player2Name}
-        </Text>
+        <Text variant="bodyStrong">{matchTitle(m)}</Text>
         {notPlayed ? (
           // C6: in words with an icon, never color alone. No standings effect.
           <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space1 }}>
@@ -83,7 +93,7 @@ function MatchRow({
           onPress={() => onEnterScore(m)}
           accessibilityRole="button"
           accessibilityLabel="Enter score"
-          accessibilityHint={`For your match against ${m.player1Id === myPlayerId ? m.player2Name : m.player1Name}`}
+          accessibilityHint={`For your match against ${opponentName(m, myPlayerId!)}`}
           style={({ pressed }) => ({
             minHeight: MIN_TAP,
             minWidth: MIN_TAP,

@@ -11,7 +11,7 @@ import { ListRow, SectionLabel } from "@/components/league/ListRow";
 import { Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { correctionLine, dateRange, resultLine } from "@/lib/leagueSchedule";
+import { correctionLine, dateRange, matchTitle, resultLine } from "@/lib/leagueSchedule";
 import { slotWinningScore } from "@/lib/playoffView";
 
 // Correct a score (Oct 31 review, C5). Manage > Correct a score lists every
@@ -111,7 +111,7 @@ export default function CorrectScoresScreen() {
               {played.map((m, i) => (
                 <ListRow
                   key={m.matchId}
-                  title={`${m.player1Name} vs. ${m.player2Name}`}
+                  title={matchTitle(m)}
                   subtitle={[resultLine(m), correctionLine(m)].filter(Boolean).join(". ")}
                   trailing="Correct"
                   onPress={() =>

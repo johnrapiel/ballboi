@@ -146,21 +146,84 @@ export function phaseLabel(phase: ScheduleRound["phase"]): string {
   }
 }
 
-export function opponentName(m: ScheduleMatch, myPlayerId: number): string {
-  return m.player1Id === myPlayerId ? m.player2Name : m.player1Name;
+// Doubles (Wave 2): side 1 is player 1 and player 3, side 2 is player 2 and
+// player 4. Singles matches have no player 3 or 4.
+
+type Sides = Pick<ScheduleMatch, "player1Id" | "player1Name" | "player2Id" | "player2Name"> &
+  Partial<Pick<ScheduleMatch, "player3Id" | "player3Name" | "player4Id" | "player4Name">>;
+type SideIds = Pick<ScheduleMatch, "player1Id"> & Partial<Pick<ScheduleMatch, "player2Id" | "player3Id" | "player4Id">>;
+
+export function isDoublesMatch(m: Partial<Pick<ScheduleMatch, "player3Id" | "player4Id">>): boolean {
+  return m.player3Id != null && m.player4Id != null;
 }
 
-export function isMine(m: ScheduleMatch, myPlayerId: number | null | undefined): boolean {
-  return myPlayerId != null && (m.player1Id === myPlayerId || m.player2Id === myPlayerId);
+/** 1 for player 1's side, 2 for player 2's, null when the player isn't in the match. */
+export function sideOf(m: SideIds, playerId: number | null | undefined): 1 | 2 | null {
+  if (playerId == null) return null;
+  if (m.player1Id === playerId || m.player3Id === playerId) return 1;
+  if (m.player2Id === playerId || m.player4Id === playerId) return 2;
+  return null;
+}
+
+/** "Alex Kim", or "Alex Kim and Sam Lee" in doubles. */
+export function sideName(m: Sides, side: 1 | 2): string {
+  const names = side === 1 ? [m.player1Name, m.player3Name] : [m.player2Name, m.player4Name];
+  return names.filter((n): n is string => !!n).join(" and ");
+}
+
+/** "Alex Kim vs. Jo Park", or "Alex Kim and Sam Lee vs. Jo Park and Lee Chen". */
+export function matchTitle(m: Sides): string {
+  return `${sideName(m, 1)} vs. ${sideName(m, 2)}`;
+}
+
+/** The other side, as one name: your opponent, or your two opponents in doubles. */
+export function opponentName(m: Sides, myPlayerId: number): string {
+  return sideName(m, sideOf(m, myPlayerId) === 2 ? 1 : 2);
+}
+
+/** Your doubles partner, or null in singles. */
+export function partnerOf(m: Sides, myPlayerId: number): { playerId: number; name: string } | null {
+  if (m.player3Id == null || m.player4Id == null) return null;
+  const pairs: [number, number, string | null | undefined][] = [
+    [m.player1Id, m.player3Id, m.player3Name],
+    [m.player3Id, m.player1Id, m.player1Name],
+    [m.player2Id, m.player4Id, m.player4Name],
+    [m.player4Id, m.player2Id, m.player2Name],
+  ];
+  const found = pairs.find(([me]) => me === myPlayerId);
+  return found ? { playerId: found[1], name: found[2] ?? "Your partner" } : null;
+}
+
+/** "Alex" from "Alex Kim", or "Alex and Sam" from "Alex Kim and Sam Lee". */
+export function firstNames(name: string): string {
+  return name
+    .split(" and ")
+    .map((n) => n.trim().split(" ")[0])
+    .join(" and ");
+}
+
+/** Everyone in a match, side 1 first: two players, or four in doubles. */
+export function matchPlayers(m: Sides): { playerId: number; name: string }[] {
+  const slots: [number | null | undefined, string | null | undefined][] = [
+    [m.player1Id, m.player1Name],
+    [m.player3Id, m.player3Name],
+    [m.player2Id, m.player2Name],
+    [m.player4Id, m.player4Name],
+  ];
+  return slots.flatMap(([playerId, name]) => (playerId == null ? [] : [{ playerId, name: name ?? "Player" }]));
+}
+
+export function isMine(m: Sides, myPlayerId: number | null | undefined): boolean {
+  return sideOf(m, myPlayerId) != null;
 }
 
 /** A stored score (player 1's side) as the given player sees it: their games first. RET and W/O stay. */
-export function scoreForPlayer(score: string, m: Pick<ScheduleMatch, "player1Id">, playerId: number): string {
-  return m.player1Id === playerId ? score : flipScore(score);
+export function scoreForPlayer(score: string, m: SideIds, playerId: number): string {
+  return sideOf(m, playerId) === 1 ? score : flipScore(score);
 }
 
 /** "6-3, 6-4" from the winner's side, or "by W/O" for a walkover (C18, Q5). */
-export function winningScore(score: string, m: Pick<ScheduleMatch, "player1Id">, winnerId: number): string {
+export function winningScore(score: string, m: SideIds, winnerId: number): string {
   return score.trim() === WALKOVER_SCORE ? `by ${WALKOVER_SCORE}` : scoreForPlayer(score, m, winnerId);
 }
 
@@ -178,7 +241,8 @@ export function resultLine(m: ScheduleMatch, round?: Pick<ScheduleRound, "phase"
   if (m.voided) return "Cancelled";
   if (round && isNotPlayed(round, m, ended)) return "Not played";
   if (m.status !== "completed" || !m.score || m.winnerId == null) return ended ? "Not played" : "Not played yet";
-  const winner = m.winnerId === m.player1Id ? m.player1Name : m.player2Name;
+  // Doubles store the winning side by its first player (player 1 or player 2).
+  const winner = sideName(m, sideOf(m, m.winnerId) === 2 ? 2 : 1);
   return `${winner} won ${winningScore(m.score, m, m.winnerId)}`;
 }
 

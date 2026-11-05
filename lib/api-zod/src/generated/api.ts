@@ -953,6 +953,44 @@ export const GetLeagueScheduleResponse = zod.object({
           ]),
           player1HasAccount: zod.boolean(),
           player2HasAccount: zod.boolean(),
+          player3Id: zod
+            .number()
+            .nullable()
+            .describe(
+              "Doubles only. Player 1's partner; side 1 is player 1 and player 3",
+            ),
+          player3Name: zod.string().nullable(),
+          player3Rating: zod.union([
+            zod
+              .object({
+                rating: zod.number(),
+                source: zod.enum(["self", "verified"]),
+              })
+              .describe(
+                'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+              ),
+            zod.null(),
+          ]),
+          player3HasAccount: zod.boolean(),
+          player4Id: zod
+            .number()
+            .nullable()
+            .describe(
+              "Doubles only. Player 2's partner; side 2 is player 2 and player 4",
+            ),
+          player4Name: zod.string().nullable(),
+          player4Rating: zod.union([
+            zod
+              .object({
+                rating: zod.number(),
+                source: zod.enum(["self", "verified"]),
+              })
+              .describe(
+                'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+              ),
+            zod.null(),
+          ]),
+          player4HasAccount: zod.boolean(),
           status: zod.string(),
           score: zod.string().nullable().describe("From player 1's side"),
           winnerId: zod.number().nullable(),
@@ -1010,6 +1048,93 @@ export const GetLeagueScheduleResponse = zod.object({
     )
     .describe("Weeks this season with no round yet"),
 });
+
+/**
+ * @summary A fixed-partner doubles league's teams and the players still without a partner
+ */
+export const GetLeagueTeamsParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const GetLeagueTeamsResponse = zod
+  .object({
+    leagueId: zod.number(),
+    fixedPartners: zod
+      .boolean()
+      .describe(
+        "False for singles and rotating-partner leagues, which have no teams",
+      ),
+    teams: zod.array(
+      zod.object({
+        teamId: zod.number(),
+        players: zod.array(
+          zod.object({
+            playerId: zod.number(),
+            name: zod.string(),
+          }),
+        ),
+      }),
+    ),
+    unpartnered: zod.array(
+      zod.object({
+        playerId: zod.number(),
+        name: zod.string(),
+      }),
+    ),
+  })
+  .describe(
+    "Fixed-partner doubles. Anyone without a partner when a round is drafted is teamed with the closest level",
+  );
+
+/**
+ * @summary Team two players up for the season (admins only, fixed-partner doubles)
+ */
+export const CreateLeagueTeamParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const CreateLeagueTeamBody = zod.object({
+  playerAId: zod.number(),
+  playerBId: zod.number(),
+});
+
+/**
+ * @summary Split a team (admins only, fixed-partner doubles)
+ */
+export const DeleteLeagueTeamParams = zod.object({
+  leagueId: zod.coerce.number(),
+  teamId: zod.coerce.number(),
+});
+
+export const DeleteLeagueTeamResponse = zod
+  .object({
+    leagueId: zod.number(),
+    fixedPartners: zod
+      .boolean()
+      .describe(
+        "False for singles and rotating-partner leagues, which have no teams",
+      ),
+    teams: zod.array(
+      zod.object({
+        teamId: zod.number(),
+        players: zod.array(
+          zod.object({
+            playerId: zod.number(),
+            name: zod.string(),
+          }),
+        ),
+      }),
+    ),
+    unpartnered: zod.array(
+      zod.object({
+        playerId: zod.number(),
+        name: zod.string(),
+      }),
+    ),
+  })
+  .describe(
+    "Fixed-partner doubles. Anyone without a partner when a round is drafted is teamed with the closest level",
+  );
 
 /**
  * @summary The playoff bracket, or null before playoffs start
@@ -1617,6 +1742,44 @@ export const DraftNextLeagueRoundResponse = zod.object({
       ]),
       player1HasAccount: zod.boolean(),
       player2HasAccount: zod.boolean(),
+      player3Id: zod
+        .number()
+        .nullable()
+        .describe(
+          "Doubles only. Player 1's partner; side 1 is player 1 and player 3",
+        ),
+      player3Name: zod.string().nullable(),
+      player3Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+          ),
+        zod.null(),
+      ]),
+      player3HasAccount: zod.boolean(),
+      player4Id: zod
+        .number()
+        .nullable()
+        .describe(
+          "Doubles only. Player 2's partner; side 2 is player 2 and player 4",
+        ),
+      player4Name: zod.string().nullable(),
+      player4Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+          ),
+        zod.null(),
+      ]),
+      player4HasAccount: zod.boolean(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -1709,6 +1872,44 @@ export const RepairLeagueRoundResponse = zod.object({
       ]),
       player1HasAccount: zod.boolean(),
       player2HasAccount: zod.boolean(),
+      player3Id: zod
+        .number()
+        .nullable()
+        .describe(
+          "Doubles only. Player 1's partner; side 1 is player 1 and player 3",
+        ),
+      player3Name: zod.string().nullable(),
+      player3Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+          ),
+        zod.null(),
+      ]),
+      player3HasAccount: zod.boolean(),
+      player4Id: zod
+        .number()
+        .nullable()
+        .describe(
+          "Doubles only. Player 2's partner; side 2 is player 2 and player 4",
+        ),
+      player4Name: zod.string().nullable(),
+      player4Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+          ),
+        zod.null(),
+      ]),
+      player4HasAccount: zod.boolean(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -1801,6 +2002,44 @@ export const PublishLeagueRoundResponse = zod.object({
       ]),
       player1HasAccount: zod.boolean(),
       player2HasAccount: zod.boolean(),
+      player3Id: zod
+        .number()
+        .nullable()
+        .describe(
+          "Doubles only. Player 1's partner; side 1 is player 1 and player 3",
+        ),
+      player3Name: zod.string().nullable(),
+      player3Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+          ),
+        zod.null(),
+      ]),
+      player3HasAccount: zod.boolean(),
+      player4Id: zod
+        .number()
+        .nullable()
+        .describe(
+          "Doubles only. Player 2's partner; side 2 is player 2 and player 4",
+        ),
+      player4Name: zod.string().nullable(),
+      player4Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+          ),
+        zod.null(),
+      ]),
+      player4HasAccount: zod.boolean(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -1898,6 +2137,44 @@ export const SwapLeagueRoundPlayersResponse = zod.object({
       ]),
       player1HasAccount: zod.boolean(),
       player2HasAccount: zod.boolean(),
+      player3Id: zod
+        .number()
+        .nullable()
+        .describe(
+          "Doubles only. Player 1's partner; side 1 is player 1 and player 3",
+        ),
+      player3Name: zod.string().nullable(),
+      player3Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+          ),
+        zod.null(),
+      ]),
+      player3HasAccount: zod.boolean(),
+      player4Id: zod
+        .number()
+        .nullable()
+        .describe(
+          "Doubles only. Player 2's partner; side 2 is player 2 and player 4",
+        ),
+      player4Name: zod.string().nullable(),
+      player4Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+          ),
+        zod.null(),
+      ]),
+      player4HasAccount: zod.boolean(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -1994,6 +2271,44 @@ export const AddLeagueRoundByeResponse = zod.object({
       ]),
       player1HasAccount: zod.boolean(),
       player2HasAccount: zod.boolean(),
+      player3Id: zod
+        .number()
+        .nullable()
+        .describe(
+          "Doubles only. Player 1's partner; side 1 is player 1 and player 3",
+        ),
+      player3Name: zod.string().nullable(),
+      player3Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+          ),
+        zod.null(),
+      ]),
+      player3HasAccount: zod.boolean(),
+      player4Id: zod
+        .number()
+        .nullable()
+        .describe(
+          "Doubles only. Player 2's partner; side 2 is player 2 and player 4",
+        ),
+      player4Name: zod.string().nullable(),
+      player4Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+          ),
+        zod.null(),
+      ]),
+      player4HasAccount: zod.boolean(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -2087,6 +2402,44 @@ export const RemoveLeagueRoundByeResponse = zod.object({
       ]),
       player1HasAccount: zod.boolean(),
       player2HasAccount: zod.boolean(),
+      player3Id: zod
+        .number()
+        .nullable()
+        .describe(
+          "Doubles only. Player 1's partner; side 1 is player 1 and player 3",
+        ),
+      player3Name: zod.string().nullable(),
+      player3Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+          ),
+        zod.null(),
+      ]),
+      player3HasAccount: zod.boolean(),
+      player4Id: zod
+        .number()
+        .nullable()
+        .describe(
+          "Doubles only. Player 2's partner; side 2 is player 2 and player 4",
+        ),
+      player4Name: zod.string().nullable(),
+      player4Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+          ),
+        zod.null(),
+      ]),
+      player4HasAccount: zod.boolean(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -2184,6 +2537,44 @@ export const LockLeagueRoundMatchResponse = zod.object({
       ]),
       player1HasAccount: zod.boolean(),
       player2HasAccount: zod.boolean(),
+      player3Id: zod
+        .number()
+        .nullable()
+        .describe(
+          "Doubles only. Player 1's partner; side 1 is player 1 and player 3",
+        ),
+      player3Name: zod.string().nullable(),
+      player3Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+          ),
+        zod.null(),
+      ]),
+      player3HasAccount: zod.boolean(),
+      player4Id: zod
+        .number()
+        .nullable()
+        .describe(
+          "Doubles only. Player 2's partner; side 2 is player 2 and player 4",
+        ),
+      player4Name: zod.string().nullable(),
+      player4Rating: zod.union([
+        zod
+          .object({
+            rating: zod.number(),
+            source: zod.enum(["self", "verified"]),
+          })
+          .describe(
+            'A player\'s level and where it came from, for the level badge. \"self\" is their self-rated level from Edit profile; \"verified\" is for a future linked rating source',
+          ),
+        zod.null(),
+      ]),
+      player4HasAccount: zod.boolean(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),

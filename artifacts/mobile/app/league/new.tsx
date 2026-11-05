@@ -26,10 +26,12 @@ import { useProfile } from "@/hooks/useProfile";
 
 // Start a league (spec: Leagues > Setup and Onboarding > Run a league;
 // canvas: Admin · Create league). Anyone can start one and becomes its admin.
-// Singles only for now (Q2). A season starts tomorrow at the earliest (Q7), so a
-// friend who joins on the day it's made is in from round 1.
+// Singles or doubles (Wave 2: doubles pairing). A season starts tomorrow at the
+// earliest (Q7), so a friend who joins on the day it's made is in from round 1.
 
 type Format = "flex" | "round_robin";
+type Play = "singles" | "doubles";
+type Partners = "fixed" | "rotating";
 
 // Season length limits match the spec (Leagues > Setup: 1 to 24 weeks) and the API.
 const DEFAULT_WEEKS = 8;
@@ -205,6 +207,9 @@ export default function StartLeagueScreen() {
     setWeeksText(String(weeks));
   };
   const [playoffs, setPlayoffs] = useState<0 | 4 | 8>(0);
+  const [play, setPlay] = useState<Play>("singles");
+  const [partners, setPartners] = useState<Partners>("fixed");
+  const doubles = play === "doubles";
   const [playing, setPlaying] = useState(true);
   const [setTime, setSetTime] = useState(false);
   const [matchDay, setMatchDay] = useState<number>(() => nextMonday().getDay());
@@ -231,9 +236,8 @@ export default function StartLeagueScreen() {
     const body: CreateLeagueBody = {
       name: name.trim(),
       format,
-      // Q2: doubles leagues come later.
-      leagueType: "singles",
-      partnerMode: null,
+      leagueType: play,
+      partnerMode: doubles ? partners : null,
       // Open leagues (listed in Discover, with join requests) come back once
       // Discover and join requests are built. Until then every league is private.
       visibility: "private",
@@ -242,7 +246,8 @@ export default function StartLeagueScreen() {
       rosterCap: null,
       startDate: dateKey(start),
       seasonWeeks: weeks,
-      playoffSize: playoffs,
+      // Playoffs are for singles leagues for now (Wave 2).
+      playoffSize: doubles ? 0 : playoffs,
       location: location.trim() || null,
       playing,
       playerName: playing ? playerName || "Admin" : null,
@@ -303,6 +308,32 @@ export default function StartLeagueScreen() {
         </Section>
 
         <Section title="How it works">
+          <ChoiceGroup<Play>
+            label="Play"
+            value={play}
+            onChange={setPlay}
+            options={[
+              { value: "singles", label: "Singles" },
+              { value: "doubles", label: "Doubles" },
+            ]}
+            hint={doubles ? "Doubles needs at least 4 players." : undefined}
+          />
+          {doubles ? (
+            <ChoiceGroup<Partners>
+              label="Partners"
+              value={partners}
+              onChange={setPartners}
+              options={[
+                { value: "fixed", label: "Fixed partners" },
+                { value: "rotating", label: "Rotating partners" },
+              ]}
+              hint={
+                partners === "fixed"
+                  ? "Each player keeps one partner all season. You can team players up in Manage."
+                  : "Players get a new partner each week, picked by level."
+              }
+            />
+          ) : null}
           <ChoiceGroup<Format>
             label="Format"
             value={format}
@@ -364,16 +395,18 @@ export default function StartLeagueScreen() {
             time={matchClock}
             onTimeChange={setMatchClock}
           />
-          <ChoiceGroup<0 | 4 | 8>
-            label="Playoffs"
-            value={playoffs}
-            onChange={setPlayoffs}
-            options={[
-              { value: 0, label: "None" },
-              { value: 4, label: "Top 4" },
-              { value: 8, label: "Top 8" },
-            ]}
-          />
+          {doubles ? null : (
+            <ChoiceGroup<0 | 4 | 8>
+              label="Playoffs"
+              value={playoffs}
+              onChange={setPlayoffs}
+              options={[
+                { value: 0, label: "None" },
+                { value: 4, label: "Top 4" },
+                { value: 8, label: "Top 8" },
+              ]}
+            />
+          )}
         </Section>
 
         <Card style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3 }}>

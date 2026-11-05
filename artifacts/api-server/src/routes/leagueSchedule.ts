@@ -1,7 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { getAuth } from "@clerk/express";
-import { db, leagueRoundByesTable, leagueRoundsTable, leaguesTable, matchesTable, playersTable, usersTable, type League, type LeagueRound } from "@workspace/db";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { db, leagueRoundByesTable, leagueRoundsTable, leaguesTable, leagueTeamsTable, matchesTable, playersTable, usersTable, type League, type LeagueRound } from "@workspace/db";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { canViewLeague, getLeagueRole, PRIVATE_LEAGUE } from "../lib/leagueAccess.js";
 import { graceEndFor, leagueZone, roundPhase, roundWindow, todayFor } from "../lib/leagueCalendar.js";
 import { undoDeadline } from "../lib/leagueScoreChanges.js";
@@ -10,6 +10,8 @@ import { planBye, planLock, planSwap, unpairedPlayers } from "../lib/roundEdits.
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
 import { draftNextRound, loadDraftRound, publishRound, repairRound, usesWeeklyRounds } from "../services/leagueRounds.js";
 import { bracketFor } from "../services/leaguePlayoffs.js";
+import { checkNewTeam } from "../lib/doublesPairing.js";
+import { activeTeams, isDoubles, partnerModeOf } from "../services/doublesRounds.js";
 
 // League schedule and the admin's weekly review (spec: Leagues > Weekly loop).
 // Players see rounds once they've gone out; admins also see the draft for
@@ -55,7 +57,9 @@ async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDe
       includeDraftDetail && phase === "draft"
         ? unpairedPlayers({
             published: false,
-            matches: roundMatches.filter((m) => !m.voidedAt).map((m) => ({ id: m.id, player1Id: m.player1Id, player2Id: m.player2Id, locked: m.locked })),
+            matches: roundMatches
+              .filter((m) => !m.voidedAt)
+              .map((m) => ({ id: m.id, player1Id: m.player1Id, player2Id: m.player2Id, player3Id: m.player3Id, player4Id: m.player4Id, locked: m.locked })),
             byes: roundByes.map((b) => ({ playerId: b.playerId, setByAdmin: b.setByAdmin })),
             activePlayerIds: activeIds,
           })
@@ -80,6 +84,8 @@ async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDe
           // C7: Message only works with players who have a Ball Boi account.
           player1HasAccount: !!players.find((p) => p.id === m.player1Id)?.clerkUserId,
           player2HasAccount: !!players.find((p) => p.id === m.player2Id)?.clerkUserId,
+          // Doubles (Wave 2): player3 partners player1, player4 partners player2.
+          ...partnerFields(m.player3Id, m.player4Id, name, rating, (id) => !!players.find((p) => p.id === id)?.clerkUserId),
           status: m.status,
           score: m.score ?? null,
           winnerId: m.winnerId ?? null,
@@ -101,6 +107,26 @@ async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDe
       unpaired: unpaired.map((id) => ({ playerId: id, playerName: name(id) })),
     };
   });
+}
+
+/** Doubles partners on a schedule match, or nulls for singles. */
+function partnerFields(
+  player3Id: number | null,
+  player4Id: number | null,
+  name: (id: number) => string,
+  rating: (id: number) => { rating: number; source: string } | null,
+  hasAccount: (id: number) => boolean,
+) {
+  return {
+    player3Id,
+    player3Name: player3Id != null ? name(player3Id) : null,
+    player3Rating: player3Id != null ? rating(player3Id) : null,
+    player3HasAccount: player3Id != null && hasAccount(player3Id),
+    player4Id,
+    player4Name: player4Id != null ? name(player4Id) : null,
+    player4Rating: player4Id != null ? rating(player4Id) : null,
+    player4HasAccount: player4Id != null && hasAccount(player4Id),
+  };
 }
 
 const router = Router();
@@ -216,7 +242,10 @@ router.post("/leagues/:leagueId/rounds/:roundId/swap", requireLeagueAdmin, async
   if ("error" in plan) { res.status(409).json({ error: plan.error }); return; }
   await db.transaction(async (tx) => {
     for (const u of plan.matchUpdates) {
-      await tx.update(matchesTable).set({ player1Id: u.player1Id, player2Id: u.player2Id }).where(eq(matchesTable.id, u.matchId));
+      await tx
+        .update(matchesTable)
+        .set({ player1Id: u.player1Id, player2Id: u.player2Id, player3Id: u.player3Id, player4Id: u.player4Id })
+        .where(eq(matchesTable.id, u.matchId));
     }
     for (const m of plan.byeMoves) {
       await tx
@@ -266,6 +295,87 @@ router.post("/leagues/:leagueId/rounds/:roundId/matches/:matchId/lock", requireL
   if (problem) { res.status(409).json({ error: problem }); return; }
   await db.update(matchesTable).set({ locked }).where(eq(matchesTable.id, matchId));
   await respondWithRound(res, found.league, found.round.id);
+});
+
+// Fixed-partner doubles teams (Wave 2). Admins team players up in Manage;
+// anyone without a partner when a round is drafted is teamed with the
+// closest level. Changes apply to rounds drafted after them.
+
+const NOT_FIXED = "Only fixed-partner doubles leagues have teams.";
+
+async function teamsView(league: League) {
+  const players = await db
+    .select({ id: playersTable.id, name: playersTable.name, clerkUserId: playersTable.clerkUserId, displayName: usersTable.displayName })
+    .from(playersTable)
+    .leftJoin(usersTable, eq(usersTable.clerkUserId, playersTable.clerkUserId))
+    .where(and(eq(playersTable.leagueId, league.id), isNull(playersTable.leftAt)));
+  // A1: a signed-up player's profile name; a placeholder's name from the row.
+  const person = (id: number) => {
+    const p = players.find((x) => x.id === id);
+    return { playerId: id, name: (p?.clerkUserId ? p.displayName?.trim() : null) || p?.name || "Player" };
+  };
+  const fixed = isDoubles(league) && partnerModeOf(league) === "fixed";
+  const teams = fixed ? await activeTeams(league.id) : [];
+  const onTeam = new Set(teams.flatMap((t) => t.playerIds));
+  return {
+    leagueId: league.id,
+    fixedPartners: fixed,
+    teams: teams.map((t) => ({ teamId: t.id, players: t.playerIds.map(person) })),
+    unpartnered: fixed ? players.filter((p) => !onTeam.has(p.id)).map((p) => person(p.id)) : [],
+  };
+}
+
+/** A fixed-partner doubles league's teams and the players still without a partner. */
+router.get("/leagues/:leagueId/teams", requireAuth, async (req, res) => {
+  const leagueId = parseInt(String(req.params.leagueId));
+  if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid league ID" }); return; }
+  const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
+  if (!league) { res.status(404).json({ error: "League not found" }); return; }
+  if (!(await canViewLeague(league, getAuth(req).userId!))) { res.status(403).json({ error: PRIVATE_LEAGUE }); return; }
+  res.json(await teamsView(league));
+});
+
+/** Loads a fixed-partner league for an admin's team change, or answers with a problem. */
+async function teamsLeague(res: Response): Promise<League | null> {
+  const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, res.locals.leagueId as number));
+  if (!league) { res.status(404).json({ error: "League not found" }); return null; }
+  if (!isDoubles(league) || partnerModeOf(league) !== "fixed") { res.status(400).json({ error: NOT_FIXED }); return null; }
+  if (leagueHasEnded(league)) { res.status(409).json({ error: "This league has ended, so teams can't change." }); return null; }
+  return league;
+}
+
+/** Admins: team two players up for the season. */
+router.post("/leagues/:leagueId/teams", requireLeagueAdmin, async (req, res) => {
+  const league = await teamsLeague(res);
+  if (!league) return;
+  const a = Number(req.body?.playerAId);
+  const b = Number(req.body?.playerBId);
+  if (!Number.isInteger(a) || !Number.isInteger(b)) { res.status(400).json({ error: "Pick two players to team up." }); return; }
+  const active = await db
+    .select({ id: playersTable.id })
+    .from(playersTable)
+    .where(and(eq(playersTable.leagueId, league.id), isNull(playersTable.leftAt)));
+  // A team row whose partner left doesn't count, and is cleared here.
+  const all = await db.select().from(leagueTeamsTable).where(eq(leagueTeamsTable.leagueId, league.id));
+  const live = await activeTeams(league.id);
+  const stale = all.filter((t) => !live.some((l) => l.id === t.id) && [t.player1Id, t.player2Id].some((id) => id === a || id === b));
+  const problem = checkNewTeam({ teams: live, activePlayerIds: active.map((p) => p.id), a, b });
+  if (problem) { res.status(409).json({ error: problem }); return; }
+  await db.transaction(async (tx) => {
+    if (stale.length) await tx.delete(leagueTeamsTable).where(inArray(leagueTeamsTable.id, stale.map((t) => t.id)));
+    await tx.insert(leagueTeamsTable).values({ leagueId: league.id, player1Id: Math.min(a, b), player2Id: Math.max(a, b) });
+  });
+  res.status(201).json(await teamsView(league));
+});
+
+/** Admins: split a team. Both players are without a partner until teamed again. */
+router.delete("/leagues/:leagueId/teams/:teamId", requireLeagueAdmin, async (req, res) => {
+  const league = await teamsLeague(res);
+  if (!league) return;
+  const teamId = parseInt(String(req.params.teamId));
+  if (isNaN(teamId)) { res.status(400).json({ error: "Invalid team ID" }); return; }
+  await db.delete(leagueTeamsTable).where(and(eq(leagueTeamsTable.id, teamId), eq(leagueTeamsTable.leagueId, league.id)));
+  res.json(await teamsView(league));
 });
 
 export default router;

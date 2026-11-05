@@ -671,6 +671,60 @@ paths:
               schema:
                 $ref: "#/components/schemas/LeagueSchedule"
 
+  /leagues/{leagueId}/teams:
+    get:
+      operationId: getLeagueTeams
+      tags: [leagues]
+      summary: A fixed-partner doubles league's teams and the players still without a partner
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      responses:
+        "200":
+          description: Teams
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueTeams"
+    post:
+      operationId: createLeagueTeam
+      tags: [leagues]
+      summary: Team two players up for the season (admins only, fixed-partner doubles)
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SwapPlayersBody"
+      responses:
+        "201":
+          description: Teams after the change
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueTeams"
+
+  /leagues/{leagueId}/teams/{teamId}:
+    delete:
+      operationId: deleteLeagueTeam
+      tags: [leagues]
+      summary: Split a team (admins only, fixed-partner doubles)
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Teams after the change
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueTeams"
+
   /leagues/{leagueId}/bracket:
     get:
       operationId: getLeagueBracket
@@ -2700,6 +2754,45 @@ components:
             - type: "null"
       required: [bracketId, status, size, seeds, rounds, champion]
 
+    LeagueTeamPlayer:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        name:
+          type: string
+      required: [playerId, name]
+
+    LeagueTeam:
+      type: object
+      properties:
+        teamId:
+          type: integer
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeagueTeamPlayer"
+      required: [teamId, players]
+
+    LeagueTeams:
+      type: object
+      description: Fixed-partner doubles. Anyone without a partner when a round is drafted is teamed with the closest level
+      properties:
+        leagueId:
+          type: integer
+        fixedPartners:
+          type: boolean
+          description: False for singles and rotating-partner leagues, which have no teams
+        teams:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeagueTeam"
+        unpartnered:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeagueTeamPlayer"
+      required: [leagueId, fixedPartners, teams, unpartnered]
+
     SchedulePlayer:
       type: object
       properties:
@@ -2764,6 +2857,28 @@ components:
           type: boolean
         player2HasAccount:
           type: boolean
+        player3Id:
+          type: ["integer", "null"]
+          description: Doubles only. Player 1's partner; side 1 is player 1 and player 3
+        player3Name:
+          type: ["string", "null"]
+        player3Rating:
+          oneOf:
+            - $ref: "#/components/schemas/MatchPlayerRating"
+            - type: "null"
+        player3HasAccount:
+          type: boolean
+        player4Id:
+          type: ["integer", "null"]
+          description: Doubles only. Player 2's partner; side 2 is player 2 and player 4
+        player4Name:
+          type: ["string", "null"]
+        player4Rating:
+          oneOf:
+            - $ref: "#/components/schemas/MatchPlayerRating"
+            - type: "null"
+        player4HasAccount:
+          type: boolean
         status:
           type: string
         score:
@@ -2792,7 +2907,7 @@ components:
         scoreClearedBy:
           type: ["string", "null"]
           description: The player who undid the score, shown to the opponent until a new score is in
-      required: [matchId, player1Id, player1Name, player2Id, player2Name, player1Rating, player2Rating, player1HasAccount, player2HasAccount, status, score, winnerId, inGrace, voided, locked, scheduledAt, location, undoUntil, correctedBy, correctedAt, scoreClearedBy]
+      required: [matchId, player1Id, player1Name, player2Id, player2Name, player1Rating, player2Rating, player1HasAccount, player2HasAccount, player3Id, player3Name, player3Rating, player3HasAccount, player4Id, player4Name, player4Rating, player4HasAccount, status, score, winnerId, inGrace, voided, locked, scheduledAt, location, undoUntil, correctedBy, correctedAt, scoreClearedBy]
 
     MatchPlayerRating:
       type: object
