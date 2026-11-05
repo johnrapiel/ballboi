@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import { db, leaguesTable, scheduleGenerationLogsTable, matchesTable, playersTable, playerAvailabilityTable, matchRemindersLogTable, leagueRoundsTable, playoffBracketsTable } from "@workspace/db";
+import { db, leaguesTable, scheduleGenerationLogsTable, matchesTable, playersTable, playerAvailabilityTable, matchRemindersLogTable, leagueRoundsTable, playoffBracketsTable, usersTable } from "@workspace/db";
 import { eq, and, gte, lt, inArray, desc, asc, isNull } from "drizzle-orm";
 import { generateWeeklyMatches, saveGeneratedMatches } from "./matchGeneration";
 import { generateAllRounds } from "./roundPairing";
@@ -9,6 +9,7 @@ import { retryFailedBallBoiSessions } from "./ballBoiRetry";
 import { failStuckAnalyses } from "./ballBoiStuck";
 import { runAllLeagueDays } from "./leagueRounds";
 import { sweepSessionVideos } from "../lib/videoRetention";
+import { remindedUserIds } from "../lib/matchReminders";
 import { DEFAULT_LEAGUE_TIME_ZONE, addDays, dayBounds, leagueToday, leagueZone, localHour } from "../lib/leagueCalendar";
 
 function getMondayOf(date: Date): string {
@@ -277,6 +278,19 @@ async function remindForZone(zone: string, now: Date, zoneOf: Map<number, string
     const playerMap: Record<number, typeof players[0]> = {};
     for (const p of players) playerMap[p.id] = p;
 
+    // Accounts that turned Match day reminders off in Profile (Wave 2).
+    const accountIds = Array.from(new Set(players.map((p) => p.clerkUserId).filter((id): id is string => !!id)));
+    const turnedOff = new Set<string>(
+      accountIds.length > 0
+        ? (
+            await db
+              .select({ clerkUserId: usersTable.clerkUserId })
+              .from(usersTable)
+              .where(and(inArray(usersTable.clerkUserId, accountIds), eq(usersTable.matchRemindersEnabled, false)))
+          ).map((u) => u.clerkUserId)
+        : [],
+    );
+
     for (const match of tomorrowMatches) {
       try {
         const [claimedReminder] = await db
@@ -327,12 +341,8 @@ async function remindForZone(zone: string, now: Date, zoneOf: Map<number, string
           const team1Names = `${p1?.name ?? "Unknown"} & ${p3?.name ?? "Unknown"}`;
           const team2Names = `${p2?.name ?? "Unknown"} & ${p4?.name ?? "Unknown"}`;
 
-          const team1Ids = [p1, p3]
-            .filter((player) => player?.clerkUserId && player.dayBeforeMatchReminderEnabled)
-            .map((player) => player!.clerkUserId as string);
-          const team2Ids = [p2, p4]
-            .filter((player) => player?.clerkUserId && player.dayBeforeMatchReminderEnabled)
-            .map((player) => player!.clerkUserId as string);
+          const team1Ids = remindedUserIds([p1, p3], turnedOff);
+          const team2Ids = remindedUserIds([p2, p4], turnedOff);
 
           if (team1Ids.length > 0) {
             await sendPushToUsers(
@@ -352,17 +362,19 @@ async function remindForZone(zone: string, now: Date, zoneOf: Map<number, string
           }
         } else {
           // Singles: send to each player with their specific opponent
-          if (p1?.clerkUserId && p1.dayBeforeMatchReminderEnabled) {
+          const [p1Id] = remindedUserIds([p1], turnedOff);
+          const [p2Id] = remindedUserIds([p2], turnedOff);
+          if (p1Id) {
             await sendPushToUsers(
-              [p1.clerkUserId],
+              [p1Id],
               "Match Tomorrow",
               `vs ${p2?.name ?? "Unknown"} at ${timeStr}. ${locationStr}`,
               matchLink
             );
           }
-          if (p2?.clerkUserId && p2.dayBeforeMatchReminderEnabled) {
+          if (p2Id) {
             await sendPushToUsers(
-              [p2.clerkUserId],
+              [p2Id],
               "Match Tomorrow",
               `vs ${p1?.name ?? "Unknown"} at ${timeStr}. ${locationStr}`,
               matchLink

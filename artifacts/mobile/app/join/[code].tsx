@@ -17,6 +17,7 @@ import { useColors } from "@/hooks/useColors";
 import { useGate } from "@/hooks/useGate";
 import { useProfile } from "@/hooks/useProfile";
 import { cleanCode, savePendingJoinCode } from "@/lib/leagueInvite";
+import { askForMatchReminders } from "@/lib/notifications";
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { shortDate } from "@/lib/leagueSchedule";
 import { playersLabel } from "@/lib/leagues";
@@ -115,6 +116,9 @@ export default function JoinLeagueScreen() {
           : { kind: "joined", leagueId: result.league.id ?? null, message: `You joined ${result.league.name ?? "the league"}.` };
       setDone(next);
       AccessibilityInfo.announceForAccessibility(next.message);
+      // Wave 2: in a league now, so match day reminders matter. The reason
+      // screen, then the iOS prompt, once per phone (decisions 11 and 73).
+      if (next.kind === "joined") void askForMatchReminders(router);
     } catch (e) {
       const s = (e as { status?: number }).status;
       const code = (e as { data?: { code?: string } | null }).data?.code;
