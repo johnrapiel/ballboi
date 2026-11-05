@@ -26,6 +26,7 @@ import {
   type UnknownRecord,
 } from "../lib/ballBoiUtils";
 import { computeNextRetryAt } from "../services/ballBoiRetry";
+import { phoneCourtCalibration } from "../lib/phoneCourtCalibration";
 import { isMlServiceUnreachable } from "../lib/mlServiceErrors";
 import { keepForTraining, settleSessionVideo } from "../lib/videoRetention";
 import {
@@ -219,6 +220,9 @@ router.post("/ball-boi/matches/:matchId/sessions/start", requireAuth, async (req
     const sent = asRecord(req.body?.metadata);
     const metadata: Record<string, unknown> = {};
     if (typeof sent.source === "string" && sent.source.length <= 20) metadata.source = sent.source;
+    // The court corners the phone found or the player fixed (Wave 2), checked and copied clean.
+    const courtCalibration = phoneCourtCalibration(asRecord(req.body?.metadata).courtCalibration);
+    if (courtCalibration) metadata.courtCalibration = courtCalibration;
     const [session] = await db.insert(ballBoiSessionsTable).values({
       matchId,
       recordedByClerkUserId: userId,

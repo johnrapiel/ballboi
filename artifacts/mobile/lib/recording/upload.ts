@@ -24,6 +24,7 @@ import {
 } from "@workspace/api-client-react";
 import { Directory, File, FileMode, Paths, UploadType } from "expo-file-system";
 
+import { sessionMetadata, type CourtCalibration } from "@/lib/court/calibration";
 import { joinSegments, recordingFiles, type RecordedSegment } from "@/lib/recording/segments";
 
 const MAX_INT32 = 2_147_483_647;
@@ -41,13 +42,15 @@ export interface RecordingToUpload {
   durationSeconds: number;
   recordedAt: string;
   segments?: RecordedSegment[];
+  /** The court's four corners, when the phone found them or the player fixed them. */
+  courtCalibration?: CourtCalibration | null;
 }
 
 /** Creates the server's record of this recording. Safe to call once per recording. */
 export async function ensureSession(rec: RecordingToUpload): Promise<number> {
   if (rec.sessionId) return rec.sessionId;
   // recordedAt: the card's day label is when the match was recorded, not when it uploaded (D19).
-  const session = await startBallBoiSession(rec.matchId, { metadata: { source: "ios" }, recordedAt: rec.recordedAt });
+  const session = await startBallBoiSession(rec.matchId, { metadata: sessionMetadata(rec.courtCalibration), recordedAt: rec.recordedAt });
   return session.id;
 }
 

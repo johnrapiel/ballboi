@@ -14,17 +14,21 @@ export function ChromeButton({
   onPress,
   variant = "primary",
   accessibilityLabel,
+  disabled = false,
 }: {
   label: string;
   onPress: () => void;
   variant?: "primary" | "secondary";
   accessibilityLabel?: string;
+  disabled?: boolean;
 }) {
   const primary = variant === "primary";
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => ({
         minHeight: MIN_TAP,
@@ -36,7 +40,7 @@ export function ChromeButton({
         alignItems: "center",
         justifyContent: "center",
         paddingHorizontal: spacing.space6,
-        opacity: pressed ? 0.85 : 1,
+        opacity: disabled ? 0.5 : pressed ? 0.85 : 1,
       })}
     >
       <Text variant="button" style={{ color: primary ? chrome.onButton : chrome.text }}>
