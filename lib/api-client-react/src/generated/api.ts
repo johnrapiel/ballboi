@@ -131,6 +131,9 @@ import type {
   LogDoublesViewBody,
   Match,
   MatchBallBoiShotCallbackBody,
+  MatchRequest,
+  MatchRequestList,
+  MatchRequestWhen,
   MatchShot,
   MatchStatistics,
   MatchTime,
@@ -142,6 +145,7 @@ import type {
   MyScheduleResponse,
   NewConversationInput,
   NewCourt,
+  NewMatchRequest,
   NewMessageInput,
   NewReport,
   PhotoUploadRequest,
@@ -15090,4 +15094,844 @@ export const useUnhideCourt = <
   TContext
 > => {
   return useMutation(getUnhideCourtMutationOptions(options));
+};
+
+/**
+ * @summary Your match requests, sent and received
+ */
+export const getGetMatchRequestsUrl = () => {
+  return `/api/match-requests`;
+};
+
+export const getMatchRequests = async (
+  options?: RequestInit,
+): Promise<MatchRequestList> => {
+  return customFetch<MatchRequestList>(getGetMatchRequestsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMatchRequestsQueryKey = () => {
+  return [`/api/match-requests`] as const;
+};
+
+export const getGetMatchRequestsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMatchRequests>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMatchRequests>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMatchRequestsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMatchRequests>>
+  > = ({ signal }) => getMatchRequests({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMatchRequests>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMatchRequestsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMatchRequests>>
+>;
+export type GetMatchRequestsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Your match requests, sent and received
+ */
+
+export function useGetMatchRequests<
+  TData = Awaited<ReturnType<typeof getMatchRequests>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMatchRequests>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMatchRequestsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Ask a Discover player for a match
+ */
+export const getSendMatchRequestUrl = () => {
+  return `/api/match-requests`;
+};
+
+export const sendMatchRequest = async (
+  newMatchRequest: NewMatchRequest,
+  options?: RequestInit,
+): Promise<MatchRequest> => {
+  return customFetch<MatchRequest>(getSendMatchRequestUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(newMatchRequest),
+  });
+};
+
+export const getSendMatchRequestMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendMatchRequest>>,
+    TError,
+    { data: BodyType<NewMatchRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendMatchRequest>>,
+  TError,
+  { data: BodyType<NewMatchRequest> },
+  TContext
+> => {
+  const mutationKey = ["sendMatchRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendMatchRequest>>,
+    { data: BodyType<NewMatchRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return sendMatchRequest(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendMatchRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendMatchRequest>>
+>;
+export type SendMatchRequestMutationBody = BodyType<NewMatchRequest>;
+export type SendMatchRequestMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Ask a Discover player for a match
+ */
+export const useSendMatchRequest = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendMatchRequest>>,
+    TError,
+    { data: BodyType<NewMatchRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendMatchRequest>>,
+  TError,
+  { data: BodyType<NewMatchRequest> },
+  TContext
+> => {
+  return useMutation(getSendMatchRequestMutationOptions(options));
+};
+
+/**
+ * @summary One of your match requests
+ */
+export const getGetMatchRequestUrl = (requestId: number) => {
+  return `/api/match-requests/${requestId}`;
+};
+
+export const getMatchRequest = async (
+  requestId: number,
+  options?: RequestInit,
+): Promise<MatchRequest> => {
+  return customFetch<MatchRequest>(getGetMatchRequestUrl(requestId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMatchRequestQueryKey = (requestId: number) => {
+  return [`/api/match-requests/${requestId}`] as const;
+};
+
+export const getGetMatchRequestQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMatchRequest>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  requestId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMatchRequest>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetMatchRequestQueryKey(requestId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMatchRequest>>> = ({
+    signal,
+  }) => getMatchRequest(requestId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!requestId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMatchRequest>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMatchRequestQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMatchRequest>>
+>;
+export type GetMatchRequestQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary One of your match requests
+ */
+
+export function useGetMatchRequest<
+  TData = Awaited<ReturnType<typeof getMatchRequest>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  requestId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMatchRequest>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMatchRequestQueryOptions(requestId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Accept the time on the table. Makes the match.
+ */
+export const getAcceptMatchRequestUrl = (requestId: number) => {
+  return `/api/match-requests/${requestId}/accept`;
+};
+
+export const acceptMatchRequest = async (
+  requestId: number,
+  options?: RequestInit,
+): Promise<MatchRequest> => {
+  return customFetch<MatchRequest>(getAcceptMatchRequestUrl(requestId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAcceptMatchRequestMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof acceptMatchRequest>>,
+    TError,
+    { requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof acceptMatchRequest>>,
+  TError,
+  { requestId: number },
+  TContext
+> => {
+  const mutationKey = ["acceptMatchRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof acceptMatchRequest>>,
+    { requestId: number }
+  > = (props) => {
+    const { requestId } = props ?? {};
+
+    return acceptMatchRequest(requestId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AcceptMatchRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof acceptMatchRequest>>
+>;
+
+export type AcceptMatchRequestMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Accept the time on the table. Makes the match.
+ */
+export const useAcceptMatchRequest = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof acceptMatchRequest>>,
+    TError,
+    { requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof acceptMatchRequest>>,
+  TError,
+  { requestId: number },
+  TContext
+> => {
+  return useMutation(getAcceptMatchRequestMutationOptions(options));
+};
+
+/**
+ * @summary Suggest a new day and time
+ */
+export const getCounterMatchRequestUrl = (requestId: number) => {
+  return `/api/match-requests/${requestId}/counter`;
+};
+
+export const counterMatchRequest = async (
+  requestId: number,
+  matchRequestWhen: MatchRequestWhen,
+  options?: RequestInit,
+): Promise<MatchRequest> => {
+  return customFetch<MatchRequest>(getCounterMatchRequestUrl(requestId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(matchRequestWhen),
+  });
+};
+
+export const getCounterMatchRequestMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof counterMatchRequest>>,
+    TError,
+    { requestId: number; data: BodyType<MatchRequestWhen> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof counterMatchRequest>>,
+  TError,
+  { requestId: number; data: BodyType<MatchRequestWhen> },
+  TContext
+> => {
+  const mutationKey = ["counterMatchRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof counterMatchRequest>>,
+    { requestId: number; data: BodyType<MatchRequestWhen> }
+  > = (props) => {
+    const { requestId, data } = props ?? {};
+
+    return counterMatchRequest(requestId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CounterMatchRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof counterMatchRequest>>
+>;
+export type CounterMatchRequestMutationBody = BodyType<MatchRequestWhen>;
+export type CounterMatchRequestMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Suggest a new day and time
+ */
+export const useCounterMatchRequest = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof counterMatchRequest>>,
+    TError,
+    { requestId: number; data: BodyType<MatchRequestWhen> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof counterMatchRequest>>,
+  TError,
+  { requestId: number; data: BodyType<MatchRequestWhen> },
+  TContext
+> => {
+  return useMutation(getCounterMatchRequestMutationOptions(options));
+};
+
+/**
+ * @summary Decline
+ */
+export const getDeclineMatchRequestUrl = (requestId: number) => {
+  return `/api/match-requests/${requestId}/decline`;
+};
+
+export const declineMatchRequest = async (
+  requestId: number,
+  options?: RequestInit,
+): Promise<MatchRequest> => {
+  return customFetch<MatchRequest>(getDeclineMatchRequestUrl(requestId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getDeclineMatchRequestMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof declineMatchRequest>>,
+    TError,
+    { requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof declineMatchRequest>>,
+  TError,
+  { requestId: number },
+  TContext
+> => {
+  const mutationKey = ["declineMatchRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof declineMatchRequest>>,
+    { requestId: number }
+  > = (props) => {
+    const { requestId } = props ?? {};
+
+    return declineMatchRequest(requestId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeclineMatchRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof declineMatchRequest>>
+>;
+
+export type DeclineMatchRequestMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Decline
+ */
+export const useDeclineMatchRequest = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof declineMatchRequest>>,
+    TError,
+    { requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof declineMatchRequest>>,
+  TError,
+  { requestId: number },
+  TContext
+> => {
+  return useMutation(getDeclineMatchRequestMutationOptions(options));
+};
+
+/**
+ * @summary Withdraw a request that's waiting on the other player
+ */
+export const getWithdrawMatchRequestUrl = (requestId: number) => {
+  return `/api/match-requests/${requestId}/withdraw`;
+};
+
+export const withdrawMatchRequest = async (
+  requestId: number,
+  options?: RequestInit,
+): Promise<MatchRequest> => {
+  return customFetch<MatchRequest>(getWithdrawMatchRequestUrl(requestId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getWithdrawMatchRequestMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof withdrawMatchRequest>>,
+    TError,
+    { requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof withdrawMatchRequest>>,
+  TError,
+  { requestId: number },
+  TContext
+> => {
+  const mutationKey = ["withdrawMatchRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof withdrawMatchRequest>>,
+    { requestId: number }
+  > = (props) => {
+    const { requestId } = props ?? {};
+
+    return withdrawMatchRequest(requestId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type WithdrawMatchRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof withdrawMatchRequest>>
+>;
+
+export type WithdrawMatchRequestMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Withdraw a request that's waiting on the other player
+ */
+export const useWithdrawMatchRequest = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof withdrawMatchRequest>>,
+    TError,
+    { requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof withdrawMatchRequest>>,
+  TError,
+  { requestId: number },
+  TContext
+> => {
+  return useMutation(getWithdrawMatchRequestMutationOptions(options));
+};
+
+/**
+ * @summary Confirm the day before
+ */
+export const getConfirmMatchRequestUrl = (requestId: number) => {
+  return `/api/match-requests/${requestId}/confirm`;
+};
+
+export const confirmMatchRequest = async (
+  requestId: number,
+  options?: RequestInit,
+): Promise<MatchRequest> => {
+  return customFetch<MatchRequest>(getConfirmMatchRequestUrl(requestId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getConfirmMatchRequestMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof confirmMatchRequest>>,
+    TError,
+    { requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof confirmMatchRequest>>,
+  TError,
+  { requestId: number },
+  TContext
+> => {
+  const mutationKey = ["confirmMatchRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof confirmMatchRequest>>,
+    { requestId: number }
+  > = (props) => {
+    const { requestId } = props ?? {};
+
+    return confirmMatchRequest(requestId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ConfirmMatchRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof confirmMatchRequest>>
+>;
+
+export type ConfirmMatchRequestMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Confirm the day before
+ */
+export const useConfirmMatchRequest = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof confirmMatchRequest>>,
+    TError,
+    { requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof confirmMatchRequest>>,
+  TError,
+  { requestId: number },
+  TContext
+> => {
+  return useMutation(getConfirmMatchRequestMutationOptions(options));
+};
+
+/**
+ * @summary Call off an accepted match
+ */
+export const getCancelMatchRequestUrl = (requestId: number) => {
+  return `/api/match-requests/${requestId}/cancel`;
+};
+
+export const cancelMatchRequest = async (
+  requestId: number,
+  options?: RequestInit,
+): Promise<MatchRequest> => {
+  return customFetch<MatchRequest>(getCancelMatchRequestUrl(requestId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCancelMatchRequestMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cancelMatchRequest>>,
+    TError,
+    { requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof cancelMatchRequest>>,
+  TError,
+  { requestId: number },
+  TContext
+> => {
+  const mutationKey = ["cancelMatchRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof cancelMatchRequest>>,
+    { requestId: number }
+  > = (props) => {
+    const { requestId } = props ?? {};
+
+    return cancelMatchRequest(requestId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CancelMatchRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof cancelMatchRequest>>
+>;
+
+export type CancelMatchRequestMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Call off an accepted match
+ */
+export const useCancelMatchRequest = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cancelMatchRequest>>,
+    TError,
+    { requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof cancelMatchRequest>>,
+  TError,
+  { requestId: number },
+  TContext
+> => {
+  return useMutation(getCancelMatchRequestMutationOptions(options));
+};
+
+/**
+ * @summary Say the other player didn't show
+ */
+export const getReportMatchRequestNoShowUrl = (requestId: number) => {
+  return `/api/match-requests/${requestId}/no-show`;
+};
+
+export const reportMatchRequestNoShow = async (
+  requestId: number,
+  options?: RequestInit,
+): Promise<MatchRequest> => {
+  return customFetch<MatchRequest>(getReportMatchRequestNoShowUrl(requestId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getReportMatchRequestNoShowMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reportMatchRequestNoShow>>,
+    TError,
+    { requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reportMatchRequestNoShow>>,
+  TError,
+  { requestId: number },
+  TContext
+> => {
+  const mutationKey = ["reportMatchRequestNoShow"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reportMatchRequestNoShow>>,
+    { requestId: number }
+  > = (props) => {
+    const { requestId } = props ?? {};
+
+    return reportMatchRequestNoShow(requestId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReportMatchRequestNoShowMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reportMatchRequestNoShow>>
+>;
+
+export type ReportMatchRequestNoShowMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Say the other player didn't show
+ */
+export const useReportMatchRequestNoShow = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reportMatchRequestNoShow>>,
+    TError,
+    { requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof reportMatchRequestNoShow>>,
+  TError,
+  { requestId: number },
+  TContext
+> => {
+  return useMutation(getReportMatchRequestNoShowMutationOptions(options));
 };

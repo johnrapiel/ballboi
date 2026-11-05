@@ -98,6 +98,7 @@ export function createDiscoverRouter(getRepo: () => DiscoverRepo = () => new Dri
         plays: (PLAYS as readonly string[]).includes(them.plays ?? "") ? them.plays : null,
         freeTimes: them.freeTimes ?? [],
         played: them.played,
+        noShows: them.noShows ?? 0,
         homeCourt: them.homeCourt ?? null,
       });
     }),

@@ -22,4 +22,6 @@ export interface DiscoverPlayerCard {
   plays: DiscoverPlayerCardPlays;
   /** Completed matches on Ball Boi */
   played: number;
+  /** Match requests where the other player said they didn't show */
+  noShows: number;
 }

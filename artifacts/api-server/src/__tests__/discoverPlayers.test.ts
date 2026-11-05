@@ -260,6 +260,7 @@ describe("GET /discover/players", () => {
       distanceLabel: "~2 mi away",
       plays: "both",
       played: 12,
+      noShows: 0,
     });
     expect(res.body.counts.at(-1)).toEqual({ radius: 30, count: 3 });
     expect(res.body.filters).toEqual({ radius: 10, level: "near", plays: "any", free: "any" });

@@ -5,9 +5,125 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+export interface MatchRequestWhen {
+  /** YYYY-MM-DD */
+  date: string;
+  /** HH:MM on the hour or half hour */
+  windowStart: string;
+  /** HH:MM, after the start, up to 6 hours later */
+  windowEnd: string;
+}
+
+export type NewMatchRequestKind =
+  (typeof NewMatchRequestKind)[keyof typeof NewMatchRequestKind];
+
+export const NewMatchRequestKind = {
+  singles: "singles",
+  practice: "practice",
+} as const;
+
+export type NewMatchRequest = MatchRequestWhen & {
+  toUserId: number;
+  /** The phone's IANA time zone */
+  timeZone: string;
+  /** @nullable */
+  courtId?: number | null;
+  kind?: NewMatchRequestKind;
+  /**
+   * @maxLength 200
+   * @nullable
+   */
+  note?: string | null;
+};
+
+export type MatchRequestPhase =
+  (typeof MatchRequestPhase)[keyof typeof MatchRequestPhase];
+
+export const MatchRequestPhase = {
+  waiting_on_you: "waiting_on_you",
+  waiting_on_them: "waiting_on_them",
+  upcoming: "upcoming",
+  to_confirm: "to_confirm",
+  started: "started",
+  declined: "declined",
+  withdrawn: "withdrawn",
+  cancelled: "cancelled",
+  expired: "expired",
+} as const;
+
+export type MatchRequestActionsItem =
+  (typeof MatchRequestActionsItem)[keyof typeof MatchRequestActionsItem];
+
+export const MatchRequestActionsItem = {
+  accept: "accept",
+  counter: "counter",
+  decline: "decline",
+  withdraw: "withdraw",
+  confirm: "confirm",
+  cancel: "cancel",
+  no_show: "no_show",
+} as const;
+
+export type MatchRequestKind =
+  (typeof MatchRequestKind)[keyof typeof MatchRequestKind];
+
+export const MatchRequestKind = {
+  singles: "singles",
+  practice: "practice",
+} as const;
+
+export type MatchRequestOther = {
+  /** @nullable */
+  userId: number | null;
+  name: string;
+};
+
+/**
+ * @nullable
+ */
+export type MatchRequestNoShow =
+  | (typeof MatchRequestNoShow)[keyof typeof MatchRequestNoShow]
+  | null;
+
+export const MatchRequestNoShow = {
+  you: "you",
+  them: "them",
+} as const;
+
 export interface HomeCourt {
   courtId: number;
   name: string;
+}
+
+export interface MatchRequest {
+  requestId: number;
+  phase: MatchRequestPhase;
+  actions: MatchRequestActionsItem[];
+  kind: MatchRequestKind;
+  /** Like "Sat, Nov 8, 9 to 11 AM", in the request's time zone */
+  when: string;
+  date: string;
+  windowStart: string;
+  windowEnd: string;
+  timeZone: string;
+  startsAt: string;
+  court: HomeCourt | null;
+  /** @nullable */
+  note: string | null;
+  other: MatchRequestOther;
+  sentByMe: boolean;
+  counters: number;
+  /** @nullable */
+  matchId: number | null;
+  scoreEntered: boolean;
+  youConfirmed: boolean;
+  theyConfirmed: boolean;
+  /** @nullable */
+  noShow: MatchRequestNoShow;
+}
+
+export interface MatchRequestList {
+  requests: MatchRequest[];
 }
 
 export interface HomeCourtInput {
@@ -303,6 +419,8 @@ export interface DiscoverPlayerCard {
   plays: DiscoverPlayerCardPlays;
   /** Completed matches on Ball Boi */
   played: number;
+  /** Match requests where the other player said they didn't show */
+  noShows: number;
 }
 
 export type DiscoverPlayerFreeTimesItem =

@@ -9,6 +9,7 @@ import { retryFailedBallBoiSessions } from "./ballBoiRetry";
 import { failStuckAnalyses } from "./ballBoiStuck";
 import { runAllLeagueDays } from "./leagueRounds";
 import { sweepSessionVideos } from "../lib/videoRetention";
+import { runMatchRequestReminders } from "../routes/matchRequests";
 import { DEFAULT_LEAGUE_TIME_ZONE, addDays, dayBounds, leagueToday, leagueZone, localHour } from "../lib/leagueCalendar";
 
 function getMondayOf(date: Date): string {
@@ -252,7 +253,10 @@ async function remindForZone(zone: string, now: Date, zoneOf: Map<number, string
             lt(matchesTable.scheduledAt, to.toISOString())
           )
         )
-    ).filter((m) => (m.leagueId != null ? (zoneOf.get(m.leagueId) ?? DEFAULT_LEAGUE_TIME_ZONE) : DEFAULT_LEAGUE_TIME_ZONE) === zone);
+    )
+      // Accepted match requests get their own confirm prompt (routes/matchRequests.ts).
+      .filter((m) => m.generatedFrom !== "match_request")
+      .filter((m) => (m.leagueId != null ? (zoneOf.get(m.leagueId) ?? DEFAULT_LEAGUE_TIME_ZONE) : DEFAULT_LEAGUE_TIME_ZONE) === zone);
 
     if (!tomorrowMatches.length) {
       logger.info({ zone }, "CRON: No day-before matches to remind");
@@ -502,6 +506,12 @@ export function startScheduler() {
   // after analysis, training copies once a player turns training off)
   cron.schedule("17 * * * *", () => {
     sweepSessionVideos().catch((err) => logger.error({ err }, "CRON: Video retention sweep failed"));
+  });
+
+  // Every 15 minutes — match requests: the day-before confirm prompt from
+  // 8:00 AM the day before, and the reminder 2 hours out (spec: Discover)
+  cron.schedule("*/15 * * * *", () => {
+    runMatchRequestReminders().catch((err) => logger.error({ err }, "CRON: Match request reminders failed"));
   });
 
   logger.info("Scheduler started: 7AM league time (league rounds), Thu 9AM (auto-generate), Wed 5PM (availability reminder), Sun 9AM (match reminder), 8AM league time (day-before reminder), every 1min (Ball Boi retry), every 5min (stuck analysis), hourly (video retention)");

@@ -14,6 +14,7 @@ import {
 import { and, between, count, eq, gt, inArray, isNotNull, isNull, ne, or } from "drizzle-orm";
 import { blockedAccountsFor } from "./blocks.js";
 import { homeCourtFor } from "./courtRepo.js";
+import { DrizzleMatchRequestRepo } from "./matchRequestRepo.js";
 import { boundingBox, homeAreaPoint, type Point } from "./discoverArea.js";
 import type { OpenLeagueCandidate } from "./discoverLeagues.js";
 import type { DiscoverCandidate, DiscoverSettingsInput } from "./discoverPlayers.js";
@@ -160,7 +161,8 @@ export class DrizzleDiscoverRepo implements DiscoverRepo {
     ]);
     const out = new Set([...blocked, ...sanctioned.map((s) => s.id)]);
     const kept = rows.filter((r) => !out.has(r.clerkUserId as string));
-    const played = await playedCounts(kept.map((r) => r.clerkUserId as string));
+    const ids2 = kept.map((r) => r.clerkUserId as string);
+    const [played, noShows] = await Promise.all([playedCounts(ids2), new DrizzleMatchRequestRepo().noShowCounts(ids2)]);
     return kept.map((r) => ({
       userId: r.userId as number,
       clerkUserId: r.clerkUserId as string,
@@ -172,6 +174,7 @@ export class DrizzleDiscoverRepo implements DiscoverRepo {
       plays: (r.plays as string | null) ?? null,
       freeTimes: (r.freeTimes as string[] | null) ?? null,
       played: played.get(r.clerkUserId as string) ?? 0,
+      noShows: noShows.get(r.clerkUserId as string) ?? 0,
     }));
   }
 

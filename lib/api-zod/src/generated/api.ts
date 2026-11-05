@@ -5319,6 +5319,11 @@ export const GetDiscoverPlayersResponse = zod.object({
         ])
         .nullable(),
       played: zod.number().describe("Completed matches on Ball Boi"),
+      noShows: zod
+        .number()
+        .describe(
+          "Match requests where the other player said they didn't show",
+        ),
     }),
   ),
 });
@@ -5351,6 +5356,9 @@ export const GetDiscoverPlayerResponse = zod
       ])
       .nullable(),
     played: zod.number().describe("Completed matches on Ball Boi"),
+    noShows: zod
+      .number()
+      .describe("Match requests where the other player said they didn't show"),
   })
   .and(
     zod.object({
@@ -5688,4 +5696,604 @@ export const UnhideCourtParams = zod.object({
 export const UnhideCourtResponse = zod.object({
   courtId: zod.number(),
   hidden: zod.boolean(),
+});
+
+/**
+ * @summary Your match requests, sent and received
+ */
+export const GetMatchRequestsResponse = zod.object({
+  requests: zod.array(
+    zod.object({
+      requestId: zod.number(),
+      phase: zod.enum([
+        "waiting_on_you",
+        "waiting_on_them",
+        "upcoming",
+        "to_confirm",
+        "started",
+        "declined",
+        "withdrawn",
+        "cancelled",
+        "expired",
+      ]),
+      actions: zod.array(
+        zod.enum([
+          "accept",
+          "counter",
+          "decline",
+          "withdraw",
+          "confirm",
+          "cancel",
+          "no_show",
+        ]),
+      ),
+      kind: zod.enum(["singles", "practice"]),
+      when: zod
+        .string()
+        .describe(
+          'Like \"Sat, Nov 8, 9 to 11 AM\", in the request\'s time zone',
+        ),
+      date: zod.string(),
+      windowStart: zod.string(),
+      windowEnd: zod.string(),
+      timeZone: zod.string(),
+      startsAt: zod.coerce.date(),
+      court: zod.union([
+        zod.object({
+          courtId: zod.number(),
+          name: zod.string(),
+        }),
+        zod.null(),
+      ]),
+      note: zod.string().nullable(),
+      other: zod.object({
+        userId: zod.number().nullable(),
+        name: zod.string(),
+      }),
+      sentByMe: zod.boolean(),
+      counters: zod.number(),
+      matchId: zod.number().nullable(),
+      scoreEntered: zod.boolean(),
+      youConfirmed: zod.boolean(),
+      theyConfirmed: zod.boolean(),
+      noShow: zod
+        .union([zod.literal("you"), zod.literal("them"), zod.literal(null)])
+        .nullable(),
+    }),
+  ),
+});
+
+/**
+ * @summary Ask a Discover player for a match
+ */
+export const sendMatchRequestBodyTwoNoteMax = 200;
+
+export const SendMatchRequestBody = zod
+  .object({
+    date: zod.string().describe("YYYY-MM-DD"),
+    windowStart: zod.string().describe("HH:MM on the hour or half hour"),
+    windowEnd: zod
+      .string()
+      .describe("HH:MM, after the start, up to 6 hours later"),
+  })
+  .and(
+    zod.object({
+      toUserId: zod.number(),
+      timeZone: zod.string().describe("The phone's IANA time zone"),
+      courtId: zod.number().nullish(),
+      kind: zod.enum(["singles", "practice"]).optional(),
+      note: zod.string().max(sendMatchRequestBodyTwoNoteMax).nullish(),
+    }),
+  );
+
+/**
+ * @summary One of your match requests
+ */
+export const GetMatchRequestParams = zod.object({
+  requestId: zod.coerce.number(),
+});
+
+export const GetMatchRequestResponse = zod.object({
+  requestId: zod.number(),
+  phase: zod.enum([
+    "waiting_on_you",
+    "waiting_on_them",
+    "upcoming",
+    "to_confirm",
+    "started",
+    "declined",
+    "withdrawn",
+    "cancelled",
+    "expired",
+  ]),
+  actions: zod.array(
+    zod.enum([
+      "accept",
+      "counter",
+      "decline",
+      "withdraw",
+      "confirm",
+      "cancel",
+      "no_show",
+    ]),
+  ),
+  kind: zod.enum(["singles", "practice"]),
+  when: zod
+    .string()
+    .describe('Like \"Sat, Nov 8, 9 to 11 AM\", in the request\'s time zone'),
+  date: zod.string(),
+  windowStart: zod.string(),
+  windowEnd: zod.string(),
+  timeZone: zod.string(),
+  startsAt: zod.coerce.date(),
+  court: zod.union([
+    zod.object({
+      courtId: zod.number(),
+      name: zod.string(),
+    }),
+    zod.null(),
+  ]),
+  note: zod.string().nullable(),
+  other: zod.object({
+    userId: zod.number().nullable(),
+    name: zod.string(),
+  }),
+  sentByMe: zod.boolean(),
+  counters: zod.number(),
+  matchId: zod.number().nullable(),
+  scoreEntered: zod.boolean(),
+  youConfirmed: zod.boolean(),
+  theyConfirmed: zod.boolean(),
+  noShow: zod
+    .union([zod.literal("you"), zod.literal("them"), zod.literal(null)])
+    .nullable(),
+});
+
+/**
+ * @summary Accept the time on the table. Makes the match.
+ */
+export const AcceptMatchRequestParams = zod.object({
+  requestId: zod.coerce.number(),
+});
+
+export const AcceptMatchRequestResponse = zod.object({
+  requestId: zod.number(),
+  phase: zod.enum([
+    "waiting_on_you",
+    "waiting_on_them",
+    "upcoming",
+    "to_confirm",
+    "started",
+    "declined",
+    "withdrawn",
+    "cancelled",
+    "expired",
+  ]),
+  actions: zod.array(
+    zod.enum([
+      "accept",
+      "counter",
+      "decline",
+      "withdraw",
+      "confirm",
+      "cancel",
+      "no_show",
+    ]),
+  ),
+  kind: zod.enum(["singles", "practice"]),
+  when: zod
+    .string()
+    .describe('Like \"Sat, Nov 8, 9 to 11 AM\", in the request\'s time zone'),
+  date: zod.string(),
+  windowStart: zod.string(),
+  windowEnd: zod.string(),
+  timeZone: zod.string(),
+  startsAt: zod.coerce.date(),
+  court: zod.union([
+    zod.object({
+      courtId: zod.number(),
+      name: zod.string(),
+    }),
+    zod.null(),
+  ]),
+  note: zod.string().nullable(),
+  other: zod.object({
+    userId: zod.number().nullable(),
+    name: zod.string(),
+  }),
+  sentByMe: zod.boolean(),
+  counters: zod.number(),
+  matchId: zod.number().nullable(),
+  scoreEntered: zod.boolean(),
+  youConfirmed: zod.boolean(),
+  theyConfirmed: zod.boolean(),
+  noShow: zod
+    .union([zod.literal("you"), zod.literal("them"), zod.literal(null)])
+    .nullable(),
+});
+
+/**
+ * @summary Suggest a new day and time
+ */
+export const CounterMatchRequestParams = zod.object({
+  requestId: zod.coerce.number(),
+});
+
+export const CounterMatchRequestBody = zod.object({
+  date: zod.string().describe("YYYY-MM-DD"),
+  windowStart: zod.string().describe("HH:MM on the hour or half hour"),
+  windowEnd: zod
+    .string()
+    .describe("HH:MM, after the start, up to 6 hours later"),
+});
+
+export const CounterMatchRequestResponse = zod.object({
+  requestId: zod.number(),
+  phase: zod.enum([
+    "waiting_on_you",
+    "waiting_on_them",
+    "upcoming",
+    "to_confirm",
+    "started",
+    "declined",
+    "withdrawn",
+    "cancelled",
+    "expired",
+  ]),
+  actions: zod.array(
+    zod.enum([
+      "accept",
+      "counter",
+      "decline",
+      "withdraw",
+      "confirm",
+      "cancel",
+      "no_show",
+    ]),
+  ),
+  kind: zod.enum(["singles", "practice"]),
+  when: zod
+    .string()
+    .describe('Like \"Sat, Nov 8, 9 to 11 AM\", in the request\'s time zone'),
+  date: zod.string(),
+  windowStart: zod.string(),
+  windowEnd: zod.string(),
+  timeZone: zod.string(),
+  startsAt: zod.coerce.date(),
+  court: zod.union([
+    zod.object({
+      courtId: zod.number(),
+      name: zod.string(),
+    }),
+    zod.null(),
+  ]),
+  note: zod.string().nullable(),
+  other: zod.object({
+    userId: zod.number().nullable(),
+    name: zod.string(),
+  }),
+  sentByMe: zod.boolean(),
+  counters: zod.number(),
+  matchId: zod.number().nullable(),
+  scoreEntered: zod.boolean(),
+  youConfirmed: zod.boolean(),
+  theyConfirmed: zod.boolean(),
+  noShow: zod
+    .union([zod.literal("you"), zod.literal("them"), zod.literal(null)])
+    .nullable(),
+});
+
+/**
+ * @summary Decline
+ */
+export const DeclineMatchRequestParams = zod.object({
+  requestId: zod.coerce.number(),
+});
+
+export const DeclineMatchRequestResponse = zod.object({
+  requestId: zod.number(),
+  phase: zod.enum([
+    "waiting_on_you",
+    "waiting_on_them",
+    "upcoming",
+    "to_confirm",
+    "started",
+    "declined",
+    "withdrawn",
+    "cancelled",
+    "expired",
+  ]),
+  actions: zod.array(
+    zod.enum([
+      "accept",
+      "counter",
+      "decline",
+      "withdraw",
+      "confirm",
+      "cancel",
+      "no_show",
+    ]),
+  ),
+  kind: zod.enum(["singles", "practice"]),
+  when: zod
+    .string()
+    .describe('Like \"Sat, Nov 8, 9 to 11 AM\", in the request\'s time zone'),
+  date: zod.string(),
+  windowStart: zod.string(),
+  windowEnd: zod.string(),
+  timeZone: zod.string(),
+  startsAt: zod.coerce.date(),
+  court: zod.union([
+    zod.object({
+      courtId: zod.number(),
+      name: zod.string(),
+    }),
+    zod.null(),
+  ]),
+  note: zod.string().nullable(),
+  other: zod.object({
+    userId: zod.number().nullable(),
+    name: zod.string(),
+  }),
+  sentByMe: zod.boolean(),
+  counters: zod.number(),
+  matchId: zod.number().nullable(),
+  scoreEntered: zod.boolean(),
+  youConfirmed: zod.boolean(),
+  theyConfirmed: zod.boolean(),
+  noShow: zod
+    .union([zod.literal("you"), zod.literal("them"), zod.literal(null)])
+    .nullable(),
+});
+
+/**
+ * @summary Withdraw a request that's waiting on the other player
+ */
+export const WithdrawMatchRequestParams = zod.object({
+  requestId: zod.coerce.number(),
+});
+
+export const WithdrawMatchRequestResponse = zod.object({
+  requestId: zod.number(),
+  phase: zod.enum([
+    "waiting_on_you",
+    "waiting_on_them",
+    "upcoming",
+    "to_confirm",
+    "started",
+    "declined",
+    "withdrawn",
+    "cancelled",
+    "expired",
+  ]),
+  actions: zod.array(
+    zod.enum([
+      "accept",
+      "counter",
+      "decline",
+      "withdraw",
+      "confirm",
+      "cancel",
+      "no_show",
+    ]),
+  ),
+  kind: zod.enum(["singles", "practice"]),
+  when: zod
+    .string()
+    .describe('Like \"Sat, Nov 8, 9 to 11 AM\", in the request\'s time zone'),
+  date: zod.string(),
+  windowStart: zod.string(),
+  windowEnd: zod.string(),
+  timeZone: zod.string(),
+  startsAt: zod.coerce.date(),
+  court: zod.union([
+    zod.object({
+      courtId: zod.number(),
+      name: zod.string(),
+    }),
+    zod.null(),
+  ]),
+  note: zod.string().nullable(),
+  other: zod.object({
+    userId: zod.number().nullable(),
+    name: zod.string(),
+  }),
+  sentByMe: zod.boolean(),
+  counters: zod.number(),
+  matchId: zod.number().nullable(),
+  scoreEntered: zod.boolean(),
+  youConfirmed: zod.boolean(),
+  theyConfirmed: zod.boolean(),
+  noShow: zod
+    .union([zod.literal("you"), zod.literal("them"), zod.literal(null)])
+    .nullable(),
+});
+
+/**
+ * @summary Confirm the day before
+ */
+export const ConfirmMatchRequestParams = zod.object({
+  requestId: zod.coerce.number(),
+});
+
+export const ConfirmMatchRequestResponse = zod.object({
+  requestId: zod.number(),
+  phase: zod.enum([
+    "waiting_on_you",
+    "waiting_on_them",
+    "upcoming",
+    "to_confirm",
+    "started",
+    "declined",
+    "withdrawn",
+    "cancelled",
+    "expired",
+  ]),
+  actions: zod.array(
+    zod.enum([
+      "accept",
+      "counter",
+      "decline",
+      "withdraw",
+      "confirm",
+      "cancel",
+      "no_show",
+    ]),
+  ),
+  kind: zod.enum(["singles", "practice"]),
+  when: zod
+    .string()
+    .describe('Like \"Sat, Nov 8, 9 to 11 AM\", in the request\'s time zone'),
+  date: zod.string(),
+  windowStart: zod.string(),
+  windowEnd: zod.string(),
+  timeZone: zod.string(),
+  startsAt: zod.coerce.date(),
+  court: zod.union([
+    zod.object({
+      courtId: zod.number(),
+      name: zod.string(),
+    }),
+    zod.null(),
+  ]),
+  note: zod.string().nullable(),
+  other: zod.object({
+    userId: zod.number().nullable(),
+    name: zod.string(),
+  }),
+  sentByMe: zod.boolean(),
+  counters: zod.number(),
+  matchId: zod.number().nullable(),
+  scoreEntered: zod.boolean(),
+  youConfirmed: zod.boolean(),
+  theyConfirmed: zod.boolean(),
+  noShow: zod
+    .union([zod.literal("you"), zod.literal("them"), zod.literal(null)])
+    .nullable(),
+});
+
+/**
+ * @summary Call off an accepted match
+ */
+export const CancelMatchRequestParams = zod.object({
+  requestId: zod.coerce.number(),
+});
+
+export const CancelMatchRequestResponse = zod.object({
+  requestId: zod.number(),
+  phase: zod.enum([
+    "waiting_on_you",
+    "waiting_on_them",
+    "upcoming",
+    "to_confirm",
+    "started",
+    "declined",
+    "withdrawn",
+    "cancelled",
+    "expired",
+  ]),
+  actions: zod.array(
+    zod.enum([
+      "accept",
+      "counter",
+      "decline",
+      "withdraw",
+      "confirm",
+      "cancel",
+      "no_show",
+    ]),
+  ),
+  kind: zod.enum(["singles", "practice"]),
+  when: zod
+    .string()
+    .describe('Like \"Sat, Nov 8, 9 to 11 AM\", in the request\'s time zone'),
+  date: zod.string(),
+  windowStart: zod.string(),
+  windowEnd: zod.string(),
+  timeZone: zod.string(),
+  startsAt: zod.coerce.date(),
+  court: zod.union([
+    zod.object({
+      courtId: zod.number(),
+      name: zod.string(),
+    }),
+    zod.null(),
+  ]),
+  note: zod.string().nullable(),
+  other: zod.object({
+    userId: zod.number().nullable(),
+    name: zod.string(),
+  }),
+  sentByMe: zod.boolean(),
+  counters: zod.number(),
+  matchId: zod.number().nullable(),
+  scoreEntered: zod.boolean(),
+  youConfirmed: zod.boolean(),
+  theyConfirmed: zod.boolean(),
+  noShow: zod
+    .union([zod.literal("you"), zod.literal("them"), zod.literal(null)])
+    .nullable(),
+});
+
+/**
+ * @summary Say the other player didn't show
+ */
+export const ReportMatchRequestNoShowParams = zod.object({
+  requestId: zod.coerce.number(),
+});
+
+export const ReportMatchRequestNoShowResponse = zod.object({
+  requestId: zod.number(),
+  phase: zod.enum([
+    "waiting_on_you",
+    "waiting_on_them",
+    "upcoming",
+    "to_confirm",
+    "started",
+    "declined",
+    "withdrawn",
+    "cancelled",
+    "expired",
+  ]),
+  actions: zod.array(
+    zod.enum([
+      "accept",
+      "counter",
+      "decline",
+      "withdraw",
+      "confirm",
+      "cancel",
+      "no_show",
+    ]),
+  ),
+  kind: zod.enum(["singles", "practice"]),
+  when: zod
+    .string()
+    .describe('Like \"Sat, Nov 8, 9 to 11 AM\", in the request\'s time zone'),
+  date: zod.string(),
+  windowStart: zod.string(),
+  windowEnd: zod.string(),
+  timeZone: zod.string(),
+  startsAt: zod.coerce.date(),
+  court: zod.union([
+    zod.object({
+      courtId: zod.number(),
+      name: zod.string(),
+    }),
+    zod.null(),
+  ]),
+  note: zod.string().nullable(),
+  other: zod.object({
+    userId: zod.number().nullable(),
+    name: zod.string(),
+  }),
+  sentByMe: zod.boolean(),
+  counters: zod.number(),
+  matchId: zod.number().nullable(),
+  scoreEntered: zod.boolean(),
+  youConfirmed: zod.boolean(),
+  theyConfirmed: zod.boolean(),
+  noShow: zod
+    .union([zod.literal("you"), zod.literal("them"), zod.literal(null)])
+    .nullable(),
 });

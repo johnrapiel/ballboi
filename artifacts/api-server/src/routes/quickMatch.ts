@@ -12,6 +12,7 @@ import {
 import { and, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import pino from "pino";
 import { blockedAccountsFor } from "../lib/blocks";
+import { myPlayerId } from "../lib/quickPlayer";
 import { flipScore, inviteUrl, newInviteCode, parseQuickMatch, parseSideScore, pickableOpponents } from "../lib/quickMatch";
 
 // Quick match: record a casual hit or a match outside a league, against a
@@ -79,22 +80,6 @@ router.get("/recording/opponents", requireAuth, async (req: Request, res: Respon
     res.status(500).json({ error: "Couldn't load players." });
   }
 });
-
-/** The caller's player row for a Quick match: an existing one, or a new one. */
-async function myPlayerId(userId: string): Promise<{ id: number; name: string }> {
-  const rows = await db
-    .select({ id: playersTable.id, name: playersTable.name, leagueId: playersTable.leagueId })
-    .from(playersTable)
-    .where(eq(playersTable.clerkUserId, userId));
-  const best = rows.find((r) => r.leagueId == null) ?? rows[0];
-  if (best) return { id: best.id, name: best.name };
-  const [user] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.clerkUserId, userId));
-  const [created] = await db
-    .insert(playersTable)
-    .values({ name: user?.displayName ?? "Player", clerkUserId: userId })
-    .returning({ id: playersTable.id, name: playersTable.name });
-  return created;
-}
 
 /**
  * POST /recording/quick-matches { format, opponentPlayerId } or { format, opponentName }

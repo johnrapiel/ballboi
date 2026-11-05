@@ -48,6 +48,8 @@ tags:
     description: Players near you and your Discover settings
   - name: courts
     description: The court directory and your home court
+  - name: matchRequests
+    description: Match requests between Discover players
 
 paths:
   /healthz:
@@ -6044,6 +6046,365 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /match-requests:
+    get:
+      operationId: getMatchRequests
+      tags: [matchRequests]
+      summary: Your match requests, sent and received
+      responses:
+        '200':
+          description: Your match requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchRequestList'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      operationId: sendMatchRequest
+      tags: [matchRequests]
+      summary: Ask a Discover player for a match
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewMatchRequest'
+      responses:
+        '201':
+          description: Sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchRequest'
+        '400':
+          description: Something about the request needs fixing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not in your Discover
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: You already have an open request with them
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Daily limit reached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /match-requests/{requestId}:
+    get:
+      operationId: getMatchRequest
+      tags: [matchRequests]
+      summary: One of your match requests
+      parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: The request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchRequest'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not yours, or gone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /match-requests/{requestId}/accept:
+    post:
+      operationId: acceptMatchRequest
+      tags: [matchRequests]
+      summary: Accept the time on the table. Makes the match.
+      parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: The request now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchRequest'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not yours, or gone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The request changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /match-requests/{requestId}/counter:
+    post:
+      operationId: counterMatchRequest
+      tags: [matchRequests]
+      summary: Suggest a new day and time
+      parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchRequestWhen'
+      responses:
+        '200':
+          description: The request now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchRequest'
+        '400':
+          description: Pick another time
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not yours, or gone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The request changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /match-requests/{requestId}/decline:
+    post:
+      operationId: declineMatchRequest
+      tags: [matchRequests]
+      summary: Decline
+      parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: The request now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchRequest'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not yours, or gone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The request changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /match-requests/{requestId}/withdraw:
+    post:
+      operationId: withdrawMatchRequest
+      tags: [matchRequests]
+      summary: Withdraw a request that's waiting on the other player
+      parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: The request now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchRequest'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not yours, or gone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The request changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /match-requests/{requestId}/confirm:
+    post:
+      operationId: confirmMatchRequest
+      tags: [matchRequests]
+      summary: Confirm the day before
+      parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: The request now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchRequest'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not yours, or gone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The request changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /match-requests/{requestId}/cancel:
+    post:
+      operationId: cancelMatchRequest
+      tags: [matchRequests]
+      summary: Call off an accepted match
+      parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: The request now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchRequest'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not yours, or gone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The request changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /match-requests/{requestId}/no-show:
+    post:
+      operationId: reportMatchRequestNoShow
+      tags: [matchRequests]
+      summary: Say the other player didn't show
+      parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: The request now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchRequest'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not yours, or gone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The request changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   parameters:
     LeagueIdParam:
@@ -6065,6 +6426,106 @@ components:
       schema:
         type: integer
   schemas:
+    MatchRequestWhen:
+      type: object
+      properties:
+        date:
+          type: string
+          description: YYYY-MM-DD
+        windowStart:
+          type: string
+          description: HH:MM on the hour or half hour
+        windowEnd:
+          type: string
+          description: HH:MM, after the start, up to 6 hours later
+      required: [date, windowStart, windowEnd]
+    NewMatchRequest:
+      allOf:
+      - $ref: '#/components/schemas/MatchRequestWhen'
+      - type: object
+        properties:
+          toUserId:
+            type: integer
+          timeZone:
+            type: string
+            description: The phone's IANA time zone
+          courtId:
+            type: [integer, 'null']
+          kind:
+            type: string
+            enum: [singles, practice]
+          note:
+            type: [string, 'null']
+            maxLength: 200
+        required: [toUserId, timeZone]
+    MatchRequest:
+      type: object
+      properties:
+        requestId:
+          type: integer
+        phase:
+          type: string
+          enum: [waiting_on_you, waiting_on_them, upcoming, to_confirm, started, declined, withdrawn, cancelled, expired]
+        actions:
+          type: array
+          items:
+            type: string
+            enum: [accept, counter, decline, withdraw, confirm, cancel, no_show]
+        kind:
+          type: string
+          enum: [singles, practice]
+        when:
+          type: string
+          description: Like "Sat, Nov 8, 9 to 11 AM", in the request's time zone
+        date:
+          type: string
+        windowStart:
+          type: string
+        windowEnd:
+          type: string
+        timeZone:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+        court:
+          oneOf:
+          - $ref: '#/components/schemas/HomeCourt'
+          - type: 'null'
+        note:
+          type: [string, 'null']
+        other:
+          type: object
+          properties:
+            userId:
+              type: [integer, 'null']
+            name:
+              type: string
+          required: [userId, name]
+        sentByMe:
+          type: boolean
+        counters:
+          type: integer
+        matchId:
+          type: [integer, 'null']
+        scoreEntered:
+          type: boolean
+        youConfirmed:
+          type: boolean
+        theyConfirmed:
+          type: boolean
+        noShow:
+          type: [string, 'null']
+          enum: [you, them, null]
+      required: [requestId, phase, actions, kind, when, date, windowStart, windowEnd, timeZone, startsAt, court, note, other, sentByMe, counters, matchId, scoreEntered, youConfirmed, theyConfirmed, noShow]
+    MatchRequestList:
+      type: object
+      properties:
+        requests:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchRequest'
+      required: [requests]
     HomeCourt:
       type: object
       properties:
@@ -6283,7 +6744,10 @@ components:
         played:
           type: integer
           description: Completed matches on Ball Boi
-      required: [userId, name, avatarUrl, rating, ratingSource, distanceLabel, plays, played]
+        noShows:
+          type: integer
+          description: Match requests where the other player said they didn't show
+      required: [userId, name, avatarUrl, rating, ratingSource, distanceLabel, plays, played, noShows]
     DiscoverPlayer:
       allOf:
       - $ref: '#/components/schemas/DiscoverPlayerCard'

@@ -44,6 +44,8 @@ export interface DiscoverCandidate {
   freeTimes: string[] | null;
   /** Completed matches on Ball Boi. */
   played: number;
+  /** Match requests where the other player said they didn't show. */
+  noShows?: number;
 }
 
 export interface DiscoverPlayerCard {
@@ -55,6 +57,7 @@ export interface DiscoverPlayerCard {
   distanceLabel: string;
   plays: Plays | null;
   played: number;
+  noShows: number;
 }
 
 const isOneOf = <T extends string>(list: readonly T[], v: unknown): v is T =>
@@ -124,6 +127,7 @@ export function nearbyPlayers(
       distanceLabel: distanceLabel(miles),
       plays: isOneOf(PLAYS, p.plays) ? p.plays : null,
       played: p.played,
+      noShows: p.noShows ?? 0,
     }));
 
   return { players, counts };
