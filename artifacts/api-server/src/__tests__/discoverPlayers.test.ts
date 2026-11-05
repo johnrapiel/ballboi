@@ -15,7 +15,8 @@ vi.mock("@workspace/db", async (importOriginal) => ({ ...(await importOriginal<R
 
 import { boundingBox, distanceLabel, homeAreaPoint, milesBetween, parseRadius, zipCenter, type Point } from "../lib/discoverArea";
 import { fitsLevel, nearbyPlayers, parseDiscoverSettings, parseFilters, DEFAULT_FILTERS, type DiscoverCandidate } from "../lib/discoverPlayers";
-import type { DiscoverMe, DiscoverPerson, DiscoverRepo } from "../lib/discoverRepo";
+import { nearbyLeagues, levelRangeText, type OpenLeagueCandidate } from "../lib/discoverLeagues";
+import type { DiscoverLeague, DiscoverMe, DiscoverPerson, DiscoverRepo } from "../lib/discoverRepo";
 import { createDiscoverRouter, homeAreaProblem } from "../routes/discover";
 
 // Wappingers Falls, NY (12590) and points roughly north of it.
@@ -199,6 +200,13 @@ class MemoryRepo implements DiscoverRepo {
   async unblock(viewer: string, userId: number) {
     this.blocks = this.blocks.filter(([b, u]) => !(b === viewer && u === userId));
   }
+  leagues: DiscoverLeague[] = [];
+  async openLeagues() {
+    return this.leagues;
+  }
+  async openLeague(_viewer: string, leagueId: number) {
+    return this.leagues.find((l) => l.leagueId === leagueId) ?? null;
+  }
 }
 
 let repo: MemoryRepo;
@@ -312,5 +320,105 @@ describe("Discover settings", () => {
   it("tells you your own profile is hidden", async () => {
     repo.users.set("me", meRow({ hidden: true }));
     expect((await app().get("/api/discover/players")).body.hidden).toBe(true);
+  });
+});
+
+// ─── Open leagues (Wave 2, Discover PR 2) ──────────────────────────────────
+
+function league(over: Partial<OpenLeagueCandidate> & { leagueId: number }): DiscoverLeague {
+  return {
+    name: `League ${over.leagueId}`,
+    format: "flex",
+    startDate: "2026-11-20",
+    endDate: "2027-01-14",
+    minRating: "3.0",
+    maxRating: "4.0",
+    rosterCap: 12,
+    point: north(6),
+    today: "2026-11-05",
+    activePlayers: 9,
+    myRequest: null,
+    description: null,
+    seasonWeeks: 8,
+    playoffSize: 0,
+    matchDay: null,
+    matchTime: null,
+    timeZone: "America/New_York",
+    adminName: "Dana Lindqvist",
+    ...over,
+  };
+}
+
+describe("nearbyLeagues", () => {
+  it("shows distance, level range, format, start date and spots left", () => {
+    const [card] = nearbyLeagues(HOME, [league({ leagueId: 1, name: "Riverfront Mixed 3.5" })], 10);
+    expect(card).toEqual({
+      leagueId: 1,
+      name: "Riverfront Mixed 3.5",
+      format: "flex",
+      levelRange: "3.0 to 4.0",
+      startDate: "2026-11-20",
+      distanceLabel: "~6 mi away",
+      spotsLeft: 3,
+      joining: "join",
+      myRequest: null,
+    });
+  });
+
+  it("puts leagues taking requests before full or started ones, then nearest", () => {
+    const cards = nearbyLeagues(
+      HOME,
+      [
+        league({ leagueId: 1, point: north(2), activePlayers: 12 }),
+        league({ leagueId: 2, point: north(8) }),
+        league({ leagueId: 3, point: north(3), startDate: "2026-11-01" }),
+        league({ leagueId: 4, point: north(4), rosterCap: null }),
+        league({ leagueId: 5, point: north(14) }),
+      ],
+      10,
+    );
+    expect(cards.map((c) => [c.leagueId, c.joining, c.spotsLeft])).toEqual([
+      [4, "join", null],
+      [2, "join", 3],
+      [1, "waitlist", 0],
+      [3, "waitlist", 3],
+    ]);
+  });
+
+  it("words open-ended level ranges", () => {
+    expect(levelRangeText({ minRating: "3.5", maxRating: null })).toBe("3.5 and up");
+    expect(levelRangeText({ minRating: null, maxRating: "4.0" })).toBe("Up to 4.0");
+    expect(levelRangeText({ minRating: null, maxRating: null })).toBe("All levels");
+  });
+});
+
+describe("GET /discover/leagues", () => {
+  it("lists Open leagues within the radius", async () => {
+    repo.leagues = [league({ leagueId: 1 }), league({ leagueId: 2, point: north(20) })];
+    const res = await app().get("/api/discover/leagues").expect(200);
+    expect(res.body.radius).toBe(10);
+    expect(res.body.leagues.map((l: { leagueId: number }) => l.leagueId)).toEqual([1]);
+    const wide = await app().get("/api/discover/leagues?radius=30").expect(200);
+    expect(wide.body.leagues).toHaveLength(2);
+  });
+
+  it("asks for a home area first", async () => {
+    repo.users.set("me", meRow({ point: null, homeZip: null }));
+    const res = await app().get("/api/discover/leagues").expect(200);
+    expect(res.body).toEqual({ radius: 10, homeAreaProblem: "Add your home area so Discover can show players near you.", leagues: [] });
+  });
+
+  it("shows a preview with who runs it and how many play", async () => {
+    repo.leagues = [league({ leagueId: 1, myRequest: "request" })];
+    const res = await app().get("/api/discover/leagues/1").expect(200);
+    expect(res.body).toMatchObject({ leagueId: 1, players: 9, rosterCap: 12, adminName: "Dana Lindqvist", myRequest: "request", seasonWeeks: 8 });
+    expect(res.body).not.toHaveProperty("point");
+    expect(res.body).not.toHaveProperty("miles");
+  });
+
+  it("404s for a league that isn't in your Discover", async () => {
+    repo.leagues = [league({ leagueId: 1, point: north(40) })];
+    await app().get("/api/discover/leagues/1").expect(404);
+    await app().get("/api/discover/leagues/9").expect(404);
   });
 });

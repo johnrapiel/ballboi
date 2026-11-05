@@ -15,6 +15,7 @@ import { SKILL_LEVELS, checkStartDate, seasonDates, validateLeagueSetup } from "
 import { loadProfiles, playerLevelText } from "../lib/playerProfile.js";
 import { DEFAULT_LEAGUE_TIME_ZONE, isTimeZone } from "../lib/leagueCalendar.js";
 import { checkLeagueMatchTime } from "../lib/matchTimes.js";
+import { leagueAreaFor } from "../lib/leagueArea.js";
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   const { userId } = getAuth(req);
@@ -119,6 +120,9 @@ router.post("/leagues", requireAuth, async (req, res) => {
   const playerName = profiles.get(userId!)?.displayName?.trim() || body.playerName?.trim() || "";
   const skillLevel = playerLevelText({ clerkUserId: userId, skillLevel: sentLevel }, profiles);
 
+  // Where the league shows in Discover once it's Open: the creator's home area point.
+  const area = await leagueAreaFor(userId!);
+
   const { league, playerCount } = await db.transaction(async (tx) => {
     const [league] = await tx
       .insert(leaguesTable)
@@ -143,6 +147,8 @@ router.post("/leagues", requireAuth, async (req, res) => {
         timeZone,
         matchDay: matchTime.matchDay,
         matchTime: matchTime.matchTime,
+        areaLatitude: area?.latitude ?? undefined,
+        areaLongitude: area?.longitude ?? undefined,
         createdByClerkUserId: userId!,
       })
       .returning();

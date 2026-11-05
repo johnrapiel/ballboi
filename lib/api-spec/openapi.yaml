@@ -5804,6 +5804,66 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /discover/leagues:
+    get:
+      operationId: getDiscoverLeagues
+      tags: [discover]
+      summary: Open leagues near your home area, ones taking requests first
+      parameters:
+      - name: radius
+        in: query
+        schema:
+          type: integer
+          enum: [5, 10, 15, 30]
+      responses:
+        '200':
+          description: Open leagues near you
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverLeagues'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No profile yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/leagues/{leagueId}:
+    get:
+      operationId: getDiscoverLeague
+      tags: [discover]
+      summary: An Open league's preview, while it's in your Discover
+      parameters:
+      - name: leagueId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: The league's preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverLeaguePreview'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not in your Discover
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   parameters:
     LeagueIdParam:
@@ -5825,6 +5885,79 @@ components:
       schema:
         type: integer
   schemas:
+    OpenLeagueCard:
+      type: object
+      properties:
+        leagueId:
+          type: integer
+        name:
+          type: string
+        format:
+          type: string
+          enum: [flex, round_robin]
+        levelRange:
+          type: string
+          description: Like "3.0 to 4.0", "3.5 and up", "Up to 4.0" or "All levels"
+        startDate:
+          type: [string, 'null']
+          description: YYYY-MM-DD
+        distanceLabel:
+          type: string
+          description: Approximate, like "~6 mi away"
+        spotsLeft:
+          type: [integer, 'null']
+          description: Null when the league has no roster cap
+        joining:
+          type: string
+          enum: [join, waitlist]
+          description: "join: a request goes to the admin now. waitlist: started or full, so it waits for next season"
+        myRequest:
+          type: [string, 'null']
+          enum: [request, waitlist, null]
+          description: Your pending request or waitlist spot
+      required: [leagueId, name, format, levelRange, startDate, distanceLabel, spotsLeft, joining, myRequest]
+    DiscoverLeagues:
+      type: object
+      properties:
+        radius:
+          type: integer
+        homeAreaProblem:
+          type: [string, 'null']
+        leagues:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpenLeagueCard'
+      required: [radius, homeAreaProblem, leagues]
+    DiscoverLeaguePreview:
+      allOf:
+      - $ref: '#/components/schemas/OpenLeagueCard'
+      - type: object
+        properties:
+          description:
+            type: [string, 'null']
+          seasonWeeks:
+            type: [integer, 'null']
+          endDate:
+            type: [string, 'null']
+          playoffSize:
+            type: integer
+          matchDay:
+            type: [integer, 'null']
+            description: 0 Sunday to 6 Saturday, when the league has a set match time
+          matchTime:
+            type: [string, 'null']
+            description: 24-hour HH:MM in the league's time zone
+          timeZone:
+            type: string
+          players:
+            type: integer
+            description: Players in the league now
+          rosterCap:
+            type: [integer, 'null']
+          adminName:
+            type: [string, 'null']
+            description: Who runs it
+        required: [description, seasonWeeks, endDate, playoffSize, matchDay, matchTime, timeZone, players, rosterCap, adminName]
     DiscoverFilters:
       type: object
       properties:

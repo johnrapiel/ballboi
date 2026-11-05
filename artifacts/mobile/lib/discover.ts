@@ -129,3 +129,52 @@ export function readSavedFilters(raw: string | null | undefined): DiscoverFilter
 
 /** The text shared by Invite a friend. No App Store link until the app is listed. */
 export const INVITE_MESSAGE = "I'm finding tennis players near me on Ball Boi. Get the app so we can play.";
+
+// ─── Open leagues (Discover PR 2) ────────────────────────────────────────────
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** "Nov 2" from "2026-11-02", read as the calendar date it names. */
+export function shortDay(date: string, long = false): string {
+  const [, m, d] = date.split("-").map(Number);
+  return `${(long ? MONTHS_LONG : MONTHS)[m - 1]} ${d}`;
+}
+
+export const FORMAT_LABEL: Record<"flex" | "round_robin", string> = { flex: "Flex", round_robin: "Round robin" };
+
+type LeagueCardFields = {
+  format: "flex" | "round_robin";
+  levelRange: string;
+  startDate: string | null;
+  distanceLabel: string;
+  spotsLeft: number | null;
+  joining: "join" | "waitlist";
+  myRequest: "request" | "waitlist" | null;
+};
+
+/** The canvas line under a league's name: "~6 mi away · Round robin · 3.0 to 4.0 · Starts Nov 2". */
+export function leagueLine(l: LeagueCardFields, today: string): string {
+  const parts = [l.distanceLabel, FORMAT_LABEL[l.format], l.levelRange];
+  if (l.startDate) parts.push(`${l.startDate > today ? "Starts" : "Started"} ${shortDay(l.startDate)}`);
+  return parts.join(" · ");
+}
+
+/** The tag beside a league's name: where you stand, or how many spots are left. */
+export function leagueTag(l: LeagueCardFields): string {
+  if (l.myRequest === "request") return "Requested";
+  if (l.myRequest === "waitlist") return "On the waitlist";
+  if (l.joining === "waitlist") return l.spotsLeft === 0 ? "Full" : "Waitlist";
+  if (l.spotsLeft == null) return "Open";
+  return `${l.spotsLeft} ${l.spotsLeft === 1 ? "spot" : "spots"} left`;
+}
+
+/** The preview's button for a league you haven't asked to join. */
+export function joinButtonLabel(l: Pick<LeagueCardFields, "joining">): string {
+  return l.joining === "join" ? "Request to join" : "Join the waitlist";
+}
+
+/** Today on this phone, as "YYYY-MM-DD". */
+export function localDay(now: Date = new Date()): string {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}

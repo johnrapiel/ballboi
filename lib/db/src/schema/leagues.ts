@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -34,6 +34,11 @@ export const leaguesTable = pgTable("leagues", {
   // matchTime: 24-hour "HH:MM" in the league's time zone.
   matchDay: integer("match_day"),
   matchTime: text("match_time"),
+  // Where an Open league shows in Discover (spec: Discover): its creator's
+  // home area point when the league was made, never an exact address.
+  // Migration 20261105_f_discover_open_leagues.sql.
+  areaLatitude: real("area_latitude"),
+  areaLongitude: real("area_longitude"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

@@ -27,9 +27,16 @@ import { useProfile } from "@/hooks/useProfile";
 // Start a league (spec: Leagues > Setup and Onboarding > Run a league;
 // canvas: Admin · Create league). Anyone can start one and becomes its admin.
 // Singles only for now (Q2). A season starts tomorrow at the earliest (Q7), so a
-// friend who joins on the day it's made is in from round 1.
+// friend who joins on the day it's made is in from round 1. Private or Open
+// (Wave 2): an Open league is listed in Discover and takes join requests.
 
 type Format = "flex" | "round_robin";
+
+// Open leagues: a level range and an optional roster cap (spec: Leagues > Setup, Eligibility).
+const LEVELS = ["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"] as const;
+type Level = (typeof LEVELS)[number];
+const CAPS = [0, 8, 12, 16, 24] as const;
+type Cap = (typeof CAPS)[number];
 
 // Season length limits match the spec (Leagues > Setup: 1 to 24 weeks) and the API.
 const DEFAULT_WEEKS = 8;
@@ -205,6 +212,19 @@ export default function StartLeagueScreen() {
     setWeeksText(String(weeks));
   };
   const [playoffs, setPlayoffs] = useState<0 | 4 | 8>(0);
+  // Who can join (spec: Leagues > Setup, Visibility and Eligibility).
+  const [visibility, setVisibility] = useState<"private" | "open">("private");
+  const [minLevel, setMinLevel] = useState<Level | "any">("any");
+  const [maxLevel, setMaxLevel] = useState<Level | "any">("any");
+  const [cap, setCap] = useState<Cap>(0);
+  const pickMin = (v: Level | "any") => {
+    setMinLevel(v);
+    if (v !== "any" && maxLevel !== "any" && Number(maxLevel) < Number(v)) setMaxLevel(v);
+  };
+  const pickMax = (v: Level | "any") => {
+    setMaxLevel(v);
+    if (v !== "any" && minLevel !== "any" && Number(minLevel) > Number(v)) setMinLevel(v);
+  };
   const [playing, setPlaying] = useState(true);
   const [setTime, setSetTime] = useState(false);
   const [matchDay, setMatchDay] = useState<number>(() => nextMonday().getDay());
@@ -234,12 +254,11 @@ export default function StartLeagueScreen() {
       // Q2: doubles leagues come later.
       leagueType: "singles",
       partnerMode: null,
-      // Open leagues (listed in Discover, with join requests) come back once
-      // Discover and join requests are built. Until then every league is private.
-      visibility: "private",
-      minRating: null,
-      maxRating: null,
-      rosterCap: null,
+      // Open leagues are listed in Discover near the admin's home area and take join requests.
+      visibility,
+      minRating: visibility === "open" && minLevel !== "any" ? minLevel : null,
+      maxRating: visibility === "open" && maxLevel !== "any" ? maxLevel : null,
+      rosterCap: visibility === "open" && cap ? cap : null,
       startDate: dateKey(start),
       seasonWeeks: weeks,
       playoffSize: playoffs,
@@ -323,7 +342,43 @@ export default function StartLeagueScreen() {
         </Section>
 
         <Section title="Who can join">
-          <Text>Players join with your invite link or code.</Text>
+          <ChoiceGroup<"private" | "open">
+            label="Visibility"
+            value={visibility}
+            onChange={setVisibility}
+            options={[
+              { value: "private", label: "Private" },
+              { value: "open", label: "Open" },
+            ]}
+            hint={
+              visibility === "private"
+                ? "Players join with your invite link or code."
+                : "Listed in Discover for players near your home area. They ask to join, and you approve them in Manage. Your invite link works too."
+            }
+          />
+          {visibility === "open" ? (
+            <>
+              <ChoiceGroup<Level | "any">
+                label="Lowest level"
+                value={minLevel}
+                onChange={pickMin}
+                options={[{ value: "any" as const, label: "Any" }, ...LEVELS.map((l) => ({ value: l, label: l, accessibilityLabel: `Level ${l}` }))]}
+              />
+              <ChoiceGroup<Level | "any">
+                label="Highest level"
+                value={maxLevel}
+                onChange={pickMax}
+                options={[{ value: "any" as const, label: "Any" }, ...LEVELS.map((l) => ({ value: l, label: l, accessibilityLabel: `Level ${l}` }))]}
+              />
+              <ChoiceGroup<Cap>
+                label="Spots"
+                value={cap}
+                onChange={setCap}
+                options={CAPS.map((n) => (n ? { value: n, label: String(n), accessibilityLabel: `${n} players` } : { value: n, label: "No limit" }))}
+                hint={cap ? "Once it's full, requests wait on a list for next season." : "Requests wait on a list for next season once it starts."}
+              />
+            </>
+          ) : null}
         </Section>
 
         <Section title="Season">

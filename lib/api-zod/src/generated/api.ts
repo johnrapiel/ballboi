@@ -5418,3 +5418,108 @@ export const UpdateMyDiscoverSettingsResponse = zod.object({
     zod.enum(["weekday_mornings", "weekday_evenings", "weekends"]),
   ),
 });
+
+/**
+ * @summary Open leagues near your home area, ones taking requests first
+ */
+export const GetDiscoverLeaguesQueryParams = zod.object({
+  radius: zod
+    .union([zod.literal(5), zod.literal(10), zod.literal(15), zod.literal(30)])
+    .optional(),
+});
+
+export const GetDiscoverLeaguesResponse = zod.object({
+  radius: zod.number(),
+  homeAreaProblem: zod.string().nullable(),
+  leagues: zod.array(
+    zod.object({
+      leagueId: zod.number(),
+      name: zod.string(),
+      format: zod.enum(["flex", "round_robin"]),
+      levelRange: zod
+        .string()
+        .describe(
+          'Like \"3.0 to 4.0\", \"3.5 and up\", \"Up to 4.0\" or \"All levels\"',
+        ),
+      startDate: zod.string().nullable().describe("YYYY-MM-DD"),
+      distanceLabel: zod.string().describe('Approximate, like \"~6 mi away\"'),
+      spotsLeft: zod
+        .number()
+        .nullable()
+        .describe("Null when the league has no roster cap"),
+      joining: zod
+        .enum(["join", "waitlist"])
+        .describe(
+          "join: a request goes to the admin now. waitlist: started or full, so it waits for next season",
+        ),
+      myRequest: zod
+        .union([
+          zod.literal("request"),
+          zod.literal("waitlist"),
+          zod.literal(null),
+        ])
+        .nullable()
+        .describe("Your pending request or waitlist spot"),
+    }),
+  ),
+});
+
+/**
+ * @summary An Open league's preview, while it's in your Discover
+ */
+export const GetDiscoverLeagueParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const GetDiscoverLeagueResponse = zod
+  .object({
+    leagueId: zod.number(),
+    name: zod.string(),
+    format: zod.enum(["flex", "round_robin"]),
+    levelRange: zod
+      .string()
+      .describe(
+        'Like \"3.0 to 4.0\", \"3.5 and up\", \"Up to 4.0\" or \"All levels\"',
+      ),
+    startDate: zod.string().nullable().describe("YYYY-MM-DD"),
+    distanceLabel: zod.string().describe('Approximate, like \"~6 mi away\"'),
+    spotsLeft: zod
+      .number()
+      .nullable()
+      .describe("Null when the league has no roster cap"),
+    joining: zod
+      .enum(["join", "waitlist"])
+      .describe(
+        "join: a request goes to the admin now. waitlist: started or full, so it waits for next season",
+      ),
+    myRequest: zod
+      .union([
+        zod.literal("request"),
+        zod.literal("waitlist"),
+        zod.literal(null),
+      ])
+      .nullable()
+      .describe("Your pending request or waitlist spot"),
+  })
+  .and(
+    zod.object({
+      description: zod.string().nullable(),
+      seasonWeeks: zod.number().nullable(),
+      endDate: zod.string().nullable(),
+      playoffSize: zod.number(),
+      matchDay: zod
+        .number()
+        .nullable()
+        .describe(
+          "0 Sunday to 6 Saturday, when the league has a set match time",
+        ),
+      matchTime: zod
+        .string()
+        .nullable()
+        .describe("24-hour HH:MM in the league's time zone"),
+      timeZone: zod.string(),
+      players: zod.number().describe("Players in the league now"),
+      rosterCap: zod.number().nullable(),
+      adminName: zod.string().nullable().describe("Who runs it"),
+    }),
+  );

@@ -1,9 +1,10 @@
-import { useGetDiscoverPlayers } from "@workspace/api-client-react";
+import { useGetDiscoverLeagues, useGetDiscoverPlayers } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import React from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Share, View } from "react-native";
 
+import { LeagueCard } from "@/components/discover/LeagueCard";
 import { LinkButton } from "@/components/discover/LinkButton";
 import { PlayerRow } from "@/components/discover/PlayerRow";
 import { EmptyState } from "@/components/EmptyState";
@@ -16,17 +17,44 @@ import { filterChips, INVITE_MESSAGE, widerRadius } from "@/lib/discover";
 
 // Discover (spec: Discover; canvas: Discover). Always local: players within
 // the chosen radius of your home area, nearest and closest in level first,
-// with approximate distance only. Open leagues, Open matches, the court
-// directory and travel mode come in the next Wave 2 PRs.
+// with approximate distance only, then Open leagues within the same radius.
+// Open matches, the court directory and travel mode come in the next Wave 2 PRs.
 
 /** Players near you shown on Discover itself; See all opens the full list. */
 const PREVIEW = 5;
+/** Open leagues shown on Discover itself. */
+const LEAGUE_PREVIEW = 3;
+
+function SectionHeader({ title, more }: { title: string; more?: React.ReactNode }) {
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: spacing.space4,
+        minHeight: MIN_TAP,
+      }}
+    >
+      <Text variant="title" accessibilityRole="header">
+        {title}
+      </Text>
+      {more}
+    </View>
+  );
+}
 
 export default function DiscoverScreen() {
   const c = useColors();
   const router = useRouter();
   const filters = useDiscoverFilters();
   const query = useGetDiscoverPlayers(filters);
+  const leaguesQuery = useGetDiscoverLeagues({ radius: filters.radius });
+  const leagues = leaguesQuery.data?.leagues ?? [];
+  const refresh = () => {
+    void query.refetch();
+    void leaguesQuery.refetch();
+  };
   const data = query.data;
   const chips = filterChips(filters, data?.myRating);
   const wider = data ? widerRadius(data.counts, filters.radius) : null;
@@ -39,7 +67,7 @@ export default function DiscoverScreen() {
     <TabScreen title="Discover">
       <ScrollView
         contentContainerStyle={{ paddingBottom: spacing.space8, gap: spacing.space4 }}
-        refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={c.ink} />}
+        refreshControl={<RefreshControl refreshing={query.isRefetching || leaguesQuery.isRefetching} onRefresh={refresh} tintColor={c.ink} />}
       >
         <Pressable
           onPress={() => router.push("/discover/filters")}
@@ -107,26 +135,18 @@ export default function DiscoverScreen() {
             ) : null}
 
             <View style={{ gap: spacing.space1 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  paddingHorizontal: spacing.space4,
-                  minHeight: MIN_TAP,
-                }}
-              >
-                <Text variant="title" accessibilityRole="header">
-                  Players near you
-                </Text>
-                {data.players.length > PREVIEW ? (
-                  <LinkButton
-                    label="See all"
-                    onPress={() => router.push("/discover/players")}
-                    accessibilityLabel={`See all ${data.players.length} players near you`}
-                  />
-                ) : null}
-              </View>
+              <SectionHeader
+                title="Players near you"
+                more={
+                  data.players.length > PREVIEW ? (
+                    <LinkButton
+                      label="See all"
+                      onPress={() => router.push("/discover/players")}
+                      accessibilityLabel={`See all ${data.players.length} players near you`}
+                    />
+                  ) : undefined
+                }
+              />
 
               {data.players.length ? (
                 data.players
@@ -155,6 +175,44 @@ export default function DiscoverScreen() {
                     ) : null}
                     <Button label="Invite a friend" variant="secondary" onPress={invite} />
                   </View>
+                </View>
+              )}
+            </View>
+
+            <View style={{ gap: spacing.space3 }}>
+              <SectionHeader
+                title="Open leagues"
+                more={
+                  leagues.length > LEAGUE_PREVIEW ? (
+                    <LinkButton
+                      label="See all"
+                      onPress={() => router.push("/discover/leagues")}
+                      accessibilityLabel={`See all ${leagues.length} Open leagues`}
+                    />
+                  ) : undefined
+                }
+              />
+              {leaguesQuery.isPending ? (
+                <ActivityIndicator color={c.ink} accessibilityLabel="Loading Open leagues" />
+              ) : leaguesQuery.isError && !leaguesQuery.data ? (
+                <View style={{ paddingHorizontal: spacing.space4, gap: spacing.space2 }}>
+                  <Text tone="inkMuted">Open leagues didn't load.</Text>
+                  <LinkButton label="Try again" onPress={() => void leaguesQuery.refetch()} />
+                </View>
+              ) : leagues.length ? (
+                leagues
+                  .slice(0, LEAGUE_PREVIEW)
+                  .map((l) => (
+                    <LeagueCard
+                      key={l.leagueId}
+                      league={l}
+                      onPress={() => router.push({ pathname: "/discover/league/[leagueId]", params: { leagueId: String(l.leagueId) } })}
+                    />
+                  ))
+              ) : (
+                <View style={{ paddingHorizontal: spacing.space4, gap: spacing.space1 }}>
+                  <Text tone="inkMuted">No Open leagues within {filters.radius} mi yet.</Text>
+                  <LinkButton label="Start a league" onPress={() => router.push("/league/new")} />
                 </View>
               )}
             </View>

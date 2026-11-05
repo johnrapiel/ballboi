@@ -72,6 +72,9 @@ vi.mock("@workspace/api-zod", () => ({
 vi.mock("../services/leagueRounds.js", () => ({ runLeagueDay: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../lib/leagueAccess.js", () => ({ isLeagueAdmin: vi.fn().mockResolvedValue(false) }));
 vi.mock("../lib/autoLinkPlayer.js", () => ({ autoLinkPlayer: vi.fn() }));
+// The creator's home area point, for Discover (Wave 2).
+let mockArea: { latitude: number; longitude: number } | null = null;
+vi.mock("../lib/leagueArea.js", () => ({ leagueAreaFor: async () => mockArea }));
 
 // The signed-in person's profile (users row), read by the route through lib/playerProfile.
 const mockProfiles = new Map<string, { displayName: string | null; avatarUrl: string | null; rating: number | null; ratingSource: string | null }>();
@@ -112,6 +115,7 @@ let app: Awaited<ReturnType<typeof buildApp>>;
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  mockArea = null;
   mockProfiles.clear();
   inserted = [];
   mockGetAuth = () => ({ userId: "user_starter" });
@@ -197,6 +201,13 @@ describe("POST /api/leagues", () => {
       .send({ ...valid, visibility: "open", minRating: "3.0", maxRating: "4.0", rosterCap: 16 });
     const league = inserted.find((i) => i.table === "leagues");
     expect(league?.values).toMatchObject({ visibility: "open", minRating: "3.0", maxRating: "4.0", rosterCap: 16 });
+  });
+
+  it("places the league in Discover at its creator's home area point (Wave 2)", async () => {
+    mockArea = { latitude: 41.6, longitude: -73.89 };
+    await supertest(app).post("/api/leagues").send({ ...valid, visibility: "open" });
+    const league = inserted.find((i) => i.table === "leagues");
+    expect(league?.values).toMatchObject({ areaLatitude: 41.6, areaLongitude: -73.89 });
   });
 
   it("returns 400 with a plain message for a setup the spec doesn't allow", async () => {

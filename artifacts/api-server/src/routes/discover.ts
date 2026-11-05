@@ -1,12 +1,15 @@
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { getAuth } from "@clerk/express";
 import { MAX_RADIUS, distanceLabel, milesBetween, parseRadius } from "../lib/discoverArea.js";
+import { nearbyLeagues, openLeagueCard } from "../lib/discoverLeagues.js";
 import { PLAYS, nearbyPlayers, parseDiscoverSettings, parseFilters, type Plays } from "../lib/discoverPlayers.js";
 import { DrizzleDiscoverRepo, type DiscoverMe, type DiscoverRepo } from "../lib/discoverRepo.js";
 import { logger } from "../lib/logger.js";
 
-// Discover (spec: Discover): Players near you, the player's Discover
-// settings (hidden profile, what they play, when they're free), and block.
+// Discover (spec: Discover): Players near you, Open leagues near you, the
+// player's Discover settings (hidden profile, what they play, when they're
+// free), and block. Asking to join an Open league goes through
+// POST /leagues/:leagueId/join-requests.
 // Messaging a Discover player goes through POST /messages with their userId,
 // so a first message lands in their Message Requests.
 
@@ -118,6 +121,55 @@ export function createDiscoverRouter(getRepo: () => DiscoverRepo = () => new Dri
       const id = Number(req.params.userId);
       if (Number.isInteger(id)) await repo.unblock(viewer, id);
       res.status(204).end();
+    }),
+  );
+
+  /** GET /discover/leagues?radius=10: Open leagues near your home area, ones taking requests first. */
+  router.get(
+    "/discover/leagues",
+    requireAuth,
+    wrap(async (repo, viewer, req, res) => {
+      const me = await repo.me(viewer);
+      if (!me) {
+        res.status(404).json({ error: "User profile not found" });
+        return;
+      }
+      const radius = parseRadius((req.query as Record<string, unknown>).radius);
+      if (!me.point) {
+        res.json({ radius, homeAreaProblem: homeAreaProblem(me), leagues: [] });
+        return;
+      }
+      const candidates = await repo.openLeagues(viewer, me.point, radius);
+      res.json({ radius, homeAreaProblem: null, leagues: nearbyLeagues(me.point, candidates, radius) });
+    }),
+  );
+
+  /** GET /discover/leagues/:leagueId: an Open league's preview, only while it's in your Discover. */
+  router.get(
+    "/discover/leagues/:leagueId",
+    requireAuth,
+    wrap(async (repo, viewer, req, res) => {
+      const id = Number(req.params.leagueId);
+      const [me, league] = await Promise.all([repo.me(viewer), Number.isInteger(id) ? repo.openLeague(viewer, id) : null]);
+      const card = me?.point && league ? openLeagueCard(me.point, league) : null;
+      if (!league || !card || card.miles > MAX_RADIUS) {
+        res.status(404).json({ error: "This league isn't in Discover right now." });
+        return;
+      }
+      const { miles: _miles, ...rest } = card;
+      res.json({
+        ...rest,
+        description: league.description,
+        seasonWeeks: league.seasonWeeks,
+        endDate: league.endDate,
+        playoffSize: league.playoffSize,
+        matchDay: league.matchDay,
+        matchTime: league.matchTime,
+        timeZone: league.timeZone,
+        players: league.activePlayers,
+        rosterCap: league.rosterCap,
+        adminName: league.adminName,
+      });
     }),
   );
 

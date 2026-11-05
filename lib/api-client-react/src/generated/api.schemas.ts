@@ -5,6 +5,102 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+export type OpenLeagueCardFormat =
+  (typeof OpenLeagueCardFormat)[keyof typeof OpenLeagueCardFormat];
+
+export const OpenLeagueCardFormat = {
+  flex: "flex",
+  round_robin: "round_robin",
+} as const;
+
+/**
+ * join: a request goes to the admin now. waitlist: started or full, so it waits for next season
+ */
+export type OpenLeagueCardJoining =
+  (typeof OpenLeagueCardJoining)[keyof typeof OpenLeagueCardJoining];
+
+export const OpenLeagueCardJoining = {
+  join: "join",
+  waitlist: "waitlist",
+} as const;
+
+/**
+ * Your pending request or waitlist spot
+ * @nullable
+ */
+export type OpenLeagueCardMyRequest =
+  | (typeof OpenLeagueCardMyRequest)[keyof typeof OpenLeagueCardMyRequest]
+  | null;
+
+export const OpenLeagueCardMyRequest = {
+  request: "request",
+  waitlist: "waitlist",
+} as const;
+
+export interface OpenLeagueCard {
+  leagueId: number;
+  name: string;
+  format: OpenLeagueCardFormat;
+  /** Like "3.0 to 4.0", "3.5 and up", "Up to 4.0" or "All levels" */
+  levelRange: string;
+  /**
+   * YYYY-MM-DD
+   * @nullable
+   */
+  startDate: string | null;
+  /** Approximate, like "~6 mi away" */
+  distanceLabel: string;
+  /**
+   * Null when the league has no roster cap
+   * @nullable
+   */
+  spotsLeft: number | null;
+  /** join: a request goes to the admin now. waitlist: started or full, so it waits for next season */
+  joining: OpenLeagueCardJoining;
+  /**
+   * Your pending request or waitlist spot
+   * @nullable
+   */
+  myRequest: OpenLeagueCardMyRequest;
+}
+
+export interface DiscoverLeagues {
+  radius: number;
+  /** @nullable */
+  homeAreaProblem: string | null;
+  leagues: OpenLeagueCard[];
+}
+
+export type DiscoverLeaguePreview = OpenLeagueCard & {
+  /** @nullable */
+  description: string | null;
+  /** @nullable */
+  seasonWeeks: number | null;
+  /** @nullable */
+  endDate: string | null;
+  playoffSize: number;
+  /**
+   * 0 Sunday to 6 Saturday, when the league has a set match time
+   * @nullable
+   */
+  matchDay: number | null;
+  /**
+   * 24-hour HH:MM in the league's time zone
+   * @nullable
+   */
+  matchTime: string | null;
+  timeZone: string;
+  /** Players in the league now */
+  players: number;
+  /** @nullable */
+  rosterCap: number | null;
+  /**
+   * Who runs it
+   * @nullable
+   */
+  adminName: string | null;
+};
+
 export type DiscoverFiltersRadius =
   (typeof DiscoverFiltersRadius)[keyof typeof DiscoverFiltersRadius];
 
@@ -3288,4 +3384,18 @@ export const GetDiscoverPlayersFree = {
   weekday_mornings: "weekday_mornings",
   weekday_evenings: "weekday_evenings",
   weekends: "weekends",
+} as const;
+
+export type GetDiscoverLeaguesParams = {
+  radius?: GetDiscoverLeaguesRadius;
+};
+
+export type GetDiscoverLeaguesRadius =
+  (typeof GetDiscoverLeaguesRadius)[keyof typeof GetDiscoverLeaguesRadius];
+
+export const GetDiscoverLeaguesRadius = {
+  NUMBER_5: 5,
+  NUMBER_10: 10,
+  NUMBER_15: 15,
+  NUMBER_30: 30,
 } as const;

@@ -122,6 +122,16 @@ Discover is always local: results are bounded by distance, never a national feed
 - **Empty state:** "Widen to 15 mi" when a wider radius has players, and Invite a friend (share text without an App Store link until the app is listed). Post an open match joins with open matches
 - **Filters:** kept on the phone and stick after the app closes
 
+**Open leagues, as built in Wave 2 (pending John's review).**
+
+- **Where a league shows:** at its creator's home area point when it's made, inside the same radius as Players near you. No address shows
+- **Start a league:** Who can join is Private (default) or Open. Open adds Lowest level and Highest level (Any, or 2.5 to 5.0) and Spots (No limit, 8, 12, 16 or 24)
+- **Order:** leagues taking requests first, then nearest, then soonest start. Discover shows three, with See all
+- **Tag:** "3 spots left", "Open" (no cap), "Full" or "Waitlist" (started), or where you stand ("Requested", "On the waitlist")
+- **Who's left out:** ended leagues, leagues you're in, and leagues run by someone blocked either way or banned or suspended
+- **Preview:** name, Run by, description, distance, level, format, season dates, set match time, players (of the cap), playoffs, then Request to join or Join the waitlist. Withdraw or Leave the waitlist once asked. The admin approves in Manage, as today
+- **No Open leagues nearby:** a line and a Start a league link
+
 ## Messaging and moderation
 
 Players can message before committing to a match, so safety is built into the inbox from day one. Every report is acted on within 24 hours to meet Guideline 1.2.
