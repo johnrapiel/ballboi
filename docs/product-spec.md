@@ -185,14 +185,14 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 
 **Doubles (Wave 2)**
 
-Doubles pairing replaces decision 51's hidden state. These are the defaults built in Wave 2, pending John's partner flow review; none is logged as a decision yet.
+Doubles pairing replaces decision 51's hidden state. These are the defaults built in Wave 2, pending John's partner flow review, except no doubles playoffs, which is decision 79.
 
 - **At least 4 players:** a doubles league pairs once it has 4 players
 - **Fixed partners:** each player keeps one partner all season. Admins team players up or split a team in Manage > Teams. Anyone without a partner when a round is drafted is teamed with the closest level and keeps that partner. With an odd count, the newest player waits for a partner and gets a bye
 - **Rotating partners:** each week players are grouped in fours by level, availability and who they've played with, then split into even teams with a new partner. Leftover players (1 to 3) get byes, fewest byes first
 - **Teams on the week:** a fixed team plays only when both partners are open that week; otherwise both have a bye
 - **Standings stay per player:** both partners get the win
-- **No playoffs for doubles yet:** Start a league hides Playoffs for doubles
+- **No playoffs for doubles for now (decision 79):** Start a league hides Playoffs for doubles
 - **Admin edits:** the round review swaps any of the four players, including a partner with an opponent, and gives any of them a bye. Team changes apply to rounds prepared afterward; re-pair a draft to pick them up
 - **Blocks:** two players where one blocked the other are never on court together; if a four can't avoid it, those four sit out
 - **Messaging:** Message on your week opens a picker of your partner or either opponent
@@ -471,3 +471,4 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 76 | Sign out warns first when recordings haven't uploaded, with the count, Cancel and Sign out anyway (Nov 4) |
 | 77 | League opponents talk in a direct chat (Message opponent) for now; full match threads come with Discover (Oct 31, logged Nov 4) |
 | 78 | The last onboarding step is an optional research question, "What do you want to do on Ball Boi?": pick any of four options or none, and everyone lands on Home. Replaces the four setup paths (Nov 2, logged Nov 4) |
+| 79 | No playoffs for doubles leagues for now, fixed or rotating partners. Start a league hides Playoffs for doubles (Nov 4) |
