@@ -77,9 +77,10 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
  * GET /storage/objects/*
  *
  * Stream an uploaded object through the API. The ML server (X-ML-Secret) can
- * read any object; that's how it downloads Ball Boi video. Everyone else gets
- * only current profile photos, which the app shows as plain image links
- * without a sign-in header. A replaced or removed photo stops loading.
+ * read any object; that's how it downloads Ball Boi video. Everyone else must
+ * be signed in (A17), and gets only current profile photos: the app sends its
+ * sign-in header with each photo request (components/Avatar.tsx). A replaced
+ * or removed photo stops loading.
  */
 router.get("/storage/objects/*path", async (req: Request, res: Response) => {
   try {
@@ -87,6 +88,10 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
     const objectPath = `/objects/${wildcardPath}`;
     const ml = fromMlServer(req);
+    if (!ml && !getAuth(req).userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
     if (!ml && (await isBallBoiVideo(objectPath))) {
       res.status(403).json({ error: "Forbidden" });
       return;

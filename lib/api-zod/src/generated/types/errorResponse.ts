@@ -6,6 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Every error answers with this: a message to show, and on some routes a code to branch on. Routes need a signed-in Clerk session unless they say otherwise, and answer 401 without one. A banned or suspended account gets 403 with code account_banned or account_suspended on every route except GET /account/status, POST /account/appeal, DELETE /users/me, GET /users/me/league-handoff and /healthz. 401, that 403 and 500 are not listed per route.
+ */
 export interface ErrorResponse {
+  /** A message to show the person */
   error: string;
+  /** Present on some errors, such as league_ended, blocked or already_appealed */
+  code?: string;
 }

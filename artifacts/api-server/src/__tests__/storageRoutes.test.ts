@@ -6,7 +6,7 @@ import { Readable } from "stream";
 // Spec (Video and training data): match video is never shown in the app.
 // Only the ML server, with its secret, can read Ball Boi video from storage.
 // A17: uploading needs sign-in and takes only photos up to 10 MB, and only a
-// current profile photo loads in the app.
+// current profile photo loads in the app, for someone signed in.
 
 let mockUserId: string | null = "user_recorder";
 vi.mock("@clerk/express", () => ({ getAuth: () => ({ userId: mockUserId }) }));
@@ -79,12 +79,28 @@ describe("GET /storage/objects", () => {
     expect((await supertest(await app()).get("/api/storage/objects/training/session-1.mp4").set("x-ml-secret", "s3cret")).status).toBe(200);
   });
 
-  it("a current profile photo loads in the app without a sign-in header", async () => {
+  it("a current profile photo loads for someone signed in", async () => {
     storedType = "image/jpeg";
     users = [{ id: 3 }];
     const res = await supertest(await app()).get("/api/storage/objects/uploads/avatar-1");
     expect(res.status).toBe(200);
     expect(res.headers["x-content-type-options"]).toBe("nosniff");
+  });
+
+  it("a profile photo doesn't open for someone signed out (A17)", async () => {
+    storedType = "image/jpeg";
+    users = [{ id: 3 }];
+    mockUserId = null;
+    const res = await supertest(await app()).get("/api/storage/objects/uploads/avatar-1");
+    expect(res.status).toBe(401);
+    expect(res.headers["content-type"]).not.toMatch(/image/);
+  });
+
+  it("the ML server still reads objects without a sign-in", async () => {
+    mockUserId = null;
+    sessions = [{ id: 1, recordedByClerkUserId: "user_recorder", videoObjectPath: "/objects/uploads/match.mp4" }];
+    const res = await supertest(await app()).get("/api/storage/objects/uploads/match.mp4").set("x-ml-secret", "s3cret");
+    expect(res.status).toBe(200);
   });
 
   it("a replaced or removed photo no longer loads", async () => {

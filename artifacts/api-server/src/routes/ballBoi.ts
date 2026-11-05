@@ -41,14 +41,15 @@ import {
 } from "../lib/multipartUpload";
 import { mlVideoFields } from "../lib/mlDispatch";
 import { parseRecordedAt } from "../lib/recordableMatches";
+import { phoneSessionMetadata, publicSession } from "../lib/sessionMetadata";
 
 const router = Router();
 
 // Re-runs a request through this router under a rewritten URL (used by the
 // /matches/:matchId/ball-boi/* aliases). Express 5's types don't expose
-// Router#handle, though it exists at runtime.
-function dispatch(req: Request, res: Response) {
-  (router as unknown as { handle: (req: Request, res: Response) => void }).handle(req, res);
+// Router#handle, though it exists at runtime; it throws without a callback.
+function dispatch(req: Request, res: Response, next: NextFunction) {
+  (router as unknown as { handle: (req: Request, res: Response, next: NextFunction) => void }).handle(req, res, next);
 }
 const storage = new ObjectStorageService();
 
@@ -214,11 +215,9 @@ router.post("/ball-boi/matches/:matchId/sessions/start", requireAuth, async (req
     const access = await canAccessMatch(matchId, userId);
     if (!access.match) { res.status(404).json({ error: "Match not found" }); return; }
     if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
-    // Only plain facts from the phone go into metadata; the server's own keys
+    // Only the phone's own keys go into metadata; the server's own keys
     // (callback token, uploads, stat gates) are never taken from a request.
-    const sent = asRecord(req.body?.metadata);
-    const metadata: Record<string, unknown> = {};
-    if (typeof sent.source === "string" && sent.source.length <= 20) metadata.source = sent.source;
+    const metadata = phoneSessionMetadata(req.body?.metadata);
     const [session] = await db.insert(ballBoiSessionsTable).values({
       matchId,
       recordedByClerkUserId: userId,
@@ -229,7 +228,7 @@ router.post("/ball-boi/matches/:matchId/sessions/start", requireAuth, async (req
       recordingStartedAt: parseRecordedAt(req.body?.recordedAt, new Date()),
       metadata,
     }).returning();
-    res.status(201).json(session);
+    res.status(201).json(publicSession(session));
   } catch (err) {
     logger.error({ err }, "Failed to start Ball Boi session");
     res.status(500).json({ error: "Failed to start Ball Boi session" });
@@ -423,7 +422,7 @@ router.post("/ball-boi/sessions/:sessionId/cancel", requireAuth, async (req: Req
       processingError: stringOrNull(req.body?.reason) ?? "Recording was cancelled before video capture started",
       recordingStoppedAt: new Date(),
     }).where(eq(ballBoiSessionsTable.id, sessionId)).returning();
-    res.json(updated);
+    res.json(publicSession(updated));
   } catch (err) {
     logger.error({ err }, "Failed to cancel Ball Boi session");
     res.status(500).json({ error: "Failed to cancel Ball Boi session" });
@@ -508,7 +507,7 @@ router.post("/ball-boi/sessions/:sessionId/complete", requireAuth, async (req: R
     if (session.recordedByClerkUserId !== userId) { res.status(403).json({ error: "Forbidden" }); return; }
     // Told twice (the first answer was lost and the phone tried again):
     // analysis already started, so answer with the session and start nothing (D33).
-    if (session.status !== "recording") { res.json(session); return; }
+    if (session.status !== "recording") { res.json(publicSession(session)); return; }
     const body = asRecord(req.body);
     const segments = readSegments(body);
     const objectPath = segments && segments.length > 0 ? segments[0].objectPath : body.objectPath;
@@ -548,7 +547,7 @@ router.post("/ball-boi/sessions/:sessionId/complete", requireAuth, async (req: R
     }).where(and(eq(ballBoiSessionsTable.id, sessionId), eq(ballBoiSessionsTable.status, "recording"))).returning();
     if (!updated) {
       const [current] = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, sessionId));
-      res.json(current ?? session);
+      res.json(publicSession(current ?? session));
       return;
     }
 
@@ -599,7 +598,7 @@ router.post("/ball-boi/sessions/:sessionId/complete", requireAuth, async (req: R
       }
     }
 
-    res.json(updated);
+    res.json(publicSession(updated));
   } catch (err) {
     logger.error({ err }, "Failed to complete Ball Boi session");
     res.status(500).json({ error: "Failed to complete Ball Boi session" });
@@ -653,7 +652,7 @@ router.get("/ball-boi/matches/:matchId/replay", requireAuth, async (req: Request
     const shown = shownStats(session.metadata);
     res.json({
       match: access.match,
-      session: gateSession(session, shown),
+      session: publicSession(gateSession(session, shown)),
       shots: shots.map((shot) => gateShot(shot, shown)),
       statistics: gateStatistics(statsRows[0], shown),
       hiddenStats: hiddenStats(shown),
@@ -664,14 +663,14 @@ router.get("/ball-boi/matches/:matchId/replay", requireAuth, async (req: Request
   }
 });
 
-router.post("/matches/:matchId/ball-boi/sessions/start", requireAuth, async (req: Request, res: Response) => {
+router.post("/matches/:matchId/ball-boi/sessions/start", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   req.url = `/ball-boi/matches/${req.params.matchId}/sessions/start`;
-  dispatch(req, res);
+  dispatch(req, res, next);
 });
 
-router.get("/matches/:matchId/ball-boi/replay", requireAuth, async (req: Request, res: Response) => {
+router.get("/matches/:matchId/ball-boi/replay", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   req.url = `/ball-boi/matches/${req.params.matchId}/replay`;
-  dispatch(req, res);
+  dispatch(req, res, next);
 });
 
 async function latestSessionForMatch(matchId: number) {
@@ -750,7 +749,7 @@ router.post("/matches/:matchId/ball-boi/end", requireAuth, async (req: Request, 
         }).where(eq(ballBoiSessionsTable.id, session.id));
       }
     }
-    res.json(updated);
+    res.json(publicSession(updated));
   } catch (err) {
     logger.error({ err }, "Failed to end match Ball Boi session");
     res.status(500).json({ error: "Failed to end Ball Boi session" });
@@ -830,7 +829,7 @@ router.get("/matches/:matchId/narrative", requireAuth, async (req: Request, res:
   }
 });
 
-router.get("/matches/:matchId/ball-boi/replay-metadata", requireAuth, async (req: Request, res: Response) => {
+router.get("/matches/:matchId/ball-boi/replay-metadata", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { userId } = getAuth(req);
     if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -841,7 +840,7 @@ router.get("/matches/:matchId/ball-boi/replay-metadata", requireAuth, async (req
     const session = await latestSessionForMatch(matchId);
     if (!session) { res.json({ session: null, match: access.match, shotMarkers: [], chapters: [] }); return; }
     req.url = `/ball-boi/sessions/${session.id}/replay-metadata`;
-    dispatch(req, res);
+    dispatch(req, res, next);
   } catch (err) {
     logger.error({ err }, "Failed to load match Ball Boi replay metadata");
     res.status(500).json({ error: "Failed to load metadata" });
@@ -958,7 +957,7 @@ router.get("/ball-boi/sessions/:sessionId/replay-metadata", requireAuth, async (
     const shots = (await db.select().from(matchShotsTable).where(eq(matchShotsTable.sessionId, sessionId)).orderBy(matchShotsTable.sequenceNumber))
       .map((shot) => gateShot(shot, shown));
     res.json({
-      session: gateSession(access.session, shown),
+      session: publicSession(gateSession(access.session, shown)),
       match: access.match,
       hiddenStats: hiddenStats(shown),
       shotMarkers: shots.map((shot) => ({
@@ -1046,7 +1045,7 @@ router.get("/ball-boi/matches/:matchId/sessions", requireAuth, async (req: Reque
     if (!access.match) { res.status(404).json({ error: "Match not found" }); return; }
     if (!access.allowed) { res.status(403).json({ error: "Forbidden" }); return; }
     const sessions = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.matchId, matchId)).orderBy(desc(ballBoiSessionsTable.createdAt));
-    res.json(sessions.map((s) => gateSession(s, shownStats(s.metadata))));
+    res.json(sessions.map((s) => publicSession(gateSession(s, shownStats(s.metadata)))));
   } catch (err) {
     logger.error({ err }, "Failed to load Ball Boi sessions");
     res.status(500).json({ error: "Failed to load sessions" });
