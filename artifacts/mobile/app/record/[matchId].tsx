@@ -23,6 +23,15 @@
 // call rang and wasn't answered), the camera starts again on its own as soon
 // as it can: only the ringing seconds are lost. The pieces upload together
 // and are joined in order on the server.
+//
+// Court lines (Wave 2, spec: Ball Boi > Processing and After the match). Just
+// before the first piece starts, the camera takes one silent still and the
+// phone finds the court in it. A confident find goes with the match as its
+// court corners. Otherwise, after the stop, the player sees the court-line
+// fix and drags four handles onto the corners; Skip for now leaves it to the
+// server, which looks for the court in the video itself. The match is in the
+// upload queue before the fix shows, held until it's answered, so a dead
+// battery never loses it.
 
 import { useAuth } from "@clerk/expo";
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo-camera";
@@ -47,9 +56,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChromeButton, ChromeChoice } from "@/components/record/ChromeControls";
 import { ConsentScreen } from "@/components/record/ConsentScreen";
+import { CourtLineFix } from "@/components/record/CourtLineFix";
 import { HoldToStop } from "@/components/record/HoldToStop";
 import { Button, Screen, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
+import { calibrationFromFit, toCalibration, type CourtCalibration } from "@/lib/court/calibration";
+import type { CourtFit } from "@/lib/court/detect";
+import { discard as discardStill, findCourt, takeCourtStill, type CourtStill } from "@/lib/court/frame";
+import { DEFAULT_CORNERS, isCourtShape, type Corners } from "@/lib/court/geometry";
 import { abandonQuickMatch, discardOnServer, useRecordingConsent } from "@/lib/recording/api";
 import { captionDurationMs, captionWaitMs } from "@/lib/recording/captions";
 import { chrome } from "@/lib/recording/chrome";
@@ -57,7 +71,7 @@ import { countdownClock, cueAt, START_DELAYS, type StartDelayMinutes } from "@/l
 import { deleteRecording, keepRecording } from "@/lib/recording/files";
 import { formatElapsed, spokenDuration } from "@/lib/recording/format";
 import { LOW_BATTERY_START_MESSAGE } from "@/lib/recording/limits";
-import { enqueue, getQueue } from "@/lib/recording/queue";
+import { enqueue, getQueue, updateQueued } from "@/lib/recording/queue";
 import {
   batteryBlocksStart,
   hasRoomToStart,
@@ -89,6 +103,8 @@ type Phase =
   | "interrupted"
   | "saving"
   | "deciding"
+  /** The phone wasn't sure where the court is: the player fixes the lines. */
+  | "courtFix"
   | "error";
 
 /** A stop you chose under this many seconds asks "Keep this recording?" first (#79 note, D1). */
@@ -99,6 +115,10 @@ const MIN_PIECE_MS = 1500;
 const RESUME_GIVE_UP_MS = 10_000;
 /** Within this many seconds of the 4-hour cap counts as reaching it. */
 const CAP_SLACK_SECONDS = 5;
+/** Longest wait for the court still before recording starts without it. */
+const STILL_TIMEOUT_MS = 2500;
+/** Court detection waits this long after the start, so it never slows the start down. */
+const COURT_CHECK_DELAY_MS = 3000;
 
 export const DND_HINT = "Put your phone on Do Not Disturb before you hit record so the video isn't interrupted.";
 
@@ -168,6 +188,14 @@ export default function RecordScreen() {
   const askedMic = useRef(false);
   const consent = useRecordingConsent();
   const { getToken } = useAuth();
+  /** The still taken for court detection, and what detection found in it. */
+  const courtStill = useRef<CourtStill | null>(null);
+  const courtFit = useRef<CourtFit | null>(null);
+  const courtCheck = useRef<Promise<void> | null>(null);
+  const tookStill = useRef(false);
+  /** Where the court-line fix's handles start. */
+  const [fixStart, setFixStart] = useState<Corners>(DEFAULT_CORNERS);
+  const fixAnswer = useRef<((c: CourtCalibration | null) => void) | null>(null);
 
   const setPhase = (p: Phase) => {
     phaseRef.current = p;
@@ -184,6 +212,9 @@ export default function RecordScreen() {
       mounted.current = false;
       stopVoice();
       if (captionTimer.current) clearTimeout(captionTimer.current);
+      discardStill(courtStill.current?.uri);
+      // Leaving mid-fix: the match uploads without corners, and the server finds the court.
+      fixAnswer.current?.(null);
     };
   }, []);
 
@@ -442,6 +473,7 @@ export default function RecordScreen() {
     let retryingSince: number | null = retryMs > 0 ? Date.now() : null;
     let retryLimit = retryMs;
     try {
+      if (!tookStill.current && segments.current.length === 0) await takeStillForCourt();
       while (mounted.current) {
         const left = remainingSeconds(segments.current, MAX_RECORDING_SECONDS);
         if (left <= CAP_SLACK_SECONDS) {
@@ -503,6 +535,59 @@ export default function RecordScreen() {
     }
   }
 
+  /**
+   * One silent still before the first piece, so it never interrupts the
+   * video. Detection runs a few seconds later, while the match records.
+   */
+  async function takeStillForCourt() {
+    tookStill.current = true;
+    const still = await Promise.race([takeCourtStill(camera.current), sleep(STILL_TIMEOUT_MS).then(() => null)]);
+    if (!still) return;
+    if (!mounted.current) {
+      discardStill(still.uri);
+      return;
+    }
+    courtStill.current = still;
+    courtCheck.current = sleep(COURT_CHECK_DELAY_MS)
+      .then(() => findCourt(still))
+      .then((fit) => {
+        courtFit.current = fit;
+      });
+  }
+
+  /**
+   * The match's court corners: the phone's own confident find, the player's
+   * fix, or null to let the server find the court. Shows the fix only when
+   * detection wasn't sure.
+   */
+  async function settleCourtLines(reason: StopReason): Promise<CourtCalibration | null> {
+    const still = courtStill.current;
+    if (!still) return null;
+    if (courtCheck.current) await courtCheck.current;
+    const fit = courtFit.current;
+    const found = calibrationFromFit(fit);
+    // A battery stop has no time for a question: the server finds the court.
+    if (found || reason === "battery" || !mounted.current) {
+      discardStill(still.uri);
+      courtStill.current = null;
+      return found;
+    }
+    setFixStart(fit && isCourtShape(fit.corners) ? fit.corners : DEFAULT_CORNERS);
+    const answer = await new Promise<CourtCalibration | null>((resolve) => {
+      fixAnswer.current = resolve;
+      setPhase("courtFix");
+    });
+    fixAnswer.current = null;
+    discardStill(still.uri);
+    courtStill.current = null;
+    return answer;
+  }
+
+  function answerCourtFix(corners: Corners | null) {
+    setPhase("saving");
+    fixAnswer.current?.(corners ? toCalibration(corners, "phone-fixed") : null);
+  }
+
   function stop(reason: StopReason = "user") {
     stopRequested.current = true;
     reasonRef.current = reason;
@@ -548,6 +633,8 @@ export default function RecordScreen() {
       if ((await askKeepOrDiscard(joined.durationSeconds)) === "discard") {
         for (const p of pieces) deleteRecording(p.uri);
         segments.current = [];
+        discardStill(courtStill.current?.uri);
+        courtStill.current = null;
         // No session exists yet. A Quick match only existed for this
         // recording, so it goes too (Q18); league matches stay. Sent in the
         // background so a weak signal never leaves you stuck on the camera.
@@ -562,7 +649,10 @@ export default function RecordScreen() {
       }
       setPhase("saving");
     }
-    // Into the upload queue: Wi-Fi by default, kept on the phone until the server confirms.
+    // Into the upload queue: Wi-Fi by default, kept on the phone until the
+    // server confirms. Held while the court lines are settled, so the corners
+    // go with the match; saved first, so the match is safe either way.
+    const courtPending = courtStill.current !== null;
     await enqueue({
       id,
       matchId,
@@ -573,7 +663,16 @@ export default function RecordScreen() {
       recordedAt: joined.recordedAt,
       segments: pieces,
       leagueId,
+      courtLinesPending: courtPending,
     });
+    if (courtPending) {
+      const courtCalibration = await settleCourtLines(reason);
+      await updateQueued(id, { courtCalibration, courtLinesPending: false });
+      if (!mounted.current) {
+        drainQueue();
+        return;
+      }
+    }
     drainQueue();
     AccessibilityInfo.announceForAccessibility("Match saved. It uploads on Wi-Fi.");
     // Straight to the score prompt; the stop message carries over.
@@ -608,6 +707,17 @@ export default function RecordScreen() {
       : `vs ${opponent}`;
   const canClose = phase === "ready" || phase === "error";
 
+  if (phase === "courtFix" && courtStill.current) {
+    return (
+      <CourtLineFix
+        still={courtStill.current}
+        initial={fixStart}
+        onDone={(corners) => answerCourtFix(corners)}
+        onSkip={() => answerCourtFix(null)}
+      />
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: chrome.ground }}>
       <CameraView
@@ -622,6 +732,8 @@ export default function RecordScreen() {
         // The app is portrait-only, but a fence-mounted phone is usually
         // sideways. Record in whichever way the phone is actually held.
         responsiveOrientationWhenOrientationLocked
+        // The court still is taken silently, without the screen flash.
+        animateShutter={false}
         onCameraReady={() => setCameraReady(true)}
         accessible={false}
         importantForAccessibility="no-hide-descendants"

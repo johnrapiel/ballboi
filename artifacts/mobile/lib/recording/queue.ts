@@ -5,6 +5,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSyncExternalStore } from "react";
 
+import type { CourtCalibration } from "@/lib/court/calibration";
 import type { RecordedSegment } from "@/lib/recording/segments";
 
 export type UploadState = "waiting" | "uploading" | "failed";
@@ -35,6 +36,13 @@ export interface QueuedRecording {
   leagueId?: number | null;
   /** True once a score was saved for this match from the phone. */
   scoreEntered?: boolean;
+  /** Where the court is in the video, from the phone's detection or the court-line fix. */
+  courtCalibration?: CourtCalibration | null;
+  /**
+   * The court-line fix is on screen: hold the upload until it's answered, so
+   * the corners go with the match. Saved first, so a match is never lost.
+   */
+  courtLinesPending?: boolean;
 }
 
 const KEY = "ballboi.recording.queue.v1";
@@ -65,7 +73,13 @@ export async function loadQueue(): Promise<QueuedRecording[]> {
   try {
     const raw = await AsyncStorage.getItem(KEY);
     const saved = raw ? (JSON.parse(raw) as QueuedRecording[]) : [];
-    items = saved.map((r) => (r.state === "uploading" ? { ...r, state: "waiting" as const } : r));
+    // The court-line fix can't still be open after the app closed: upload
+    // without it, and the server finds the court itself.
+    items = saved.map((r) => ({
+      ...r,
+      state: r.state === "uploading" ? ("waiting" as const) : r.state,
+      courtLinesPending: false,
+    }));
   } catch {
     items = [];
   }
