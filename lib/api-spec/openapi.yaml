@@ -30,6 +30,20 @@ tags:
     description: Round-based match scheduling
   - name: seasons
     description: Season management
+  - name: safety
+    description: Blocking and reporting
+  - name: moderation
+    description: The moderator's tools. Only the app's moderator account can use them.
+  - name: account
+    description: Ban and suspension status and the one appeal. These work while banned.
+  - name: messages
+    description: Player-to-player messages
+  - name: recording
+    description: Recording consent, Quick matches and the recordings list
+  - name: notifications
+    description: Push notification registration
+  - name: storage
+    description: Profile photo uploads and loads
 
 paths:
   /healthz:
@@ -65,6 +79,12 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/League"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     post:
       operationId: createLeague
       tags: [leagues]
@@ -82,6 +102,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/League"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}:
     get:
@@ -101,6 +127,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/League"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Not found
           content:
@@ -130,6 +168,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/League"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     delete:
       operationId: deleteLeague
       tags: [leagues]
@@ -151,8 +207,22 @@ paths:
           description: Deleted
         "400":
           description: The typed name doesn't match
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "403":
           description: Not a league admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/reset:
     post:
@@ -180,6 +250,18 @@ paths:
                         type: integer
                     required: [rounds]
                 required: [deleted]
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Not found
           content:
@@ -211,6 +293,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/playoffs:
     get:
@@ -230,6 +318,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PlayoffsStatusResponse"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/rounds/generate:
     post:
@@ -259,6 +365,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueRoundWithMatchups"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "409":
           description: A round is already active
           content:
@@ -286,6 +410,24 @@ paths:
                 oneOf:
                   - $ref: "#/components/schemas/LeagueRoundWithMatchups"
                   - type: "null"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/rounds:
     get:
@@ -307,6 +449,24 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/LeagueRoundWithMatchups"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/seasons:
     get:
@@ -328,6 +488,24 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Season"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     post:
       operationId: createLeagueSeason
       tags: [seasons]
@@ -357,6 +535,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Not possible in the current state"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/seasons/active:
     get:
@@ -378,6 +568,24 @@ paths:
                 oneOf:
                   - $ref: "#/components/schemas/Season"
                   - type: "null"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /seasons/{id}:
     patch:
@@ -403,8 +611,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Season"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Not possible in the current state"
           content:
             application/json:
               schema:
@@ -422,6 +648,18 @@ paths:
       responses:
         "204":
           description: Deleted
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/standings:
     get:
@@ -449,6 +687,24 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Standing"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /players:
     get:
@@ -470,6 +726,12 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Player"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /players/me:
     get:
@@ -510,6 +772,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Player"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Not found
           content:
@@ -539,6 +807,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Player"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Not possible in the current state"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     delete:
       operationId: deletePlayer
       tags: [players]
@@ -552,6 +844,30 @@ paths:
       responses:
         "204":
           description: Deleted
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Not possible in the current state"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /players/{playerId}/stats:
     get:
@@ -571,6 +887,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PlayerStats"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/membership:
     get:
@@ -586,6 +914,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueMembership"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/admins:
     get:
@@ -603,6 +943,24 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/LeagueAdmin"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     post:
       operationId: promoteLeagueAdmin
       tags: [leagues]
@@ -622,6 +980,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueAdmin"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/roster:
     get:
@@ -639,6 +1015,24 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/RosterPlayer"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/admins/{clerkUserId}:
     delete:
@@ -655,6 +1049,18 @@ paths:
       responses:
         "204":
           description: Removed
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/schedule:
     get:
@@ -670,6 +1076,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueSchedule"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/bracket:
     get:
@@ -687,6 +1111,24 @@ paths:
                 oneOf:
                   - $ref: "#/components/schemas/LeagueBracket"
                   - type: "null"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /me/join-requests:
     get:
@@ -713,6 +1155,12 @@ paths:
       responses:
         "204":
           description: Dismissed
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /me/league-week:
     get:
@@ -741,6 +1189,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DevLeagueTools"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Not available (production)
 
@@ -764,8 +1224,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DevTimeResult"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "409":
           description: Not changed, with the reason
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DevTimeResult"
 
   /dev/leagues/{leagueId}/pair-now:
     post:
@@ -781,8 +1263,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DevPairResult"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "409":
           description: Not paired, with the reason
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DevPairResult"
 
   /leagues/{leagueId}/matches/{matchId}/score:
     post:
@@ -809,8 +1313,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ScoreResult"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "409":
           description: A score is already in, or the match can't be scored now
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     put:
       operationId: correctLeagueScore
       tags: [leagues]
@@ -835,12 +1355,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CorrectedScore"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "403":
           description: Not a league admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "409":
           description: >-
             The match isn't played or was cancelled, the playoff match it feeds has been played,
             or the league has ended (its scores are final)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/matches/{matchId}/result:
     post:
@@ -871,10 +1411,28 @@ paths:
                 $ref: "#/components/schemas/ScoreResult"
         "400":
           description: Not a valid score, or the walkover isn't to a player in the match
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "403":
           description: Not a league admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "409":
           description: The league has ended, the match is played or cancelled, or its play-by date hasn't passed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/matches/{matchId}/time:
     put:
@@ -905,10 +1463,28 @@ paths:
                 $ref: "#/components/schemas/MatchTime"
         "400":
           description: The date isn't in the match's week
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "403":
           description: Not a player in the match or a league admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "409":
           description: The match is played, cancelled, or its week is over
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/match-time:
     put:
@@ -932,8 +1508,22 @@ paths:
                 $ref: "#/components/schemas/LeagueMatchTime"
         "400":
           description: Day or time missing or not valid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "403":
           description: Not a league admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/matches/{matchId}/score/undo:
     post:
@@ -954,10 +1544,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UndoneScore"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "403":
           description: Someone else entered this score
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "409":
           description: The 10 minutes have passed, or there's no score to undo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/end:
     post:
@@ -973,8 +1583,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EndedLeague"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "409":
           description: Already ended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /me/league-notices:
     get:
@@ -1005,6 +1637,12 @@ paths:
       responses:
         "204":
           description: Cleared
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/join-requests:
     get:
@@ -1022,6 +1660,24 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/JoinRequest"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     post:
       operationId: requestToJoinLeague
       tags: [leagues]
@@ -1035,6 +1691,12 @@ paths:
             schema:
               $ref: "#/components/schemas/JoinLeagueBody"
       responses:
+        "200":
+          description: "Already asked: the pending request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JoinRequest"
         "201":
           description: Request sent
           content:
@@ -1047,6 +1709,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/JoinRequest"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Not possible in the current state"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "410":
+          description: "Gone"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/join-requests/me:
     get:
@@ -1064,6 +1750,12 @@ paths:
                 oneOf:
                   - $ref: "#/components/schemas/JoinRequest"
                   - type: "null"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     delete:
       operationId: withdrawLeagueJoinRequest
       tags: [leagues]
@@ -1073,6 +1765,12 @@ paths:
       responses:
         "204":
           description: Withdrawn
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/join-requests/{requestId}/approve:
     post:
@@ -1089,6 +1787,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApprovedPlayer"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Not possible in the current state"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/join-requests/{requestId}/decline:
     post:
@@ -1101,6 +1823,24 @@ paths:
       responses:
         "204":
           description: Declined
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/leave:
     post:
@@ -1118,6 +1858,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DropoutResult"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/players/{playerId}/remove:
     post:
@@ -1138,8 +1890,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DropoutResult"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "409":
           description: That's you. Use Leave league instead
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/rounds/draft-next:
     post:
@@ -1155,6 +1929,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ScheduleRound"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/rounds/{roundId}/repair:
     post:
@@ -1171,6 +1963,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ScheduleRound"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Not possible in the current state"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/rounds/{roundId}/publish:
     post:
@@ -1187,6 +2003,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ScheduleRound"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Not possible in the current state"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/rounds/{roundId}/swap:
     post:
@@ -1209,6 +2049,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ScheduleRound"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Not possible in the current state"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/rounds/{roundId}/byes:
     post:
@@ -1231,6 +2095,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ScheduleRound"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Not possible in the current state"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/rounds/{roundId}/byes/{playerId}:
     delete:
@@ -1252,6 +2140,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ScheduleRound"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Not possible in the current state"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/rounds/{roundId}/matches/{matchId}/lock:
     post:
@@ -1279,6 +2191,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ScheduleRound"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Not possible in the current state"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /matches:
     get:
@@ -1328,6 +2264,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Match"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Not possible in the current state"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /matches/{matchId}:
     get:
@@ -1347,6 +2307,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Match"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Not found
           content:
@@ -1376,6 +2342,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Match"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     delete:
       operationId: deleteMatch
       tags: [matches]
@@ -1389,6 +2373,30 @@ paths:
       responses:
         "204":
           description: Deleted
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Not possible in the current state"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /users/me:
     get:
@@ -1404,6 +2412,10 @@ paths:
                 $ref: "#/components/schemas/UserProfile"
         "404":
           description: Profile not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     post:
       operationId: upsertMyProfile
       tags: [users]
@@ -1427,6 +2439,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserProfile"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     put:
       operationId: updateMyProfile
       tags: [users]
@@ -1444,6 +2462,54 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserProfile"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteMyAccount
+      tags: [users]
+      summary: Delete the signed-in person's account and personal data. Works while banned.
+      description: newAdmins names who takes over each league the person runs alone; leagues left out go to the longest-standing member.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountDeletionInput'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDeletionResult'
+        '400':
+          description: 'The body must be { "confirm": "DELETE" }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't delete the account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /availability/participation/{leagueId}/{weekOf}:
     get:
@@ -1468,8 +2534,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AvailabilityParticipationResponse"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "403":
           description: League admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
           content:
             application/json:
               schema:
@@ -1498,8 +2576,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AvailabilityReminderResponse"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "403":
           description: League admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
           content:
             application/json:
               schema:
@@ -1531,6 +2621,24 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/LeagueInvite"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     post:
       operationId: createLeagueInvite
       tags: [leagues]
@@ -1554,6 +2662,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeagueInvite"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /invites/{code}:
     get:
@@ -1575,10 +2701,18 @@ paths:
                 $ref: "#/components/schemas/LeagueInvite"
         "404":
           description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "410":
           description: >-
             The invite is no longer active, or its league has ended. An ended league answers
             with code "league_ended" and the error "This league has ended".
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     delete:
       operationId: deactivateInvite
       tags: [leagues]
@@ -1592,6 +2726,18 @@ paths:
       responses:
         "204":
           description: Deactivated
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /invites/{code}/join:
     post:
@@ -1611,16 +2757,38 @@ paths:
             schema:
               $ref: "#/components/schemas/JoinLeagueBody"
       responses:
+        "200":
+          description: "Already a member, or welcome back"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JoinLeagueResponse"
         "201":
           description: Successfully joined
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/JoinLeagueResponse"
+        "202":
+          description: "Waitlisted, or the organizer was asked (no player is created)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JoinLeagueResponse"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "410":
           description: >-
             The invite is used up, expired or inactive, or its league has ended (code
             "league_ended"). An ended league never creates a join request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /stats/dashboard:
     get:
@@ -1634,6 +2802,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DashboardStats"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /stats/top-players:
     get:
@@ -1660,6 +2834,12 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/TopPlayer"
+        "403":
+          description: "Not allowed: a private league you're not in, or not one of its admins"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /stats/recent-activity:
     get:
@@ -1731,6 +2911,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HeadToHeadStats"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /ball-boi/matches/{matchId}/sessions/start:
     post:
@@ -1756,6 +2948,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiSession"
+        "400":
+          description: "Invalid match id"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not a player in the match or the league's creator"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Match not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /matches/{matchId}/ball-boi/sessions/start:
     post:
@@ -1781,6 +2991,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiSession"
+        "400":
+          description: "Invalid match id"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not a player in the match or the league's creator"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Match not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /ball-boi/sessions/{sessionId}/upload-url:
     post:
@@ -1800,6 +3028,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiUploadUrl"
+        "400":
+          description: "Invalid session id"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not the person who recorded it"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Session not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /ball-boi/sessions/{sessionId}/multipart:
     post:
@@ -1830,6 +3076,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiMultipartUpload"
+        "400":
+          description: "Invalid session id, segment or size"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not the person who recorded it"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Session not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Already uploaded (uploaded is true)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadConflict"
 
   /ball-boi/sessions/{sessionId}/multipart/part-url:
     post:
@@ -1855,6 +3125,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiPartUrl"
+        "400":
+          description: "Invalid session id, segment or part number"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not the person who recorded it"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Session not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Already uploaded, or this piece wasn't started"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadConflict"
 
   /ball-boi/sessions/{sessionId}/multipart/complete:
     post:
@@ -1880,6 +3174,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiMultipartComplete"
+        "400":
+          description: "Invalid session id or segment"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not the person who recorded it"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Session not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Already uploaded, not started, expired (restart is true) or parts missing (missingParts)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadConflict"
 
   /ball-boi/sessions/{sessionId}/live-shot:
     post:
@@ -1930,6 +3248,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiSession"
+        "400":
+          description: "objectPath or segments missing"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not the person who recorded it"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Session not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Some parts haven't finished uploading"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /ball-boi/matches/{matchId}/replay:
     get:
@@ -1949,6 +3291,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiReplay"
+        "400":
+          description: "Invalid match id"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not a player in the match or the league's creator"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Match not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /matches/{matchId}/ball-boi/replay:
     get:
@@ -1968,6 +3328,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiReplay"
+        "400":
+          description: "Invalid match id"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not a player in the match or the league's creator"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Match not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /matches/{matchId}/ball-boi/status:
     get:
@@ -2025,6 +3403,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiSession"
+        "400":
+          description: "objectPath missing"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Not a player in the match or the league's creator"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Match or Ball Boi session not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /matches/{matchId}/ball-boi/shot-callback:
     post:
@@ -2247,6 +3643,1939 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BallBoiNarrative"
+
+  /users/me/home-area:
+    put:
+      operationId: updateMyHomeArea
+      tags: [users]
+      summary: 'Save the home area: a 5-digit zip, with approximate coordinates when the player used their location'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HomeAreaInput'
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Zip missing or not 5 digits, or only one coordinate sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Profile not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /users/me/intents:
+    put:
+      operationId: updateMyIntents
+      tags: [users]
+      summary: Save what the player wants to do on Ball Boi (zero or more picks) and finish onboarding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntentsInput'
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: A pick isn't one of the options
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Profile not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /users/me/rating/self:
+    post:
+      operationId: setMySelfRating
+      tags: [users]
+      summary: Set the player's level from the onboarding quiz, labeled Self-rated
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SelfRatingInput'
+      responses:
+        '200':
+          description: Saved level
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SelfRatingResult'
+        '400':
+          description: Not one of the quiz levels
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Profile not set up yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The level comes from a linked UTR account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /users/me/league-handoff:
+    get:
+      operationId: getMyLeagueHandoff
+      tags: [users]
+      summary: Leagues the person runs alone, with the members who could take over (Delete account screen)
+      responses:
+        '200':
+          description: Leagues to hand off
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeagueHandoff'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /notifications/expo-token:
+    post:
+      operationId: registerExpoPushToken
+      tags: [notifications]
+      summary: Register this phone's Expo push token for the signed-in person
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpoPushTokenInput'
+      responses:
+        '200':
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResult'
+        '400':
+          description: Missing token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      operationId: unregisterExpoPushToken
+      tags: [notifications]
+      summary: Stop sending pushes to this phone's Expo token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpoPushTokenInput'
+      responses:
+        '200':
+          description: Unregistered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResult'
+        '400':
+          description: Missing token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /notifications/expo-token/status:
+    get:
+      operationId: getExpoPushTokenStatus
+      tags: [notifications]
+      summary: Whether the person has a phone registered for pushes
+      responses:
+        '200':
+          description: Registration status (false when signed out)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushRegistrationStatus'
+  /storage/uploads/request-url:
+    post:
+      operationId: requestProfilePhotoUploadUrl
+      tags: [storage]
+      summary: Get a one-time address to upload a profile photo to (images up to 10 MB)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PhotoUploadRequest'
+      responses:
+        '200':
+          description: Upload address and the photo's path
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhotoUploadTicket'
+        '400':
+          description: Missing fields, not an image, or over 10 MB
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't make an upload address
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /storage/objects/{objectPath}:
+    get:
+      operationId: getStorageObject
+      tags: [storage]
+      summary: Load an uploaded file, such as a profile photo. Needs sign-in (A17); the app sends its sign-in header with photo loads.
+      parameters:
+      - name: objectPath
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The rest of the path after /storage/objects/, slashes included
+      responses:
+        '200':
+          description: The file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No such file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /blocks:
+    get:
+      operationId: getMyBlocks
+      tags: [safety]
+      summary: Players the person has blocked, newest first
+      responses:
+        '200':
+          description: Blocked players
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BlockedPlayer'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /players/{playerId}/block:
+    post:
+      operationId: blockPlayer
+      tags: [safety]
+      summary: Block a player's account
+      parameters:
+      - name: playerId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '201':
+          description: Blocked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockResult'
+        '400':
+          description: Invalid player id, or yourself
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: The player has no account to block
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      operationId: unblockPlayer
+      tags: [safety]
+      summary: Unblock a player
+      parameters:
+      - name: playerId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          description: Unblocked
+        '400':
+          description: Invalid player id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: The player has no account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /reports:
+    post:
+      operationId: createReport
+      tags: [safety]
+      summary: Report a player, league, recording or match. Messages are reported from the conversation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewReport'
+      responses:
+        '201':
+          description: Report filed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportReceipt'
+        '400':
+          description: Unknown target or reason, or details not text
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/reports:
+    get:
+      operationId: getAdminReports
+      tags: [moderation]
+      summary: 'The reports queue: open reports oldest first, closed ones newest first'
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [open, reviewed, actioned, dismissed]
+          default: open
+      responses:
+        '200':
+          description: Reports, at most 200
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ContentReport'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not the app's moderator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/reports/{id}:
+    get:
+      operationId: getAdminReport
+      tags: [moderation]
+      summary: One report, with the conversation snapshot for a message report
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: The report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentReport'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not the app's moderator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      operationId: updateAdminReport
+      tags: [moderation]
+      summary: Set a report's status
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportStatusInput'
+      responses:
+        '200':
+          description: The updated report row, without subjectName or snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentReportRow'
+        '400':
+          description: Invalid id or status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not the app's moderator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/agent-decisions:
+    get:
+      operationId: getAgentDecisions
+      tags: [moderation]
+      summary: What the moderation agent did, for the moderator to confirm or undo
+      parameters:
+      - name: pending
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: ['true', 'false']
+          default: 'true'
+        description: false lists every decision, not only the ones waiting
+      responses:
+        '200':
+          description: Decisions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgentDecision'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not the app's moderator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/agent-decisions/{id}/{verb}:
+    post:
+      operationId: reviewAgentDecision
+      tags: [moderation]
+      summary: Confirm or undo one of the agent's decisions
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: verb
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [confirm, undo]
+      responses:
+        '200':
+          description: The decision, confirmed or undone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentDecision'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not the app's moderator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Unknown id or verb
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Already confirmed or undone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: The moderation agent is off
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/messages/{messageId}/hide:
+    post:
+      operationId: hideMessage
+      tags: [moderation]
+      summary: Hide a message from both people, or show it again with hidden false
+      parameters:
+      - name: messageId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                hidden:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Done
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HiddenMessageResult'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not the app's moderator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Message not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/accounts/{clerkUserId}/restrict:
+    post:
+      operationId: restrictAccount
+      tags: [moderation]
+      summary: Stop an account from starting new conversations while it's reviewed
+      parameters:
+      - name: clerkUserId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModeratorReasonInput'
+      responses:
+        '201':
+          description: Restricted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restriction:
+                    $ref: '#/components/schemas/MessagingRestriction'
+                required: [restriction]
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not the app's moderator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/accounts/{clerkUserId}/ban:
+    post:
+      operationId: banAccount
+      tags: [moderation]
+      summary: Ban an account, with its Apple ID and emails
+      parameters:
+      - name: clerkUserId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SanctionInput'
+      responses:
+        '201':
+          description: Banned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SanctionResult'
+        '400':
+          description: A reason is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not the app's moderator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Account not found in Clerk (code no_account)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/accounts/{clerkUserId}/suspend:
+    post:
+      operationId: suspendAccount
+      tags: [moderation]
+      summary: Suspend an account for 1 to 90 days
+      parameters:
+      - name: clerkUserId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SanctionInput'
+      responses:
+        '201':
+          description: Suspended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SanctionResult'
+        '400':
+          description: A reason is required, or days isn't 1 to 90
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not the app's moderator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Account not found in Clerk (code no_account)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/appeals:
+    get:
+      operationId: getAppeals
+      tags: [moderation]
+      summary: Ban and suspension appeals, with the sanction and the person's name
+      parameters:
+      - name: open
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: ['true', 'false']
+          default: 'true'
+        description: false lists decided appeals too
+      responses:
+        '200':
+          description: Appeals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppealListItem'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not the app's moderator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/appeals/{id}/decide:
+    post:
+      operationId: decideAppeal
+      tags: [moderation]
+      summary: Uphold or overturn an appeal. Overturning lifts the sanction.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppealDecisionInput'
+      responses:
+        '200':
+          description: The decided appeal
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  appeal:
+                    $ref: '#/components/schemas/Appeal'
+                required: [appeal]
+        '400':
+          description: Outcome isn't upheld or overturned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not the app's moderator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Appeal not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Already decided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/me:
+    get:
+      operationId: getAdminMe
+      tags: [moderation]
+      summary: Whether the signed-in person is the app's moderator, for showing Moderation
+      responses:
+        '200':
+          description: Admin flag
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  admin:
+                    type: boolean
+                required: [admin]
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /account/status:
+    get:
+      operationId: getAccountStatus
+      tags: [account]
+      summary: Whether the account is banned or suspended, shown right after sign-in. Works while banned.
+      responses:
+        '200':
+          description: Account status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountStatus'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /account/appeal:
+    post:
+      operationId: appealSanction
+      tags: [account]
+      summary: Appeal a ban or suspension, once. The app then opens an email to support.
+      responses:
+        '201':
+          description: Appeal filed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppealReceipt'
+        '400':
+          description: The account isn't banned or suspended (code not_sanctioned)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Already appealed (code already_appealed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages:
+    get:
+      operationId: getConversations
+      tags: [messages]
+      summary: The inbox or the requests box, with unread and request counts
+      parameters:
+      - name: box
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [messages, requests]
+          default: messages
+      responses:
+        '200':
+          description: Conversations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationList'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Messaging isn't available right now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      operationId: startConversation
+      tags: [messages]
+      summary: Send a first message to a player. Someone outside your leagues gets it as a request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewConversationInput'
+      responses:
+        '201':
+          description: Sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SentMessage'
+        '400':
+          description: Text missing or too long, or messaging yourself. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Blocked, or the account is restricted. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: The player has no account. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Waiting for the other person to reply to the request. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: The first-message filter stopped it. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Messaging isn't available right now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages/summary:
+    get:
+      operationId: getMessagesSummary
+      tags: [messages]
+      summary: Unread messages and waiting requests, for the badge
+      responses:
+        '200':
+          description: Counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagesSummary'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Messaging isn't available right now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages/contacts:
+    get:
+      operationId: getMessageContacts
+      tags: [messages]
+      summary: 'People the person can message: league mates and past opponents, without blocked ones'
+      responses:
+        '200':
+          description: Contacts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contacts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MessageContact'
+                required: [contacts]
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Messaging isn't available right now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages/with-player/{playerId}:
+    get:
+      operationId: getConversationWithPlayer
+      tags: [messages]
+      summary: The conversation with a player, if there is one
+      parameters:
+      - name: playerId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Conversation id or null
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversationId:
+                    type: [integer, 'null']
+                required: [conversationId]
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Messaging isn't available right now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages/{id}:
+    get:
+      operationId: getConversation
+      tags: [messages]
+      summary: A conversation's latest messages, or older ones with before. Marks it read.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: before
+        in: query
+        required: false
+        schema:
+          type: string
+        description: olderCursor from the previous page
+      responses:
+        '200':
+          description: The conversation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationThread'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not available (code not_found)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Messaging isn't available right now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages/{id}/messages:
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      summary: Send a message in a conversation
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewMessageInput'
+      responses:
+        '201':
+          description: Sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SentMessage'
+        '400':
+          description: Text missing or too long. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Blocked, or the account is restricted. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not available. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Waiting for the other person to reply to the request. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: The first-message filter stopped it. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Messaging isn't available right now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages/{id}/decline:
+    post:
+      operationId: declineMessageRequest
+      tags: [messages]
+      summary: Decline a message request
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          description: Declined
+        '400':
+          description: Not a request (code not_request)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Messaging isn't available right now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages/{id}/report:
+    post:
+      operationId: reportMessage
+      tags: [messages]
+      summary: Report a message. A snapshot of the conversation goes with the report.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageReportInput'
+      responses:
+        '201':
+          description: Report filed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportReceipt'
+        '400':
+          description: No reason, or your own message. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation or message not available. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Reporting isn't available right now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /dev/messages/samples:
+    post:
+      operationId: createSampleMessages
+      tags: [dev]
+      summary: Development only. Adds sample conversations for the signed-in person.
+      responses:
+        '201':
+          description: Added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum: [true]
+                required: [ok]
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not available here
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /recording/consent:
+    get:
+      operationId: getRecordingConsent
+      tags: [recording]
+      summary: Whether the person agreed to recording, and whether their video may train Ball Boi
+      responses:
+        '200':
+          description: Consent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordingConsent'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't load
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      operationId: giveRecordingConsent
+      tags: [recording]
+      summary: Agree to recording on the first-recording screen, with the training choice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainingChoice'
+      responses:
+        '200':
+          description: Consent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordingConsent'
+        '400':
+          description: trainingEnabled must be true or false
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't save
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /recording/training:
+    put:
+      operationId: setRecordingTraining
+      tags: [recording]
+      summary: Change whether the person's video may train Ball Boi
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainingChoice'
+      responses:
+        '200':
+          description: Consent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordingConsent'
+        '400':
+          description: trainingEnabled must be true or false
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't save
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /recording/opponents:
+    get:
+      operationId: getRecordingOpponents
+      tags: [recording]
+      summary: 'Players to pick for a Quick match: league mates and past opponents'
+      responses:
+        '200':
+          description: Players
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecordingOpponent'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't load
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /recording/quick-matches:
+    post:
+      operationId: createQuickMatch
+      tags: [recording]
+      summary: Start a Quick match against a picked player, or a typed name (which makes an invite link)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuickMatchInput'
+      responses:
+        '201':
+          description: Match made
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuickMatchCreated'
+        '400':
+          description: Doubles, both or neither of player and name, or name too long
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: The picked player isn't one you can record against
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't start the match
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /recording/quick-matches/{matchId}/score:
+    post:
+      operationId: scoreQuickMatch
+      tags: [recording]
+      summary: Enter a Quick match's score from your side. The first score entered stands.
+      parameters:
+      - name: matchId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                score:
+                  type: string
+                  description: Sets from your side, like 6-4, 3-6, 10-8
+              required: [score]
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  matchId:
+                    type: integer
+                  score:
+                    type: string
+                required: [matchId, score]
+        '400':
+          description: Invalid match id or score
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not a player in this match
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Match not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: A score is already in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't save
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /recording/invites/{code}:
+    get:
+      operationId: getRecordingInvite
+      tags: [recording]
+      summary: 'A Quick match invite link: who recorded it and who it''s for'
+      parameters:
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Invite
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordingInvite'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not a valid invite link
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't load
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /recording/invites/{code}/claim:
+    post:
+      operationId: claimRecordingInvite
+      tags: [recording]
+      summary: Add a Quick match from an invite link to your account
+      parameters:
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainingChoice'
+      responses:
+        '200':
+          description: Added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  matchId:
+                    type: integer
+                required: [matchId]
+        '400':
+          description: trainingEnabled missing, or your own invite
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not a valid invite link
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Someone already joined with this link
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't add the match
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /recording/todays-matches:
+    get:
+      operationId: getTodaysRecordableMatches
+      tags: [recording]
+      summary: Matches the person can record in the window (the phone's local day), most fitting first
+      parameters:
+      - name: from
+        in: query
+        required: true
+        schema:
+          type: string
+          description: ISO 8601 date and time
+      - name: to
+        in: query
+        required: true
+        schema:
+          type: string
+          description: ISO 8601 date and time
+      responses:
+        '200':
+          description: Matches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecordableMatch'
+        '400':
+          description: from and to missing, or more than 48 hours apart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't load
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /recording/sessions:
+    get:
+      operationId: getMyRecordings
+      tags: [recording]
+      summary: Recent recordings of the person's matches, newest first, whoever recorded them. Both players see a match's card.
+      responses:
+        '200':
+          description: Recordings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecordingListItem'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't load
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /recording/doubles-views:
+    post:
+      operationId: logDoublesView
+      tags: [recording]
+      summary: Count that someone saw the doubles-is-coming note on a doubles match, once per match
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                matchId:
+                  type: integer
+              required: [matchId]
+      responses:
+        '204':
+          description: Counted
+        '400':
+          description: matchId is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't log
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /recording/discard:
+    post:
+      operationId: discardRecording
+      tags: [recording]
+      summary: Discard a recording that never uploaded, and a Quick match with nothing else in it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                matchId:
+                  type: integer
+                sessionId:
+                  type: integer
+              required: [matchId]
+      responses:
+        '200':
+          description: Discarded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscardResult'
+        '400':
+          description: matchId missing or sessionId not a number
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not a player in the match, or not the person who recorded it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The recording already uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't discard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /recording/sessions/{sessionId}/remove:
+    post:
+      operationId: removeRecording
+      tags: [recording]
+      summary: Remove a recording whose analysis failed or whose upload never finished. The recorder deletes it for both players; the other player takes it off their own list.
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Removed (also when it was already gone)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordingRemoved'
+        '400':
+          description: Invalid recording id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not a player in the match
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Analyzing or ready, so it can't be removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't remove
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /recording/quick-matches/{matchId}/abandon:
+    post:
+      operationId: abandonQuickMatch
+      tags: [recording]
+      summary: Remove a Quick match left before recording it, with its placeholder opponent and invite
+      parameters:
+      - name: matchId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Removed (also when it was already gone)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  removed:
+                    type: boolean
+                    enum: [true]
+                required: [removed]
+        '400':
+          description: Invalid match id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not the player who started the match
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Not a Quick match, or it has a recording or a score
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't remove
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   parameters:
@@ -2999,9 +6328,19 @@ components:
 
     ErrorResponse:
       type: object
+      description: >-
+        Every error answers with this: a message to show, and on some routes a code to branch on.
+        Routes need a signed-in Clerk session unless they say otherwise, and answer 401 without one.
+        A banned or suspended account gets 403 with code account_banned or account_suspended on
+        every route except GET /account/status, POST /account/appeal, DELETE /users/me,
+        GET /users/me/league-handoff and /healthz. 401, that 403 and 500 are not listed per route.
       properties:
         error:
           type: string
+          description: A message to show the person
+        code:
+          type: string
+          description: Present on some errors, such as league_ended, blocked or already_appealed
       required:
         - error
 
@@ -3455,7 +6794,7 @@ components:
           type: ["integer", "null"]
         status:
           type: string
-          enum: ["scheduled", "in_progress", "completed", "cancelled"]
+          enum: ["scheduled", "in_progress", "completed", "cancelled", "voided"]
         scheduledAt:
           type: ["string", "null"]
         startedAt:
@@ -3489,6 +6828,7 @@ components:
         season:
           type: ["string", "null"]
         hasBallBoi:
+          description: Only in the GET /matches list
           type: boolean
         createdAt:
           type: string
@@ -3501,7 +6841,6 @@ components:
         - player2Id
         - player2Name
         - status
-        - hasBallBoi
         - createdAt
         - updatedAt
 
@@ -3588,6 +6927,13 @@ components:
           type: ["string", "null"]
         aiNarrative:
           type: ["string", "null"]
+        metadata:
+          type: ["object", "null"]
+          additionalProperties: false
+          properties:
+            source:
+              type: string
+          description: Only the keys the phone set when it started the session. The server's own keys (callback token, uploads, stat gates, retries) are never sent.
         createdAt:
           type: string
         updatedAt:
@@ -3608,6 +6954,11 @@ components:
         metadata:
           type: object
           additionalProperties: true
+          properties:
+            source:
+              type: string
+              maxLength: 20
+          description: Only source is kept. Any other key is ignored.
         recordedAt:
           type: string
           format: date-time
@@ -3982,7 +7333,7 @@ components:
       type: object
       properties:
         match:
-          $ref: "#/components/schemas/Match"
+          $ref: "#/components/schemas/MatchRecord"
         session:
           anyOf:
             - $ref: "#/components/schemas/BallBoiSession"
@@ -4007,6 +7358,7 @@ components:
         - session
         - shots
         - statistics
+        - hiddenStats
 
     UserProfile:
       type: object
@@ -4025,7 +7377,7 @@ components:
           type: ["string", "null"]
         skillLevel:
           type: string
-          enum: ["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"]
+          description: Legacy. New profiles get "intermediate"; the player's level is rating.
         dominantHand:
           type: string
           enum: ["left", "right"]
@@ -4037,6 +7389,27 @@ components:
           type: string
         updatedAt:
           type: string
+        rating:
+          type: ["number", "null"]
+          description: Ball Boi Rating (NTRP scale). Null until the quiz or a UTR link sets it.
+        ratingSource:
+          type: ["string", "null"]
+          enum: [self, verified, null]
+        homeZip:
+          type: ["string", "null"]
+        homeLatitude:
+          type: ["number", "null"]
+          description: Approximate (two decimals), only from Use my location
+        homeLongitude:
+          type: ["number", "null"]
+        intent:
+          type: ["string", "null"]
+          description: Legacy single onboarding answer
+        intents:
+          type: ["array", "null"]
+          items:
+            type: string
+            enum: [run_league, join_league, find_matches, record]
       required:
         - id
         - clerkUserId
@@ -4305,7 +7678,6 @@ components:
         - opponentId
         - opponentName
         - status
-        - hasBallBoiReplay
 
     MyMatchItem:
       type: object
@@ -4330,7 +7702,7 @@ components:
           type: ["string", "null"]
         status:
           type: string
-          enum: ["scheduled", "in_progress", "completed", "cancelled"]
+          enum: ["scheduled", "in_progress", "completed", "cancelled", "voided"]
         leagueId:
           type: ["integer", "null"]
         leagueName:
@@ -4630,3 +8002,862 @@ components:
         - quarterfinals
         - semifinals
         - final
+
+    HomeAreaInput:
+      type: object
+      properties:
+        zip:
+          type: string
+          pattern: ^\d{5}$
+        latitude:
+          type: [number, 'null']
+        longitude:
+          type: [number, 'null']
+      required: [zip]
+      description: Send both coordinates or neither.
+    IntentsInput:
+      type: object
+      properties:
+        intents:
+          type: array
+          items:
+            type: string
+            enum: [run_league, join_league, find_matches, record]
+      required: [intents]
+    SelfRatingInput:
+      type: object
+      properties:
+        rating:
+          type: number
+          enum: [2.5, 3.0, 3.5, 4.0, 4.5]
+      required: [rating]
+    SelfRatingResult:
+      type: object
+      properties:
+        rating:
+          type: [number, 'null']
+        source:
+          type: [string, 'null']
+          enum: [self, verified, null]
+      required: [rating, source]
+    LeagueHandoff:
+      type: object
+      properties:
+        leagues:
+          type: array
+          items:
+            type: object
+            properties:
+              leagueId:
+                type: integer
+              name:
+                type: string
+              members:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    playerId:
+                      type: integer
+                    name:
+                      type: string
+                    joinedAt:
+                      type: string
+                      description: ISO 8601 date and time
+                  required: [playerId, name, joinedAt]
+            required: [leagueId, name, members]
+      required: [leagues]
+    SuccessResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required: [success]
+    ExpoPushTokenInput:
+      type: object
+      properties:
+        token:
+          type: string
+      required: [token]
+    PushRegistrationStatus:
+      type: object
+      properties:
+        registered:
+          type: boolean
+      required: [registered]
+    PhotoUploadRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        size:
+          type: integer
+        contentType:
+          type: string
+      required: [name, size, contentType]
+    PhotoUploadTicket:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+        metadata:
+          type: object
+          properties:
+            name:
+              type: string
+            size:
+              type: integer
+            contentType:
+              type: string
+          required: [name, size, contentType]
+      required: [uploadURL, objectPath, metadata]
+    BlockedPlayer:
+      type: object
+      properties:
+        playerId:
+          type: [integer, 'null']
+        name:
+          type: string
+        avatarUrl:
+          type: [string, 'null']
+        blockedAt:
+          type: string
+          description: ISO 8601 date and time
+      required: [playerId, name, avatarUrl, blockedAt]
+    BlockResult:
+      type: object
+      properties:
+        blocked:
+          type: boolean
+      required: [blocked]
+    NewReport:
+      type: object
+      properties:
+        targetType:
+          type: string
+          enum: [player, league, ball_boi_session, match]
+        targetId:
+          type: string
+          maxLength: 100
+        reason:
+          type: string
+          enum: [harassment, inappropriate_content, impersonation, spam, cheating, other]
+        details:
+          type: [string, 'null']
+          description: Kept to 1000 characters
+      required: [targetType, targetId, reason]
+    ReportReceipt:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+          enum: [open]
+      required: [id, status]
+    ContentReportRow:
+      type: object
+      properties:
+        id:
+          type: integer
+        reporterClerkUserId:
+          type: [string, 'null']
+        targetType:
+          type: string
+        targetId:
+          type: string
+        reason:
+          type: string
+        details:
+          type: [string, 'null']
+        status:
+          type: string
+          enum: [open, reviewed, actioned, dismissed]
+        source:
+          type: string
+          enum: [user, auto, stream, appeal]
+        subjectClerkUserId:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          description: ISO 8601 date and time
+        reviewedAt:
+          type: [string, 'null']
+          description: ISO 8601 date and time
+      required: [id, reporterClerkUserId, targetType, targetId, reason, details, status, source, subjectClerkUserId, createdAt, reviewedAt]
+    ContentReport:
+      allOf:
+      - $ref: '#/components/schemas/ContentReportRow'
+      - type: object
+        properties:
+          subjectName:
+            type: [string, 'null']
+          snapshot:
+            oneOf:
+            - type: object
+              properties:
+                conversationId:
+                  type: [integer, 'null']
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      senderClerkUserId:
+                        type: string
+                      senderName:
+                        type: string
+                      text:
+                        type: string
+                      at:
+                        type: string
+                      reported:
+                        type: boolean
+                    required: [id, senderClerkUserId, senderName, text, at, reported]
+              required: [conversationId, messages]
+            - type: 'null'
+        required: [subjectName, snapshot]
+    ReportStatusInput:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [open, reviewed, actioned, dismissed]
+      required: [status]
+    AgentDecision:
+      type: object
+      properties:
+        id:
+          type: integer
+        reportId:
+          type: integer
+        action:
+          type: string
+        reason:
+          type: string
+        messageId:
+          type: [string, 'null']
+        subjectClerkUserId:
+          type: [string, 'null']
+        restrictionId:
+          type: [integer, 'null']
+        previousStatus:
+          type: string
+        model:
+          type: string
+        createdAt:
+          type: string
+          description: ISO 8601 date and time
+        confirmedAt:
+          type: [string, 'null']
+          description: ISO 8601 date and time
+        undoneAt:
+          type: [string, 'null']
+          description: ISO 8601 date and time
+        reviewedBy:
+          type: [string, 'null']
+      required: [id, reportId, action, reason, previousStatus, model, createdAt, confirmedAt, undoneAt]
+    HiddenMessageResult:
+      type: object
+      properties:
+        messageId:
+          type: string
+        hidden:
+          type: boolean
+      required: [messageId, hidden]
+    ModeratorReasonInput:
+      type: object
+      properties:
+        reason:
+          type: string
+        reportId:
+          type: integer
+    MessagingRestriction:
+      type: object
+      properties:
+        id:
+          type: integer
+        clerkUserId:
+          type: string
+        reason:
+          type: string
+        source:
+          type: string
+        reportId:
+          type: [integer, 'null']
+        createdAt:
+          type: string
+          description: ISO 8601 date and time
+        liftedAt:
+          type: [string, 'null']
+          description: ISO 8601 date and time
+        liftedBy:
+          type: [string, 'null']
+      required: [id, clerkUserId, reason, source, createdAt]
+    SanctionInput:
+      type: object
+      properties:
+        reason:
+          type: string
+        days:
+          type: integer
+          minimum: 1
+          maximum: 90
+          description: Suspensions only
+        reportId:
+          type: integer
+      required: [reason]
+    Sanction:
+      type: object
+      properties:
+        id:
+          type: integer
+        kind:
+          type: string
+          enum: [ban, suspend]
+        clerkUserId:
+          type: string
+        appleUserId:
+          type: [string, 'null']
+        emails:
+          type: array
+          items:
+            type: string
+        reason:
+          type: string
+        reportId:
+          type: [integer, 'null']
+        endsAt:
+          type: [string, 'null']
+          description: ISO 8601 date and time
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          description: ISO 8601 date and time
+        liftedAt:
+          type: [string, 'null']
+          description: ISO 8601 date and time
+        liftedBy:
+          type: [string, 'null']
+      required: [id, kind, clerkUserId, reason, endsAt, createdAt, liftedAt]
+    SanctionResult:
+      type: object
+      properties:
+        sanction:
+          $ref: '#/components/schemas/Sanction'
+      required: [sanction]
+    Appeal:
+      type: object
+      properties:
+        id:
+          type: integer
+        sanctionId:
+          type: integer
+        clerkUserId:
+          type: string
+        reportId:
+          type: [integer, 'null']
+        createdAt:
+          type: string
+          description: ISO 8601 date and time
+        outcome:
+          type: [string, 'null']
+          enum: [upheld, overturned, null]
+        note:
+          type: [string, 'null']
+        decidedAt:
+          type: [string, 'null']
+          description: ISO 8601 date and time
+        decidedBy:
+          type: [string, 'null']
+      required: [id, sanctionId, clerkUserId, createdAt, outcome, decidedAt]
+    AppealListItem:
+      allOf:
+      - $ref: '#/components/schemas/Appeal'
+      - type: object
+        properties:
+          reference:
+            type: string
+            description: Like BB-00012, from the appeal email's subject
+          name:
+            type: [string, 'null']
+          sanction:
+            oneOf:
+            - type: object
+              properties:
+                id:
+                  type: integer
+                kind:
+                  type: string
+                  enum: [ban, suspend]
+                reason:
+                  type: string
+                endsAt:
+                  type: [string, 'null']
+                  description: ISO 8601 date and time
+                liftedAt:
+                  type: [string, 'null']
+                  description: ISO 8601 date and time
+                createdAt:
+                  type: string
+                  description: ISO 8601 date and time
+              required: [id, kind, reason, endsAt, liftedAt, createdAt]
+            - type: 'null'
+        required: [reference, name, sanction]
+    AppealDecisionInput:
+      type: object
+      properties:
+        outcome:
+          type: string
+          enum: [upheld, overturned]
+        note:
+          type: string
+      required: [outcome]
+    AccountStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, banned, suspended]
+        endsAt:
+          type: [string, 'null']
+          description: Suspensions only
+        appeal:
+          oneOf:
+          - type: object
+            properties:
+              submittedAt:
+                type: string
+                description: ISO 8601 date and time
+              outcome:
+                type: [string, 'null']
+                enum: [upheld, overturned, null]
+            required: [submittedAt, outcome]
+          - type: 'null'
+        canAppeal:
+          type: boolean
+        supportEmail:
+          type: string
+        appealReference:
+          type: [string, 'null']
+      required: [status, endsAt, appeal, canAppeal, supportEmail, appealReference]
+    AppealReceipt:
+      type: object
+      properties:
+        reference:
+          type: string
+        supportEmail:
+          type: string
+      required: [reference, supportEmail]
+    ConversationView:
+      type: object
+      properties:
+        id:
+          type: integer
+        state:
+          type: string
+          enum: [active, awaiting_reply, request]
+        other:
+          type: object
+          properties:
+            name:
+              type: string
+            playerId:
+              type: [integer, 'null']
+          required: [name, playerId]
+        lastMessage:
+          oneOf:
+          - type: object
+            properties:
+              text:
+                type: string
+              fromMe:
+                type: boolean
+              at:
+                type: string
+            required: [text, fromMe, at]
+          - type: 'null'
+        unread:
+          type: integer
+        canSend:
+          type: boolean
+        sendBlockedReason:
+          type: [string, 'null']
+          description: Why the composer is off, in plain words
+      required: [id, state, other, lastMessage, unread, canSend, sendBlockedReason]
+    MessageView:
+      type: object
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+        fromMe:
+          type: boolean
+        at:
+          type: string
+      required: [id, text, fromMe, at]
+    MessagesSummary:
+      type: object
+      properties:
+        unread:
+          type: integer
+        requests:
+          type: integer
+      required: [unread, requests]
+    ConversationList:
+      allOf:
+      - $ref: '#/components/schemas/MessagesSummary'
+      - type: object
+        properties:
+          conversations:
+            type: array
+            items:
+              $ref: '#/components/schemas/ConversationView'
+        required: [conversations]
+    ConversationThread:
+      type: object
+      properties:
+        conversation:
+          $ref: '#/components/schemas/ConversationView'
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageView'
+        olderCursor:
+          type: [string, 'null']
+      required: [conversation, messages, olderCursor]
+    SentMessage:
+      type: object
+      properties:
+        conversationId:
+          type: integer
+        message:
+          $ref: '#/components/schemas/MessageView'
+      required: [conversationId, message]
+    MessageContact:
+      type: object
+      properties:
+        name:
+          type: string
+        playerId:
+          type: integer
+      required: [name, playerId]
+    NewConversationInput:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        text:
+          type: string
+        clientMessageId:
+          type: string
+      required: [playerId, text]
+    NewMessageInput:
+      type: object
+      properties:
+        text:
+          type: string
+        clientMessageId:
+          type: string
+          description: Lets a retried send come back as the same message
+      required: [text]
+    MessageReportInput:
+      type: object
+      properties:
+        messageId:
+          type: string
+        reason:
+          type: string
+          enum: [harassment, inappropriate_content, impersonation, spam, cheating, other]
+        details:
+          type: [string, 'null']
+      required: [messageId, reason]
+    RecordingConsent:
+      type: object
+      properties:
+        consented:
+          type: boolean
+        consentedAt:
+          type: [string, 'null']
+          description: ISO 8601 date and time
+        trainingEnabled:
+          type: boolean
+      required: [consented, consentedAt, trainingEnabled]
+    TrainingChoice:
+      type: object
+      properties:
+        trainingEnabled:
+          type: boolean
+      required: [trainingEnabled]
+    RecordingOpponent:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        name:
+          type: string
+      required: [playerId, name]
+    QuickMatchInput:
+      type: object
+      properties:
+        format:
+          type: string
+          enum: [singles, doubles]
+          default: singles
+          description: Doubles is refused for now
+        opponentPlayerId:
+          type: integer
+        opponentName:
+          type: string
+      description: Send opponentPlayerId or opponentName, not both.
+    QuickMatchCreated:
+      type: object
+      properties:
+        matchId:
+          type: integer
+        opponentName:
+          type: string
+        invite:
+          oneOf:
+          - type: object
+            properties:
+              code:
+                type: string
+              url:
+                type: string
+            required: [code, url]
+          - type: 'null'
+      required: [matchId, opponentName, invite]
+    RecordingInvite:
+      type: object
+      properties:
+        code:
+          type: string
+        recorderName:
+          type: string
+        yourName:
+          type: string
+        recordedAt:
+          type: string
+        claimed:
+          type: boolean
+        claimedByYou:
+          type: boolean
+        isYourInvite:
+          type: boolean
+      required: [code, recorderName, yourName, recordedAt, claimed, claimedByYou, isYourInvite]
+    RecordableMatch:
+      type: object
+      properties:
+        id:
+          type: integer
+        scheduledAt:
+          type: [string, 'null']
+        location:
+          type: [string, 'null']
+        leagueId:
+          type: [integer, 'null']
+        leagueName:
+          type: [string, 'null']
+        format:
+          type: string
+          enum: [singles, doubles]
+        opponentName:
+          type: string
+        partnerName:
+          type: [string, 'null']
+        playBy:
+          type: [string, 'null']
+          description: Last day to play (YYYY-MM-DD, the league's zone)
+        timeZone:
+          type: [string, 'null']
+      required: [id, scheduledAt, location, leagueId, leagueName, format, opponentName, partnerName, playBy, timeZone]
+    RecordingListItem:
+      type: object
+      properties:
+        sessionId:
+          type: integer
+        matchId:
+          type: integer
+        leagueId:
+          type: [integer, 'null']
+        opponentName:
+          type: string
+        recordedAt:
+          type: string
+          description: When the match was recorded (ISO 8601), not when it uploaded (D19)
+        stage:
+          type: string
+          enum: [uploading, analyzing, ready, failed]
+        scoreEntered:
+          type: boolean
+        recordedByYou:
+          type: boolean
+          description: False on the opponent's copy of the card
+        failedReason:
+          type: [string, 'null']
+          description: The short reason shown on a failed card; null unless stage is failed
+      required: [sessionId, matchId, leagueId, opponentName, recordedAt, stage, scoreEntered, recordedByYou, failedReason]
+    DiscardResult:
+      type: object
+      properties:
+        sessionDeleted:
+          type: boolean
+        matchRemoved:
+          type: boolean
+      required: [sessionDeleted, matchRemoved]
+    AccountDeletionInput:
+      type: object
+      properties:
+        confirm:
+          type: string
+          enum: [DELETE]
+        newAdmins:
+          type: array
+          items:
+            type: object
+            properties:
+              leagueId:
+                type: integer
+              playerId:
+                type: integer
+            required: [leagueId, playerId]
+      required: [confirm]
+    AccountDeletionResult:
+      type: object
+      properties:
+        deleted:
+          type: boolean
+          enum: [true]
+        playersAnonymized:
+          type: integer
+        recordingsDeleted:
+          type: integer
+        recordingsKeptForOpponents:
+          type: integer
+        videosDeleted:
+          type: integer
+        videoDeleteFailures:
+          type: integer
+      required: [deleted, playersAnonymized, recordingsDeleted, recordingsKeptForOpponents, videosDeleted, videoDeleteFailures]
+
+    MatchRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        leagueId:
+          type: [integer, 'null']
+        player1Id:
+          type: integer
+        player2Id:
+          type: integer
+        player3Id:
+          type: [integer, 'null']
+        player4Id:
+          type: [integer, 'null']
+        winnerId:
+          type: [integer, 'null']
+        status:
+          type: string
+          enum: [scheduled, in_progress, completed, cancelled, voided]
+        scheduledAt:
+          type: [string, 'null']
+        startedAt:
+          type: [string, 'null']
+        completedAt:
+          type: [string, 'null']
+        location:
+          type: [string, 'null']
+        score:
+          type: [string, 'null']
+        notes:
+          type: [string, 'null']
+        durationMinutes:
+          type: [integer, 'null']
+        recordedByClerkUserId:
+          type: [string, 'null']
+        recordedAt:
+          type: [string, 'null']
+        courtId:
+          type: [integer, 'null']
+        weekOf:
+          type: [string, 'null']
+        generatedFrom:
+          type: [string, 'null']
+        estimatedDistanceP1:
+          type: [number, 'null']
+        estimatedDistanceP2:
+          type: [number, 'null']
+        roundId:
+          type: [integer, 'null']
+        playoffBracketId:
+          type: [integer, 'null']
+        playoffRound:
+          type: [string, 'null']
+        playoffSlot:
+          type: [integer, 'null']
+        season:
+          type: [string, 'null']
+        locked:
+          type: boolean
+        voidedAt:
+          type: [string, 'null']
+          description: ISO 8601 date and time
+        inGrace:
+          type: boolean
+        correctedAt:
+          type: [string, 'null']
+          description: ISO 8601 date and time
+        correctedByClerkUserId:
+          type: [string, 'null']
+        correctedByName:
+          type: [string, 'null']
+        scoreClearedAt:
+          type: [string, 'null']
+          description: ISO 8601 date and time
+        scoreClearedByName:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          description: ISO 8601 date and time
+        updatedAt:
+          type: string
+          description: ISO 8601 date and time
+      required: [id, leagueId, player1Id, player2Id, player3Id, player4Id, winnerId, status, scheduledAt, startedAt, completedAt, location, score, notes, durationMinutes, recordedByClerkUserId, recordedAt,
+        courtId, weekOf, generatedFrom, estimatedDistanceP1, estimatedDistanceP2, roundId, playoffBracketId, playoffRound, playoffSlot, season, locked, voidedAt, inGrace, correctedAt, correctedByClerkUserId,
+        correctedByName, scoreClearedAt, scoreClearedByName, createdAt, updatedAt]
+      description: The match as stored, without player names (the Ball Boi replay sends this).
+    RecordingRemoved:
+      type: object
+      properties:
+        removed:
+          type: boolean
+          enum: [true]
+        matchRemoved:
+          type: boolean
+      required: [removed, matchRemoved]
+    UploadConflict:
+      type: object
+      properties:
+        error:
+          type: string
+        uploaded:
+          type: boolean
+          description: The recording is already uploaded
+        restart:
+          type: boolean
+          description: 'The parts expired in storage: start this piece again'
+        missingParts:
+          type: array
+          items:
+            type: integer
+          description: Part numbers storage doesn't have yet
+      required: [error]
+      description: A 409 from the upload routes, with what to do next

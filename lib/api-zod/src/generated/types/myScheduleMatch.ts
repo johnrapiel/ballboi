@@ -29,7 +29,7 @@ export interface MyScheduleMatch {
   score?: string | null;
   /** @nullable */
   winnerId?: number | null;
-  hasBallBoiReplay: boolean;
+  hasBallBoiReplay?: boolean;
   /** @nullable */
   ballBoiProcessingStatus?: string | null;
   /** @nullable */

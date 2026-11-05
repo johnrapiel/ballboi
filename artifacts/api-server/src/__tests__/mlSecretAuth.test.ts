@@ -2,10 +2,12 @@
  * Tests for X-ML-Secret authentication on API server ML callback routes.
  *
  * Covers:
- * - POST /api/shots/:id/ml-callback returns 403 when X-ML-Secret is missing or wrong
  * - POST /api/ball-boi/sessions/:sessionId/ml-callback returns 403 when
  *   X-ML-Secret is missing or wrong (and no valid token fallback)
- * - Both routes accept a request when X-ML-Secret matches the configured secret
+ * - It accepts a request when X-ML-Secret matches the configured secret
+ *
+ * The legacy /api/shots routes, including their ML callback, were removed
+ * (D30); legacyShotRoutes.test.ts checks they no longer answer.
  */
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import express from "express";
@@ -95,43 +97,6 @@ vi.mock("drizzle-orm", () => {
     inArray: (a: unknown, b: unknown) => ({ a, b }),
     sql: sqlTag,
   };
-});
-
-// ─── /shots/:id/ml-callback ───────────────────────────────────────────────────
-
-describe("POST /api/shots/:id/ml-callback — X-ML-Secret auth", () => {
-  let app: express.Application;
-
-  beforeAll(async () => {
-    const { default: shotsRouter } = await import("../routes/shots.js");
-    app = express();
-    app.use(express.json());
-    app.use("/api", shotsRouter);
-  });
-
-  it("returns 403 when X-ML-Secret header is missing", async () => {
-    const res = await supertest(app)
-      .post("/api/shots/1/ml-callback")
-      .send({ status: "failed", error: "test" });
-    expect(res.status).toBe(403);
-  });
-
-  it("returns 403 when X-ML-Secret header is wrong", async () => {
-    const res = await supertest(app)
-      .post("/api/shots/1/ml-callback")
-      .set("X-ML-Secret", "not-the-right-secret")
-      .send({ status: "failed", error: "test" });
-    expect(res.status).toBe(403);
-  });
-
-  it("returns 200 when X-ML-Secret matches the configured secret", async () => {
-    mockDb.execute.mockResolvedValue({ rows: [] });
-    const res = await supertest(app)
-      .post("/api/shots/1/ml-callback")
-      .set("X-ML-Secret", TEST_SECRET)
-      .send({ status: "failed", error: "test error" });
-    expect(res.status).toBe(200);
-  });
 });
 
 // ─── /ball-boi/sessions/:sessionId/ml-callback ───────────────────────────────

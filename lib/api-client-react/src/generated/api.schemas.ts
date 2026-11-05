@@ -634,8 +634,14 @@ export interface HealthStatus {
   status: string;
 }
 
+/**
+ * Every error answers with this: a message to show, and on some routes a code to branch on. Routes need a signed-in Clerk session unless they say otherwise, and answer 401 without one. A banned or suspended account gets 403 with code account_banned or account_suspended on every route except GET /account/status, POST /account/appeal, DELETE /users/me, GET /users/me/league-handoff and /healthz. 401, that 403 and 500 are not listed per route.
+ */
 export interface ErrorResponse {
+  /** A message to show the person */
   error: string;
+  /** Present on some errors, such as league_ended, blocked or already_appealed */
+  code?: string;
 }
 
 export interface AvailabilityReminder {
@@ -1074,6 +1080,7 @@ export const MatchStatus = {
   in_progress: "in_progress",
   completed: "completed",
   cancelled: "cancelled",
+  voided: "voided",
 } as const;
 
 export interface Match {
@@ -1129,7 +1136,8 @@ export interface Match {
   playoffSlot?: number | null;
   /** @nullable */
   season?: string | null;
-  hasBallBoi: boolean;
+  /** Only in the GET /matches list */
+  hasBallBoi?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -1210,6 +1218,14 @@ export interface UpdateMatchBody {
   recordedAt?: string | null;
 }
 
+/**
+ * Only the keys the phone set when it started the session. The server's own keys (callback token, uploads, stat gates, retries) are never sent.
+ * @nullable
+ */
+export type BallBoiSessionMetadata = {
+  source?: string;
+} | null;
+
 export interface BallBoiSession {
   id: number;
   matchId: number;
@@ -1231,13 +1247,26 @@ export interface BallBoiSession {
   processingError?: string | null;
   /** @nullable */
   aiNarrative?: string | null;
+  /**
+   * Only the keys the phone set when it started the session. The server's own keys (callback token, uploads, stat gates, retries) are never sent.
+   * @nullable
+   */
+  metadata?: BallBoiSessionMetadata;
   createdAt: string;
   updatedAt: string;
 }
 
-export type StartBallBoiSessionBodyMetadata = { [key: string]: unknown };
+/**
+ * Only source is kept. Any other key is ignored.
+ */
+export type StartBallBoiSessionBodyMetadata = {
+  /** @maxLength 20 */
+  source?: string;
+  [key: string]: unknown;
+};
 
 export interface StartBallBoiSessionBody {
+  /** Only source is kept. Any other key is ignored. */
   metadata?: StartBallBoiSessionBodyMetadata;
   /** When the match was recorded. The session is created when the upload starts, which can be days later. */
   recordedAt?: string;
@@ -1516,26 +1545,108 @@ export interface BallBoiNarrative {
   narrative: string | null;
 }
 
+export type MatchRecordStatus =
+  (typeof MatchRecordStatus)[keyof typeof MatchRecordStatus];
+
+export const MatchRecordStatus = {
+  scheduled: "scheduled",
+  in_progress: "in_progress",
+  completed: "completed",
+  cancelled: "cancelled",
+  voided: "voided",
+} as const;
+
+/**
+ * The match as stored, without player names (the Ball Boi replay sends this).
+ */
+export interface MatchRecord {
+  id: number;
+  /** @nullable */
+  leagueId: number | null;
+  player1Id: number;
+  player2Id: number;
+  /** @nullable */
+  player3Id: number | null;
+  /** @nullable */
+  player4Id: number | null;
+  /** @nullable */
+  winnerId: number | null;
+  status: MatchRecordStatus;
+  /** @nullable */
+  scheduledAt: string | null;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  /** @nullable */
+  location: string | null;
+  /** @nullable */
+  score: string | null;
+  /** @nullable */
+  notes: string | null;
+  /** @nullable */
+  durationMinutes: number | null;
+  /** @nullable */
+  recordedByClerkUserId: string | null;
+  /** @nullable */
+  recordedAt: string | null;
+  /** @nullable */
+  courtId: number | null;
+  /** @nullable */
+  weekOf: string | null;
+  /** @nullable */
+  generatedFrom: string | null;
+  /** @nullable */
+  estimatedDistanceP1: number | null;
+  /** @nullable */
+  estimatedDistanceP2: number | null;
+  /** @nullable */
+  roundId: number | null;
+  /** @nullable */
+  playoffBracketId: number | null;
+  /** @nullable */
+  playoffRound: string | null;
+  /** @nullable */
+  playoffSlot: number | null;
+  /** @nullable */
+  season: string | null;
+  locked: boolean;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  voidedAt: string | null;
+  inGrace: boolean;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  correctedAt: string | null;
+  /** @nullable */
+  correctedByClerkUserId: string | null;
+  /** @nullable */
+  correctedByName: string | null;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  scoreClearedAt: string | null;
+  /** @nullable */
+  scoreClearedByName: string | null;
+  /** ISO 8601 date and time */
+  createdAt: string;
+  /** ISO 8601 date and time */
+  updatedAt: string;
+}
+
 export interface BallBoiReplay {
-  match: Match;
+  match: MatchRecord;
   session: BallBoiSession | null;
   shots: MatchShot[];
   statistics: MatchStatistics | null;
   /** Stats below their accuracy bar (or not yet measured). Their fields are empty; the app leaves them out rather than showing them with a disclaimer. */
-  hiddenStats?: GatedStat[];
+  hiddenStats: GatedStat[];
 }
-
-export type UserProfileSkillLevel =
-  (typeof UserProfileSkillLevel)[keyof typeof UserProfileSkillLevel];
-
-export const UserProfileSkillLevel = {
-  "25": "2.5",
-  "30": "3.0",
-  "35": "3.5",
-  "40": "4.0",
-  "45": "4.5",
-  "50": "5.0",
-} as const;
 
 export type UserProfileDominantHand =
   (typeof UserProfileDominantHand)[keyof typeof UserProfileDominantHand];
@@ -1543,6 +1654,28 @@ export type UserProfileDominantHand =
 export const UserProfileDominantHand = {
   left: "left",
   right: "right",
+} as const;
+
+/**
+ * @nullable
+ */
+export type UserProfileRatingSource =
+  | (typeof UserProfileRatingSource)[keyof typeof UserProfileRatingSource]
+  | null;
+
+export const UserProfileRatingSource = {
+  self: "self",
+  verified: "verified",
+} as const;
+
+export type UserProfileIntentsItem =
+  (typeof UserProfileIntentsItem)[keyof typeof UserProfileIntentsItem];
+
+export const UserProfileIntentsItem = {
+  run_league: "run_league",
+  join_league: "join_league",
+  find_matches: "find_matches",
+  record: "record",
 } as const;
 
 export interface UserProfile {
@@ -1555,13 +1688,37 @@ export interface UserProfile {
   phone?: string | null;
   /** @nullable */
   avatarUrl?: string | null;
-  skillLevel: UserProfileSkillLevel;
+  /** Legacy. New profiles get "intermediate"; the player's level is rating. */
+  skillLevel: string;
   dominantHand: UserProfileDominantHand;
   /** @nullable */
   bio?: string | null;
   onboardingComplete: boolean;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Ball Boi Rating (NTRP scale). Null until the quiz or a UTR link sets it.
+   * @nullable
+   */
+  rating?: number | null;
+  /** @nullable */
+  ratingSource?: UserProfileRatingSource;
+  /** @nullable */
+  homeZip?: string | null;
+  /**
+   * Approximate (two decimals), only from Use my location
+   * @nullable
+   */
+  homeLatitude?: number | null;
+  /** @nullable */
+  homeLongitude?: number | null;
+  /**
+   * Legacy single onboarding answer
+   * @nullable
+   */
+  intent?: string | null;
+  /** @nullable */
+  intents?: UserProfileIntentsItem[] | null;
 }
 
 export type UpsertUserProfileBodySkillLevel =
@@ -1751,7 +1908,7 @@ export interface MyScheduleMatch {
   score?: string | null;
   /** @nullable */
   winnerId?: number | null;
-  hasBallBoiReplay: boolean;
+  hasBallBoiReplay?: boolean;
   /** @nullable */
   ballBoiProcessingStatus?: string | null;
   /** @nullable */
@@ -1768,6 +1925,7 @@ export const MyMatchItemStatus = {
   in_progress: "in_progress",
   completed: "completed",
   cancelled: "cancelled",
+  voided: "voided",
 } as const;
 
 export interface MyMatchItem {
@@ -1928,6 +2086,730 @@ export interface PlayoffsStatusResponse {
   completedRoundCount: number;
 }
 
+/**
+ * Send both coordinates or neither.
+ */
+export interface HomeAreaInput {
+  /** @pattern ^\d{5}$ */
+  zip: string;
+  /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
+}
+
+export type IntentsInputIntentsItem =
+  (typeof IntentsInputIntentsItem)[keyof typeof IntentsInputIntentsItem];
+
+export const IntentsInputIntentsItem = {
+  run_league: "run_league",
+  join_league: "join_league",
+  find_matches: "find_matches",
+  record: "record",
+} as const;
+
+export interface IntentsInput {
+  intents: IntentsInputIntentsItem[];
+}
+
+export type SelfRatingInputRating =
+  (typeof SelfRatingInputRating)[keyof typeof SelfRatingInputRating];
+
+export const SelfRatingInputRating = {
+  "25": 2.5,
+  NUMBER_3: 3,
+  "35": 3.5,
+  NUMBER_4: 4,
+  "45": 4.5,
+} as const;
+
+export interface SelfRatingInput {
+  rating: SelfRatingInputRating;
+}
+
+/**
+ * @nullable
+ */
+export type SelfRatingResultSource =
+  | (typeof SelfRatingResultSource)[keyof typeof SelfRatingResultSource]
+  | null;
+
+export const SelfRatingResultSource = {
+  self: "self",
+  verified: "verified",
+} as const;
+
+export interface SelfRatingResult {
+  /** @nullable */
+  rating: number | null;
+  /** @nullable */
+  source: SelfRatingResultSource;
+}
+
+export type LeagueHandoffLeaguesItemMembersItem = {
+  playerId: number;
+  name: string;
+  /** ISO 8601 date and time */
+  joinedAt: string;
+};
+
+export type LeagueHandoffLeaguesItem = {
+  leagueId: number;
+  name: string;
+  members: LeagueHandoffLeaguesItemMembersItem[];
+};
+
+export interface LeagueHandoff {
+  leagues: LeagueHandoffLeaguesItem[];
+}
+
+export interface SuccessResult {
+  success: boolean;
+}
+
+export interface ExpoPushTokenInput {
+  token: string;
+}
+
+export interface PushRegistrationStatus {
+  registered: boolean;
+}
+
+export interface PhotoUploadRequest {
+  name: string;
+  size: number;
+  contentType: string;
+}
+
+export type PhotoUploadTicketMetadata = {
+  name: string;
+  size: number;
+  contentType: string;
+};
+
+export interface PhotoUploadTicket {
+  uploadURL: string;
+  objectPath: string;
+  metadata: PhotoUploadTicketMetadata;
+}
+
+export interface BlockedPlayer {
+  /** @nullable */
+  playerId: number | null;
+  name: string;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** ISO 8601 date and time */
+  blockedAt: string;
+}
+
+export interface BlockResult {
+  blocked: boolean;
+}
+
+export type NewReportTargetType =
+  (typeof NewReportTargetType)[keyof typeof NewReportTargetType];
+
+export const NewReportTargetType = {
+  player: "player",
+  league: "league",
+  ball_boi_session: "ball_boi_session",
+  match: "match",
+} as const;
+
+export type NewReportReason =
+  (typeof NewReportReason)[keyof typeof NewReportReason];
+
+export const NewReportReason = {
+  harassment: "harassment",
+  inappropriate_content: "inappropriate_content",
+  impersonation: "impersonation",
+  spam: "spam",
+  cheating: "cheating",
+  other: "other",
+} as const;
+
+export interface NewReport {
+  targetType: NewReportTargetType;
+  /** @maxLength 100 */
+  targetId: string;
+  reason: NewReportReason;
+  /**
+   * Kept to 1000 characters
+   * @nullable
+   */
+  details?: string | null;
+}
+
+export type ReportReceiptStatus =
+  (typeof ReportReceiptStatus)[keyof typeof ReportReceiptStatus];
+
+export const ReportReceiptStatus = {
+  open: "open",
+} as const;
+
+export interface ReportReceipt {
+  id: number;
+  status: ReportReceiptStatus;
+}
+
+export type ContentReportRowStatus =
+  (typeof ContentReportRowStatus)[keyof typeof ContentReportRowStatus];
+
+export const ContentReportRowStatus = {
+  open: "open",
+  reviewed: "reviewed",
+  actioned: "actioned",
+  dismissed: "dismissed",
+} as const;
+
+export type ContentReportRowSource =
+  (typeof ContentReportRowSource)[keyof typeof ContentReportRowSource];
+
+export const ContentReportRowSource = {
+  user: "user",
+  auto: "auto",
+  stream: "stream",
+  appeal: "appeal",
+} as const;
+
+export interface ContentReportRow {
+  id: number;
+  /** @nullable */
+  reporterClerkUserId: string | null;
+  targetType: string;
+  targetId: string;
+  reason: string;
+  /** @nullable */
+  details: string | null;
+  status: ContentReportRowStatus;
+  source: ContentReportRowSource;
+  /** @nullable */
+  subjectClerkUserId: string | null;
+  /** ISO 8601 date and time */
+  createdAt: string;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  reviewedAt: string | null;
+}
+
+export type ContentReportSnapshot = {
+  /** @nullable */
+  conversationId: number | null;
+  messages: {
+    id: string;
+    senderClerkUserId: string;
+    senderName: string;
+    text: string;
+    at: string;
+    reported: boolean;
+  }[];
+} | null;
+
+export type ContentReport = ContentReportRow & {
+  /** @nullable */
+  subjectName: string | null;
+  snapshot: ContentReportSnapshot;
+};
+
+export type ReportStatusInputStatus =
+  (typeof ReportStatusInputStatus)[keyof typeof ReportStatusInputStatus];
+
+export const ReportStatusInputStatus = {
+  open: "open",
+  reviewed: "reviewed",
+  actioned: "actioned",
+  dismissed: "dismissed",
+} as const;
+
+export interface ReportStatusInput {
+  status: ReportStatusInputStatus;
+}
+
+export interface AgentDecision {
+  id: number;
+  reportId: number;
+  action: string;
+  reason: string;
+  /** @nullable */
+  messageId?: string | null;
+  /** @nullable */
+  subjectClerkUserId?: string | null;
+  /** @nullable */
+  restrictionId?: number | null;
+  previousStatus: string;
+  model: string;
+  /** ISO 8601 date and time */
+  createdAt: string;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  confirmedAt: string | null;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  undoneAt: string | null;
+  /** @nullable */
+  reviewedBy?: string | null;
+}
+
+export interface HiddenMessageResult {
+  messageId: string;
+  hidden: boolean;
+}
+
+export interface ModeratorReasonInput {
+  reason?: string;
+  reportId?: number;
+}
+
+export interface MessagingRestriction {
+  id: number;
+  clerkUserId: string;
+  reason: string;
+  source: string;
+  /** @nullable */
+  reportId?: number | null;
+  /** ISO 8601 date and time */
+  createdAt: string;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  liftedAt?: string | null;
+  /** @nullable */
+  liftedBy?: string | null;
+}
+
+export interface SanctionInput {
+  reason: string;
+  /**
+   * Suspensions only
+   * @minimum 1
+   * @maximum 90
+   */
+  days?: number;
+  reportId?: number;
+}
+
+export type SanctionKind = (typeof SanctionKind)[keyof typeof SanctionKind];
+
+export const SanctionKind = {
+  ban: "ban",
+  suspend: "suspend",
+} as const;
+
+export interface Sanction {
+  id: number;
+  kind: SanctionKind;
+  clerkUserId: string;
+  /** @nullable */
+  appleUserId?: string | null;
+  emails?: string[];
+  reason: string;
+  /** @nullable */
+  reportId?: number | null;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  endsAt: string | null;
+  createdBy?: string;
+  /** ISO 8601 date and time */
+  createdAt: string;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  liftedAt: string | null;
+  /** @nullable */
+  liftedBy?: string | null;
+}
+
+export interface SanctionResult {
+  sanction: Sanction;
+}
+
+/**
+ * @nullable
+ */
+export type AppealOutcome =
+  | (typeof AppealOutcome)[keyof typeof AppealOutcome]
+  | null;
+
+export const AppealOutcome = {
+  upheld: "upheld",
+  overturned: "overturned",
+} as const;
+
+export interface Appeal {
+  id: number;
+  sanctionId: number;
+  clerkUserId: string;
+  /** @nullable */
+  reportId?: number | null;
+  /** ISO 8601 date and time */
+  createdAt: string;
+  /** @nullable */
+  outcome: AppealOutcome;
+  /** @nullable */
+  note?: string | null;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  decidedAt: string | null;
+  /** @nullable */
+  decidedBy?: string | null;
+}
+
+export type AppealListItemSanction = {
+  id: number;
+  kind: "ban" | "suspend";
+  reason: string;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  endsAt: string | null;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  liftedAt: string | null;
+  /** ISO 8601 date and time */
+  createdAt: string;
+} | null;
+
+export type AppealListItem = Appeal & {
+  /** Like BB-00012, from the appeal email's subject */
+  reference: string;
+  /** @nullable */
+  name: string | null;
+  sanction: AppealListItemSanction;
+};
+
+export type AppealDecisionInputOutcome =
+  (typeof AppealDecisionInputOutcome)[keyof typeof AppealDecisionInputOutcome];
+
+export const AppealDecisionInputOutcome = {
+  upheld: "upheld",
+  overturned: "overturned",
+} as const;
+
+export interface AppealDecisionInput {
+  outcome: AppealDecisionInputOutcome;
+  note?: string;
+}
+
+export type AccountStatusStatus =
+  (typeof AccountStatusStatus)[keyof typeof AccountStatusStatus];
+
+export const AccountStatusStatus = {
+  ok: "ok",
+  banned: "banned",
+  suspended: "suspended",
+} as const;
+
+export type AccountStatusAppeal = {
+  /** ISO 8601 date and time */
+  submittedAt: string;
+  /** @nullable */
+  outcome: "upheld" | "overturned" | null;
+} | null;
+
+export interface AccountStatus {
+  status: AccountStatusStatus;
+  /**
+   * Suspensions only
+   * @nullable
+   */
+  endsAt: string | null;
+  appeal: AccountStatusAppeal;
+  canAppeal: boolean;
+  supportEmail: string;
+  /** @nullable */
+  appealReference: string | null;
+}
+
+export interface AppealReceipt {
+  reference: string;
+  supportEmail: string;
+}
+
+export type ConversationViewState =
+  (typeof ConversationViewState)[keyof typeof ConversationViewState];
+
+export const ConversationViewState = {
+  active: "active",
+  awaiting_reply: "awaiting_reply",
+  request: "request",
+} as const;
+
+export type ConversationViewOther = {
+  name: string;
+  /** @nullable */
+  playerId: number | null;
+};
+
+export type ConversationViewLastMessage = {
+  text: string;
+  fromMe: boolean;
+  at: string;
+} | null;
+
+export interface ConversationView {
+  id: number;
+  state: ConversationViewState;
+  other: ConversationViewOther;
+  lastMessage: ConversationViewLastMessage;
+  unread: number;
+  canSend: boolean;
+  /**
+   * Why the composer is off, in plain words
+   * @nullable
+   */
+  sendBlockedReason: string | null;
+}
+
+export interface MessageView {
+  id: string;
+  text: string;
+  fromMe: boolean;
+  at: string;
+}
+
+export interface MessagesSummary {
+  unread: number;
+  requests: number;
+}
+
+export type ConversationList = MessagesSummary & {
+  conversations: ConversationView[];
+};
+
+export interface ConversationThread {
+  conversation: ConversationView;
+  messages: MessageView[];
+  /** @nullable */
+  olderCursor: string | null;
+}
+
+export interface SentMessage {
+  conversationId: number;
+  message: MessageView;
+}
+
+export interface MessageContact {
+  name: string;
+  playerId: number;
+}
+
+export interface NewConversationInput {
+  playerId: number;
+  text: string;
+  clientMessageId?: string;
+}
+
+export interface NewMessageInput {
+  text: string;
+  /** Lets a retried send come back as the same message */
+  clientMessageId?: string;
+}
+
+export type MessageReportInputReason =
+  (typeof MessageReportInputReason)[keyof typeof MessageReportInputReason];
+
+export const MessageReportInputReason = {
+  harassment: "harassment",
+  inappropriate_content: "inappropriate_content",
+  impersonation: "impersonation",
+  spam: "spam",
+  cheating: "cheating",
+  other: "other",
+} as const;
+
+export interface MessageReportInput {
+  messageId: string;
+  reason: MessageReportInputReason;
+  /** @nullable */
+  details?: string | null;
+}
+
+export interface RecordingConsent {
+  consented: boolean;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  consentedAt: string | null;
+  trainingEnabled: boolean;
+}
+
+export interface TrainingChoice {
+  trainingEnabled: boolean;
+}
+
+export interface RecordingOpponent {
+  playerId: number;
+  name: string;
+}
+
+/**
+ * Doubles is refused for now
+ */
+export type QuickMatchInputFormat =
+  (typeof QuickMatchInputFormat)[keyof typeof QuickMatchInputFormat];
+
+export const QuickMatchInputFormat = {
+  singles: "singles",
+  doubles: "doubles",
+} as const;
+
+/**
+ * Send opponentPlayerId or opponentName, not both.
+ */
+export interface QuickMatchInput {
+  /** Doubles is refused for now */
+  format?: QuickMatchInputFormat;
+  opponentPlayerId?: number;
+  opponentName?: string;
+}
+
+export type QuickMatchCreatedInvite = {
+  code: string;
+  url: string;
+} | null;
+
+export interface QuickMatchCreated {
+  matchId: number;
+  opponentName: string;
+  invite: QuickMatchCreatedInvite;
+}
+
+export interface RecordingInvite {
+  code: string;
+  recorderName: string;
+  yourName: string;
+  recordedAt: string;
+  claimed: boolean;
+  claimedByYou: boolean;
+  isYourInvite: boolean;
+}
+
+export type RecordableMatchFormat =
+  (typeof RecordableMatchFormat)[keyof typeof RecordableMatchFormat];
+
+export const RecordableMatchFormat = {
+  singles: "singles",
+  doubles: "doubles",
+} as const;
+
+export interface RecordableMatch {
+  id: number;
+  /** @nullable */
+  scheduledAt: string | null;
+  /** @nullable */
+  location: string | null;
+  /** @nullable */
+  leagueId: number | null;
+  /** @nullable */
+  leagueName: string | null;
+  format: RecordableMatchFormat;
+  opponentName: string;
+  /** @nullable */
+  partnerName: string | null;
+  /**
+   * Last day to play (YYYY-MM-DD, the league's zone)
+   * @nullable
+   */
+  playBy: string | null;
+  /** @nullable */
+  timeZone: string | null;
+}
+
+export type RecordingListItemStage =
+  (typeof RecordingListItemStage)[keyof typeof RecordingListItemStage];
+
+export const RecordingListItemStage = {
+  uploading: "uploading",
+  analyzing: "analyzing",
+  ready: "ready",
+  failed: "failed",
+} as const;
+
+export interface RecordingListItem {
+  sessionId: number;
+  matchId: number;
+  /** @nullable */
+  leagueId: number | null;
+  opponentName: string;
+  /** When the match was recorded (ISO 8601), not when it uploaded (D19) */
+  recordedAt: string;
+  stage: RecordingListItemStage;
+  scoreEntered: boolean;
+  /** False on the opponent's copy of the card */
+  recordedByYou: boolean;
+  /**
+   * The short reason shown on a failed card; null unless stage is failed
+   * @nullable
+   */
+  failedReason: string | null;
+}
+
+export interface DiscardResult {
+  sessionDeleted: boolean;
+  matchRemoved: boolean;
+}
+
+export type AccountDeletionInputConfirm =
+  (typeof AccountDeletionInputConfirm)[keyof typeof AccountDeletionInputConfirm];
+
+export const AccountDeletionInputConfirm = {
+  DELETE: "DELETE",
+} as const;
+
+export type AccountDeletionInputNewAdminsItem = {
+  leagueId: number;
+  playerId: number;
+};
+
+export interface AccountDeletionInput {
+  confirm: AccountDeletionInputConfirm;
+  newAdmins?: AccountDeletionInputNewAdminsItem[];
+}
+
+export interface AccountDeletionResult {
+  deleted: boolean;
+  playersAnonymized: number;
+  recordingsDeleted: number;
+  recordingsKeptForOpponents: number;
+  videosDeleted: number;
+  videoDeleteFailures: number;
+}
+
+export interface RecordingRemoved {
+  removed: boolean;
+  matchRemoved: boolean;
+}
+
+/**
+ * A 409 from the upload routes, with what to do next
+ */
+export interface UploadConflict {
+  error: string;
+  /** The recording is already uploaded */
+  uploaded?: boolean;
+  /** The parts expired in storage: start this piece again */
+  restart?: boolean;
+  /** Part numbers storage doesn't have yet */
+  missingParts?: number[];
+}
+
 export type GetLeaguesParams = {
   /**
    * @nullable
@@ -2046,4 +2928,134 @@ export type GetMatchBallBoiReplayMetadata200 = {
   match?: GetMatchBallBoiReplayMetadata200Match;
   shotMarkers?: GetMatchBallBoiReplayMetadata200ShotMarkersItem[];
   chapters?: GetMatchBallBoiReplayMetadata200ChaptersItem[];
+};
+
+export type GetAdminReportsParams = {
+  status?: GetAdminReportsStatus;
+};
+
+export type GetAdminReportsStatus =
+  (typeof GetAdminReportsStatus)[keyof typeof GetAdminReportsStatus];
+
+export const GetAdminReportsStatus = {
+  open: "open",
+  reviewed: "reviewed",
+  actioned: "actioned",
+  dismissed: "dismissed",
+} as const;
+
+export type GetAgentDecisionsParams = {
+  /**
+   * false lists every decision, not only the ones waiting
+   */
+  pending?: GetAgentDecisionsPending;
+};
+
+export type GetAgentDecisionsPending =
+  (typeof GetAgentDecisionsPending)[keyof typeof GetAgentDecisionsPending];
+
+export const GetAgentDecisionsPending = {
+  true: "true",
+  false: "false",
+} as const;
+
+export type HideMessageBody = {
+  hidden?: boolean;
+};
+
+export type RestrictAccount201 = {
+  restriction: MessagingRestriction;
+};
+
+export type GetAppealsParams = {
+  /**
+   * false lists decided appeals too
+   */
+  open?: GetAppealsOpen;
+};
+
+export type GetAppealsOpen =
+  (typeof GetAppealsOpen)[keyof typeof GetAppealsOpen];
+
+export const GetAppealsOpen = {
+  true: "true",
+  false: "false",
+} as const;
+
+export type DecideAppeal200 = {
+  appeal: Appeal;
+};
+
+export type GetAdminMe200 = {
+  admin: boolean;
+};
+
+export type GetConversationsParams = {
+  box?: GetConversationsBox;
+};
+
+export type GetConversationsBox =
+  (typeof GetConversationsBox)[keyof typeof GetConversationsBox];
+
+export const GetConversationsBox = {
+  messages: "messages",
+  requests: "requests",
+} as const;
+
+export type GetMessageContacts200 = {
+  contacts: MessageContact[];
+};
+
+export type GetConversationWithPlayer200 = {
+  /** @nullable */
+  conversationId: number | null;
+};
+
+export type GetConversationParams = {
+  /**
+   * olderCursor from the previous page
+   */
+  before?: string;
+};
+
+export type CreateSampleMessages201 = {
+  ok: boolean;
+};
+
+export type ScoreQuickMatchBody = {
+  /** Sets from your side, like 6-4, 3-6, 10-8 */
+  score: string;
+};
+
+export type ScoreQuickMatch200 = {
+  matchId: number;
+  score: string;
+};
+
+export type ClaimRecordingInvite200 = {
+  matchId: number;
+};
+
+export type GetTodaysRecordableMatchesParams = {
+  /**
+   * ISO 8601 date and time
+   */
+  from: string;
+  /**
+   * ISO 8601 date and time
+   */
+  to: string;
+};
+
+export type LogDoublesViewBody = {
+  matchId: number;
+};
+
+export type DiscardRecordingBody = {
+  matchId: number;
+  sessionId?: number;
+};
+
+export type AbandonQuickMatch200 = {
+  removed: boolean;
 };

@@ -6,4 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type StartBallBoiSessionBodyMetadata = { [key: string]: unknown };
+/**
+ * Only source is kept. Any other key is ignored.
+ */
+export type StartBallBoiSessionBodyMetadata = {
+  /** @maxLength 20 */
+  source?: string;
+  [key: string]: unknown;
+};

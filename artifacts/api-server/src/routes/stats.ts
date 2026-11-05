@@ -7,6 +7,8 @@ import { matchesTable, playersTable, leaguesTable, scheduleGenerationLogsTable, 
 import { eq, and, or, desc, inArray, ne, isNull } from "drizzle-orm";
 import { getPlayerNameMap, getLeagueNameMap, matchPlayerIds } from "../lib/lookups.js";
 import { readScope } from "../lib/matchAccess.js";
+import { adminLeagueIds } from "../lib/leagueAccess.js";
+import { withoutDraftMatches } from "../lib/draftRounds.js";
 
 const router = Router();
 
@@ -264,18 +266,22 @@ router.get("/stats/my-matches", async (req, res) => {
     }
 
     const playerIds = linkedPlayers.map((player) => player.id);
-    const allMatches = await db
-      .select()
-      .from(matchesTable)
-      .where(
-        or(
-          inArray(matchesTable.player1Id, playerIds),
-          inArray(matchesTable.player2Id, playerIds),
-          inArray(matchesTable.player3Id, playerIds),
-          inArray(matchesTable.player4Id, playerIds),
+    // A pairing in a round that hasn't gone out shows only to the league's admins.
+    const allMatches = await withoutDraftMatches(
+      await db
+        .select()
+        .from(matchesTable)
+        .where(
+          or(
+            inArray(matchesTable.player1Id, playerIds),
+            inArray(matchesTable.player2Id, playerIds),
+            inArray(matchesTable.player3Id, playerIds),
+            inArray(matchesTable.player4Id, playerIds),
+          )
         )
-      )
-      .orderBy(desc(matchesTable.scheduledAt));
+        .orderBy(desc(matchesTable.scheduledAt)),
+      () => adminLeagueIds(userId!),
+    );
 
     const [allLeagues, allPlayers, ballBoiSessions, ballBoiStats, allRounds] = await Promise.all([
       db.select().from(leaguesTable).where(inArray(leaguesTable.id, allMatches.flatMap((m) => (m.leagueId != null ? [m.leagueId] : [])))),
@@ -378,6 +384,8 @@ router.get("/stats/my-schedule", async (req, res) => {
 
     const playerIds = linkedPlayers.map((player) => player.id);
     const linkedPlayerIdSet = new Set(playerIds);
+    // A pairing in a round that hasn't gone out shows only to the league's admins.
+    const runs = () => adminLeagueIds(userId!);
 
     // Compute current weekOf (Monday of current week, YYYY-MM-DD)
     const today = new Date();
@@ -411,11 +419,14 @@ router.get("/stats/my-schedule", async (req, res) => {
     if (confirmedLogs.length > 0) {
       const confirmedLeagueIds = confirmedLogs.map((l) => l.leagueId);
       // Fetch all current-week matches across all confirmed leagues, ordered soonest first.
-      const weekMatches = await db
-        .select()
-        .from(matchesTable)
-        .where(eq(matchesTable.weekOf, currentWeekOf))
-        .orderBy(matchesTable.scheduledAt);
+      const weekMatches = await withoutDraftMatches(
+        await db
+          .select()
+          .from(matchesTable)
+          .where(eq(matchesTable.weekOf, currentWeekOf))
+          .orderBy(matchesTable.scheduledAt),
+        runs,
+      );
       const isPlayerMatch = (m: typeof weekMatches[0]) =>
         confirmedLeagueIds.includes(m.leagueId!) &&
         getLinkedPlayerIdForMatch(m, linkedPlayerIdSet) != null &&
@@ -432,7 +443,7 @@ router.get("/stats/my-schedule", async (req, res) => {
 
     // 2. Fallback: any scheduled or in-progress match in the current week window
     if (!upcoming) {
-      const allActiveThisWeek = await db
+      const allActiveThisWeek = await withoutDraftMatches(await db
         .select()
         .from(matchesTable)
         .where(
@@ -446,7 +457,7 @@ router.get("/stats/my-schedule", async (req, res) => {
             ),
           ),
         )
-        .orderBy(matchesTable.scheduledAt);
+        .orderBy(matchesTable.scheduledAt), runs);
 
       upcoming = allActiveThisWeek.find(
         (m) =>
