@@ -46,6 +46,8 @@ tags:
     description: Profile photo uploads and loads
   - name: discover
     description: Players near you and your Discover settings
+  - name: courts
+    description: The court directory and your home court
 
 paths:
   /healthz:
@@ -5864,6 +5866,184 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /courts:
+    get:
+      operationId: getCourts
+      tags: [courts]
+      summary: Courts in the directory near your home area, nearest first
+      parameters:
+      - name: radius
+        in: query
+        schema:
+          type: integer
+          enum: [5, 10, 15, 30]
+      responses:
+        '200':
+          description: Courts near you
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourtList'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No profile yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      operationId: addCourt
+      tags: [courts]
+      summary: Add a missing court. A court with the same name close by comes back instead.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewCourt'
+      responses:
+        '200':
+          description: The court that was already there
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddedCourt'
+        '201':
+          description: The new court
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddedCourt'
+        '400':
+          description: Something about the court needs fixing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Daily limit reached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /users/me/home-court:
+    put:
+      operationId: setMyHomeCourt
+      tags: [courts]
+      summary: Set or clear your home court
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HomeCourtInput'
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HomeCourtSaved'
+        '400':
+          description: Not a court id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No such court
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/courts/{courtId}/hide:
+    post:
+      operationId: hideCourt
+      tags: [courts]
+      summary: Moderators hide a reported court
+      parameters:
+      - name: courtId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Hidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourtHidden'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Court not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      operationId: unhideCourt
+      tags: [courts]
+      summary: Moderators show a hidden court again
+      parameters:
+      - name: courtId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Shown
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourtHidden'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Court not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   parameters:
     LeagueIdParam:
@@ -5885,6 +6065,113 @@ components:
       schema:
         type: integer
   schemas:
+    HomeCourt:
+      type: object
+      properties:
+        courtId:
+          type: integer
+        name:
+          type: string
+      required: [courtId, name]
+    HomeCourtInput:
+      type: object
+      properties:
+        courtId:
+          type: [integer, 'null']
+          description: Null clears it
+      required: [courtId]
+    HomeCourtSaved:
+      type: object
+      properties:
+        homeCourtId:
+          type: [integer, 'null']
+      required: [homeCourtId]
+    CourtCard:
+      type: object
+      properties:
+        courtId:
+          type: integer
+        name:
+          type: string
+        place:
+          type: [string, 'null']
+          description: Cross streets or park, like "Riverside Park, W 96th St"
+        access:
+          type: string
+          enum: [public, club]
+        surface:
+          type: [string, 'null']
+          enum: [hard, clay, grass, other, null]
+        lights:
+          type: [boolean, 'null']
+        courtCount:
+          type: [integer, 'null']
+        distanceLabel:
+          type: string
+          description: Approximate, like "~2 mi away"
+      required: [courtId, name, place, access, surface, lights, courtCount, distanceLabel]
+    AddedCourt:
+      allOf:
+      - $ref: '#/components/schemas/CourtCard'
+      - type: object
+        properties:
+          existing:
+            type: boolean
+            description: True when the court was already in the directory
+        required: [existing]
+    CourtList:
+      type: object
+      properties:
+        radius:
+          type: integer
+        homeAreaProblem:
+          type: [string, 'null']
+        homeCourtId:
+          type: [integer, 'null']
+        courts:
+          type: array
+          items:
+            $ref: '#/components/schemas/CourtCard'
+      required: [radius, homeAreaProblem, homeCourtId, courts]
+    NewCourt:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 60
+        place:
+          type: [string, 'null']
+          maxLength: 80
+        zip:
+          type: string
+          pattern: '^[0-9]{5}$'
+        latitude:
+          type: number
+          description: Optional, from "I'm at the court". Used only when it's near the zip.
+        longitude:
+          type: number
+        access:
+          type: string
+          enum: [public, club]
+        surface:
+          type: [string, 'null']
+          enum: [hard, clay, grass, other, null]
+        lights:
+          type: [boolean, 'null']
+        courtCount:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 60
+      required: [name, zip]
+    CourtHidden:
+      type: object
+      properties:
+        courtId:
+          type: integer
+        hidden:
+          type: boolean
+      required: [courtId, hidden]
     OpenLeagueCard:
       type: object
       properties:
@@ -6007,7 +6294,11 @@ components:
             items:
               type: string
               enum: [weekday_mornings, weekday_evenings, weekends]
-        required: [freeTimes]
+          homeCourt:
+            oneOf:
+            - $ref: '#/components/schemas/HomeCourt'
+            - type: 'null'
+        required: [freeTimes, homeCourt]
     DiscoverPlayers:
       type: object
       properties:
@@ -6049,7 +6340,11 @@ components:
           items:
             type: string
             enum: [weekday_mornings, weekday_evenings, weekends]
-      required: [hidden, plays, freeTimes]
+        homeCourt:
+          oneOf:
+          - $ref: '#/components/schemas/HomeCourt'
+          - type: 'null'
+      required: [hidden, plays, freeTimes, homeCourt]
     DiscoverSettingsInput:
       type: object
       properties:
@@ -8605,7 +8900,7 @@ components:
       properties:
         targetType:
           type: string
-          enum: [player, league, ball_boi_session, match]
+          enum: [player, league, ball_boi_session, match, court]
         targetId:
           type: string
           maxLength: 100

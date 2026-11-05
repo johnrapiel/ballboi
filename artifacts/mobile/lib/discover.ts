@@ -2,6 +2,7 @@
 // The server does the filtering; these only word what the app shows.
 
 import type {
+  CourtCard,
   DiscoverFilters,
   DiscoverPlayerCard,
   DiscoverPlayersCountsItem,
@@ -177,4 +178,46 @@ export function joinButtonLabel(l: Pick<LeagueCardFields, "joining">): string {
 /** Today on this phone, as "YYYY-MM-DD". */
 export function localDay(now: Date = new Date()): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+// ─── Court directory ───────────────────────────────────────────────────────
+
+type CourtFields = Pick<CourtCard, "access" | "surface" | "lights" | "courtCount" | "distanceLabel">;
+
+export const COURT_SURFACE_LABEL: Record<NonNullable<CourtCard["surface"]>, string> = {
+  hard: "Hard",
+  clay: "Clay",
+  grass: "Grass",
+  other: "Other surface",
+};
+
+/** "Public · Hard · 4 courts · Lights · ~2 mi away", leaving out what nobody said. */
+export function courtLine(c: CourtFields): string {
+  return [
+    c.access === "club" ? "Club" : "Public",
+    c.surface ? COURT_SURFACE_LABEL[c.surface] : null,
+    c.courtCount ? `${c.courtCount} ${c.courtCount === 1 ? "court" : "courts"}` : null,
+    c.lights === true ? "Lights" : c.lights === false ? "No lights" : null,
+    c.distanceLabel || null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/** Courts whose name or place has every word typed, in the order given. */
+export function searchCourts<T extends Pick<CourtCard, "name" | "place">>(courts: T[], text: string): T[] {
+  const words = text.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return courts;
+  return courts.filter((c) => {
+    const hay = `${c.name} ${c.place ?? ""}`.toLowerCase();
+    return words.every((w) => hay.includes(w));
+  });
+}
+
+/** A typed court count: blank is "not sure", otherwise a whole number from 1 to 60. */
+export function parseCourtCount(text: string): number | null | "invalid" {
+  const t = text.trim();
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isInteger(n) && n >= 1 && n <= 60 ? n : "invalid";
 }

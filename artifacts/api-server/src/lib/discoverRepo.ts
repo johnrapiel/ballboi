@@ -13,6 +13,7 @@ import {
 } from "@workspace/db";
 import { and, between, count, eq, gt, inArray, isNotNull, isNull, ne, or } from "drizzle-orm";
 import { blockedAccountsFor } from "./blocks.js";
+import { homeCourtFor } from "./courtRepo.js";
 import { boundingBox, homeAreaPoint, type Point } from "./discoverArea.js";
 import type { OpenLeagueCandidate } from "./discoverLeagues.js";
 import type { DiscoverCandidate, DiscoverSettingsInput } from "./discoverPlayers.js";
@@ -30,9 +31,15 @@ export interface DiscoverMe {
   hidden: boolean;
   plays: string | null;
   freeTimes: string[] | null;
+  /** The player's optional home court from the court directory. */
+  homeCourt: { courtId: number; name: string } | null;
 }
 
-export type DiscoverPerson = DiscoverCandidate & { clerkUserId: string };
+export type DiscoverPerson = DiscoverCandidate & {
+  clerkUserId: string;
+  /** Only filled for a single player's profile. */
+  homeCourt?: { courtId: number; name: string } | null;
+};
 
 /** An Open league in Discover, with what its preview shows. */
 export type DiscoverLeague = OpenLeagueCandidate & {
@@ -103,6 +110,7 @@ export class DrizzleDiscoverRepo implements DiscoverRepo {
       hidden: u.discoverHidden,
       plays: u.plays,
       freeTimes: u.freeTimes,
+      homeCourt: await homeCourtFor(u.homeCourtId),
     };
   }
 
@@ -126,7 +134,10 @@ export class DrizzleDiscoverRepo implements DiscoverRepo {
       .select(personFields)
       .from(usersTable)
       .where(and(discoverable(viewer), eq(usersTable.id, userId)));
-    return (await this.finish(viewer, rows as Row[]))[0] ?? null;
+    const them = (await this.finish(viewer, rows as Row[]))[0];
+    if (!them) return null;
+    const [u] = await db.select({ homeCourtId: usersTable.homeCourtId }).from(usersTable).where(eq(usersTable.id, userId));
+    return { ...them, homeCourt: await homeCourtFor(u?.homeCourtId) };
   }
 
   /** Drops blocked and sanctioned accounts and adds each player's match count. */

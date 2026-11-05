@@ -22,6 +22,7 @@ import type {
   AccountDeletionResult,
   AccountStatus,
   ActivityItem,
+  AddedCourt,
   AgentDecision,
   AppealDecisionInput,
   AppealListItem,
@@ -53,6 +54,8 @@ import type {
   ConversationList,
   ConversationThread,
   CorrectedScore,
+  CourtHidden,
+  CourtList,
   CreateLeagueBody,
   CreateLeagueInviteBody,
   CreateMatchBody,
@@ -87,6 +90,7 @@ import type {
   GetConversationWithPlayer200,
   GetConversationWithUser200,
   GetConversationsParams,
+  GetCourtsParams,
   GetDiscoverLeaguesParams,
   GetDiscoverPlayersParams,
   GetHeadToHeadParams,
@@ -105,6 +109,8 @@ import type {
   HiddenMessageResult,
   HideMessageBody,
   HomeAreaInput,
+  HomeCourtInput,
+  HomeCourtSaved,
   IntentsInput,
   JoinLeagueBody,
   JoinLeagueResponse,
@@ -135,6 +141,7 @@ import type {
   MyMatchesResponse,
   MyScheduleResponse,
   NewConversationInput,
+  NewCourt,
   NewMessageInput,
   NewReport,
   PhotoUploadRequest,
@@ -14650,3 +14657,437 @@ export function useGetDiscoverLeague<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Courts in the directory near your home area, nearest first
+ */
+export const getGetCourtsUrl = (params?: GetCourtsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/courts?${stringifiedParams}`
+    : `/api/courts`;
+};
+
+export const getCourts = async (
+  params?: GetCourtsParams,
+  options?: RequestInit,
+): Promise<CourtList> => {
+  return customFetch<CourtList>(getGetCourtsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCourtsQueryKey = (params?: GetCourtsParams) => {
+  return [`/api/courts`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetCourtsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCourts>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: GetCourtsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCourts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCourtsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCourts>>> = ({
+    signal,
+  }) => getCourts(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCourts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCourtsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCourts>>
+>;
+export type GetCourtsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Courts in the directory near your home area, nearest first
+ */
+
+export function useGetCourts<
+  TData = Awaited<ReturnType<typeof getCourts>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: GetCourtsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCourts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCourtsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Add a missing court. A court with the same name close by comes back instead.
+ */
+export const getAddCourtUrl = () => {
+  return `/api/courts`;
+};
+
+export const addCourt = async (
+  newCourt: NewCourt,
+  options?: RequestInit,
+): Promise<AddedCourt> => {
+  return customFetch<AddedCourt>(getAddCourtUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(newCourt),
+  });
+};
+
+export const getAddCourtMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addCourt>>,
+    TError,
+    { data: BodyType<NewCourt> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof addCourt>>,
+  TError,
+  { data: BodyType<NewCourt> },
+  TContext
+> => {
+  const mutationKey = ["addCourt"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof addCourt>>,
+    { data: BodyType<NewCourt> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return addCourt(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AddCourtMutationResult = NonNullable<
+  Awaited<ReturnType<typeof addCourt>>
+>;
+export type AddCourtMutationBody = BodyType<NewCourt>;
+export type AddCourtMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Add a missing court. A court with the same name close by comes back instead.
+ */
+export const useAddCourt = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addCourt>>,
+    TError,
+    { data: BodyType<NewCourt> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof addCourt>>,
+  TError,
+  { data: BodyType<NewCourt> },
+  TContext
+> => {
+  return useMutation(getAddCourtMutationOptions(options));
+};
+
+/**
+ * @summary Set or clear your home court
+ */
+export const getSetMyHomeCourtUrl = () => {
+  return `/api/users/me/home-court`;
+};
+
+export const setMyHomeCourt = async (
+  homeCourtInput: HomeCourtInput,
+  options?: RequestInit,
+): Promise<HomeCourtSaved> => {
+  return customFetch<HomeCourtSaved>(getSetMyHomeCourtUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(homeCourtInput),
+  });
+};
+
+export const getSetMyHomeCourtMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setMyHomeCourt>>,
+    TError,
+    { data: BodyType<HomeCourtInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setMyHomeCourt>>,
+  TError,
+  { data: BodyType<HomeCourtInput> },
+  TContext
+> => {
+  const mutationKey = ["setMyHomeCourt"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setMyHomeCourt>>,
+    { data: BodyType<HomeCourtInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return setMyHomeCourt(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetMyHomeCourtMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setMyHomeCourt>>
+>;
+export type SetMyHomeCourtMutationBody = BodyType<HomeCourtInput>;
+export type SetMyHomeCourtMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Set or clear your home court
+ */
+export const useSetMyHomeCourt = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setMyHomeCourt>>,
+    TError,
+    { data: BodyType<HomeCourtInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setMyHomeCourt>>,
+  TError,
+  { data: BodyType<HomeCourtInput> },
+  TContext
+> => {
+  return useMutation(getSetMyHomeCourtMutationOptions(options));
+};
+
+/**
+ * @summary Moderators hide a reported court
+ */
+export const getHideCourtUrl = (courtId: number) => {
+  return `/api/admin/courts/${courtId}/hide`;
+};
+
+export const hideCourt = async (
+  courtId: number,
+  options?: RequestInit,
+): Promise<CourtHidden> => {
+  return customFetch<CourtHidden>(getHideCourtUrl(courtId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getHideCourtMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof hideCourt>>,
+    TError,
+    { courtId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof hideCourt>>,
+  TError,
+  { courtId: number },
+  TContext
+> => {
+  const mutationKey = ["hideCourt"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof hideCourt>>,
+    { courtId: number }
+  > = (props) => {
+    const { courtId } = props ?? {};
+
+    return hideCourt(courtId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type HideCourtMutationResult = NonNullable<
+  Awaited<ReturnType<typeof hideCourt>>
+>;
+
+export type HideCourtMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Moderators hide a reported court
+ */
+export const useHideCourt = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof hideCourt>>,
+    TError,
+    { courtId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof hideCourt>>,
+  TError,
+  { courtId: number },
+  TContext
+> => {
+  return useMutation(getHideCourtMutationOptions(options));
+};
+
+/**
+ * @summary Moderators show a hidden court again
+ */
+export const getUnhideCourtUrl = (courtId: number) => {
+  return `/api/admin/courts/${courtId}/hide`;
+};
+
+export const unhideCourt = async (
+  courtId: number,
+  options?: RequestInit,
+): Promise<CourtHidden> => {
+  return customFetch<CourtHidden>(getUnhideCourtUrl(courtId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getUnhideCourtMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unhideCourt>>,
+    TError,
+    { courtId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unhideCourt>>,
+  TError,
+  { courtId: number },
+  TContext
+> => {
+  const mutationKey = ["unhideCourt"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unhideCourt>>,
+    { courtId: number }
+  > = (props) => {
+    const { courtId } = props ?? {};
+
+    return unhideCourt(courtId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UnhideCourtMutationResult = NonNullable<
+  Awaited<ReturnType<typeof unhideCourt>>
+>;
+
+export type UnhideCourtMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Moderators show a hidden court again
+ */
+export const useUnhideCourt = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unhideCourt>>,
+    TError,
+    { courtId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof unhideCourt>>,
+  TError,
+  { courtId: number },
+  TContext
+> => {
+  return useMutation(getUnhideCourtMutationOptions(options));
+};

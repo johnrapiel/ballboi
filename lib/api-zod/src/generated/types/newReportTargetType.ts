@@ -14,4 +14,5 @@ export const NewReportTargetType = {
   league: "league",
   ball_boi_session: "ball_boi_session",
   match: "match",
+  court: "court",
 } as const;

@@ -7,8 +7,10 @@ import {
   type DiscoverSettingsInput,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
+import { SymbolView } from "expo-symbols";
 import React from "react";
-import { ActivityIndicator, Alert, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, View } from "react-native";
 
 import { CheckboxCard } from "@/components/CheckboxCard";
 import { ChoiceGroup } from "@/components/Choice";
@@ -27,6 +29,7 @@ const PLAYS: Plays[] = ["singles", "doubles", "both"];
 
 export function DiscoverSettingsSection() {
   const c = useColors();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const key = getGetMyDiscoverSettingsQueryKey();
   const settings = useGetMyDiscoverSettings();
@@ -79,6 +82,22 @@ export function DiscoverSettingsSection() {
         </View>
         <Text tone="inkMuted">{showBody}</Text>
       </Card>
+
+      <Pressable
+        onPress={() => router.push("/courts")}
+        accessibilityRole="button"
+        accessibilityLabel={`Home court, ${s.homeCourt?.name ?? "none"}`}
+        accessibilityHint="Pick the court you play at most, or add one"
+        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+      >
+        <Card style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3, minHeight: MIN_TAP }}>
+          <View style={{ flex: 1, gap: spacing.space1 }}>
+            <Text variant="bodyStrong">Home court</Text>
+            <Text tone="inkMuted">{s.homeCourt?.name ?? "None yet. Players see it on your Discover profile."}</Text>
+          </View>
+          <SymbolView name="chevron.right" size={14} tintColor={c.inkMuted} />
+        </Card>
+      </Pressable>
 
       <Card style={{ gap: spacing.space3 }}>
         <ChoiceGroup<Plays | "unset">

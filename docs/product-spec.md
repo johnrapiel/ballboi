@@ -132,6 +132,16 @@ Discover is always local: results are bounded by distance, never a national feed
 - **Preview:** name, Run by, description, distance, level, format, season dates, set match time, players (of the cap), playoffs, then Request to join or Join the waitlist. Withdraw or Leave the waitlist once asked. The admin approves in Manage, as today
 - **No Open leagues nearby:** a line and a Start a league link
 
+**Court directory and home court, as built in Wave 2 (pending John's review).**
+
+- **Where courts come from:** players add them. The list starts empty; no outside data source or paid service
+- **Add a court:** name, where it is (optional), zip code, Public or Club, surface (Hard, Clay, Grass, Other or Not sure), lights, number of courts. "I'm at the court" places it where the player stands; otherwise it sits at the zip code's center
+- **Duplicates:** a court with the same name within about a quarter mile comes back as "Already in the list" instead of a second copy
+- **Limits:** 10 courts a day per player; names and places go through the same filter as first messages (no links, phone numbers or listed terms)
+- **Home court:** optional, set from Settings > Discover. Shows on the player's Discover profile
+- **Reports:** every court has Report (isn't there or isn't a tennis court, inappropriate name, spam). Reports land in Moderation like any other; there is a server endpoint to hide a court, with no button for it yet
+- **Account deletion:** courts a player added stay in the directory without their name
+
 ## Messaging and moderation
 
 Players can message before committing to a match, so safety is built into the inbox from day one. Every report is acted on within 24 hours to meet Guideline 1.2.

@@ -227,6 +227,7 @@ const meRow = (over: Partial<DiscoverMe> = {}): DiscoverMe => ({
   hidden: false,
   plays: null,
   freeTimes: null,
+  homeCourt: null,
   ...over,
 });
 
@@ -307,9 +308,9 @@ describe("GET /discover/players/:userId", () => {
 
 describe("Discover settings", () => {
   it("reads and saves the hidden profile, plays and free times", async () => {
-    expect((await app().get("/api/users/me/discover").expect(200)).body).toEqual({ hidden: false, plays: null, freeTimes: [] });
+    expect((await app().get("/api/users/me/discover").expect(200)).body).toEqual({ hidden: false, plays: null, freeTimes: [], homeCourt: null });
     const res = await app().put("/api/users/me/discover").send({ hidden: true, plays: "singles", freeTimes: ["weekends"] }).expect(200);
-    expect(res.body).toEqual({ hidden: true, plays: "singles", freeTimes: ["weekends"] });
+    expect(res.body).toEqual({ hidden: true, plays: "singles", freeTimes: ["weekends"], homeCourt: null });
   });
 
   it("explains a bad value", async () => {

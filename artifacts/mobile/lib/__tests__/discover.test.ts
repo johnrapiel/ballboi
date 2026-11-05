@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_FILTERS,
   countAt,
+  courtLine,
+  parseCourtCount,
+  searchCourts,
   joinButtonLabel,
   leagueLine,
   leagueTag,
@@ -130,5 +133,33 @@ describe("Open leagues", () => {
     expect(shortDay("2026-11-02")).toBe("Nov 2");
     expect(shortDay("2027-01-14", true)).toBe("January 14");
     expect(localDay(new Date(2026, 10, 5, 23, 30))).toBe("2026-11-05");
+  });
+});
+
+describe("courts", () => {
+  const court = { access: "public" as const, surface: "hard" as const, lights: true, courtCount: 4, distanceLabel: "~2 mi away" };
+
+  it("reads a court in one line, leaving out what nobody said", () => {
+    expect(courtLine(court)).toBe("Public · Hard · 4 courts · Lights · ~2 mi away");
+    expect(courtLine({ ...court, access: "club", surface: null, lights: null, courtCount: 1 })).toBe("Club · 1 court · ~2 mi away");
+    expect(courtLine({ ...court, lights: false, distanceLabel: "" })).toBe("Public · Hard · 4 courts · No lights");
+  });
+
+  it("searches names and places by every word", () => {
+    const list = [
+      { name: "Rudd Pond", place: "Millerton" },
+      { name: "Kent Park", place: null },
+    ];
+    expect(searchCourts(list, "")).toHaveLength(2);
+    expect(searchCourts(list, "pond mill")).toEqual([list[0]]);
+    expect(searchCourts(list, "KENT")).toEqual([list[1]]);
+    expect(searchCourts(list, "kent mill")).toEqual([]);
+  });
+
+  it("reads a typed court count", () => {
+    expect(parseCourtCount("")).toBeNull();
+    expect(parseCourtCount(" 6 ")).toBe(6);
+    expect(parseCourtCount("0")).toBe("invalid");
+    expect(parseCourtCount("2.5")).toBe("invalid");
   });
 });

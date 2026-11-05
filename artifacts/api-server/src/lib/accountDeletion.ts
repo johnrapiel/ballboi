@@ -3,6 +3,7 @@ import {
   ballBoiSessionsTable,
   contentReportsTable,
   db,
+  directoryCourtsTable,
   expoPushTokensTable,
   matchesTable,
   playerAvailabilityTable,
@@ -175,6 +176,11 @@ export async function deleteAccount(
       .update(contentReportsTable)
       .set({ reporterClerkUserId: null })
       .where(eq(contentReportsTable.reporterClerkUserId, clerkUserId));
+    // Courts they added to the directory stay for everyone; only their name on it goes.
+    await tx
+      .update(directoryCourtsTable)
+      .set({ addedByClerkUserId: null })
+      .where(eq(directoryCourtsTable.addedByClerkUserId, clerkUserId));
     const promotions = await deleteLeagueDataFor(tx, clerkUserId, choices.newAdmins ?? {});
     if (promotions.length) log.info({ promotions }, "Account deletion: leagues handed to a new admin");
     const profiles = await tx

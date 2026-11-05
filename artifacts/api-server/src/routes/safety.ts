@@ -16,6 +16,7 @@ import {
 } from "@workspace/db";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import pino from "pino";
+import { courtAdder } from "../lib/courtRepo";
 import { requireAdmin } from "../middlewares/requireAdmin";
 import sanctionsRouter from "./sanctions";
 
@@ -76,7 +77,13 @@ router.post("/reports", requireAuth, async (req, res) => {
   // Who a player report is about, for the Moderation screen. The account is
   // untouched until a moderator acts: nothing restricts it automatically.
   // A player is a league player id, or "user:<id>" for a Discover player who may not be in a league.
-  const subject = parsed.targetType === "player" ? await reportSubject(parsed.targetId) : null;
+  // A court report is about whoever added the court.
+  const subject =
+    parsed.targetType === "player"
+      ? await reportSubject(parsed.targetId)
+      : parsed.targetType === "court"
+        ? await courtAdder(parsed.targetId)
+        : null;
   const [report] = await db
     .insert(contentReportsTable)
     .values({ reporterClerkUserId: userId!, ...parsed, source: "user", subjectClerkUserId: subject })

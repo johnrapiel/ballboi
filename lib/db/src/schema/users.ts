@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, boolean, numeric, real } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, boolean, numeric, real, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -42,6 +42,9 @@ export const usersTable = pgTable("users", {
   plays: text("plays"),
   /** When they're usually free, for the Discover filter: weekday_mornings, weekday_evenings, weekends. Null = not said. */
   freeTimes: text("free_times").array(),
+  // Optional home court from the court directory (spec: Discover, "shown on
+  // the player card as a natural meetup spot"). Migration 20261105_f_court_directory.sql.
+  homeCourtId: integer("home_court_id"),
   /**
    * Single-choice answer from the first onboarding version. Kept for the dev
    * walkthrough seed; new answers go in `intents`.

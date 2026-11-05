@@ -46,6 +46,7 @@ const tables = {
   usersTable: table("users", ["clerkUserId", "avatarUrl"]),
   userBlocksTable: table("user_blocks", ["blockerClerkUserId", "blockedClerkUserId"]),
   contentReportsTable: table("content_reports", ["reporterClerkUserId"]),
+  directoryCourtsTable: table("directory_courts", ["addedByClerkUserId"]),
 };
 
 const tx = {
@@ -160,6 +161,8 @@ describe("deleteAccount", () => {
     );
     const reports = calls.find((c) => c.op === "update" && c.table === "content_reports");
     expect(reports?.values).toEqual({ reporterClerkUserId: null });
+    const courts = calls.find((c) => c.op === "update" && c.table === "directory_courts");
+    expect(courts?.values).toEqual({ addedByClerkUserId: null });
     expect(deleted).not.toContain("players");
 
     // Match 100's opponent still has an account, so that recording is kept without its video.

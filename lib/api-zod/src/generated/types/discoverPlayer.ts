@@ -7,7 +7,9 @@
  */
 import type { DiscoverPlayerCard } from "./discoverPlayerCard";
 import type { DiscoverPlayerFreeTimesItem } from "./discoverPlayerFreeTimesItem";
+import type { HomeCourt } from "./homeCourt";
 
 export type DiscoverPlayer = DiscoverPlayerCard & {
   freeTimes: DiscoverPlayerFreeTimesItem[];
+  homeCourt: HomeCourt | null;
 };

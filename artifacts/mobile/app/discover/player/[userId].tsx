@@ -97,6 +97,7 @@ export default function DiscoverPlayerScreen() {
             <Fact symbol="location" label="Distance" value={p.distanceLabel} />
             <Fact symbol="figure.tennis" label="Plays" value={p.plays ? PLAYS_LABEL[p.plays] : "Not shared"} />
             <Fact symbol="calendar" label="Usually free" value={freeTimesLine(p.freeTimes) ?? "Not shared"} />
+            {p.homeCourt ? <Fact symbol="mappin.and.ellipse" label="Home court" value={p.homeCourt.name} /> : null}
             <Fact symbol="checkmark.circle" label="Matches on Ball Boi" value={`Played ${p.played}`} />
           </Card>
 

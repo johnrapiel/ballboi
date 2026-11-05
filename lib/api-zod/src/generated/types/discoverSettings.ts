@@ -7,10 +7,12 @@
  */
 import type { DiscoverSettingsFreeTimesItem } from "./discoverSettingsFreeTimesItem";
 import type { DiscoverSettingsPlays } from "./discoverSettingsPlays";
+import type { HomeCourt } from "./homeCourt";
 
 export interface DiscoverSettings {
   hidden: boolean;
   /** @nullable */
   plays: DiscoverSettingsPlays;
   freeTimes: DiscoverSettingsFreeTimesItem[];
+  homeCourt: HomeCourt | null;
 }

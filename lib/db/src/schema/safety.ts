@@ -20,7 +20,7 @@ export const userBlocksTable = pgTable(
 
 // "message": a direct message, with a snapshot of the conversation around it.
 // "account": filed by the system (older auto-restrict rows) or an appeal, not by a person.
-export const REPORT_TARGET_TYPES = ["player", "league", "ball_boi_session", "match", "message", "account"] as const;
+export const REPORT_TARGET_TYPES = ["player", "league", "ball_boi_session", "match", "message", "account", "court"] as const;
 export const REPORT_REASONS = ["harassment", "inappropriate_content", "impersonation", "spam", "cheating", "other"] as const;
 export const REPORT_STATUSES = ["open", "reviewed", "actioned", "dismissed"] as const;
 /** user: a person reported it. auto: auto-restrict fired (retired Nov 2026; older rows only). stream: Stream moderation flagged it. appeal: a banned or suspended person appealed. */

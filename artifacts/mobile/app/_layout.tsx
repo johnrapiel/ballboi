@@ -179,6 +179,8 @@ function RootLayoutNav() {
         <Stack.Screen name="messages" options={{ ...pushedHeader, title: "Messages" }} />
         <Stack.Screen name="delete-account" options={{ ...pushedHeader, title: "Delete account" }} />
         <Stack.Screen name="settings" options={{ ...pushedHeader, title: "Settings" }} />
+        <Stack.Screen name="courts/index" options={{ ...pushedHeader, title: "Home court" }} />
+        <Stack.Screen name="courts/new" options={{ ...pushedHeader, title: "Add a court" }} />
         <Stack.Screen name="discover/players" options={{ ...pushedHeader, title: "Players near you" }} />
         <Stack.Screen name="discover/league/[leagueId]" options={{ ...pushedHeader, title: "" }} />
         <Stack.Screen name="discover/leagues" options={{ ...pushedHeader, title: "Open leagues" }} />

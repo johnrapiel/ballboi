@@ -4467,7 +4467,13 @@ export const UnblockPlayerParams = zod.object({
 export const createReportBodyTargetIdMax = 100;
 
 export const CreateReportBody = zod.object({
-  targetType: zod.enum(["player", "league", "ball_boi_session", "match"]),
+  targetType: zod.enum([
+    "player",
+    "league",
+    "ball_boi_session",
+    "match",
+    "court",
+  ]),
   targetId: zod.string().max(createReportBodyTargetIdMax),
   reason: zod.enum([
     "harassment",
@@ -5351,6 +5357,13 @@ export const GetDiscoverPlayerResponse = zod
       freeTimes: zod.array(
         zod.enum(["weekday_mornings", "weekday_evenings", "weekends"]),
       ),
+      homeCourt: zod.union([
+        zod.object({
+          courtId: zod.number(),
+          name: zod.string(),
+        }),
+        zod.null(),
+      ]),
     }),
   );
 
@@ -5384,6 +5397,13 @@ export const GetMyDiscoverSettingsResponse = zod.object({
   freeTimes: zod.array(
     zod.enum(["weekday_mornings", "weekday_evenings", "weekends"]),
   ),
+  homeCourt: zod.union([
+    zod.object({
+      courtId: zod.number(),
+      name: zod.string(),
+    }),
+    zod.null(),
+  ]),
 });
 
 /**
@@ -5417,6 +5437,13 @@ export const UpdateMyDiscoverSettingsResponse = zod.object({
   freeTimes: zod.array(
     zod.enum(["weekday_mornings", "weekday_evenings", "weekends"]),
   ),
+  homeCourt: zod.union([
+    zod.object({
+      courtId: zod.number(),
+      name: zod.string(),
+    }),
+    zod.null(),
+  ]),
 });
 
 /**
@@ -5523,3 +5550,142 @@ export const GetDiscoverLeagueResponse = zod
       adminName: zod.string().nullable().describe("Who runs it"),
     }),
   );
+
+/**
+ * @summary Courts in the directory near your home area, nearest first
+ */
+export const GetCourtsQueryParams = zod.object({
+  radius: zod
+    .union([zod.literal(5), zod.literal(10), zod.literal(15), zod.literal(30)])
+    .optional(),
+});
+
+export const GetCourtsResponse = zod.object({
+  radius: zod.number(),
+  homeAreaProblem: zod.string().nullable(),
+  homeCourtId: zod.number().nullable(),
+  courts: zod.array(
+    zod.object({
+      courtId: zod.number(),
+      name: zod.string(),
+      place: zod
+        .string()
+        .nullable()
+        .describe('Cross streets or park, like \"Riverside Park, W 96th St\"'),
+      access: zod.enum(["public", "club"]),
+      surface: zod
+        .union([
+          zod.literal("hard"),
+          zod.literal("clay"),
+          zod.literal("grass"),
+          zod.literal("other"),
+          zod.literal(null),
+        ])
+        .nullable(),
+      lights: zod.boolean().nullable(),
+      courtCount: zod.number().nullable(),
+      distanceLabel: zod.string().describe('Approximate, like \"~2 mi away\"'),
+    }),
+  ),
+});
+
+/**
+ * @summary Add a missing court. A court with the same name close by comes back instead.
+ */
+export const addCourtBodyNameMin = 2;
+export const addCourtBodyNameMax = 60;
+
+export const addCourtBodyPlaceMax = 80;
+
+export const addCourtBodyZipRegExp = new RegExp("^[0-9]{5}$");
+export const addCourtBodyCourtCountMax = 60;
+
+export const AddCourtBody = zod.object({
+  name: zod.string().min(addCourtBodyNameMin).max(addCourtBodyNameMax),
+  place: zod.string().max(addCourtBodyPlaceMax).nullish(),
+  zip: zod.string().regex(addCourtBodyZipRegExp),
+  latitude: zod
+    .number()
+    .optional()
+    .describe(
+      "Optional, from \"I'm at the court\". Used only when it's near the zip.",
+    ),
+  longitude: zod.number().optional(),
+  access: zod.enum(["public", "club"]).optional(),
+  surface: zod
+    .union([
+      zod.literal("hard"),
+      zod.literal("clay"),
+      zod.literal("grass"),
+      zod.literal("other"),
+      zod.literal(null),
+    ])
+    .nullish(),
+  lights: zod.boolean().nullish(),
+  courtCount: zod.number().min(1).max(addCourtBodyCourtCountMax).nullish(),
+});
+
+export const AddCourtResponse = zod
+  .object({
+    courtId: zod.number(),
+    name: zod.string(),
+    place: zod
+      .string()
+      .nullable()
+      .describe('Cross streets or park, like \"Riverside Park, W 96th St\"'),
+    access: zod.enum(["public", "club"]),
+    surface: zod
+      .union([
+        zod.literal("hard"),
+        zod.literal("clay"),
+        zod.literal("grass"),
+        zod.literal("other"),
+        zod.literal(null),
+      ])
+      .nullable(),
+    lights: zod.boolean().nullable(),
+    courtCount: zod.number().nullable(),
+    distanceLabel: zod.string().describe('Approximate, like \"~2 mi away\"'),
+  })
+  .and(
+    zod.object({
+      existing: zod
+        .boolean()
+        .describe("True when the court was already in the directory"),
+    }),
+  );
+
+/**
+ * @summary Set or clear your home court
+ */
+export const SetMyHomeCourtBody = zod.object({
+  courtId: zod.number().nullable().describe("Null clears it"),
+});
+
+export const SetMyHomeCourtResponse = zod.object({
+  homeCourtId: zod.number().nullable(),
+});
+
+/**
+ * @summary Moderators hide a reported court
+ */
+export const HideCourtParams = zod.object({
+  courtId: zod.coerce.number(),
+});
+
+export const HideCourtResponse = zod.object({
+  courtId: zod.number(),
+  hidden: zod.boolean(),
+});
+
+/**
+ * @summary Moderators show a hidden court again
+ */
+export const UnhideCourtParams = zod.object({
+  courtId: zod.coerce.number(),
+});
+
+export const UnhideCourtResponse = zod.object({
+  courtId: zod.number(),
+  hidden: zod.boolean(),
+});

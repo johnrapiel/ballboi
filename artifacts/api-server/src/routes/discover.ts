@@ -33,6 +33,7 @@ function settingsBody(me: DiscoverMe) {
     hidden: me.hidden,
     plays: (PLAYS as readonly string[]).includes(me.plays ?? "") ? (me.plays as Plays) : null,
     freeTimes: me.freeTimes ?? [],
+    homeCourt: me.homeCourt,
   };
 }
 
@@ -97,6 +98,7 @@ export function createDiscoverRouter(getRepo: () => DiscoverRepo = () => new Dri
         plays: (PLAYS as readonly string[]).includes(them.plays ?? "") ? them.plays : null,
         freeTimes: them.freeTimes ?? [],
         played: them.played,
+        homeCourt: them.homeCourt ?? null,
       });
     }),
   );

@@ -5,6 +5,135 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+export interface HomeCourt {
+  courtId: number;
+  name: string;
+}
+
+export interface HomeCourtInput {
+  /**
+   * Null clears it
+   * @nullable
+   */
+  courtId: number | null;
+}
+
+export interface HomeCourtSaved {
+  /** @nullable */
+  homeCourtId: number | null;
+}
+
+export type CourtCardAccess =
+  (typeof CourtCardAccess)[keyof typeof CourtCardAccess];
+
+export const CourtCardAccess = {
+  public: "public",
+  club: "club",
+} as const;
+
+/**
+ * @nullable
+ */
+export type CourtCardSurface =
+  | (typeof CourtCardSurface)[keyof typeof CourtCardSurface]
+  | null;
+
+export const CourtCardSurface = {
+  hard: "hard",
+  clay: "clay",
+  grass: "grass",
+  other: "other",
+} as const;
+
+export interface CourtCard {
+  courtId: number;
+  name: string;
+  /**
+   * Cross streets or park, like "Riverside Park, W 96th St"
+   * @nullable
+   */
+  place: string | null;
+  access: CourtCardAccess;
+  /** @nullable */
+  surface: CourtCardSurface;
+  /** @nullable */
+  lights: boolean | null;
+  /** @nullable */
+  courtCount: number | null;
+  /** Approximate, like "~2 mi away" */
+  distanceLabel: string;
+}
+
+export type AddedCourt = CourtCard & {
+  /** True when the court was already in the directory */
+  existing: boolean;
+};
+
+export interface CourtList {
+  radius: number;
+  /** @nullable */
+  homeAreaProblem: string | null;
+  /** @nullable */
+  homeCourtId: number | null;
+  courts: CourtCard[];
+}
+
+export type NewCourtAccess =
+  (typeof NewCourtAccess)[keyof typeof NewCourtAccess];
+
+export const NewCourtAccess = {
+  public: "public",
+  club: "club",
+} as const;
+
+/**
+ * @nullable
+ */
+export type NewCourtSurface =
+  | (typeof NewCourtSurface)[keyof typeof NewCourtSurface]
+  | null;
+
+export const NewCourtSurface = {
+  hard: "hard",
+  clay: "clay",
+  grass: "grass",
+  other: "other",
+} as const;
+
+export interface NewCourt {
+  /**
+   * @minLength 2
+   * @maxLength 60
+   */
+  name: string;
+  /**
+   * @maxLength 80
+   * @nullable
+   */
+  place?: string | null;
+  /** @pattern ^[0-9]{5}$ */
+  zip: string;
+  /** Optional, from "I'm at the court". Used only when it's near the zip. */
+  latitude?: number;
+  longitude?: number;
+  access?: NewCourtAccess;
+  /** @nullable */
+  surface?: NewCourtSurface;
+  /** @nullable */
+  lights?: boolean | null;
+  /**
+   * @minimum 1
+   * @maximum 60
+   * @nullable
+   */
+  courtCount?: number | null;
+}
+
+export interface CourtHidden {
+  courtId: number;
+  hidden: boolean;
+}
+
 export type OpenLeagueCardFormat =
   (typeof OpenLeagueCardFormat)[keyof typeof OpenLeagueCardFormat];
 
@@ -187,6 +316,7 @@ export const DiscoverPlayerFreeTimesItem = {
 
 export type DiscoverPlayer = DiscoverPlayerCard & {
   freeTimes: DiscoverPlayerFreeTimesItem[];
+  homeCourt: HomeCourt | null;
 };
 
 export type DiscoverPlayersCountsItem = {
@@ -236,6 +366,7 @@ export interface DiscoverSettings {
   /** @nullable */
   plays: DiscoverSettingsPlays;
   freeTimes: DiscoverSettingsFreeTimesItem[];
+  homeCourt: HomeCourt | null;
 }
 
 /**
@@ -2482,6 +2613,7 @@ export const NewReportTargetType = {
   league: "league",
   ball_boi_session: "ball_boi_session",
   match: "match",
+  court: "court",
 } as const;
 
 export type NewReportReason =
@@ -3394,6 +3526,20 @@ export type GetDiscoverLeaguesRadius =
   (typeof GetDiscoverLeaguesRadius)[keyof typeof GetDiscoverLeaguesRadius];
 
 export const GetDiscoverLeaguesRadius = {
+  NUMBER_5: 5,
+  NUMBER_10: 10,
+  NUMBER_15: 15,
+  NUMBER_30: 30,
+} as const;
+
+export type GetCourtsParams = {
+  radius?: GetCourtsRadius;
+};
+
+export type GetCourtsRadius =
+  (typeof GetCourtsRadius)[keyof typeof GetCourtsRadius];
+
+export const GetCourtsRadius = {
   NUMBER_5: 5,
   NUMBER_10: 10,
   NUMBER_15: 15,

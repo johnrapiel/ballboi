@@ -9,6 +9,7 @@ export * from "./leagueNotices";
 export * from "./pushSubscriptions";
 export * from "./comments";
 export * from "./courts";
+export * from "./courtDirectory";
 export * from "./playerLocations";
 export * from "./playerAvailability";
 export * from "./scheduleGenerationLogs";
