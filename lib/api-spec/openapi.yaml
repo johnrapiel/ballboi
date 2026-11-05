@@ -44,6 +44,8 @@ tags:
     description: Push notification registration
   - name: storage
     description: Profile photo uploads and loads
+  - name: discover
+    description: Players near you and your Discover settings
 
 paths:
   /healthz:
@@ -4762,6 +4764,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /messages/with-user/{userId}:
+    get:
+      operationId: getConversationWithUser
+      tags: [messages]
+      summary: The conversation with a Discover player (by user id), if there is one
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Conversation id or null
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversationId:
+                    type: [integer, 'null']
+                required: [conversationId]
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Messaging isn't available right now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /messages/{id}:
     get:
       operationId: getConversation
@@ -5577,6 +5613,197 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /discover/players:
+    get:
+      operationId: getDiscoverPlayers
+      tags: [discover]
+      summary: Players near you, nearest first, bounded by distance, with how many each radius step would show
+      parameters:
+      - name: radius
+        in: query
+        required: false
+        schema:
+          type: integer
+          enum: [5, 10, 15, 30]
+          default: 10
+      - name: level
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [near, wider, any]
+          default: near
+      - name: plays
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [any, singles, doubles]
+          default: any
+      - name: free
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [any, weekday_mornings, weekday_evenings, weekends]
+          default: any
+      responses:
+        '200':
+          description: Players near you
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverPlayers'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Profile not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/players/{userId}:
+    get:
+      operationId: getDiscoverPlayer
+      tags: [discover]
+      summary: One Discover player, while they're in your Discover (not hidden or blocked, within 30 miles)
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: The player
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverPlayer'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not in your Discover
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/players/{userId}/block:
+    post:
+      operationId: blockDiscoverPlayer
+      tags: [discover]
+      summary: Block a Discover player by user id. Hides you from each other and stops messages both ways.
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '201':
+          description: Blocked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockResult'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No such player
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      operationId: unblockDiscoverPlayer
+      tags: [discover]
+      summary: Unblock a Discover player by user id
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          description: Unblocked
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /users/me/discover:
+    get:
+      operationId: getMyDiscoverSettings
+      tags: [discover]
+      summary: 'Your Discover settings: hidden profile, what you play, when you''re usually free'
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverSettings'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Profile not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      operationId: updateMyDiscoverSettings
+      tags: [discover]
+      summary: Save any of your Discover settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscoverSettingsInput'
+      responses:
+        '200':
+          description: Saved settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverSettings'
+        '400':
+          description: A value isn't one of the options
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Profile not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   parameters:
     LeagueIdParam:
@@ -5598,6 +5825,111 @@ components:
       schema:
         type: integer
   schemas:
+    DiscoverFilters:
+      type: object
+      properties:
+        radius:
+          type: integer
+          enum: [5, 10, 15, 30]
+        level:
+          type: string
+          enum: [near, wider, any]
+        plays:
+          type: string
+          enum: [any, singles, doubles]
+        free:
+          type: string
+          enum: [any, weekday_mornings, weekday_evenings, weekends]
+      required: [radius, level, plays, free]
+    DiscoverPlayerCard:
+      type: object
+      properties:
+        userId:
+          type: integer
+        name:
+          type: string
+        avatarUrl:
+          type: [string, 'null']
+        rating:
+          type: [number, 'null']
+        ratingSource:
+          type: [string, 'null']
+        distanceLabel:
+          type: string
+          description: Approximate, like "~4 mi away" or "Under 1 mi away". Never an exact distance.
+        plays:
+          type: [string, 'null']
+          enum: [singles, doubles, both, null]
+        played:
+          type: integer
+          description: Completed matches on Ball Boi
+      required: [userId, name, avatarUrl, rating, ratingSource, distanceLabel, plays, played]
+    DiscoverPlayer:
+      allOf:
+      - $ref: '#/components/schemas/DiscoverPlayerCard'
+      - type: object
+        properties:
+          freeTimes:
+            type: array
+            items:
+              type: string
+              enum: [weekday_mornings, weekday_evenings, weekends]
+        required: [freeTimes]
+    DiscoverPlayers:
+      type: object
+      properties:
+        filters:
+          $ref: '#/components/schemas/DiscoverFilters'
+        hidden:
+          type: boolean
+          description: Your own profile is hidden from Discover
+        homeAreaProblem:
+          type: [string, 'null']
+          description: Why Discover can't place you yet (no home area, or a zip it can't place). Players is empty then.
+        myRating:
+          type: [number, 'null']
+        counts:
+          type: array
+          items:
+            type: object
+            properties:
+              radius:
+                type: integer
+              count:
+                type: integer
+            required: [radius, count]
+        players:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiscoverPlayerCard'
+      required: [filters, hidden, homeAreaProblem, myRating, counts, players]
+    DiscoverSettings:
+      type: object
+      properties:
+        hidden:
+          type: boolean
+        plays:
+          type: [string, 'null']
+          enum: [singles, doubles, both, null]
+        freeTimes:
+          type: array
+          items:
+            type: string
+            enum: [weekday_mornings, weekday_evenings, weekends]
+      required: [hidden, plays, freeTimes]
+    DiscoverSettingsInput:
+      type: object
+      properties:
+        hidden:
+          type: boolean
+        plays:
+          type: [string, 'null']
+          enum: [singles, doubles, both, null]
+        freeTimes:
+          type: array
+          items:
+            type: string
+            enum: [weekday_mornings, weekday_evenings, weekends]
     LeagueMembership:
       type: object
       properties:
@@ -8118,6 +8450,9 @@ components:
       properties:
         playerId:
           type: [integer, 'null']
+        userId:
+          type: [integer, 'null']
+          description: The blocked account's user id, for unblocking a Discover player who has no league player
         name:
           type: string
         avatarUrl:
@@ -8125,7 +8460,7 @@ components:
         blockedAt:
           type: string
           description: ISO 8601 date and time
-      required: [playerId, name, avatarUrl, blockedAt]
+      required: [playerId, userId, name, avatarUrl, blockedAt]
     BlockResult:
       type: object
       properties:
@@ -8469,6 +8804,9 @@ components:
               type: string
             playerId:
               type: [integer, 'null']
+            userId:
+              type: [integer, 'null']
+              description: Their account's user id, for block and report when they have no league player (a Discover player)
           required: [name, playerId]
         lastMessage:
           oneOf:
@@ -8550,14 +8888,17 @@ components:
       required: [name, playerId]
     NewConversationInput:
       type: object
+      description: Send playerId (a league player) or userId (a Discover player).
       properties:
         playerId:
+          type: integer
+        userId:
           type: integer
         text:
           type: string
         clientMessageId:
           type: string
-      required: [playerId, text]
+      required: [text]
     NewMessageInput:
       type: object
       properties:

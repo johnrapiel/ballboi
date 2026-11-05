@@ -109,6 +109,19 @@ Discover is always local: results are bounded by distance, never a national feed
 
 **Joining an Open league:** request a spot before the season starts, admin approves. Once the season starts the league locks to new joins; full and locked leagues hold requests on a waitlist for next season.
 
+**Players near you, as built in Wave 2 (pending John's review).** These defaults fill gaps the spec leaves open; each becomes a decision only when John answers.
+
+- **Home area point:** a zip's Census center (ZCTA data in the free `us-zips` package, no paid service), or the phone's location rounded to within about a mile when the player shared it. Distances are rounded to whole miles ("~4 mi away", "Under 1 mi away"); no town or street shows
+- **Level range:** Near my level (±0.5, the default), Wider (±1.0) or Any level. A player with no level set sees everyone and shows "Level not set"; they only appear to others under Any level
+- **Plays and Usually free:** set in Settings > Discover (Singles, Doubles, or Singles and doubles; Weekday mornings, Weekday evenings, Weekends). A filter keeps only players who said so; "Singles and doubles" counts for either
+- **Hidden profile:** Settings > Discover > Show me in Discover, on by default. A hidden player still sees Players near you, with a note that they're hidden
+- **Who's left out:** players not yet onboarded, hidden players, anyone blocked either way, and banned or suspended accounts. Restricted accounts still show (decision 48: nothing is automatic)
+- **Reliability:** cards show "Played 12" (completed matches across leagues and Quick matches). No-shows join with match requests
+- **Order:** nearest first by rounded mile, then closest level, then name
+- **Player profile:** opens only while the player is within 30 miles; Message lands in their Message Requests; More has Report and Block
+- **Empty state:** "Widen to 15 mi" when a wider radius has players, and Invite a friend (share text without an App Store link until the app is listed). Post an open match joins with open matches
+- **Filters:** kept on the phone and stick after the app closes
+
 ## Messaging and moderation
 
 Players can message before committing to a match, so safety is built into the inbox from day one. Every report is acted on within 24 hours to meet Guideline 1.2.

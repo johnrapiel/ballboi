@@ -5,6 +5,172 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+export type DiscoverFiltersRadius =
+  (typeof DiscoverFiltersRadius)[keyof typeof DiscoverFiltersRadius];
+
+export const DiscoverFiltersRadius = {
+  NUMBER_5: 5,
+  NUMBER_10: 10,
+  NUMBER_15: 15,
+  NUMBER_30: 30,
+} as const;
+
+export type DiscoverFiltersLevel =
+  (typeof DiscoverFiltersLevel)[keyof typeof DiscoverFiltersLevel];
+
+export const DiscoverFiltersLevel = {
+  near: "near",
+  wider: "wider",
+  any: "any",
+} as const;
+
+export type DiscoverFiltersPlays =
+  (typeof DiscoverFiltersPlays)[keyof typeof DiscoverFiltersPlays];
+
+export const DiscoverFiltersPlays = {
+  any: "any",
+  singles: "singles",
+  doubles: "doubles",
+} as const;
+
+export type DiscoverFiltersFree =
+  (typeof DiscoverFiltersFree)[keyof typeof DiscoverFiltersFree];
+
+export const DiscoverFiltersFree = {
+  any: "any",
+  weekday_mornings: "weekday_mornings",
+  weekday_evenings: "weekday_evenings",
+  weekends: "weekends",
+} as const;
+
+export interface DiscoverFilters {
+  radius: DiscoverFiltersRadius;
+  level: DiscoverFiltersLevel;
+  plays: DiscoverFiltersPlays;
+  free: DiscoverFiltersFree;
+}
+
+/**
+ * @nullable
+ */
+export type DiscoverPlayerCardPlays =
+  | (typeof DiscoverPlayerCardPlays)[keyof typeof DiscoverPlayerCardPlays]
+  | null;
+
+export const DiscoverPlayerCardPlays = {
+  singles: "singles",
+  doubles: "doubles",
+  both: "both",
+} as const;
+
+export interface DiscoverPlayerCard {
+  userId: number;
+  name: string;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** @nullable */
+  rating: number | null;
+  /** @nullable */
+  ratingSource: string | null;
+  /** Approximate, like "~4 mi away" or "Under 1 mi away". Never an exact distance. */
+  distanceLabel: string;
+  /** @nullable */
+  plays: DiscoverPlayerCardPlays;
+  /** Completed matches on Ball Boi */
+  played: number;
+}
+
+export type DiscoverPlayerFreeTimesItem =
+  (typeof DiscoverPlayerFreeTimesItem)[keyof typeof DiscoverPlayerFreeTimesItem];
+
+export const DiscoverPlayerFreeTimesItem = {
+  weekday_mornings: "weekday_mornings",
+  weekday_evenings: "weekday_evenings",
+  weekends: "weekends",
+} as const;
+
+export type DiscoverPlayer = DiscoverPlayerCard & {
+  freeTimes: DiscoverPlayerFreeTimesItem[];
+};
+
+export type DiscoverPlayersCountsItem = {
+  radius: number;
+  count: number;
+};
+
+export interface DiscoverPlayers {
+  filters: DiscoverFilters;
+  /** Your own profile is hidden from Discover */
+  hidden: boolean;
+  /**
+   * Why Discover can't place you yet (no home area, or a zip it can't place). Players is empty then.
+   * @nullable
+   */
+  homeAreaProblem: string | null;
+  /** @nullable */
+  myRating: number | null;
+  counts: DiscoverPlayersCountsItem[];
+  players: DiscoverPlayerCard[];
+}
+
+/**
+ * @nullable
+ */
+export type DiscoverSettingsPlays =
+  | (typeof DiscoverSettingsPlays)[keyof typeof DiscoverSettingsPlays]
+  | null;
+
+export const DiscoverSettingsPlays = {
+  singles: "singles",
+  doubles: "doubles",
+  both: "both",
+} as const;
+
+export type DiscoverSettingsFreeTimesItem =
+  (typeof DiscoverSettingsFreeTimesItem)[keyof typeof DiscoverSettingsFreeTimesItem];
+
+export const DiscoverSettingsFreeTimesItem = {
+  weekday_mornings: "weekday_mornings",
+  weekday_evenings: "weekday_evenings",
+  weekends: "weekends",
+} as const;
+
+export interface DiscoverSettings {
+  hidden: boolean;
+  /** @nullable */
+  plays: DiscoverSettingsPlays;
+  freeTimes: DiscoverSettingsFreeTimesItem[];
+}
+
+/**
+ * @nullable
+ */
+export type DiscoverSettingsInputPlays =
+  | (typeof DiscoverSettingsInputPlays)[keyof typeof DiscoverSettingsInputPlays]
+  | null;
+
+export const DiscoverSettingsInputPlays = {
+  singles: "singles",
+  doubles: "doubles",
+  both: "both",
+} as const;
+
+export type DiscoverSettingsInputFreeTimesItem =
+  (typeof DiscoverSettingsInputFreeTimesItem)[keyof typeof DiscoverSettingsInputFreeTimesItem];
+
+export const DiscoverSettingsInputFreeTimesItem = {
+  weekday_mornings: "weekday_mornings",
+  weekday_evenings: "weekday_evenings",
+  weekends: "weekends",
+} as const;
+
+export interface DiscoverSettingsInput {
+  hidden?: boolean;
+  /** @nullable */
+  plays?: DiscoverSettingsInputPlays;
+  freeTimes?: DiscoverSettingsInputFreeTimesItem[];
+}
+
 /**
  * @nullable
  */
@@ -2196,6 +2362,11 @@ export interface PhotoUploadTicket {
 export interface BlockedPlayer {
   /** @nullable */
   playerId: number | null;
+  /**
+   * The blocked account's user id, for unblocking a Discover player who has no league player
+   * @nullable
+   */
+  userId: number | null;
   name: string;
   /** @nullable */
   avatarUrl: string | null;
@@ -2554,6 +2725,11 @@ export type ConversationViewOther = {
   name: string;
   /** @nullable */
   playerId: number | null;
+  /**
+   * Their account's user id, for block and report when they have no league player (a Discover player)
+   * @nullable
+   */
+  userId?: number | null;
 };
 
 export type ConversationViewLastMessage = {
@@ -2609,8 +2785,12 @@ export interface MessageContact {
   playerId: number;
 }
 
+/**
+ * Send playerId (a league player) or userId (a Discover player).
+ */
 export interface NewConversationInput {
-  playerId: number;
+  playerId?: number;
+  userId?: number;
   text: string;
   clientMessageId?: string;
 }
@@ -3011,6 +3191,11 @@ export type GetConversationWithPlayer200 = {
   conversationId: number | null;
 };
 
+export type GetConversationWithUser200 = {
+  /** @nullable */
+  conversationId: number | null;
+};
+
 export type GetConversationParams = {
   /**
    * olderCursor from the previous page
@@ -3059,3 +3244,48 @@ export type DiscardRecordingBody = {
 export type AbandonQuickMatch200 = {
   removed: boolean;
 };
+
+export type GetDiscoverPlayersParams = {
+  radius?: GetDiscoverPlayersRadius;
+  level?: GetDiscoverPlayersLevel;
+  plays?: GetDiscoverPlayersPlays;
+  free?: GetDiscoverPlayersFree;
+};
+
+export type GetDiscoverPlayersRadius =
+  (typeof GetDiscoverPlayersRadius)[keyof typeof GetDiscoverPlayersRadius];
+
+export const GetDiscoverPlayersRadius = {
+  NUMBER_5: 5,
+  NUMBER_10: 10,
+  NUMBER_15: 15,
+  NUMBER_30: 30,
+} as const;
+
+export type GetDiscoverPlayersLevel =
+  (typeof GetDiscoverPlayersLevel)[keyof typeof GetDiscoverPlayersLevel];
+
+export const GetDiscoverPlayersLevel = {
+  near: "near",
+  wider: "wider",
+  any: "any",
+} as const;
+
+export type GetDiscoverPlayersPlays =
+  (typeof GetDiscoverPlayersPlays)[keyof typeof GetDiscoverPlayersPlays];
+
+export const GetDiscoverPlayersPlays = {
+  any: "any",
+  singles: "singles",
+  doubles: "doubles",
+} as const;
+
+export type GetDiscoverPlayersFree =
+  (typeof GetDiscoverPlayersFree)[keyof typeof GetDiscoverPlayersFree];
+
+export const GetDiscoverPlayersFree = {
+  any: "any",
+  weekday_mornings: "weekday_mornings",
+  weekday_evenings: "weekday_evenings",
+  weekends: "weekends",
+} as const;

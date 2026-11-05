@@ -31,7 +31,7 @@ export default function BlockedPlayersScreen() {
   const insets = useSafeAreaInsets();
   const blocked = useBlockedPlayers();
   const unblock = useUnblock();
-  const [busyId, setBusyId] = useState<number | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
   // At the largest text sizes the Unblock button moves under the name, so neither clips.
   const stacked = useWindowDimensions().fontScale >= 1.6;
   const loadFailed = blocked.isError && !blocked.data;
@@ -41,7 +41,8 @@ export default function BlockedPlayersScreen() {
     if (loadFailed) AccessibilityInfo.announceForAccessibility("Couldn't load blocked players");
   }, [loadFailed]);
 
-  const confirmUnblock = (player: BlockedPlayer & { playerId: number }) =>
+  const keyOf = (p: BlockedPlayer) => `${p.playerId ?? "u"}-${p.userId ?? p.name}`;
+  const confirmUnblock = (player: BlockedPlayer) =>
     Alert.alert(
       `Unblock ${player.name}?`,
       UNBLOCK_EFFECTS,
@@ -50,7 +51,7 @@ export default function BlockedPlayersScreen() {
         {
           text: "Unblock",
           onPress: () => {
-            setBusyId(player.playerId);
+            setBusyId(keyOf(player));
             unblock(player)
               .then(() => AccessibilityInfo.announceForAccessibility(`${player.name} unblocked`))
               .catch((e: Error) => Alert.alert(`Couldn't unblock ${player.name}`, e.message))
@@ -121,17 +122,17 @@ export default function BlockedPlayersScreen() {
                   </Text>
                 </View>
               </View>
-              {item.playerId !== null ? (
+              {item.playerId !== null || item.userId !== null ? (
                 <Button
                   label="Unblock"
                   variant="secondary"
-                  loading={busyId === item.playerId}
+                  loading={busyId === keyOf(item)}
                   disabled={busyId !== null}
-                  onPress={() => confirmUnblock(item as BlockedPlayer & { playerId: number })}
+                  onPress={() => confirmUnblock(item)}
                   accessibilityLabel={`Unblock ${item.name}`}
                 />
               ) : (
-                // Rare: the blocked account has no player profile to unblock through.
+                // Rare: the blocked account is gone or has no profile to unblock through.
                 <Text variant="small" tone="inkMuted" style={{ maxWidth: stacked ? undefined : 120 }}>
                   Email support@ballboi.tennis to unblock
                 </Text>

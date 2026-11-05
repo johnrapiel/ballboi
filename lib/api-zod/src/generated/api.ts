@@ -4435,6 +4435,12 @@ export const GetStorageObjectParams = zod.object({
  */
 export const GetMyBlocksResponseItem = zod.object({
   playerId: zod.number().nullable(),
+  userId: zod
+    .number()
+    .nullable()
+    .describe(
+      "The blocked account's user id, for unblocking a Discover player who has no league player",
+    ),
   name: zod.string(),
   avatarUrl: zod.string().nullable(),
   blockedAt: zod.string().describe("ISO 8601 date and time"),
@@ -4854,6 +4860,12 @@ export const GetConversationsResponse = zod
           other: zod.object({
             name: zod.string(),
             playerId: zod.number().nullable(),
+            userId: zod
+              .number()
+              .nullish()
+              .describe(
+                "Their account's user id, for block and report when they have no league player (a Discover player)",
+              ),
           }),
           lastMessage: zod.union([
             zod.object({
@@ -4877,11 +4889,14 @@ export const GetConversationsResponse = zod
 /**
  * @summary Send a first message to a player. Someone outside your leagues gets it as a request.
  */
-export const StartConversationBody = zod.object({
-  playerId: zod.number(),
-  text: zod.string(),
-  clientMessageId: zod.string().optional(),
-});
+export const StartConversationBody = zod
+  .object({
+    playerId: zod.number().optional(),
+    userId: zod.number().optional(),
+    text: zod.string(),
+    clientMessageId: zod.string().optional(),
+  })
+  .describe("Send playerId (a league player) or userId (a Discover player).");
 
 /**
  * @summary Unread messages and waiting requests, for the badge
@@ -4915,6 +4930,17 @@ export const GetConversationWithPlayerResponse = zod.object({
 });
 
 /**
+ * @summary The conversation with a Discover player (by user id), if there is one
+ */
+export const GetConversationWithUserParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const GetConversationWithUserResponse = zod.object({
+  conversationId: zod.number().nullable(),
+});
+
+/**
  * @summary A conversation's latest messages, or older ones with before. Marks it read.
  */
 export const GetConversationParams = zod.object({
@@ -4935,6 +4961,12 @@ export const GetConversationResponse = zod.object({
     other: zod.object({
       name: zod.string(),
       playerId: zod.number().nullable(),
+      userId: zod
+        .number()
+        .nullish()
+        .describe(
+          "Their account's user id, for block and report when they have no league player (a Discover player)",
+        ),
     }),
     lastMessage: zod.union([
       zod.object({
@@ -5209,4 +5241,180 @@ export const AbandonQuickMatchParams = zod.object({
 
 export const AbandonQuickMatchResponse = zod.object({
   removed: zod.literal(true),
+});
+
+/**
+ * @summary Players near you, nearest first, bounded by distance, with how many each radius step would show
+ */
+export const getDiscoverPlayersQueryRadiusDefault = 10;
+export const getDiscoverPlayersQueryLevelDefault = `near`;
+export const getDiscoverPlayersQueryPlaysDefault = `any`;
+export const getDiscoverPlayersQueryFreeDefault = `any`;
+
+export const GetDiscoverPlayersQueryParams = zod.object({
+  radius: zod
+    .union([zod.literal(5), zod.literal(10), zod.literal(15), zod.literal(30)])
+    .default(getDiscoverPlayersQueryRadiusDefault),
+  level: zod
+    .enum(["near", "wider", "any"])
+    .default(getDiscoverPlayersQueryLevelDefault),
+  plays: zod
+    .enum(["any", "singles", "doubles"])
+    .default(getDiscoverPlayersQueryPlaysDefault),
+  free: zod
+    .enum(["any", "weekday_mornings", "weekday_evenings", "weekends"])
+    .default(getDiscoverPlayersQueryFreeDefault),
+});
+
+export const GetDiscoverPlayersResponse = zod.object({
+  filters: zod.object({
+    radius: zod.union([
+      zod.literal(5),
+      zod.literal(10),
+      zod.literal(15),
+      zod.literal(30),
+    ]),
+    level: zod.enum(["near", "wider", "any"]),
+    plays: zod.enum(["any", "singles", "doubles"]),
+    free: zod.enum(["any", "weekday_mornings", "weekday_evenings", "weekends"]),
+  }),
+  hidden: zod.boolean().describe("Your own profile is hidden from Discover"),
+  homeAreaProblem: zod
+    .string()
+    .nullable()
+    .describe(
+      "Why Discover can't place you yet (no home area, or a zip it can't place). Players is empty then.",
+    ),
+  myRating: zod.number().nullable(),
+  counts: zod.array(
+    zod.object({
+      radius: zod.number(),
+      count: zod.number(),
+    }),
+  ),
+  players: zod.array(
+    zod.object({
+      userId: zod.number(),
+      name: zod.string(),
+      avatarUrl: zod.string().nullable(),
+      rating: zod.number().nullable(),
+      ratingSource: zod.string().nullable(),
+      distanceLabel: zod
+        .string()
+        .describe(
+          'Approximate, like \"~4 mi away\" or \"Under 1 mi away\". Never an exact distance.',
+        ),
+      plays: zod
+        .union([
+          zod.literal("singles"),
+          zod.literal("doubles"),
+          zod.literal("both"),
+          zod.literal(null),
+        ])
+        .nullable(),
+      played: zod.number().describe("Completed matches on Ball Boi"),
+    }),
+  ),
+});
+
+/**
+ * @summary One Discover player, while they're in your Discover (not hidden or blocked, within 30 miles)
+ */
+export const GetDiscoverPlayerParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const GetDiscoverPlayerResponse = zod
+  .object({
+    userId: zod.number(),
+    name: zod.string(),
+    avatarUrl: zod.string().nullable(),
+    rating: zod.number().nullable(),
+    ratingSource: zod.string().nullable(),
+    distanceLabel: zod
+      .string()
+      .describe(
+        'Approximate, like \"~4 mi away\" or \"Under 1 mi away\". Never an exact distance.',
+      ),
+    plays: zod
+      .union([
+        zod.literal("singles"),
+        zod.literal("doubles"),
+        zod.literal("both"),
+        zod.literal(null),
+      ])
+      .nullable(),
+    played: zod.number().describe("Completed matches on Ball Boi"),
+  })
+  .and(
+    zod.object({
+      freeTimes: zod.array(
+        zod.enum(["weekday_mornings", "weekday_evenings", "weekends"]),
+      ),
+    }),
+  );
+
+/**
+ * @summary Block a Discover player by user id. Hides you from each other and stops messages both ways.
+ */
+export const BlockDiscoverPlayerParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+/**
+ * @summary Unblock a Discover player by user id
+ */
+export const UnblockDiscoverPlayerParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+/**
+ * @summary Your Discover settings: hidden profile, what you play, when you're usually free
+ */
+export const GetMyDiscoverSettingsResponse = zod.object({
+  hidden: zod.boolean(),
+  plays: zod
+    .union([
+      zod.literal("singles"),
+      zod.literal("doubles"),
+      zod.literal("both"),
+      zod.literal(null),
+    ])
+    .nullable(),
+  freeTimes: zod.array(
+    zod.enum(["weekday_mornings", "weekday_evenings", "weekends"]),
+  ),
+});
+
+/**
+ * @summary Save any of your Discover settings
+ */
+export const UpdateMyDiscoverSettingsBody = zod.object({
+  hidden: zod.boolean().optional(),
+  plays: zod
+    .union([
+      zod.literal("singles"),
+      zod.literal("doubles"),
+      zod.literal("both"),
+      zod.literal(null),
+    ])
+    .nullish(),
+  freeTimes: zod
+    .array(zod.enum(["weekday_mornings", "weekday_evenings", "weekends"]))
+    .optional(),
+});
+
+export const UpdateMyDiscoverSettingsResponse = zod.object({
+  hidden: zod.boolean(),
+  plays: zod
+    .union([
+      zod.literal("singles"),
+      zod.literal("doubles"),
+      zod.literal("both"),
+      zod.literal(null),
+    ])
+    .nullable(),
+  freeTimes: zod.array(
+    zod.enum(["weekday_mornings", "weekday_evenings", "weekends"]),
+  ),
 });

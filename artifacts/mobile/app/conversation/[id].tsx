@@ -20,11 +20,12 @@ import { Button, Card, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { MessagesApiError, useDeclineRequest, useMessagesActions, useOlderMessages, useThread, type Message } from "@/hooks/useMessages";
-import { REPORT_REASONS, useReportBlock } from "@/hooks/useReportBlock";
+import { REPORT_REASONS, useReportBlock, type ReportablePlayer } from "@/hooks/useReportBlock";
 import { newClientMessageId } from "@/lib/messages";
 
 // A conversation (spec: Messaging and moderation). Opens from Messages, from
-// New message, and later from a player card with id "new" plus playerId.
+// New message, and from a player with id "new" plus playerId (a league
+// player) or userId (a Discover player, who may not be in a league).
 // - Message Requests: the recipient sees who it's from and can reply (which
 //   accepts it) or delete it; the sender can't send more until they reply.
 // - Every message from the other player can be reported, and its sender
@@ -65,14 +66,17 @@ export default function ConversationScreen() {
   const c = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ id: string; playerId?: string; name?: string }>();
+  const params = useLocalSearchParams<{ id: string; playerId?: string; userId?: string; name?: string }>();
   const startPlayerId = params.playerId ? Number(params.playerId) : null;
+  const startUserId = params.userId ? Number(params.userId) : null;
+  const startTo: { playerId: number } | { userId: number } | null =
+    startPlayerId !== null ? { playerId: startPlayerId } : startUserId !== null ? { userId: startUserId } : null;
 
   const [conversationId, setConversationId] = useState<number | null>(() => {
     const n = Number(params.id);
     return params.id !== "new" && Number.isInteger(n) && n > 0 ? n : null;
   });
-  const [lookingUp, setLookingUp] = useState(params.id === "new" && startPlayerId !== null);
+  const [lookingUp, setLookingUp] = useState(params.id === "new" && startTo !== null);
   const thread = useThread(conversationId);
   const history = useOlderMessages(conversationId, thread.data);
   const actions = useMessagesActions();
@@ -81,6 +85,9 @@ export default function ConversationScreen() {
   const conversation = thread.data?.conversation;
   const name = conversation?.other.name ?? params.name ?? "Player";
   const playerId = conversation?.other.playerId ?? startPlayerId;
+  const userId = conversation?.other.userId ?? startUserId;
+  // Who Report and Block act on: their league player, else their account (a Discover player).
+  const target: ReportablePlayer | null = playerId ? { id: playerId, name } : userId ? { id: userId, name, kind: "user" } : null;
 
   const [draft, setDraft] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
@@ -95,9 +102,8 @@ export default function ConversationScreen() {
 
   // Opened from a player: reuse an existing conversation with them.
   useEffect(() => {
-    if (params.id !== "new" || startPlayerId === null) return;
-    actions
-      .conversationWithPlayer(startPlayerId)
+    if (params.id !== "new" || startTo === null) return;
+    ("playerId" in startTo ? actions.conversationWithPlayer(startTo.playerId) : actions.conversationWithUser(startTo.userId))
       .then((r) => {
         if (r.conversationId) setConversationId(r.conversationId);
       })
@@ -148,8 +154,8 @@ export default function ConversationScreen() {
     try {
       if (conversationId) {
         await actions.send(conversationId, text, clientId);
-      } else if (startPlayerId !== null) {
-        const res = await actions.start(startPlayerId, text, clientId);
+      } else if (startTo !== null) {
+        const res = await actions.start(startTo, text, clientId);
         setConversationId(res.conversationId);
         router.setParams({ id: String(res.conversationId) });
       }
@@ -196,7 +202,7 @@ export default function ConversationScreen() {
           .report(conversationId, messageId, REPORT_REASONS[i].code)
           .then(() => {
             const buttons: { text: string; style?: "destructive" | "cancel"; onPress?: () => void }[] = [{ text: "OK" }];
-            if (playerId) buttons.push({ text: `Block ${name}`, style: "destructive", onPress: () => reportBlock.block({ id: playerId, name }) });
+            if (target) buttons.push({ text: `Block ${name}`, style: "destructive", onPress: () => reportBlock.block(target) });
             Alert.alert("Report sent", "Thanks for letting us know. We review every report within 24 hours.", buttons);
           })
           .catch((e: Error) => Alert.alert("Report not sent", e.message));
@@ -205,10 +211,8 @@ export default function ConversationScreen() {
   };
 
   const messageMenu = (messageId: string) => {
-    const options = ["Report message", ...(playerId ? [`Block ${name}`] : [])];
-    chooseIOS(name, options, playerId ? 1 : undefined, (i) =>
-      i === 0 ? reportMessage(messageId) : reportBlock.block({ id: playerId!, name }),
-    );
+    const options = ["Report message", ...(target ? [`Block ${name}`] : [])];
+    chooseIOS(name, options, target ? 1 : undefined, (i) => (i === 0 ? reportMessage(messageId) : reportBlock.block(target!)));
   };
 
   const deleteRequest = () => {
@@ -228,7 +232,7 @@ export default function ConversationScreen() {
   };
 
   const isRequest = conversation?.state === "request";
-  const canSend = conversation ? conversation.canSend : startPlayerId !== null;
+  const canSend = conversation ? conversation.canSend : startTo !== null;
   const loading = lookingUp || (conversationId !== null && thread.isPending);
 
   return (
@@ -246,8 +250,8 @@ export default function ConversationScreen() {
           headerTintColor: c.ink,
           headerStyle: { backgroundColor: c.paper },
           headerTitleStyle: { fontFamily: "DMSans_600SemiBold", color: c.ink },
-          headerRight: playerId
-            ? () => <IconButton symbol="ellipsis" label={`More options for ${name}`} onPress={() => reportBlock.open({ id: playerId, name })} />
+          headerRight: target
+            ? () => <IconButton symbol="ellipsis" label={`More options for ${name}`} onPress={() => reportBlock.open(target)} />
             : undefined,
         }}
       />
@@ -304,7 +308,7 @@ export default function ConversationScreen() {
               status={item.status}
               onRetry={item.clientId ? () => retry(item.clientId!) : undefined}
               onReport={!item.fromMe && item.serverId ? () => reportMessage(item.serverId!) : undefined}
-              onBlock={!item.fromMe && playerId ? () => reportBlock.block({ id: playerId, name }) : undefined}
+              onBlock={!item.fromMe && target ? () => reportBlock.block(target) : undefined}
               onLongPress={!item.fromMe && item.serverId ? () => messageMenu(item.serverId!) : undefined}
               blockLabel={`Block ${name}`}
             />

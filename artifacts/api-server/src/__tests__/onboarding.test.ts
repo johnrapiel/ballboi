@@ -77,7 +77,16 @@ describe("PUT /users/me/home-area", () => {
 
   it("saves the zip and approximate location", async () => {
     await app().put("/api/users/me/home-area").send({ zip: "12590", latitude: 41.50481, longitude: -73.96967 }).expect(200);
-    expect(updates).toEqual([{ homeZip: "12590", homeLatitude: 41.5, homeLongitude: -73.97 }]);
+    expect(updates).toEqual([
+      { homeZip: "12590", homeLatitude: 41.5, homeLongitude: -73.97, areaLatitude: 41.5, areaLongitude: -73.97 },
+    ]);
+  });
+
+  it("measures Discover from the zip's center when no location is given", async () => {
+    await app().put("/api/users/me/home-area").send({ zip: "12590" }).expect(200);
+    expect(updates).toEqual([
+      { homeZip: "12590", homeLatitude: null, homeLongitude: null, areaLatitude: 41.6, areaLongitude: -73.89 },
+    ]);
   });
 
   it("explains a bad zip", async () => {

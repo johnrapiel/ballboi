@@ -179,6 +179,19 @@ function RootLayoutNav() {
         <Stack.Screen name="messages" options={{ ...pushedHeader, title: "Messages" }} />
         <Stack.Screen name="delete-account" options={{ ...pushedHeader, title: "Delete account" }} />
         <Stack.Screen name="settings" options={{ ...pushedHeader, title: "Settings" }} />
+        <Stack.Screen name="discover/players" options={{ ...pushedHeader, title: "Players near you" }} />
+        <Stack.Screen name="discover/player/[userId]" options={{ ...pushedHeader, title: "" }} />
+        <Stack.Screen
+          name="discover/filters"
+          options={{
+            headerShown: false,
+            presentation: "formSheet",
+            sheetAllowedDetents: "fitToContents",
+            sheetGrabberVisible: true,
+            sheetCornerRadius: 18,
+            contentStyle: { backgroundColor: colors.linen },
+          }}
+        />
         <Stack.Screen
           name="league/new"
           options={{

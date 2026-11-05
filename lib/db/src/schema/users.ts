@@ -30,6 +30,19 @@ export const usersTable = pgTable("users", {
   homeLatitude: real("home_latitude"),
   homeLongitude: real("home_longitude"),
   /**
+   * The point Discover measures distance from: the rounded "Use my location"
+   * point, else the home zip's center. Set whenever the home area is saved
+   * (migration 20261105_f_discover_players.sql). Approximate, never exact.
+   */
+  areaLatitude: real("area_latitude"),
+  areaLongitude: real("area_longitude"),
+  /** Hidden profile (spec: Discover): out of Players near you; leagues and Ball Boi stay. */
+  discoverHidden: boolean("discover_hidden").notNull().default(false),
+  /** What they play, for the Discover filter: singles | doubles | both. Null = not said. */
+  plays: text("plays"),
+  /** When they're usually free, for the Discover filter: weekday_mornings, weekday_evenings, weekends. Null = not said. */
+  freeTimes: text("free_times").array(),
+  /**
    * Single-choice answer from the first onboarding version. Kept for the dev
    * walkthrough seed; new answers go in `intents`.
    */

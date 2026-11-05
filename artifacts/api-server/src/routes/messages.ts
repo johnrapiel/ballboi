@@ -76,12 +76,25 @@ export function createMessagesRouter(getService: () => MessagingService = getMes
     }),
   );
 
+  router.get(
+    "/messages/with-user/:userId",
+    requireAuth,
+    handle(async (svc, me, req, res) => {
+      res.json({ conversationId: await svc.conversationWithUser(me, req.params.userId) });
+    }),
+  );
+
   router.post(
     "/messages",
     requireAuth,
     handle(async (svc, me, req, res) => {
       const body = (req.body ?? {}) as Record<string, unknown>;
-      const result = await svc.start(me, { playerId: body.playerId, text: body.text, clientMessageId: body.clientMessageId });
+      const result = await svc.start(me, {
+        playerId: body.playerId,
+        userId: body.userId,
+        text: body.text,
+        clientMessageId: body.clientMessageId,
+      });
       res.status(201).json(result);
     }),
   );

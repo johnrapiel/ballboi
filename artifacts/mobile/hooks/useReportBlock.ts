@@ -16,6 +16,8 @@ import { apiErrorMessage, apiFetch } from "@/lib/api";
 export interface ReportablePlayer {
   id: number;
   name: string;
+  /** "player" (default): `id` is a league player id. "user": a Discover player's user id. */
+  kind?: "player" | "user";
 }
 
 // Server reason codes (lib/db/src/schema/safety.ts) with plain labels.
@@ -32,11 +34,12 @@ export type ReportReasonCode = (typeof REPORT_REASONS)[number]["code"];
 
 // What blocking really does, messages first, in the same words everywhere
 // (block confirm, after blocking, Blocked players, unblock confirm). Blocks
-// apply to messages both ways, Quick match opponents and Flex pairing; keep
+// apply to messages both ways, Discover, Quick match opponents and Flex pairing; keep
 // this in step with the server if that changes (Round robin is next).
-export const BLOCK_EFFECTS = "You can't message each other, they don't show up as a Quick match opponent, and Flex leagues won't pair you.";
+export const BLOCK_EFFECTS =
+  "You can't message each other or see each other in Discover, they don't show up as a Quick match opponent, and Flex leagues won't pair you.";
 export const UNBLOCK_EFFECTS =
-  "You'll be able to message each other again, they can show up as a Quick match opponent, and Flex leagues can pair you.";
+  "You'll be able to message each other and see each other in Discover again, they can show up as a Quick match opponent, and Flex leagues can pair you.";
 
 /** Native action sheet on iOS; an Alert with buttons as the Android fallback. */
 function choose(title: string, options: string[], destructiveIndex: number | undefined, onPick: (i: number) => void) {
@@ -62,7 +65,7 @@ export function useReportBlock(opts: { onBlocked?: (player: ReportablePlayer) =>
   function report(player: ReportablePlayer, reason: ReportReasonCode) {
     apiFetch("/api/reports", getToken, {
       method: "POST",
-      body: JSON.stringify({ targetType: "player", targetId: player.id, reason }),
+      body: JSON.stringify({ targetType: "player", targetId: player.kind === "user" ? `user:${player.id}` : player.id, reason }),
     })
       .then(async (res) => {
         if (!res.ok) throw new Error(await apiErrorMessage(res, "We couldn't send your report. Try again."));
@@ -75,7 +78,8 @@ export function useReportBlock(opts: { onBlocked?: (player: ReportablePlayer) =>
   }
 
   function block(player: ReportablePlayer) {
-    apiFetch(`/api/players/${player.id}/block`, getToken, { method: "POST" })
+    const path = player.kind === "user" ? `/api/discover/players/${player.id}/block` : `/api/players/${player.id}/block`;
+    apiFetch(path, getToken, { method: "POST" })
       .then(async (res) => {
         if (!res.ok) throw new Error(await apiErrorMessage(res, "We couldn't block this player. Try again."));
         onBlocked?.(player);

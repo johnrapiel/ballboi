@@ -8,6 +8,7 @@ import { autoLinkPlayersForUser } from "../lib/autoLinkPlayer.js";
 import { deleteOldPhoto, newPhotoProblem } from "../lib/profilePhoto.js";
 import { deleteAccount } from "../lib/accountDeletion.js";
 import { leaguesRunAlone, parseNewAdmins, successorsByLeague } from "../lib/leagueAccountDeletion.js";
+import { homeAreaPoint } from "../lib/discoverArea.js";
 import { isUserIntent, parseHomeArea, parseIntents } from "../lib/onboarding.js";
 import { syncProfileName } from "../lib/playerProfile.js";
 
@@ -120,6 +121,12 @@ router.put("/users/me", requireAuth, async (req, res) => {
   return res.json(updated);
 });
 
+/** Discover's point for a home area: the rounded device point, else the zip's center. */
+function discoverPoint(area: { zip: string; latitude: number | null; longitude: number | null }) {
+  const p = homeAreaPoint(area);
+  return { areaLatitude: p?.latitude ?? null, areaLongitude: p?.longitude ?? null };
+}
+
 /**
  * PUT /users/me/home-area { zip, latitude?, longitude? }
  * Onboarding step 4. The zip is required; coordinates only come from the
@@ -131,7 +138,13 @@ router.put("/users/me/home-area", requireAuth, async (req, res) => {
   if ("error" in parsed) return res.status(400).json({ error: parsed.error });
   const [updated] = await db
     .update(usersTable)
-    .set({ homeZip: parsed.zip, homeLatitude: parsed.latitude, homeLongitude: parsed.longitude })
+    .set({
+      homeZip: parsed.zip,
+      homeLatitude: parsed.latitude,
+      homeLongitude: parsed.longitude,
+      // Discover measures from here (approximate; null for a zip we can't place).
+      ...discoverPoint(parsed),
+    })
     .where(eq(usersTable.clerkUserId, userId!))
     .returning();
   if (!updated) return res.status(404).json({ error: "User profile not found" });

@@ -234,10 +234,21 @@ describe("blocking", () => {
     const at = new Date("2026-10-21T12:00:00Z");
     selectQueue.push([{ blockedClerkUserId: "user_target", createdAt: at }]);
     selectQueue.push([{ id: 5, name: "Mike Okafor", clerkUserId: "user_target" }]);
-    selectQueue.push([{ clerkUserId: "user_target", avatarUrl: "/objects/photos/mike.jpg" }]);
+    selectQueue.push([{ id: 42, clerkUserId: "user_target", displayName: "Mike O", avatarUrl: "/objects/photos/mike.jpg" }]);
     const res = await supertest(await buildApp()).get("/api/blocks");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([{ playerId: 5, name: "Mike Okafor", avatarUrl: "/objects/photos/mike.jpg", blockedAt: at.toISOString() }]);
+    expect(res.body).toEqual([
+      { playerId: 5, userId: 42, name: "Mike Okafor", avatarUrl: "/objects/photos/mike.jpg", blockedAt: at.toISOString() },
+    ]);
+  });
+
+  it("lists a blocked Discover player who isn't in a league, by user id (Wave 2)", async () => {
+    const at = new Date("2026-11-05T12:00:00Z");
+    selectQueue.push([{ blockedClerkUserId: "user_stranger", createdAt: at }]);
+    selectQueue.push([]);
+    selectQueue.push([{ id: 77, clerkUserId: "user_stranger", displayName: "Dana Lindqvist", avatarUrl: null }]);
+    const res = await supertest(await buildApp()).get("/api/blocks");
+    expect(res.body).toEqual([{ playerId: null, userId: 77, name: "Dana Lindqvist", avatarUrl: null, blockedAt: at.toISOString() }]);
   });
 });
 

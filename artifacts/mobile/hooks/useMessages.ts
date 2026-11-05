@@ -13,7 +13,8 @@ export type ConversationState = "active" | "awaiting_reply" | "request";
 export interface Conversation {
   id: number;
   state: ConversationState;
-  other: { name: string; playerId: number | null };
+  /** playerId: their league player, if any. userId: their account, for a Discover player with no league. */
+  other: { name: string; playerId: number | null; userId?: number | null };
   lastMessage: { text: string; fromMe: boolean; at: string } | null;
   unread: number;
   canSend: boolean;
@@ -208,11 +209,11 @@ export function useMessagesActions() {
 
   return {
     refresh,
-    /** First message to a player. Returns the conversation it landed in. */
-    start: (playerId: number, text: string, clientMessageId: string) =>
+    /** First message to a league player or a Discover player. Returns the conversation it landed in. */
+    start: (to: { playerId: number } | { userId: number }, text: string, clientMessageId: string) =>
       call<{ conversationId: number; message: Message }>("/api/messages", {
         method: "POST",
-        body: JSON.stringify({ playerId, text, clientMessageId }),
+        body: JSON.stringify({ ...to, text, clientMessageId }),
       }),
     send: (conversationId: number, text: string, clientMessageId: string) =>
       call<{ conversationId: number; message: Message }>(`/api/messages/${conversationId}/messages`, {
@@ -221,6 +222,8 @@ export function useMessagesActions() {
       }),
     conversationWithPlayer: (playerId: number) =>
       call<{ conversationId: number | null }>(`/api/messages/with-player/${playerId}`),
+    conversationWithUser: (userId: number) =>
+      call<{ conversationId: number | null }>(`/api/messages/with-user/${userId}`),
     report: (conversationId: number, messageId: string, reason: string) =>
       call<{ id: number }>(`/api/messages/${conversationId}/report`, {
         method: "POST",

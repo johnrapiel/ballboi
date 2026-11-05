@@ -10,4 +10,9 @@ export type ConversationViewOther = {
   name: string;
   /** @nullable */
   playerId: number | null;
+  /**
+   * Their account's user id, for block and report when they have no league player (a Discover player)
+   * @nullable
+   */
+  userId?: number | null;
 };

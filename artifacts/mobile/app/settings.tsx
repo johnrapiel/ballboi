@@ -1,5 +1,7 @@
-// Settings, opened from Profile (Wave 1 review Q14). The two recording
-// settings the spec promises "in Settings":
+// Settings, opened from Profile (Wave 1 review Q14).
+// Discover (Wave 2): Show me in Discover, what you play, when you're usually
+// free (components/discover/DiscoverSettings.tsx).
+// The two recording settings the spec promises "in Settings":
 // - "Help Ball Boi get smarter": the training toggle (spec: Video and
 //   training data), saved to the account, so it's the same on every phone.
 // - "Upload on cellular": Wi-Fi only by default (spec: After the match,
@@ -11,6 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, View } from "react-native";
 
+import { DiscoverSettingsSection } from "@/components/discover/DiscoverSettings";
 import { TRAINING_COPY } from "@/components/record/ConsentScreen";
 import { Toggle } from "@/components/Toggle";
 import { Button, Card, Text } from "@/components/ui";
@@ -94,6 +97,11 @@ export default function SettingsScreen() {
       contentContainerStyle={{ padding: spacing.space4, gap: spacing.space4 }}
     >
       <Text variant="label" accessibilityRole="header">
+        Discover
+      </Text>
+      <DiscoverSettingsSection />
+
+      <Text variant="label" accessibilityRole="header" style={{ marginTop: spacing.space4 }}>
         Ball Boi
       </Text>
 

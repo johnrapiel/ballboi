@@ -75,7 +75,8 @@ router.post("/reports", requireAuth, async (req, res) => {
   const { userId } = getAuth(req);
   // Who a player report is about, for the Moderation screen. The account is
   // untouched until a moderator acts: nothing restricts it automatically.
-  const subject = parsed.targetType === "player" && /^\d+$/.test(parsed.targetId) ? await accountForPlayer(Number(parsed.targetId)) : null;
+  // A player is a league player id, or "user:<id>" for a Discover player who may not be in a league.
+  const subject = parsed.targetType === "player" ? await reportSubject(parsed.targetId) : null;
   const [report] = await db
     .insert(contentReportsTable)
     .values({ reporterClerkUserId: userId!, ...parsed, source: "user", subjectClerkUserId: subject })
@@ -157,6 +158,15 @@ router.patch("/admin/reports/:id", requireAdmin, async (req, res) => {
   res.json(row);
 });
 
+/** Who a player report is about: "12" is a league player id, "user:34" a Discover player's user id. */
+async function reportSubject(targetId: string): Promise<string | null> {
+  if (/^\d+$/.test(targetId)) return accountForPlayer(Number(targetId));
+  const user = targetId.match(/^user:(\d+)$/);
+  if (!user) return null;
+  const [row] = await db.select({ id: usersTable.clerkUserId }).from(usersTable).where(eq(usersTable.id, Number(user[1])));
+  return row?.id ?? null;
+}
+
 /** The account behind a player id. Players without an account can't be blocked. */
 async function accountForPlayer(playerId: number): Promise<string | null> {
   const [player] = await db
@@ -182,7 +192,7 @@ router.get("/blocks", requireAuth, async (req, res) => {
   // Profile photos, for the Blocked players list (initials when there's none).
   const photos = blockedIds.length
     ? await db
-        .select({ clerkUserId: usersTable.clerkUserId, avatarUrl: usersTable.avatarUrl })
+        .select({ id: usersTable.id, clerkUserId: usersTable.clerkUserId, displayName: usersTable.displayName, avatarUrl: usersTable.avatarUrl })
         .from(usersTable)
         .where(inArray(usersTable.clerkUserId, blockedIds))
     : [];
@@ -190,10 +200,13 @@ router.get("/blocks", requireAuth, async (req, res) => {
     blocks
       .map((b) => {
         const p = players.find((x) => x.clerkUserId === b.blockedClerkUserId);
+        const u = photos.find((x) => x.clerkUserId === b.blockedClerkUserId);
         return {
           playerId: p?.id ?? null,
-          name: p?.name ?? "Player",
-          avatarUrl: photos.find((u) => u.clerkUserId === b.blockedClerkUserId)?.avatarUrl ?? null,
+          // A Discover player may have no league player; unblock them by user id.
+          userId: u?.id ?? null,
+          name: p?.name ?? u?.displayName ?? "Player",
+          avatarUrl: u?.avatarUrl ?? null,
           blockedAt: b.createdAt.toISOString(),
         };
       })

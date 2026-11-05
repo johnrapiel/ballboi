@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { startScheduler } from "./services/scheduler";
 import { seedGlobalData } from "./services/seasonService";
 import { startModerationAgent } from "./messaging/agentJob";
+import { backfillDiscoverAreas } from "./lib/discoverRepo";
 
 const rawPort = process.env["PORT"];
 
@@ -34,6 +35,10 @@ async function bootstrap(): Promise<void> {
 
   startScheduler();
   startModerationAgent();
+  // Discover's point for accounts saved before Discover (once; quick after that).
+  backfillDiscoverAreas()
+    .then((n) => n && logger.info({ filled: n }, "Filled Discover areas"))
+    .catch((err) => logger.error({ err }, "Couldn't fill Discover areas"));
 }
 
 bootstrap().catch((err) => {

@@ -12,6 +12,7 @@ export class MemoryMessagingRepo implements MessagingRepo {
   blocks: [string, string][] = [];
   restricted = new Set<string>();
   playerAccounts = new Map<number, string>();
+  userAccounts = new Map<number, string>();
   private nextId = 1;
   private clock: () => Date;
 
@@ -106,6 +107,10 @@ export class MemoryMessagingRepo implements MessagingRepo {
     return out;
   }
 
+  async accountForUser(userId: number) {
+    return this.userAccounts.get(userId) ?? null;
+  }
+
   async accountForPlayer(playerId: number) {
     return this.playerAccounts.get(playerId) ?? null;
   }
@@ -116,8 +121,8 @@ export class MemoryMessagingRepo implements MessagingRepo {
       const [a, b] = key.split(":");
       const other = a === userId ? b : b === userId ? a : null;
       if (!other) continue;
-      const p = this.names.get(other) ?? { name: "Player", playerId: null };
-      out.push({ userId: other, ...p });
+      const { name, playerId } = this.names.get(other) ?? { name: "Player", playerId: null };
+      out.push({ userId: other, name, playerId });
     }
     return out;
   }

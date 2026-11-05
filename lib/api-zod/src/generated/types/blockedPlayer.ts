@@ -9,6 +9,11 @@
 export interface BlockedPlayer {
   /** @nullable */
   playerId: number | null;
+  /**
+   * The blocked account's user id, for unblocking a Discover player who has no league player
+   * @nullable
+   */
+  userId: number | null;
   name: string;
   /** @nullable */
   avatarUrl: string | null;

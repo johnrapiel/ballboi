@@ -66,6 +66,10 @@ import type {
   DevTimeResult,
   DiscardRecordingBody,
   DiscardResult,
+  DiscoverPlayer,
+  DiscoverPlayers,
+  DiscoverSettings,
+  DiscoverSettingsInput,
   DropoutResult,
   EndMatchBallBoiBody,
   EndedLeague,
@@ -79,7 +83,9 @@ import type {
   GetAppealsParams,
   GetConversationParams,
   GetConversationWithPlayer200,
+  GetConversationWithUser200,
   GetConversationsParams,
+  GetDiscoverPlayersParams,
   GetHeadToHeadParams,
   GetLeagueStandingsParams,
   GetLeaguesParams,
@@ -12205,6 +12211,98 @@ export function useGetConversationWithPlayer<
 }
 
 /**
+ * @summary The conversation with a Discover player (by user id), if there is one
+ */
+export const getGetConversationWithUserUrl = (userId: string) => {
+  return `/api/messages/with-user/${userId}`;
+};
+
+export const getConversationWithUser = async (
+  userId: string,
+  options?: RequestInit,
+): Promise<GetConversationWithUser200> => {
+  return customFetch<GetConversationWithUser200>(
+    getGetConversationWithUserUrl(userId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetConversationWithUserQueryKey = (userId: string) => {
+  return [`/api/messages/with-user/${userId}`] as const;
+};
+
+export const getGetConversationWithUserQueryOptions = <
+  TData = Awaited<ReturnType<typeof getConversationWithUser>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getConversationWithUser>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetConversationWithUserQueryKey(userId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getConversationWithUser>>
+  > = ({ signal }) =>
+    getConversationWithUser(userId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getConversationWithUser>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetConversationWithUserQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getConversationWithUser>>
+>;
+export type GetConversationWithUserQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary The conversation with a Discover player (by user id), if there is one
+ */
+
+export function useGetConversationWithUser<
+  TData = Awaited<ReturnType<typeof getConversationWithUser>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getConversationWithUser>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetConversationWithUserQueryOptions(userId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary A conversation's latest messages, or older ones with before. Marks it read.
  */
 export const getGetConversationUrl = (
@@ -13847,4 +13945,519 @@ export const useAbandonQuickMatch = <
   TContext
 > => {
   return useMutation(getAbandonQuickMatchMutationOptions(options));
+};
+
+/**
+ * @summary Players near you, nearest first, bounded by distance, with how many each radius step would show
+ */
+export const getGetDiscoverPlayersUrl = (params?: GetDiscoverPlayersParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/discover/players?${stringifiedParams}`
+    : `/api/discover/players`;
+};
+
+export const getDiscoverPlayers = async (
+  params?: GetDiscoverPlayersParams,
+  options?: RequestInit,
+): Promise<DiscoverPlayers> => {
+  return customFetch<DiscoverPlayers>(getGetDiscoverPlayersUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDiscoverPlayersQueryKey = (
+  params?: GetDiscoverPlayersParams,
+) => {
+  return [`/api/discover/players`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetDiscoverPlayersQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDiscoverPlayers>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: GetDiscoverPlayersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDiscoverPlayers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetDiscoverPlayersQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getDiscoverPlayers>>
+  > = ({ signal }) => getDiscoverPlayers(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDiscoverPlayers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDiscoverPlayersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDiscoverPlayers>>
+>;
+export type GetDiscoverPlayersQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Players near you, nearest first, bounded by distance, with how many each radius step would show
+ */
+
+export function useGetDiscoverPlayers<
+  TData = Awaited<ReturnType<typeof getDiscoverPlayers>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: GetDiscoverPlayersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDiscoverPlayers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDiscoverPlayersQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary One Discover player, while they're in your Discover (not hidden or blocked, within 30 miles)
+ */
+export const getGetDiscoverPlayerUrl = (userId: number) => {
+  return `/api/discover/players/${userId}`;
+};
+
+export const getDiscoverPlayer = async (
+  userId: number,
+  options?: RequestInit,
+): Promise<DiscoverPlayer> => {
+  return customFetch<DiscoverPlayer>(getGetDiscoverPlayerUrl(userId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDiscoverPlayerQueryKey = (userId: number) => {
+  return [`/api/discover/players/${userId}`] as const;
+};
+
+export const getGetDiscoverPlayerQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDiscoverPlayer>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDiscoverPlayer>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetDiscoverPlayerQueryKey(userId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getDiscoverPlayer>>
+  > = ({ signal }) => getDiscoverPlayer(userId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDiscoverPlayer>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDiscoverPlayerQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDiscoverPlayer>>
+>;
+export type GetDiscoverPlayerQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary One Discover player, while they're in your Discover (not hidden or blocked, within 30 miles)
+ */
+
+export function useGetDiscoverPlayer<
+  TData = Awaited<ReturnType<typeof getDiscoverPlayer>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDiscoverPlayer>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDiscoverPlayerQueryOptions(userId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Block a Discover player by user id. Hides you from each other and stops messages both ways.
+ */
+export const getBlockDiscoverPlayerUrl = (userId: number) => {
+  return `/api/discover/players/${userId}/block`;
+};
+
+export const blockDiscoverPlayer = async (
+  userId: number,
+  options?: RequestInit,
+): Promise<BlockResult> => {
+  return customFetch<BlockResult>(getBlockDiscoverPlayerUrl(userId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getBlockDiscoverPlayerMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof blockDiscoverPlayer>>,
+    TError,
+    { userId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof blockDiscoverPlayer>>,
+  TError,
+  { userId: number },
+  TContext
+> => {
+  const mutationKey = ["blockDiscoverPlayer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof blockDiscoverPlayer>>,
+    { userId: number }
+  > = (props) => {
+    const { userId } = props ?? {};
+
+    return blockDiscoverPlayer(userId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BlockDiscoverPlayerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof blockDiscoverPlayer>>
+>;
+
+export type BlockDiscoverPlayerMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Block a Discover player by user id. Hides you from each other and stops messages both ways.
+ */
+export const useBlockDiscoverPlayer = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof blockDiscoverPlayer>>,
+    TError,
+    { userId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof blockDiscoverPlayer>>,
+  TError,
+  { userId: number },
+  TContext
+> => {
+  return useMutation(getBlockDiscoverPlayerMutationOptions(options));
+};
+
+/**
+ * @summary Unblock a Discover player by user id
+ */
+export const getUnblockDiscoverPlayerUrl = (userId: number) => {
+  return `/api/discover/players/${userId}/block`;
+};
+
+export const unblockDiscoverPlayer = async (
+  userId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getUnblockDiscoverPlayerUrl(userId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getUnblockDiscoverPlayerMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unblockDiscoverPlayer>>,
+    TError,
+    { userId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unblockDiscoverPlayer>>,
+  TError,
+  { userId: number },
+  TContext
+> => {
+  const mutationKey = ["unblockDiscoverPlayer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unblockDiscoverPlayer>>,
+    { userId: number }
+  > = (props) => {
+    const { userId } = props ?? {};
+
+    return unblockDiscoverPlayer(userId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UnblockDiscoverPlayerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof unblockDiscoverPlayer>>
+>;
+
+export type UnblockDiscoverPlayerMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Unblock a Discover player by user id
+ */
+export const useUnblockDiscoverPlayer = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unblockDiscoverPlayer>>,
+    TError,
+    { userId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof unblockDiscoverPlayer>>,
+  TError,
+  { userId: number },
+  TContext
+> => {
+  return useMutation(getUnblockDiscoverPlayerMutationOptions(options));
+};
+
+/**
+ * @summary Your Discover settings: hidden profile, what you play, when you're usually free
+ */
+export const getGetMyDiscoverSettingsUrl = () => {
+  return `/api/users/me/discover`;
+};
+
+export const getMyDiscoverSettings = async (
+  options?: RequestInit,
+): Promise<DiscoverSettings> => {
+  return customFetch<DiscoverSettings>(getGetMyDiscoverSettingsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyDiscoverSettingsQueryKey = () => {
+  return [`/api/users/me/discover`] as const;
+};
+
+export const getGetMyDiscoverSettingsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyDiscoverSettings>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyDiscoverSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyDiscoverSettingsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMyDiscoverSettings>>
+  > = ({ signal }) => getMyDiscoverSettings({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyDiscoverSettings>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyDiscoverSettingsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyDiscoverSettings>>
+>;
+export type GetMyDiscoverSettingsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Your Discover settings: hidden profile, what you play, when you're usually free
+ */
+
+export function useGetMyDiscoverSettings<
+  TData = Awaited<ReturnType<typeof getMyDiscoverSettings>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyDiscoverSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyDiscoverSettingsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Save any of your Discover settings
+ */
+export const getUpdateMyDiscoverSettingsUrl = () => {
+  return `/api/users/me/discover`;
+};
+
+export const updateMyDiscoverSettings = async (
+  discoverSettingsInput: DiscoverSettingsInput,
+  options?: RequestInit,
+): Promise<DiscoverSettings> => {
+  return customFetch<DiscoverSettings>(getUpdateMyDiscoverSettingsUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(discoverSettingsInput),
+  });
+};
+
+export const getUpdateMyDiscoverSettingsMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMyDiscoverSettings>>,
+    TError,
+    { data: BodyType<DiscoverSettingsInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateMyDiscoverSettings>>,
+  TError,
+  { data: BodyType<DiscoverSettingsInput> },
+  TContext
+> => {
+  const mutationKey = ["updateMyDiscoverSettings"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateMyDiscoverSettings>>,
+    { data: BodyType<DiscoverSettingsInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateMyDiscoverSettings(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateMyDiscoverSettingsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateMyDiscoverSettings>>
+>;
+export type UpdateMyDiscoverSettingsMutationBody =
+  BodyType<DiscoverSettingsInput>;
+export type UpdateMyDiscoverSettingsMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Save any of your Discover settings
+ */
+export const useUpdateMyDiscoverSettings = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMyDiscoverSettings>>,
+    TError,
+    { data: BodyType<DiscoverSettingsInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateMyDiscoverSettings>>,
+  TError,
+  { data: BodyType<DiscoverSettingsInput> },
+  TContext
+> => {
+  return useMutation(getUpdateMyDiscoverSettingsMutationOptions(options));
 };

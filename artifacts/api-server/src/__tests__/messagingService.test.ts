@@ -141,6 +141,19 @@ describe("Message Requests", () => {
   });
 });
 
+describe("Discover players (Wave 2)", () => {
+  it("can be messaged by user id, landing in their Message Requests", async () => {
+    repo.userAccounts.set(77, "casey");
+    const { conversationId } = await svc.start("alex", { userId: 77, text: "Up for a hit this weekend?", clientMessageId: mid() });
+    expect((await svc.list("casey", "requests")).map((c) => c.id)).toEqual([conversationId]);
+    expect((await svc.list("alex", "messages"))[0].state).toBe("awaiting_reply");
+  });
+
+  it("says so when the user id has no account", async () => {
+    await expectError(svc.start("alex", { userId: 404, text: "Hi", clientMessageId: mid() }), "no_account", 404);
+  });
+});
+
 describe("new-account throttle", () => {
   it(`allows ${NEW_ACCOUNT_DAILY_LIMIT} new conversations a day in the first week`, async () => {
     repo.createdAt.set("alex", new Date(now.getTime() - 2 * DAY));
