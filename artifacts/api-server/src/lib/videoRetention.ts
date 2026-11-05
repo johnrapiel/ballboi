@@ -3,7 +3,8 @@
 //
 // A session can hold two videos:
 // - videoObjectPath: the raw upload from the phone, with audio. Always deleted
-//   once analysis has finished.
+//   once analysis has finished. A match recorded in pieces (a call
+//   interrupted it) has the rest in metadata.segmentPaths; they go too.
 // - metadata.trainingVideoPath: a video-only copy the ML server makes when
 //   every player left training on. Kept only while that's still true: if a
 //   player turns training off or deletes their account, the hourly sweep
@@ -17,6 +18,7 @@ import { and, eq, isNotNull, lt, or, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { ObjectStorageService } from "./objectStorage";
 import { matchIsTrainingEligible } from "./trainingEligibility";
+import { segmentPathsOf } from "./mlDispatch";
 
 export const TRAINING_PREFIX = "/objects/training/";
 export const FAILED_ANALYSIS_GRACE_DAYS = 7;
@@ -40,9 +42,11 @@ export function planRetention(
   rawVideoPath: string | null,
   trainingVideoPath: string | null,
   eligible: boolean,
+  otherRawPaths: string[] = [],
 ): RetentionPlan {
   const remove: string[] = [];
   if (rawVideoPath) remove.push(rawVideoPath);
+  for (const p of otherRawPaths) if (p !== rawVideoPath && p !== trainingVideoPath && !remove.includes(p)) remove.push(p);
   let keepTrainingCopy: string | null = null;
   if (trainingVideoPath && trainingVideoPath !== rawVideoPath) {
     if (eligible && trainingVideoPath.startsWith(TRAINING_PREFIX)) keepTrainingCopy = trainingVideoPath;
@@ -83,7 +87,8 @@ export async function settleSessionVideo(
   const metadata = metadataOf(session);
   const existingCopy = typeof metadata.trainingVideoPath === "string" ? metadata.trainingVideoPath : null;
   const candidate = newTrainingCopy ?? existingCopy;
-  if (!session.videoObjectPath && !candidate) return;
+  const otherRaw = segmentPathsOf(metadata);
+  if (!session.videoObjectPath && !candidate && otherRaw.length === 0) return;
 
   let eligible = false;
   try {
@@ -91,7 +96,7 @@ export async function settleSessionVideo(
   } catch (err) {
     logger.warn({ err, sessionId: session.id }, "Video retention: couldn't check training; treating as off");
   }
-  const plan = planRetention(session.videoObjectPath, candidate, eligible);
+  const plan = planRetention(session.videoObjectPath, candidate, eligible, otherRaw);
   if (existingCopy && existingCopy !== candidate && !plan.remove.includes(existingCopy)) plan.remove.push(existingCopy);
 
   const failed = new Set<string>();
@@ -108,7 +113,10 @@ export async function settleSessionVideo(
   const rawGone = session.videoObjectPath != null && !failed.has(session.videoObjectPath);
   const trainingLeft = plan.keepTrainingCopy ?? (candidate && failed.has(candidate) ? candidate : null);
   const next: Record<string, unknown> = { ...metadata, trainingVideoPath: trainingLeft };
-  if (rawGone) next.rawVideoDeletedAt = now;
+  const otherLeft = otherRaw.filter((p) => failed.has(p));
+  if (otherLeft.length > 0) next.segmentPaths = otherLeft;
+  else delete next.segmentPaths;
+  if (rawGone && otherLeft.length === 0) next.rawVideoDeletedAt = now;
   if (plan.keepTrainingCopy) next.keptForTrainingAt = metadata.keptForTrainingAt ?? now;
   else delete next.keptForTrainingAt;
 
@@ -142,11 +150,15 @@ export async function sweepSessionVideos(deps: RetentionDeps = defaultDeps): Pro
       or(
         and(
           eq(ballBoiSessionsTable.status, "completed"),
-          or(isNotNull(ballBoiSessionsTable.videoObjectPath), sql`${ballBoiSessionsTable.metadata}->>'trainingVideoPath' is not null`),
+          or(
+            isNotNull(ballBoiSessionsTable.videoObjectPath),
+            sql`${ballBoiSessionsTable.metadata}->>'trainingVideoPath' is not null`,
+            sql`${ballBoiSessionsTable.metadata}->>'segmentPaths' is not null`,
+          ),
         ),
         and(
           eq(ballBoiSessionsTable.status, "failed"),
-          isNotNull(ballBoiSessionsTable.videoObjectPath),
+          or(isNotNull(ballBoiSessionsTable.videoObjectPath), sql`${ballBoiSessionsTable.metadata}->>'segmentPaths' is not null`),
           lt(ballBoiSessionsTable.updatedAt, cutoff),
         ),
       ),

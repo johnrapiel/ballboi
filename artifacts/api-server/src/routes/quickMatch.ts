@@ -1,6 +1,7 @@
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { getAuth } from "@clerk/express";
 import {
+  ballBoiSessionsTable,
   db,
   matchesTable,
   matchInvitesTable,
@@ -212,6 +213,61 @@ router.post("/recording/quick-matches/:matchId/score", requireAuth, async (req: 
   } catch (err) {
     logger.error({ err }, "Failed to save a Quick match score");
     res.status(500).json({ error: "Couldn't save the score. Try again." });
+  }
+});
+
+/**
+ * POST /recording/quick-matches/:matchId/abandon
+ * Leaving a Quick match before recording it: closing the invite screen or
+ * the camera (John's decision Q18). The match only existed for that
+ * recording, so it goes, with its placeholder opponent and invite. Only the
+ * player who started it can, and only while nothing is recorded or scored.
+ */
+router.post("/recording/quick-matches/:matchId/abandon", requireAuth, async (req: Request, res: Response) => {
+  const userId = getAuth(req).userId!;
+  const matchId = Number(req.params.matchId);
+  if (!Number.isInteger(matchId) || matchId <= 0) {
+    res.status(400).json({ error: "Invalid match id" });
+    return;
+  }
+  try {
+    const [match] = await db.select().from(matchesTable).where(eq(matchesTable.id, matchId));
+    if (!match) {
+      res.json({ removed: true });
+      return;
+    }
+    if (match.leagueId != null || match.generatedFrom !== "quick_match") {
+      res.status(409).json({ error: "Only a Quick match can be removed this way." });
+      return;
+    }
+    const mine = await db.select({ id: playersTable.id }).from(playersTable).where(eq(playersTable.clerkUserId, userId));
+    if (!mine.some((p) => p.id === match.player1Id)) {
+      res.status(403).json({ error: "Only the player who started this match can remove it." });
+      return;
+    }
+    const [sessions, invites] = await Promise.all([
+      db.select({ id: ballBoiSessionsTable.id }).from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.matchId, matchId)),
+      db
+        .select({ placeholderPlayerId: matchInvitesTable.placeholderPlayerId })
+        .from(matchInvitesTable)
+        .where(and(eq(matchInvitesTable.matchId, matchId), isNull(matchInvitesTable.claimedByClerkUserId))),
+    ]);
+    if (match.score || match.status === "completed" || sessions.length > 0) {
+      res.status(409).json({ error: "This match has a recording or a score, so it stays." });
+      return;
+    }
+    await db.transaction(async (tx) => {
+      await tx.delete(matchesTable).where(eq(matchesTable.id, matchId));
+      const placeholder = invites[0]?.placeholderPlayerId;
+      // The placeholder existed only for this match; its invite goes with the match.
+      if (placeholder != null) {
+        await tx.delete(playersTable).where(and(eq(playersTable.id, placeholder), isNull(playersTable.clerkUserId)));
+      }
+    });
+    res.json({ removed: true });
+  } catch (err) {
+    logger.error({ err }, "Failed to remove an abandoned Quick match");
+    res.status(500).json({ error: "Couldn't remove the match." });
   }
 });
 

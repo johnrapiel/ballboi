@@ -21,6 +21,7 @@ import { RatingBadge } from "@/components/RatingBadge";
 import { BlockedPlayersRow } from "@/components/safety/BlockedPlayersRow";
 import { TabScreen } from "@/components/TabHeader";
 import { EditProfileRow } from "@/components/profile/EditProfileRow";
+import { SettingsRow } from "@/components/profile/SettingsRow";
 import { Toggle } from "@/components/Toggle";
 import { Text as UIText } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
@@ -372,6 +373,7 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Account</Text>
           <EditProfileRow />
+          <SettingsRow />
           <BlockedPlayersRow />
           <Pressable
             style={({ pressed }) => [styles.signOutBtn, { opacity: pressed ? 0.7 : 1 }]}

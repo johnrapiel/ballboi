@@ -24,6 +24,8 @@ import {
   type RecordContext,
 } from "../lib/recordableMatches";
 import { planDiscard } from "../lib/recordingDiscard";
+import { ANALYSIS_MAX_RETRIES, failureReason, retryPending } from "../lib/analysisFailure";
+import { deleteSessionFiles } from "../lib/sessionFiles";
 
 // Ball Boi recording: the matches a player can record now.
 // Spec: Ball Boi > Recording ("Every recording starts from a match").
@@ -104,7 +106,18 @@ router.get("/recording/todays-matches", requireAuth, async (req: Request, res: R
       leagues: new Map(leagues.map((l) => [l.id, l])),
       activeBrackets: new Set(brackets.filter((b) => b.status === "active").map((b) => b.id)),
     };
-    const recordable = unplayed.filter((m) => isRecordableNow(m, ctx));
+    let recordable = unplayed.filter((m) => isRecordableNow(m, ctx));
+    // A Quick match exists for one recording. Once it's recorded it shows
+    // under Your recordings (with Enter score), not here again (D6).
+    const quickIds = recordable.filter((m) => m.leagueId == null).map((m) => m.id);
+    if (quickIds.length > 0) {
+      const recorded = await db
+        .select({ matchId: ballBoiSessionsTable.matchId })
+        .from(ballBoiSessionsTable)
+        .where(inArray(ballBoiSessionsTable.matchId, quickIds));
+      const done = new Set(recorded.map((r) => r.matchId));
+      recordable = recordable.filter((m) => !done.has(m.id));
+    }
     if (recordable.length === 0) {
       res.json([]);
       return;
@@ -131,39 +144,72 @@ router.get("/recording/todays-matches", requireAuth, async (req: Request, res: R
 
 /** How far back the Ball Boi tab lists your recordings. */
 const RECENT_DAYS = 60;
+const RECENT_LIMIT = 30;
+
+/** People who removed someone else's recording from their own list. */
+function hiddenFor(metadata: unknown): string[] {
+  const m = metadata && typeof metadata === "object" ? (metadata as Record<string, unknown>) : {};
+  return Array.isArray(m.hiddenFor) ? m.hiddenFor.filter((x): x is string => typeof x === "string") : [];
+}
 
 /**
  * GET /recording/sessions
- * The caller's recent recordings on the server, newest first, for the Ball
- * Boi tab's processing cards. Recordings still on the phone come from the
- * phone's own upload queue, not from here.
+ * Recent recordings of the caller's matches on the server, newest first, for
+ * the Ball Boi tab's cards. Both players see a match's card: whoever recorded
+ * it, the opponent, and a placeholder opponent who claimed the invite
+ * (John's decision Q15). Recordings still on the phone come from the phone's
+ * own upload queue, not from here.
  */
 router.get("/recording/sessions", requireAuth, async (req: Request, res: Response) => {
   const userId = getAuth(req).userId!;
   try {
     const since = new Date(Date.now() - RECENT_DAYS * 24 * 60 * 60 * 1000);
-    const sessions = await db
+    const me = await db.select({ id: playersTable.id }).from(playersTable).where(eq(playersTable.clerkUserId, userId));
+    const myIds = me.map((p) => p.id);
+    const myMatches = myIds.length
+      ? await db
+          .select({ id: matchesTable.id })
+          .from(matchesTable)
+          .where(
+            or(
+              inArray(matchesTable.player1Id, myIds),
+              inArray(matchesTable.player2Id, myIds),
+              inArray(matchesTable.player3Id, myIds),
+              inArray(matchesTable.player4Id, myIds),
+            ),
+          )
+      : [];
+    const myMatchIds = myMatches.map((m) => m.id);
+    const found = await db
       .select({
         id: ballBoiSessionsTable.id,
         matchId: ballBoiSessionsTable.matchId,
         status: ballBoiSessionsTable.status,
         processingStatus: ballBoiSessionsTable.processingStatus,
+        processingError: ballBoiSessionsTable.processingError,
+        metadata: ballBoiSessionsTable.metadata,
+        recordedByClerkUserId: ballBoiSessionsTable.recordedByClerkUserId,
+        recordingStartedAt: ballBoiSessionsTable.recordingStartedAt,
         createdAt: ballBoiSessionsTable.createdAt,
       })
       .from(ballBoiSessionsTable)
-      .where(and(eq(ballBoiSessionsTable.recordedByClerkUserId, userId), gte(ballBoiSessionsTable.createdAt, since)))
+      .where(
+        and(
+          myMatchIds.length
+            ? or(eq(ballBoiSessionsTable.recordedByClerkUserId, userId), inArray(ballBoiSessionsTable.matchId, myMatchIds))
+            : eq(ballBoiSessionsTable.recordedByClerkUserId, userId),
+          gte(ballBoiSessionsTable.createdAt, since),
+        ),
+      )
       .orderBy(desc(ballBoiSessionsTable.createdAt))
-      .limit(30);
+      .limit(RECENT_LIMIT * 2);
+    const sessions = found.filter((s) => !hiddenFor(s.metadata).includes(userId)).slice(0, RECENT_LIMIT);
     if (sessions.length === 0) {
       res.json([]);
       return;
     }
     const matchIds = [...new Set(sessions.map((s) => s.matchId))];
-    const [matches, me] = await Promise.all([
-      db.select().from(matchesTable).where(inArray(matchesTable.id, matchIds)),
-      db.select({ id: playersTable.id }).from(playersTable).where(eq(playersTable.clerkUserId, userId)),
-    ]);
-    const myIds = me.map((p) => p.id);
+    const matches = await db.select().from(matchesTable).where(inArray(matchesTable.id, matchIds));
     const playerIds = [
       ...new Set(matches.flatMap((m) => [m.player1Id, m.player2Id, m.player3Id, m.player4Id]).filter((id): id is number => id != null)),
     ];
@@ -176,19 +222,110 @@ router.get("/recording/sessions", requireAuth, async (req: Request, res: Respons
       sessions.map((s) => {
         const m = byId.get(s.matchId);
         const described = m ? toRecordableMatch(m, myIds, names, {}) : null;
+        const stage = recordingStage(s.status, s.processingStatus, retryPending(s, ANALYSIS_MAX_RETRIES));
+        const recordedAt = s.recordingStartedAt ?? s.createdAt;
         return {
           sessionId: s.id,
           matchId: s.matchId,
+          leagueId: m?.leagueId ?? null,
           opponentName: described?.opponentName ?? "Opponent",
-          recordedAt: s.createdAt.toISOString(),
-          stage: recordingStage(s.status, s.processingStatus),
+          // The day the match was recorded, not the day it uploaded (D19).
+          recordedAt: new Date(recordedAt).toISOString(),
+          stage,
           scoreEntered: !!m?.score,
+          recordedByYou: s.recordedByClerkUserId === userId,
+          failedReason: stage === "failed" ? failureReason(s.processingError) : null,
         };
       }),
     );
   } catch (err) {
     logger.error({ err }, "Failed to list recordings");
     res.status(500).json({ error: "Couldn't load your recordings." });
+  }
+});
+
+/**
+ * POST /recording/sessions/:sessionId/remove
+ * Remove on a card: a recording whose analysis failed (Q16), or one that
+ * never finished uploading and isn't on the phone anymore (D18).
+ * - The person who recorded it: the recording and its files are deleted, for
+ *   both players. A lost upload of a Quick match against someone who never
+ *   joined, with no score, takes the match with it, like Discard.
+ * - The other player: it's taken off their own list only.
+ * Analyzing and ready recordings can't be removed here.
+ */
+router.post("/recording/sessions/:sessionId/remove", requireAuth, async (req: Request, res: Response) => {
+  const userId = getAuth(req).userId!;
+  const sessionId = Number(req.params.sessionId);
+  if (!Number.isInteger(sessionId) || sessionId <= 0) {
+    res.status(400).json({ error: "Invalid recording id" });
+    return;
+  }
+  try {
+    const [session] = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, sessionId));
+    if (!session) {
+      // Already gone: a second tap, or the other player removed it.
+      res.json({ removed: true, matchRemoved: false });
+      return;
+    }
+    const [match] = await db.select().from(matchesTable).where(eq(matchesTable.id, session.matchId));
+    const mine = await db.select({ id: playersTable.id }).from(playersTable).where(eq(playersTable.clerkUserId, userId));
+    const myIds = new Set(mine.map((p) => p.id));
+    const isRecorder = session.recordedByClerkUserId === userId;
+    const inMatch = !!match && [match.player1Id, match.player2Id, match.player3Id, match.player4Id].some((id) => id != null && myIds.has(id));
+    if (!isRecorder && !inMatch) {
+      res.status(403).json({ error: "Only the players in this match can remove its recording." });
+      return;
+    }
+    const stage = recordingStage(session.status, session.processingStatus, retryPending(session, ANALYSIS_MAX_RETRIES));
+    if (stage !== "failed" && stage !== "uploading") {
+      res.status(409).json({ error: "This recording can't be removed while it's analyzing or ready." });
+      return;
+    }
+    if (!isRecorder) {
+      const metadata = (session.metadata as Record<string, unknown> | null) ?? {};
+      await db
+        .update(ballBoiSessionsTable)
+        .set({ metadata: { ...metadata, hiddenFor: [...new Set([...hiddenFor(metadata), userId])] } })
+        .where(eq(ballBoiSessionsTable.id, sessionId));
+      res.json({ removed: true, matchRemoved: false });
+      return;
+    }
+    let removePlaceholderPlayerId: number | null = null;
+    if (stage === "uploading" && match && match.leagueId == null && !match.score) {
+      const [invites, others] = await Promise.all([
+        db
+          .select({ placeholderPlayerId: matchInvitesTable.placeholderPlayerId })
+          .from(matchInvitesTable)
+          .where(and(eq(matchInvitesTable.matchId, match.id), isNull(matchInvitesTable.claimedByClerkUserId))),
+        db
+          .select({ id: ballBoiSessionsTable.id })
+          .from(ballBoiSessionsTable)
+          .where(and(eq(ballBoiSessionsTable.matchId, match.id), ne(ballBoiSessionsTable.id, sessionId))),
+      ]);
+      const plan = planDiscard({
+        match,
+        matchId: match.id,
+        callerPlayerIds: [...myIds],
+        callerClerkUserId: userId,
+        session: null,
+        sessionRequested: false,
+        unclaimedPlaceholderPlayerId: invites[0]?.placeholderPlayerId ?? null,
+        otherSessionCount: others.length,
+      });
+      if (plan.ok) removePlaceholderPlayerId = plan.removePlaceholderPlayerId;
+    }
+    await deleteSessionFiles(session);
+    await db.transaction(async (tx) => {
+      await tx.delete(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, sessionId));
+      if (removePlaceholderPlayerId != null) {
+        await tx.delete(playersTable).where(and(eq(playersTable.id, removePlaceholderPlayerId), isNull(playersTable.clerkUserId)));
+      }
+    });
+    res.json({ removed: true, matchRemoved: removePlaceholderPlayerId != null });
+  } catch (err) {
+    logger.error({ err }, "Failed to remove a recording");
+    res.status(500).json({ error: "Couldn't remove the recording. Try again." });
   }
 });
 
@@ -268,6 +405,8 @@ router.post("/recording/discard", requireAuth, async (req: Request, res: Respons
       res.status(plan.status).json({ error: plan.error });
       return;
     }
+    // Stop any half-sent upload in storage before the session goes.
+    if (plan.deleteSessionId != null && sessions[0]) await deleteSessionFiles(sessions[0]);
     await db.transaction(async (tx) => {
       if (plan.deleteSessionId != null) {
         await tx.delete(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, plan.deleteSessionId));

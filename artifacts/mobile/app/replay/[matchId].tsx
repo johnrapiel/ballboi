@@ -12,6 +12,7 @@ import { ActivityIndicator, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
+import { ANALYZING_DETAIL, FAILED_TITLE } from "@/components/record/ProcessingCard";
 import { Button } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -46,12 +47,25 @@ export default function ReplayScreen() {
         message="Record a match with Ball Boi to get a replay."
       />
     );
+  } else if (
+    data.session.status === "failed" &&
+    // While the analysis service is down an automatic retry is still coming: that's still Analyzing.
+    !(data.session.processingError ?? "").toLowerCase().includes("temporarily unavailable")
+  ) {
+    // Q16: say it plainly; never that Ball Boi keeps trying.
+    body = (
+      <EmptyState
+        symbol="exclamationmark.circle"
+        title={FAILED_TITLE}
+        message="You can remove it from Your recordings on the Ball Boi tab."
+      />
+    );
   } else if (data.session.processingStatus !== "completed") {
     body = (
       <EmptyState
         symbol="hourglass"
         title="Analyzing"
-        message="We'll let you know when your replay is ready."
+        message={ANALYZING_DETAIL}
       />
     );
   } else {

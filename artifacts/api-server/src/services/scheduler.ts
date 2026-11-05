@@ -6,6 +6,7 @@ import { generateAllRounds } from "./roundPairing";
 import { sendPushToUsers } from "../routes/notifications";
 import { logger } from "../lib/logger";
 import { retryFailedBallBoiSessions } from "./ballBoiRetry";
+import { failStuckAnalyses } from "./ballBoiStuck";
 import { runAllLeagueDays } from "./leagueRounds";
 import { sweepSessionVideos } from "../lib/videoRetention";
 import { DEFAULT_LEAGUE_TIME_ZONE, addDays, dayBounds, leagueToday, leagueZone, localHour } from "../lib/leagueCalendar";
@@ -491,11 +492,17 @@ export function startScheduler() {
     });
   });
 
+  // Every 5 minutes — an analysis that never heard back from the ML server
+  // turns to failed within an hour instead of "Analyzing" forever (D11)
+  cron.schedule("*/5 * * * *", () => {
+    failStuckAnalyses().catch((err) => logger.error({ err }, "CRON: Stuck analysis sweep failed"));
+  });
+
   // Hourly at :17 — delete match video the spec says not to keep (raw uploads
   // after analysis, training copies once a player turns training off)
   cron.schedule("17 * * * *", () => {
     sweepSessionVideos().catch((err) => logger.error({ err }, "CRON: Video retention sweep failed"));
   });
 
-  logger.info("Scheduler started: 7AM league time (league rounds), Thu 9AM (auto-generate), Wed 5PM (availability reminder), Sun 9AM (match reminder), 8AM league time (day-before reminder), every 1min (Ball Boi retry), hourly (video retention)");
+  logger.info("Scheduler started: 7AM league time (league rounds), Thu 9AM (auto-generate), Wed 5PM (availability reminder), Sun 9AM (match reminder), 8AM league time (day-before reminder), every 1min (Ball Boi retry), every 5min (stuck analysis), hourly (video retention)");
 }

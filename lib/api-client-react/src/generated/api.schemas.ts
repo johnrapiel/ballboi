@@ -1239,6 +1239,49 @@ export type StartBallBoiSessionBodyMetadata = { [key: string]: unknown };
 
 export interface StartBallBoiSessionBody {
   metadata?: StartBallBoiSessionBodyMetadata;
+  /** When the match was recorded. The session is created when the upload starts, which can be days later. */
+  recordedAt?: string;
+}
+
+export interface BallBoiMultipartStartBody {
+  /** Which piece of the recording, from 0. A call can split a match into pieces. */
+  segment: number;
+  sizeBytes: number;
+}
+
+export interface BallBoiMultipartUpload {
+  objectPath: string;
+  sizeBytes: number;
+  partSize: number;
+  partCount: number;
+  uploadedParts: number[];
+  missingParts: number[];
+  completed: boolean;
+}
+
+export interface BallBoiPartUrlBody {
+  segment: number;
+  partNumber: number;
+}
+
+export interface BallBoiPartUrl {
+  url: string;
+  partNumber: number;
+}
+
+export interface BallBoiMultipartCompleteBody {
+  segment: number;
+}
+
+export interface BallBoiMultipartComplete {
+  objectPath: string;
+  sizeBytes: number;
+}
+
+export interface BallBoiSessionSegment {
+  objectPath: string;
+  sizeBytes: number;
+  durationSeconds: number;
 }
 
 export interface BallBoiUploadUrl {
@@ -1257,6 +1300,8 @@ export interface CompleteBallBoiSessionBody {
   contentType: string;
   sizeBytes: number;
   durationSeconds: number;
+  /** Every piece of the recording in order, when it was sent in parts. objectPath is the first. */
+  segments?: BallBoiSessionSegment[];
 }
 
 /**

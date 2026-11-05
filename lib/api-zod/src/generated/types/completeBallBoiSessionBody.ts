@@ -5,10 +5,13 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+import type { BallBoiSessionSegment } from "./ballBoiSessionSegment";
 
 export interface CompleteBallBoiSessionBody {
   objectPath: string;
   contentType: string;
   sizeBytes: number;
   durationSeconds: number;
+  /** Every piece of the recording in order, when it was sent in parts. objectPath is the first. */
+  segments?: BallBoiSessionSegment[];
 }

@@ -12,6 +12,7 @@ import tempfile
 import logging
 import urllib.request
 import base64
+import shutil
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Header
@@ -62,6 +63,9 @@ class LiveMatchRequest(BaseModel):
 
 class BatchMatchRequest(BaseModel):
     video_url: str | None = None      # legacy: a URL the ML server downloads
+    # A match recorded in pieces (an unanswered call stopped the camera for a
+    # few seconds): every piece in order, video_url first. Joined before analysis.
+    video_urls: list[str] | None = None
     video_key: str | None = None      # R2 object path ("/objects/...") or key, read with the S3_* settings
     session_id: int
     match_id: int
@@ -110,7 +114,8 @@ def download_video(url: str) -> str:
     req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=120) as resp:
         with open(tmp.name, "wb") as f:
-            f.write(resp.read())
+            # Streamed: a 4-hour match is over 10 GB, far more than memory.
+            shutil.copyfileobj(resp, f, 8 * 1024 * 1024)
 
     size_mb = os.path.getsize(tmp.name) / 1024 / 1024
     logger.info(f"Downloaded {size_mb:.1f} MB to {tmp.name}")
@@ -185,16 +190,40 @@ def _post_callback(callback_url: str, payload: dict) -> None:
         logger.error(f"Ball Boi callback failed: {e}")
 
 
+def _download_and_join(video_urls: list[str]) -> str:
+    """Downloads each piece of the match and joins them into one video."""
+    from services.segments import join_segments
+
+    pieces = []
+    try:
+        for url in video_urls:
+            pieces.append(download_video(url))
+        fd, joined = tempfile.mkstemp(suffix=".mov")
+        os.close(fd)
+        try:
+            return join_segments(pieces, joined)
+        except Exception:
+            os.unlink(joined)
+            raise
+    finally:
+        for p in pieces:
+            if os.path.exists(p):
+                os.unlink(p)
+
+
 def process_match_and_callback(video_url: str | None, session_id: int, match_id: int, callback_url: str,
                                court_calibration: dict | None = None, video_key: str | None = None,
-                               keep_for_training: bool = False):
+                               keep_for_training: bool = False, video_urls: list[str] | None = None):
     """Full match analysis with the shot analysis pipeline, then POST the result to the API."""
     from services.pipeline.models import ModelsMissing
     from services.pipeline.run import AnalysisError, analyze_match
+    from services.segments import SegmentsError
 
     video_path = None
     try:
-        if video_key:
+        if video_urls and len(video_urls) > 1:
+            video_path = _download_and_join(video_urls)
+        elif video_key:
             from services.storage import download
             video_path = download(video_key)
         elif video_url:
@@ -210,7 +239,7 @@ def process_match_and_callback(video_url: str | None, session_id: int, match_id:
             from services.training_copy import make_training_copy
             result["trainingVideoKey"] = make_training_copy(video_path, session_id)
         payload = {"sessionId": session_id, "matchId": match_id, "status": "completed", "result": result}
-    except (AnalysisError, ModelsMissing) as e:
+    except (AnalysisError, ModelsMissing, SegmentsError) as e:
         logger.warning(f"Ball Boi analysis stopped for session {session_id}: {e}")
         payload = {"sessionId": session_id, "matchId": match_id, "status": "failed", "error": str(e)}
     except Exception as e:
@@ -315,6 +344,7 @@ async def analyze_match_batch(request: BatchMatchRequest, background_tasks: Back
         request.court_calibration,
         request.video_key,
         request.keep_for_training,
+        request.video_urls,
     )
     return BatchMatchResponse(session_id=request.session_id, status="processing")
 

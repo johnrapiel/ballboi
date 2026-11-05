@@ -59,7 +59,8 @@ describe("video retention in the Ball Boi routes", () => {
   it("asks the ML server for a training copy only when every player left training on", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal("fetch", fetchMock);
-    rows = [[session]];
+    // Still waiting for its video: a session already analyzing isn't started again.
+    rows = [[{ ...session, status: "recording" }]];
     await supertest(await app()).post("/api/ball-boi/sessions/5/complete").send({ objectPath: "/objects/uploads/raw" });
     vi.unstubAllGlobals();
     expect(keep).toHaveBeenCalledWith(10);

@@ -2910,6 +2910,12 @@ export const StartBallBoiSessionParams = zod.object({
 
 export const StartBallBoiSessionBody = zod.object({
   metadata: zod.record(zod.string(), zod.unknown()).optional(),
+  recordedAt: zod.coerce
+    .date()
+    .optional()
+    .describe(
+      "When the match was recorded. The session is created when the upload starts, which can be days later.",
+    ),
 });
 
 /**
@@ -2921,6 +2927,12 @@ export const StartMatchScopedBallBoiSessionParams = zod.object({
 
 export const StartMatchScopedBallBoiSessionBody = zod.object({
   metadata: zod.record(zod.string(), zod.unknown()).optional(),
+  recordedAt: zod.coerce
+    .date()
+    .optional()
+    .describe(
+      "When the match was recorded. The session is created when the upload starts, which can be days later.",
+    ),
 });
 
 /**
@@ -2933,6 +2945,67 @@ export const RequestBallBoiUploadUrlParams = zod.object({
 export const RequestBallBoiUploadUrlResponse = zod.object({
   uploadURL: zod.string(),
   objectPath: zod.string(),
+});
+
+/**
+ * Recordings over 5 GB can't go up in one PUT, so every piece of a recording is sent as a multipart upload. Calling this again for the same piece and size resumes it: the answer lists the parts storage already has.
+
+ * @summary Start or resume sending one piece of a recording in parts
+ */
+export const StartBallBoiMultipartUploadParams = zod.object({
+  sessionId: zod.coerce.number(),
+});
+
+export const StartBallBoiMultipartUploadBody = zod.object({
+  segment: zod
+    .number()
+    .describe(
+      "Which piece of the recording, from 0. A call can split a match into pieces.",
+    ),
+  sizeBytes: zod.number(),
+});
+
+export const StartBallBoiMultipartUploadResponse = zod.object({
+  objectPath: zod.string(),
+  sizeBytes: zod.number(),
+  partSize: zod.number(),
+  partCount: zod.number(),
+  uploadedParts: zod.array(zod.number()),
+  missingParts: zod.array(zod.number()),
+  completed: zod.boolean(),
+});
+
+/**
+ * @summary Request a presigned upload URL for one part
+ */
+export const RequestBallBoiUploadPartUrlParams = zod.object({
+  sessionId: zod.coerce.number(),
+});
+
+export const RequestBallBoiUploadPartUrlBody = zod.object({
+  segment: zod.number(),
+  partNumber: zod.number(),
+});
+
+export const RequestBallBoiUploadPartUrlResponse = zod.object({
+  url: zod.string(),
+  partNumber: zod.number(),
+});
+
+/**
+ * @summary Join a piece's parts into one stored video
+ */
+export const CompleteBallBoiMultipartUploadParams = zod.object({
+  sessionId: zod.coerce.number(),
+});
+
+export const CompleteBallBoiMultipartUploadBody = zod.object({
+  segment: zod.number(),
+});
+
+export const CompleteBallBoiMultipartUploadResponse = zod.object({
+  objectPath: zod.string(),
+  sizeBytes: zod.number(),
 });
 
 /**
@@ -2959,6 +3032,18 @@ export const CompleteBallBoiSessionBody = zod.object({
   contentType: zod.string(),
   sizeBytes: zod.number(),
   durationSeconds: zod.number(),
+  segments: zod
+    .array(
+      zod.object({
+        objectPath: zod.string(),
+        sizeBytes: zod.number(),
+        durationSeconds: zod.number(),
+      }),
+    )
+    .optional()
+    .describe(
+      "Every piece of the recording in order, when it was sent in parts. objectPath is the first.",
+    ),
 });
 
 export const CompleteBallBoiSessionResponse = zod.object({

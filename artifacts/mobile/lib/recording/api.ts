@@ -80,10 +80,17 @@ export type RecordingStage = "uploading" | "analyzing" | "ready" | "failed";
 export interface ServerRecording {
   sessionId: number;
   matchId: number;
+  /** The match's league, or null for a Quick match. */
+  leagueId: number | null;
   opponentName: string;
+  /** When the match was recorded (not when it uploaded). */
   recordedAt: string;
   stage: RecordingStage;
   scoreEntered: boolean;
+  /** You recorded it (the opponent and a claimed placeholder see it too). */
+  recordedByYou: boolean;
+  /** Short reason when analysis failed, like "We couldn't see the court." */
+  failedReason: string | null;
 }
 
 export const recordingsKey = ["recording", "sessions"] as const;
@@ -103,15 +110,7 @@ export function useServerRecordings() {
   });
 }
 
-/** "Today", "Yesterday", or "Oct 21". */
-export function recordedDay(iso: string, now = new Date()): string {
-  const d = new Date(iso);
-  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-  const diff = Math.round((day(now) - day(d)) / 86_400_000);
-  if (diff === 0) return "Today";
-  if (diff === 1) return "Yesterday";
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
+export { recordedDay } from "@/lib/recording/days";
 
 export interface RecordingConsent {
   consented: boolean;
@@ -211,6 +210,16 @@ export interface MatchInvite {
   isYourInvite: boolean;
 }
 
+/** A refused invite lookup. Only a 404 means the link itself doesn't work. */
+export class InviteError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
 export function useMatchInvite(code: string, enabled: boolean) {
   const { getToken } = useAuth();
   return useQuery({
@@ -218,7 +227,7 @@ export function useMatchInvite(code: string, enabled: boolean) {
     enabled,
     queryFn: async (): Promise<MatchInvite> => {
       const res = await apiFetch(`/api/recording/invites/${encodeURIComponent(code)}`, getToken);
-      if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't load this invite."));
+      if (!res.ok) throw new InviteError(await apiErrorMessage(res, "Couldn't load this invite."), res.status);
       return (await res.json()) as MatchInvite;
     },
   });
@@ -323,4 +332,33 @@ export async function discardOnServer(
     await apiErrorMessage(res, "Couldn't discard the recording. Try again."),
     res.status === 409,
   );
+}
+
+/**
+ * Remove on a recording card (Q16 failed analysis, D18 didn't upload). The
+ * recorder's Remove deletes the recording for everyone, files included, and a
+ * Quick match against an unclaimed placeholder with it. Anyone else's Remove
+ * takes the card off their own list only.
+ */
+export async function removeRecording(
+  sessionId: number,
+  getToken: () => Promise<string | null>,
+): Promise<{ removed: boolean; matchRemoved: boolean }> {
+  const res = await apiFetch(`/api/recording/sessions/${sessionId}/remove`, getToken, { method: "POST", body: "{}" });
+  if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't remove it. Try again."));
+  const body = (await res.json().catch(() => ({}))) as { removed?: boolean; matchRemoved?: boolean };
+  return { removed: body.removed !== false, matchRemoved: !!body.matchRemoved };
+}
+
+/**
+ * A Quick match closed before anything was recorded (Q18): removes it, so it
+ * doesn't linger under Record a match. Best effort; the server refuses if the
+ * match has a recording or a score.
+ */
+export async function abandonQuickMatch(matchId: number, getToken: () => Promise<string | null>): Promise<void> {
+  try {
+    await apiFetch(`/api/recording/quick-matches/${matchId}/abandon`, getToken, { method: "POST", body: "{}" });
+  } catch {
+    // Offline: it stays listed until the player records or discards it.
+  }
 }
