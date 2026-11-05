@@ -6929,8 +6929,11 @@ components:
           type: ["string", "null"]
         metadata:
           type: ["object", "null"]
-          additionalProperties: true
-          description: What the server keeps about the recording (source, uploads, stat gates, retries)
+          additionalProperties: false
+          properties:
+            source:
+              type: string
+          description: Only the keys the phone set when it started the session. The server's own keys (callback token, uploads, stat gates, retries) are never sent.
         createdAt:
           type: string
         updatedAt:
@@ -6951,6 +6954,11 @@ components:
         metadata:
           type: object
           additionalProperties: true
+          properties:
+            source:
+              type: string
+              maxLength: 20
+          description: Only source is kept. Any other key is ignored.
         recordedAt:
           type: string
           format: date-time

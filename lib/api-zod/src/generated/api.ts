@@ -3134,8 +3134,18 @@ export const StartBallBoiSessionParams = zod.object({
   matchId: zod.coerce.number(),
 });
 
+export const startBallBoiSessionBodyMetadataSourceMax = 20;
+
 export const StartBallBoiSessionBody = zod.object({
-  metadata: zod.record(zod.string(), zod.unknown()).optional(),
+  metadata: zod
+    .object({
+      source: zod
+        .string()
+        .max(startBallBoiSessionBodyMetadataSourceMax)
+        .optional(),
+    })
+    .optional()
+    .describe("Only source is kept. Any other key is ignored."),
   recordedAt: zod.coerce
     .date()
     .optional()
@@ -3151,8 +3161,18 @@ export const StartMatchScopedBallBoiSessionParams = zod.object({
   matchId: zod.coerce.number(),
 });
 
+export const startMatchScopedBallBoiSessionBodyMetadataSourceMax = 20;
+
 export const StartMatchScopedBallBoiSessionBody = zod.object({
-  metadata: zod.record(zod.string(), zod.unknown()).optional(),
+  metadata: zod
+    .object({
+      source: zod
+        .string()
+        .max(startMatchScopedBallBoiSessionBodyMetadataSourceMax)
+        .optional(),
+    })
+    .optional()
+    .describe("Only source is kept. Any other key is ignored."),
   recordedAt: zod.coerce
     .date()
     .optional()
@@ -3287,10 +3307,12 @@ export const CompleteBallBoiSessionResponse = zod.object({
   processingError: zod.string().nullish(),
   aiNarrative: zod.string().nullish(),
   metadata: zod
-    .record(zod.string(), zod.unknown())
+    .object({
+      source: zod.string().optional(),
+    })
     .nullish()
     .describe(
-      "What the server keeps about the recording (source, uploads, stat gates, retries)",
+      "Only the keys the phone set when it started the session. The server's own keys (callback token, uploads, stat gates, retries) are never sent.",
     ),
   createdAt: zod.string(),
   updatedAt: zod.string(),
@@ -3372,10 +3394,12 @@ export const GetBallBoiReplayResponse = zod.object({
       processingError: zod.string().nullish(),
       aiNarrative: zod.string().nullish(),
       metadata: zod
-        .record(zod.string(), zod.unknown())
+        .object({
+          source: zod.string().optional(),
+        })
         .nullish()
         .describe(
-          "What the server keeps about the recording (source, uploads, stat gates, retries)",
+          "Only the keys the phone set when it started the session. The server's own keys (callback token, uploads, stat gates, retries) are never sent.",
         ),
       createdAt: zod.string(),
       updatedAt: zod.string(),
@@ -3584,10 +3608,12 @@ export const GetMatchScopedBallBoiReplayResponse = zod.object({
       processingError: zod.string().nullish(),
       aiNarrative: zod.string().nullish(),
       metadata: zod
-        .record(zod.string(), zod.unknown())
+        .object({
+          source: zod.string().optional(),
+        })
         .nullish()
         .describe(
-          "What the server keeps about the recording (source, uploads, stat gates, retries)",
+          "Only the keys the phone set when it started the session. The server's own keys (callback token, uploads, stat gates, retries) are never sent.",
         ),
       createdAt: zod.string(),
       updatedAt: zod.string(),
@@ -3766,10 +3792,12 @@ export const EndMatchBallBoiResponse = zod.object({
   processingError: zod.string().nullish(),
   aiNarrative: zod.string().nullish(),
   metadata: zod
-    .record(zod.string(), zod.unknown())
+    .object({
+      source: zod.string().optional(),
+    })
     .nullish()
     .describe(
-      "What the server keeps about the recording (source, uploads, stat gates, retries)",
+      "Only the keys the phone set when it started the session. The server's own keys (callback token, uploads, stat gates, retries) are never sent.",
     ),
   createdAt: zod.string(),
   updatedAt: zod.string(),
@@ -3822,10 +3850,12 @@ export const GetMatchBallBoiReplayMetadataResponse = zod.object({
         processingError: zod.string().nullish(),
         aiNarrative: zod.string().nullish(),
         metadata: zod
-          .record(zod.string(), zod.unknown())
+          .object({
+            source: zod.string().optional(),
+          })
           .nullish()
           .describe(
-            "What the server keeps about the recording (source, uploads, stat gates, retries)",
+            "Only the keys the phone set when it started the session. The server's own keys (callback token, uploads, stat gates, retries) are never sent.",
           ),
         createdAt: zod.string(),
         updatedAt: zod.string(),
@@ -4113,10 +4143,12 @@ export const GetBallBoiReplayMetadataResponse = zod.object({
     processingError: zod.string().nullish(),
     aiNarrative: zod.string().nullish(),
     metadata: zod
-      .record(zod.string(), zod.unknown())
+      .object({
+        source: zod.string().optional(),
+      })
       .nullish()
       .describe(
-        "What the server keeps about the recording (source, uploads, stat gates, retries)",
+        "Only the keys the phone set when it started the session. The server's own keys (callback token, uploads, stat gates, retries) are never sent.",
       ),
     createdAt: zod.string(),
     updatedAt: zod.string(),

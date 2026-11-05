@@ -29,7 +29,7 @@ export interface BallBoiSession {
   /** @nullable */
   aiNarrative?: string | null;
   /**
-   * What the server keeps about the recording (source, uploads, stat gates, retries)
+   * Only the keys the phone set when it started the session. The server's own keys (callback token, uploads, stat gates, retries) are never sent.
    * @nullable
    */
   metadata?: BallBoiSessionMetadata;

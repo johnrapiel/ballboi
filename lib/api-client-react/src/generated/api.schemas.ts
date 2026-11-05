@@ -1219,10 +1219,12 @@ export interface UpdateMatchBody {
 }
 
 /**
- * What the server keeps about the recording (source, uploads, stat gates, retries)
+ * Only the keys the phone set when it started the session. The server's own keys (callback token, uploads, stat gates, retries) are never sent.
  * @nullable
  */
-export type BallBoiSessionMetadata = { [key: string]: unknown } | null;
+export type BallBoiSessionMetadata = {
+  source?: string;
+} | null;
 
 export interface BallBoiSession {
   id: number;
@@ -1246,7 +1248,7 @@ export interface BallBoiSession {
   /** @nullable */
   aiNarrative?: string | null;
   /**
-   * What the server keeps about the recording (source, uploads, stat gates, retries)
+   * Only the keys the phone set when it started the session. The server's own keys (callback token, uploads, stat gates, retries) are never sent.
    * @nullable
    */
   metadata?: BallBoiSessionMetadata;
@@ -1254,9 +1256,17 @@ export interface BallBoiSession {
   updatedAt: string;
 }
 
-export type StartBallBoiSessionBodyMetadata = { [key: string]: unknown };
+/**
+ * Only source is kept. Any other key is ignored.
+ */
+export type StartBallBoiSessionBodyMetadata = {
+  /** @maxLength 20 */
+  source?: string;
+  [key: string]: unknown;
+};
 
 export interface StartBallBoiSessionBody {
+  /** Only source is kept. Any other key is ignored. */
   metadata?: StartBallBoiSessionBodyMetadata;
   /** When the match was recorded. The session is created when the upload starts, which can be days later. */
   recordedAt?: string;
