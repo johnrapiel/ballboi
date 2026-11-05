@@ -2993,6 +2993,86 @@ paths:
               schema:
                 $ref: "#/components/schemas/BallBoiUploadUrl"
 
+  /ball-boi/sessions/{sessionId}/multipart:
+    post:
+      operationId: startBallBoiMultipartUpload
+      tags: [ball-boi]
+      summary: Start or resume sending one piece of a recording in parts
+      description: >
+        Recordings over 5 GB can't go up in one PUT, so every piece of a
+        recording is sent as a multipart upload. Calling this again for the
+        same piece and size resumes it: the answer lists the parts storage
+        already has.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BallBoiMultipartStartBody"
+      responses:
+        "200":
+          description: The piece's upload and the parts already in storage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BallBoiMultipartUpload"
+
+  /ball-boi/sessions/{sessionId}/multipart/part-url:
+    post:
+      operationId: requestBallBoiUploadPartUrl
+      tags: [ball-boi]
+      summary: Request a presigned upload URL for one part
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BallBoiPartUrlBody"
+      responses:
+        "200":
+          description: Part upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BallBoiPartUrl"
+
+  /ball-boi/sessions/{sessionId}/multipart/complete:
+    post:
+      operationId: completeBallBoiMultipartUpload
+      tags: [ball-boi]
+      summary: Join a piece's parts into one stored video
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BallBoiMultipartCompleteBody"
+      responses:
+        "200":
+          description: The joined video
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BallBoiMultipartComplete"
+
   /ball-boi/sessions/{sessionId}/live-shot:
     post:
       operationId: createBallBoiLiveShot
@@ -6561,6 +6641,111 @@ components:
         metadata:
           type: object
           additionalProperties: true
+        recordedAt:
+          type: string
+          format: date-time
+          description: When the match was recorded. The session is created when the upload starts, which can be days later.
+
+    BallBoiMultipartStartBody:
+      type: object
+      properties:
+        segment:
+          type: integer
+          description: Which piece of the recording, from 0. A call can split a match into pieces.
+        sizeBytes:
+          type: integer
+          format: int64
+      required:
+        - segment
+        - sizeBytes
+
+    BallBoiMultipartUpload:
+      type: object
+      properties:
+        objectPath:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+        partSize:
+          type: integer
+        partCount:
+          type: integer
+        uploadedParts:
+          type: array
+          items:
+            type: integer
+        missingParts:
+          type: array
+          items:
+            type: integer
+        completed:
+          type: boolean
+      required:
+        - objectPath
+        - sizeBytes
+        - partSize
+        - partCount
+        - uploadedParts
+        - missingParts
+        - completed
+
+    BallBoiPartUrlBody:
+      type: object
+      properties:
+        segment:
+          type: integer
+        partNumber:
+          type: integer
+      required:
+        - segment
+        - partNumber
+
+    BallBoiPartUrl:
+      type: object
+      properties:
+        url:
+          type: string
+        partNumber:
+          type: integer
+      required:
+        - url
+        - partNumber
+
+    BallBoiMultipartCompleteBody:
+      type: object
+      properties:
+        segment:
+          type: integer
+      required:
+        - segment
+
+    BallBoiMultipartComplete:
+      type: object
+      properties:
+        objectPath:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+      required:
+        - objectPath
+        - sizeBytes
+
+    BallBoiSessionSegment:
+      type: object
+      properties:
+        objectPath:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+        durationSeconds:
+          type: integer
+      required:
+        - objectPath
+        - sizeBytes
+        - durationSeconds
 
     BallBoiUploadUrl:
       type: object
@@ -6594,6 +6779,11 @@ components:
           type: integer
         durationSeconds:
           type: integer
+        segments:
+          type: array
+          description: Every piece of the recording in order, when it was sent in parts. objectPath is the first.
+          items:
+            $ref: "#/components/schemas/BallBoiSessionSegment"
       required:
         - objectPath
         - contentType

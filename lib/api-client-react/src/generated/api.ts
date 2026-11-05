@@ -30,7 +30,13 @@ import type {
   AvailabilityReminderCooldownResponse,
   AvailabilityReminderResponse,
   BallBoiLiveShotBody,
+  BallBoiMultipartComplete,
+  BallBoiMultipartCompleteBody,
+  BallBoiMultipartStartBody,
+  BallBoiMultipartUpload,
   BallBoiNarrative,
+  BallBoiPartUrl,
+  BallBoiPartUrlBody,
   BallBoiReplay,
   BallBoiReplayMetadata,
   BallBoiSession,
@@ -7736,6 +7742,281 @@ export const useRequestBallBoiUploadUrl = <
   TContext
 > => {
   return useMutation(getRequestBallBoiUploadUrlMutationOptions(options));
+};
+
+/**
+ * Recordings over 5 GB can't go up in one PUT, so every piece of a recording is sent as a multipart upload. Calling this again for the same piece and size resumes it: the answer lists the parts storage already has.
+
+ * @summary Start or resume sending one piece of a recording in parts
+ */
+export const getStartBallBoiMultipartUploadUrl = (sessionId: number) => {
+  return `/api/ball-boi/sessions/${sessionId}/multipart`;
+};
+
+export const startBallBoiMultipartUpload = async (
+  sessionId: number,
+  ballBoiMultipartStartBody: BallBoiMultipartStartBody,
+  options?: RequestInit,
+): Promise<BallBoiMultipartUpload> => {
+  return customFetch<BallBoiMultipartUpload>(
+    getStartBallBoiMultipartUploadUrl(sessionId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(ballBoiMultipartStartBody),
+    },
+  );
+};
+
+export const getStartBallBoiMultipartUploadMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof startBallBoiMultipartUpload>>,
+    TError,
+    { sessionId: number; data: BodyType<BallBoiMultipartStartBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof startBallBoiMultipartUpload>>,
+  TError,
+  { sessionId: number; data: BodyType<BallBoiMultipartStartBody> },
+  TContext
+> => {
+  const mutationKey = ["startBallBoiMultipartUpload"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof startBallBoiMultipartUpload>>,
+    { sessionId: number; data: BodyType<BallBoiMultipartStartBody> }
+  > = (props) => {
+    const { sessionId, data } = props ?? {};
+
+    return startBallBoiMultipartUpload(sessionId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type StartBallBoiMultipartUploadMutationResult = NonNullable<
+  Awaited<ReturnType<typeof startBallBoiMultipartUpload>>
+>;
+export type StartBallBoiMultipartUploadMutationBody =
+  BodyType<BallBoiMultipartStartBody>;
+export type StartBallBoiMultipartUploadMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Start or resume sending one piece of a recording in parts
+ */
+export const useStartBallBoiMultipartUpload = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof startBallBoiMultipartUpload>>,
+    TError,
+    { sessionId: number; data: BodyType<BallBoiMultipartStartBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof startBallBoiMultipartUpload>>,
+  TError,
+  { sessionId: number; data: BodyType<BallBoiMultipartStartBody> },
+  TContext
+> => {
+  return useMutation(getStartBallBoiMultipartUploadMutationOptions(options));
+};
+
+/**
+ * @summary Request a presigned upload URL for one part
+ */
+export const getRequestBallBoiUploadPartUrlUrl = (sessionId: number) => {
+  return `/api/ball-boi/sessions/${sessionId}/multipart/part-url`;
+};
+
+export const requestBallBoiUploadPartUrl = async (
+  sessionId: number,
+  ballBoiPartUrlBody: BallBoiPartUrlBody,
+  options?: RequestInit,
+): Promise<BallBoiPartUrl> => {
+  return customFetch<BallBoiPartUrl>(
+    getRequestBallBoiUploadPartUrlUrl(sessionId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(ballBoiPartUrlBody),
+    },
+  );
+};
+
+export const getRequestBallBoiUploadPartUrlMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestBallBoiUploadPartUrl>>,
+    TError,
+    { sessionId: number; data: BodyType<BallBoiPartUrlBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestBallBoiUploadPartUrl>>,
+  TError,
+  { sessionId: number; data: BodyType<BallBoiPartUrlBody> },
+  TContext
+> => {
+  const mutationKey = ["requestBallBoiUploadPartUrl"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestBallBoiUploadPartUrl>>,
+    { sessionId: number; data: BodyType<BallBoiPartUrlBody> }
+  > = (props) => {
+    const { sessionId, data } = props ?? {};
+
+    return requestBallBoiUploadPartUrl(sessionId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestBallBoiUploadPartUrlMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestBallBoiUploadPartUrl>>
+>;
+export type RequestBallBoiUploadPartUrlMutationBody =
+  BodyType<BallBoiPartUrlBody>;
+export type RequestBallBoiUploadPartUrlMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Request a presigned upload URL for one part
+ */
+export const useRequestBallBoiUploadPartUrl = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestBallBoiUploadPartUrl>>,
+    TError,
+    { sessionId: number; data: BodyType<BallBoiPartUrlBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestBallBoiUploadPartUrl>>,
+  TError,
+  { sessionId: number; data: BodyType<BallBoiPartUrlBody> },
+  TContext
+> => {
+  return useMutation(getRequestBallBoiUploadPartUrlMutationOptions(options));
+};
+
+/**
+ * @summary Join a piece's parts into one stored video
+ */
+export const getCompleteBallBoiMultipartUploadUrl = (sessionId: number) => {
+  return `/api/ball-boi/sessions/${sessionId}/multipart/complete`;
+};
+
+export const completeBallBoiMultipartUpload = async (
+  sessionId: number,
+  ballBoiMultipartCompleteBody: BallBoiMultipartCompleteBody,
+  options?: RequestInit,
+): Promise<BallBoiMultipartComplete> => {
+  return customFetch<BallBoiMultipartComplete>(
+    getCompleteBallBoiMultipartUploadUrl(sessionId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(ballBoiMultipartCompleteBody),
+    },
+  );
+};
+
+export const getCompleteBallBoiMultipartUploadMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeBallBoiMultipartUpload>>,
+    TError,
+    { sessionId: number; data: BodyType<BallBoiMultipartCompleteBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof completeBallBoiMultipartUpload>>,
+  TError,
+  { sessionId: number; data: BodyType<BallBoiMultipartCompleteBody> },
+  TContext
+> => {
+  const mutationKey = ["completeBallBoiMultipartUpload"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof completeBallBoiMultipartUpload>>,
+    { sessionId: number; data: BodyType<BallBoiMultipartCompleteBody> }
+  > = (props) => {
+    const { sessionId, data } = props ?? {};
+
+    return completeBallBoiMultipartUpload(sessionId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CompleteBallBoiMultipartUploadMutationResult = NonNullable<
+  Awaited<ReturnType<typeof completeBallBoiMultipartUpload>>
+>;
+export type CompleteBallBoiMultipartUploadMutationBody =
+  BodyType<BallBoiMultipartCompleteBody>;
+export type CompleteBallBoiMultipartUploadMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Join a piece's parts into one stored video
+ */
+export const useCompleteBallBoiMultipartUpload = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeBallBoiMultipartUpload>>,
+    TError,
+    { sessionId: number; data: BodyType<BallBoiMultipartCompleteBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof completeBallBoiMultipartUpload>>,
+  TError,
+  { sessionId: number; data: BodyType<BallBoiMultipartCompleteBody> },
+  TContext
+> => {
+  return useMutation(getCompleteBallBoiMultipartUploadMutationOptions(options));
 };
 
 /**

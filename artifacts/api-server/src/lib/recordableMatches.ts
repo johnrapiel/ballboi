@@ -178,9 +178,29 @@ export type RecordingStage = "uploading" | "analyzing" | "ready" | "failed";
  * Maps a session's status to the card's stage. "recording" on the server means
  * the phone made the session but the upload hasn't finished.
  */
-export function recordingStage(status: string, processingStatus: string): RecordingStage {
+export function recordingStage(status: string, processingStatus: string, retrying = false): RecordingStage {
   if (status === "completed" || processingStatus === "completed") return "ready";
+  // Failed while the analysis service was down, with a retry still to come: still analyzing.
+  if (retrying) return "analyzing";
   if (status === "failed" || processingStatus === "failed") return "failed";
   if (status === "processing" || processingStatus === "processing") return "analyzing";
   return "uploading";
+}
+
+/** How far back a recording's own date may be (matches the Ball Boi tab's 60 days). */
+const RECORDED_AT_MAX_AGE_MS = 60 * 24 * 60 * 60 * 1000;
+/** Phone clocks drift a little. */
+const RECORDED_AT_MAX_AHEAD_MS = 5 * 60 * 1000;
+
+/**
+ * When the phone says the match was recorded (D19). The phone creates the
+ * server session only when the upload starts, maybe days later on Wi-Fi.
+ * Falls back to now for anything missing, malformed, in the future or too old.
+ */
+export function parseRecordedAt(value: unknown, now: Date): Date {
+  const d = parseWhen(value);
+  if (!d) return now;
+  const t = d.getTime();
+  if (t > now.getTime() + RECORDED_AT_MAX_AHEAD_MS || t < now.getTime() - RECORDED_AT_MAX_AGE_MS) return now;
+  return d;
 }

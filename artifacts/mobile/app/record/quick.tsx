@@ -1,11 +1,16 @@
 // Quick match (spec: Ball Boi > Recording): format first, singles by default,
 // then any opponent. Someone not on Ball Boi becomes a placeholder, and you
 // get a link to send them. Nothing counts toward league standings.
+//
+// Wave 1 review: Record wording throughout (D27); leaving before anything is
+// recorded removes the match, so it doesn't linger under Record a match
+// (Q18); offline says so (D21); a failed player list says so, with Try
+// again (D32).
 
 import { useAuth } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Share, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -13,7 +18,9 @@ import { ChoiceGroup } from "@/components/Choice";
 import { Button, Card, Field, KeyboardScreen, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import {
+  abandonQuickMatch,
   createQuickMatch,
   DOUBLES_MESSAGE,
   useQuickMatchOpponents,
@@ -59,6 +66,18 @@ export default function QuickMatchScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<QuickMatchCreated | null>(null);
+  const [sent, setSent] = useState(false);
+  // The match made here, until the camera opens with it. Leaving before then removes it (Q18).
+  const pending = useRef<number | null>(null);
+  const tokenRef = useRef(getToken);
+  tokenRef.current = getToken;
+
+  useEffect(
+    () => () => {
+      if (pending.current != null) abandonQuickMatch(pending.current, tokenRef.current);
+    },
+    [],
+  );
 
   const ready = format === "singles" && (pick === "new" ? name.trim().length > 0 : pick != null);
 
@@ -71,6 +90,7 @@ export default function QuickMatchScreen() {
         pick === "new" ? { opponentName: name.trim() } : { opponentPlayerId: pick },
         getToken,
       );
+      pending.current = result.matchId;
       if (result.invite) setCreated(result);
       else openCamera(result);
     } catch (e) {
@@ -81,21 +101,25 @@ export default function QuickMatchScreen() {
   }
 
   function openCamera(m: QuickMatchCreated) {
+    // The camera takes it from here; closing the camera unrecorded removes it there.
+    pending.current = null;
     router.replace({ pathname: "/record/[matchId]", params: { matchId: String(m.matchId), opponent: m.opponentName } });
   }
 
   async function shareInvite(m: QuickMatchCreated) {
     if (!m.invite) return;
     try {
-      await Share.share({
+      const result = await Share.share({
         message: `I'm recording our match with Ball Boi. Join to see your stats and replay: ${m.invite.url}`,
       });
+      if (result.action === Share.sharedAction) setSent(true);
     } catch {
       // Closing the share sheet is fine.
     }
   }
 
-  // After creating a match with someone not on Ball Boi: send them the link, then record.
+  // After creating a match with someone not on Ball Boi: send them the link,
+  // then record. The main button is always the next step (D27).
   if (created?.invite) {
     return (
       <View style={{ flex: 1, backgroundColor: c.paper, padding: spacing.space4, paddingBottom: insets.bottom + spacing.space4, gap: spacing.space4 }}>
@@ -107,8 +131,17 @@ export default function QuickMatchScreen() {
           join. Until then, it doesn't count toward any standings and isn't used for training.
         </Text>
         <View style={{ flex: 1 }} />
-        <Button label="Send invite" onPress={() => shareInvite(created)} />
-        <Button variant="secondary" label="Record now" onPress={() => openCamera(created)} />
+        {sent ? (
+          <>
+            <Button label="Record" onPress={() => openCamera(created)} />
+            <Button variant="secondary" label="Send invite again" onPress={() => shareInvite(created)} />
+          </>
+        ) : (
+          <>
+            <Button label="Send invite" onPress={() => shareInvite(created)} />
+            <Button variant="secondary" label="Record without sending" onPress={() => openCamera(created)} />
+          </>
+        )}
       </View>
     );
   }
@@ -145,6 +178,19 @@ export default function QuickMatchScreen() {
               Opponent
             </Text>
             {opponents.isLoading ? <ActivityIndicator color={c.ink} accessibilityLabel="Loading players" /> : null}
+            {opponents.isError ? (
+              <Card style={{ gap: spacing.space3 }}>
+                <Text accessibilityRole="alert">
+                  {isOfflineError(opponents.error) ? OFFLINE_MESSAGE : "Couldn't load your players."}
+                </Text>
+                <Button
+                  variant="secondary"
+                  label="Try again"
+                  loading={opponents.isRefetching}
+                  onPress={() => opponents.refetch()}
+                />
+              </Card>
+            ) : null}
             <View accessibilityRole="radiogroup" accessibilityLabel="Opponent">
               {(opponents.data ?? []).map((o) => (
                 <OptionRow key={o.playerId} label={o.name} selected={pick === o.playerId} onPress={() => setPick(o.playerId)} />
@@ -173,7 +219,7 @@ export default function QuickMatchScreen() {
         ) : null}
       </ScrollView>
       <View style={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space3, paddingBottom: insets.bottom + spacing.space4, backgroundColor: c.paper }}>
-        <Button label="Start recording" onPress={start} disabled={!ready} loading={saving} />
+        <Button label="Record" onPress={start} disabled={!ready} loading={saving} />
       </View>
     </KeyboardScreen>
   );

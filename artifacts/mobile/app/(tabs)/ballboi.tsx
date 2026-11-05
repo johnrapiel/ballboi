@@ -9,8 +9,9 @@ import { TabScreen } from "@/components/TabHeader";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { useServerRecordings, useTodaysMatches } from "@/lib/recording/api";
-import { useQueue } from "@/lib/recording/queue";
+import { useQueue, useQueueLoaded } from "@/lib/recording/queue";
 import { openRecorder } from "@/lib/recording/start";
 
 // Ball Boi tab (spec: Navigation, Ball Boi > Recording).
@@ -20,12 +21,18 @@ export default function BallBoiScreen() {
   const c = useColors();
   const router = useRouter();
   const today = useTodaysMatches();
-  const matches = today.data ?? [];
   const queued = useQueue();
+  const queueLoaded = useQueueLoaded();
+  // A Quick match already recorded on this phone isn't one to record any more (D6, Q18).
+  const recordedHere = new Set(queued.map((r) => r.matchId));
+  const matches = (today.data ?? []).filter((m) => m.leagueId != null || !recordedHere.has(m.id));
   const server = useServerRecordings();
   // A recording mid-upload can be in both lists; the phone's copy wins.
   const onPhone = new Set(queued.map((r) => r.sessionId).filter((id) => id != null));
   const onServer = (server.data ?? []).filter((r) => !onPhone.has(r.sessionId));
+  // Still waiting for its video, recorded by you, and not on this phone: it
+  // can't upload any more, as after a reinstall (D18).
+  const lost = (r: (typeof onServer)[number]) => queueLoaded && r.recordedByYou && r.stage === "uploading";
   const refreshing = today.isRefetching || server.isRefetching;
 
   const refresh = () => {
@@ -50,7 +57,9 @@ export default function BallBoiScreen() {
             <ActivityIndicator color={c.ink} accessibilityLabel="Loading your matches" />
           ) : today.isError ? (
             <Card style={{ gap: spacing.space3 }}>
-              <Text>Couldn't load your matches.</Text>
+              <Text accessibilityRole="alert">
+                {isOfflineError(today.error) ? OFFLINE_MESSAGE : "Couldn't load your matches."}
+              </Text>
               <Button variant="secondary" label="Try again" onPress={() => today.refetch()} />
             </Card>
           ) : matches.length === 0 ? (
@@ -80,7 +89,7 @@ export default function BallBoiScreen() {
           </Card>
         </View>
 
-        {queued.length > 0 || onServer.length > 0 ? (
+        {queued.length > 0 || onServer.length > 0 || server.isError ? (
           <View style={{ gap: spacing.space3 }}>
             <Text variant="label" accessibilityRole="header">
               Your recordings
@@ -88,9 +97,22 @@ export default function BallBoiScreen() {
             {[...queued].reverse().map((r) => (
               <LocalProcessingCard key={r.id} rec={r} />
             ))}
-            {onServer.map((r) => (
-              <ServerProcessingCard key={r.sessionId} rec={r} />
-            ))}
+            {server.isError ? (
+              // D32: never fail quietly.
+              <Card style={{ gap: spacing.space3 }}>
+                <Text accessibilityRole="alert">
+                  {isOfflineError(server.error) ? OFFLINE_MESSAGE : "Couldn't load your recordings."}
+                </Text>
+                <Button
+                  variant="secondary"
+                  label="Try again"
+                  loading={server.isRefetching}
+                  onPress={() => server.refetch()}
+                />
+              </Card>
+            ) : (
+              onServer.map((r) => <ServerProcessingCard key={r.sessionId} rec={r} lost={lost(r)} />)
+            )}
           </View>
         ) : null}
       </ScrollView>

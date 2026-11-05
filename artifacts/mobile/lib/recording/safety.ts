@@ -6,10 +6,9 @@ import * as Battery from "expo-battery";
 import { useEffect, useRef } from "react";
 
 import { freeDiskBytes } from "@/lib/recording/files";
+import { batteryTooLow } from "@/lib/recording/limits";
 
 export const MAX_RECORDING_SECONDS = 4 * 60 * 60;
-/** Stop below this charge, unless the phone is plugged in. */
-export const LOW_BATTERY = 0.1;
 /** Stop below this much free space, leaving room to finish writing the file (about 15 minutes of 720p). */
 export const LOW_STORAGE_BYTES = 1 * 1024 ** 3;
 /** Don't start with less than this free, in GB: about 30 minutes of 720p video, plus room to finish the file. */
@@ -29,8 +28,8 @@ export async function checkLimits(): Promise<"battery" | "storage" | null> {
   try {
     const [level, state] = await Promise.all([Battery.getBatteryLevelAsync(), Battery.getBatteryStateAsync()]);
     const charging = state === Battery.BatteryState.CHARGING || state === Battery.BatteryState.FULL;
-    // -1 means the level isn't known (simulator); never stop on that.
-    if (!charging && level >= 0 && level <= LOW_BATTERY) return "battery";
+    // Same rule as starting (under 10%, unplugged), so a match started at 10% isn't stopped straight away.
+    if (batteryTooLow(level, charging)) return "battery";
   } catch {
     // Unknown battery: keep recording.
   }
@@ -40,6 +39,17 @@ export async function checkLimits(): Promise<"battery" | "storage" | null> {
     // Unknown storage: keep recording.
   }
   return null;
+}
+
+/** True when the battery is too low to start: under 10% and not plugged in (D14). Unknown never blocks. */
+export async function batteryBlocksStart(): Promise<boolean> {
+  try {
+    const [level, state] = await Promise.all([Battery.getBatteryLevelAsync(), Battery.getBatteryStateAsync()]);
+    const pluggedIn = state === Battery.BatteryState.CHARGING || state === Battery.BatteryState.FULL;
+    return batteryTooLow(level, pluggedIn);
+  } catch {
+    return false;
+  }
 }
 
 /** True when there's room to start a recording. */

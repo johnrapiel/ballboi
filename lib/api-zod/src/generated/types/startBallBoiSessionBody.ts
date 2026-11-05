@@ -9,4 +9,6 @@ import type { StartBallBoiSessionBodyMetadata } from "./startBallBoiSessionBodyM
 
 export interface StartBallBoiSessionBody {
   metadata?: StartBallBoiSessionBodyMetadata;
+  /** When the match was recorded. The session is created when the upload starts, which can be days later. */
+  recordedAt?: Date;
 }
