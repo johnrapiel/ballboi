@@ -6,13 +6,8 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "ballboi",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/roundel.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#E2CEB0"
-    },
     "ios": {
       "bundleIdentifier": "tennis.ballboi",
       "supportsTablet": false,
@@ -111,6 +106,15 @@
     "plugins": [
       "expo-router",
       "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/roundel-ink.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#ECDFC8"
+        }
+      ],
       "expo-web-browser",
       "expo-secure-store",
       "@clerk/expo",

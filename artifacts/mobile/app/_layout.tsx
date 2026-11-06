@@ -33,6 +33,7 @@ import { accountStatusKey } from "@/hooks/useAccountStatus";
 import { useColors } from "@/hooks/useColors";
 import { useGate } from "@/hooks/useGate";
 import { checkForAccountBlock, onAccountBlocked } from "@/lib/accountBlocked";
+import { setAppAppearance } from "@/lib/appearance";
 import { gateRedirect, type PendingLink } from "@/lib/gate";
 import { savePendingJoinCode } from "@/lib/leagueInvite";
 import { savePendingInvite } from "@/lib/recording/pendingInvite";
@@ -44,6 +45,8 @@ if (apiUrl) setBaseUrl(apiUrl);
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 
 SplashScreen.preventAutoHideAsync();
+// Light by default, whatever the iPhone's appearance (finding #3).
+setAppAppearance();
 
 // Any request refused because the account is banned or suspended rechecks the
 // account, and the gate shows the blocked screen (Wave 1 review A7).
