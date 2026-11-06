@@ -5,7 +5,8 @@ import { getMessagingService } from "../messaging";
 import { MessagingError, type MessagingService } from "../messaging/service";
 import { logger } from "../lib/logger";
 
-// Direct messages and Message Requests. Spec: Messaging and moderation.
+// Direct messages. Spec: Messaging and moderation. There are no Message
+// Requests (finding 17): every message goes straight to the inbox.
 // The app talks only to these routes; the provider behind them can change.
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -45,9 +46,9 @@ export function createMessagesRouter(getService: () => MessagingService = getMes
   router.get(
     "/messages",
     requireAuth,
-    handle(async (svc, me, req, res) => {
-      const box = req.query.box === "requests" ? "requests" : "messages";
-      const [conversations, summary] = await Promise.all([svc.list(me, box), svc.summary(me)]);
+    // An older app may still ask for ?box=requests; there's one inbox now.
+    handle(async (svc, me, _req, res) => {
+      const [conversations, summary] = await Promise.all([svc.list(me), svc.summary(me)]);
       res.json({ conversations, ...summary });
     }),
   );
@@ -101,15 +102,6 @@ export function createMessagesRouter(getService: () => MessagingService = getMes
     handle(async (svc, me, req, res) => {
       const body = (req.body ?? {}) as Record<string, unknown>;
       res.status(201).json(await svc.send(me, idParam(req), { text: body.text, clientMessageId: body.clientMessageId }));
-    }),
-  );
-
-  router.post(
-    "/messages/:id/decline",
-    requireAuth,
-    handle(async (svc, me, req, res) => {
-      await svc.decline(me, idParam(req));
-      res.status(204).end();
     }),
   );
 

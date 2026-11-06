@@ -110,9 +110,25 @@ The paper grain is retired (John, Nov 6): on ivory and charcoal it reads as dirt
 - Spacing steps: 4, 8, 12, 16, 24, 32, 48. Page gutter `space-4` on phones, `space-6` up.
 - Touch targets: 44px minimum.
 
+## Bottom sheets
+
+One rule for every bottom sheet (John, Nov 6), like the approved Enter score sheet:
+
+- The sheet hugs its content and grows with larger text. It only scrolls when the content is taller than the screen.
+- No Cancel button. Drag down to close. If you changed something, closing asks before it discards your changes ("Discard changes?" with Keep editing and a red Discard). The VoiceOver escape gesture (two-finger Z) closes it the same way.
+- A left-aligned `brushM` title sits under the grabber, read by VoiceOver as the header.
+- The primary action is the last thing in the sheet, full width.
+- Sheets sit on `linen` with the `radius-lg` corner and the system grabber.
+
+In the app, `components/Sheet.tsx` (`SheetBody`) does all of this; sheet routes use the `sheet` options in `app/_layout.tsx`.
+
 ## Iconography
 
+<<<<<<< ours
 The tab bar uses the custom brush icon set John approved (Nov 5): hand-drawn Home, Leagues, Discover and Profile in `ink-muted`, with the selected tab filled with the painted ball's paint under an `ink` outline. Ball Boi keeps the logo ball. They're in the Icons group below; the app repo keeps the source SVGs in `docs/design-system/icons` and draws its Day and Night PNGs with `scripts/design/tab-icons.py`. Everywhere else: thin 1.5px line icons, round caps, drawn in `ink`. Lucide at stroke-width 1.5 is a good match. No duotone icons, no emoji in UI.
+=======
+The tab bar uses the custom brush icon set John approved (Nov 5): hand-drawn Home, Leagues, Discover and Profile in `ink-muted`, with the selected tab filled with the painted ball's paint under an `ink` outline. Ball Boi keeps the logo ball and follows the same rule (Nov 6): its strokes in `ink-muted` with no fill when unselected, filled with its paint under `ink` strokes only when selected. Sources are in `docs/design-system/icons`, and `scripts/design/tab-icons.py` draws the app's Day and Night PNGs from them. Everywhere else: thin 1.5px line icons, round caps, drawn in `ink`. Lucide at stroke-width 1.5 is a good match. No duotone icons, no emoji in UI.
+>>>>>>> theirs
 
 ## Logo
 

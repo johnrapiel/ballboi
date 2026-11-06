@@ -1,15 +1,17 @@
-// Report and block a player, from any screen that shows one.
+// Report a player, with block inside it, from any screen that shows one.
 // Spec: Messaging and moderation ("Report and block on every message",
 // "Block stops DMs both ways and hides both players from each other in search
-// and pairings"). App Store guideline 1.2.
+// and pairings"). App Store guideline 1.2: a way to report, and a way to
+// block, abusive users. Since Nov 6 (finding 20) block lives inside Report.
 //
-// Standard iOS pattern: a native action sheet, then a native alert to confirm
-// a block. Call `open(player)` from a "More" (ellipsis) button with
-// accessibilityLabel "More options for <name>", or from a long-press menu.
-// Plug in as screens land: player card, Discover results, message threads.
+// Call `open(player)` from a "More" (ellipsis) button with accessibilityLabel
+// "More options for <name>", or from a long-press menu. Plug in as screens
+// land: player card, Discover results, message threads.
 
 import { useAuth } from "@clerk/expo";
-import { ActionSheetIOS, Alert, Platform } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
+import { AccessibilityInfo, Alert } from "react-native";
 
 import { apiErrorMessage, apiFetch } from "@/lib/api";
 
@@ -31,85 +33,67 @@ export const REPORT_REASONS = [
 export type ReportReasonCode = (typeof REPORT_REASONS)[number]["code"];
 
 // What blocking really does, messages first, in the same words everywhere
-// (block confirm, after blocking, Blocked players, unblock confirm). Blocks
+// (the Report sheet's checkbox, after blocking, the unblock confirm). Blocks
 // apply to messages both ways, Quick match opponents and Flex pairing; keep
 // this in step with the server if that changes (Round robin is next).
 export const BLOCK_EFFECTS = "You can't message each other, they don't show up as a Quick match opponent, and Flex leagues won't pair you.";
 export const UNBLOCK_EFFECTS =
   "You'll be able to message each other again, they can show up as a Quick match opponent, and Flex leagues can pair you.";
 
-/** Native action sheet on iOS; an Alert with buttons as the Android fallback. */
-function choose(title: string, options: string[], destructiveIndex: number | undefined, onPick: (i: number) => void) {
-  if (Platform.OS === "ios") {
-    ActionSheetIOS.showActionSheetWithOptions(
-      { title, options: [...options, "Cancel"], cancelButtonIndex: options.length, destructiveButtonIndex: destructiveIndex },
-      (i) => {
-        if (i < options.length) onPick(i);
-      },
-    );
-    return;
-  }
-  Alert.alert(title, undefined, [
-    ...options.map((o, i) => ({ text: o, onPress: () => onPick(i), style: i === destructiveIndex ? ("destructive" as const) : undefined })),
-    { text: "Cancel", style: "cancel" as const },
-  ]);
+export interface ReportTarget {
+  /** Reporting one message in a conversation; otherwise the player. */
+  conversationId?: number;
+  messageId?: string;
 }
 
-export function useReportBlock(opts: { onBlocked?: (player: ReportablePlayer) => void } = {}) {
+/**
+ * Report, with block inside it (John, Nov 6, finding 20). Report is the only
+ * action anywhere a player shows: it opens the Report sheet
+ * (app/report/[playerId].tsx), which has an "Also block [name]" checkbox.
+ * There's no separate Block action. A blocked chat shows Unblock, which is
+ * `unblock` here.
+ */
+export function useReportBlock() {
+  const router = useRouter();
   const { getToken } = useAuth();
-  const { onBlocked } = opts;
+  const queryClient = useQueryClient();
 
-  function report(player: ReportablePlayer, reason: ReportReasonCode) {
-    apiFetch("/api/reports", getToken, {
-      method: "POST",
-      body: JSON.stringify({ targetType: "player", targetId: player.id, reason }),
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new Error(await apiErrorMessage(res, "We couldn't send your report. Try again."));
-        Alert.alert("Report sent", "Thanks for letting us know. We review every report within 24 hours.", [
-          { text: "OK" },
-          { text: `Block ${player.name}`, style: "destructive", onPress: () => confirmBlock(player) },
-        ]);
-      })
-      .catch((e: Error) => Alert.alert("Report not sent", e.message || "Check your connection and try again."));
+  /** Opens the Report sheet for a player, or for one of their messages. */
+  function open(player: ReportablePlayer, target: ReportTarget = {}) {
+    router.push({
+      pathname: "/report/[playerId]",
+      params: {
+        playerId: String(player.id),
+        name: player.name,
+        ...(target.conversationId != null ? { conversationId: String(target.conversationId) } : {}),
+        ...(target.messageId ? { messageId: target.messageId } : {}),
+      },
+    });
   }
 
-  function block(player: ReportablePlayer) {
-    apiFetch(`/api/players/${player.id}/block`, getToken, { method: "POST" })
-      .then(async (res) => {
-        if (!res.ok) throw new Error(await apiErrorMessage(res, "We couldn't block this player. Try again."));
-        onBlocked?.(player);
-        Alert.alert(`${player.name} is blocked`, BLOCK_EFFECTS);
-      })
-      .catch((e: Error) => Alert.alert("Not blocked", e.message || "Check your connection and try again."));
+  /** Asks, then unblocks. Resolves true when it's done. */
+  function unblock(player: ReportablePlayer): Promise<boolean> {
+    return new Promise((resolve) => {
+      Alert.alert(`Unblock ${player.name}?`, UNBLOCK_EFFECTS, [
+        { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+        {
+          text: "Unblock",
+          onPress: () =>
+            apiFetch(`/api/players/${player.id}/block`, getToken, { method: "DELETE" })
+              .then(async (res) => {
+                if (!res.ok) throw new Error(await apiErrorMessage(res, "We couldn't unblock this player. Try again."));
+                await queryClient.invalidateQueries({ queryKey: ["messages"] });
+                AccessibilityInfo.announceForAccessibility(`${player.name} is unblocked`);
+                resolve(true);
+              })
+              .catch((e: Error) => {
+                Alert.alert("Not unblocked", e.message || "Check your connection and try again.");
+                resolve(false);
+              }),
+        },
+      ]);
+    });
   }
 
-  function confirmBlock(player: ReportablePlayer) {
-    Alert.alert(
-      `Block ${player.name}?`,
-      `${BLOCK_EFFECTS} They aren't told.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Block", style: "destructive", onPress: () => block(player) },
-      ],
-    );
-  }
-
-  function chooseReason(player: ReportablePlayer) {
-    choose(
-      `Why are you reporting ${player.name}?`,
-      REPORT_REASONS.map((r) => r.label),
-      undefined,
-      (i) => report(player, REPORT_REASONS[i].code),
-    );
-  }
-
-  /** Shows "Report <name>" and "Block <name>". */
-  function open(player: ReportablePlayer) {
-    choose(player.name, [`Report ${player.name}`, `Block ${player.name}`], 1, (i) =>
-      i === 0 ? chooseReason(player) : confirmBlock(player),
-    );
-  }
-
-  return { open, report: chooseReason, block: confirmBlock };
+  return { open, report: open, unblock };
 }

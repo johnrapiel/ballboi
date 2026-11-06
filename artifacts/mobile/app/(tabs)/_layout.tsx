@@ -20,7 +20,8 @@ import { useUploadRunner } from "@/lib/recording/uploader";
 // in their own colors for Day and Night, so the system never tints them; the
 // label's weight and the system's selected state carry "selected" for
 // VoiceOver. Source SVGs live in docs/design-system/icons and the PNGs come
-// from scripts/design/tab-icons.py. Ball Boi keeps the logo ball.
+// from scripts/design/tab-icons.py. Ball Boi keeps the logo ball, drawn
+// the same way: muted when unselected, painted when selected.
 type TabIcons = { off: ImageSourcePropType; on: ImageSourcePropType };
 const TABS: {
   name: string;
@@ -43,12 +44,16 @@ const TABS: {
       on: require("@/assets/images/tabs/tab-leagues-on-dark.png"),
     },
   },
-  // The hand-painted ball from the logo and ballboi.tennis, in its own colors.
+  // The logo ball, by the same rule as the others (finding 13): muted ink
+  // strokes when unselected, filled with its paint only when selected.
   {
     name: "ballboi",
     label: "Ball Boi",
-    day: { off: require("@/assets/images/tab-ballboi.png"), on: require("@/assets/images/tab-ballboi.png") },
-    night: { off: require("@/assets/images/tab-ballboi.png"), on: require("@/assets/images/tab-ballboi.png") },
+    day: { off: require("@/assets/images/tabs/tab-ballboi.png"), on: require("@/assets/images/tabs/tab-ballboi-on.png") },
+    night: {
+      off: require("@/assets/images/tabs/tab-ballboi-dark.png"),
+      on: require("@/assets/images/tabs/tab-ballboi-on-dark.png"),
+    },
   },
   {
     name: "discover",

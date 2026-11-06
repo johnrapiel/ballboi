@@ -16,6 +16,18 @@ describe("first-message filter: links", () => {
   });
 });
 
+describe("first-message filter: email addresses (finding 17)", () => {
+  it.each(["write me at sam@example.com", "sam.lee+tennis@mail.co.uk", "sam (at) example (dot) com", "sam at example dot com"])("blocks %s", (text) => {
+    expect(filter.check(text)).toEqual({ ok: false, reason: "email" });
+  });
+
+  it("lets ordinary sentences with 'at' through", () => {
+    for (const text of ["See you at Beacon Courts", "Meet at court 3 at 9?"]) {
+      expect(filter.check(text)).toEqual({ ok: true });
+    }
+  });
+});
+
 describe("first-message filter: phone numbers", () => {
   it.each(["call 555-123-4567", "(555) 123 4567", "text me 555.123.4567", "+1 555 123 4567", "+44 20 7946 0958", "5551234567", "123-4567"])(
     "blocks %s",

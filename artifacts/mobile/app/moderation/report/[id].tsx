@@ -101,7 +101,7 @@ export default function ReportScreen() {
   const restrict = () =>
     Alert.alert(
       `Restrict ${who}?`,
-      "They can't start new conversations and their pending Message Requests are hidden, until you lift it.",
+      "They can't start new conversations until you lift it.",
       [
         { text: "Cancel", style: "cancel" },
         { text: "Restrict", style: "destructive", onPress: () => act("restrict", () => actions.restrict(subject!, reasonForRecord, r.id), `${who} is restricted.`) },
