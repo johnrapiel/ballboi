@@ -65,6 +65,7 @@ export const spacing = {
 export const radius = {
   "radiusSm": 4,
   "radiusMd": 10,
+  "radiusCard": 16,
   "radiusLg": 18,
   "radiusPill": 999
 } as const;
@@ -74,6 +75,11 @@ export const type = {
     "fontFamily": "NanumBrushScript_400Regular",
     "fontSize": 48,
     "lineHeight": 52
+  },
+  "brushM": {
+    "fontFamily": "NanumBrushScript_400Regular",
+    "fontSize": 40,
+    "lineHeight": 44
   },
   "displayXl": {
     "fontFamily": "CormorantGaramond_500Medium",
@@ -88,8 +94,8 @@ export const type = {
   },
   "title": {
     "fontFamily": "CormorantGaramond_600SemiBold",
-    "fontSize": 28,
-    "lineHeight": 32
+    "fontSize": 26,
+    "lineHeight": 30
   },
   "titleItalic": {
     "fontFamily": "CormorantGaramond_500Medium_Italic",
@@ -100,6 +106,15 @@ export const type = {
     "fontFamily": "CormorantGaramond_600SemiBold",
     "fontSize": 44,
     "lineHeight": 44,
+    "fontVariant": [
+      "lining-nums",
+      "tabular-nums"
+    ]
+  },
+  "scoreRow": {
+    "fontFamily": "CormorantGaramond_600SemiBold",
+    "fontSize": 30,
+    "lineHeight": 34,
     "fontVariant": [
       "lining-nums",
       "tabular-nums"
@@ -120,6 +135,11 @@ export const type = {
     "fontSize": 15,
     "lineHeight": 20
   },
+  "section": {
+    "fontFamily": "DMSans_600SemiBold",
+    "fontSize": 13,
+    "lineHeight": 18
+  },
   "label": {
     "fontFamily": "DMSans_600SemiBold",
     "fontSize": 11,
@@ -139,6 +159,16 @@ export const type = {
     "fontSize": 16,
     "lineHeight": 22,
     "letterSpacing": 0.32
+  },
+  "pill": {
+    "fontFamily": "DMSans_500Medium",
+    "fontSize": 13,
+    "lineHeight": 17
+  },
+  "segment": {
+    "fontFamily": "DMSans_600SemiBold",
+    "fontSize": 13,
+    "lineHeight": 16
   }
 } satisfies Record<string, TextStyle>;
 
@@ -147,11 +177,13 @@ export type TypeStyle = keyof typeof type;
 /** Largest Dynamic Type multiplier per style. Styles not listed scale fully. */
 export const maxScale: Partial<Record<TypeStyle, number>> = {
   "brushL": 1.5,
+  "brushM": 1.5,
   "displayXl": 1.5,
   "displayL": 1.5,
   "title": 1.5,
   "titleItalic": 1.5,
-  "score": 1.5
+  "score": 1.5,
+  "scoreRow": 1.5
 };
 
 /** The face one step heavier than each loaded face (Bold Text, Night display). */

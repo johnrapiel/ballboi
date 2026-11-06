@@ -63,7 +63,7 @@ const PAIRS = [
 // [color a, color b, phrase the README must contain, why]
 const CUES = [
   ["court", "ink", "Underlined (`TextLink`)", "links inside ink text"],
-  ["court", "danger", "A cross, and the word", "wins vs errors (a red-green pair)"],
+  ["court", "danger", "The word or letter", "wins vs errors (a red-green pair): W and L, or Won and a cross"],
 ];
 
 const themes = tokens.color.themes.map((t) => t.id);
