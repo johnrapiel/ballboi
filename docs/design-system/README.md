@@ -44,7 +44,7 @@ The italic display style (`title-italic`) is the quiet flourish. Use it for one 
 
 Night session (dark) inverts to harbor navy with cream ink. Same rules apply. Every text pair clears 4.5:1 in both themes. `court` and `danger` are text-safe on `paper`, `linen` and `sand`.
 
-Retired in this refresh: `pool` (teal), `clay` (terracotta) and `sun` (yellow). Live matches move to `court`, links and wins to `court`, the focus ring to `ink`. Two exceptions John approved (Nov 5): Ball Boi Replay and Replay stats keep the original camera court, with the teal court from above, winners in `pool` or `court`, the ball in yellow and errors in `clay`, each with its own shape; and the Rec pill on the recording screen stays clay. Nowhere else uses them.
+Retired in this refresh: `pool` (teal), `clay` (terracotta) and `sun` (yellow). Live matches move to `court`, links and wins to `court`, the focus ring to `ink`. Two exceptions John approved (Nov 5) and kept as rules (Nov 6): Ball Boi Replay and Replay stats keep the original camera court, with the teal court from above, winners in `pool` or `court`, the ball in yellow and errors in `clay`, each with its own shape; and the Rec pill on the recording screen stays clay. Nowhere else uses them.
 
 ### Every color job has a shape
 
@@ -65,7 +65,7 @@ When iOS Increase Contrast is on, `ink-muted`, `hairline` and `hairline-strong` 
 
 ## Type
 
-- **Brush:** Nanum Brush Script 400. `brush-l` (48px) for tab headers and big screen titles: onboarding step titles, milestone titles, sheet titles like Enter score. `brush-m` (40px) for the page title on a pushed detail screen (a league, a player, Messages, Invite players), under its back button. It echoes the roundel's tall, upright lettering. Never below 28px. Never for buttons, body, scores, or the small title in a top bar (that stays DM Sans 600).
+- **Brush:** Nanum Brush Script 400. `brush-l` (48px) for tab headers and big screen titles: onboarding step titles, milestone titles, sheet titles like Enter score. `brush-m` (40px) for the page title on a pushed detail screen (a league, a player, Messages, Invite players), under its back button (John, Nov 6). It echoes the roundel's tall, upright lettering. Never below 28px. Never for buttons, body, scores, or the small title in a top bar (that stays DM Sans 600).
 - **Display:** Cormorant Garamond 500/600, italic 500. Upright `title` (26px) for section headings and card titles, `score` (44px) for hero scores, `score-row` (30px) for set scores in cards and grids and big stat values. Rank numerals and records in tables sit at 22px. Italic only for the quiet flourish, seeds in the bracket and Champion. Never below 20px: its hairline strokes vanish at small sizes.
 - **Text:** DM Sans 400/600. Body, buttons, labels.
 - **Body is 17px**, the iOS body size. Small is 15px, buttons 16px.
@@ -73,7 +73,7 @@ When iOS Increase Contrast is on, `ink-muted`, `hairline` and `hairline-strong` 
 - **Section labels** over a list or a group (Next match, Past leagues, Your rank) are `section`: 13px DM Sans 600, sentence case, `ink-muted`. They replace the uppercase eyebrows on the approved screens.
 - **Labels** are 11px uppercase with 0.16em tracking: the heritage tag on a racquet throat. 11px is the iOS floor, so they're for the rare eyebrow and table header only.
 - **Pills and chips.** Plain pills (level, hand, format, status words like Active and Done) are `pill`: 13px DM Sans 500, sentence case, outline only in `hairline-strong`, never filled. A level is the plain number, "3.5", with no Self-rated label until a verified source exists. Only You, Live and Rec stay filled, in the uppercase 12px `chip` style.
-- **Segmented controls** use the iOS native size: a `sand` track with 2px padding and a 9px corner, 32pt segments in `segment` (13px DM Sans 600), the selected one on `linen` with a soft shadow. Each segment keeps a 44pt hit area.
+- **Segmented controls** use the iOS native size: a `sand` track with 2px padding and a 9px corner, 32pt segments in `segment` (13px DM Sans 600), the selected one on `linen` with a soft shadow. Each segment keeps a 44pt hit area, so the 44pt touch rule still holds (John, Nov 6).
 - The roundel itself is never retyped in the brush font. Its lettering is hand-painted and lives only in the image.
 
 ### Dynamic Type and display settings
@@ -101,7 +101,7 @@ The replay and stats stay inside the one-ink palette. No literal grass green, no
 Pick one per screen. Brush headers are type, not a motif, so a screen with a brush header can still use one of these.
 
 1. **Brush ring.** The logo's hand-drawn circle, wrapped around the single thing that matters: the match winner on a score card (instead of a Won pill), your rank in standings, Champion in the bracket.
-2. **Painted ball.** The app icon's hand-painted ball, in `ink` on paper or `on-ink` on an ink field. One, large, in a hero, the splash or a celebration. Never as a repeating pattern. Its paint fills the selected tab's brush icon (John, Nov 5); that's the only place it appears in color, and the tab bar doesn't count toward a screen's one motif.
+2. **Painted ball.** The app icon's hand-painted ball, in `ink` on paper or `on-ink` on an ink field. One, large, in a hero, the splash or a celebration. Never as a repeating pattern. Its paint fills the selected tab's brush icon (John, Nov 5, kept as a rule Nov 6); that's the only place it appears in color, and the tab bar doesn't count toward a screen's one motif.
 3. **Roundel.** The logo itself, cropped to its circle, in the places listed under Logo. Decorative to VoiceOver.
 4. **Paper grain.** `.bb-grain` on the page ground only. Never on cards.
 
