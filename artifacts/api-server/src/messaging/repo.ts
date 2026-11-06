@@ -48,6 +48,8 @@ export interface MessagingRepo {
   areConnected(a: string, b: string): Promise<boolean>;
   /** Accounts hidden from this person, whichever side blocked. */
   blockedSetFor(userId: string): Promise<Set<string>>;
+  /** Accounts this person blocked (their chats stay, with Unblock). */
+  blockedByMe(userId: string): Promise<Set<string>>;
   /** Accounts that can't start new conversations right now (restricted by a moderator or the agent, banned or suspended). */
   restrictedSet(userIds: string[]): Promise<Set<string>>;
   people(userIds: string[]): Promise<Map<string, PersonSummary>>;

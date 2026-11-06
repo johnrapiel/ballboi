@@ -79,7 +79,6 @@ import type {
   GetAppealsParams,
   GetConversationParams,
   GetConversationWithPlayer200,
-  GetConversationsParams,
   GetHeadToHeadParams,
   GetLeagueStandingsParams,
   GetLeaguesParams,
@@ -11777,62 +11776,43 @@ export const useAppealSanction = <
 };
 
 /**
- * @summary The inbox or the requests box, with unread and request counts
+ * @summary The inbox, with the unread count. There are no Message Requests (Nov 6); every message lands here.
  */
-export const getGetConversationsUrl = (params?: GetConversationsParams) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/messages?${stringifiedParams}`
-    : `/api/messages`;
+export const getGetConversationsUrl = () => {
+  return `/api/messages`;
 };
 
 export const getConversations = async (
-  params?: GetConversationsParams,
   options?: RequestInit,
 ): Promise<ConversationList> => {
-  return customFetch<ConversationList>(getGetConversationsUrl(params), {
+  return customFetch<ConversationList>(getGetConversationsUrl(), {
     ...options,
     method: "GET",
   });
 };
 
-export const getGetConversationsQueryKey = (
-  params?: GetConversationsParams,
-) => {
-  return [`/api/messages`, ...(params ? [params] : [])] as const;
+export const getGetConversationsQueryKey = () => {
+  return [`/api/messages`] as const;
 };
 
 export const getGetConversationsQueryOptions = <
   TData = Awaited<ReturnType<typeof getConversations>>,
   TError = ErrorType<ErrorResponse>,
->(
-  params?: GetConversationsParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getConversations>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getConversations>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ?? getGetConversationsQueryKey(params);
+  const queryKey = queryOptions?.queryKey ?? getGetConversationsQueryKey();
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof getConversations>>
-  > = ({ signal }) => getConversations(params, { signal, ...requestOptions });
+  > = ({ signal }) => getConversations({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getConversations>>,
@@ -11847,24 +11827,21 @@ export type GetConversationsQueryResult = NonNullable<
 export type GetConversationsQueryError = ErrorType<ErrorResponse>;
 
 /**
- * @summary The inbox or the requests box, with unread and request counts
+ * @summary The inbox, with the unread count. There are no Message Requests (Nov 6); every message lands here.
  */
 
 export function useGetConversations<
   TData = Awaited<ReturnType<typeof getConversations>>,
   TError = ErrorType<ErrorResponse>,
->(
-  params?: GetConversationsParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getConversations>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetConversationsQueryOptions(params, options);
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getConversations>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetConversationsQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -11874,7 +11851,7 @@ export function useGetConversations<
 }
 
 /**
- * @summary Send a first message to a player. Someone outside your leagues gets it as a request.
+ * @summary Send a first message to a player. It goes straight to their inbox; from outside your leagues it can't carry links, emails or phone numbers.
  */
 export const getStartConversationUrl = () => {
   return `/api/messages`;
@@ -11937,7 +11914,7 @@ export type StartConversationMutationBody = BodyType<NewConversationInput>;
 export type StartConversationMutationError = ErrorType<ErrorResponse>;
 
 /**
- * @summary Send a first message to a player. Someone outside your leagues gets it as a request.
+ * @summary Send a first message to a player. It goes straight to their inbox; from outside your leagues it can't carry links, emails or phone numbers.
  */
 export const useStartConversation = <
   TError = ErrorType<ErrorResponse>,
@@ -11960,7 +11937,7 @@ export const useStartConversation = <
 };
 
 /**
- * @summary Unread messages and waiting requests, for the badge
+ * @summary Unread messages, for the badge
  */
 export const getGetMessagesSummaryUrl = () => {
   return `/api/messages/summary`;
@@ -12011,7 +11988,7 @@ export type GetMessagesSummaryQueryResult = NonNullable<
 export type GetMessagesSummaryQueryError = ErrorType<ErrorResponse>;
 
 /**
- * @summary Unread messages and waiting requests, for the badge
+ * @summary Unread messages, for the badge
  */
 
 export function useGetMessagesSummary<
@@ -12398,90 +12375,6 @@ export const useSendMessage = <
   TContext
 > => {
   return useMutation(getSendMessageMutationOptions(options));
-};
-
-/**
- * @summary Decline a message request
- */
-export const getDeclineMessageRequestUrl = (id: number) => {
-  return `/api/messages/${id}/decline`;
-};
-
-export const declineMessageRequest = async (
-  id: number,
-  options?: RequestInit,
-): Promise<void> => {
-  return customFetch<void>(getDeclineMessageRequestUrl(id), {
-    ...options,
-    method: "POST",
-  });
-};
-
-export const getDeclineMessageRequestMutationOptions = <
-  TError = ErrorType<ErrorResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof declineMessageRequest>>,
-    TError,
-    { id: number },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof declineMessageRequest>>,
-  TError,
-  { id: number },
-  TContext
-> => {
-  const mutationKey = ["declineMessageRequest"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof declineMessageRequest>>,
-    { id: number }
-  > = (props) => {
-    const { id } = props ?? {};
-
-    return declineMessageRequest(id, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type DeclineMessageRequestMutationResult = NonNullable<
-  Awaited<ReturnType<typeof declineMessageRequest>>
->;
-
-export type DeclineMessageRequestMutationError = ErrorType<ErrorResponse>;
-
-/**
- * @summary Decline a message request
- */
-export const useDeclineMessageRequest = <
-  TError = ErrorType<ErrorResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof declineMessageRequest>>,
-    TError,
-    { id: number },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof declineMessageRequest>>,
-  TError,
-  { id: number },
-  TContext
-> => {
-  return useMutation(getDeclineMessageRequestMutationOptions(options));
 };
 
 /**

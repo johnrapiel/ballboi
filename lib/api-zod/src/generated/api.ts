@@ -4830,27 +4830,25 @@ export const GetAccountStatusResponse = zod.object({
 });
 
 /**
- * @summary The inbox or the requests box, with unread and request counts
+ * @summary The inbox, with the unread count. There are no Message Requests (Nov 6); every message lands here.
  */
-export const getConversationsQueryBoxDefault = `messages`;
-
-export const GetConversationsQueryParams = zod.object({
-  box: zod
-    .enum(["messages", "requests"])
-    .default(getConversationsQueryBoxDefault),
-});
-
 export const GetConversationsResponse = zod
   .object({
     unread: zod.number(),
-    requests: zod.number(),
   })
   .and(
     zod.object({
       conversations: zod.array(
         zod.object({
           id: zod.number(),
-          state: zod.enum(["active", "awaiting_reply", "request"]),
+          state: zod
+            .enum(["active"])
+            .describe("Always active. Message Requests were removed (Nov 6)."),
+          blocked: zod
+            .boolean()
+            .describe(
+              "You blocked the other person. Read only, with Unblock in the app.",
+            ),
           other: zod.object({
             name: zod.string(),
             playerId: zod.number().nullable(),
@@ -4875,7 +4873,7 @@ export const GetConversationsResponse = zod
   );
 
 /**
- * @summary Send a first message to a player. Someone outside your leagues gets it as a request.
+ * @summary Send a first message to a player. It goes straight to their inbox; from outside your leagues it can't carry links, emails or phone numbers.
  */
 export const StartConversationBody = zod.object({
   playerId: zod.number(),
@@ -4884,11 +4882,10 @@ export const StartConversationBody = zod.object({
 });
 
 /**
- * @summary Unread messages and waiting requests, for the badge
+ * @summary Unread messages, for the badge
  */
 export const GetMessagesSummaryResponse = zod.object({
   unread: zod.number(),
-  requests: zod.number(),
 });
 
 /**
@@ -4931,7 +4928,14 @@ export const GetConversationQueryParams = zod.object({
 export const GetConversationResponse = zod.object({
   conversation: zod.object({
     id: zod.number(),
-    state: zod.enum(["active", "awaiting_reply", "request"]),
+    state: zod
+      .enum(["active"])
+      .describe("Always active. Message Requests were removed (Nov 6)."),
+    blocked: zod
+      .boolean()
+      .describe(
+        "You blocked the other person. Read only, with Unblock in the app.",
+      ),
     other: zod.object({
       name: zod.string(),
       playerId: zod.number().nullable(),
@@ -4975,13 +4979,6 @@ export const SendMessageBody = zod.object({
     .string()
     .optional()
     .describe("Lets a retried send come back as the same message"),
-});
-
-/**
- * @summary Decline a message request
- */
-export const DeclineMessageRequestParams = zod.object({
-  id: zod.coerce.number(),
 });
 
 /**

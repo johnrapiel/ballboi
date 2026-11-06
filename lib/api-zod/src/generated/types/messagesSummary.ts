@@ -8,5 +8,4 @@
 
 export interface MessagesSummary {
   unread: number;
-  requests: number;
 }

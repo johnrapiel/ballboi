@@ -84,9 +84,9 @@ describe("no automatic restriction", () => {
     ]);
     expect(mod.restrictions).toHaveLength(0);
     expect(await mod.restrictedSet(["spammer"])).toEqual(new Set());
-    // They can still start conversations, and their requests still show.
+    // They can still start conversations, and their messages still show.
     await expect(svc.start("spammer", { playerId: 12, text: "Hi p2", clientMessageId: mid() })).resolves.toBeTruthy();
-    expect(await svc.list("p2", "requests")).toHaveLength(1);
+    expect(await svc.list("p2")).toHaveLength(1);
   });
 
   it("a Stream flag files a report and leaves the account alone", async () => {
@@ -95,7 +95,7 @@ describe("no automatic restriction", () => {
     expect(reportId).toBeTruthy();
     expect(mod.reports[0]).toMatchObject({ source: "stream", subject: "spammer", status: "open" });
     expect(mod.restrictions).toHaveLength(0);
-    expect(await svc.list("p0", "requests")).toHaveLength(1);
+    expect(await svc.list("p0")).toHaveLength(1);
   });
 
   it("a moderator's restriction still works, and lifting it restores sending", async () => {
@@ -143,9 +143,9 @@ describe("hiding a message", () => {
     const bad = await svc.send("spammer", first.conversationId, { text: "something nasty", clientMessageId: mid() });
     expect(await svc.setMessageHidden(bad.message.id, true)).toBe(true);
     expect((await svc.thread("p0", first.conversationId)).messages.map((m) => m.text)).toEqual(["Hi"]);
-    expect((await svc.list("p0", "messages"))[0].lastMessage?.text).toBe("Hi");
+    expect((await svc.list("p0"))[0].lastMessage?.text).toBe("Hi");
     await svc.setMessageHidden(bad.message.id, false);
-    expect((await svc.list("p0", "messages"))[0].lastMessage?.text).toBe("something nasty");
+    expect((await svc.list("p0"))[0].lastMessage?.text).toBe("something nasty");
     expect(await svc.setMessageHidden("nope", true)).toBe(false);
   });
 });

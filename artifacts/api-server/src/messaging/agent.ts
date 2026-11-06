@@ -97,7 +97,7 @@ export const AGENT_TOOLS = [
   },
   {
     name: "restrict_account",
-    description: "Stop the reported person starting new conversations and hide their pending requests until a human reviews.",
+    description: "Stop the reported person starting new conversations until a human reviews.",
     input_schema: {
       type: "object",
       properties: { reason: { type: "string", description: "One plain sentence for the moderator." } },

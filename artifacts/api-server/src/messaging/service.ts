@@ -1,16 +1,23 @@
-// Direct messages and Message Requests. Spec: Messaging and moderation.
+// Direct messages. Spec: Messaging and moderation.
+//
+// There are no Message Requests (John, Nov 6, finding 17): every message goes
+// straight to the inbox, and either person can keep sending.
 //
 // Rules, in the order a send is checked:
-// 1. You can't message yourself, or anyone either of you has blocked.
-// 2. League mates and players who've had a match together message freely.
-//    Anyone else's first message lands in the recipient's Message Requests.
-// 3. Starting a conversation: accounts a moderator restricted can't, and
+// 1. You can't message yourself, or anyone either of you has blocked. A chat
+//    with someone you blocked stays in your inbox, read only, so you can
+//    unblock them from it; the person you blocked doesn't see it.
+// 2. Starting a conversation: accounts a moderator restricted can't, and
 //    accounts in their first week can start at most 5 a day. Nothing restricts
 //    an account automatically; reports and flags wait for a moderator.
-// 4. A first message to a non-connection can't include links, phone numbers or
-//    blocked terms, and the sender can't send again until the recipient replies.
-// 5. The recipient replying accepts the request. Nobody ever sees whether the
-//    other person has read a message (no read receipts).
+// 3. A first message to someone outside your leagues (no league or match
+//    together) can't include links, phone numbers, emails or blocked terms.
+// 4. Nobody ever sees whether the other person has read a message (no read
+//    receipts).
+//
+// Conversations made before Nov 6 may still be stored as "request" or
+// "declined". Both read as active now; a declined one stays hidden from the
+// person who deleted it until a new message arrives.
 
 import { createHash } from "node:crypto";
 import { REPORT_REASONS, type ReportReason, type SnapshotMessage } from "@workspace/db";
@@ -34,12 +41,14 @@ export class MessagingError extends Error {
   }
 }
 
-/** How a conversation looks to one of its two people. */
-export type ConversationState = "active" | "awaiting_reply" | "request";
+/** How a conversation looks to one of its two people. Always active now that there are no Message Requests. */
+export type ConversationState = "active";
 
 export interface ConversationView {
   id: number;
   state: ConversationState;
+  /** You blocked the other person: read only, with Unblock. */
+  blocked: boolean;
   other: { name: string; playerId: number | null };
   lastMessage: { text: string; fromMe: boolean; at: string } | null;
   unread: number;
@@ -60,8 +69,9 @@ export interface NewMessageEvent {
   recipientId: string;
   senderName: string;
   text: string;
-  isRequest: boolean;
 }
+
+type Visible = { c: ConversationRecord; state: ConversationState; blocked: boolean };
 
 export interface MessagingServiceDeps {
   repo: MessagingRepo;
@@ -116,83 +126,77 @@ export class MessagingService {
   // ─── Reading ──────────────────────────────────────────────────────────────
 
   private stateFor(c: ConversationRecord, me: string): ConversationState | null {
-    if (c.status === "active") return "active";
-    if (c.requester === me) return "awaiting_reply";
-    return c.status === "request" ? "request" : null; // declined: gone for the recipient
+    // An old request deleted by its recipient stays gone for them until a new message.
+    if (c.status === "declined" && c.requester !== me) return null;
+    return "active";
   }
 
   private otherOf(c: ConversationRecord, me: string): string {
     return c.userA === me ? c.userB : c.userA;
   }
 
-  /** Conversations this person should see: blocked pairs and restricted senders' requests drop out. */
-  private async visibleFor(me: string): Promise<{ c: ConversationRecord; state: ConversationState }[]> {
+  /**
+   * Conversations this person should see. Someone who blocked you drops out;
+   * someone you blocked stays, read only. A conversation with no message yet
+   * is still being created.
+   */
+  private async visibleFor(me: string): Promise<Visible[]> {
     const all = await this.repo.listFor(me);
-    const blocked = await this.repo.blockedSetFor(me);
-    const requesters = all.filter((c) => c.status === "request" && c.requester !== me).map((c) => c.requester!);
-    const restricted = await this.repo.restrictedSet([...new Set(requesters)]);
-    const out: { c: ConversationRecord; state: ConversationState }[] = [];
+    const [blocked, mine] = await Promise.all([this.repo.blockedSetFor(me), this.repo.blockedByMe(me)]);
+    const out: Visible[] = [];
     for (const c of all) {
-      if (blocked.has(this.otherOf(c, me))) continue;
+      const other = this.otherOf(c, me);
+      if (blocked.has(other) && !mine.has(other)) continue;
       const state = this.stateFor(c, me);
       if (!state) continue;
-      if (state === "request" && restricted.has(c.requester!)) continue;
-      // A request with no message yet is still being created.
-      if (state !== "active" && !c.lastMessageAt) continue;
-      out.push({ c, state });
+      if (!c.lastMessageAt) continue;
+      out.push({ c, state, blocked: mine.has(other) });
     }
     return out.sort((x, y) => (y.c.lastMessageAt?.getTime() ?? 0) - (x.c.lastMessageAt?.getTime() ?? 0));
   }
 
-  private async views(me: string, rows: { c: ConversationRecord; state: ConversationState }[]): Promise<ConversationView[]> {
+  private async views(me: string, rows: Visible[]): Promise<ConversationView[]> {
     const people = await this.repo.people(rows.map((r) => this.otherOf(r.c, me)));
-    return rows.map(({ c, state }) => {
+    return rows.map(({ c, state, blocked }) => {
       const other = people.get(this.otherOf(c, me)) ?? { name: "Player", playerId: null };
-      const awaiting = state === "awaiting_reply";
       return {
         id: c.id,
         state,
+        blocked,
         other,
         lastMessage:
           c.lastMessageAt && c.lastMessageText !== null
             ? { text: c.lastMessageText, fromMe: c.lastSender === me, at: c.lastMessageAt.toISOString() }
             : null,
         unread: c.userA === me ? c.aUnread : c.bUnread,
-        canSend: !awaiting,
-        sendBlockedReason: awaiting ? `You can send more once ${other.name} replies.` : null,
+        canSend: !blocked,
+        sendBlockedReason: blocked ? `You blocked ${other.name}.` : null,
       };
     });
   }
 
-  /** Messages: active conversations and requests you sent. Requests: first messages waiting for you. */
-  async list(me: string, box: "messages" | "requests"): Promise<ConversationView[]> {
-    const rows = (await this.visibleFor(me)).filter((r) => (box === "requests" ? r.state === "request" : r.state !== "request"));
-    return this.views(me, rows);
+  /** The inbox: every conversation, newest first. */
+  async list(me: string): Promise<ConversationView[]> {
+    return this.views(me, await this.visibleFor(me));
   }
 
-  /**
-   * For the Messages button badge and the Message Requests count. `unread`
-   * counts unread messages everywhere, Message Requests included, so a request
-   * you've opened stops counting. `requests` is every request still waiting.
-   */
-  async summary(me: string): Promise<{ unread: number; requests: number }> {
+  /** For the Messages button badge: unread messages everywhere. */
+  async summary(me: string): Promise<{ unread: number }> {
     const rows = await this.visibleFor(me);
     let unread = 0;
-    let requests = 0;
-    for (const { c, state } of rows) {
-      if (state === "request") requests += 1;
-      unread += c.userA === me ? c.aUnread : c.bUnread;
-    }
-    return { unread, requests };
+    for (const { c } of rows) unread += c.userA === me ? c.aUnread : c.bUnread;
+    return { unread };
   }
 
-  private async conversationFor(me: string, id: number): Promise<{ c: ConversationRecord; state: ConversationState }> {
+  /** A conversation you can open: yours, and not with someone who blocked you. */
+  private async conversationFor(me: string, id: number): Promise<Visible> {
     const c = await this.repo.findById(id);
     const state = c && (c.userA === me || c.userB === me) ? this.stateFor(c, me) : null;
     if (!c || !state) throw new MessagingError(404, "not_found", "This conversation isn't available.");
-    const blocked = await this.repo.blockedSetFor(me);
-    if (blocked.has(this.otherOf(c, me))) throw new MessagingError(404, "not_found", "This conversation isn't available.");
-    return { c, state };
+    const other = this.otherOf(c, me);
+    const [blocked, mine] = await Promise.all([this.repo.blockedSetFor(me), this.repo.blockedByMe(me)]);
+    if (blocked.has(other) && !mine.has(other)) throw new MessagingError(404, "not_found", "This conversation isn't available.");
+    return { c, state, blocked: mine.has(other) };
   }
 
   /**
@@ -206,11 +210,12 @@ export class MessagingService {
     id: number,
     opts: { before?: string } = {},
   ): Promise<{ conversation: ConversationView; messages: MessageView[]; olderCursor: string | null }> {
-    let { c, state } = await this.conversationFor(me, id);
+    const found = await this.conversationFor(me, id);
+    let { c } = found;
     if (c.userA === me && c.aUnread > 0) c = await this.repo.update(c.id, { aUnread: 0 });
     if (c.userB === me && c.bUnread > 0) c = await this.repo.update(c.id, { bUnread: 0 });
     const messages = await this.provider.listMessages(c.channelId, { limit: THREAD_PAGE, before: opts.before });
-    const [conversation] = await this.views(me, [{ c, state }]);
+    const [conversation] = await this.views(me, [{ ...found, c }]);
     return {
       conversation,
       messages: messages.filter((m) => !m.hidden).map((m) => this.messageView(m, me)),
@@ -272,11 +277,7 @@ export class MessagingService {
     if (blocked.has(other)) throw new MessagingError(403, "blocked", "You can't message this player.");
     await this.checkCanStart(me);
 
-    const connected = await this.repo.areConnected(me, other);
-    if (!connected) {
-      const verdict = this.filter.check(text);
-      if (!verdict.ok) throw new MessagingError(422, `filtered_${verdict.reason}`, FILTER_MESSAGES[verdict.reason!]);
-    }
+    await this.checkFirstMessage(me, other, text);
 
     const pairKey = pairKeyFor(me, other);
     const [userA, userB] = pairKey.split(":") as [string, string];
@@ -286,7 +287,7 @@ export class MessagingService {
       pairKey,
       userA,
       userB,
-      status: connected ? "active" : "request",
+      status: "active",
       requester: me,
       channelId,
       openingHash: openingHash(text),
@@ -301,6 +302,16 @@ export class MessagingService {
     const c = await this.repo.findById(id);
     if (!c || (c.userA !== me && c.userB !== me)) throw new MessagingError(404, "not_found", "This conversation isn't available.");
     return this.sendTo(me, c, text, clientId);
+  }
+
+  /**
+   * The first message to someone outside your leagues (no league or match
+   * together) can't carry links, phone numbers, emails or blocked terms (8.3).
+   */
+  private async checkFirstMessage(me: string, other: string, text: string) {
+    if (await this.repo.areConnected(me, other)) return;
+    const verdict = this.filter.check(text);
+    if (!verdict.ok) throw new MessagingError(422, `filtered_${verdict.reason}`, FILTER_MESSAGES[verdict.reason!]);
   }
 
   /** Accounts that are restricted, or new and over today's limit, can't start conversations. */
@@ -330,8 +341,7 @@ export class MessagingService {
     if (blocked.has(other)) throw new MessagingError(403, "blocked", "You can't message this player.");
 
     // A retry of a message that already went through (the reply was lost on
-    // the way back): confirm it, never send it twice. Checked before the
-    // "wait for a reply" rule, which that first message itself set off.
+    // the way back): confirm it, never send it twice.
     const already = await this.provider.getMessage(this.messageIdFor(c, clientId));
     if (already) {
       // It reached Stream but the conversation never recorded it: record it now so the other player sees it.
@@ -339,31 +349,17 @@ export class MessagingService {
       return { conversationId: c.id, message: this.messageView(already, me) };
     }
 
-    if (c.status !== "active") {
-      if (c.requester === me) {
-        // Becoming league mates after the request upgrades it; otherwise wait.
-        if (!(await this.repo.areConnected(me, other))) {
-          // The request was created but its first message never arrived, so
-          // nobody can see it yet: this send is that first message.
-          if (c.status === "request" && !c.lastMessageAt) return this.deliverFirstAgain(me, c, text, clientId);
-          const people = await this.repo.people([other]);
-          const name = people.get(other)?.name ?? "this player";
-          throw new MessagingError(409, "awaiting_reply", `You can send more once ${name} replies.`);
-        }
+    // The conversation was created but its first message never arrived, so
+    // nobody can see it yet: this send is that first message, with the same checks.
+    if (!c.lastMessageAt) {
+      const restricted = await this.repo.restrictedSet([me]);
+      if (restricted.has(me)) {
+        throw new MessagingError(403, "restricted", "You can't start new conversations right now while we review your account.");
       }
-      c = await this.repo.update(c.id, { status: "active", acceptedAt: this.now() });
+      await this.checkFirstMessage(me, other, text);
     }
-    return this.deliver(me, c, text, clientId, true);
-  }
-
-  /** The first message of a request that never arrived. Same checks as a first message, then sent as the request. */
-  private async deliverFirstAgain(me: string, c: ConversationRecord, text: string, clientId: string) {
-    const restricted = await this.repo.restrictedSet([me]);
-    if (restricted.has(me)) {
-      throw new MessagingError(403, "restricted", "You can't start new conversations right now while we review your account.");
-    }
-    const verdict = this.filter.check(text);
-    if (!verdict.ok) throw new MessagingError(422, `filtered_${verdict.reason}`, FILTER_MESSAGES[verdict.reason!]);
+    // Stored before Nov 6 as a request, or a declined one: it's a normal conversation now.
+    if (c.status !== "active") c = await this.repo.update(c.id, { status: "active", acceptedAt: this.now() });
     return this.deliver(me, c, text, clientId, true);
   }
 
@@ -387,18 +383,10 @@ export class MessagingService {
         recipientId,
         senderName: people.get(me)?.name ?? "Player",
         text,
-        isRequest: updated.status === "request",
       }),
     ).catch(() => undefined);
     if (this.devAutoReply && recipientId.startsWith(DEV_SAMPLE_PREFIX)) this.scheduleDevReply(recipientId, c.id);
     return { conversationId: c.id, message: this.messageView(message, me) };
-  }
-
-  /** The recipient deletes a request. The sender isn't told and still can't send. */
-  async decline(me: string, id: number) {
-    const { c, state } = await this.conversationFor(me, id);
-    if (state !== "request") throw new MessagingError(400, "not_request", "Only Message Requests can be deleted.");
-    await this.repo.update(c.id, c.userA === me ? { status: "declined", aUnread: 0 } : { status: "declined", bUnread: 0 });
   }
 
   /** Account deletion: messages they sent, then every conversation record. */
@@ -517,15 +505,16 @@ export class MessagingService {
   }
 
   /**
-   * Development only: one chat with Sam (active, replies to you) and one
-   * Message Request from Jordan, so every screen can be tried with one phone.
+   * Development only: a chat with Sam (replies to you) and a first message
+   * from Jordan, someone outside your leagues, so every screen can be tried
+   * with one phone.
    */
   async seedSamples(me: string, names: (id: string, name: string) => Promise<void>) {
     const sam = `${DEV_SAMPLE_PREFIX}sam`;
     const jordan = `${DEV_SAMPLE_PREFIX}jordan`;
     await names(sam, "Sam Rivera");
     await names(jordan, "Jordan Lee");
-    const make = async (other: string, status: "active" | "request", text: string) => {
+    const make = async (other: string, text: string) => {
       const pairKey = pairKeyFor(me, other);
       const [userA, userB] = pairKey.split(":") as [string, string];
       const channelId = channelIdFor(pairKey);
@@ -533,10 +522,10 @@ export class MessagingService {
       const existing = await this.repo.findByPair(pairKey);
       const c =
         existing ??
-        (await this.repo.create({ pairKey, userA, userB, status, requester: other, channelId, openingHash: openingHash(text) }));
-      await this.deliver(other, c, text, `seed${Date.now().toString(36)}${status}`);
+        (await this.repo.create({ pairKey, userA, userB, status: "active", requester: other, channelId, openingHash: openingHash(text) }));
+      await this.deliver(other, c, text, `seed${Date.now().toString(36)}${other.slice(-3)}`);
     };
-    await make(sam, "active", "Still on for Saturday at 9?");
-    await make(jordan, "request", "Hi, saw you play at Memorial Park. Up for a hit sometime?");
+    await make(sam, "Still on for Saturday at 9?");
+    await make(jordan, "Hi, saw you play at Memorial Park. Up for a hit sometime?");
   }
 }
