@@ -1,34 +1,35 @@
 import { useAuth, useUser } from "@clerk/expo";
-import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import Constants from "expo-constants";
+import { ActivityIndicator, Alert, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Avatar } from "@/components/Avatar";
 import { RatingBadge } from "@/components/RatingBadge";
-import { BlockedPlayersRow } from "@/components/safety/BlockedPlayersRow";
+import { Roundel } from "@/components/Roundel";
+import { SettingsRow, SettingsSection } from "@/components/SettingsList";
 import { TabScreen } from "@/components/TabHeader";
-import { EditProfileRow } from "@/components/profile/EditProfileRow";
-import { SettingsRow } from "@/components/profile/SettingsRow";
 import { Toggle } from "@/components/Toggle";
-import { Text as UIText } from "@/components/ui";
+import { Button, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useProfile } from "@/hooks/useProfile";
 import { confirmSignOut } from "@/lib/confirmSignOut";
+import { formatRating, levelSpoken, type RatingSource } from "@/lib/onboarding";
 import { photoUrl } from "@/lib/photos";
+
+// Profile tab (approved canvas: Profile, John, Nov 6). Your player card, your
+// player details as rows that open the matching edit screen, Account (Settings
+// and Sign out) above About (finding 19). Blocked players is gone: block lives
+// in Report (finding 20). Delete account is at the bottom of Settings (finding 21).
+
+function levelValue(rating: number | null | undefined, source: RatingSource | null | undefined): string {
+  if (rating == null) return "Not set";
+  return source === "verified" ? `${formatRating(rating)}, Verified` : formatRating(rating);
+}
 
 /**
  * Wave 1 review S8: the "Match day reminders" switch stays hidden until Wave 2
@@ -190,208 +191,89 @@ export default function ProfileScreen() {
     router.replace("/(auth)/welcome");
   };
 
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    scroll: {
-      flex: 1,
-    },
-    scrollContent: {
-      paddingHorizontal: 20,
-      paddingTop: 8,
-      paddingBottom: bottomPad + 96,
-    },
-    avatarRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 16,
-      marginBottom: 32,
-    },
-    userInfo: {
-      flex: 1,
-      gap: spacing.space1,
-    },
-    section: {
-      marginBottom: 24,
-    },
-    sectionLabel: {
-      fontSize: 13,
-      fontWeight: "600" as const,
-      color: colors.mutedForeground,
-      letterSpacing: 0.8,
-      textTransform: "uppercase",
-      marginBottom: 12,
-      fontFamily: "DMSans_600SemiBold",
-    },
-    card: {
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: colors.radius + 2,
-      overflow: "hidden",
-    },
-    row: {
-      flexDirection: "row",
-      alignItems: "center",
-      padding: 16,
-      gap: 14,
-    },
-    rowBorder: {
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    rowIconWrap: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    rowText: {
-      flex: 1,
-      fontSize: 15,
-      color: colors.foreground,
-      fontFamily: "DMSans_500Medium",
-    },
-    rowSubtext: {
-      fontSize: 13,
-      color: colors.mutedForeground,
-      fontFamily: "DMSans_400Regular",
-    },
-    signOutBtn: {
-      backgroundColor: colors.destructive + "22",
-      borderWidth: 1,
-      borderColor: colors.destructive + "44",
-      borderRadius: colors.radius + 2,
-      padding: 16,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 10,
-      marginTop: 8,
-    },
-    deleteRow: {
-      minHeight: 44,
-      alignItems: "center",
-      justifyContent: "center",
-      marginTop: 12,
-    },
-    deleteText: {
-      fontSize: 15,
-      color: colors.destructive,
-      fontFamily: "DMSans_500Medium",
-    },
-    signOutText: {
-      fontSize: 15,
-      fontWeight: "600" as const,
-      color: colors.destructive,
-      fontFamily: "DMSans_600SemiBold",
-    },
-  });
-
   // Until the profile loads, the Clerk name (never part of the email).
   const displayName = profile?.displayName?.trim() || user?.fullName?.trim() || "";
 
   return (
     <TabScreen title="Profile">
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space2, paddingBottom: bottomPad + 96, gap: spacing.space6 }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.avatarRow}>
+        {/* Your player card: avatar left, name and level beside it (approved canvas). */}
+        <View
+          accessible
+          accessibilityLabel={[displayName, profile?.rating != null ? levelSpoken(profile.rating, profile.ratingSource ?? "self") : null].filter(Boolean).join(", ")}
+          style={{ flexDirection: "row", alignItems: "center", gap: spacing.space4 }}
+        >
           <Avatar name={displayName} uri={photoUrl(profile?.avatarUrl)} size={72} />
-          <View style={styles.userInfo}>
-            <UIText variant="title" accessibilityRole="header">
-              {displayName}
-            </UIText>
-            <UIText variant="small" tone="inkMuted">
-              {user?.primaryEmailAddress?.emailAddress ?? ""}
-            </UIText>
-            {profile?.rating != null ? (
-              <View style={{ marginTop: spacing.space1 }}>
-                <RatingBadge rating={profile.rating} source={profile.ratingSource ?? "self"} />
-              </View>
-            ) : null}
+          <View style={{ flex: 1, gap: spacing.space2 }}>
+            <Text variant="title">{displayName}</Text>
+            {profile?.rating != null ? <RatingBadge rating={profile.rating} source={profile.ratingSource ?? "self"} /> : null}
           </View>
         </View>
 
-        {SHOW_MATCH_DAY_REMINDERS && Platform.OS !== "web" && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Notifications</Text>
-            <View style={styles.card}>
-              <View style={styles.row}>
-                <View style={[styles.rowIconWrap, { backgroundColor: colors.primary + "22" }]}>
-                  <Ionicons name="notifications" size={18} color={colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rowText}>Match day reminders</Text>
-                  <Text style={styles.rowSubtext}>
-                    Push notification the day before your match
-                  </Text>
-                </View>
-                {pushLoading ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
+        <SettingsSection title="Player details" footer="Your name, photo and level show on your player card. Your home area is never shown, only an approximate distance.">
+          <SettingsRow
+            title="Name and photo"
+            value={displayName || null}
+            onPress={() => router.push("/profile/edit/name")}
+            accessibilityHint="Change your name and photo"
+          />
+          <SettingsRow
+            title="Level"
+            value={profile ? levelValue(profile.rating, profile.ratingSource) : null}
+            onPress={() => router.push("/profile/edit/level")}
+            accessibilityHint="Change your self-rated level"
+          />
+          <SettingsRow
+            title="Home area"
+            value={profile ? profile.homeZip ?? "Not set" : null}
+            onPress={() => router.push("/profile/edit/home")}
+            accessibilityHint="Change your home area"
+            last
+          />
+        </SettingsSection>
+
+        {SHOW_MATCH_DAY_REMINDERS && Platform.OS !== "web" ? (
+          <SettingsSection title="Notifications">
+            <SettingsRow
+              title="Match day reminders"
+              subtitle="A heads-up before each match"
+              trailing={
+                pushLoading ? (
+                  <ActivityIndicator size="small" color={colors.ink} />
                 ) : (
-                  <Toggle
-                    value={pushEnabled}
-                    onValueChange={handlePushToggle}
-                    accessibilityLabel="Match day reminders"
-                  />
-                )}
-              </View>
-            </View>
-          </View>
-        )}
+                  <Toggle value={pushEnabled} onValueChange={handlePushToggle} accessibilityLabel="Match day reminders" />
+                )
+              }
+              last
+            />
+          </SettingsSection>
+        ) : null}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>About</Text>
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <View style={[styles.rowIconWrap, { backgroundColor: colors.primary + "22" }]}>
-                <Ionicons name="tennisball" size={18} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowText}>Ball Boi Mobile</Text>
-                <Text style={styles.rowSubtext}>Match replay companion</Text>
-              </View>
-            </View>
-            <View style={[styles.row, styles.rowBorder]}>
-              <View style={[styles.rowIconWrap, { backgroundColor: colors.muted }]}>
-                <Ionicons name="information-circle" size={18} color={colors.mutedForeground} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowText}>Version</Text>
-                <Text style={styles.rowSubtext}>1.0.0</Text>
-              </View>
-            </View>
-          </View>
+        {/* Account sits above About (John, Nov 6, finding 19). */}
+        <View style={{ gap: spacing.space3 }}>
+          <SettingsSection title="Account">
+            <SettingsRow
+              title="Settings"
+              onPress={() => router.push("/settings")}
+              accessibilityHint="Ball Boi recording settings, and Delete account"
+              last
+            />
+          </SettingsSection>
+          <Button label="Sign out" variant="destructiveOutline" onPress={handleSignOut} />
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Account</Text>
-          <EditProfileRow />
-          <SettingsRow />
-          <BlockedPlayersRow />
-          <Pressable
-            style={({ pressed }) => [styles.signOutBtn, { opacity: pressed ? 0.7 : 1 }]}
-            onPress={handleSignOut}
-            accessibilityRole="button"
-            accessibilityLabel="Sign out"
-          >
-            <Ionicons name="log-out-outline" size={20} color={colors.destructive} />
-            <Text style={styles.signOutText}>Sign out</Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.deleteRow, { opacity: pressed ? 0.7 : 1 }]}
-            onPress={() => router.push("/delete-account")}
-            accessibilityRole="button"
-            accessibilityLabel="Delete account"
-          >
-            <Text style={styles.deleteText}>Delete account</Text>
-          </Pressable>
+        <View style={{ alignItems: "center", gap: spacing.space2, paddingTop: spacing.space2 }}>
+          <Text variant="section" tone="inkMuted" accessibilityRole="header">
+            About
+          </Text>
+          <Roundel size={56} />
+          <Text variant="small" tone="inkMuted">
+            {`Ball Boi ${Constants.expoConfig?.version ?? "1.0"}`}
+          </Text>
         </View>
       </ScrollView>
     </TabScreen>

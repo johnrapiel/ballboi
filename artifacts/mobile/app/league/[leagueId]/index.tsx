@@ -1,4 +1,4 @@
-import { router, Stack, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import React, { useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
@@ -7,7 +7,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   useGetLeague,
+  getGetLeagueInvitesQueryKey,
   useGetLeagueBracket,
+  useGetLeagueInvites,
   useGetLeagueMembership,
   useLeaveLeague,
   useGetLeagueSchedule,
@@ -20,7 +22,8 @@ import {
 import { RoundCard, UpcomingWeekRow } from "@/components/league/RoundCard";
 import { UndoScore } from "@/components/league/UndoScore";
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
-import { IconButton } from "@/components/Choice";
+import { InviteCard } from "@/components/league/InviteCard";
+import { ListRow } from "@/components/league/ListRow";
 import { StandingsTable } from "@/components/league/StandingsTable";
 import { BracketView, myPlayoffMatch, ROUND_SINGULAR } from "@/components/league/Bracket";
 import { Button, Card, Text } from "@/components/ui";
@@ -45,8 +48,12 @@ import {
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { formatLabel, playersLabel, playTypeLabel } from "@/lib/leagues";
 
-// League (spec: Leagues; canvas: League · Standings, Rounds, Playoffs).
-// Your match this week sits on top, then Standings, Rounds, and Playoffs.
+// League (spec: Leagues; approved canvas: League detail · Standings). A brush
+// title and one meta line, then your match this week, then Standings, Matches
+// and Playoffs. Admins get a visible Manage league row (John, Nov 6, finding
+// 8) instead of a header icon. The invite (code, copy, share) sits at the top
+// until the season starts or the league is full, then moves down out of the
+// way (finding 12). Only admins can read the code, so only they see it.
 
 type Tab = "standings" | "rounds" | "playoffs";
 
@@ -120,10 +127,10 @@ function YourWeek({
   if (bye) {
     return (
       <Card accessible accessibilityLabel={`${label}. You have a bye this week.`} style={{ gap: spacing.space1 }}>
-        <Text variant="label" tone="inkMuted">
+        <Text variant="section" tone="inkMuted">
           {label}
         </Text>
-        <Text variant="titleItalic">You have a bye this week.</Text>
+        <Text variant="title">You have a bye this week.</Text>
       </Card>
     );
   }
@@ -134,7 +141,7 @@ function YourWeek({
   const opponentRating = match.player1Id === myPlayerId ? match.player2Rating : match.player1Rating;
   const canMessage = match.player1Id === myPlayerId ? match.player2HasAccount : match.player1HasAccount;
   const scoreable = canEnterScore(round, match, ended);
-  // C7: a direct chat with your opponent. League mates skip Message Requests.
+  // C7: a direct chat with your opponent.
   const message = () =>
     router.push({ pathname: "/conversation/[id]", params: { id: "new", playerId: String(opponentId), name: opponent } });
   const played = match.status === "completed" && !!match.score;
@@ -160,7 +167,7 @@ function YourWeek({
         }. ${when}`}
         style={{ gap: spacing.space1 }}
       >
-        <Text variant="label" tone="inkMuted">
+        <Text variant="section" tone="inkMuted">
           {label}
         </Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.space2 }}>
@@ -216,6 +223,10 @@ export default function LeagueScreen() {
 
   const leagueQ = useGetLeague(leagueId);
   const membershipQ = useGetLeagueMembership(leagueId);
+  const canManage = !!membershipQ.data?.isAdmin;
+  const invitesQ = useGetLeagueInvites(leagueId, {
+    query: { enabled: canManage, queryKey: getGetLeagueInvitesQueryKey(leagueId) },
+  });
   const standingsQ = useGetLeagueStandings(leagueId);
   const scheduleQ = useGetLeagueSchedule(leagueId);
   const bracketQ = useGetLeagueBracket(leagueId);
@@ -236,6 +247,7 @@ export default function LeagueScreen() {
     void standingsQ.refetch();
     void scheduleQ.refetch();
     void bracketQ.refetch();
+    if (canManage) void invitesQ.refetch();
   };
 
   const enterScore = (m: ScheduleMatch) => router.push(`/league/${leagueId}/score/${m.matchId}`);
@@ -248,7 +260,7 @@ export default function LeagueScreen() {
     );
   }
 
-  const eyebrow = league
+  const meta = league
     ? [formatLabel(league.format), playTypeLabel(league.leagueType), league.location].filter(Boolean).join(" · ")
     : "";
   const season =
@@ -262,6 +274,19 @@ export default function LeagueScreen() {
   // Q2: doubles leagues don't run yet. One made before then says so.
   const doublesOnHold = league?.leagueType === "doubles" && !ended;
   const playoffsNote = league ? playoffLine(league.playoffSize, league.playerCount) : null;
+  // Joining locks once the season starts or the league is full (decision 30).
+  const joiningOpen = !!league && !ended && !started && !(league.rosterCap != null && league.playerCount >= league.rosterCap);
+  const invite = invitesQ.data?.find((i) => i.isActive) ?? null;
+  const inviteCard =
+    isAdmin && league && !ended ? (
+      <InviteCard
+        leagueName={league.name}
+        code={invite?.code ?? null}
+        loading={invitesQ.isLoading}
+        onRetry={() => void invitesQ.refetch()}
+        note={joiningOpen ? "Players join with this code or link until the season starts." : "Late joiners ask to join, and you approve them in Manage league."}
+      />
+    ) : null;
 
   // Dropouts (decision 27): played matches stay, the rest are cancelled.
   // Q4: an admin who leaves stops playing but still manages the league.
@@ -331,16 +356,6 @@ export default function LeagueScreen() {
       contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.ink} />}
     >
-      {/* Admin tools appear in context only (spec: Roles). */}
-      <Stack.Screen
-        options={{
-          headerRight: isAdmin
-            ? () => (
-                <IconButton symbol="slider.horizontal.3" label="Manage" onPress={() => router.push(`/league/${leagueId}/manage`)} />
-              )
-            : undefined,
-        }}
-      />
       {leagueQ.isError || !league ? (
         <Card style={{ gap: spacing.space2 }}>
           <Text variant="bodyStrong">Couldn't load this league</Text>
@@ -351,12 +366,14 @@ export default function LeagueScreen() {
       ) : (
         <>
           <View style={{ gap: spacing.space1 }}>
-            <Text variant="label" tone="inkMuted">
-              {eyebrow}
-            </Text>
-            <Text variant="brushL" accessibilityRole="header">
+            <Text variant="brushM" accessibilityRole="header">
               {league.name}
             </Text>
+            {meta ? (
+              <Text variant="small" tone="inkMuted">
+                {meta}
+              </Text>
+            ) : null}
             <Text variant="small" tone="inkMuted">
               {[playersLabel(league.playerCount), season].filter(Boolean).join(" · ")}
             </Text>
@@ -372,6 +389,22 @@ export default function LeagueScreen() {
               </Text>
             ) : null}
           </View>
+
+          {joiningOpen ? inviteCard : null}
+
+          {isAdmin ? (
+            // Admin tools in context only (spec: Roles), as a visible row (finding 8).
+            <Card style={{ padding: 0, overflow: "hidden" }}>
+              <ListRow
+                title="Manage league"
+                subtitle="Pairings, players, admins and invites"
+                symbol="slider.horizontal.3"
+                onPress={() => router.push(`/league/${leagueId}/manage`)}
+                accessibilityHint="Opens the admin tools for this league"
+                last
+              />
+            </Card>
+          ) : null}
 
           {ended ? (
             // Decision 31: an admin ended the league, or the season finished. Standings are final.
@@ -400,7 +433,7 @@ export default function LeagueScreen() {
                 accessibilityLabel={`Your ${ROUND_SINGULAR[playoff.slot.round].toLowerCase()}. You versus ${playoff.opponent?.playerName ?? "to be decided"}.`}
                 style={{ gap: spacing.space1 }}
               >
-                <Text variant="label" tone="inkMuted">
+                <Text variant="section" tone="inkMuted">
                   {`Playoffs · ${ROUND_SINGULAR[playoff.slot.round]}`}
                 </Text>
                 <Text variant="title">{`You vs. ${playoff.opponent?.playerName ?? "to be decided"}`}</Text>
@@ -434,7 +467,7 @@ export default function LeagueScreen() {
           {draft && isAdmin && !ended ? (
             <Card style={{ gap: spacing.space3 }}>
               <View accessible style={{ gap: spacing.space1 }}>
-                <Text variant="label" tone="inkMuted">
+                <Text variant="section" tone="inkMuted">
                   Admin
                 </Text>
                 <Text variant="bodyStrong">{`Round ${draft.roundNumber} pairings are ready to review`}</Text>
@@ -454,7 +487,7 @@ export default function LeagueScreen() {
             onChange={setTab}
             tabs={[
               { value: "standings", label: "Standings" },
-              { value: "rounds", label: "Rounds" },
+              { value: "rounds", label: "Matches" },
               { value: "playoffs", label: "Playoffs" },
             ]}
           />
@@ -471,7 +504,7 @@ export default function LeagueScreen() {
                 <StandingsTable standings={standings} myPlayerId={myPlayerId} />
               )}
               <Text variant="small" tone="inkMuted">
-                {`Ranked on wins. Players with the same wins share a rank.${playoffsNote ? ` ${playoffsNote}` : ""}`}
+                {`Ranked by wins, then head to head.${playoffsNote ? ` ${playoffsNote}` : ""}`}
               </Text>
             </View>
           ) : null}
@@ -479,13 +512,13 @@ export default function LeagueScreen() {
           {tab === "rounds" ? (
             <View style={{ gap: spacing.space3 }}>
               {scheduleQ.isLoading ? (
-                <ActivityIndicator color={c.ink} accessibilityLabel="Loading rounds" />
+                <ActivityIndicator color={c.ink} accessibilityLabel="Loading matches" />
               ) : rounds.length === 0 && (schedule?.upcoming.length ?? 0) === 0 ? (
                 <Card>
                   <Text tone="inkMuted">
                     {league.startDate
                       ? `Pairings go out each week starting ${shortDate(league.startDate)}.`
-                      : "Rounds show up here once pairings go out."}
+                      : "Matches show up here once pairings go out."}
                   </Text>
                 </Card>
               ) : (
@@ -495,7 +528,7 @@ export default function LeagueScreen() {
                   ))}
                   {schedule && schedule.upcoming.length > 0 ? (
                     <View style={{ gap: spacing.space2 }}>
-                      <Text variant="label" tone="inkMuted" accessibilityRole="header">
+                      <Text variant="section" tone="inkMuted" accessibilityRole="header">
                         Later this season
                       </Text>
                       <Card style={{ padding: 0, overflow: "hidden" }}>
@@ -544,6 +577,8 @@ export default function LeagueScreen() {
 
           </>
           )}
+
+          {joiningOpen ? null : inviteCard}
 
           {membershipQ.data?.isPlaying && !ended ? (
             <Button
