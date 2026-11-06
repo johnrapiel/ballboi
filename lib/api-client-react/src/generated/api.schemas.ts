@@ -435,6 +435,27 @@ export interface LeagueBracket {
   champion: BracketSeed | null;
 }
 
+export interface LeagueTeamPlayer {
+  playerId: number;
+  name: string;
+}
+
+export interface LeagueTeam {
+  teamId: number;
+  players: LeagueTeamPlayer[];
+}
+
+/**
+ * Fixed-partner doubles. Anyone without a partner when a round is drafted is teamed with the closest level
+ */
+export interface LeagueTeams {
+  leagueId: number;
+  /** False for singles and rotating-partner leagues, which have no teams */
+  fixedPartners: boolean;
+  teams: LeagueTeam[];
+  unpartnered: LeagueTeamPlayer[];
+}
+
 export interface SchedulePlayer {
   playerId: number;
   playerName: string;
@@ -474,6 +495,24 @@ export interface ScheduleMatch {
   player2Rating: MatchPlayerRating | null;
   player1HasAccount: boolean;
   player2HasAccount: boolean;
+  /**
+   * Doubles only. Player 1's partner; side 1 is player 1 and player 3
+   * @nullable
+   */
+  player3Id: number | null;
+  /** @nullable */
+  player3Name: string | null;
+  player3Rating: MatchPlayerRating | null;
+  player3HasAccount: boolean;
+  /**
+   * Doubles only. Player 2's partner; side 2 is player 2 and player 4
+   * @nullable
+   */
+  player4Id: number | null;
+  /** @nullable */
+  player4Name: string | null;
+  player4Rating: MatchPlayerRating | null;
+  player4HasAccount: boolean;
   status: string;
   /**
    * From player 1's side

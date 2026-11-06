@@ -36,15 +36,21 @@ import { sendPushToUsers } from "../routes/notifications.js";
 import { loadProfiles, playerLevelValue } from "../lib/playerProfile.js";
 import { getAutoSeason } from "./seasonService.js";
 import { startPlayoffs } from "./leaguePlayoffs.js";
+import { isDoubles, MIN_DOUBLES_PLAYERS, pairOpenDoubles, teamName } from "./doublesRounds.js";
 
-/** Leagues the weekly engine runs: set up with the new league form, singles for now. */
+/** Leagues the weekly engine runs: set up with the new league form, singles or doubles (Wave 2). */
 export function usesWeeklyRounds(league: Pick<League, "seasonWeeks" | "startDate" | "format" | "leagueType">): boolean {
   return (
     !!league.seasonWeeks &&
     !!league.startDate &&
     (league.format === "flex" || league.format === "round_robin") &&
-    league.leagueType === "singles"
+    (league.leagueType === "singles" || league.leagueType === "doubles")
   );
+}
+
+/** Players a league needs before it can pair a round. */
+function minPlayers(league: Pick<League, "leagueType">): number {
+  return isDoubles(league) ? MIN_DOUBLES_PLAYERS : 2;
 }
 
 async function activePlayers(leagueId: number) {
@@ -67,7 +73,14 @@ export async function loadDraftRound(round: LeagueRound): Promise<DraftRound> {
   ]);
   return {
     published: !!round.publishedAt,
-    matches: matches.map((m) => ({ id: m.id, player1Id: m.player1Id, player2Id: m.player2Id, locked: m.locked })),
+    matches: matches.map((m) => ({
+      id: m.id,
+      player1Id: m.player1Id,
+      player2Id: m.player2Id,
+      player3Id: m.player3Id,
+      player4Id: m.player4Id,
+      locked: m.locked,
+    })),
     byes: byes.map((b) => ({ playerId: b.playerId, setByAdmin: b.setByAdmin })),
     activePlayerIds: players.map((p) => p.id),
   };
@@ -103,6 +116,7 @@ async function leagueHistory(leagueId: number, excludeRoundId: number) {
 /** Pairs everyone in the round who isn't locked into a match or given a bye by an admin. */
 async function pairOpenPlayers(league: League, round: LeagueRound, playerIds: number[], keep: DraftRound) {
   if (playerIds.length === 0) return;
+  if (isDoubles(league)) return pairOpenDoubles(league, round, playerIds);
   const [players, availability, { history, byeCounts }] = await Promise.all([
     db.select().from(playersTable).where(inArray(playersTable.id, playerIds)),
     db
@@ -175,7 +189,7 @@ async function roundRow(league: League, roundNumber: number): Promise<{ round: L
 /** Drafts round `roundNumber` if it doesn't exist yet. Returns the round and whether it was just drafted. */
 export async function ensureDraft(league: League, roundNumber: number): Promise<{ round: LeagueRound; drafted: boolean } | null> {
   const players = await activePlayers(league.id);
-  if (players.length < 2) return null;
+  if (players.length < minPlayers(league)) return null;
   const { round, created } = await roundRow(league, roundNumber);
   if (!created) return { round, drafted: false };
   await pairOpenPlayers(league, round, players.map((p) => p.id), { published: false, matches: [], byes: [], activePlayerIds: [] });
@@ -212,7 +226,30 @@ export async function publishRound(league: League, round: LeagueRound): Promise<
   const byId = new Map(players.map((p) => [p.id, p]));
   const title = `Round ${round.roundNumber} pairings are out`;
   const sends: Promise<void>[] = [];
+  const nameOf = (id: number) => byId.get(id)?.name ?? "Player";
   for (const m of matches) {
+    if (m.player3Id != null && m.player4Id != null) {
+      // Doubles: "You and Sam Lee are playing Alex Kim and Jo Park."
+      const sides = [
+        [m.player1Id, m.player3Id, m.player2Id, m.player4Id],
+        [m.player3Id, m.player1Id, m.player2Id, m.player4Id],
+        [m.player2Id, m.player4Id, m.player1Id, m.player3Id],
+        [m.player4Id, m.player2Id, m.player1Id, m.player3Id],
+      ] as const;
+      for (const [me, partner, them1, them2] of sides) {
+        const clerk = byId.get(me)?.clerkUserId;
+        if (!clerk) continue;
+        sends.push(
+          sendPushToUsers(
+            [clerk],
+            title,
+            `You and ${nameOf(partner)} are playing ${teamName([them1, them2], nameOf)}. Play by ${shortDate(round.endDate)}.`,
+            `/league/${league.id}`,
+          ).catch(() => {}),
+        );
+      }
+      continue;
+    }
     for (const [me, them] of [[m.player1Id, m.player2Id], [m.player2Id, m.player1Id]] as const) {
       const clerk = byId.get(me)?.clerkUserId;
       if (!clerk) continue;
@@ -304,7 +341,7 @@ export async function draftNextRound(
     if (existing?.publishedAt) continue;
     if (roundWindow(league.startDate!, n).deadline < today) continue;
     const result = await ensureDraft(league, n);
-    if (!result) return { error: "A league needs at least 2 players to pair." };
+    if (!result) return { error: `A league needs at least ${minPlayers(league)} players to pair.` };
     return { round: result.round };
   }
   return { error: "Every round this season has gone out." };

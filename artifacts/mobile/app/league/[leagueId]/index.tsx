@@ -1,7 +1,7 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import React, { useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
+import { AccessibilityInfo, ActionSheetIOS, ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -34,9 +34,11 @@ import {
   dateRange,
   deadlineDate,
   matchWhen,
+  firstNames,
   myWeek,
   opponentName,
   pairingTime,
+  partnerOf,
   playoffLine,
   resultLine,
   shortDate,
@@ -130,13 +132,35 @@ function YourWeek({
   if (!match) return null;
 
   const opponent = opponentName(match, myPlayerId);
+  // Doubles (Wave 2): you and your partner against two opponents.
+  const partner = partnerOf(match, myPlayerId);
+  const matchup = partner ? `You and ${partner.name} vs. ${opponent}` : `You vs. ${opponent}`;
   const opponentId = match.player1Id === myPlayerId ? match.player2Id : match.player1Id;
-  const opponentRating = match.player1Id === myPlayerId ? match.player2Rating : match.player1Rating;
-  const canMessage = match.player1Id === myPlayerId ? match.player2HasAccount : match.player1HasAccount;
+  const opponentRating = partner ? null : match.player1Id === myPlayerId ? match.player2Rating : match.player1Rating;
   const scoreable = canEnterScore(round, match, ended);
   // C7: a direct chat with your opponent. League mates skip Message Requests.
-  const message = () =>
-    router.push({ pathname: "/conversation/[id]", params: { id: "new", playerId: String(opponentId), name: opponent } });
+  // In doubles, pick who to message: your partner or either opponent.
+  const others = (
+    [
+      [match.player1Id, match.player1Name, match.player1HasAccount],
+      [match.player2Id, match.player2Name, match.player2HasAccount],
+      [match.player3Id, match.player3Name, match.player3HasAccount],
+      [match.player4Id, match.player4Name, match.player4HasAccount],
+    ] as const
+  )
+    .filter(([id, , hasAccount]) => id != null && id !== myPlayerId && hasAccount)
+    .map(([id, name]) => ({ playerId: id!, name: name ?? "Player" }));
+  const canMessage = partner ? others.length > 0 : match.player1Id === myPlayerId ? match.player2HasAccount : match.player1HasAccount;
+  const openChat = (playerId: number, name: string) =>
+    router.push({ pathname: "/conversation/[id]", params: { id: "new", playerId: String(playerId), name } });
+  const message = () => {
+    if (!partner) return openChat(opponentId, opponent);
+    const options = [...others.map((o) => o.name), "Cancel"];
+    ActionSheetIOS.showActionSheetWithOptions({ title: "Message", options, cancelButtonIndex: options.length - 1 }, (i) => {
+      const o = others[i];
+      if (o) openChat(o.playerId, o.name);
+    });
+  };
   const played = match.status === "completed" && !!match.score;
   const corrected = correctionLine(match);
   // After an undo, the opponent sees who cleared it until a new score is in.
@@ -155,7 +179,7 @@ function YourWeek({
     <Card style={{ gap: spacing.space3 }}>
       <View
         accessible
-        accessibilityLabel={`Your match. ${label}. You versus ${opponent}${
+        accessibilityLabel={`Your match. ${label}. ${matchup.replace(" vs. ", " versus ")}${
           opponentRating ? `, ${levelSpoken(opponentRating.rating, opponentRating.source)}` : ""
         }. ${when}`}
         style={{ gap: spacing.space1 }}
@@ -164,7 +188,7 @@ function YourWeek({
           {label}
         </Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.space2 }}>
-          <Text variant="title">{`You vs. ${opponent}`}</Text>
+          <Text variant="title">{matchup}</Text>
           {opponentRating ? <RatingBadge rating={opponentRating.rating} source={opponentRating.source} /> : null}
         </View>
         <Text variant="small" tone="inkMuted">
@@ -183,9 +207,9 @@ function YourWeek({
         ) : null}
         {canMessage ? (
           <Button
-            label={`Message ${opponent.split(" ")[0]}`}
-            accessibilityLabel={`Message ${opponent}`}
-            accessibilityHint="Opens a direct chat"
+            label={partner ? "Message" : `Message ${firstNames(opponent)}`}
+            accessibilityLabel={partner ? "Message a player in this match" : `Message ${opponent}`}
+            accessibilityHint={partner ? "Pick your partner or an opponent for a direct chat" : "Opens a direct chat"}
             variant="secondary"
             onPress={message}
             style={fontScale >= 1.3 ? undefined : { flex: 1 }}
@@ -249,7 +273,7 @@ export default function LeagueScreen() {
   }
 
   const eyebrow = league
-    ? [formatLabel(league.format), playTypeLabel(league.leagueType), league.location].filter(Boolean).join(" · ")
+    ? [formatLabel(league.format), playTypeLabel(league.leagueType, league.partnerMode), league.location].filter(Boolean).join(" · ")
     : "";
   const season =
     league?.startDate && league.endDate ? `Season ${dateRange(league.startDate, league.endDate)}` : null;
@@ -259,8 +283,6 @@ export default function LeagueScreen() {
   const ended = !!league?.endedAt || league?.status === "completed";
   const started = !!league?.startDate && !!schedule && schedule.today >= league.startDate;
   const isAdmin = !!membershipQ.data?.isAdmin;
-  // Q2: doubles leagues don't run yet. One made before then says so.
-  const doublesOnHold = league?.leagueType === "doubles" && !ended;
   const playoffsNote = league ? playoffLine(league.playoffSize, league.playerCount) : null;
 
   // Dropouts (decision 27): played matches stay, the rest are cancelled.
@@ -386,13 +408,6 @@ export default function LeagueScreen() {
                 </Text>
               </View>
             </Card>
-          ) : doublesOnHold ? (
-            <Card accessible style={{ gap: spacing.space1 }}>
-              <Text variant="bodyStrong">This doubles league isn't running yet</Text>
-              <Text variant="small" tone="inkMuted">
-                Weekly pairings are for singles leagues for now. Your league and its players are saved.
-              </Text>
-            </Card>
           ) : playoff ? (
             <Card style={{ gap: spacing.space3 }}>
               <View
@@ -446,8 +461,6 @@ export default function LeagueScreen() {
             </Card>
           ) : null}
 
-          {doublesOnHold ? null : (
-          <>
           <SegmentedTabs
             label="League sections"
             value={tab}
@@ -542,8 +555,6 @@ export default function LeagueScreen() {
             </Card>
           ) : null}
 
-          </>
-          )}
 
           {membershipQ.data?.isPlaying && !ended ? (
             <Button

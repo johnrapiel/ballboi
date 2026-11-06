@@ -10,6 +10,7 @@ import {
   getGetLeagueInvitesQueryKey,
   getGetLeagueJoinRequestsQueryKey,
   getGetLeagueRosterQueryKey,
+  getGetLeagueTeamsQueryKey,
   getGetLeaguesQueryKey,
   useApproveLeagueJoinRequest,
   useCreateLeagueInvite,
@@ -32,6 +33,7 @@ import {
 } from "@workspace/api-client-react";
 
 import { ListRow, SectionLabel } from "@/components/league/ListRow";
+import { TeamsSection } from "@/components/league/TeamsSection";
 import { TestingTools } from "@/components/league/TestingTools";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
@@ -43,7 +45,7 @@ import { leagueLevelLabel } from "@/lib/onboarding";
 
 // Manage (spec: Roles: "Admin tools appear in context only: a Manage entry
 // inside leagues you run"). Pairings for review, requests and the waitlist,
-// players, admins, and the invite code.
+// teams in a fixed-partner doubles league, players, admins, and the invite code.
 
 function errorText(e: unknown, fallback: string): string {
   return (e as { data?: { error?: string } | null }).data?.error ?? fallback;
@@ -98,6 +100,7 @@ export default function ManageLeagueScreen() {
     Promise.all([
       ...[
         getGetLeagueRosterQueryKey(leagueId),
+        getGetLeagueTeamsQueryKey(leagueId),
         getGetLeagueAdminsQueryKey(leagueId),
         getGetLeagueJoinRequestsQueryKey(leagueId),
         getGetLeagueInvitesQueryKey(leagueId),
@@ -324,7 +327,7 @@ export default function ManageLeagueScreen() {
       <SectionLabel>Pairings</SectionLabel>
       <Card style={{ padding: 0, overflow: "hidden" }}>
         {!schedule?.weeklyRounds ? (
-          <ListRow title="Weekly pairing isn't available for this league yet" subtitle="Doubles pairing is coming." last />
+          <ListRow title="Weekly pairing isn't available for this league" subtitle="It was set up before weekly rounds. Start a new league to use them." last />
         ) : draft ? (
           <ListRow
             title={`Review Round ${draft.roundNumber} pairings`}
@@ -414,6 +417,8 @@ export default function ManageLeagueScreen() {
           </Card>
         </>
       ) : null}
+
+      {league?.leagueType === "doubles" && league.partnerMode === "fixed" ? <TeamsSection leagueId={leagueId} ended={ended || seasonOver} /> : null}
 
       <SectionLabel>{`Players (${roster.length})`}</SectionLabel>
       <Card style={{ padding: 0, overflow: "hidden" }}>

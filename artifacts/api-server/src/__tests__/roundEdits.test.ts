@@ -25,8 +25,8 @@ describe("planSwap", () => {
   it("swaps players between two matches", () => {
     expect(planSwap(draft, 2, 3)).toEqual({
       matchUpdates: [
-        { matchId: 10, player1Id: 1, player2Id: 3 },
-        { matchId: 11, player1Id: 2, player2Id: 4 },
+        { matchId: 10, player1Id: 1, player2Id: 3, player3Id: null, player4Id: null },
+        { matchId: 11, player1Id: 2, player2Id: 4, player3Id: null, player4Id: null },
       ],
       byeMoves: [],
     });
@@ -34,14 +34,14 @@ describe("planSwap", () => {
 
   it("swaps a player with the one on a bye", () => {
     expect(planSwap(draft, 7, 1)).toEqual({
-      matchUpdates: [{ matchId: 10, player1Id: 7, player2Id: 2 }],
+      matchUpdates: [{ matchId: 10, player1Id: 7, player2Id: 2, player3Id: null, player4Id: null }],
       byeMoves: [{ fromPlayerId: 7, toPlayerId: 1 }],
     });
   });
 
   it("puts an unpaired player into a match, leaving the other unpaired", () => {
     expect(planSwap(draft, 8, 4)).toEqual({
-      matchUpdates: [{ matchId: 11, player1Id: 3, player2Id: 8 }],
+      matchUpdates: [{ matchId: 11, player1Id: 3, player2Id: 8, player3Id: null, player4Id: null }],
       byeMoves: [],
     });
   });
@@ -77,5 +77,49 @@ describe("planLock", () => {
     expect(planLock(draft, 10)).toBeNull();
     expect(planLock(draft, 99)).toMatch(/isn't in this round/);
     expect(planLock({ ...draft, published: true }, 10)).toMatch(/already gone out/);
+  });
+});
+
+describe("doubles drafts (Wave 2)", () => {
+  const doubles: DraftRound = {
+    published: false,
+    matches: [
+      { id: 20, player1Id: 1, player2Id: 2, player3Id: 3, player4Id: 4, locked: false },
+      { id: 21, player1Id: 5, player2Id: 6, player3Id: 7, player4Id: 8, locked: false },
+    ],
+    byes: [],
+    activePlayerIds: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+  };
+
+  it("counts all four players as placed", () => {
+    expect(unpairedPlayers(doubles)).toEqual([9]);
+  });
+
+  it("swaps a partner between matches", () => {
+    expect(planSwap(doubles, 3, 7)).toEqual({
+      matchUpdates: [
+        { matchId: 20, player1Id: 1, player2Id: 2, player3Id: 7, player4Id: 4 },
+        { matchId: 21, player1Id: 5, player2Id: 6, player3Id: 3, player4Id: 8 },
+      ],
+      byeMoves: [],
+    });
+  });
+
+  it("swaps a partner with an opponent in the same match", () => {
+    expect(planSwap(doubles, 3, 2)).toEqual({
+      matchUpdates: [{ matchId: 20, player1Id: 1, player2Id: 3, player3Id: 2, player4Id: 4 }],
+      byeMoves: [],
+    });
+  });
+
+  it("won't swap two partners with each other", () => {
+    expect(planSwap(doubles, 1, 3)).toEqual({ error: "Those players are already playing each other." });
+  });
+
+  it("puts an unpaired player into a partner's spot", () => {
+    expect(planSwap(doubles, 9, 4)).toEqual({
+      matchUpdates: [{ matchId: 20, player1Id: 1, player2Id: 2, player3Id: 3, player4Id: 9 }],
+      byeMoves: [],
+    });
   });
 });

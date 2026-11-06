@@ -17,7 +17,7 @@ import {
 import { Button, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { addDays, deadlineDate, matchWhen, opponentName, shortDate, zonedTime } from "@/lib/leagueSchedule";
+import { addDays, deadlineDate, isMine, matchTitle, matchWhen, opponentName, shortDate, zonedTime } from "@/lib/leagueSchedule";
 import { todaysMatchesKey } from "@/lib/recording/api";
 
 // Match time (PR 4). In a league with no weekly match time, either player sets
@@ -40,8 +40,8 @@ export default function MatchTimeScreen() {
   const timeZone = scheduleQ.data?.timeZone ?? "America/New_York";
   const round = scheduleQ.data?.rounds.find((r) => r.matches.some((m) => m.matchId === matchId));
   const match = round?.matches.find((m) => m.matchId === matchId);
-  const opponent = match ? (myPlayerId != null && (match.player1Id === myPlayerId || match.player2Id === myPlayerId) ? opponentName(match, myPlayerId) : null) : null;
-  const title = match ? (opponent ? `You vs. ${opponent}` : `${match.player1Name} vs. ${match.player2Name}`) : "Match time";
+  const opponent = match && myPlayerId != null && isMine(match, myPlayerId) ? opponentName(match, myPlayerId) : null;
+  const title = match ? (opponent ? `You vs. ${opponent}` : matchTitle(match)) : "Match time";
 
   // The match's week in the league's time zone; the grace week once the deadline passes.
   const lastDay = round ? (round.phase === "grace" ? round.graceEnd : round.deadline) : null;

@@ -15,6 +15,7 @@ export * from "./scheduleGenerationLogs";
 export * from "./matchRemindersLog";
 export * from "./ballBoi";
 export * from "./leagueRoundByes";
+export * from "./leagueTeams";
 export * from "./leagueRounds";
 export * from "./playoffBrackets";
 export * from "./seasons";

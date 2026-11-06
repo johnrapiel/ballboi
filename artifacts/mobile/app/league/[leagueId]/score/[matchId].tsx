@@ -20,7 +20,7 @@ import { Button, Card, Text } from "@/components/ui";
 import { Toggle } from "@/components/Toggle";
 import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { correctionLine, deadlineDate, opponentName } from "@/lib/leagueSchedule";
+import { correctionLine, deadlineDate, firstNames, opponentName, partnerOf, sideName } from "@/lib/leagueSchedule";
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
 import { emptySet, isTiebreakSet, readScore, setRowsToShow, setsFromScore, type SetEntry } from "@/lib/scoreEntry";
@@ -121,15 +121,17 @@ export default function EnterScoreScreen() {
   // Q5b: after a playoff round's play-by date, the admin enters the result.
   const pastPlayBy = !asAdmin && !!playoffRound?.pastPlayBy;
   const opponent = asAdmin
-    ? weekly?.player2Name ?? playoffSlot?.player2?.playerName ?? "Player 2"
+    ? (weekly ? sideName(weekly, 2) : null) ?? playoffSlot?.player2?.playerName ?? "Player 2"
     : weekly && myPlayerId != null
       ? opponentName(weekly, myPlayerId)
       : playoffOpponent ?? "your opponent";
-  const opponentShort = opponent.split(" ")[0];
+  // "Jo", or "Jo and Lee" in doubles.
+  const opponentShort = firstNames(opponent);
+  const partner = weekly && myPlayerId != null ? partnerOf(weekly, myPlayerId) : null;
   // Admin: the first row is player 1, the second player 2.
-  const firstName = asAdmin ? weekly?.player1Name ?? playoffSlot?.player1?.playerName ?? "Player 1" : "You";
+  const firstName = asAdmin ? (weekly ? sideName(weekly, 1) : null) ?? playoffSlot?.player1?.playerName ?? "Player 1" : "You";
   const currentScore = weekly?.score ?? playoffSlot?.score ?? null;
-  const firstShort = firstName.split(" ")[0];
+  const firstShort = firstNames(firstName);
 
   const [sets, setSets] = useState<SetEntry[]>([emptySet(), emptySet(), emptySet()]);
   const [retired, setRetired] = useState(false);
@@ -285,7 +287,7 @@ export default function EnterScoreScreen() {
               .join(" · ")}
           </Text>
         ) : null}
-        <Text variant="title">{asAdmin ? `${firstName} vs. ${opponent}` : `You vs. ${opponent}`}</Text>
+        <Text variant="title">{asAdmin ? `${firstName} vs. ${opponent}` : `${partner ? `You and ${firstNames(partner.name)}` : "You"} vs. ${opponent}`}</Text>
         {correcting ? (
           <Text variant="small" tone="inkMuted">
             {[
