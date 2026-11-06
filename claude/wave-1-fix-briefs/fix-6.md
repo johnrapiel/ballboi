@@ -16,13 +16,15 @@ Rules:
 
 **Findings:** #25
 
+**Source of truth:** the live design system was updated by John on Nov 6 (version 1793987985). Exact copies are on this same branch in `claude/wave-1-fix-briefs/design-system/`: `tokens.json` and `README.md` (copy them over docs/design-system/tokens.json and README.md as they are), plus `ball-boi-roundel-ink.svg` (Day) and `ball-boi-roundel-white.svg` (Night), the transparent roundel traces to use in the app. Where the values below and that tokens.json differ, tokens.json wins.
+
 **Scope:** apply the palette John approved on Nov 6 (design audit, section "Day and Night backgrounds": https://claude.ai/artifact/2cYritQtBZgmKz874TTt3C) through the tokens, so every screen picks it up. Token values only plus the night roundel; don't restyle screens (Fix 1 does that, and its screens read the same tokens). Files: docs/design-system/tokens.json and README.md, artifacts/mobile/constants/tokens.ts (regenerate if it's generated), hooks/useColors.ts, the Increase Contrast (-hc) values, scripts/check-contrast.mjs, the paper grain texture, the roundel asset for Night, and CLAUDE.md's color rules (paper is now ivory, Night is warm charcoal, navy stays the Day ink). Keep token names (paper, linen, sand, ink, ink-muted, on-ink, court, danger) so nothing else has to change; update their values and usage notes.
 
 **New values:**
 - Day: paper #FAF9F5 (no grain), linen #FFFFFF (cards, lists, sheets, tab bar), sand #F0EEE6 (wells, avatars, your standings row, segmented controls). ink #0A2447, ink-muted, court and danger unchanged.
 - Night: paper #1F1E1D, linen #2A2927, sand #383733, ink #F5F4EF, ink-muted #B5B2A9, on-ink is the charcoal (#1F1E1D) so primary buttons are ivory with charcoal text, hairlines rgba(245, 244, 239, x) at today's opacities. court #9DBFA3 and danger #EF8B7D unchanged.
 - Recompute every -hc value and heat-1 to heat-5 for the new grounds so each still meets its contrast target.
-- Roundel: by day, the ink brushstroke as today; at night, the brushstroke alone in white with no paper fill. Make the night asset from the existing roundel (a transparent-background version) and switch it wherever the roundel shows (Home header, Welcome).
+- Roundel: by day, the ink brushstroke as today; at night, the brushstroke alone in white with no paper fill. Use the two SVG traces (render them with react-native-svg if it's already a dependency, or convert to 1x/2x/3x PNGs in the repo; don't add a native package) and switch them wherever the roundel shows in the app (Home header, Welcome). Keep roundel.png for the splash, which Fix 5 owns.
 
 **Acceptance criteria (Do / Expect):**
 1. Run pnpm test. Expect: the contrast check passes for every pair in Day and Night, including Increase Contrast and heatmap labels. If a pair can't meet its target with the approved colors, list it in the PR and propose the smallest change.
