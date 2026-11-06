@@ -124,13 +124,13 @@ _Last updated: 2026-11-06 (design refresh: W and L result letters, brush tab ico
 
 | Item | Criterion | Status | Notes |
 |---|---|---|---|
-| Text contrast ≥ 4.5:1, borders and focus ≥ 3:1 | 1.4.3, 1.4.11 | ✅ | `scripts/check-contrast.mjs` checks token pairs in Day and Night on every `pnpm test`. PR #31 expands it to 62 pairs, including Increase Contrast values and heatmap labels |
-| Primary button contrast | 1.4.3 | ✅ | White (`on-ink`) on navy (`ink`), 15.5:1 (PR #31). Teal retired in the Oct 29 palette refresh |
+| Text contrast ≥ 4.5:1, borders and focus ≥ 3:1 | 1.4.3, 1.4.11 | ✅ | `scripts/check-contrast.mjs` checks token pairs in Day and Night on every `pnpm test`. PR #31 expands it to 62 pairs, including Increase Contrast values and heatmap labels. Wave 1 Fix 6 (Nov 6 ivory and charcoal palette): 64 pairs, all passing |
+| Primary button contrast | 1.4.3 | ✅ | Day: white (`on-ink`) on navy (`ink`), 15.5:1 (PR #31). Night: charcoal on ivory, 15.1:1 (Wave 1 Fix 6). Teal retired in the Oct 29 palette refresh |
 | Status colors (success/live/error) | 1.4.3, 1.4.1 | 🟡 | In PR #31: `court` (wins, live, links) and `danger` (errors) only; `pool`, `clay` and `sun` retired. Each job has a shape cue: underlined links, live dot, win check, error cross. The contrast check fails if a cue goes missing |
-| Focus indicator contrast ≥ 3:1 | 1.4.11 | ✅ | `focus` = `ink`, 2px ring, 11.8:1 or better in both themes |
+| Focus indicator contrast ≥ 3:1 | 1.4.11 | ✅ | `focus` = `ink`, 2px ring, 13.2:1 or better in both themes (Wave 1 Fix 6) |
 | Pinch zoom allowed | 1.4.4 | ✅ | Web only (retired web app, PR #2) |
 | No text under 11px | HIG / 1.4.4 | ✅ | `label` (11px) is for eyebrows and table headers only; chips use `chip` (12px). Body 17, small 15, button 16 |
-| Night session muted text | 1.4.3 | ✅ | `ink-muted` `#B8AD9B`: 7.9:1 on paper, 5.7:1 on sand |
+| Night session muted text | 1.4.3 | ✅ | `ink-muted` `#B5B2A9` on warm charcoal: 7.9:1 on paper, 5.6:1 on sand (Wave 1 Fix 6) |
 | Birthday picker accessible | 1.3.1, 4.1.2, 2.5.8, 1.4.4 | 🟡 | Merged in PR #16; VoiceOver and largest-text test still to do on a development build. Visible and accessible "Birthday" label; VoiceOver announces each wheel change; Done button 44×44pt; label and button scale at the largest Dynamic Type sizes. VoiceOver moves the year wheel one year per swipe, so test it before locking the starting date |
 | New league form accessible | 1.3.1, 2.5.8, 4.1.2 | 🟡 | Merged (PRs #20, #32): weeks field labeled "Weeks" with a "1 to 24 weeks" hint; − and + buttons 44pt and labeled "Fewer weeks" / "More weeks". Wave 1 PR 5: the season length follows the field as you type, and an out-of-range value snaps to 1 or 24 with a note VoiceOver reads (live region). Still to do: VoiceOver test of the calendar date picker on a phone |
 | Color is never the only signal (charts, heatmaps, shot markers) | 1.4.1 | 🟡 | Rules in the design system's Charts and replay section: players by shape, winners a check, errors a cross, close calls a dashed ring plus text, heatmaps one ink in five labeled steps (`heat-1` to `heat-5`). Results in condensed lists show the letter W or L, never color alone, and the tab bar marks the selected tab with a filled icon as well as the system's selected state (design refresh, Nov 6). Apply to the replay when it is rebuilt |

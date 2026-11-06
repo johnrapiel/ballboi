@@ -11,7 +11,6 @@
 
 import { useSignInWithApple } from "@clerk/expo/apple";
 import { useSignInWithGoogle } from "@clerk/expo/google";
-import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { View } from "react-native";
@@ -22,6 +21,7 @@ import {
   SIGN_IN_BUTTON_HEIGHT,
   useSignInOptions,
 } from "@/components/SocialSignInButtons";
+import { Roundel } from "@/components/Roundel";
 import { Button, ScrollScreen, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { friendlyAuthError } from "@/lib/authErrors";
@@ -54,12 +54,7 @@ export default function WelcomeScreen() {
   return (
     // Scrolls at the largest text sizes, so the sign-in buttons stay reachable (A8).
     <ScrollScreen style={{ paddingTop: spacing.space12, alignItems: "center", gap: spacing.space6 }}>
-      <Image
-        source={require("@/assets/images/roundel.png")}
-        style={{ width: 200, height: 200, borderRadius: 100 }}
-        accessibilityLabel="Ball Boi"
-        accessibilityRole="image"
-      />
+      <Roundel size={200} accessibilityLabel="Ball Boi" />
       <View style={{ gap: spacing.space3, maxWidth: 320, alignItems: "center" }}>
         <Text variant="title" accessibilityRole="header" style={{ textAlign: "center" }}>
           Rec leagues, done properly.
