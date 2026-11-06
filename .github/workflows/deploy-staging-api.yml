@@ -60,7 +60,6 @@ jobs:
         working-directory: artifacts/api-host
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm exec wrangler deploy
 
       # Secrets go from GitHub to the Worker, which passes them to the API.
@@ -69,20 +68,17 @@ jobs:
         working-directory: artifacts/api-host
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
-          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
           S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
           S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
-          ML_SECRET: ${{ secrets.ML_SECRET }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           node -e '
             const keys = ["DATABASE_URL","CLERK_SECRET_KEY","CLERK_PUBLISHABLE_KEY","ADMIN_EMAIL",
-              "S3_ENDPOINT","S3_ACCESS_KEY_ID","S3_SECRET_ACCESS_KEY","ML_SECRET","ANTHROPIC_API_KEY"];
+              "S3_ACCESS_KEY_ID","S3_SECRET_ACCESS_KEY","ANTHROPIC_API_KEY"];
             const out = {};
             for (const k of keys) if (process.env[k]) out[k] = process.env[k];
             require("fs").writeFileSync("/tmp/secrets.json", JSON.stringify(out));

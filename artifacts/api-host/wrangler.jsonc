@@ -10,6 +10,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "ballboi-api-staging",
+  "account_id": "26c21786ac3cf2eb9f9f39bf18f0c0bb",
   "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
   "workers_dev": true,
@@ -31,6 +32,7 @@
   "vars": {
     "NODE_ENV": "production",
     "S3_REGION": "auto",
+    "S3_ENDPOINT": "https://26c21786ac3cf2eb9f9f39bf18f0c0bb.r2.cloudflarestorage.com",
     "S3_BUCKET": "ballboi-staging",
     "MESSAGING_PROVIDER": "memory"
   }

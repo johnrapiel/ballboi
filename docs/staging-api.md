@@ -23,17 +23,16 @@ Set as GitHub repository secrets (Settings > Secrets and variables > Actions). T
 
 | Secret | Where it comes from |
 | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Cloudflare > My Profile > API Tokens (Workers Scripts, Containers and Durable Objects edit, for this account) |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard, account home |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare > My Profile > API Tokens: "GitHub deploy: ballboi staging API" (Workers Scripts, Containers and Cloudchamber edit) |
 | `DATABASE_URL` | Neon > project > Connection string (pooled, `sslmode=require`) |
 | `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY` | Clerk > Development instance > API Keys (same instance as local) |
 | `ADMIN_EMAIL` | The email that gets admin access |
-| `S3_ENDPOINT` | `https://<account-id>.r2.cloudflarestorage.com` |
 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | R2 API token scoped to `ballboi-staging` (Object Read & Write) |
-| `ML_SECRET` | Any long random string; reused when the ML server is hosted |
 | `ANTHROPIC_API_KEY` | Optional; turns on the moderation agent |
 
-Repository variable `STAGING_API_URL` (the Worker's URL, no trailing slash) lets the deploy check that the API answers. The same URL goes into EAS as `EXPO_PUBLIC_API_URL` for the `preview` environment.
+The account ID and R2 endpoint aren't secret, so they live in `artifacts/api-host/wrangler.jsonc`.
+
+Repository variable `STAGING_API_URL` (`https://ballboi-api-staging.jr-26c.workers.dev`) lets the deploy check that the API answers. The same URL goes into EAS as `EXPO_PUBLIC_API_URL` for the `preview` environment.
 
 ## First deploy
 
