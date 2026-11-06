@@ -134,6 +134,8 @@ export interface Profile {
   rating: number | null;
   ratingSource: RatingSource | null;
   intent: Intent | null;
+  /** Match day reminders (Wave 2): on unless the player turned them off in Profile. */
+  matchRemindersEnabled: boolean;
 }
 
 /** The signed-in player's profile, or null before step 3 creates it. */
@@ -149,6 +151,7 @@ export async function fetchProfile(getToken: TokenGetter): Promise<Profile | nul
     rating: body.rating == null ? null : Number(body.rating),
     ratingSource: (body.ratingSource as RatingSource | null) ?? null,
     intent: (body.intent as Intent | null) ?? null,
+    matchRemindersEnabled: body.matchRemindersEnabled !== false,
   };
 }
 

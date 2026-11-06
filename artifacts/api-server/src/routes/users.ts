@@ -93,7 +93,10 @@ router.post("/users/me", requireAuth, async (req, res) => {
 
 router.put("/users/me", requireAuth, async (req, res) => {
   const { userId } = getAuth(req);
-  const { displayName, email, phone, avatarUrl, skillLevel, dominantHand, bio, onboardingComplete } = req.body;
+  const { displayName, email, phone, avatarUrl, skillLevel, dominantHand, bio, onboardingComplete, matchRemindersEnabled } = req.body;
+  if (matchRemindersEnabled !== undefined && typeof matchRemindersEnabled !== "boolean") {
+    return res.status(400).json({ error: "matchRemindersEnabled must be true or false." });
+  }
 
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.clerkUserId, userId!));
   if (!existing) return res.status(404).json({ error: "User profile not found" });
@@ -111,6 +114,8 @@ router.put("/users/me", requireAuth, async (req, res) => {
   if (dominantHand !== undefined) updateData.dominantHand = dominantHand;
   if (bio !== undefined) updateData.bio = bio;
   if (onboardingComplete !== undefined) updateData.onboardingComplete = onboardingComplete;
+  // Wave 2: the Match day reminders switch in Profile.
+  if (matchRemindersEnabled !== undefined) updateData.matchRemindersEnabled = matchRemindersEnabled;
 
   if (Object.keys(updateData).length === 0) return res.json(existing);
   const previousName = existing.displayName;

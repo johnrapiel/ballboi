@@ -40,6 +40,12 @@ export const usersTable = pgTable("users", {
    * picked. Research data for the team, never shown back to the player.
    */
   intents: text("intents").array(),
+  /**
+   * Match day reminders (Wave 2, spec decision 73): on by default, one switch
+   * for the account in Profile. A reminder still reaches the player only once
+   * iOS allows Ball Boi's notifications.
+   */
+  matchRemindersEnabled: boolean("match_reminders_enabled").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

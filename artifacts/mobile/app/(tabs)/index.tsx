@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
 import { ListRow } from "@/components/league/ListRow";
 import { MatchCard, type MatchCardAction } from "@/components/MatchCard";
+import { NotificationsOffBanner } from "@/components/NotificationsOffBanner";
 import { DoublesRecordButton } from "@/components/record/DoublesMatchCard";
 import { TabScreen } from "@/components/TabHeader";
 import { Button, Card, Text } from "@/components/ui";
@@ -161,6 +162,8 @@ export default function HomeScreen() {
           contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space3 }}
           refreshControl={<RefreshControl refreshing={weekQ.isRefetching} onRefresh={() => void weekQ.refetch()} tintColor={c.ink} />}
         >
+          <NotificationsOffBanner />
+
           {weekQ.isError ? (
             <Card style={{ gap: spacing.space2 }}>
               <Text variant="bodyStrong">Couldn't load your matches</Text>

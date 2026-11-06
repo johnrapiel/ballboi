@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
+import { useAuth } from "@clerk/expo";
 import { Tabs, useRouter } from "expo-router";
 import { NativeTabs } from "expo-router/native-tabs";
 import { SymbolView, type SFSymbol } from "expo-symbols";
@@ -10,6 +11,7 @@ import { Image, Platform, StyleSheet, useColorScheme, type ImageSourcePropType }
 import { useColors } from "@/hooks/useColors";
 import { useGate } from "@/hooks/useGate";
 import { takePendingJoinCode } from "@/lib/leagueInvite";
+import { startQuietNotifications } from "@/lib/notifications";
 import { takePendingInvite } from "@/lib/recording/pendingInvite";
 import { useUploadRunner } from "@/lib/recording/uploader";
 
@@ -122,10 +124,26 @@ function useOpenPendingLinks(ready: boolean) {
   }, [ready, router]);
 }
 
+/**
+ * Match day reminders (Wave 2): once the player is in the app, ask iOS for
+ * quiet notifications (no prompt) and keep this phone's push token current.
+ * Once per launch and account.
+ */
+function useQuietNotifications(ready: boolean) {
+  const { getToken, userId } = useAuth();
+  useEffect(() => {
+    if (!ready || !userId) return;
+    void startQuietNotifications(getToken);
+    // getToken changes identity between renders; the account is what matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, userId]);
+}
+
 export default function TabLayout() {
   // The root layout moves anyone who can't be here yet (app/_layout.tsx).
   const ready = useGate() === "app";
   useOpenPendingLinks(ready);
+  useQuietNotifications(ready);
   // Ball Boi uploads: resume at launch, on foreground, and when Wi-Fi comes back.
   useUploadRunner();
 
