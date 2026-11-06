@@ -10,7 +10,7 @@ export const chrome = {
   /** Camera letterbox and the area behind the preview. */
   ground: "#000000",
   /** Panels and controls laid over live video: Night paper, nearly opaque. */
-  scrim: "rgba(7, 26, 51, 0.88)",
+  scrim: "rgba(31, 30, 29, 0.88)", // Night paper (#1F1E1D) at 88%
   panel: night.linen,
   text: night.ink,
   textMuted: night.inkMuted,

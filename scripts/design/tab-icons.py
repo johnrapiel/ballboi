@@ -9,8 +9,8 @@ from PIL import Image, ImageDraw
 SRC, OUT = sys.argv[1], sys.argv[2]
 PT = 26           # icon box in points
 SS = 8            # supersampling
-INK = {"": (10, 36, 71), "-dark": (241, 230, 210)}
-MUTED = {"": (74, 86, 112), "-dark": (184, 173, 155)}  # inkMuted, the unselected tab colour
+INK = {"": (10, 36, 71), "-dark": (245, 244, 239)}
+MUTED = {"": (74, 86, 112), "-dark": (181, 178, 169)}  # inkMuted, the unselected tab colour
 NAVY = (10, 36, 71)
 paint = Image.open(os.path.join(SRC, "ball-paint.png")).convert("RGB")
 
