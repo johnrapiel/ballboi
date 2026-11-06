@@ -74,7 +74,7 @@ export function TabScreen({
   title: string;
   /** An optional button for the tab's main action, shown next to Messages. */
   action?: React.ReactNode;
-  /** Show the small roundel next to the title. Home only. */
+  /** Show the roundel in place of the title. Home only. */
   roundel?: boolean;
   children: React.ReactNode;
 }) {
@@ -91,7 +91,9 @@ export function TabScreen({
 /**
  * Top of every tab: the tab's name as a large brush title, echoing the
  * roundel's lettering, with Messages in the top-right corner. The title
- * always matches the tab label. Home adds the small roundel beside it.
+ * always matches the tab label. Home shows the roundel alone, left aligned,
+ * with no title, date or greeting (John, Nov 5); VoiceOver still reads the
+ * tab's name as the header.
  */
 export function TabHeader({
   title,
@@ -114,12 +116,15 @@ export function TabHeader({
         paddingBottom: spacing.space3,
       }}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3, flexShrink: 1 }}>
-        {roundel ? <Roundel size={40} /> : null}
+      {roundel ? (
+        <View accessible accessibilityRole="header" accessibilityLabel={title}>
+          <Roundel size={44} />
+        </View>
+      ) : (
         <Text variant="brushL" accessibilityRole="header" style={{ flexShrink: 1 }}>
           {title}
         </Text>
-      </View>
+      )}
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2 }}>
         {action}
         <MessagesButton unread={badgeCount(summary.data)} />

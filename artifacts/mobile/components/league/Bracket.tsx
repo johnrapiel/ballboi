@@ -4,6 +4,7 @@ import { Pressable, View } from "react-native";
 
 import type { BracketRound, BracketSeed, BracketSlot, LeagueBracket } from "@workspace/api-client-react";
 
+import { BrushRing } from "@/components/BrushRing";
 import { Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -12,7 +13,10 @@ import { slotActions, slotResult } from "@/lib/playoffView";
 
 // Playoff bracket (spec: Leagues > Setup, optional playoff for top 4 or 8;
 // canvas: Playoff bracket). A list by round rather than a drawn tree, so it
-// reads top to bottom with VoiceOver and at any text size.
+// reads top to bottom with VoiceOver and at any text size. Approved styling
+// (John, Nov 5): the original linen match boxes, italic serif seeds and sand
+// highlight on your match, sentence case labels and You, and the brush ring
+// around the italic serif Champion.
 
 export const ROUND_LABEL: Record<BracketSlot["round"], string> = {
   quarterfinal: "Quarterfinals",
@@ -33,13 +37,20 @@ function PlayerLine({ p, won, me }: { p: BracketSeed | null; won: boolean; me: b
       <Text variant="titleItalic" tone="inkMuted" style={{ minWidth: 22 }} maxFontSizeMultiplier={1.5}>
         {p ? String(p.seed) : ""}
       </Text>
-      <Text variant={won ? "bodyStrong" : "body"} tone={p ? "ink" : "inkMuted"} style={{ flex: 1 }}>
-        {p ? `${p.playerName}${me ? " (you)" : ""}` : "To be decided"}
-      </Text>
+      <View style={{ flex: 1, flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.space2 }}>
+        <Text variant={won ? "bodyStrong" : "body"} tone={p ? "ink" : "inkMuted"}>
+          {p ? p.playerName : "To be decided"}
+        </Text>
+        {p && me ? (
+          <Text variant="section" tone="inkMuted">
+            You
+          </Text>
+        ) : null}
+      </View>
       {won ? (
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space1 }}>
           <SymbolView name="checkmark" size={12} tintColor={c.ink} />
-          <Text variant="label">Won</Text>
+          <Text variant="section">Won</Text>
         </View>
       ) : null}
     </View>
@@ -91,17 +102,19 @@ export function BracketView({
   return (
     <View style={{ gap: spacing.space3 }}>
       {bracket.champion ? (
-        <Card accessible accessibilityLabel={`Champion: ${bracket.champion.playerName}`} style={{ alignItems: "center", gap: spacing.space1 }}>
-          <Text variant="label" tone="inkMuted">
-            Champion
-          </Text>
+        <Card accessible accessibilityLabel={`Champion: ${bracket.champion.playerName}`} style={{ alignItems: "center", gap: spacing.space2 }}>
+          <BrushRing size={36} style={{ paddingHorizontal: spacing.space3 }}>
+            <Text variant="titleItalic" maxFontSizeMultiplier={1.5}>
+              Champion
+            </Text>
+          </BrushRing>
           <Text variant="title">{bracket.champion.playerName}</Text>
         </Card>
       ) : null}
       {bracket.rounds.map((r) => (
         <View key={r.round} style={{ gap: spacing.space2 }}>
           <View style={{ gap: 2 }}>
-            <Text variant="label" tone="inkMuted" accessibilityRole="header">
+            <Text variant="section" tone="inkMuted" accessibilityRole="header">
               {ROUND_LABEL[r.round]}
             </Text>
             {/* Q5b: two weeks per round. */}

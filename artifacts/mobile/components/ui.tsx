@@ -156,7 +156,7 @@ export function Button({
   );
 }
 
-/** Raised surface: linen with a hairline border, never a drop shadow. */
+/** Raised surface: linen with a hairline border, never a drop shadow. Every card uses the 16pt card corner. */
 export function Card({ style, ...rest }: ViewProps) {
   const c = useColors();
   return (
@@ -167,7 +167,7 @@ export function Card({ style, ...rest }: ViewProps) {
           backgroundColor: c.linen,
           borderColor: c.hairline,
           borderWidth: 1,
-          borderRadius: radius.radiusMd,
+          borderRadius: radius.radiusCard,
           padding: spacing.space4,
         },
         style,
@@ -179,17 +179,23 @@ export function Card({ style, ...rest }: ViewProps) {
 export interface ChipProps extends ViewProps {
   label: string;
   /**
-   * quiet: sand chip. live: filled court with a dot, the one thing happening
-   * now. win: court outline with a check. Each has a shape cue, so live, wins
-   * and errors never differ by color alone.
+   * quiet: a plain status word ("Done", "Requested"), drawn as the outline
+   * Pill in sentence case. live: filled court with a dot, the one thing
+   * happening now. ink: filled ink, for You. Live and You keep the uppercase
+   * chip type and their fill (John, Nov 5); a quiet tag never fills.
    */
-  tone?: "quiet" | "live" | "win";
+  tone?: "quiet" | "live" | "ink";
 }
 
-/** Small uppercase tag. Carries its meaning in text and shape, never color alone. */
+/**
+ * Small status tag. Plain tags are the outline Pill with no fill (John, Nov 5);
+ * only You, Live and Rec stay filled, in uppercase chip type. Carries its
+ * meaning in text and shape, never color alone.
+ */
 export function Chip({ label, tone = "quiet", style, ...rest }: ChipProps) {
   const c = useColors();
-  const textColor = tone === "live" ? c.onInk : tone === "win" ? c.court : c.ink;
+  if (tone === "quiet") return <Pill label={label} style={style} {...rest} />;
+  const fill = tone === "live" ? c.court : c.ink;
   return (
     <View
       {...rest}
@@ -198,8 +204,8 @@ export function Chip({ label, tone = "quiet", style, ...rest }: ChipProps) {
       style={[
         {
           alignSelf: "flex-start",
-          backgroundColor: tone === "quiet" ? c.sand : tone === "live" ? c.court : "transparent",
-          borderColor: tone === "quiet" ? "transparent" : c.court,
+          backgroundColor: fill,
+          borderColor: fill,
           borderWidth: 1,
           borderRadius: radius.radiusPill,
           paddingHorizontal: spacing.space3,
@@ -214,9 +220,87 @@ export function Chip({ label, tone = "quiet", style, ...rest }: ChipProps) {
       {tone === "live" ? (
         <View style={[styles.liveDot, { backgroundColor: c.onInk }]} importantForAccessibility="no" />
       ) : null}
-      {tone === "win" ? <CheckGlyph color={c.court} /> : null}
-      <Text variant="chip" style={{ color: textColor }}>
+      <Text variant="chip" style={{ color: c.onInk }}>
         {label}
+      </Text>
+    </View>
+  );
+}
+
+export interface PillProps extends ViewProps {
+  label: string;
+  /** Spoken by VoiceOver, when the visible word needs more (level: "Level 3.5"). */
+  accessibilityLabel?: string;
+  /** Muted text, for the quieter pill in a row (a rank beside level and hand). */
+  quiet?: boolean;
+}
+
+/**
+ * A plain pill: level, hand, format, rank. Sentence case, outline only, never
+ * filled, and never tappable, so it stays distinct from 44pt chips and buttons.
+ * Pills in one row share one height and type size (John, Nov 5).
+ */
+export function Pill({ label, accessibilityLabel, quiet = false, style, ...rest }: PillProps) {
+  const c = useColors();
+  return (
+    <View
+      {...rest}
+      accessible
+      accessibilityRole="text"
+      accessibilityLabel={accessibilityLabel ?? label}
+      style={[
+        {
+          alignSelf: "flex-start",
+          minHeight: 26,
+          justifyContent: "center",
+          paddingHorizontal: 10,
+          paddingVertical: spacing.space1,
+          borderRadius: radius.radiusPill,
+          borderWidth: 1,
+          borderColor: c.hairlineStrong,
+          backgroundColor: "transparent",
+        },
+        style,
+      ]}
+    >
+      <Text variant="pill" tone={quiet ? "inkMuted" : "ink"} style={{ fontVariant: ["lining-nums", "tabular-nums"] }}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * A match result in a condensed list: W in court green or L in danger red,
+ * outlined, with no icon (John, Nov 5). The letter carries the meaning, so
+ * color is never the only signal, and VoiceOver reads Won or Lost.
+ */
+export function ResultTag({ won, style, ...rest }: ViewProps & { won: boolean }) {
+  const c = useColors();
+  const tone = won ? c.court : c.danger;
+  return (
+    <View
+      {...rest}
+      accessible
+      accessibilityRole="text"
+      accessibilityLabel={won ? "Won" : "Lost"}
+      style={[
+        {
+          alignSelf: "center",
+          minWidth: 40,
+          minHeight: 26,
+          alignItems: "center",
+          justifyContent: "center",
+          paddingHorizontal: 7,
+          borderRadius: radius.radiusPill,
+          borderWidth: 1,
+          borderColor: tone,
+        },
+        style,
+      ]}
+    >
+      <Text variant="pill" style={{ color: tone, fontFamily: "DMSans_700Bold" }}>
+        {won ? "W" : "L"}
       </Text>
     </View>
   );

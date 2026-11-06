@@ -1,6 +1,8 @@
 // Welcome / sign in.
 // Spec: Roles and onboarding, step 1 (Apple, Google, or email code).
-// Canvas: "Welcome / Sign in".
+// Canvas: "Welcome / Sign in"; approved copy and layout (John, Nov 5): the
+// headline is "Rec leagues, done properly." in Cormorant at title size, with
+// the subline and invite note in quieter text.
 //
 // Apple and Google use their own sign-in (Clerk's useSignInWithApple and
 // useSignInWithGoogle) instead of Clerk's browser sheet. A new account from either
@@ -59,11 +61,11 @@ export default function WelcomeScreen() {
         accessibilityRole="image"
       />
       <View style={{ gap: spacing.space3, maxWidth: 320, alignItems: "center" }}>
-        <Text variant="displayL" accessibilityRole="header" style={{ textAlign: "center" }}>
-          Club tennis, done properly.
+        <Text variant="title" accessibilityRole="header" style={{ textAlign: "center" }}>
+          Rec leagues, done properly.
         </Text>
-        <Text tone="inkMuted" style={{ textAlign: "center" }}>
-          Your league, your matches and a Ball Boi in your pocket that tracks every shot.
+        <Text variant="small" tone="inkMuted" style={{ textAlign: "center" }}>
+          Your league, your matches, and Ball Boi tracking every shot.
         </Text>
       </View>
 
@@ -91,7 +93,7 @@ export default function WelcomeScreen() {
           onPress={() => router.push("/(auth)/email")}
         />
         <Text variant="small" tone="inkMuted" style={{ textAlign: "center" }}>
-          Got an invite link? Sign in first and it'll open right after.
+          Got an invite link? Sign in first and it opens right after.
         </Text>
       </View>
     </ScrollScreen>

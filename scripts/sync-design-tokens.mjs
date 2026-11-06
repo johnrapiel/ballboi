@@ -92,7 +92,7 @@ for (const group of tokens.type.groups) {
     if (s.letterSpacing) style.letterSpacing = Number((Number.parseFloat(s.letterSpacing) * size).toFixed(2)); // em to points
     if (s.name === "label" || s.name === "chip") style.textTransform = "uppercase";
     if (group.family === "display" || group.family === "brush") maxScale[camel(s.name)] = DISPLAY_MAX_SCALE;
-    if (s.name === "score") style.fontVariant = ["lining-nums", "tabular-nums"];
+    if (s.name.startsWith("score")) style.fontVariant = ["lining-nums", "tabular-nums"];
     type[camel(s.name)] = style;
   }
 }

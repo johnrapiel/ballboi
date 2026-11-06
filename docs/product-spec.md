@@ -1,4 +1,4 @@
-<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-11-02 with rev 74). Updated in the repo on 2026-11-04 with the Wave 1 review decisions (48 to 78), which the live doc still needs. The live doc wins if they differ. Refresh this file when the live doc changes. -->
+<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-11-02 with rev 74). Updated in the repo on 2026-11-04 with the Wave 1 review decisions (48 to 78) and on 2026-11-06 with decision 79, which the live doc still needs. The live doc wins if they differ. Refresh this file when the live doc changes. -->
 
 # Ball Boi: Flows and Feature Spec
 
@@ -161,7 +161,7 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 
 **Scores and standings**
 
-- **Standings rank on wins only**
+- **Standings rank on wins**, then head to head between players level on wins, then share of sets won, then share of games won; players share a rank only when all four are level (decision 79). Playoff seeding uses the same order
 - **The first score entered stands:** either player enters it; there's no confirm or dispute step
 - **Grace period:** a match played in the week after its round's deadline updates Ball Boi stats, but not standings
 - **Opponent retired:** enter the score so far; it counts as a win and shows RET
@@ -400,7 +400,7 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 20 | Profile is the fifth tab and Messages moves to the top corner of every tab, with an unread count (Oct 21). Tab order: Home, Leagues, Ball Boi (center), Discover, Profile |
 | 21 | Birth-date fallback uses the native iOS date picker in wheels style, with a neutral prompt and starting date (Oct 21) |
 | 22 | League seasons run 1 to 24 weeks, 8 by default, set with a number input and − / + buttons (replaces 6 to 12 weeks); seasons start on any day from a calendar picker; Create is the primary button at the bottom of the new league flow (Oct 29) |
-| 23 | Standings rank on wins only (Oct 29) |
+| 23 | Standings rank on wins only (Oct 29). Ties are now broken by decision 79 |
 | 24 | The first score entered stands; no confirm or dispute flow in Leagues or Discover (Oct 29) |
 | 25 | Every league gets a fixed 1-week grace period after a round's deadline; matches played in it update ratings and Ball Boi stats but not standings. Replaces the admin's forfeit or no-result rule (Oct 29). Results never move levels, so only Ball Boi stats update (decision 75) |
 | 26 | Every league locks to new joins once the season starts; the waitlist holds requests for next season (Oct 29) |
@@ -456,3 +456,4 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 76 | Sign out warns first when recordings haven't uploaded, with the count, Cancel and Sign out anyway (Nov 4) |
 | 77 | League opponents talk in a direct chat (Message opponent) for now; full match threads come with Discover (Oct 31, logged Nov 4) |
 | 78 | The last onboarding step is an optional research question, "What do you want to do on Ball Boi?": pick any of four options or none, and everyone lands on Home. Replaces the four setup paths (Nov 2, logged Nov 4) |
+| 79 | Standings break ties on wins by head to head between the tied players, then share of sets won, then share of games won; playoff seeding uses the same order (John, Nov 6) |
