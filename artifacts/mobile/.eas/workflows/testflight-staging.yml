@@ -1,0 +1,65 @@
+# Puts the latest Ball Boi on John's phone after every merge to main.
+#
+# - Native code changed (new package, app.json, permissions): build a new
+#   iOS app and send it to TestFlight (internal testers only).
+# - Only app code changed: skip the build and send an over-the-air update
+#   to the existing TestFlight build. It arrives the next time the app opens.
+#
+# Every build and update points at staging (the "preview" EAS environment),
+# never production. Setup steps: docs/testflight-builds.md.
+#
+# Run it by hand any time: eas workflow:run .eas/workflows/testflight-staging.yml
+
+name: TestFlight (staging)
+
+on:
+  push:
+    branches: ['main']
+    # Only merges that touch the iOS app. API, ML and docs changes don't
+    # need a new app, and skipping them saves the free plan's monthly limits.
+    paths:
+      - 'artifacts/mobile/**'
+      - 'lib/api-client-react/**'
+      - 'pnpm-lock.yaml'
+
+jobs:
+  fingerprint:
+    name: Check for native changes
+    type: fingerprint
+    environment: preview
+
+  get_ios_build:
+    name: Find a matching build
+    needs: [fingerprint]
+    type: get-build
+    params:
+      platform: ios
+      profile: staging
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      wait_for_in_progress: true
+
+  build_ios:
+    name: Build iOS app
+    needs: [get_ios_build]
+    if: ${{ !needs.get_ios_build.outputs.build_id }}
+    type: build
+    params:
+      platform: ios
+      profile: staging
+
+  submit_ios:
+    name: Send to TestFlight
+    needs: [build_ios]
+    type: submit
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+
+  update_ios:
+    name: Send app update
+    needs: [get_ios_build]
+    if: ${{ needs.get_ios_build.outputs.build_id }}
+    type: update
+    environment: preview
+    params:
+      platform: ios
+      channel: staging
