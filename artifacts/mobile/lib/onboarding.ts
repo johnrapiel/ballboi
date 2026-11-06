@@ -1,7 +1,10 @@
 // Onboarding steps 3 to 6 (spec: Roles and onboarding) and Ball Boi Rating
 // helpers. Step 1 is sign-in and step 2 is the age check (app/age-check.tsx).
 
+import { File, UploadType } from "expo-file-system";
+
 import { apiErrorMessage, apiFetch, type TokenGetter } from "@/lib/api";
+import { photoContentType } from "@/lib/photos";
 
 // ─── Progress ────────────────────────────────────────────────────────────────
 
@@ -173,24 +176,47 @@ export async function saveNameAndPhoto(
   }
 }
 
-/** Uploads a picked photo and returns its storage path for `avatarUrl`. */
+const PHOTO_UPLOAD_TIMEOUT_MS = 60_000;
+
+/**
+ * Uploads a picked photo and returns its storage path for `avatarUrl`.
+ *
+ * The file goes up from disk with expo-file-system (finding #23). The old way,
+ * `fetch(photo.uri).blob()`, failed on the phone before anything was sent:
+ * Expo's fetch doesn't read local `file://` photos, so no upload request ever
+ * reached the API. The recording upload already sends files this way.
+ */
 export async function uploadPhoto(
   getToken: TokenGetter,
   photo: { uri: string; mimeType?: string | null; fileSize?: number | null },
 ): Promise<string> {
-  const file = await fetch(photo.uri);
-  const blob = await file.blob();
-  const contentType = photo.mimeType ?? blob.type ?? "image/jpeg";
+  const file = new File(photo.uri);
+  const size = file.exists ? file.size : 0;
+  if (!size) throw new Error("We couldn't read that photo. Try another one.");
+  const contentType = photoContentType(photo.mimeType, photo.uri);
   const res = await send(
     "/api/storage/uploads/request-url",
     getToken,
     "POST",
-    { name: "profile-photo", size: photo.fileSize ?? blob.size, contentType },
+    { name: "profile-photo", size, contentType },
     "We couldn't upload your photo.",
   );
   const { uploadURL, objectPath } = (await res.json()) as { uploadURL: string; objectPath: string };
-  const put = await fetch(uploadURL, { method: "PUT", body: blob, headers: { "Content-Type": contentType } });
-  if (!put.ok) throw new Error("We couldn't upload your photo.");
+  // A stalled upload gives up after a minute, so Continue never spins forever.
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), PHOTO_UPLOAD_TIMEOUT_MS);
+  let put;
+  try {
+    put = await file.upload(uploadURL, {
+      httpMethod: "PUT",
+      uploadType: UploadType.BINARY_CONTENT,
+      headers: { "Content-Type": contentType },
+      signal: abort.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+  if (put.status < 200 || put.status >= 300) throw new Error("We couldn't upload your photo.");
   return objectPath;
 }
 

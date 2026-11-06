@@ -23,3 +23,35 @@ export function friendlyAuthError(err: unknown): string {
   const code = clerkErrorCode(err);
   return (code && MESSAGES[code]) ?? "Something went wrong. Try again.";
 }
+
+// ─── Unfinished sign-in or sign-up (finding #22) ─────────────────────────────
+
+export const SIGN_UP_UNFINISHED =
+  "We couldn't finish creating your account. Try again later, or continue with Apple or Google.";
+export const SIGN_IN_UNFINISHED = "We couldn't finish signing you in. Try again.";
+
+/**
+ * The message when the code was right but Clerk still isn't done. For a new
+ * account with status "missing_requirements" (Clerk wants something the app
+ * never asks for, such as a password), says sign-up couldn't finish instead
+ * of a vague "Something went wrong".
+ */
+export function unfinishedAuthMessage(mode: "signIn" | "signUp"): string {
+  return mode === "signUp" ? SIGN_UP_UNFINISHED : SIGN_IN_UNFINISHED;
+}
+
+/**
+ * The log line for the Metro terminal: the status plus which fields Clerk is
+ * missing or hasn't verified, e.g.
+ * "missing_requirements (missing: password; unverified: none)".
+ */
+export function unfinishedAuthDetail(resource: {
+  status?: string | null;
+  missingFields?: readonly string[] | null;
+  unverifiedFields?: readonly string[] | null;
+}): string {
+  const status = resource.status ?? "unknown";
+  if (resource.missingFields == null && resource.unverifiedFields == null) return status;
+  const list = (f: readonly string[] | null | undefined) => (f && f.length ? f.join(", ") : "none");
+  return `${status} (missing: ${list(resource.missingFields)}; unverified: ${list(resource.unverifiedFields)})`;
+}
