@@ -8,11 +8,13 @@
 import type { QuickMatchInputFormat } from "./quickMatchInputFormat";
 
 /**
- * Send opponentPlayerId or opponentName, not both.
+ * Send exactly one of opponentPlayerId, opponentUserId or opponentName.
  */
 export interface QuickMatchInput {
   /** Doubles is refused for now */
   format?: QuickMatchInputFormat;
   opponentPlayerId?: number;
+  /** A userId from GET /players/search */
+  opponentUserId?: number;
   opponentName?: string;
 }

@@ -189,7 +189,7 @@ export interface QuickMatchCreated {
 }
 
 export async function createQuickMatch(
-  opponent: { opponentPlayerId: number } | { opponentName: string },
+  opponent: { opponentPlayerId: number } | { opponentUserId: number } | { opponentName: string },
   getToken: () => Promise<string | null>,
 ): Promise<QuickMatchCreated> {
   const res = await apiFetch("/api/recording/quick-matches", getToken, {
