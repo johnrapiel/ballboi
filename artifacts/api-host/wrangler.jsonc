@@ -34,6 +34,8 @@
     "S3_REGION": "auto",
     "S3_ENDPOINT": "https://26c21786ac3cf2eb9f9f39bf18f0c0bb.r2.cloudflarestorage.com",
     "S3_BUCKET": "ballboi-staging",
-    "MESSAGING_PROVIDER": "memory"
+    "MESSAGING_PROVIDER": "memory",
+    // Public key (also shipped inside the app), so not a secret.
+    "CLERK_PUBLISHABLE_KEY": "pk_test_YXNzdXJlZC1tb2xsdXNrLTcyMjEuY2xlcmsuYWNjb3VudHMuZGV2JA"
   }
 }

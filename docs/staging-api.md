@@ -25,7 +25,7 @@ Set as GitHub repository secrets (Settings > Secrets and variables > Actions). T
 | --- | --- |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare > My Profile > API Tokens: "GitHub deploy: ballboi staging API" (Workers Scripts, Containers and Cloudchamber edit) |
 | `DATABASE_URL` | Neon > project > Connection string (pooled, `sslmode=require`) |
-| `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY` | Clerk > Development instance > API Keys (same instance as local) |
+| `CLERK_SECRET_KEY` | Clerk > Development instance > API Keys (same instance as local). The publishable key is public and lives in `wrangler.jsonc` |
 | `ADMIN_EMAIL` | The email that gets admin access |
 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | R2 API token scoped to `ballboi-staging` (Object Read & Write) |
 | `ANTHROPIC_API_KEY` | Optional; turns on the moderation agent |
