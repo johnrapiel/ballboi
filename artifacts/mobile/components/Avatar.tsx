@@ -1,4 +1,3 @@
-import { useAuth } from "@clerk/expo";
 import { Image } from "expo-image";
 import React, { useEffect, useState } from "react";
 import { View } from "react-native";
@@ -6,6 +5,7 @@ import { View } from "react-native";
 import { Text } from "@/components/ui";
 import { radius } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { useStableGetToken } from "@/hooks/useStableGetToken";
 import { initials } from "@/lib/onboarding";
 import { isApiPhoto, photoSource } from "@/lib/photos";
 
@@ -19,7 +19,7 @@ import { isApiPhoto, photoSource } from "@/lib/photos";
  */
 export function Avatar({ name, uri, size = 96 }: { name: string; uri?: string | null; size?: number }) {
   const c = useColors();
-  const { getToken } = useAuth();
+  const getToken = useStableGetToken();
   const [failed, setFailed] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const needsToken = !!uri && isApiPhoto(uri);

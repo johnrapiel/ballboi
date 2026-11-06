@@ -4,7 +4,6 @@
 // an approximate location (the API rounds it). Denying location never blocks.
 // Also Profile > Edit profile > Home area (mode="edit"), prefilled.
 
-import { useAuth } from "@clerk/expo";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -13,6 +12,7 @@ import { AccessibilityInfo } from "react-native";
 import { OnboardingStep, StepError } from "@/components/OnboardingStep";
 import { EditLoading } from "@/components/profile/EditLoading";
 import { Button, Field, Text } from "@/components/ui";
+import { useStableGetToken } from "@/hooks/useStableGetToken";
 import { fetchProfile, isZip, saveHomeArea, type FormMode } from "@/lib/onboarding";
 
 type Coords = { latitude: number; longitude: number };
@@ -20,7 +20,7 @@ type Coords = { latitude: number; longitude: number };
 export default function HomeAreaStep({ mode = "onboarding" }: { mode?: FormMode }) {
   const editing = mode === "edit";
   const router = useRouter();
-  const { getToken } = useAuth();
+  const getToken = useStableGetToken();
 
   const [zip, setZip] = useState("");
   /** Set only while the zip is the one "Use my location" filled in. */

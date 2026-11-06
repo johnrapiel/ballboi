@@ -27,6 +27,7 @@ import { Text as UIText } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useProfile } from "@/hooks/useProfile";
+import { useStableGetToken } from "@/hooks/useStableGetToken";
 import { confirmSignOut } from "@/lib/confirmSignOut";
 import { photoUrl } from "@/lib/photos";
 
@@ -69,7 +70,8 @@ Notifications.setNotificationHandler({
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { signOut, getToken } = useAuth();
+  const { signOut } = useAuth();
+  const getToken = useStableGetToken();
   const { user } = useUser();
   const router = useRouter();
   // A1: the header shows the saved profile (name, photo, level), reloaded each

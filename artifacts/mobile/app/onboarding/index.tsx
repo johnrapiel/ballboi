@@ -15,6 +15,7 @@ import { OnboardingStep, StepError } from "@/components/OnboardingStep";
 import { EditLoading } from "@/components/profile/EditLoading";
 import { Button, Field, Text, TextButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
+import { useStableGetToken } from "@/hooks/useStableGetToken";
 import { NAME_MAX, fetchProfile, saveNameAndPhoto, uploadPhoto, type FormMode } from "@/lib/onboarding";
 import { photoUrl } from "@/lib/photos";
 import { confirmSignOut } from "@/lib/confirmSignOut";
@@ -29,7 +30,8 @@ type Photo =
 export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
   const editing = mode === "edit";
   const router = useRouter();
-  const { getToken, signOut } = useAuth();
+  const { signOut } = useAuth();
+  const getToken = useStableGetToken();
   const { user } = useUser();
 
   const [name, setName] = useState(user?.fullName?.trim() ?? "");
@@ -76,6 +78,9 @@ export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
+      // iPhone camera photos are HEIC. Ask iOS for a JPEG copy, which every
+      // part of the app and the API reads (finding #23).
+      preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
     });
     if (!result.canceled && result.assets[0]) {
       photoTouched.current = true;
@@ -163,6 +168,8 @@ export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
                 variant="secondary"
                 onPress={() => {
                   photoTouched.current = true;
+                  // Clears "Your photo didn't upload": Continue now uses initials.
+                  setError(null);
                   setPhoto({ kind: "none" });
                 }}
               />
