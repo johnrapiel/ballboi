@@ -1,0 +1,12 @@
+# Keeps the API image small. Only the API, shared libs and migrations are needed.
+**/node_modules
+.git
+.env
+.env.*
+!.env.example
+artifacts/mobile
+artifacts/ml-server
+artifacts/api-host
+docs
+claude
+**/dist

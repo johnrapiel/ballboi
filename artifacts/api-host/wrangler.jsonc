@@ -1,0 +1,37 @@
+// Ball Boi staging API on Cloudflare.
+//
+// A small Worker receives every request and forwards it to one Cloudflare
+// Container running the normal Express API (artifacts/api-server). The
+// container sleeps after 15 idle minutes and wakes on the next request
+// (a few seconds' delay), so staging costs close to nothing.
+//
+// Secrets (database URL, Clerk keys, R2 keys) are set by the deploy action
+// from GitHub secrets; see docs/staging-api.md. Never put them in this file.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "ballboi-api-staging",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  "containers": [
+    {
+      "class_name": "ApiContainer",
+      "image": "../api-server/Dockerfile",
+      // Repo root, so the image can build the whole pnpm workspace.
+      "image_build_context": "../..",
+      "instance_type": "basic",
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "class_name": "ApiContainer", "name": "API" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ApiContainer"] }],
+  "vars": {
+    "NODE_ENV": "production",
+    "S3_REGION": "auto",
+    "S3_BUCKET": "ballboi-staging",
+    "MESSAGING_PROVIDER": "memory"
+  }
+}

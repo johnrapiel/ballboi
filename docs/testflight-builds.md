@@ -15,7 +15,7 @@ Local development doesn't change: keep using `pnpm dev:mobile`.
 
 Nothing runs until step 6, so the PR is safe to merge before setup is done.
 
-1. **Host the staging API.** The TestFlight app needs an API it can reach away from home. Today the API only runs on the Mac. Do this first, or the app won't load data at the court.
+1. **Host the staging API.** The TestFlight app needs an API it can reach away from home. See `docs/staging-api.md`.
 2. **Add staging values to EAS.** expo.dev > ballboi > Environment variables, environment **preview**:
    - `EXPO_PUBLIC_API_URL` (the staging API URL)
    - `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`
