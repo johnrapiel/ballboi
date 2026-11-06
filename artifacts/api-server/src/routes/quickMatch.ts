@@ -12,6 +12,7 @@ import {
 import { and, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import pino from "pino";
 import { blockedAccountsFor } from "../lib/blocks";
+import { DrizzlePlayerSearchRepo } from "../lib/playerSearchRepo";
 import { flipScore, inviteUrl, newInviteCode, parseQuickMatch, parseSideScore, pickableOpponents } from "../lib/quickMatch";
 
 // Quick match: record a casual hit or a match outside a league, against a
@@ -80,6 +81,29 @@ router.get("/recording/opponents", requireAuth, async (req: Request, res: Respon
   }
 });
 
+const playerSearch = new DrizzlePlayerSearchRepo();
+
+/**
+ * Someone picked from player search (findings #15 and #18), by users.id:
+ * anyone findable, or a league mate or past opponent, never blocked either
+ * way. Uses their league-free player row, making one if they have none, so a
+ * casual match never lands on a league roster row it doesn't need.
+ */
+async function searchedOpponent(me: string, userId: number): Promise<{ playerId: number; name: string } | null> {
+  let found = await playerSearch.findableUser(me, userId);
+  if (!found) {
+    const [connected, blocked] = await Promise.all([playerSearch.connected(me), playerSearch.blocked(me)]);
+    found = connected.find((c) => c.userId === userId && c.clerkUserId !== me && !blocked.has(c.clerkUserId)) ?? null;
+  }
+  if (!found) return null;
+  if (found.playerId != null) return { playerId: found.playerId, name: found.name };
+  const [created] = await db
+    .insert(playersTable)
+    .values({ name: found.name, clerkUserId: found.clerkUserId })
+    .returning({ id: playersTable.id });
+  return { playerId: created.id, name: found.name };
+}
+
 /** The caller's player row for a Quick match: an existing one, or a new one. */
 async function myPlayerId(userId: string): Promise<{ id: number; name: string }> {
   const rows = await db
@@ -97,7 +121,7 @@ async function myPlayerId(userId: string): Promise<{ id: number; name: string }>
 }
 
 /**
- * POST /recording/quick-matches { format, opponentPlayerId } or { format, opponentName }
+ * POST /recording/quick-matches { format, opponentPlayerId }, { format, opponentUserId } or { format, opponentName }
  * Creates a match outside any league, starting now. A typed name becomes a
  * placeholder player with an invite link. Returns the match and the link.
  */
@@ -117,6 +141,20 @@ router.post("/recording/quick-matches", requireAuth, async (req: Request, res: R
       const opponent = allowed.find((o) => o.playerId === parsed.opponentPlayerId);
       if (!opponent) {
         res.status(404).json({ error: "Pick someone from your leagues or past matches." });
+        return;
+      }
+      const [match] = await db
+        .insert(matchesTable)
+        .values({ player1Id: me.id, player2Id: opponent.playerId, scheduledAt: now, status: "scheduled", generatedFrom: "quick_match" })
+        .returning({ id: matchesTable.id });
+      res.status(201).json({ matchId: match.id, opponentName: opponent.name, invite: null });
+      return;
+    }
+
+    if (parsed.opponentUserId != null) {
+      const opponent = await searchedOpponent(userId, parsed.opponentUserId);
+      if (!opponent) {
+        res.status(404).json({ error: "This player isn't available. Search again, or add someone not on Ball Boi." });
         return;
       }
       const [match] = await db

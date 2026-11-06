@@ -659,6 +659,50 @@ export const GetMyPlayersResponseItem = zod.object({
 export const GetMyPlayersResponse = zod.array(GetMyPlayersResponseItem);
 
 /**
+ * Never returns you or anyone blocked either way. "Everyone else" is people who finished onboarding, aren't banned or suspended, and (once Discover's hidden profile ships) haven't hidden their profile, capped at 25 per search.
+ * @summary Player search for Quick match and New message: league mates and past opponents first, then anyone findable on Ball Boi
+ */
+export const searchPlayersQueryQMax = 60;
+
+export const SearchPlayersQueryParams = zod.object({
+  q: zod.coerce
+    .string()
+    .max(searchPlayersQueryQMax)
+    .optional()
+    .describe(
+      "Name to search for. Every word must appear in the name. Empty lists everyone, up to the cap.",
+    ),
+});
+
+export const SearchPlayersResponse = zod.object({
+  players: zod.array(
+    zod.object({
+      userId: zod
+        .number()
+        .nullable()
+        .describe(
+          "Pick them in Quick match with this. Null only for a league mate with no profile yet.",
+        ),
+      playerId: zod
+        .number()
+        .nullable()
+        .describe(
+          "Message them with this. Null when they aren't in any league or match yet.",
+        ),
+      name: zod.string(),
+      avatarUrl: zod.string().nullable(),
+      inYourLeagues: zod.boolean(),
+      playedBefore: zod.boolean(),
+    }),
+  ),
+  more: zod
+    .boolean()
+    .describe(
+      "More people matched than were returned. Type more of the name to narrow it.",
+    ),
+});
+
+/**
  * @summary Get player by ID
  */
 export const GetPlayerParams = zod.object({
@@ -5062,9 +5106,15 @@ export const CreateQuickMatchBody = zod
       .default(createQuickMatchBodyFormatDefault)
       .describe("Doubles is refused for now"),
     opponentPlayerId: zod.number().optional(),
+    opponentUserId: zod
+      .number()
+      .optional()
+      .describe("A userId from GET \/players\/search"),
     opponentName: zod.string().optional(),
   })
-  .describe("Send opponentPlayerId or opponentName, not both.");
+  .describe(
+    "Send exactly one of opponentPlayerId, opponentUserId or opponentName.",
+  );
 
 /**
  * @summary Enter a Quick match's score from your side. The first score entered stands.
