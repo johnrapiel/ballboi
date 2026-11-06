@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import type { BracketSlot, ScheduleMatch } from "@workspace/api-client-react";
 
 import { isPastLeague, pastLabel } from "@/lib/leagues";
-import { canEnterScore, playoffLine, resultLine, scoreForPlayer } from "@/lib/leagueSchedule";
+import { canEnterScore, pickableDays, playoffLine, resultLine, scoreForPlayer } from "@/lib/leagueSchedule";
 import { scoreNote, slotActions, slotResult, slotWinningScore } from "@/lib/playoffView";
-import { emptySet, readScore, readWeeks, setRowsToShow, setsFromScore, type SetEntry } from "@/lib/scoreEntry";
+import { emptySet, readScore, readWeeks, setRowsToShow, setsFromScore, showsTiebreak, sixAllPrompt, type SetEntry } from "@/lib/scoreEntry";
 
 // PR 5 (Wave 1 review): the score sheet's rules (C10, Q6), season weeks (C8),
 // playoff copy (C9, C15, C18, C24, Q5b), and where a left league shows (C5).
@@ -206,5 +206,72 @@ describe("readScore for a Quick match (Nov 4, John)", () => {
 
   it("leaves league matches best of three", () => {
     expect(readScore([set("6", "4"), emptySet(), emptySet()])).toEqual({ ok: false, message: null });
+  });
+});
+
+describe("a set typed as 6-6 (finding 5, John, Nov 6)", () => {
+  it("shows the tiebreak boxes, for 6-6 as well as 7-6", () => {
+    expect(showsTiebreak(set("6", "6"))).toBe(true);
+    expect(showsTiebreak(set("7", "6"))).toBe(true);
+    expect(showsTiebreak(set("6", "4"))).toBe(false);
+    expect(sixAllPrompt(2)).toBe("Set 2 went to a tiebreak. Enter the tiebreak score.");
+  });
+
+  it("waits for both tiebreak boxes before it can save", () => {
+    expect(readScore([set("6", "6"), set("6", "3"), emptySet()])).toEqual({ ok: false, message: null });
+    expect(readScore([set("6", "6", "7"), set("6", "3"), emptySet()])).toEqual({ ok: false, message: null });
+  });
+
+  it("gives the set to the tiebreak's winner and saves it as 7-6(x)", () => {
+    expect(readScore([set("6", "4"), set("6", "6", "7", "5"), emptySet()])).toEqual({
+      ok: true,
+      score: "6-4, 7-6(5)",
+      iWon: true,
+      setsWon: 2,
+      setsLost: 0,
+    });
+    expect(readScore([set("6", "6", "4", "7"), set("3", "6"), emptySet()])).toMatchObject({ ok: true, score: "6-7(4), 3-6", iWon: false });
+    expect(readScore([set("6", "6", "12", "10"), set("6", "2"), emptySet()])).toMatchObject({ ok: true, score: "7-6(10), 6-2" });
+  });
+
+  it("counts a 6-6 tiebreak toward one set all, so the third set opens", () => {
+    expect(setRowsToShow([set("6", "6", "7", "3"), set("2", "6"), emptySet()])).toBe(3);
+    expect(setRowsToShow([set("6", "6"), set("2", "6"), emptySet()])).toBe(2);
+  });
+
+  it("says why an unfinished tiebreak can't save", () => {
+    expect(readScore([set("6", "6", "6", "5"), set("6", "3"), emptySet()])).toEqual({
+      ok: false,
+      message: "Set 1 tiebreak: 6-5 isn't a finished tiebreak. A tiebreak goes to 7, won by 2, like 7-5 or 10-8.",
+    });
+  });
+
+  it("still saves 7-6 typed directly, with or without the tiebreak", () => {
+    expect(readScore([set("7", "6"), set("6", "2"), emptySet()])).toMatchObject({ ok: true, score: "7-6, 6-2" });
+    expect(readScore([set("7", "6", "7", "4"), set("6", "2"), emptySet()])).toMatchObject({ ok: true, score: "7-6(4), 6-2" });
+    expect(readScore([set("7", "6", "4", "7"), set("6", "2"), emptySet()])).toEqual({
+      ok: false,
+      message: "Set 1 tiebreak: whoever wins the tiebreak wins the set 7-6.",
+    });
+  });
+
+  it("works the same on a Quick match", () => {
+    expect(readScore([set("6", "6", "7", "2"), emptySet()], { quick: true })).toMatchObject({ ok: true, score: "7-6(2)", iWon: true });
+  });
+
+  it("lets a retired match stop at 6-6", () => {
+    expect(readScore([set("6", "3"), set("6", "6"), emptySet()], { retired: true })).toMatchObject({ ok: true, score: "6-3, 6-6 RET" });
+  });
+});
+
+describe("pickableDays (finding 10)", () => {
+  it("starts at today once the round has begun, so past days can't be picked", () => {
+    expect(pickableDays("2026-11-02", "2026-11-08", "2026-11-06")).toEqual({ first: "2026-11-06", last: "2026-11-08" });
+  });
+  it("starts at the round's first day before it begins", () => {
+    expect(pickableDays("2026-11-09", "2026-11-15", "2026-11-06")).toEqual({ first: "2026-11-09", last: "2026-11-15" });
+  });
+  it("is null once the round's last day has passed", () => {
+    expect(pickableDays("2026-11-02", "2026-11-08", "2026-11-09")).toBeNull();
   });
 });
