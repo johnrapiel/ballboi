@@ -1,16 +1,17 @@
 // League playoffs (spec: Leagues > Setup: "optional playoff for top 4 or 8").
 // Pure, so it's easy to test.
 //
-// Seeds come from the standings, which rank on wins only (decision 23). A
-// bracket needs a strict order, so players tied on wins are separated by:
+// Seeds come from the standings, which rank on wins (decision 23). Players
+// level on wins are separated by:
 //   1. head-to-head wins among the tied players,
 //   2. share of sets won,
 //   3. share of games won,
 //   4. name, so the order is always the same.
-// John chose this order on Oct 29, 2026. It lives only in `seedOrder`.
+// John chose this order on Oct 29, 2026, and on Nov 6 the standings took it
+// too. It lives in `rankOrder` (leagueStandings.ts).
 
 import { addDays, roundWindow, shortDate } from "./leagueCalendar.js";
-import { countsForStandings, type Standing, type StandingMatch } from "./leagueStandings.js";
+import { countsForStandings, rankOrder, type Standing, type StandingMatch } from "./leagueStandings.js";
 import { WALKOVER_SCORE } from "./tennisScore.js";
 
 /** Days each playoff round gets: a play week plus a grace week (Q5b, Nov 4). */
@@ -25,34 +26,9 @@ export function bracketSize(playoffSize: number, activePlayers: number): 0 | 4 |
   return 0;
 }
 
-function share(won: number, lost: number): number {
-  return won + lost > 0 ? won / (won + lost) : 0;
-}
-
 /** Standings in seed order, ties on wins broken as described above. */
 export function seedOrder(standings: Standing[], matches: StandingMatch[]): Standing[] {
-  const counted = matches.filter(countsForStandings);
-  const byWins = new Map<number, Standing[]>();
-  for (const s of standings) byWins.set(s.wins, [...(byWins.get(s.wins) ?? []), s]);
-
-  const h2h = new Map<number, number>();
-  for (const group of byWins.values()) {
-    if (group.length < 2) continue;
-    const ids = new Set(group.map((s) => s.playerId));
-    for (const m of counted) {
-      if (!ids.has(m.player1Id) || !ids.has(m.player2Id) || m.winnerId == null) continue;
-      h2h.set(m.winnerId, (h2h.get(m.winnerId) ?? 0) + 1);
-    }
-  }
-
-  return [...standings].sort(
-    (a, b) =>
-      b.wins - a.wins ||
-      (h2h.get(b.playerId) ?? 0) - (h2h.get(a.playerId) ?? 0) ||
-      share(b.setsWon, b.setsLost) - share(a.setsWon, a.setsLost) ||
-      share(b.gamesWon, b.gamesLost) - share(a.gamesWon, a.gamesLost) ||
-      a.playerName.localeCompare(b.playerName),
-  );
+  return [...rankOrder(standings, matches.filter(countsForStandings))];
 }
 
 /** First-round pairings by seed: best plays worst, and 1 and 2 can only meet in the final. */

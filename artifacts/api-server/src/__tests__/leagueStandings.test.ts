@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { computeStandings } from "../lib/leagueStandings.js";
 
-// Spec: Leagues > Scores and standings. Wins only (decision 23); grace-week
+// Spec: Leagues > Scores and standings. Wins first (decision 23), then head to
+// head, sets and games for players level on wins (John, Nov 6); grace-week
 // matches don't count (decision 25); dropouts leave standings (decision 27).
 
 const players = [
@@ -48,6 +49,30 @@ describe("computeStandings", () => {
     expect(rows.map((r) => [r.playerName, r.rank])).toEqual([
       ["Alex", 1],
       ["Blair", 1],
+      ["Casey", 3],
+    ]);
+  });
+
+  it("splits players level on wins by head to head first (John, Nov 6)", () => {
+    // Alex and Blair both have 1 win; Blair beat Alex, so Blair ranks above
+    // even though Alex's win was the bigger one.
+    const rows = computeStandings(players, [{ ...m(2, 1, 2), score: "7-6(5), 7-6(5)" }, m(1, 3, 1)]);
+    expect(rows.map((r) => [r.playerName, r.rank, r.wins])).toEqual([
+      ["Blair", 1, 1],
+      ["Alex", 2, 1],
+      ["Casey", 3, 0],
+    ]);
+  });
+
+  it("then by share of sets won when head to head doesn't split them", () => {
+    // Alex and Blair never met; Alex dropped a set on the way, Blair didn't.
+    const rows = computeStandings(players, [
+      { ...m(1, 3, 1), score: "6-4, 3-6, 6-2" },
+      { ...m(2, 3, 2), score: "6-4, 6-3" },
+    ]);
+    expect(rows.map((r) => [r.playerName, r.rank])).toEqual([
+      ["Blair", 1],
+      ["Alex", 2],
       ["Casey", 3],
     ]);
   });
