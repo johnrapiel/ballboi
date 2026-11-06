@@ -3,13 +3,21 @@ import { View } from "react-native";
 
 import type { Standing } from "@workspace/api-client-react";
 
-import { Card, Text } from "@/components/ui";
+import { BrushRing } from "@/components/BrushRing";
+import { Card, Chip, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { ordinal } from "@/lib/leagues";
 
-// Standings rank on wins only; ties share a rank (spec: Leagues > Scores and
-// standings, decision 23). Each row reads as one VoiceOver element.
+// Standings rank on wins, then head to head between players level on wins,
+// then share of sets and games won (John, Nov 6; spec: Leagues > Scores and
+// standings). Players share a rank only when all of those are level. The rank
+// and W–L sit in Cormorant, your rank in a brush ring, as on the approved
+// League detail · Standings screen. Each row reads as one VoiceOver element.
+
+// The approved table sets rank and W–L at 22pt Cormorant: scoreRow's face at a
+// row's size.
+const RANK = { fontSize: 22, lineHeight: 26 } as const;
 
 function Row({ s, isMe, tied, last }: { s: Standing; isMe: boolean; tied: boolean; last: boolean }) {
   const c = useColors();
@@ -26,23 +34,28 @@ function Row({ s, isMe, tied, last }: { s: Standing; isMe: boolean; tied: boolea
         gap: spacing.space3,
         paddingHorizontal: spacing.space4,
         paddingVertical: spacing.space2,
-        backgroundColor: isMe ? c.sand : "transparent",
         borderBottomWidth: last ? 0 : 1,
         borderBottomColor: c.hairline,
       }}
     >
-      <Text variant="titleItalic" tone={isMe ? "ink" : "inkMuted"} style={{ minWidth: 32 }} maxFontSizeMultiplier={1.5}>
-        {tied ? `T${s.rank}` : s.rank}
-      </Text>
+      <View style={{ minWidth: 32, alignItems: "flex-start" }}>
+        {isMe ? (
+          <BrushRing size={28}>
+            <Text variant="scoreRow" style={RANK} maxFontSizeMultiplier={1.5}>
+              {tied ? `T${s.rank}` : s.rank}
+            </Text>
+          </BrushRing>
+        ) : (
+          <Text variant="scoreRow" tone="inkMuted" style={RANK} maxFontSizeMultiplier={1.5}>
+            {tied ? `T${s.rank}` : s.rank}
+          </Text>
+        )}
+      </View>
       <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.space2, flexWrap: "wrap" }}>
         <Text variant="bodyStrong">{s.playerName}</Text>
-        {isMe ? (
-          <Text variant="label" tone="inkMuted">
-            You
-          </Text>
-        ) : null}
+        {isMe ? <Chip label="You" tone="ink" /> : null}
       </View>
-      <Text variant="title" style={{ minWidth: 56, textAlign: "right", fontVariant: ["lining-nums", "tabular-nums"] }} maxFontSizeMultiplier={1.5}>
+      <Text variant="scoreRow" style={[RANK, { minWidth: 56, textAlign: "right" }]} maxFontSizeMultiplier={1.5}>
         {`${s.wins}–${s.losses}`}
       </Text>
     </View>
@@ -67,9 +80,7 @@ export function StandingsTable({ standings, myPlayerId }: { standings: Standing[
           borderBottomColor: c.hairlineStrong,
         }}
       >
-        <Text variant="label" tone="inkMuted" style={{ minWidth: 32 }}>
-          #
-        </Text>
+        <View style={{ minWidth: 32 }} />
         <Text variant="label" tone="inkMuted" style={{ flex: 1 }}>
           Player
         </Text>

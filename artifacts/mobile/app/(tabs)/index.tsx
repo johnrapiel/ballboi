@@ -1,24 +1,27 @@
 import { useFocusEffect, useRouter } from "expo-router";
+import { SymbolView } from "expo-symbols";
 import React, { useCallback, useRef } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useGetMyLeagueWeek, type LeagueWeekItem, type LeagueWeekPlayoff, type LeagueWeekResult } from "@workspace/api-client-react";
 
 import { EmptyState } from "@/components/EmptyState";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
-import { ListRow } from "@/components/league/ListRow";
 import { MatchCard, type MatchCardAction } from "@/components/MatchCard";
 import { DoublesRecordButton } from "@/components/record/DoublesMatchCard";
 import { TabScreen } from "@/components/TabHeader";
-import { Button, Card, Text } from "@/components/ui";
+import { Button, Card, ResultTag, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { dateRange, deadlineDate, isToday, matchWhen, pairingTime, shortDate } from "@/lib/leagueSchedule";
 import { openRecorder } from "@/lib/recording/start";
 
 // Home (spec: Navigation > Home: upcoming matches, this week's pairings,
-// recent results). Pending match requests join this tab with Discover.
+// recent results; approved canvas: Home, John, Nov 5). The header is the
+// roundel alone on the row with Messages, with no date or greeting. Section
+// labels are sentence case, match cards are the soft D2 card, and results
+// show W or L with no icon. Pending match requests join this tab with Discover.
 //
 // PR 4: a singles league match you can play now has "Record with Ball Boi"
 // next to Enter score, any day that week. A match with a set time today comes
@@ -40,20 +43,43 @@ function weekDetail(i: LeagueWeekItem): string {
 /** Whether a week's match can be played (and so scored or recorded) now. */
 const playable = (i: LeagueWeekItem) => !i.bye && i.matchId != null && i.phase !== "upcoming" && !i.played;
 
+// A recent result: W in green or L in red, never an icon (John, Nov 5), then
+// the score and who it was against. The whole row is one VoiceOver button.
 function ResultRow({ r, last, onPress }: { r: LeagueWeekResult; last: boolean; onPress: () => void }) {
+  const c = useColors();
   const outcome = r.won ? "Won" : "Lost";
   const sub = [`vs. ${r.opponentName}`, r.leagueName, r.playoff ? "Playoffs" : null, r.inGrace ? "Grace week, not in standings" : null]
     .filter(Boolean)
     .join(" · ");
   return (
-    <ListRow
-      title={`${outcome} ${r.score}`}
-      subtitle={sub}
-      symbol={r.won ? "checkmark.circle" : "xmark.circle"}
+    <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${outcome} ${r.score}. ${sub}`}
       accessibilityHint="Opens the league"
-      last={last}
-    />
+      style={({ pressed }) => ({
+        minHeight: 56,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.space3,
+        paddingHorizontal: spacing.space4,
+        paddingVertical: spacing.space3,
+        borderBottomWidth: last ? 0 : 1,
+        borderBottomColor: c.hairline,
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <ResultTag won={r.won} />
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text variant="bodyStrong" style={{ fontVariant: ["lining-nums", "tabular-nums"] }}>
+          {r.score}
+        </Text>
+        <Text variant="small" tone="inkMuted">
+          {sub}
+        </Text>
+      </View>
+      <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} />
+    </Pressable>
   );
 }
 
@@ -172,7 +198,7 @@ export default function HomeScreen() {
 
           {todays.length > 0 ? (
             <>
-              <Text variant="label" tone="inkMuted" accessibilityRole="header" style={{ marginTop: spacing.space2 }}>
+              <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ marginTop: spacing.space2, paddingHorizontal: spacing.space1 }}>
                 Today
               </Text>
               {todays.map(weekCard)}
@@ -190,7 +216,7 @@ export default function HomeScreen() {
           ))}
 
           {week && (week.playoffs.length > 0 || rest.length > 0) ? (
-            <Text variant="label" tone="inkMuted" accessibilityRole="header" style={{ marginTop: spacing.space2 }}>
+            <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ marginTop: spacing.space2, paddingHorizontal: spacing.space1 }}>
               This week
             </Text>
           ) : null}
@@ -201,7 +227,7 @@ export default function HomeScreen() {
 
           {week && week.recent.length > 0 ? (
             <>
-              <Text variant="label" tone="inkMuted" accessibilityRole="header" style={{ marginTop: spacing.space2 }}>
+              <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ marginTop: spacing.space2, paddingHorizontal: spacing.space1 }}>
                 Recent results
               </Text>
               <Card style={{ padding: 0, overflow: "hidden" }}>

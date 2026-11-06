@@ -8,6 +8,10 @@ import { spacing } from "@/constants/tokens";
 // Recording: "Record with Ball Boi" is the primary action on a singles match
 // card on match day, and Enter score takes over once it's played).
 // The card's text reads as one VoiceOver element; its buttons follow it.
+//
+// Approved Next match card D2 (John, Nov 5): one soft, borderless card with no
+// inner boxes, every line centred in one flow, the matchup in Cormorant and
+// the when in larger body text. Used on every Home state and My matches.
 
 export interface MatchCardAction {
   label: string;
@@ -44,25 +48,23 @@ export function MatchCard({
 }) {
   const summary = [eyebrow, title, detail, note].filter(Boolean).join(". ");
   const body = (
-    <View style={{ gap: spacing.space1 }}>
-      <Text variant="label" tone="inkMuted">
+    <View style={{ gap: spacing.space1, alignItems: "center" }}>
+      <Text variant="section" tone="inkMuted" style={{ textAlign: "center" }}>
         {eyebrow}
       </Text>
-      <Text variant="title">{title}</Text>
-      {detail ? (
-        <Text variant="small" tone="inkMuted">
-          {detail}
-        </Text>
-      ) : null}
+      <Text variant="title" style={{ textAlign: "center" }}>
+        {title}
+      </Text>
+      {detail ? <Text style={{ textAlign: "center" }}>{detail}</Text> : null}
       {note ? (
-        <Text variant="small" tone="inkMuted">
+        <Text variant="small" tone="inkMuted" style={{ textAlign: "center" }}>
           {note}
         </Text>
       ) : null}
     </View>
   );
   return (
-    <Card style={{ gap: spacing.space3 }}>
+    <Card style={{ gap: spacing.space4, borderWidth: 0, paddingVertical: spacing.space6 }}>
       {onOpen ? (
         <Pressable
           onPress={onOpen}

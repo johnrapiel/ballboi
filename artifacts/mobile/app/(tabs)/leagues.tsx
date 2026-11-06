@@ -22,21 +22,21 @@ import {
 import { IconButton } from "@/components/Choice";
 import { EmptyState } from "@/components/EmptyState";
 import { TabScreen } from "@/components/TabHeader";
-import { Button, Card, Chip, Text } from "@/components/ui";
-import { radius, spacing } from "@/constants/tokens";
+import { Button, Card, Chip, Pill, Text } from "@/components/ui";
+import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { formatLabel, isPastLeague, ordinal, pastLabel, playersLabel, playTypeLabel, statusLabel } from "@/lib/leagues";
 
-// Leagues tab (spec: Leagues; canvas: Leagues). Notes about deleted leagues,
-// your current leagues as cards with your rank, leagues you've asked to join
-// (decision 30), finished and ended leagues under Past (decision 31), and a
-// row that opens the invite
-// code sheet (app/league/join.tsx). The league card is the hero surface; the
-// invite row is an unfilled, dashed action so the two never read as siblings.
-// Start a league opens from the + button and from the empty state.
+// Leagues tab (spec: Leagues; approved canvas: Leagues, John, Nov 5). Notes
+// about deleted leagues, your current leagues as soft cards with your season
+// on one line, leagues you've asked to join (decision 30), finished and ended
+// leagues under Past leagues (decision 31) as chevron rows, and a "Got an
+// invite code?" text link that opens the invite code sheet (app/league/join.tsx).
+// Open leagues are found in Discover, not here. Start a league opens from the
+// + button and from the empty state.
 
-// Standings rank on wins only (decision 23).
-type MyStanding = { rank: number; wins: number; behind: number; lead: number } | null;
+// Standings rank on wins, then head to head (John, Nov 6), so "behind" counts wins.
+type MyStanding = { rank: number; wins: number; losses: number; behind: number; lead: number } | null;
 
 function myStanding(standings: Standing[] | undefined, myPlayerId: number | undefined): MyStanding {
   if (!standings || myPlayerId === undefined) return null;
@@ -44,28 +44,31 @@ function myStanding(standings: Standing[] | undefined, myPlayerId: number | unde
   if (!mine) return null;
   const leader = standings.reduce((max, s) => Math.max(max, s.wins), 0);
   const nextBest = standings.filter((s) => s.playerId !== myPlayerId).reduce((max, s) => Math.max(max, s.wins), 0);
-  return { rank: mine.rank, wins: mine.wins, behind: leader - mine.wins, lead: mine.wins - nextBest };
+  return { rank: mine.rank, wins: mine.wins, losses: mine.losses, behind: leader - mine.wins, lead: mine.wins - nextBest };
 }
 
-// Stats sit in one row split by hairlines, not in filled tiles, so the
-// league card stays a single surface (design: Leagues hierarchy, Night).
+const wins = (n: number) => `${n} ${n === 1 ? "win" : "wins"}`;
+
+// The season sits on one line split by hairlines, the same pattern as My
+// matches, so the league card stays a single surface (approved Leagues).
 function Stat({ label, value, first }: { label: string; value: string; first?: boolean }) {
   const c = useColors();
   return (
     <View
       style={{
         flex: 1,
-        paddingHorizontal: spacing.space4,
-        paddingVertical: spacing.space3,
-        gap: spacing.space1,
+        minWidth: 0,
+        paddingLeft: first ? 0 : spacing.space3,
+        paddingRight: spacing.space3,
+        gap: 2,
         borderLeftWidth: first ? 0 : 1,
         borderLeftColor: c.hairline,
       }}
     >
-      <Text variant="label" tone="inkMuted" numberOfLines={1}>
+      <Text variant="section" tone="inkMuted" numberOfLines={1}>
         {label}
       </Text>
-      <Text variant="title" style={{ fontVariant: ["lining-nums", "tabular-nums"] }}>
+      <Text variant="scoreRow" style={{ fontSize: 26, lineHeight: 30 }} numberOfLines={1}>
         {value}
       </Text>
     </View>
@@ -74,13 +77,17 @@ function Stat({ label, value, first }: { label: string; value: string; first?: b
 
 function LeagueCard({ league, standing, onPress }: { league: League; standing: MyStanding; onPress: () => void }) {
   const c = useColors();
-  const details = [league.location, playersLabel(league.playerCount)].filter(Boolean).join(" · ");
+  const details = [league.location, playersLabel(league.playerCount), formatLabel(league.format)].filter(Boolean).join(" · ");
   const spoken = [
     league.name,
     statusLabel(league.status),
-    `${formatLabel(league.format)}, ${playTypeLabel(league.leagueType)}`,
     details,
-    standing ? `You're ${ordinal(standing.rank)} with ${standing.wins} ${standing.wins === 1 ? "win" : "wins"}` : null,
+    playTypeLabel(league.leagueType),
+    standing
+      ? `You're ranked ${ordinal(standing.rank)} at ${standing.wins} and ${standing.losses}, ${
+          standing.lead > 0 ? `${wins(standing.lead)} ahead` : standing.behind > 0 ? `${wins(standing.behind)} behind 1st` : "level with 1st"
+        }`
+      : null,
   ]
     .filter(Boolean)
     .join(". ");
@@ -93,55 +100,31 @@ function LeagueCard({ league, standing, onPress }: { league: League; standing: M
       accessibilityHint="Opens the league"
       style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
     >
-      <Card
-        style={{
-          borderColor: c.hairlineStrong,
-          padding: 0,
-        }}
-      >
-        <View style={{ padding: spacing.space4, gap: spacing.space3 }}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.space2 }}>
-            <Text variant="label" tone="inkMuted" style={{ flexShrink: 1 }}>
-              {formatLabel(league.format)} · {playTypeLabel(league.leagueType)}
-            </Text>
-            <Chip label={statusLabel(league.status)} tone={league.status === "active" ? "win" : "quiet"} />
-          </View>
-          <View style={{ gap: 2 }}>
-            <Text variant="title">{league.name}</Text>
-            {details ? (
-              <Text variant="small" tone="inkMuted">
-                {details}
-              </Text>
-            ) : null}
-          </View>
+      <Card style={{ gap: spacing.space3 }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.space2 }}>
+          <Text variant="title" style={{ flexShrink: 1 }}>
+            {league.name}
+          </Text>
+          <Pill label={statusLabel(league.status)} />
         </View>
+        {details ? (
+          <Text variant="small" tone="inkMuted">
+            {details}
+          </Text>
+        ) : null}
         {standing ? (
-          <View style={{ flexDirection: "row", borderTopWidth: 1, borderTopColor: c.hairline }}>
+          <View
+            style={{ flexDirection: "row", borderTopWidth: 1, borderTopColor: c.hairline, paddingTop: spacing.space3, marginTop: spacing.space1 }}
+          >
             <Stat first label="Your rank" value={ordinal(standing.rank)} />
-            <Stat label="Wins" value={String(standing.wins)} />
+            <Stat label="Record" value={`${standing.wins}–${standing.losses}`} />
             {standing.lead > 0 ? (
-              <Stat label="Ahead by" value={String(standing.lead)} />
+              <Stat label="Ahead by" value={wins(standing.lead)} />
             ) : (
-              <Stat label="Behind 1st" value={String(standing.behind)} />
+              <Stat label="Behind 1st" value={wins(standing.behind)} />
             )}
           </View>
         ) : null}
-        <View
-          style={{
-            minHeight: 48,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            paddingHorizontal: spacing.space4,
-            borderTopWidth: 1,
-            borderTopColor: c.hairline,
-          }}
-        >
-          <Text variant="button" tone="court">
-            Open league
-          </Text>
-          <SymbolView name="chevron.right" size={14} tintColor={c.court} />
-        </View>
       </Card>
     </Pressable>
   );
@@ -149,7 +132,7 @@ function LeagueCard({ league, standing, onPress }: { league: League; standing: M
 
 function PastLeagueRow({ league, standing, onPress, last }: { league: League; standing: MyStanding; onPress: () => void; last: boolean }) {
   const c = useColors();
-  const sub = [league.location, formatLabel(league.format), standing ? `Finished ${ordinal(standing.rank)}` : null]
+  const sub = [league.location, formatLabel(league.format), standing ? `Finished ${ordinal(standing.rank)}` : pastLabel(league)]
     .filter(Boolean)
     .join(" · ");
   return (
@@ -175,7 +158,7 @@ function PastLeagueRow({ league, standing, onPress, last }: { league: League; st
           {sub}
         </Text>
       </View>
-      <Chip label={pastLabel(league)} />
+      <SymbolView name="chevron.right" size={14} tintColor={c.inkMuted} />
     </Pressable>
   );
 }
@@ -262,32 +245,21 @@ function RequestRow({
   );
 }
 
-function InviteCodeRow({ onPress }: { onPress: () => void }) {
+// A quiet text link, not a card, so it never reads as a sibling of the
+// leagues (approved Leagues). The press area is still a full 44pt.
+function InviteCodeLink({ onPress }: { onPress: () => void }) {
   const c = useColors();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel="Enter your invite code"
+      accessibilityLabel="Got an invite code?"
       accessibilityHint="Opens a sheet to join a league with a code"
-      style={({ pressed }) => ({
-        minHeight: 60,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.space3,
-        paddingHorizontal: spacing.space4,
-        borderRadius: radius.radiusMd,
-        borderWidth: 1,
-        borderStyle: "dashed",
-        borderColor: c.hairlineStrong,
-        opacity: pressed ? 0.7 : 1,
-      })}
+      style={({ pressed }) => ({ alignSelf: "flex-start", minHeight: 44, justifyContent: "center", opacity: pressed ? 0.6 : 1 })}
     >
-      <SymbolView name="ticket" size={22} tintColor={c.ink} />
-      <Text variant="bodyStrong" style={{ flex: 1 }}>
-        Enter your invite code
+      <Text variant="body" style={{ textDecorationLine: "underline", textDecorationColor: c.hairlineStrong }}>
+        Got an invite code?
       </Text>
-      <SymbolView name="chevron.right" size={14} tintColor={c.inkMuted} />
     </Pressable>
   );
 }
@@ -379,9 +351,6 @@ export default function LeaguesScreen() {
 
           {current.length > 0 ? (
             <View style={{ gap: spacing.space3 }}>
-              <Text variant="label" tone="inkMuted" accessibilityRole="header">
-                Your leagues
-              </Text>
               {current.map(({ league, i }) => (
                 <LeagueCard key={league.id} league={league} standing={standingFor(league, i)} onPress={() => open(league)} />
               ))}
@@ -390,7 +359,7 @@ export default function LeaguesScreen() {
 
           {requests.length > 0 ? (
             <View style={{ gap: spacing.space2 }}>
-              <Text variant="label" tone="inkMuted" accessibilityRole="header">
+              <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ paddingHorizontal: spacing.space1 }}>
                 Requested
               </Text>
               <Card style={{ padding: 0 }}>
@@ -409,8 +378,8 @@ export default function LeaguesScreen() {
 
           {past.length > 0 ? (
             <View style={{ gap: spacing.space2 }}>
-              <Text variant="label" tone="inkMuted" accessibilityRole="header">
-                Past
+              <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ paddingHorizontal: spacing.space1 }}>
+                Past leagues
               </Text>
               <Card style={{ padding: 0 }}>
                 {past.map(({ league, i }, n) => (
@@ -426,7 +395,7 @@ export default function LeaguesScreen() {
             </View>
           ) : null}
 
-          <InviteCodeRow onPress={() => router.push("/league/join")} />
+          <InviteCodeLink onPress={() => router.push("/league/join")} />
         </ScrollView>
       )}
     </TabScreen>

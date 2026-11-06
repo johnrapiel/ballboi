@@ -18,7 +18,7 @@ import { formatRating, type Profile } from "@/lib/onboarding";
 
 function levelValue(p: Profile): string {
   if (p.rating == null) return "Not set";
-  return `${formatRating(p.rating)}, ${p.ratingSource === "verified" ? "Verified" : "Self-rated"}`;
+  return p.ratingSource === "verified" ? `${formatRating(p.rating)}, Verified` : formatRating(p.rating);
 }
 
 export default function EditProfileList() {
