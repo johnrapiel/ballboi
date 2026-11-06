@@ -29,6 +29,15 @@
       "ios": {
         "image": "latest"
       }
+    },
+    "staging": {
+      "extends": "base",
+      "environment": "preview",
+      "channel": "staging",
+      "autoIncrement": true,
+      "ios": {
+        "image": "latest"
+      }
     }
   }
 }

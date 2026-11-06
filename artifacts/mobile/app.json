@@ -8,6 +8,12 @@
     "scheme": "ballboi",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/75bc5ac9-dfef-4a20-8677-b19f8851eff0"
+    },
     "splash": {
       "image": "./assets/images/roundel.png",
       "resizeMode": "contain",
