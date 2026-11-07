@@ -65,6 +65,7 @@ import { deleteRecording, keepRecording } from "@/lib/recording/files";
 import { formatElapsed, spokenDuration } from "@/lib/recording/format";
 import { LOW_BATTERY_START_MESSAGE } from "@/lib/recording/limits";
 import { firstRunPages, type FirstRunPage } from "@/lib/recording/firstRun";
+import { MIC_DENIED_BODY, MIC_DENIED_TITLE, micState } from "@/lib/recording/permissions";
 import { loadHideSetup } from "@/lib/recording/prefs";
 import { enqueue, getQueue } from "@/lib/recording/queue";
 import {
@@ -765,6 +766,22 @@ export default function RecordScreen() {
       >
         {phase === "ready" ? (
           <>
+            {micState(micPerm) === "denied" ? (
+              <View style={[styles.panel, { backgroundColor: chrome.panel, alignSelf: "stretch" }]}>
+                <View style={{ flexDirection: "row", gap: spacing.space2, alignItems: "flex-start" }} accessible>
+                  <SymbolView name="mic.slash" size={18} tintColor={chrome.text} style={{ marginTop: 2 }} />
+                  <View style={{ flex: 1, gap: spacing.space1 }}>
+                    <Text variant="bodyStrong" style={{ color: chrome.text }}>
+                      {MIC_DENIED_TITLE}
+                    </Text>
+                    <Text variant="small" style={{ color: chrome.textMuted }}>
+                      {MIC_DENIED_BODY}
+                    </Text>
+                  </View>
+                </View>
+                <ChromeButton variant="secondary" label="Open Settings" onPress={() => Linking.openSettings()} />
+              </View>
+            ) : null}
             <View style={[styles.panel, { backgroundColor: chrome.scrim, alignSelf: "stretch", gap: spacing.space4 }]}>
               <Text style={{ color: chrome.text, textAlign: "center" }}>
                 Mount your phone on the fence behind the baseline, turned sideways, with the whole court in view.
