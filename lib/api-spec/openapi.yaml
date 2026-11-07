@@ -10,6 +10,8 @@ servers:
 tags:
   - name: dev
     description: Development-only walkthrough tools. Not available in production.
+  - name: discover
+    description: Players near you, Open leagues, Open matches and the court directory
   - name: health
     description: Health operations
   - name: leagues
@@ -46,6 +48,239 @@ tags:
     description: Profile photo uploads and loads
 
 paths:
+  /discover/area:
+    put:
+      operationId: setDiscoverArea
+      tags: [discover]
+      summary: Change your home ZIP from Discover. Also updates your profile's home area.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscoverAreaInput'
+      responses:
+        '200':
+          description: Your Discover settings with the new area
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverMe'
+        '400':
+          description: "We couldn't find that ZIP"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/availability:
+    put:
+      operationId: saveDiscoverAvailability
+      tags: [discover]
+      summary: Save the "When you can play" grid (a Monday to Sunday week of hours)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscoverAvailabilityInput'
+      responses:
+        '200':
+          description: Your Discover settings with the new hours
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverMe'
+        '400':
+          description: An hour outside the grid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/me:
+    get:
+      operationId: getDiscoverMe
+      tags: [discover]
+      summary: Your area, hidden profile, plays, last distance and hours, for Discover
+      responses:
+        '200':
+          description: Your Discover settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverMe'
+        '404':
+          description: No profile yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/players:
+    get:
+      operationId: listDiscoverPlayers
+      tags: [discover]
+      summary: Players near you, nearest first, with a count for each distance chip
+      description: >-
+        Never you, hidden players, anyone blocked either way, or banned and
+        suspended accounts. Distances are approximate whole miles between home
+        ZIP centers. The app saves a distance you pick with PUT /discover/settings.
+      parameters:
+      - name: radius
+        in: query
+        required: false
+        description: Miles, 1 to 30. Defaults to your last distance.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 30
+      - name: level
+        in: query
+        required: false
+        description: close (within 0.5), wider (within 1.0) or any
+        schema:
+          type: string
+          enum: [close, wider, any]
+      - name: plays
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [singles, doubles, either]
+      - name: free
+        in: query
+        required: false
+        description: '"1" keeps players whose hours overlap yours. Ignored until you set times.'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Players near you
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverPlayers'
+        '500':
+          description: Couldn't load players
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/players/{userId}:
+    get:
+      operationId: getDiscoverPlayer
+      tags: [discover]
+      summary: A player card from Discover
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: The player card
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverPlayerCard'
+        '404':
+          description: Not in Discover for you (hidden, blocked, or gone)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/players/{userId}/block:
+    post:
+      operationId: blockDiscoverPlayer
+      tags: [discover]
+      summary: Block a player by user id ("Also block" on a message report from a player with no league player record)
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          description: Blocked
+        '404':
+          description: No such player, or yourself
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      operationId: unblockDiscoverPlayer
+      tags: [discover]
+      summary: Unblock a player by user id, from a blocked chat
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          description: Unblocked (or wasn't blocked)
+  /discover/players/{userId}/report:
+    post:
+      operationId: reportDiscoverPlayer
+      tags: [discover]
+      summary: Report a player by user id, and optionally block them in the same step (F3, F9)
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscoverReportInput'
+      responses:
+        '201':
+          description: Report filed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverReportResult'
+        '400':
+          description: No reason, or Something else without a note
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No such player, or yourself
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/settings:
+    put:
+      operationId: saveDiscoverSettings
+      tags: [discover]
+      summary: Show me in Discover, what you play, and your last distance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscoverSettingsInput'
+      responses:
+        '200':
+          description: Your Discover settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverMe'
+        '400':
+          description: A value that isn't allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /healthz:
     get:
       operationId: healthCheck
@@ -4795,6 +5030,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /messages/with-user/{userId}:
+    get:
+      operationId: getConversationWithUser
+      tags: [messages]
+      summary: The conversation with a Discover player (by user id), if there is one
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Conversation id or null
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversationId:
+                    type: [integer, 'null']
+                required: [conversationId]
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /messages/with-player/{playerId}:
     get:
       operationId: getConversationWithPlayer
@@ -5621,6 +5884,186 @@ components:
       schema:
         type: integer
   schemas:
+    DiscoverArea:
+      type: object
+      description: Your home ZIP and its town. Others only ever see the town and an approximate distance.
+      properties:
+        zip:
+          type: string
+        town:
+          type: string
+        state:
+          type: string
+      required: [zip, town, state]
+    DiscoverAreaInput:
+      type: object
+      properties:
+        zip:
+          type: string
+          description: Five digits
+      required: [zip]
+    DiscoverAvailabilityInput:
+      type: object
+      properties:
+        slots:
+          type: array
+          description: Free hours, each day * 24 + hour. Monday is day 0; hours 6 (6 AM) to 21 (9 PM).
+          items:
+            type: integer
+      required: [slots]
+    DiscoverMe:
+      type: object
+      properties:
+        area:
+          oneOf:
+          - $ref: '#/components/schemas/DiscoverArea'
+          - type: 'null'
+        homeZip:
+          type: [string, 'null']
+        hidden:
+          type: boolean
+          description: Show me in Discover is off
+        plays:
+          type: [string, 'null']
+          enum: [singles, doubles, both, null]
+        radius:
+          type: integer
+          description: Last distance picked, 1 to 30 miles
+        rating:
+          type: [number, 'null']
+        slots:
+          type: array
+          items:
+            type: integer
+        hoursFree:
+          type: integer
+        freeSummary:
+          type: [string, 'null']
+          description: '"Weekday evenings, weekend mornings", or null with no hours set'
+      required: [area, homeZip, hidden, plays, radius, rating, slots, hoursFree, freeSummary]
+    DiscoverPlayerCard:
+      type: object
+      properties:
+        userId:
+          type: integer
+        name:
+          type: string
+        avatarUrl:
+          type: [string, 'null']
+        rating:
+          type: [number, 'null']
+        ratingSource:
+          type: [string, 'null']
+        town:
+          type: [string, 'null']
+        distance:
+          type: [string, 'null']
+          description: '"~4 mi away"'
+        plays:
+          type: [string, 'null']
+          enum: [singles, doubles, both, null]
+        freeSummary:
+          type: [string, 'null']
+        played:
+          type: integer
+        noShows:
+          type: integer
+        wins:
+          type: integer
+        losses:
+          type: integer
+      required: [userId, name, avatarUrl, rating, ratingSource, town, distance, plays, freeSummary, played, noShows, wins, losses]
+    DiscoverPlayerRow:
+      type: object
+      properties:
+        userId:
+          type: integer
+        name:
+          type: string
+        avatarUrl:
+          type: [string, 'null']
+        rating:
+          type: [number, 'null']
+        ratingSource:
+          type: [string, 'null']
+        distance:
+          type: string
+          description: '"~4 mi"'
+        plays:
+          type: [string, 'null']
+          enum: [singles, doubles, both, null]
+        played:
+          type: integer
+        noShows:
+          type: integer
+        reliability:
+          type: string
+          description: '"Played 14 · 1 no-show" or "New to Ball Boi"'
+        spoken:
+          type: string
+          description: The whole row in one line for VoiceOver
+      required: [userId, name, avatarUrl, rating, ratingSource, distance, plays, played, noShows, reliability, spoken]
+    DiscoverPlayers:
+      type: object
+      properties:
+        players:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiscoverPlayerRow'
+        counts:
+          type: array
+          description: Players at each distance chip (5, 10, 15, 30 and a custom distance), with the other filters as they are
+          items:
+            type: object
+            properties:
+              radius:
+                type: integer
+              count:
+                type: integer
+            required: [radius, count]
+        radius:
+          type: integer
+        total:
+          type: integer
+        needsArea:
+          type: boolean
+          description: You have no home ZIP Discover can place yet
+      required: [players, counts, radius, total, needsArea]
+    DiscoverReportInput:
+      type: object
+      properties:
+        reason:
+          type: string
+          enum: [harassment, inappropriate_content, spam, cheating, unsafe, other]
+        details:
+          type: [string, 'null']
+          description: Required for other ("Tell us what happened")
+        block:
+          type: boolean
+          description: Also block them
+      required: [reason]
+    DiscoverReportResult:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+        blocked:
+          type: boolean
+      required: [id, status, blocked]
+    DiscoverSettingsInput:
+      type: object
+      properties:
+        hidden:
+          type: boolean
+        plays:
+          type: [string, 'null']
+          enum: [singles, doubles, both, null]
+        radius:
+          type: integer
+          minimum: 1
+          maximum: 30
     LeagueMembership:
       type: object
       properties:
@@ -8300,7 +8743,7 @@ components:
           maxLength: 100
         reason:
           type: string
-          enum: [harassment, inappropriate_content, impersonation, spam, cheating, other]
+          enum: [harassment, inappropriate_content, spam, cheating, unsafe, other, impersonation]
         details:
           type: [string, 'null']
           description: Kept to 1000 characters
@@ -8630,6 +9073,9 @@ components:
               type: string
             playerId:
               type: [integer, 'null']
+            userId:
+              type: [integer, 'null']
+              description: Their users.id, for report and block when they have no player record (a Discover player)
           required: [name, playerId]
         lastMessage:
           oneOf:
@@ -8709,14 +9155,17 @@ components:
       required: [name, playerId]
     NewConversationInput:
       type: object
+      description: Send playerId (a league player) or userId (a Discover player, who may be in no league).
       properties:
         playerId:
+          type: integer
+        userId:
           type: integer
         text:
           type: string
         clientMessageId:
           type: string
-      required: [playerId, text]
+      required: [text]
     NewMessageInput:
       type: object
       properties:
@@ -8733,7 +9182,7 @@ components:
           type: string
         reason:
           type: string
-          enum: [harassment, inappropriate_content, impersonation, spam, cheating, other]
+          enum: [harassment, inappropriate_content, spam, cheating, unsafe, other, impersonation]
         details:
           type: [string, 'null']
       required: [messageId, reason]

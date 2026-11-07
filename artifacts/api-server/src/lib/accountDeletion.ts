@@ -18,6 +18,7 @@ import { deleteLeagueDataFor } from "./leagueAccountDeletion";
 import { deleteMessagingData } from "../messaging/accountDeletion";
 import { ObjectStorageService } from "./objectStorage";
 import { deleteRecordingData } from "./recordingCleanup";
+import { deleteDiscoverData } from "../services/discover/accountDeletion";
 
 /**
  * App Store guideline 5.1.1(v): people must be able to delete their account and
@@ -183,6 +184,7 @@ export async function deleteAccount(
       .where(eq(usersTable.clerkUserId, clerkUserId));
     const photoPaths = profiles.map((u) => u.avatarUrl).filter((p): p is string => !!p && p.startsWith("/objects/"));
     await deleteRecordingData(tx, clerkUserId);
+    await deleteDiscoverData(tx, clerkUserId);
     await tx.delete(usersTable).where(eq(usersTable.clerkUserId, clerkUserId));
 
     const sessionPaths = sessions.map((s) => s.videoObjectPath).filter((p): p is string => !!p);

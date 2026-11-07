@@ -27,7 +27,8 @@
     "node-cron": "^4.2.1",
     "pino": "^9",
     "pino-http": "^10",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "zipcodes": "8.0.0"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

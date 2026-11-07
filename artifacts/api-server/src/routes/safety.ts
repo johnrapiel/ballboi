@@ -63,6 +63,8 @@ export function parseReport(body: unknown): ParsedReport | { error: string } {
     if (typeof b.details !== "string") return { error: "Details must be text" };
     details = b.details.trim().slice(0, 1000) || undefined;
   }
+  // "Something else" opens a required text field (F9).
+  if (b.reason === "other" && !details) return { error: "Tell us what happened." };
   return { targetType: b.targetType, targetId, reason: b.reason, details };
 }
 

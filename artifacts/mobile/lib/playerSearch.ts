@@ -32,13 +32,11 @@ export function searchPath(query: string): string {
 }
 
 /**
- * Messaging by account (user id) arrives with Discover (#117). Until then a
- * message goes to a player id, so someone with no player row yet (on Ball
- * Boi, but in no league and no match) can't be messaged. New message leaves
- * them out rather than showing a row that fails. When #117 merges, set this
- * to true and send `userId` in New message's start call.
+ * Messaging by account (user id), from Discover (Wave 2 Session F): someone
+ * with no player row yet (on Ball Boi, but in no league and no match) can be
+ * messaged by their user id. New message sends `userId` for them.
  */
-export const MESSAGE_BY_USER_ID = false;
+export const MESSAGE_BY_USER_ID = true;
 
 export function canMessage(p: PlayerSearchResult): boolean {
   return p.playerId != null || (MESSAGE_BY_USER_ID && p.userId != null);
