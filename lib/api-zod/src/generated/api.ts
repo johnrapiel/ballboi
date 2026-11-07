@@ -3395,9 +3395,17 @@ export const StartBallBoiSessionBody = zod.object({
         .string()
         .max(startBallBoiSessionBodyMetadataSourceMax)
         .optional(),
+      opponentAgreedAt: zod.coerce
+        .date()
+        .optional()
+        .describe(
+          "When the recorder confirmed that an opponent who isn't on Ball Boi agreed to be filmed. Kept only if it's within the last 7 days.",
+        ),
     })
     .optional()
-    .describe("Only source is kept. Any other key is ignored."),
+    .describe(
+      "Only source and opponentAgreedAt are kept. Any other key is ignored.",
+    ),
   recordedAt: zod.coerce
     .date()
     .optional()
@@ -3422,9 +3430,17 @@ export const StartMatchScopedBallBoiSessionBody = zod.object({
         .string()
         .max(startMatchScopedBallBoiSessionBodyMetadataSourceMax)
         .optional(),
+      opponentAgreedAt: zod.coerce
+        .date()
+        .optional()
+        .describe(
+          "When the recorder confirmed that an opponent who isn't on Ball Boi agreed to be filmed. Kept only if it's within the last 7 days.",
+        ),
     })
     .optional()
-    .describe("Only source is kept. Any other key is ignored."),
+    .describe(
+      "Only source and opponentAgreedAt are kept. Any other key is ignored.",
+    ),
   recordedAt: zod.coerce
     .date()
     .optional()

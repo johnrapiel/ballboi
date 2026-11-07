@@ -7,10 +7,12 @@
  */
 
 /**
- * Only source is kept. Any other key is ignored.
+ * Only source and opponentAgreedAt are kept. Any other key is ignored.
  */
 export type StartBallBoiSessionBodyMetadata = {
   /** @maxLength 20 */
   source?: string;
+  /** When the recorder confirmed that an opponent who isn't on Ball Boi agreed to be filmed. Kept only if it's within the last 7 days. */
+  opponentAgreedAt?: Date;
   [key: string]: unknown;
 };

@@ -7115,7 +7115,11 @@ components:
             source:
               type: string
               maxLength: 20
-          description: Only source is kept. Any other key is ignored.
+            opponentAgreedAt:
+              type: string
+              format: date-time
+              description: When the recorder confirmed that an opponent who isn't on Ball Boi agreed to be filmed. Kept only if it's within the last 7 days.
+          description: Only source and opponentAgreedAt are kept. Any other key is ignored.
         recordedAt:
           type: string
           format: date-time

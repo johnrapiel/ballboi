@@ -35,6 +35,8 @@ export interface QueuedRecording {
   leagueId?: number | null;
   /** True once a score was saved for this match from the phone. */
   scoreEntered?: boolean;
+  /** When the recorder confirmed an opponent not on Ball Boi agreed to be filmed (B10). */
+  opponentAgreedAt?: string;
 }
 
 const KEY = "ballboi.recording.queue.v1";

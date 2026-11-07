@@ -1387,16 +1387,18 @@ export interface BallBoiSession {
 }
 
 /**
- * Only source is kept. Any other key is ignored.
+ * Only source and opponentAgreedAt are kept. Any other key is ignored.
  */
 export type StartBallBoiSessionBodyMetadata = {
   /** @maxLength 20 */
   source?: string;
+  /** When the recorder confirmed that an opponent who isn't on Ball Boi agreed to be filmed. Kept only if it's within the last 7 days. */
+  opponentAgreedAt?: string;
   [key: string]: unknown;
 };
 
 export interface StartBallBoiSessionBody {
-  /** Only source is kept. Any other key is ignored. */
+  /** Only source and opponentAgreedAt are kept. Any other key is ignored. */
   metadata?: StartBallBoiSessionBodyMetadata;
   /** When the match was recorded. The session is created when the upload starts, which can be days later. */
   recordedAt?: string;
