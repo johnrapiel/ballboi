@@ -14,7 +14,7 @@ _Ported from `feat/compliance` (#5) on Oct 21, 2026 and updated for the current 
 | Primary category | Sports |
 | Secondary category | Health & Fitness |
 | Privacy Policy URL | https://ballboi.tennis/privacy (live, last updated Oct 18, 2026) |
-| Terms of Use (EULA) | https://ballboi.tennis/terms (live). Also link it in the description, since subscriptions need it |
+| Terms of Use (EULA) | https://ballboi.tennis/terms (live). Also link it in the description |
 | Support URL | A ballboi.tennis page with support@ballboi.tennis (the address the live policy and terms use) |
 | Encryption | Standard HTTPS only. `ios.config.usesNonExemptEncryption: false` is set in `artifacts/mobile/app.json` |
 

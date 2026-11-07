@@ -59,7 +59,7 @@ Five tabs, with Ball Boi in the center. Messages opens from the button in the to
 | Leagues | Your leagues, each with chat, schedule, standings, and Manage for admins; Start a league |
 | Ball Boi | Start a recording, past matches, replays, trends |
 | Discover | Players near you, Open leagues, Open matches (including your own) |
-| Profile | Player card, career stats, linked UTR, subscription, settings (including training data), account deletion |
+| Profile | Player card, career stats, linked UTR, settings (including training data), account deletion |
 
 **Messages (top corner):** direct chats, including Message opponent from a league match, and Message Requests. Full match threads come with Discover. A 44pt button in the top-right of every tab with an unread count VoiceOver reads ("Messages, 3 unread").
 
@@ -307,7 +307,7 @@ Four moments get a short animation and a haptic. Everything else uses standard i
 
 ## Pricing
 
-Everything is free at launch, Ball Boi included. Ball Boi Pro is parked until there's enough traction to charge (decision 82), so a small early group isn't put off by a price. The full Pro plan (price, free months, paywall, mixed matchups, lapsed state) is saved in `docs/backlog/ball-boi-pro.md` to bring back later.
+Everything is free at launch, Ball Boi included. Ball Boi Pro is parked until there's enough traction to charge (decision 82), so a small early group isn't put off by a price. The full Pro plan (price, free months, paywall, mixed matchups, lapsed state) is saved in `docs/backlog/ball-boi-pro.md` in the repo and `claude/backlog/ball-boi-pro.md` in the Project, to bring back later.
 
 - **Free for everyone at launch:** leagues, Discover, match requests, scores, messaging, the player card, shot analysis, the simulated replay, trends, and full career stats
 - **Every recorded singles match is analyzed,** whoever's phone recorded it. Shot data is stored for both players
