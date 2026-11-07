@@ -1,4 +1,4 @@
-<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-11-02 with rev 74). Updated in the repo on 2026-11-04 with the Wave 1 review decisions (48 to 78) and on 2026-11-06 with decision 79, which the live doc still needs. The live doc wins if they differ. Refresh this file when the live doc changes. -->
+<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-11-02 with rev 74). Updated in the repo on 2026-11-04 with the Wave 1 review decisions (48 to 78), on 2026-11-06 with decision 79, and on 2026-11-07 with decisions 80 and 81, then 82 and 83 (Ball Boi Pro parked). The live doc has the Nov 7 changes but still needs decisions 48 to 83. The live doc wins if they differ. Refresh this file when the live doc changes. -->
 
 # Ball Boi: Flows and Feature Spec
 
@@ -203,6 +203,7 @@ The phone films with the rear camera, so its screen faces away from the court. V
 - **Quick match:** format first (singles by default), then any opponent. A non-user becomes a placeholder with an invite link; you get solo controls, and nothing counts toward standings until they join. Leaving the invite screen or the camera before recording removes the Quick match and its placeholder
 - **Doubles:** Ball Boi shows disabled on doubles matches with "Ball Boi analyzes singles for now. Doubles is coming." Views are counted as a demand signal
 - **Voice positioning coach:** on-device court detection drives spoken guidance, one step at a time, in court terms ("Tilt up," "Toward the center of the court"), ending with "Court locked" and a chime. Plays on silent; mute toggle; shorter mode after the first few sessions
+- **The app only speaks while recording (Nov 7):** spoken cues (voice coach, countdown) play only from the mounted phone during a Ball Boi recording, and the partner phone shows them as captions. Everywhere else the app is silent. VoiceOver announcements speak only for players who turned VoiceOver on in iOS
 - **Court won't lock:** a spoken tip, then Record anyway after about 20 seconds; court lines get fixed later in the replay
 - **Partner phone is optional:** solo players use the countdown, voice coach, and press-and-hold stop. A second phone adds remote controls and a readable screen for captions
 - **Start:** from either player's Live Activity, or "Start in Now / 5 / 10 / 15 min" with spoken countdown cues; the court-lock check keeps running during the countdown; no auto-start
@@ -295,7 +296,7 @@ Four moments get a short animation and a haptic. Everything else uses standard i
 
 | Moment | Animation | Haptic |
 | --- | --- | --- |
-| Score entered | Score settles in | Success |
+| Score entered | Score settles in, then the win-loss record ticks to its new value. Levels never change from results | Success |
 | New career milestone | Badge scales in as a ring draws around it, then the title fades up. Launch set: first win, first Ball Boi match, 5- and 10-match win streaks | Success |
 | Player card reveal | Card flips from the Ball Boi back to the front, on the first view of each player only | Light |
 | Ball Boi analysis ready | Shot markers drop onto the court one by one, then "Your replay is ready" | Light ticks |
@@ -303,7 +304,7 @@ Four moments get a short animation and a haptic. Everything else uses standard i
 - **Short and once:** each runs under 1 second, plays once, and never blocks input
 - **Built with Reanimated**
 - **Reduce Motion:** every moment becomes a 200ms fade with the final state shown at once; haptics still fire
-- **VoiceOver:** each outcome is announced in text, e.g. "Milestone: First win"
+- **VoiceOver:** each outcome is announced in text, e.g. "Win recorded. You're now 15 and 6." or "Milestone: First win"
 
 ## Pricing
 
@@ -446,5 +447,7 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 77 | League opponents talk in a direct chat (Message opponent) for now; full match threads come with Discover (Oct 31, logged Nov 4) |
 | 78 | The last onboarding step is an optional research question, "What do you want to do on Ball Boi?": pick any of four options or none, and everyone lands on Home. Replaces the four setup paths (Nov 2, logged Nov 4) |
 | 79 | Standings break ties on wins by head to head between the tied players, then share of sets won, then share of games won; playoff seeding uses the same order (John, Nov 6) |
+| 80 | The score-entered animation shows the win-loss record ticking to its new value, never a level change; VoiceOver reads "Win recorded. You're now 15 and 6." Levels stay static unless the player edits them (John, Nov 7) |
+| 81 | The app only speaks while recording: the voice coach and countdown play from the mounted phone during a Ball Boi recording, with captions on the partner phone. No spoken cues anywhere else; VoiceOver announcements speak only when the player has VoiceOver on (John, Nov 7) |
 | 82 | Ball Boi Pro is parked until there's traction: no paywall, subscription, free-months clock or In-App Purchase at launch. Shot analysis, replay, trends and career stats are free for everyone, and every recorded singles match is analyzed. The full plan (decisions 3, 14 and 33 to 42) is saved in `docs/backlog/ball-boi-pro.md`. Playing stays free (decision 32) (John, Nov 7) |
 | 83 | Pending John: with no Pro, does a player see their opponent's full breakdown for matches they played together? Until decided, each player sees only their own (Nov 7) |
