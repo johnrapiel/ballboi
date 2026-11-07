@@ -218,9 +218,20 @@ Done when every Bug is merged and John has signed off the walkthrough. Then Wave
 
 Native owner: **Session G**. Run by a Wave 2 coordinator session (prompt: `claude/wave-2-coordinator-prompt.md` in the Project), which writes these prompts after the flow review with John.
 
+**Flow review (Nov 7):** John's decisions are logged in `claude/wave-2-flow-review.md` in the Project (F1 to F14 for Discover, G1 so far for Session G). Each session's full brief lives in `claude/wave-2-briefs/` on the reference branch `docs/wave-2-briefs` (never merged) and in the Project.
+
+| Session | Brief | State |
+|---|---|---|
+| F | `claude/wave-2-briefs/session-f.md` | Approved by John Nov 7; session started |
+| G | | Flow review next |
+| H | | Flow review to come |
+| I | | Flow review to come |
+
+The Ball Boi iOS canvas now has three pages (Nov 7): **On TestFlight** (what's built), **Wave 2 designs** (what Wave 2 builds from) and **Graveyard** (old, ignore).
+
 | Session | Scope |
 |---|---|
-| F. Discover | Players near you (radius 5 / 10 / 15 / 30, level range, availability), Open leagues list and join requests, Open matches, Need 1 / Need 2, match requests (accept, counter, decline, day-before confirm, 2-hour reminder), reliability on cards, travel mode, hidden profile, court directory |
+| F. Discover | Players near you (radius 5 / 10 / 15 / 30 and Custom, level range, Monday to Sunday availability grid, "Free when I'm free"), player card with Report, hidden profile, Open leagues with join requests and waitlist, court directory and home court, setting up a match in chat (match cards, day-before check, 2-hour reminder, "Did it happen?", no-shows with a 48-hour dispute), reliability on cards, Open matches with Need 1 / Need 2 and group chat. **No travel mode** (dropped Nov 7). Brief: `claude/wave-2-briefs/session-f.md` |
 | G. Push, Live Activity and voice coach (native owner) | APNs with provisional authorization, contextual prompt and Settings banner; message push with preview hiding; opponent "Ball Boi is recording your match" push; Live Activity on both phones with push-to-start and App Intents; on-device court detection and voice positioning coach with captions; court-line corner fix on a still frame, alongside court detection (moved from Wave 1, Nov 4); Match day reminders, on by default but still behind iOS's permission prompt, which shows when a player joins a league or sends a match request (Nov 4); Apple's age range check before the birthday screen (moved from Wave 1, Nov 4; can ride with Wave 1's native sign-in PR if John wants it sooner); DeviceCheck device bans; installs RevenueCat's native SDK for Session I |
 | H. Replay, profile, player card and league chat | Simulated replay rebuild (replaces #78's placeholder; no video, ever), close-call labels, scrubber markers, filters, trends with text summaries and data tables; Profile tab rebuild (Wave 1 only fixes what Profile shows, Nov 4), player card as one VoiceOver element, career stats, head-to-head, recap, Edit your level (rating is a level players set, Oct 29), Settings > Privacy training toggle (Wave 1's PR 6 adds the switch now, spec decision 64); player screen with report and block; league chat with pins on Session B's interface; milestone animations with Reduce Motion fades |
 | I. Ball Boi Pro | RevenueCat (free tier) and IAP ($7.99/month, $59.99/year, one group, no intro offer; pricing changed Nov 2, spec decision 36), paywall ships at launch; 3 free months for everyone from first use of any Pro feature ("Your 3 free months of Pro start today"), tracked server-side; paywall at setup with disclosures, Restore Purchases, "Not now" records with 30-day expiry; mixed matchups: a match is analyzed if either player has Pro, the free player sees games 1 to 4 plus a free-months offer, opponent breakdowns only when both have Pro, placeholder opponents get the same teaser; lapsed users keep what they already unlocked (spec decisions 32 to 43). Playing stays free; the Organizer plan waits until after launch |
