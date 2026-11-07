@@ -1,11 +1,12 @@
 // Settings › Discover (canvas W2_SettingsDiscover; F3: no Blocked players
-// row). "Show me in Discover", Your area and Home court. Match alerts join
-// this section with Open matches.
+// row). "Show me in Discover", Your area and Home court. and Alerts for new
+// open matches.
 
 import { useRouter } from "expo-router";
 import React from "react";
 import { ActivityIndicator, Alert, View } from "react-native";
 
+import { MatchAlertsCard } from "@/components/discover/MatchAlerts";
 import { SettingsRow, SettingsSection } from "@/components/SettingsList";
 import { Toggle } from "@/components/Toggle";
 import { Button, Card, Text } from "@/components/ui";
@@ -62,6 +63,7 @@ export function DiscoverSettings({ extraRows }: { extraRows?: React.ReactNode })
               play in your leagues.
             </Text>
           </Card>
+          <MatchAlertsCard on={me.data.matchAlerts ?? false} title="Alerts for new open matches" />
           <SettingsSection>
             <SettingsRow
               title="Your area"
