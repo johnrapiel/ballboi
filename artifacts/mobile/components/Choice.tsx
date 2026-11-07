@@ -82,13 +82,25 @@ export function ChoiceGroup<T extends string | number>({
 }
 
 /** A 44pt round button with an SF Symbol, for a screen's main action in the header. */
-export function IconButton({ symbol, label, onPress }: { symbol: SFSymbol; label: string; onPress: () => void }) {
+export function IconButton({
+  symbol,
+  label,
+  hint,
+  onPress,
+}: {
+  symbol: SFSymbol;
+  label: string;
+  /** What happens on tap, read by VoiceOver after the label. */
+  hint?: string;
+  onPress: () => void;
+}) {
   const c = useColors();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityHint={hint}
       hitSlop={4}
       style={({ pressed }) => ({
         width: MIN_TAP,

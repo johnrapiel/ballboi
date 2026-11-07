@@ -56,6 +56,8 @@ describe("POST /users/me/rating/self", () => {
   it("only accepts a quiz level", async () => {
     await app().post("/api/users/me/rating/self").send({ rating: 3.7 }).expect(400);
     await app().post("/api/users/me/rating/self").send({ rating: "3.5" }).expect(400);
+    await app().post("/api/users/me/rating/self").send({ rating: 5.5 }).expect(400);
+    await app().post("/api/users/me/rating/self").send({ rating: 2.0 }).expect(400);
     expect(updates).toHaveLength(0);
   });
 
@@ -70,6 +72,13 @@ describe("POST /users/me/rating/self", () => {
     selectQueue.push([{ ratingSource: "self" }]);
     await app().post("/api/users/me/rating/self").send({ rating: 4.0 }).expect(200);
     expect(updates).toEqual([{ rating: 4.0, ratingSource: "self" }]);
+  });
+
+  it("accepts 5.0, the Expert level", async () => {
+    selectQueue.push([{ ratingSource: "self" }]);
+    const res = await app().post("/api/users/me/rating/self").send({ rating: 5.0 }).expect(200);
+    expect(updates).toEqual([{ rating: 5, ratingSource: "self" }]);
+    expect(res.body).toEqual({ rating: 5, source: "self" });
   });
 
   it("leaves a Verified rating alone", async () => {

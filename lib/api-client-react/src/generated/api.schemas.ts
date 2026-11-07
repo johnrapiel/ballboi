@@ -2121,6 +2121,7 @@ export const SelfRatingInputRating = {
   "35": 3.5,
   NUMBER_4: 4,
   "45": 4.5,
+  NUMBER_5: 5,
 } as const;
 
 export interface SelfRatingInput {

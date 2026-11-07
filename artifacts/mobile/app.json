@@ -4,7 +4,7 @@
     "slug": "ballboi",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/icon-light.png",
     "scheme": "ballboi",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -16,6 +16,10 @@
     },
     "ios": {
       "bundleIdentifier": "tennis.ballboi",
+      "icon": {
+        "light": "./assets/images/icon-light.png",
+        "dark": "./assets/images/icon-dark.png"
+      },
       "supportsTablet": false,
       "config": {
         "usesNonExemptEncryption": false
