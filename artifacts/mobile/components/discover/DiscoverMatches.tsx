@@ -4,7 +4,7 @@
 // unchanged for players who don't use Discover.
 
 import { useRouter } from "expo-router";
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
@@ -55,7 +55,7 @@ export function DiscoverMatchesSection() {
                 {planDetail(m)}
               </Text>
             </View>
-            <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} />
+            <Icon name="chevron.right" size={13} tintColor={c.inkMuted} />
           </Pressable>
         ))}
       </Card>

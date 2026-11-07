@@ -1,4 +1,4 @@
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
@@ -48,7 +48,7 @@ export function RadioCard({
         opacity: pressed ? 0.85 : 1,
       })}
     >
-      <SymbolView name={selected ? "checkmark.circle.fill" : "circle"} size={22} tintColor={c.ink} style={{ marginTop: 1 }} />
+      <Icon name={selected ? "checkmark.circle.fill" : "circle"} size={22} tintColor={c.ink} style={{ marginTop: 1 }} />
       <View style={{ flex: 1, gap: spacing.space1 }}>
         <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: spacing.space2 }}>
           <Text variant="bodyStrong">{title}</Text>

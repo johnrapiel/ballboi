@@ -3,7 +3,7 @@
 // Players / Open leagues / Open matches segmented control, the area row and
 // the distance chips with counts.
 
-import { SymbolView, type SFSymbol } from "expo-symbols";
+import { Icon, type IconName } from "@/components/Icon";
 import React from "react";
 import { Pressable, View, useWindowDimensions, type StyleProp, type ViewStyle } from "react-native";
 
@@ -27,7 +27,7 @@ export interface ChipProps {
   disabled?: boolean;
   /** A muted part after the label, like the count in "10 mi · 14". */
   detail?: string;
-  symbol?: SFSymbol;
+  symbol?: IconName;
 }
 
 /**
@@ -62,7 +62,7 @@ export function ChoiceChip({ label, selected, onPress, accessibilityLabel, acces
         opacity: disabled ? 0.5 : pressed ? 0.8 : 1,
       })}
     >
-      {symbol ? <SymbolView name={symbol} size={15} tintColor={selected ? c.onInk : c.ink} /> : null}
+      {symbol ? <Icon name={symbol} size={15} tintColor={selected ? c.onInk : c.ink} /> : null}
       <Text variant="bodyStrong" tone={selected ? "onInk" : "ink"} style={{ textAlign: "center" }}>
         {label}
         {detail ? (
@@ -167,7 +167,7 @@ export function AreaRow({ area, onPress }: { area: DiscoverArea | null; onPress:
       })}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2, flexShrink: 1, flexGrow: 1 }}>
-        <SymbolView name="mappin.and.ellipse" size={18} tintColor={c.ink} />
+        <Icon name="mappin.and.ellipse" size={18} tintColor={c.ink} />
         <Text style={{ flexShrink: 1 }}>{areaLine(area)}</Text>
       </View>
       <Text style={{ textDecorationLine: "underline" }}>{area ? "Change" : "Add"}</Text>
@@ -282,7 +282,7 @@ export function FiltersButton({
         opacity: pressed ? 0.7 : 1,
       })}
     >
-      <SymbolView name="line.3.horizontal.decrease" size={15} tintColor={c.ink} />
+      <Icon name="line.3.horizontal.decrease" size={15} tintColor={c.ink} />
       <Text variant="bodyStrong">{active ? "Filters on" : "Filters"}</Text>
     </Pressable>
   );
