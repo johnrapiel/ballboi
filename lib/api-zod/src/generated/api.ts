@@ -98,6 +98,280 @@ export const SetHomeCourtResponse = zod.object({
 });
 
 /**
+ * @summary Dev only, move a match card's times earlier by some hours to try the day-before and after-match steps now
+ */
+export const ShiftMatchPlanParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ShiftMatchPlanBody = zod.object({
+  hours: zod.number(),
+});
+
+export const ShiftMatchPlanResponse = zod.object({
+  id: zod.number(),
+  startsAt: zod.string(),
+  timeZone: zod.string(),
+  courtName: zod.string().nullable(),
+  kind: zod.enum(["singles", "practice"]),
+  matchId: zod.number().nullable(),
+  score: zod.string().nullable(),
+  mine: zod.boolean().describe("You sent this card"),
+  events: zod.array(
+    zod.object({
+      key: zod.string(),
+      type: zod.enum([
+        "proposed",
+        "added",
+        "undone",
+        "declined",
+        "day_before",
+        "canceled",
+        "did_it_happen",
+        "not_played",
+        "no_show_reported",
+        "no_show_disputed",
+        "no_show_confirmed",
+        "scored",
+      ]),
+      at: zod.string(),
+      by: zod
+        .union([zod.literal("me"), zod.literal("them"), zod.literal(null)])
+        .nullable(),
+      actions: zod.array(
+        zod.enum([
+          "accept",
+          "decline",
+          "undo",
+          "still_on",
+          "cancel",
+          "score",
+          "no_show",
+          "not_played",
+          "dispute",
+          "admit",
+        ]),
+      ),
+      state: zod.string().optional(),
+      meIn: zod.boolean().optional(),
+      themIn: zod.boolean().optional(),
+      about: zod.enum(["me", "them"]).optional(),
+      deadline: zod.string().optional(),
+    }),
+  ),
+});
+
+/**
+ * @summary Send a match card in a chat (a newer card replaces an older one still waiting)
+ */
+export const SendMatchPlanBody = zod.object({
+  userId: zod.number(),
+  startsAt: zod.string().describe("ISO 8601, in the future, within 60 days"),
+  timeZone: zod.string().optional(),
+  courtId: zod.number().nullish(),
+  kind: zod.enum(["singles", "practice"]).optional(),
+});
+
+/**
+ * @summary Your added Discover matches still to play, for Home and My matches
+ */
+export const ListUpcomingMatchPlansResponse = zod.object({
+  matches: zod.array(
+    zod
+      .object({
+        id: zod.number(),
+        startsAt: zod.string(),
+        timeZone: zod.string(),
+        courtName: zod.string().nullable(),
+        kind: zod.enum(["singles", "practice"]),
+        matchId: zod.number().nullable(),
+        score: zod.string().nullable(),
+        mine: zod.boolean().describe("You sent this card"),
+        events: zod.array(
+          zod.object({
+            key: zod.string(),
+            type: zod.enum([
+              "proposed",
+              "added",
+              "undone",
+              "declined",
+              "day_before",
+              "canceled",
+              "did_it_happen",
+              "not_played",
+              "no_show_reported",
+              "no_show_disputed",
+              "no_show_confirmed",
+              "scored",
+            ]),
+            at: zod.string(),
+            by: zod
+              .union([
+                zod.literal("me"),
+                zod.literal("them"),
+                zod.literal(null),
+              ])
+              .nullable(),
+            actions: zod.array(
+              zod.enum([
+                "accept",
+                "decline",
+                "undo",
+                "still_on",
+                "cancel",
+                "score",
+                "no_show",
+                "not_played",
+                "dispute",
+                "admit",
+              ]),
+            ),
+            state: zod.string().optional(),
+            meIn: zod.boolean().optional(),
+            themIn: zod.boolean().optional(),
+            about: zod.enum(["me", "them"]).optional(),
+            deadline: zod.string().optional(),
+          }),
+        ),
+      })
+      .and(
+        zod.object({
+          otherName: zod.string(),
+          otherUserId: zod.number().nullable(),
+        }),
+      ),
+  ),
+});
+
+/**
+ * @summary The match cards in your chat with a player, and what you can do with each
+ */
+export const GetMatchPlansWithUserParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const GetMatchPlansWithUserResponse = zod.object({
+  otherName: zod.string(),
+  blocked: zod.boolean(),
+  devTools: zod.boolean(),
+  plans: zod.array(
+    zod.object({
+      id: zod.number(),
+      startsAt: zod.string(),
+      timeZone: zod.string(),
+      courtName: zod.string().nullable(),
+      kind: zod.enum(["singles", "practice"]),
+      matchId: zod.number().nullable(),
+      score: zod.string().nullable(),
+      mine: zod.boolean().describe("You sent this card"),
+      events: zod.array(
+        zod.object({
+          key: zod.string(),
+          type: zod.enum([
+            "proposed",
+            "added",
+            "undone",
+            "declined",
+            "day_before",
+            "canceled",
+            "did_it_happen",
+            "not_played",
+            "no_show_reported",
+            "no_show_disputed",
+            "no_show_confirmed",
+            "scored",
+          ]),
+          at: zod.string(),
+          by: zod
+            .union([zod.literal("me"), zod.literal("them"), zod.literal(null)])
+            .nullable(),
+          actions: zod.array(
+            zod.enum([
+              "accept",
+              "decline",
+              "undo",
+              "still_on",
+              "cancel",
+              "score",
+              "no_show",
+              "not_played",
+              "dispute",
+              "admit",
+            ]),
+          ),
+          state: zod.string().optional(),
+          meIn: zod.boolean().optional(),
+          themIn: zod.boolean().optional(),
+          about: zod.enum(["me", "them"]).optional(),
+          deadline: zod.string().optional(),
+        }),
+      ),
+    }),
+  ),
+});
+
+/**
+ * @summary Answer a match card: accept, decline, undo, still-on, cancel, not-played, no-show, dispute or admit
+ */
+export const ActOnMatchPlanParams = zod.object({
+  id: zod.coerce.number(),
+  command: zod.coerce.string(),
+});
+
+export const ActOnMatchPlanResponse = zod.object({
+  id: zod.number(),
+  startsAt: zod.string(),
+  timeZone: zod.string(),
+  courtName: zod.string().nullable(),
+  kind: zod.enum(["singles", "practice"]),
+  matchId: zod.number().nullable(),
+  score: zod.string().nullable(),
+  mine: zod.boolean().describe("You sent this card"),
+  events: zod.array(
+    zod.object({
+      key: zod.string(),
+      type: zod.enum([
+        "proposed",
+        "added",
+        "undone",
+        "declined",
+        "day_before",
+        "canceled",
+        "did_it_happen",
+        "not_played",
+        "no_show_reported",
+        "no_show_disputed",
+        "no_show_confirmed",
+        "scored",
+      ]),
+      at: zod.string(),
+      by: zod
+        .union([zod.literal("me"), zod.literal("them"), zod.literal(null)])
+        .nullable(),
+      actions: zod.array(
+        zod.enum([
+          "accept",
+          "decline",
+          "undo",
+          "still_on",
+          "cancel",
+          "score",
+          "no_show",
+          "not_played",
+          "dispute",
+          "admit",
+        ]),
+      ),
+      state: zod.string().optional(),
+      meIn: zod.boolean().optional(),
+      themIn: zod.boolean().optional(),
+      about: zod.enum(["me", "them"]).optional(),
+      deadline: zod.string().optional(),
+    }),
+  ),
+});
+
+/**
  * @summary Change your home ZIP from Discover. Also updates your profile's home area.
  */
 export const SetDiscoverAreaBody = zod.object({
@@ -5233,6 +5507,7 @@ export const CreateReportBody = zod.object({
     "unsafe",
     "other",
     "impersonation",
+    "no_show_dispute",
   ]),
   details: zod.string().nullish().describe("Kept to 1000 characters"),
 });
@@ -5789,6 +6064,7 @@ export const ReportMessageBody = zod.object({
     "unsafe",
     "other",
     "impersonation",
+    "no_show_dispute",
   ]),
   details: zod.string().nullish(),
 });

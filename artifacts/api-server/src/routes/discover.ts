@@ -250,7 +250,7 @@ export function createDiscoverRouter(repo: DiscoverRepo = new DrizzleDiscoverRep
     const userId = Number(req.params.userId);
     const b = (req.body ?? {}) as Record<string, unknown>;
     // "impersonation" is only for reports filed before Nov 7.
-    if (!isOneOf(REPORT_REASONS, b.reason) || b.reason === "impersonation") {
+    if (!isOneOf(REPORT_REASONS, b.reason) || b.reason === "impersonation" || b.reason === "no_show_dispute") {
       res.status(400).json({ error: "Pick a reason for the report." });
       return;
     }

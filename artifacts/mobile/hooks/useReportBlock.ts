@@ -42,6 +42,7 @@ export type ReportReasonCode = (typeof REPORT_REASONS)[number]["code"];
 export const REPORT_REASON_LABELS: { code: string; label: string }[] = [
   ...REPORT_REASONS,
   { code: "impersonation", label: "Pretending to be someone else" },
+  { code: "no_show_dispute", label: "Disputed no-show" },
 ];
 
 // What blocking really does, messages first, in the same words everywhere

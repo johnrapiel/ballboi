@@ -19,6 +19,7 @@ import { areaForZip, boundingBox, type Area, type Point } from "./discoverArea.j
 import type { OpenLeagueCandidate } from "./discoverLeagues.js";
 import type { DiscoverCandidate, DiscoverSettingsInput } from "./discoverPlayers.js";
 import { todayFor } from "./leagueCalendar.js";
+import { DrizzleMatchPlanRepo } from "./matchPlanRepo.js";
 import { countPlayed, EMPTY_RELIABILITY, type Reliability } from "./reliability.js";
 
 export interface DiscoverMe {
@@ -189,7 +190,8 @@ const SYNC_EVERY_MS = 60_000;
 export class DrizzleDiscoverRepo implements DiscoverRepo {
   private lastSync = 0;
 
-  constructor(private readonly noShows: NoShowCounter = async () => new Map()) {}
+  /** Discover no-shows come from match cards (F13). */
+  constructor(private readonly noShows: NoShowCounter = (ids) => new DrizzleMatchPlanRepo().noShowCounts(ids, new Date())) {}
 
   /**
    * Gives every account with a home ZIP a Discover point, and refreshes it
