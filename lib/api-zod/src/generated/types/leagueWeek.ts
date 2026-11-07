@@ -7,13 +7,21 @@
  */
 import type { LeagueWeekDraft } from "./leagueWeekDraft";
 import type { LeagueWeekItem } from "./leagueWeekItem";
+import type { LeagueWeekLeague } from "./leagueWeekLeague";
 import type { LeagueWeekPlayoff } from "./leagueWeekPlayoff";
 import type { LeagueWeekResult } from "./leagueWeekResult";
+import type { LeagueWeekSeason } from "./leagueWeekSeason";
 
 export interface LeagueWeek {
   today: string;
   thisWeek: LeagueWeekItem[];
   playoffs: LeagueWeekPlayoff[];
   drafts: LeagueWeekDraft[];
+  /** Your last five results */
   recent: LeagueWeekResult[];
+  /** Every result, newest first, for My matches */
+  results: LeagueWeekResult[];
+  season: LeagueWeekSeason;
+  /** Leagues you play in that are still running, with where you stand */
+  leagues: LeagueWeekLeague[];
 }

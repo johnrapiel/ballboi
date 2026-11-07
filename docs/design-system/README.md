@@ -132,8 +132,8 @@ The roundel is the wordmark. `assets/Logos/ball-boi-roundel.png` is the painted 
 
 Where it appears:
 - Splash, Welcome, the marketing site and App Store screenshots
-- At 44px in place of the Home tab header's title, left aligned on the row with Messages, with no date or greeting. The brushstroke in ink by day; at night the brushstroke alone in white, with no paper fill (John, Nov 6)
-- Player-facing empty states on the main tabs (Leagues, Discover), at 120px in place of the symbol. Not on Home, which already has it in the header
+- At 44px in place of the Home tab header's title, left aligned on the row with Messages, with no date or greeting, once Home has something to show. The brushstroke in ink by day; at night the brushstroke alone in white, with no paper fill (John, Nov 6)
+- Player-facing empty states on the main tabs (Home, Leagues, Discover), at 120px in place of the symbol. On Home it appears here only while there's nothing to show yet, and the header then has no roundel, so it's never on screen twice (John, Nov 6, finding 27)
 - Behind the badge in milestone moments (first win, first Ball Boi match, 5- and 10-match win streaks)
 - Stamped on every shareable match recap
 - An About footer at the bottom of Profile

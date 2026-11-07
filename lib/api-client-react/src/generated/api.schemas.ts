@@ -238,6 +238,10 @@ export interface LeagueWeekPlayoff {
   playBy: string | null;
   /** The play-by date has passed, so the league admin enters the result */
   pastPlayBy: boolean;
+  /** @nullable */
+  scheduledAt: string | null;
+  /** @nullable */
+  location: string | null;
 }
 
 export interface LeagueWeekDraft {
@@ -304,12 +308,59 @@ export interface LeagueWeekResult {
   completedAt: string | null;
 }
 
+export interface LeagueWeekStreak {
+  won: boolean;
+  count: number;
+}
+
+/**
+ * Your results across leagues still running
+ */
+export interface LeagueWeekSeason {
+  wins: number;
+  losses: number;
+  played: number;
+  streak: LeagueWeekStreak | null;
+}
+
+export interface LeagueWeekStandingRow {
+  rank: number;
+  playerId: number;
+  playerName: string;
+  wins: number;
+  losses: number;
+  you: boolean;
+}
+
+export interface LeagueWeekLeague {
+  leagueId: number;
+  leagueName: string;
+  /** @nullable */
+  location: string | null;
+  /**
+   * Your rank, or null if you're not in the standings
+   * @nullable
+   */
+  rank: number | null;
+  playerCount: number;
+  wins: number;
+  losses: number;
+  /** The top three, plus your row if you're further down */
+  rows: LeagueWeekStandingRow[];
+}
+
 export interface LeagueWeek {
   today: string;
   thisWeek: LeagueWeekItem[];
   playoffs: LeagueWeekPlayoff[];
   drafts: LeagueWeekDraft[];
+  /** Your last five results */
   recent: LeagueWeekResult[];
+  /** Every result, newest first, for My matches */
+  results: LeagueWeekResult[];
+  season: LeagueWeekSeason;
+  /** Leagues you play in that are still running, with where you stand */
+  leagues: LeagueWeekLeague[];
 }
 
 export type DevLeagueToolsTargetRound = {
@@ -446,13 +497,87 @@ export interface ScheduleBye {
   setByAdmin: boolean;
 }
 
-export interface UndoneScore {
+export interface EditedScore {
   matchId: number;
-  status: string;
+  /** From player 1's side */
+  score: string;
   /** @nullable */
-  score: null;
+  winnerId: number | null;
+  editedAt: string;
+  editedBy: string;
+}
+
+export interface MatchDetailPlayer {
+  playerId: number;
+  name: string;
+  you: boolean;
+  hasAccount: boolean;
+}
+
+export interface MatchDetailSide {
+  players: MatchDetailPlayer[];
+  won: boolean;
+}
+
+export interface MatchDetailReplay {
   /** @nullable */
-  winnerId: null;
+  durationSeconds: number | null;
+  shotCount: number;
+}
+
+export interface MatchDetail {
+  matchId: number;
+  leagueId: number;
+  leagueName: string;
+  singles: boolean;
+  /** @nullable */
+  timeZone: string | null;
+  /** @nullable */
+  roundNumber: number | null;
+  /** @nullable */
+  playoffRound: string | null;
+  /** @nullable */
+  scheduledAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  /** @nullable */
+  location: string | null;
+  played: boolean;
+  voided: boolean;
+  inGrace: boolean;
+  /**
+   * From your side, your games first
+   * @nullable
+   */
+  score: string | null;
+  you: MatchDetailSide;
+  opponents: MatchDetailSide;
+  /**
+   * The player who first entered the score; null when the league admin did
+   * @nullable
+   */
+  enteredBy: string | null;
+  /** @nullable */
+  enteredAt: string | null;
+  /**
+   * When your 24 hours to edit the score run out (ISO time); null when you can't edit it
+   * @nullable
+   */
+  editUntil: string | null;
+  /**
+   * The player who last edited the score, for "Score edited by {name}"
+   * @nullable
+   */
+  editedBy: string | null;
+  /** @nullable */
+  editedAt: string | null;
+  /** @nullable */
+  correctedBy: string | null;
+  /** @nullable */
+  correctedAt: string | null;
+  leagueEnded: boolean;
+  /** Set once a Ball Boi analysis of this match has finished */
+  replay: MatchDetailReplay | null;
 }
 
 export interface CorrectedScore {
@@ -490,10 +615,15 @@ export interface ScheduleMatch {
   /** @nullable */
   location: string | null;
   /**
-   * When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.
+   * When the caller's 24 hours to edit the score run out (ISO time). Set for either player while they can still edit it.
    * @nullable
    */
-  undoUntil: string | null;
+  editUntil: string | null;
+  /**
+   * The player who last edited the score, for "Score edited by {name}"
+   * @nullable
+   */
+  editedBy: string | null;
   /**
    * The admin who corrected the score, for "Corrected by {admin} on {date}"
    * @nullable
@@ -502,7 +632,7 @@ export interface ScheduleMatch {
   /** @nullable */
   correctedAt: string | null;
   /**
-   * The player who undid the score, shown to the opponent until a new score is in
+   * Older matches only, from before Undo was replaced by the 24-hour edit. The player who undid the score, shown until a new score is in
    * @nullable
    */
   scoreClearedBy: string | null;

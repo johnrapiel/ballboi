@@ -20,7 +20,6 @@ import {
 } from "@workspace/api-client-react";
 
 import { RoundCard, UpcomingWeekRow } from "@/components/league/RoundCard";
-import { UndoScore } from "@/components/league/UndoScore";
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
 import { InviteCard } from "@/components/league/InviteCard";
 import { ListRow } from "@/components/league/ListRow";
@@ -34,6 +33,7 @@ import { levelSpoken } from "@/lib/onboarding";
 import {
   canEnterScore,
   correctionLine,
+  editedLine,
   dateRange,
   deadlineDate,
   matchWhen,
@@ -145,8 +145,8 @@ function YourWeek({
   const message = () =>
     router.push({ pathname: "/conversation/[id]", params: { id: "new", playerId: String(opponentId), name: opponent } });
   const played = match.status === "completed" && !!match.score;
-  const corrected = correctionLine(match);
-  // After an undo, the opponent sees who cleared it until a new score is in.
+  const corrected = correctionLine(match) ?? editedLine(match);
+  // Older matches only: before the 24-hour edit, an undo left who cleared it.
   const clearedNote = !played && match.scoreClearedBy ? `Score cleared by ${match.scoreClearedBy}. ` : "";
   const when = played
     ? [resultLine(match, round, ended), corrected].filter(Boolean).join(". ")
@@ -199,7 +199,6 @@ function YourWeek({
           />
         ) : null}
       </View>
-      {!scoreable ? <UndoScore leagueId={leagueId} matchId={match.matchId} undoUntil={match.undoUntil} align="flex-start" /> : null}
       {!played && !match.voided && round.phase !== "closed" && !ended ? (
         <MatchTimeRow
           when={matchTime}

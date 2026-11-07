@@ -7,9 +7,7 @@ import type { ScheduleMatch, ScheduleRound, ScheduleWeek } from "@workspace/api-
 import { Card, Chip, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { canEnterScore, correctionLine, dateRange, deadlineDate, isMine, isNotPlayed, phaseLabel, resultLine, shortDate } from "@/lib/leagueSchedule";
-
-import { UndoScore } from "./UndoScore";
+import { canEnterScore, correctionLine, dateRange, deadlineDate, editedLine, isMine, isNotPlayed, phaseLabel, resultLine, shortDate } from "@/lib/leagueSchedule";
 
 // One week of a league season (spec: Leagues > Weekly loop). Every state is in
 // words: "This week", "Grace week", "Cancelled", "Not played yet", "Not played".
@@ -39,6 +37,7 @@ function MatchRow({
   const notes = [
     m.inGrace ? "Grace week: counts for Ball Boi stats, not standings" : null,
     correctionLine(m),
+    m.status === "completed" ? editedLine(m) : null,
     m.status !== "completed" && m.scoreClearedBy ? `Score cleared by ${m.scoreClearedBy}` : null,
   ].filter((n): n is string => !!n);
   const scoreable = mine && canEnterScore(round, m, ended);
@@ -96,8 +95,6 @@ function MatchRow({
             Enter score
           </Text>
         </Pressable>
-      ) : mine ? (
-        <UndoScore leagueId={leagueId} matchId={m.matchId} undoUntil={m.undoUntil} />
       ) : null}
     </View>
   );

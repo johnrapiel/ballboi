@@ -1014,11 +1014,17 @@ export const GetLeagueScheduleResponse = zod.object({
           locked: zod.boolean(),
           scheduledAt: zod.string().nullable(),
           location: zod.string().nullable(),
-          undoUntil: zod
+          editUntil: zod
             .string()
             .nullable()
             .describe(
-              "When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.",
+              "When the caller's 24 hours to edit the score run out (ISO time). Set for either player while they can still edit it.",
+            ),
+          editedBy: zod
+            .string()
+            .nullable()
+            .describe(
+              'The player who last edited the score, for \"Score edited by {name}\"',
             ),
           correctedBy: zod
             .string()
@@ -1031,7 +1037,7 @@ export const GetLeagueScheduleResponse = zod.object({
             .string()
             .nullable()
             .describe(
-              "The player who undid the score, shown to the opponent until a new score is in",
+              "Older matches only, from before Undo was replaced by the 24-hour edit. The player who undid the score, shown until a new score is in",
             ),
         }),
       ),
@@ -1213,6 +1219,8 @@ export const GetMyLeagueWeekResponse = zod.object({
         .describe(
           "The play-by date has passed, so the league admin enters the result",
         ),
+      scheduledAt: zod.string().nullable(),
+      location: zod.string().nullable(),
     }),
   ),
   drafts: zod.array(
@@ -1227,19 +1235,162 @@ export const GetMyLeagueWeekResponse = zod.object({
         .describe("The league's time zone. The round goes out at 7am there."),
     }),
   ),
-  recent: zod.array(
-    zod.object({
-      leagueId: zod.number(),
-      leagueName: zod.string(),
-      matchId: zod.number(),
-      opponentName: zod.string(),
-      score: zod.string().describe("From the viewer's side, their games first"),
-      won: zod.boolean(),
-      inGrace: zod.boolean(),
-      playoff: zod.boolean(),
-      completedAt: zod.string().nullable(),
-    }),
-  ),
+  recent: zod
+    .array(
+      zod.object({
+        leagueId: zod.number(),
+        leagueName: zod.string(),
+        matchId: zod.number(),
+        opponentName: zod.string(),
+        score: zod
+          .string()
+          .describe("From the viewer's side, their games first"),
+        won: zod.boolean(),
+        inGrace: zod.boolean(),
+        playoff: zod.boolean(),
+        completedAt: zod.string().nullable(),
+      }),
+    )
+    .describe("Your last five results"),
+  results: zod
+    .array(
+      zod.object({
+        leagueId: zod.number(),
+        leagueName: zod.string(),
+        matchId: zod.number(),
+        opponentName: zod.string(),
+        score: zod
+          .string()
+          .describe("From the viewer's side, their games first"),
+        won: zod.boolean(),
+        inGrace: zod.boolean(),
+        playoff: zod.boolean(),
+        completedAt: zod.string().nullable(),
+      }),
+    )
+    .describe("Every result, newest first, for My matches"),
+  season: zod
+    .object({
+      wins: zod.number(),
+      losses: zod.number(),
+      played: zod.number(),
+      streak: zod.union([
+        zod.object({
+          won: zod.boolean(),
+          count: zod.number(),
+        }),
+        zod.null(),
+      ]),
+    })
+    .describe("Your results across leagues still running"),
+  leagues: zod
+    .array(
+      zod.object({
+        leagueId: zod.number(),
+        leagueName: zod.string(),
+        location: zod.string().nullable(),
+        rank: zod
+          .number()
+          .nullable()
+          .describe("Your rank, or null if you're not in the standings"),
+        playerCount: zod.number(),
+        wins: zod.number(),
+        losses: zod.number(),
+        rows: zod
+          .array(
+            zod.object({
+              rank: zod.number(),
+              playerId: zod.number(),
+              playerName: zod.string(),
+              wins: zod.number(),
+              losses: zod.number(),
+              you: zod.boolean(),
+            }),
+          )
+          .describe("The top three, plus your row if you're further down"),
+      }),
+    )
+    .describe(
+      "Leagues you play in that are still running, with where you stand",
+    ),
+});
+
+/**
+ * @summary Match detail for one of your league matches - details, the score from your side, who entered or changed it, and the Ball Boi Replay once it exists
+ */
+export const GetMyMatchParams = zod.object({
+  matchId: zod.coerce.number(),
+});
+
+export const GetMyMatchResponse = zod.object({
+  matchId: zod.number(),
+  leagueId: zod.number(),
+  leagueName: zod.string(),
+  singles: zod.boolean(),
+  timeZone: zod.string().nullable(),
+  roundNumber: zod.number().nullable(),
+  playoffRound: zod.string().nullable(),
+  scheduledAt: zod.string().nullable(),
+  completedAt: zod.string().nullable(),
+  location: zod.string().nullable(),
+  played: zod.boolean(),
+  voided: zod.boolean(),
+  inGrace: zod.boolean(),
+  score: zod.string().nullable().describe("From your side, your games first"),
+  you: zod.object({
+    players: zod.array(
+      zod.object({
+        playerId: zod.number(),
+        name: zod.string(),
+        you: zod.boolean(),
+        hasAccount: zod.boolean(),
+      }),
+    ),
+    won: zod.boolean(),
+  }),
+  opponents: zod.object({
+    players: zod.array(
+      zod.object({
+        playerId: zod.number(),
+        name: zod.string(),
+        you: zod.boolean(),
+        hasAccount: zod.boolean(),
+      }),
+    ),
+    won: zod.boolean(),
+  }),
+  enteredBy: zod
+    .string()
+    .nullable()
+    .describe(
+      "The player who first entered the score; null when the league admin did",
+    ),
+  enteredAt: zod.string().nullable(),
+  editUntil: zod
+    .string()
+    .nullable()
+    .describe(
+      "When your 24 hours to edit the score run out (ISO time); null when you can't edit it",
+    ),
+  editedBy: zod
+    .string()
+    .nullable()
+    .describe(
+      'The player who last edited the score, for \"Score edited by {name}\"',
+    ),
+  editedAt: zod.string().nullable(),
+  correctedBy: zod.string().nullable(),
+  correctedAt: zod.string().nullable(),
+  leagueEnded: zod.boolean(),
+  replay: zod
+    .union([
+      zod.object({
+        durationSeconds: zod.number().nullable(),
+        shotCount: zod.number(),
+      }),
+      zod.null(),
+    ])
+    .describe("Set once a Ball Boi analysis of this match has finished"),
 });
 
 /**
@@ -1300,7 +1451,7 @@ export const DevPairLeagueNowResponse = zod.object({
 });
 
 /**
- * @summary Enter a league match score from your own side. The first score entered stands.
+ * @summary Enter a league match score from your own side. Either player can edit it for 24 hours after.
  */
 export const EnterLeagueScoreParams = zod.object({
   leagueId: zod.coerce.number(),
@@ -1430,18 +1581,33 @@ export const SetLeagueWeeklyMatchTimeResponse = zod.object({
 });
 
 /**
- * @summary The player who entered a score undoes it within 10 minutes. Standings recompute.
+ * @summary Either player edits the score from their own side, for 24 hours after it was entered. The latest edit stands and standings recompute.
  */
-export const UndoLeagueScoreParams = zod.object({
+export const EditLeagueScoreParams = zod.object({
   leagueId: zod.coerce.number(),
   matchId: zod.coerce.number(),
 });
 
-export const UndoLeagueScoreResponse = zod.object({
+export const EditLeagueScoreBody = zod.object({
+  score: zod
+    .string()
+    .describe(
+      'Sets from your own side, like \"6-3, 4-6, 10-7\". Your games first. Best of three; a set ends 6-0 to 6-4, 7-5 or 7-6, and a third set can be a match tiebreak (10-7).',
+    ),
+  retired: zod
+    .boolean()
+    .optional()
+    .describe(
+      "The opponent retired. The score is the sets so far (the last can be unfinished), it counts as the caller's win, and it's stored with RET at the end, like \"6-3, 2-1 RET\". Admin corrections ignore it.",
+    ),
+});
+
+export const EditLeagueScoreResponse = zod.object({
   matchId: zod.number(),
-  status: zod.string(),
-  score: zod.null(),
-  winnerId: zod.null(),
+  score: zod.string().describe("From player 1's side"),
+  winnerId: zod.number().nullable(),
+  editedAt: zod.string(),
+  editedBy: zod.string(),
 });
 
 /**
@@ -1707,11 +1873,17 @@ export const DraftNextLeagueRoundResponse = zod.object({
       locked: zod.boolean(),
       scheduledAt: zod.string().nullable(),
       location: zod.string().nullable(),
-      undoUntil: zod
+      editUntil: zod
         .string()
         .nullable()
         .describe(
-          "When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.",
+          "When the caller's 24 hours to edit the score run out (ISO time). Set for either player while they can still edit it.",
+        ),
+      editedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          'The player who last edited the score, for \"Score edited by {name}\"',
         ),
       correctedBy: zod
         .string()
@@ -1724,7 +1896,7 @@ export const DraftNextLeagueRoundResponse = zod.object({
         .string()
         .nullable()
         .describe(
-          "The player who undid the score, shown to the opponent until a new score is in",
+          "Older matches only, from before Undo was replaced by the 24-hour edit. The player who undid the score, shown until a new score is in",
         ),
     }),
   ),
@@ -1799,11 +1971,17 @@ export const RepairLeagueRoundResponse = zod.object({
       locked: zod.boolean(),
       scheduledAt: zod.string().nullable(),
       location: zod.string().nullable(),
-      undoUntil: zod
+      editUntil: zod
         .string()
         .nullable()
         .describe(
-          "When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.",
+          "When the caller's 24 hours to edit the score run out (ISO time). Set for either player while they can still edit it.",
+        ),
+      editedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          'The player who last edited the score, for \"Score edited by {name}\"',
         ),
       correctedBy: zod
         .string()
@@ -1816,7 +1994,7 @@ export const RepairLeagueRoundResponse = zod.object({
         .string()
         .nullable()
         .describe(
-          "The player who undid the score, shown to the opponent until a new score is in",
+          "Older matches only, from before Undo was replaced by the 24-hour edit. The player who undid the score, shown until a new score is in",
         ),
     }),
   ),
@@ -1891,11 +2069,17 @@ export const PublishLeagueRoundResponse = zod.object({
       locked: zod.boolean(),
       scheduledAt: zod.string().nullable(),
       location: zod.string().nullable(),
-      undoUntil: zod
+      editUntil: zod
         .string()
         .nullable()
         .describe(
-          "When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.",
+          "When the caller's 24 hours to edit the score run out (ISO time). Set for either player while they can still edit it.",
+        ),
+      editedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          'The player who last edited the score, for \"Score edited by {name}\"',
         ),
       correctedBy: zod
         .string()
@@ -1908,7 +2092,7 @@ export const PublishLeagueRoundResponse = zod.object({
         .string()
         .nullable()
         .describe(
-          "The player who undid the score, shown to the opponent until a new score is in",
+          "Older matches only, from before Undo was replaced by the 24-hour edit. The player who undid the score, shown until a new score is in",
         ),
     }),
   ),
@@ -1988,11 +2172,17 @@ export const SwapLeagueRoundPlayersResponse = zod.object({
       locked: zod.boolean(),
       scheduledAt: zod.string().nullable(),
       location: zod.string().nullable(),
-      undoUntil: zod
+      editUntil: zod
         .string()
         .nullable()
         .describe(
-          "When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.",
+          "When the caller's 24 hours to edit the score run out (ISO time). Set for either player while they can still edit it.",
+        ),
+      editedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          'The player who last edited the score, for \"Score edited by {name}\"',
         ),
       correctedBy: zod
         .string()
@@ -2005,7 +2195,7 @@ export const SwapLeagueRoundPlayersResponse = zod.object({
         .string()
         .nullable()
         .describe(
-          "The player who undid the score, shown to the opponent until a new score is in",
+          "Older matches only, from before Undo was replaced by the 24-hour edit. The player who undid the score, shown until a new score is in",
         ),
     }),
   ),
@@ -2084,11 +2274,17 @@ export const AddLeagueRoundByeResponse = zod.object({
       locked: zod.boolean(),
       scheduledAt: zod.string().nullable(),
       location: zod.string().nullable(),
-      undoUntil: zod
+      editUntil: zod
         .string()
         .nullable()
         .describe(
-          "When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.",
+          "When the caller's 24 hours to edit the score run out (ISO time). Set for either player while they can still edit it.",
+        ),
+      editedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          'The player who last edited the score, for \"Score edited by {name}\"',
         ),
       correctedBy: zod
         .string()
@@ -2101,7 +2297,7 @@ export const AddLeagueRoundByeResponse = zod.object({
         .string()
         .nullable()
         .describe(
-          "The player who undid the score, shown to the opponent until a new score is in",
+          "Older matches only, from before Undo was replaced by the 24-hour edit. The player who undid the score, shown until a new score is in",
         ),
     }),
   ),
@@ -2177,11 +2373,17 @@ export const RemoveLeagueRoundByeResponse = zod.object({
       locked: zod.boolean(),
       scheduledAt: zod.string().nullable(),
       location: zod.string().nullable(),
-      undoUntil: zod
+      editUntil: zod
         .string()
         .nullable()
         .describe(
-          "When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.",
+          "When the caller's 24 hours to edit the score run out (ISO time). Set for either player while they can still edit it.",
+        ),
+      editedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          'The player who last edited the score, for \"Score edited by {name}\"',
         ),
       correctedBy: zod
         .string()
@@ -2194,7 +2396,7 @@ export const RemoveLeagueRoundByeResponse = zod.object({
         .string()
         .nullable()
         .describe(
-          "The player who undid the score, shown to the opponent until a new score is in",
+          "Older matches only, from before Undo was replaced by the 24-hour edit. The player who undid the score, shown until a new score is in",
         ),
     }),
   ),
@@ -2274,11 +2476,17 @@ export const LockLeagueRoundMatchResponse = zod.object({
       locked: zod.boolean(),
       scheduledAt: zod.string().nullable(),
       location: zod.string().nullable(),
-      undoUntil: zod
+      editUntil: zod
         .string()
         .nullable()
         .describe(
-          "When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.",
+          "When the caller's 24 hours to edit the score run out (ISO time). Set for either player while they can still edit it.",
+        ),
+      editedBy: zod
+        .string()
+        .nullable()
+        .describe(
+          'The player who last edited the score, for \"Score edited by {name}\"',
         ),
       correctedBy: zod
         .string()
@@ -2291,7 +2499,7 @@ export const LockLeagueRoundMatchResponse = zod.object({
         .string()
         .nullable()
         .describe(
-          "The player who undid the score, shown to the opponent until a new score is in",
+          "Older matches only, from before Undo was replaced by the 24-hour edit. The player who undid the score, shown until a new score is in",
         ),
     }),
   ),

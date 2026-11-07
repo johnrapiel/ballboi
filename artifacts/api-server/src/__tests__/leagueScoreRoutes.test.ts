@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import express from "express";
 import supertest from "supertest";
 
-// Oct 31 review: C4 undo route and C5 admin correction route.
+// Finding 7: the 24-hour score edit route. C5: the admin correction route.
 
 let mockUserId: string | null = "user_a";
 vi.mock("@clerk/express", () => ({
@@ -110,50 +110,72 @@ beforeEach(() => {
   mockLeague = { id: 1, endedAt: null, status: "active", startDate: "2026-10-01", seasonWeeks: 8, timeZone: "America/New_York" };
 });
 
-describe("POST /api/leagues/:leagueId/matches/:matchId/score/undo", () => {
-  it("clears the score and takes the win and loss back", async () => {
+describe("POST /api/leagues/:leagueId/matches/:matchId/score/edit", () => {
+  const people = [
+    { id: 10, name: "Alex Kim", clerkUserId: "user_a" },
+    { id: 20, name: "Sam Lee", clerkUserId: "user_b" },
+  ];
+
+  it("lets the other player edit it from their side, and moves the win and loss", async () => {
+    mockUserId = "user_b";
     const sets: Call[] = [];
-    mockDb.select.mockReturnValue(chain([match()]));
-    mockDb.update.mockReturnValue(chain([{ ...match(), status: "scheduled", score: null, winnerId: null }], sets));
+    mockDb.select.mockReturnValueOnce(chain([match()])).mockReturnValueOnce(chain(people));
+    mockDb.update.mockReturnValue(chain([{ ...match(), score: "3-6, 4-6", winnerId: 20, scoreEditedAt: new Date() }], sets));
     const txUpdates: Call[] = [];
     mockDb.transaction.mockImplementation(async (cb: (tx: unknown) => unknown) => cb({ update: () => chain(undefined, txUpdates) }));
 
-    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score/undo");
+    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score/edit").send({ score: "6-3, 6-4" });
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ matchId: 7, status: "scheduled", score: null, winnerId: null });
-    expect(sets.find((c) => c.method === "set")?.args[0]).toMatchObject({ status: "scheduled", score: null, winnerId: null });
+    expect(res.body).toMatchObject({ matchId: 7, winnerId: 20, editedBy: "Sam Lee" });
+    // Sam typed their own games first; it's stored from player 1's side.
+    expect(sets.find((c) => c.method === "set")?.args[0]).toMatchObject({ score: "3-6, 4-6", winnerId: 20, scoreEditedByName: "Sam Lee" });
+    // Alex loses a win and gains a loss; Sam the other way round.
     expect(txUpdates.filter((c) => c.method === "set")).toHaveLength(2);
   });
 
-  it("leaves the opponent a 'Score cleared by' note", async () => {
-    const sets: Call[] = [];
-    mockDb.select.mockReturnValueOnce(chain([match()])).mockReturnValueOnce(chain([{ name: "Alex Kim" }]));
-    mockDb.update.mockReturnValue(chain([{ ...match(), status: "scheduled", score: null, winnerId: null }], sets));
-    mockDb.transaction.mockImplementation(async (cb: (tx: unknown) => unknown) => cb({ update: () => chain(undefined) }));
-    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score/undo");
+  it("tells the other player who edited it", async () => {
+    const { sendPushToUsers } = await import("../routes/notifications.js");
+    mockDb.select.mockReturnValueOnce(chain([match()])).mockReturnValueOnce(chain(people));
+    mockDb.update.mockReturnValue(chain([{ ...match(), score: "6-3, 6-2", scoreEditedAt: new Date() }]));
+    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score/edit").send({ score: "6-3, 6-2" });
     expect(res.status).toBe(200);
-    expect(sets.find((c) => c.method === "set")?.args[0]).toMatchObject({ scoreClearedByName: "Alex Kim" });
+    expect(sendPushToUsers).toHaveBeenCalledWith(["user_b"], "Score edited", "Score edited by Alex Kim: 3-6, 2-6.", "/match/7");
   });
 
-  it("refuses the opponent", async () => {
-    mockUserId = "user_b";
-    mockDb.select.mockReturnValue(chain([match()]));
-    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score/undo");
+  it("refuses someone not in the match", async () => {
+    mockUserId = "user_c";
+    mockDb.select.mockReturnValueOnce(chain([match()])).mockReturnValueOnce(chain(people));
+    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score/edit").send({ score: "6-3, 6-4" });
     expect(res.status).toBe(403);
     expect(mockDb.update).not.toHaveBeenCalled();
   });
 
-  it("lets the score stand after 10 minutes", async () => {
-    mockDb.select.mockReturnValue(chain([match({ recordedAt: new Date(Date.now() - 11 * 60_000).toISOString() })]));
-    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score/undo");
+  it("locks after 24 hours", async () => {
+    mockDb.select
+      .mockReturnValueOnce(chain([match({ recordedAt: new Date(Date.now() - 25 * 60 * 60_000).toISOString() })]))
+      .mockReturnValueOnce(chain(people));
+    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score/edit").send({ score: "6-3, 6-4" });
     expect(res.status).toBe(409);
-    expect(res.body.error).toMatch(/stands/);
+    expect(res.body.error).toMatch(/locked/);
+    expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it("refuses a score the admin corrected", async () => {
+    mockDb.select.mockReturnValueOnce(chain([match({ correctedAt: new Date() })])).mockReturnValueOnce(chain(people));
+    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score/edit").send({ score: "6-3, 6-4" });
+    expect(res.status).toBe(409);
+  });
+
+  it("refuses a score that isn't a real tennis score", async () => {
+    mockDb.select.mockReturnValueOnce(chain([match()])).mockReturnValueOnce(chain(people));
+    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score/edit").send({ score: "6-5" });
+    expect(res.status).toBe(400);
   });
 
   it("doesn't touch standings records for a grace-week score", async () => {
-    mockDb.select.mockReturnValue(chain([match({ inGrace: true })]));
-    mockDb.update.mockReturnValue(chain([{ ...match(), status: "scheduled" }]));
-    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score/undo");
+    mockDb.select.mockReturnValueOnce(chain([match({ inGrace: true })])).mockReturnValueOnce(chain(people));
+    mockDb.update.mockReturnValue(chain([{ ...match(), score: "3-6, 4-6", winnerId: 20, scoreEditedAt: new Date() }]));
+    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score/edit").send({ score: "3-6, 4-6" });
     expect(res.status).toBe(200);
     expect(mockDb.transaction).not.toHaveBeenCalled();
   });
@@ -236,10 +258,10 @@ describe("scores are final once the league ends (Q9)", () => {
     expect(mockDb.update).not.toHaveBeenCalled();
   });
 
-  it("refuses an undo", async () => {
+  it("refuses an edit", async () => {
     mockLeague = { ...mockLeague, endedAt: new Date() };
-    mockDb.select.mockReturnValue(chain([match()]));
-    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score/undo");
+    mockDb.select.mockReturnValueOnce(chain([match()])).mockReturnValueOnce(chain([{ id: 10, name: "Alex Kim", clerkUserId: "user_a" }]));
+    const res = await supertest(await buildApp()).post("/api/leagues/1/matches/7/score/edit").send({ score: "6-3, 6-4" });
     expect(res.status).toBe(409);
     expect(mockDb.update).not.toHaveBeenCalled();
   });

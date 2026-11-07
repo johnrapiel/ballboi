@@ -5,7 +5,7 @@ import supertest from "supertest";
 // C3: the older /matches routes. The app doesn't call POST, PATCH or DELETE
 // any more (league matches come from rounds, scores from the league score
 // routes), so they're for a league's admins only and never change a result.
-// That keeps the league score rules (first score stands, grace week, undo,
+// That keeps the league score rules (24-hour edit, grace week,
 // admin correction) the only way a score lands.
 
 let mockGetAuth: () => { userId: string | null } = () => ({ userId: "user_admin" });

@@ -230,23 +230,9 @@ export function correctionLine(m: Pick<ScheduleMatch, "correctedBy" | "corrected
   return `Corrected by ${m.correctedBy} on ${on}`;
 }
 
-/** C4: seconds left to undo a score you entered, or 0 once it stands. */
-export function undoSecondsLeft(undoUntil: string | null | undefined, now: number): number {
-  if (!undoUntil) return 0;
-  return Math.max(0, Math.ceil((Date.parse(undoUntil) - now) / 1000));
-}
-
-/** "9:41" */
-export function countdownLabel(seconds: number): string {
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-}
-
-/** "9 minutes 41 seconds", for VoiceOver. */
-export function countdownSpoken(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  const parts = [m ? `${m} ${m === 1 ? "minute" : "minutes"}` : null, s || !m ? `${s} ${s === 1 ? "second" : "seconds"}` : null];
-  return parts.filter(Boolean).join(" ");
+/** Finding 7: "Score edited by Sam Lee", shown to both players once either edits it. */
+export function editedLine(m: Pick<ScheduleMatch, "editedBy">): string | null {
+  return m.editedBy ? `Score edited by ${m.editedBy}` : null;
 }
 
 /**

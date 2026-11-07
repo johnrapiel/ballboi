@@ -121,11 +121,13 @@ describe("playoff results and actions", () => {
     expect(slotActions(slot({ player2: null }), { pastPlayBy: true }, { ...me, isAdmin: true })).toEqual({ enterScore: false, settle: false });
   });
 
-  it("says a playoff score moves the winner on, and keeps the undo for weekly ones (C9)", () => {
+  it("says a playoff score moves the winner on, and that either player can edit for 24 hours (C9, finding 7)", () => {
     expect(scoreNote({ correcting: false, settling: false, playoffRound: "semifinal" }).text).toBe(
-      "This sends the winner to the next round. Your league admin can correct it.",
+      "This sends the winner to the next round. Either player can edit it for 24 hours, until that round is played.",
     );
-    expect(scoreNote({ correcting: false, settling: false, playoffRound: null }).text).toMatch(/undo for 10 minutes/);
+    expect(scoreNote({ correcting: false, settling: false, playoffRound: null }).text).toMatch(/edit it for 24 hours/);
+    expect(scoreNote({ correcting: false, settling: false, playoffRound: null }).text).not.toMatch(/undo/i);
+    expect(scoreNote({ correcting: false, settling: false, editing: true, playoffRound: null }).text).toMatch(/sees that you edited it/);
   });
 });
 

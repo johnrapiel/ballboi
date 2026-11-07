@@ -48,9 +48,15 @@ export const matchesTable = pgTable("matches", {
   correctedByClerkUserId: text("corrected_by_clerk_user_id"),
   correctedByName: text("corrected_by_name"),
   // The player who entered a score undid it (migration 20261102_c_score_cleared_note.sql).
-  // Cleared again when a new score is entered.
+  // Undo is gone (finding 7), so only older matches have it. Cleared when a new score is entered.
   scoreClearedAt: timestamp("score_cleared_at", { withTimezone: true }),
   scoreClearedByName: text("score_cleared_by_name"),
+  // Either player edited the score in its first 24 hours (migration
+  // 20261107_c_score_edits.sql). The latest edit stands; the name is kept as
+  // it was then, for "Score edited by {name}". Cleared when a new score is entered.
+  scoreEditedAt: timestamp("score_edited_at", { withTimezone: true }),
+  scoreEditedByClerkUserId: text("score_edited_by_clerk_user_id"),
+  scoreEditedByName: text("score_edited_by_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

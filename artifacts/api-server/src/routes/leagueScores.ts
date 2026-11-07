@@ -10,7 +10,7 @@ import {
   scoreFromSide,
   winnerIdFor,
 } from "../lib/leagueScoring.js";
-import { checkCorrection, checkUndo, recordChanges } from "../lib/leagueScoreChanges.js";
+import { checkCorrection, checkEdit, recordChanges } from "../lib/leagueScoreChanges.js";
 import { leagueHasEnded } from "../lib/leagueLifecycle.js";
 import { advanceTo, nextRound, settleProblem, type PlayoffRound } from "../lib/playoffs.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
@@ -21,9 +21,10 @@ import { sendPushToUsers } from "./notifications.js";
 import { logger } from "../lib/logger.js";
 
 // Enter a league score (spec: Leagues > Scores and standings). Either player
-// enters it, from their own side ("6-3, 6-4" means they won both sets). The
-// first score entered stands, except that the player who entered it can undo
-// it for 10 minutes, and a league admin can correct it from Manage (C4, C5).
+// enters it, from their own side ("6-3, 6-4" means they won both sets).
+// Either player can edit it for 24 hours after it's entered; the latest edit
+// stands. After that it locks, and only a league admin can correct it from
+// Manage (finding 7, Nov 6; C5).
 // Only real tennis scores save (C10). "Opponent retired" saves the sets so
 // far as a win for the player entering it, shown as RET (Q6). Once a league
 // ends, its scores are final (Q9).
@@ -94,6 +95,9 @@ router.post("/leagues/:leagueId/matches/:matchId/score", async (req, res) => {
       inGrace: check.inGrace,
       scoreClearedAt: null,
       scoreClearedByName: null,
+      scoreEditedAt: null,
+      scoreEditedByClerkUserId: null,
+      scoreEditedByName: null,
     })
     .where(and(eq(matchesTable.id, matchId), ne(matchesTable.status, "completed"), isNull(matchesTable.voidedAt)))
     .returning();
@@ -183,57 +187,6 @@ async function applyRecordChanges(match: MatchRow, before: 1 | 2 | null, after: 
   });
 }
 
-/** C4: the player who entered a score can undo it for 10 minutes. Standings recompute. */
-router.post("/leagues/:leagueId/matches/:matchId/score/undo", async (req, res) => {
-  const { userId } = getAuth(req);
-  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const leagueId = parseInt(String(req.params.leagueId));
-  const matchId = parseInt(String(req.params.matchId));
-  if (isNaN(leagueId) || isNaN(matchId)) { res.status(400).json({ error: "Invalid id" }); return; }
-
-  const [match] = await db
-    .select()
-    .from(matchesTable)
-    .where(and(eq(matchesTable.id, matchId), eq(matchesTable.leagueId, leagueId)));
-  if (!match) { res.status(404).json({ error: "Match not found" }); return; }
-
-  const [league] = await db.select({ endedAt: leaguesTable.endedAt, status: leaguesTable.status }).from(leaguesTable).where(eq(leaguesTable.id, leagueId));
-  const check = checkUndo(match, userId, new Date(), leagueHasEnded(league));
-  if (!check.ok) { res.status(check.status).json({ error: check.error }); return; }
-  const [me] = await db
-    .select({ name: playersTable.name })
-    .from(playersTable)
-    .where(and(eq(playersTable.leagueId, leagueId), eq(playersTable.clerkUserId, userId)));
-
-  // Only clears the score this caller entered, so a race can't undo another one.
-  const [cleared] = await db
-    .update(matchesTable)
-    .set({
-      status: "scheduled",
-      score: null,
-      winnerId: null,
-      completedAt: null,
-      recordedAt: null,
-      recordedByClerkUserId: null,
-      inGrace: false,
-      // The opponent sees "Score cleared by {name}" until a new score is in.
-      scoreClearedAt: new Date(),
-      scoreClearedByName: me?.name ?? "your opponent",
-    })
-    .where(and(
-      eq(matchesTable.id, matchId),
-      eq(matchesTable.status, "completed"),
-      eq(matchesTable.recordedByClerkUserId, userId),
-      eq(matchesTable.recordedAt, match.recordedAt!),
-      isNull(matchesTable.correctedAt),
-    ))
-    .returning();
-  if (!cleared) { res.status(409).json({ error: "This score changed. Pull down to see the latest." }); return; }
-
-  if (!match.inGrace) await applyRecordChanges(match, winnerSideOf(match), null);
-  res.json({ matchId, status: cleared.status, score: null, winnerId: null });
-});
-
 /** The next-round playoff match this one's winner plays in, if it exists. */
 async function nextPlayoffMatch(match: MatchRow): Promise<{ id: number; status: string } | null> {
   if (!match.playoffBracketId || !match.playoffRound || !match.playoffSlot) return null;
@@ -250,6 +203,91 @@ async function nextPlayoffMatch(match: MatchRow): Promise<{ id: number; status: 
     ));
   return row ?? null;
 }
+
+/**
+ * Finding 7: either player edits the score, from their own side, for 24
+ * hours after it was entered. The latest edit stands, standings recompute,
+ * and the other player is told "Score edited by {name}".
+ */
+router.post("/leagues/:leagueId/matches/:matchId/score/edit", async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const leagueId = parseInt(String(req.params.leagueId));
+  const matchId = parseInt(String(req.params.matchId));
+  if (isNaN(leagueId) || isNaN(matchId)) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (typeof req.body?.score !== "string") { res.status(400).json({ error: "Enter the score for each set, like 6-4." }); return; }
+
+  const [[match], [league]] = await Promise.all([
+    db.select().from(matchesTable).where(and(eq(matchesTable.id, matchId), eq(matchesTable.leagueId, leagueId))),
+    db.select({ endedAt: leaguesTable.endedAt, status: leaguesTable.status }).from(leaguesTable).where(eq(leaguesTable.id, leagueId)),
+  ]);
+  if (!match) { res.status(404).json({ error: "Match not found" }); return; }
+
+  const playerRows = await db
+    .select({ id: playersTable.id, name: playersTable.name, clerkUserId: playersTable.clerkUserId })
+    .from(playersTable)
+    .where(inArray(playersTable.id, matchParticipantIds(match)));
+  const accounts = playerRows.map((p) => p.clerkUserId).filter((id): id is string => !!id);
+  const feeds = await nextPlayoffMatch(match);
+  const check = checkEdit(match, userId, accounts, new Date(), { leagueEnded: leagueHasEnded(league), next: feeds });
+  if (!check.ok) { res.status(check.status).json({ error: check.error }); return; }
+
+  const parsed = parseMatchScore(req.body.score, { retired: req.body?.retired === true });
+  if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
+  const caller = playerRows.find((p) => p.clerkUserId === userId)!;
+  const callerSide: 1 | 2 = caller.id === match.player1Id || caller.id === match.player3Id ? 1 : 2;
+  const winnerSide: 1 | 2 = callerSide === 1 ? parsed.winnerSide : parsed.winnerSide === 1 ? 2 : 1;
+  const storedScore = scoreFromSide(parsed.score, callerSide);
+  const winnerId = winnerIdFor(match, winnerSide);
+
+  // Only lands on the score as the caller saw it, so two edits at once can't
+  // both move standings. The first-entered time stays, so the 24 hours don't restart.
+  const [saved] = await db
+    .update(matchesTable)
+    .set({ score: storedScore, winnerId, scoreEditedAt: new Date(), scoreEditedByClerkUserId: userId, scoreEditedByName: caller.name })
+    .where(and(
+      eq(matchesTable.id, matchId),
+      eq(matchesTable.status, "completed"),
+      eq(matchesTable.score, match.score!),
+      isNull(matchesTable.correctedAt),
+      isNull(matchesTable.voidedAt),
+    ))
+    .returning();
+  if (!saved) { res.status(409).json({ error: "This score changed. Pull down to see the latest." }); return; }
+
+  if (match.playoffBracketId) {
+    // The edited winner takes the spot in the next round.
+    if (feeds && match.winnerId !== winnerId && match.playoffSlot) {
+      const position = advanceTo(match.playoffSlot).position;
+      await db.update(matchesTable).set(position === 1 ? { player1Id: winnerId } : { player2Id: winnerId }).where(eq(matchesTable.id, feeds.id));
+    }
+  } else if (!match.inGrace) {
+    await applyRecordChanges(match, winnerSideOf(match), winnerSide);
+  }
+
+  // Tell everyone else in the match, each from their own side.
+  const { team1 } = teams(match);
+  Promise.all(
+    playerRows
+      .filter((r) => r.clerkUserId && r.clerkUserId !== userId)
+      .map((r) =>
+        sendPushToUsers(
+          [r.clerkUserId!],
+          "Score edited",
+          `Score edited by ${caller.name}: ${scoreFromSide(storedScore, team1.includes(r.id) ? 1 : 2)}.`,
+          `/match/${matchId}`,
+        ).catch(() => {}),
+      ),
+  ).catch((err) => logger.error({ err, matchId }, "Couldn't send score edit notifications"));
+
+  res.json({
+    matchId: saved.id,
+    score: saved.score!,
+    winnerId: saved.winnerId,
+    editedAt: saved.scoreEditedAt!.toISOString(),
+    editedBy: caller.name,
+  });
+});
 
 /** C5: a league admin corrects a completed match's score from Manage. Standings recompute. */
 router.put("/leagues/:leagueId/matches/:matchId/score", requireLeagueAdmin, async (req, res) => {

@@ -6,11 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface UndoneScore {
-  matchId: number;
-  status: string;
+export interface MatchDetailReplay {
   /** @nullable */
-  score: null;
-  /** @nullable */
-  winnerId: null;
+  durationSeconds: number | null;
+  shotCount: number;
 }

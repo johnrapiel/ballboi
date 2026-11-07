@@ -16,7 +16,8 @@ export type EmptyStateProps = (
   | {
       /**
        * The roundel in place of a symbol, for player-facing empty states on
-       * the main tabs. Decorative. Not on Home, which has it in its header.
+       * the main tabs. Decorative. On Home only while it has nothing to show;
+       * its header then has no roundel (finding 27, Nov 6).
        */
       roundel: true;
       symbol?: never;

@@ -1,11 +1,11 @@
 // Post-stop score prompt (spec: Ball Boi > After the match): "Score prompt at
 // stop posts to standings right away (ratings and stats only if the match is
-// in its grace period); the first score entered stands." Under it, the
+// in its grace period)." Under it, the
 // recording's processing card, so it's clear the match is saved.
 //
 // C23: the same sets and boxes as league score entry (best of three, real set
 // scores, the third set only at one set all, a 6-6 set asks for its
-// tiebreak), and a weekly league match mentions the 10-minute undo. Saving
+// tiebreak), and a league match mentions the 24-hour edit (finding 7). Saving
 // refreshes the league's standings, round and Home. A bottom sheet: no
 // Cancel or Not now, drag down to close (asks first if scores were typed).
 
@@ -71,7 +71,7 @@ export default function ScorePromptScreen() {
   const rows = quick ? sets.length : setRowsToShow(sets);
   // Typed scores not saved yet: closing asks first.
   const sheet = useSheetClose(touched && !done && !saving);
-  // A weekly league match can be undone for 10 minutes; a playoff or Quick match can't.
+  // A league match can be edited for 24 hours from Match detail; a Quick match can't.
   const scheduleQ = useGetLeagueSchedule(leagueId ?? 0, {
     query: { enabled: leagueId != null, queryKey: getGetLeagueScheduleQueryKey(leagueId ?? 0) },
   });
@@ -126,7 +126,7 @@ export default function ScorePromptScreen() {
             {done === "saved" ? "Score saved" : "Score already in"}
           </Text>
           <Text tone="inkMuted">
-            {done === "saved" ? `${displayScore(score)} vs ${opponent}.` : "Your opponent entered it first. The first score entered stands."}
+            {done === "saved" ? `${displayScore(score)} vs ${opponent}.` : "Your opponent entered it first. Either of you can edit it from the match for 24 hours."}
           </Text>
         </View>
       ) : (
@@ -134,7 +134,7 @@ export default function ScorePromptScreen() {
           <View style={{ gap: spacing.space1 }}>
             <Text variant="title">{`You vs. ${opponent}`}</Text>
             <Text variant="small" tone="inkMuted">
-              {`Your games on top. The first score entered stands.${weeklyLeagueMatch ? " You can undo for 10 minutes after you save." : ""}`}
+              {`Your games on top.${weeklyLeagueMatch ? " Either player can edit it for 24 hours after you save." : ""}`}
             </Text>
           </View>
 

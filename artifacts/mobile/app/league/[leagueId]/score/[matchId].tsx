@@ -6,7 +6,9 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import {
   getGetLeagueScheduleQueryKey,
+  getGetMyMatchQueryKey,
   useCorrectLeagueScore,
+  useEditLeagueScore,
   useEnterLeagueScore,
   useGetLeague,
   useGetLeagueBracket,
@@ -25,15 +27,20 @@ import { refreshLeague } from "@/lib/leagueRefresh";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
 import { emptySet, readScore, setRowsToShow, setsFromScore, type SetEntry } from "@/lib/scoreEntry";
 import { scoreNote } from "@/lib/playoffView";
+import { flipScore, isRetiredScore } from "@/lib/tennisScore";
 
 // Enter score (spec: Leagues > Scores and standings; approved canvas: Enter
 // score, a bottom sheet with no Cancel: drag down to close, and it asks before
 // discarding typed scores). Either player enters it, from their own side.
 // Only real tennis scores save (C10): the third set opens only at one set all,
 // and a set typed 6-6 asks for its tiebreak (finding 5). "Opponent retired" saves
-// the sets so far as your win, shown as RET (Q6). A weekly score can be undone
-// for 10 minutes (C4); a playoff score moves the winner on, and only the
-// admin can change it (C9).
+// the sets so far as your win, shown as RET (Q6). Either player can edit the
+// score for 24 hours after it's entered, with no countdown or Undo banner
+// (finding 7, Nov 6); after that only the admin can correct it.
+//
+// With ?edit=1 it's that 24-hour edit, opened from the pencil on Match
+// detail: the boxes start with the score as it stands, from your side, and
+// saving updates it. The other player sees "Score edited by {name}".
 //
 // With ?correct=1 it's the admin's correction from Manage (C5): the boxes
 // start with the score as it stands, from player 1's side, and saving asks
@@ -51,16 +58,18 @@ function keepShownSets(sets: SetEntry[]): SetEntry[] {
 export default function EnterScoreScreen() {
   const c = useColors();
   const queryClient = useQueryClient();
-  const { leagueId: rawLeague, matchId: rawMatch, correct, settle } = useLocalSearchParams<{
+  const { leagueId: rawLeague, matchId: rawMatch, correct, settle, edit } = useLocalSearchParams<{
     leagueId: string;
     matchId: string;
     correct?: string;
     settle?: string;
+    edit?: string;
   }>();
   const leagueId = Number(rawLeague);
   const matchId = Number(rawMatch);
   const correcting = correct === "1";
   const settling = settle === "1" && !correcting;
+  const editing = edit === "1" && !correcting && !settling;
   // Admins enter corrections and results from player 1's side.
   const asAdmin = correcting || settling;
 
@@ -91,6 +100,10 @@ export default function EnterScoreScreen() {
   // Admin: the first row is player 1, the second player 2.
   const firstName = asAdmin ? weekly?.player1Name ?? playoffSlot?.player1?.playerName ?? "Player 1" : "You";
   const currentScore = weekly?.score ?? playoffSlot?.score ?? null;
+  // Stored from player 1's side; an edit starts from yours.
+  const onSecondSide =
+    myPlayerId != null && (weekly ? weekly.player2Id === myPlayerId : playoffSlot?.player2?.playerId === myPlayerId);
+  const myCurrentScore = currentScore && onSecondSide ? flipScore(currentScore) : currentScore;
   const firstShort = firstName.split(" ")[0];
 
   const [sets, setSets] = useState<SetEntry[]>([emptySet(), emptySet(), emptySet()]);
@@ -103,17 +116,25 @@ export default function EnterScoreScreen() {
   const save = useEnterLeagueScore();
   const fix = useCorrectLeagueScore();
   const result = useSettlePlayoffMatch();
-  const busy = save.isPending || fix.isPending || result.isPending;
+  const change = useEditLeagueScore();
+  const busy = save.isPending || fix.isPending || result.isPending || change.isPending;
   // The bottom sheet rule: closing asks before it discards typed scores.
   const sheet = useSheetClose(touched && !busy);
 
-  // Correcting starts from the score as it stands.
+  // Correcting and editing start from the score as it stands.
   useEffect(() => {
     if (correcting && !prefilled && currentScore) {
       setSets(keepShownSets(setsFromScore(currentScore, 3)));
       setPrefilled(true);
     }
   }, [correcting, prefilled, currentScore]);
+  useEffect(() => {
+    if (editing && !prefilled && myCurrentScore && membershipQ.data) {
+      setSets(keepShownSets(setsFromScore(myCurrentScore, 3)));
+      setRetired(isRetiredScore(myCurrentScore));
+      setPrefilled(true);
+    }
+  }, [editing, prefilled, myCurrentScore, membershipQ.data]);
 
   const update = (i: number, patch: Partial<SetEntry>) => {
     setServerError(null);
@@ -149,11 +170,13 @@ export default function EnterScoreScreen() {
     if (!draft.ok) return;
     try {
       if (correcting) await fix.mutateAsync({ leagueId, matchId, data: { score: draft.score } });
+      else if (editing) await change.mutateAsync({ leagueId, matchId, data: { score: draft.score, ...(retired ? { retired: true } : {}) } });
       else if (settling) await result.mutateAsync({ leagueId, matchId, data: { score: draft.score } });
       else await save.mutateAsync({ leagueId, matchId, data: { score: draft.score, ...(retired ? { retired: true } : {}) } });
       await refreshLeague(queryClient, leagueId);
+      void queryClient.invalidateQueries({ queryKey: getGetMyMatchQueryKey(matchId) });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      AccessibilityInfo.announceForAccessibility(correcting ? "Score corrected" : settling ? "Result entered" : "Score saved");
+      AccessibilityInfo.announceForAccessibility(correcting ? "Score corrected" : settling ? "Result entered" : editing ? "Score edited" : "Score saved");
       sheet.finish();
     } catch (e) {
       const data = (e as { data?: { error?: string } | null }).data;
@@ -184,7 +207,7 @@ export default function EnterScoreScreen() {
     );
   }
 
-  const title = correcting ? "Correct score" : settling ? "Enter result" : "Enter score";
+  const title = correcting ? "Correct score" : settling ? "Enter result" : editing ? "Edit score" : "Enter score";
   const loading = scheduleQ.isLoading || bracketQ.isLoading || leagueQ.isLoading;
   const loadFailed = scheduleQ.isError || bracketQ.isError || leagueQ.isError;
   // C25: offline or the request failed, and we don't have the match to show.
@@ -217,16 +240,20 @@ export default function EnterScoreScreen() {
 
   const closedNote = ended
     ? "This league has ended, so its scores are final."
-    : pastPlayBy && playoffRound?.playBy
+    : editing && weekly && !weekly.editUntil
+      ? "It's been more than 24 hours, so this score is locked. Your league admin can correct it in Manage."
+      : editing
+        ? null
+        : pastPlayBy && playoffRound?.playBy
       ? `The play-by date for this match was ${deadlineDate(playoffRound.playBy, scheduleQ.data?.timeZone)}. Your league admin can enter the result.`
       : null;
   const canSave = draft.ok && !closedNote;
-  const note = scoreNote({ correcting, settling, playoffRound: playoffSlot?.round ?? null });
+  const note = scoreNote({ correcting, settling, editing, playoffRound: playoffSlot?.round ?? null });
   const leagueName = leagueQ.data?.name;
   const meta = [
     leagueName,
     round ? `Round ${round.roundNumber}` : playoffSlot ? `Playoffs · ${ROUND_SINGULAR[playoffSlot.round]}` : null,
-    !asAdmin && round && !correcting
+    !asAdmin && round && !editing
       ? `Play by ${deadlineDate(round.deadline, scheduleQ.data?.timeZone)}`
       : !asAdmin && playoffRound?.playBy && !playoffRound.pastPlayBy
         ? `Play by ${deadlineDate(playoffRound.playBy, scheduleQ.data?.timeZone)}`
@@ -250,6 +277,11 @@ export default function EnterScoreScreen() {
             {meta}
           </Text>
         ) : null}
+        {editing && myCurrentScore ? (
+          <Text variant="small" tone="inkMuted">
+            {`Now: ${myCurrentScore}. The latest edit stands, and ${opponentShort} sees that you edited it.`}
+          </Text>
+        ) : null}
         {correcting ? (
           <Text variant="small" tone="inkMuted">
             {[
@@ -261,7 +293,7 @@ export default function EnterScoreScreen() {
               .join(". ")}
           </Text>
         ) : null}
-        {!asAdmin && round?.phase === "grace" ? (
+        {!asAdmin && !editing && round?.phase === "grace" ? (
           <Text variant="small" tone="inkMuted">
             This is the grace week, so this score counts for Ball Boi stats, not standings.
           </Text>
@@ -313,7 +345,7 @@ export default function EnterScoreScreen() {
       )}
 
       <Button
-        label={correcting ? "Correct score" : settling ? "Enter result" : "Save score"}
+        label={correcting ? "Correct score" : settling ? "Enter result" : editing ? "Save edit" : "Save score"}
         onPress={onSave}
         disabled={!canSave}
         loading={busy}

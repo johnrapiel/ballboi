@@ -136,7 +136,7 @@ router.get("/matches", async (req, res) => {
 // C3: the app adds league matches through rounds and quick matches through
 // recording, and enters scores through the league score routes. These older
 // match routes stay for league admins only, and never touch a result, so the
-// league score rules (first score stands, grace week, undo, correction) can't
+// league score rules (24-hour edit, grace week, correction) can't
 // be skipped.
 
 const SCORE_ROUTE_ONLY =
@@ -262,7 +262,7 @@ router.patch("/matches/:matchId", async (req, res) => {
   if (!existingMatch) return res.status(404).json({ error: "Match not found" });
   if (!(await allowLeagueAdmin(req, res, existingMatch.leagueId))) return;
 
-  // Results only change through the league score routes (enter, undo, correct).
+  // Results only change through the league score routes (enter, edit, correct).
   const resultFields = ["status", "score", "winnerId", "completedAt", "recordedByClerkUserId", "recordedAt"] as const;
   if (resultFields.some((f) => (parsed.data as Record<string, unknown>)[f] !== undefined)) {
     return res.status(400).json({ error: SCORE_ROUTE_ONLY });

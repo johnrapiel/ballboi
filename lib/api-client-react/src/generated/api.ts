@@ -67,6 +67,7 @@ import type {
   DiscardRecordingBody,
   DiscardResult,
   DropoutResult,
+  EditedScore,
   EndMatchBallBoiBody,
   EndedLeague,
   EnterScoreBody,
@@ -115,6 +116,7 @@ import type {
   LogDoublesViewBody,
   Match,
   MatchBallBoiShotCallbackBody,
+  MatchDetail,
   MatchShot,
   MatchStatistics,
   MatchTime,
@@ -168,7 +170,6 @@ import type {
   SwapPlayersBody,
   TopPlayer,
   TrainingChoice,
-  UndoneScore,
   UpdateLeagueBody,
   UpdateMatchBody,
   UpdatePlayerBody,
@@ -3252,6 +3253,93 @@ export function useGetMyLeagueWeek<
 }
 
 /**
+ * @summary Match detail for one of your league matches - details, the score from your side, who entered or changed it, and the Ball Boi Replay once it exists
+ */
+export const getGetMyMatchUrl = (matchId: number) => {
+  return `/api/me/matches/${matchId}`;
+};
+
+export const getMyMatch = async (
+  matchId: number,
+  options?: RequestInit,
+): Promise<MatchDetail> => {
+  return customFetch<MatchDetail>(getGetMyMatchUrl(matchId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyMatchQueryKey = (matchId: number) => {
+  return [`/api/me/matches/${matchId}`] as const;
+};
+
+export const getGetMyMatchQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyMatch>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  matchId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMyMatch>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyMatchQueryKey(matchId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyMatch>>> = ({
+    signal,
+  }) => getMyMatch(matchId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!matchId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyMatch>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyMatchQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyMatch>>
+>;
+export type GetMyMatchQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Match detail for one of your league matches - details, the score from your side, who entered or changed it, and the Ball Boi Replay once it exists
+ */
+
+export function useGetMyMatch<
+  TData = Awaited<ReturnType<typeof getMyMatch>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  matchId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMyMatch>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyMatchQueryOptions(matchId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Development only. What the Testing tools section in Manage shows. 404 in production.
  */
 export const getGetDevLeagueToolsUrl = (leagueId: number) => {
@@ -3516,7 +3604,7 @@ export const useDevPairLeagueNow = <
 };
 
 /**
- * @summary Enter a league match score from your own side. The first score entered stands.
+ * @summary Enter a league match score from your own side. Either player can edit it for 24 hours after.
  */
 export const getEnterLeagueScoreUrl = (leagueId: number, matchId: number) => {
   return `/api/leagues/${leagueId}/matches/${matchId}/score`;
@@ -3581,7 +3669,7 @@ export type EnterLeagueScoreMutationBody = BodyType<EnterScoreBody>;
 export type EnterLeagueScoreMutationError = ErrorType<ErrorResponse>;
 
 /**
- * @summary Enter a league match score from your own side. The first score entered stands.
+ * @summary Enter a league match score from your own side. Either player can edit it for 24 hours after.
  */
 export const useEnterLeagueScore = <
   TError = ErrorType<ErrorResponse>,
@@ -3962,41 +4050,44 @@ export const useSetLeagueWeeklyMatchTime = <
 };
 
 /**
- * @summary The player who entered a score undoes it within 10 minutes. Standings recompute.
+ * @summary Either player edits the score from their own side, for 24 hours after it was entered. The latest edit stands and standings recompute.
  */
-export const getUndoLeagueScoreUrl = (leagueId: number, matchId: number) => {
-  return `/api/leagues/${leagueId}/matches/${matchId}/score/undo`;
+export const getEditLeagueScoreUrl = (leagueId: number, matchId: number) => {
+  return `/api/leagues/${leagueId}/matches/${matchId}/score/edit`;
 };
 
-export const undoLeagueScore = async (
+export const editLeagueScore = async (
   leagueId: number,
   matchId: number,
+  enterScoreBody: EnterScoreBody,
   options?: RequestInit,
-): Promise<UndoneScore> => {
-  return customFetch<UndoneScore>(getUndoLeagueScoreUrl(leagueId, matchId), {
+): Promise<EditedScore> => {
+  return customFetch<EditedScore>(getEditLeagueScoreUrl(leagueId, matchId), {
     ...options,
     method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(enterScoreBody),
   });
 };
 
-export const getUndoLeagueScoreMutationOptions = <
+export const getEditLeagueScoreMutationOptions = <
   TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof undoLeagueScore>>,
+    Awaited<ReturnType<typeof editLeagueScore>>,
     TError,
-    { leagueId: number; matchId: number },
+    { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof undoLeagueScore>>,
+  Awaited<ReturnType<typeof editLeagueScore>>,
   TError,
-  { leagueId: number; matchId: number },
+  { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
   TContext
 > => {
-  const mutationKey = ["undoLeagueScore"];
+  const mutationKey = ["editLeagueScore"];
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation &&
       "mutationKey" in options.mutation &&
@@ -4006,44 +4097,44 @@ export const getUndoLeagueScoreMutationOptions = <
     : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof undoLeagueScore>>,
-    { leagueId: number; matchId: number }
+    Awaited<ReturnType<typeof editLeagueScore>>,
+    { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> }
   > = (props) => {
-    const { leagueId, matchId } = props ?? {};
+    const { leagueId, matchId, data } = props ?? {};
 
-    return undoLeagueScore(leagueId, matchId, requestOptions);
+    return editLeagueScore(leagueId, matchId, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type UndoLeagueScoreMutationResult = NonNullable<
-  Awaited<ReturnType<typeof undoLeagueScore>>
+export type EditLeagueScoreMutationResult = NonNullable<
+  Awaited<ReturnType<typeof editLeagueScore>>
 >;
-
-export type UndoLeagueScoreMutationError = ErrorType<ErrorResponse>;
+export type EditLeagueScoreMutationBody = BodyType<EnterScoreBody>;
+export type EditLeagueScoreMutationError = ErrorType<ErrorResponse>;
 
 /**
- * @summary The player who entered a score undoes it within 10 minutes. Standings recompute.
+ * @summary Either player edits the score from their own side, for 24 hours after it was entered. The latest edit stands and standings recompute.
  */
-export const useUndoLeagueScore = <
+export const useEditLeagueScore = <
   TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof undoLeagueScore>>,
+    Awaited<ReturnType<typeof editLeagueScore>>,
     TError,
-    { leagueId: number; matchId: number },
+    { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
-  Awaited<ReturnType<typeof undoLeagueScore>>,
+  Awaited<ReturnType<typeof editLeagueScore>>,
   TError,
-  { leagueId: number; matchId: number },
+  { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
   TContext
 > => {
-  return useMutation(getUndoLeagueScoreMutationOptions(options));
+  return useMutation(getEditLeagueScoreMutationOptions(options));
 };
 
 /**

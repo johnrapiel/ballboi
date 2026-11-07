@@ -21,4 +21,8 @@ export interface LeagueWeekPlayoff {
   playBy: string | null;
   /** The play-by date has passed, so the league admin enters the result */
   pastPlayBy: boolean;
+  /** @nullable */
+  scheduledAt: string | null;
+  /** @nullable */
+  location: string | null;
 }

@@ -1,7 +1,8 @@
 // Entering a league score (spec: Leagues > Scores and standings).
 //
-// - Either player enters the score. The first score entered stands: there's no
-//   confirm or dispute step (decision 24).
+// - Either player enters the score. There's no confirm or dispute step
+//   (decision 24). Either player can edit it for 24 hours after; then it
+//   locks and only the league admin can correct it (finding 7, Nov 6).
 // - A match scored in the week after its round's deadline is a grace-week
 //   match: it counts for Ball Boi stats, not standings (decision 25; ratings
 //   don't move on results, per the Oct 29 Ball Boi Rating decision).
@@ -48,7 +49,7 @@ export function checkScoreEntry(input: {
   const { match, round, today } = input;
   if (match.voidedAt) return { ok: false, status: 409, error: "This match was cancelled when a player left the league." };
   if (match.status === "completed") {
-    return { ok: false, status: 409, error: "A score is already in for this match. The first score entered stands." };
+    return { ok: false, status: 409, error: "A score is already in for this match. Either player can edit it from the match for 24 hours." };
   }
   const players = matchParticipantIds(match);
   if (!input.callerPlayerIds.some((id) => players.includes(id))) {
