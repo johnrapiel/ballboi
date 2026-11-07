@@ -5,14 +5,20 @@ Every stat is scored against *all* labeled examples it applies to, so a shot
 the pipeline missed counts as wrong. That keeps detection quality inside each
 number instead of hiding it.
 
-Gated stats (have a launch bar in bars.json):
+Gated stats (have a launch bar in bars.json; spec decision 98 added the last four):
   shot_type          share of labeled shots whose type was predicted correctly
   close_call_in_out  share of labeled close calls whose in/out was called correctly
   serve_placement    share of labeled in-serves whose lane (deuce/ad x wide/body/T) was right
+  point_ending       share of labeled points whose ending (winner, forced, unforced) was right
+  rally_length       share of labeled points whose rally length was within 1 shot
+  first_serve_pct    share of matches whose first-serve % was within 5 points of the truth
+  placement          share of labeled in-bounces placed in the right landing zone
 
-Reported, no bar yet:
-  shot_detection_recall / precision, hitter, in_out (all), point_ending,
-  rally_length_mae, first_serve_pct_error, landing_error_m, close_call_flagged
+Reported, no bar:
+  shot_detection_recall / precision, hitter, in_out (all), rally_length_abs_error,
+  first_serve_pct_error, landing_error_m, close_call_flagged
+
+Serve speed isn't scored: it's out of launch until there's a way to measure it.
 """
 from __future__ import annotations
 
@@ -26,6 +32,9 @@ from evaluation.schema import MatchFile, Shot, split_points
 
 DEFAULT_TIME_TOLERANCE = 0.25   # seconds between labeled and predicted contact
 DEFAULT_CLOSE_CALL_METERS = 0.10
+RALLY_LENGTH_TOLERANCE_SHOTS = 1     # decision 98: within 1 shot
+FIRST_SERVE_TOLERANCE_POINTS = 5.0   # decision 98: within 5 percentage points
+POINT_END_TIME_TOLERANCE = 2.0       # seconds between a labeled and a predicted point's last shot
 
 
 @dataclass
@@ -123,6 +132,26 @@ def landing_zone(shot: Shot) -> str | None:
     return court_model.serve_zone(*shot.bounce.court)
 
 
+def placement_zone(shot: Shot) -> str | None:
+    """
+    Landing zone for the placement heatmap, for any shot that landed in.
+    The singles court on each side of the net is split into 6 zones: short
+    (inside the service line) or deep, by left, middle or right third, as the
+    camera sees it. Serves land short by definition; their box and lane are
+    scored separately by serve_placement.
+    """
+    if shot.result != "in" or not shot.bounce or not shot.bounce.court:
+        return None
+    x, y = shot.bounce.court
+    if y == 0:
+        return None
+    side = "far" if y > 0 else "near"
+    depth = "short" if abs(y) <= court_model.SERVICE_LINE else "deep"
+    third = 2 * court_model.SINGLES_HALF_WIDTH / 3
+    lane = "left" if x < -third / 2 else "right" if x > third / 2 else "middle"
+    return f"{side}_{depth}_{lane}"
+
+
 # ─── Scoring one match ───────────────────────────────────────────────────────
 
 def score_match(label: MatchFile, prediction: MatchFile | None,
@@ -173,6 +202,13 @@ def score_match(label: MatchFile, prediction: MatchFile | None,
             score.tally("serve_placement").add(predicted_zone == truth_zone)
             score.confuse("serve_placement", truth_zone, predicted_zone or "none")
 
+        # Placement (landing zones for heatmaps): any shot the labeler saw land in.
+        truth_place = placement_zone(ls)
+        if truth_place is not None:
+            predicted_place = placement_zone(ps) if ps is not None else None
+            score.tally("placement").add(predicted_place == truth_place)
+            score.confuse("placement", truth_place, predicted_place or "none")
+
     # Points: pair labeled points with predicted shots by the point's last shot.
     for point in split_points(label.shots):
         last_index = label.shots.index(point.shots[-1])
@@ -182,23 +218,30 @@ def score_match(label: MatchFile, prediction: MatchFile | None,
         score.tally("point_ending").add(predicted == truth)
         score.confuse("point_ending", truth or "none", predicted or "none")
 
+    # Rally length: every labeled point counts; a point the pipeline didn't end
+    # near the same moment counts as wrong.
     label_points = split_points(label.shots)
     pred_points = split_points(pred_shots)
-    if label_points and pred_points:
-        pt = [p.end_time for p in pred_points]
-        for lp in label_points:
-            # nearest predicted point ending within 2 seconds
-            j = min(range(len(pt)), key=lambda k: abs(pt[k] - lp.end_time))
-            if abs(pt[j] - lp.end_time) <= 2.0:
-                score.error("rally_length_abs_error", abs(pred_points[j].rally_length - lp.rally_length))
+    pt = [p.end_time for p in pred_points]
+    for lp in label_points:
+        j = min(range(len(pt)), key=lambda k: abs(pt[k] - lp.end_time)) if pt else None
+        if j is None or abs(pt[j] - lp.end_time) > POINT_END_TIME_TOLERANCE:
+            score.tally("rally_length").add(False)
+            continue
+        diff = abs(pred_points[j].rally_length - lp.rally_length)
+        score.error("rally_length_abs_error", diff)
+        score.tally("rally_length").add(diff <= RALLY_LENGTH_TOLERANCE_SHOTS)
 
+    # First-serve %: one example per match, the stat the app shows for it.
     truth_fs = [p.first_serve_in for p in label_points if p.first_serve_in is not None]
     pred_fs = [p.first_serve_in for p in pred_points if p.first_serve_in is not None]
-    if truth_fs and pred_fs:
-        score.error(
-            "first_serve_pct_error",
-            abs(100 * sum(truth_fs) / len(truth_fs) - 100 * sum(pred_fs) / len(pred_fs)),
-        )
+    if truth_fs:
+        if pred_fs:
+            err = abs(100 * sum(truth_fs) / len(truth_fs) - 100 * sum(pred_fs) / len(pred_fs))
+            score.error("first_serve_pct_error", err)
+            score.tally("first_serve_pct").add(err <= FIRST_SERVE_TOLERANCE_POINTS)
+        else:
+            score.tally("first_serve_pct").add(False)
     return score
 
 
@@ -234,7 +277,7 @@ class Summary:
 
 
 RATE_STATS = (
-    "shot_type", "close_call_in_out", "serve_placement",
+    "shot_type", "close_call_in_out", "serve_placement", "rally_length", "first_serve_pct", "placement",
     "shot_detection_recall", "shot_detection_precision", "hitter",
     "in_out", "point_ending", "close_call_flagged", "wrong_calls_flagged",
 )

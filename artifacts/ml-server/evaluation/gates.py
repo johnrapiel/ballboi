@@ -19,17 +19,17 @@ from typing import Any
 
 REPORT = Path(__file__).resolve().parent / "reports" / "latest" / "report.json"
 
-# App-facing stat -> the eval stat that decides it. None: no bar can be set yet
-# (no eval stat measures it), so it stays hidden until one exists.
+# App-facing stat -> the eval stat that decides it (bars in bars.json, spec
+# decision 98). Estimated serve speed isn't a launch stat until there's a way to
+# measure it, so it has no gate; the API hides any stat without one.
 STATS: dict[str, str | None] = {
     "shot_type": "shot_type",
     "line_calls": "close_call_in_out",
     "serve_placement": "serve_placement",
     "point_ending": "point_ending",
-    "placement_heatmap": None,
-    "rally_length": None,
-    "first_serve_pct": None,
-    "serve_speed": None,
+    "placement_heatmap": "placement",
+    "rally_length": "rally_length",
+    "first_serve_pct": "first_serve_pct",
 }
 
 
