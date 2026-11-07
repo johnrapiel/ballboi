@@ -16,7 +16,8 @@ export interface Conversation {
   state: ConversationState;
   /** You blocked the other person: read only, with Unblock. */
   blocked: boolean;
-  other: { name: string; playerId: number | null };
+  /** userId: their account, for a Discover player with no league player record yet. */
+  other: { name: string; playerId: number | null; userId?: number | null };
   lastMessage: { text: string; fromMe: boolean; at: string } | null;
   unread: number;
   canSend: boolean;
@@ -215,6 +216,12 @@ export function useMessagesActions() {
         method: "POST",
         body: JSON.stringify({ playerId, text, clientMessageId }),
       }),
+    /** First message to a Discover player, by account (they may be in no league yet). */
+    startWithUser: (userId: number, text: string, clientMessageId: string) =>
+      call<{ conversationId: number; message: Message }>("/api/messages", {
+        method: "POST",
+        body: JSON.stringify({ userId, text, clientMessageId }),
+      }),
     send: (conversationId: number, text: string, clientMessageId: string) =>
       call<{ conversationId: number; message: Message }>(`/api/messages/${conversationId}/messages`, {
         method: "POST",
@@ -222,6 +229,8 @@ export function useMessagesActions() {
       }),
     conversationWithPlayer: (playerId: number) =>
       call<{ conversationId: number | null }>(`/api/messages/with-player/${playerId}`),
+    conversationWithUser: (userId: number) =>
+      call<{ conversationId: number | null }>(`/api/messages/with-user/${userId}`),
     report: (conversationId: number, messageId: string, reason: string) =>
       call<{ id: number }>(`/api/messages/${conversationId}/report`, {
         method: "POST",

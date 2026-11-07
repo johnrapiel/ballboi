@@ -128,7 +128,7 @@ export class DrizzleMessagingRepo implements MessagingRepo {
     if (!userIds.length) return out;
     const [users, players] = await Promise.all([
       db
-        .select({ id: usersTable.clerkUserId, name: usersTable.displayName })
+        .select({ id: usersTable.clerkUserId, userId: usersTable.id, name: usersTable.displayName })
         .from(usersTable)
         .where(inArray(usersTable.clerkUserId, userIds)),
       db
@@ -138,10 +138,16 @@ export class DrizzleMessagingRepo implements MessagingRepo {
     ]);
     for (const id of userIds) {
       const player = players.find((p) => p.clerkUserId === id);
-      const name = users.find((u) => u.id === id)?.name || player?.name || "Player";
-      out.set(id, { name, playerId: player?.id ?? null });
+      const user = users.find((u) => u.id === id);
+      const name = user?.name || player?.name || "Player";
+      out.set(id, { name, playerId: player?.id ?? null, userId: user?.userId ?? null });
     }
     return out;
+  }
+
+  async accountForUser(userId: number) {
+    const [row] = await db.select({ clerkUserId: usersTable.clerkUserId }).from(usersTable).where(eq(usersTable.id, userId));
+    return row?.clerkUserId ?? null;
   }
 
   async accountForPlayer(playerId: number) {

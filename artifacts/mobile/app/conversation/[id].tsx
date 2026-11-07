@@ -24,7 +24,8 @@ import { useReportBlock } from "@/hooks/useReportBlock";
 import { newClientMessageId } from "@/lib/messages";
 
 // A conversation (spec: Messaging and moderation). Opens from Messages, from
-// New message, and later from a player card with id "new" plus playerId.
+// New message, and from a player card with id "new" plus playerId, or plus
+// userId for a Discover player who may be in no league yet.
 // - Every message goes straight to the inbox; there are no Message Requests
 //   (finding 17).
 // - Every message from the other player can be reported with a long press or
@@ -67,14 +68,16 @@ export default function ConversationScreen() {
   const c = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ id: string; playerId?: string; name?: string }>();
+  const params = useLocalSearchParams<{ id: string; playerId?: string; userId?: string; name?: string }>();
   const startPlayerId = params.playerId ? Number(params.playerId) : null;
+  const startUserId = params.userId ? Number(params.userId) : null;
+  const startsNew = startPlayerId !== null || startUserId !== null;
 
   const [conversationId, setConversationId] = useState<number | null>(() => {
     const n = Number(params.id);
     return params.id !== "new" && Number.isInteger(n) && n > 0 ? n : null;
   });
-  const [lookingUp, setLookingUp] = useState(params.id === "new" && startPlayerId !== null);
+  const [lookingUp, setLookingUp] = useState(params.id === "new" && startsNew);
   const thread = useThread(conversationId);
   const history = useOlderMessages(conversationId, thread.data);
   const actions = useMessagesActions();
@@ -82,6 +85,9 @@ export default function ConversationScreen() {
   const conversation = thread.data?.conversation;
   const name = conversation?.other.name ?? params.name ?? "Player";
   const playerId = conversation?.other.playerId ?? startPlayerId;
+  const userId = conversation?.other.userId ?? startUserId;
+  /** Who Report and Unblock are about: their league player, else their account. */
+  const reportable = playerId || userId ? { id: playerId ?? null, userId: userId ?? null, name } : null;
 
   const [draft, setDraft] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
@@ -92,9 +98,8 @@ export default function ConversationScreen() {
 
   // Opened from a player: reuse an existing conversation with them.
   useEffect(() => {
-    if (params.id !== "new" || startPlayerId === null) return;
-    actions
-      .conversationWithPlayer(startPlayerId)
+    if (params.id !== "new" || !startsNew) return;
+    (startPlayerId !== null ? actions.conversationWithPlayer(startPlayerId) : actions.conversationWithUser(startUserId!))
       .then((r) => {
         if (r.conversationId) setConversationId(r.conversationId);
       })
@@ -145,8 +150,11 @@ export default function ConversationScreen() {
     try {
       if (conversationId) {
         await actions.send(conversationId, text, clientId);
-      } else if (startPlayerId !== null) {
-        const res = await actions.start(startPlayerId, text, clientId);
+      } else if (startsNew) {
+        const res =
+          startPlayerId !== null
+            ? await actions.start(startPlayerId, text, clientId)
+            : await actions.startWithUser(startUserId!, text, clientId);
         setConversationId(res.conversationId);
         router.setParams({ id: String(res.conversationId) });
       }
@@ -183,24 +191,24 @@ export default function ConversationScreen() {
   };
 
   const reportMessage = (messageId: string) => {
-    if (!conversationId || !playerId) return;
-    reportBlock.open({ id: playerId, name }, { conversationId, messageId });
+    if (!conversationId || !reportable) return;
+    reportBlock.open(reportable, { conversationId, messageId });
   };
 
   // Long press: Report is the only action (finding 20).
   const messageMenu = (messageId: string) => chooseIOS(name, ["Report message"], undefined, () => reportMessage(messageId));
   const playerMenu = () => {
-    if (playerId) chooseIOS(name, [`Report ${name}`], undefined, () => reportBlock.open({ id: playerId, name }));
+    if (reportable) chooseIOS(name, [`Report ${name}`], undefined, () => reportBlock.open(reportable));
   };
 
   const blocked = !!conversation?.blocked;
   const unblock = () => {
-    if (!playerId || unblocking) return;
+    if (!reportable || unblocking) return;
     setUnblocking(true);
-    void reportBlock.unblock({ id: playerId, name }).finally(() => setUnblocking(false));
+    void reportBlock.unblock(reportable).finally(() => setUnblocking(false));
   };
 
-  const canSend = conversation ? conversation.canSend : startPlayerId !== null;
+  const canSend = conversation ? conversation.canSend : startsNew;
   const loading = lookingUp || (conversationId !== null && thread.isPending);
 
   return (
@@ -218,7 +226,7 @@ export default function ConversationScreen() {
           headerTintColor: c.ink,
           headerStyle: { backgroundColor: c.paper },
           headerTitleStyle: { fontFamily: "DMSans_600SemiBold", color: c.ink },
-          headerRight: playerId ? () => <IconButton symbol="ellipsis" label={`More options for ${name}`} onPress={playerMenu} /> : undefined,
+          headerRight: reportable ? () => <IconButton symbol="ellipsis" label={`More options for ${name}`} onPress={playerMenu} /> : undefined,
         }}
       />
 
@@ -261,8 +269,8 @@ export default function ConversationScreen() {
               senderName={item.fromMe ? "You" : name}
               status={item.status}
               onRetry={item.clientId ? () => retry(item.clientId!) : undefined}
-              onReport={!item.fromMe && item.serverId && playerId ? () => reportMessage(item.serverId!) : undefined}
-              onLongPress={!item.fromMe && item.serverId && playerId ? () => messageMenu(item.serverId!) : undefined}
+              onReport={!item.fromMe && item.serverId && reportable ? () => reportMessage(item.serverId!) : undefined}
+              onLongPress={!item.fromMe && item.serverId && reportable ? () => messageMenu(item.serverId!) : undefined}
             />
           )}
           ListEmptyComponent={

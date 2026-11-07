@@ -12,8 +12,9 @@ export type NewReportReason =
 export const NewReportReason = {
   harassment: "harassment",
   inappropriate_content: "inappropriate_content",
-  impersonation: "impersonation",
   spam: "spam",
   cheating: "cheating",
+  unsafe: "unsafe",
   other: "other",
+  impersonation: "impersonation",
 } as const;

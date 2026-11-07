@@ -8,6 +8,320 @@
 import * as zod from "zod";
 
 /**
+ * @summary Change your home ZIP from Discover. Also updates your profile's home area.
+ */
+export const SetDiscoverAreaBody = zod.object({
+  zip: zod.string().describe("Five digits"),
+});
+
+export const SetDiscoverAreaResponse = zod.object({
+  area: zod.union([
+    zod
+      .object({
+        zip: zod.string(),
+        town: zod.string(),
+        state: zod.string(),
+      })
+      .describe(
+        "Your home ZIP and its town. Others only ever see the town and an approximate distance.",
+      ),
+    zod.null(),
+  ]),
+  homeZip: zod.string().nullable(),
+  hidden: zod.boolean().describe("Show me in Discover is off"),
+  plays: zod
+    .union([
+      zod.literal("singles"),
+      zod.literal("doubles"),
+      zod.literal("both"),
+      zod.literal(null),
+    ])
+    .nullable(),
+  radius: zod.number().describe("Last distance picked, 1 to 30 miles"),
+  rating: zod.number().nullable(),
+  slots: zod.array(zod.number()),
+  hoursFree: zod.number(),
+  freeSummary: zod
+    .string()
+    .nullable()
+    .describe(
+      '\"Weekday evenings, weekend mornings\", or null with no hours set',
+    ),
+});
+
+/**
+ * @summary Save the "When you can play" grid (a Monday to Sunday week of hours)
+ */
+export const SaveDiscoverAvailabilityBody = zod.object({
+  slots: zod
+    .array(zod.number())
+    .describe(
+      "Free hours, each day \* 24 + hour. Monday is day 0; hours 6 (6 AM) to 21 (9 PM).",
+    ),
+});
+
+export const SaveDiscoverAvailabilityResponse = zod.object({
+  area: zod.union([
+    zod
+      .object({
+        zip: zod.string(),
+        town: zod.string(),
+        state: zod.string(),
+      })
+      .describe(
+        "Your home ZIP and its town. Others only ever see the town and an approximate distance.",
+      ),
+    zod.null(),
+  ]),
+  homeZip: zod.string().nullable(),
+  hidden: zod.boolean().describe("Show me in Discover is off"),
+  plays: zod
+    .union([
+      zod.literal("singles"),
+      zod.literal("doubles"),
+      zod.literal("both"),
+      zod.literal(null),
+    ])
+    .nullable(),
+  radius: zod.number().describe("Last distance picked, 1 to 30 miles"),
+  rating: zod.number().nullable(),
+  slots: zod.array(zod.number()),
+  hoursFree: zod.number(),
+  freeSummary: zod
+    .string()
+    .nullable()
+    .describe(
+      '\"Weekday evenings, weekend mornings\", or null with no hours set',
+    ),
+});
+
+/**
+ * @summary Your area, hidden profile, plays, last distance and hours, for Discover
+ */
+export const GetDiscoverMeResponse = zod.object({
+  area: zod.union([
+    zod
+      .object({
+        zip: zod.string(),
+        town: zod.string(),
+        state: zod.string(),
+      })
+      .describe(
+        "Your home ZIP and its town. Others only ever see the town and an approximate distance.",
+      ),
+    zod.null(),
+  ]),
+  homeZip: zod.string().nullable(),
+  hidden: zod.boolean().describe("Show me in Discover is off"),
+  plays: zod
+    .union([
+      zod.literal("singles"),
+      zod.literal("doubles"),
+      zod.literal("both"),
+      zod.literal(null),
+    ])
+    .nullable(),
+  radius: zod.number().describe("Last distance picked, 1 to 30 miles"),
+  rating: zod.number().nullable(),
+  slots: zod.array(zod.number()),
+  hoursFree: zod.number(),
+  freeSummary: zod
+    .string()
+    .nullable()
+    .describe(
+      '\"Weekday evenings, weekend mornings\", or null with no hours set',
+    ),
+});
+
+/**
+ * Never you, hidden players, anyone blocked either way, or banned and suspended accounts. Distances are approximate whole miles between home ZIP centers. The app saves a distance you pick with PUT /discover/settings.
+ * @summary Players near you, nearest first, with a count for each distance chip
+ */
+export const listDiscoverPlayersQueryRadiusMax = 30;
+
+export const ListDiscoverPlayersQueryParams = zod.object({
+  radius: zod.coerce
+    .number()
+    .min(1)
+    .max(listDiscoverPlayersQueryRadiusMax)
+    .optional()
+    .describe("Miles, 1 to 30. Defaults to your last distance."),
+  level: zod
+    .enum(["close", "wider", "any"])
+    .optional()
+    .describe("close (within 0.5), wider (within 1.0) or any"),
+  plays: zod.enum(["singles", "doubles", "either"]).optional(),
+  free: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      '\"1\" keeps players whose hours overlap yours. Ignored until you set times.',
+    ),
+});
+
+export const ListDiscoverPlayersResponse = zod.object({
+  players: zod.array(
+    zod.object({
+      userId: zod.number(),
+      name: zod.string(),
+      avatarUrl: zod.string().nullable(),
+      rating: zod.number().nullable(),
+      ratingSource: zod.string().nullable(),
+      distance: zod.string().describe('\"~4 mi\"'),
+      plays: zod
+        .union([
+          zod.literal("singles"),
+          zod.literal("doubles"),
+          zod.literal("both"),
+          zod.literal(null),
+        ])
+        .nullable(),
+      played: zod.number(),
+      noShows: zod.number(),
+      reliability: zod
+        .string()
+        .describe('\"Played 14 · 1 no-show\" or \"New to Ball Boi\"'),
+      spoken: zod.string().describe("The whole row in one line for VoiceOver"),
+    }),
+  ),
+  counts: zod
+    .array(
+      zod.object({
+        radius: zod.number(),
+        count: zod.number(),
+      }),
+    )
+    .describe(
+      "Players at each distance chip (5, 10, 15, 30 and a custom distance), with the other filters as they are",
+    ),
+  radius: zod.number(),
+  total: zod.number(),
+  needsArea: zod
+    .boolean()
+    .describe("You have no home ZIP Discover can place yet"),
+});
+
+/**
+ * @summary A player card from Discover
+ */
+export const GetDiscoverPlayerParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const GetDiscoverPlayerResponse = zod.object({
+  userId: zod.number(),
+  name: zod.string(),
+  avatarUrl: zod.string().nullable(),
+  rating: zod.number().nullable(),
+  ratingSource: zod.string().nullable(),
+  town: zod.string().nullable(),
+  distance: zod.string().nullable().describe('\"~4 mi away\"'),
+  plays: zod
+    .union([
+      zod.literal("singles"),
+      zod.literal("doubles"),
+      zod.literal("both"),
+      zod.literal(null),
+    ])
+    .nullable(),
+  freeSummary: zod.string().nullable(),
+  played: zod.number(),
+  noShows: zod.number(),
+  wins: zod.number(),
+  losses: zod.number(),
+});
+
+/**
+ * @summary Block a player by user id ("Also block" on a message report from a player with no league player record)
+ */
+export const BlockDiscoverPlayerParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+/**
+ * @summary Unblock a player by user id, from a blocked chat
+ */
+export const UnblockDiscoverPlayerParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+/**
+ * @summary Report a player by user id, and optionally block them in the same step (F3, F9)
+ */
+export const ReportDiscoverPlayerParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const ReportDiscoverPlayerBody = zod.object({
+  reason: zod.enum([
+    "harassment",
+    "inappropriate_content",
+    "spam",
+    "cheating",
+    "unsafe",
+    "other",
+  ]),
+  details: zod
+    .string()
+    .nullish()
+    .describe('Required for other (\"Tell us what happened\")'),
+  block: zod.boolean().optional().describe("Also block them"),
+});
+
+/**
+ * @summary Show me in Discover, what you play, and your last distance
+ */
+export const saveDiscoverSettingsBodyRadiusMax = 30;
+
+export const SaveDiscoverSettingsBody = zod.object({
+  hidden: zod.boolean().optional(),
+  plays: zod
+    .union([
+      zod.literal("singles"),
+      zod.literal("doubles"),
+      zod.literal("both"),
+      zod.literal(null),
+    ])
+    .nullish(),
+  radius: zod.number().min(1).max(saveDiscoverSettingsBodyRadiusMax).optional(),
+});
+
+export const SaveDiscoverSettingsResponse = zod.object({
+  area: zod.union([
+    zod
+      .object({
+        zip: zod.string(),
+        town: zod.string(),
+        state: zod.string(),
+      })
+      .describe(
+        "Your home ZIP and its town. Others only ever see the town and an approximate distance.",
+      ),
+    zod.null(),
+  ]),
+  homeZip: zod.string().nullable(),
+  hidden: zod.boolean().describe("Show me in Discover is off"),
+  plays: zod
+    .union([
+      zod.literal("singles"),
+      zod.literal("doubles"),
+      zod.literal("both"),
+      zod.literal(null),
+    ])
+    .nullable(),
+  radius: zod.number().describe("Last distance picked, 1 to 30 miles"),
+  rating: zod.number().nullable(),
+  slots: zod.array(zod.number()),
+  hoursFree: zod.number(),
+  freeSummary: zod
+    .string()
+    .nullable()
+    .describe(
+      '\"Weekday evenings, weekend mornings\", or null with no hours set',
+    ),
+});
+
+/**
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
@@ -4719,10 +5033,11 @@ export const CreateReportBody = zod.object({
   reason: zod.enum([
     "harassment",
     "inappropriate_content",
-    "impersonation",
     "spam",
     "cheating",
+    "unsafe",
     "other",
+    "impersonation",
   ]),
   details: zod.string().nullish().describe("Kept to 1000 characters"),
 });
@@ -5105,6 +5420,12 @@ export const GetConversationsResponse = zod
           other: zod.object({
             name: zod.string(),
             playerId: zod.number().nullable(),
+            userId: zod
+              .number()
+              .nullish()
+              .describe(
+                "Their users.id, for report and block when they have no player record (a Discover player)",
+              ),
           }),
           lastMessage: zod.union([
             zod.object({
@@ -5128,11 +5449,16 @@ export const GetConversationsResponse = zod
 /**
  * @summary Send a first message to a player. It goes straight to their inbox; from outside your leagues it can't carry links, emails or phone numbers.
  */
-export const StartConversationBody = zod.object({
-  playerId: zod.number(),
-  text: zod.string(),
-  clientMessageId: zod.string().optional(),
-});
+export const StartConversationBody = zod
+  .object({
+    playerId: zod.number().optional(),
+    userId: zod.number().optional(),
+    text: zod.string(),
+    clientMessageId: zod.string().optional(),
+  })
+  .describe(
+    "Send playerId (a league player) or userId (a Discover player, who may be in no league).",
+  );
 
 /**
  * @summary Unread messages, for the badge
@@ -5151,6 +5477,17 @@ export const GetMessageContactsResponse = zod.object({
       playerId: zod.number(),
     }),
   ),
+});
+
+/**
+ * @summary The conversation with a Discover player (by user id), if there is one
+ */
+export const GetConversationWithUserParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const GetConversationWithUserResponse = zod.object({
+  conversationId: zod.number().nullable(),
 });
 
 /**
@@ -5192,6 +5529,12 @@ export const GetConversationResponse = zod.object({
     other: zod.object({
       name: zod.string(),
       playerId: zod.number().nullable(),
+      userId: zod
+        .number()
+        .nullish()
+        .describe(
+          "Their users.id, for report and block when they have no player record (a Discover player)",
+        ),
     }),
     lastMessage: zod.union([
       zod.object({
@@ -5246,10 +5589,11 @@ export const ReportMessageBody = zod.object({
   reason: zod.enum([
     "harassment",
     "inappropriate_content",
-    "impersonation",
     "spam",
     "cheating",
+    "unsafe",
     "other",
+    "impersonation",
   ]),
   details: zod.string().nullish(),
 });

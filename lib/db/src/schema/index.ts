@@ -24,3 +24,5 @@ export * from "./messaging";
 export * from "./placeholders";
 export * from "./recordingConsent";
 export * from "./recordingDemand";
+export * from "./discover";
+export * from "./weeklyAvailability";
