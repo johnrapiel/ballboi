@@ -42,14 +42,20 @@ export default function RadiusSheet() {
     <SheetBody
       title="Distance"
       close={sheet.close}
-      footer={<Button label={n == null ? `Show players within ${value} mi` : `Show ${n} ${n === 1 ? "player" : "players"}`} onPress={apply} />}
+      footer={
+        <Button label={n == null ? `Show players within ${value} mi` : `Show ${n} ${n === 1 ? "player" : "players"}`} onPress={apply} />
+      }
     >
       <Text accessibilityLiveRegion="polite" variant="bodyStrong" style={{ fontVariant: ["tabular-nums"] }}>
         {n == null ? `${value} mi` : `${value} mi · ${n} ${n === 1 ? "player" : "players"}`}
       </Text>
       <View style={{ gap: spacing.space1 }}>
         <RadiusSlider value={value} onChange={pick} label="Distance" />
-        <View style={{ flexDirection: "row", justifyContent: "space-between" }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+        <View
+          style={{ flexDirection: "row", justifyContent: "space-between" }}
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
+        >
           <Text variant="small" tone="inkMuted">
             {`${MIN_RADIUS} mi`}
           </Text>
@@ -71,7 +77,11 @@ export default function RadiusSheet() {
         maxLength={2}
         returnKeyType="done"
         error={typed !== "" && !typedOk}
-        hint={typed !== "" && !typedOk ? `Pick ${MIN_RADIUS} to ${MAX_RADIUS} miles.` : `Type any distance from ${MIN_RADIUS} to ${MAX_RADIUS} miles.`}
+        hint={
+          typed !== "" && !typedOk
+            ? `Pick ${MIN_RADIUS} to ${MAX_RADIUS} miles.`
+            : `Type any distance from ${MIN_RADIUS} to ${MAX_RADIUS} miles.`
+        }
       />
     </SheetBody>
   );

@@ -49,17 +49,7 @@ export function SkeletonRows({ rows = 4 }: { rows?: number }) {
 }
 
 /** A card with an icon, a line or two, and an action: "Set times", "You're hidden". */
-export function NoteCard({
-  symbol,
-  title,
-  body,
-  action,
-}: {
-  symbol: SFSymbol;
-  title?: string;
-  body: string;
-  action?: React.ReactNode;
-}) {
+export function NoteCard({ symbol, title, body, action }: { symbol: SFSymbol; title?: string; body: string; action?: React.ReactNode }) {
   const c = useColors();
   return (
     <Card style={{ flexDirection: "row", gap: spacing.space3, alignItems: "flex-start", paddingVertical: spacing.space3 }}>
@@ -92,7 +82,12 @@ export function ProblemCard({ title, body, onRetry, retrying }: { title: string;
       >
         <SymbolView name="wifi.slash" size={22} tintColor={c.ink} />
       </View>
-      <View accessible accessibilityRole="alert" accessibilityLabel={`${title}. ${body}`} style={{ gap: spacing.space2, alignItems: "center" }}>
+      <View
+        accessible
+        accessibilityRole="alert"
+        accessibilityLabel={`${title}. ${body}`}
+        style={{ gap: spacing.space2, alignItems: "center" }}
+      >
         <Text variant="title" style={{ textAlign: "center" }}>
           {title}
         </Text>
@@ -100,7 +95,13 @@ export function ProblemCard({ title, body, onRetry, retrying }: { title: string;
           {body}
         </Text>
       </View>
-      <Button label="Try again" variant="secondary" onPress={onRetry} loading={retrying} style={{ alignSelf: "stretch", marginTop: spacing.space2 }} />
+      <Button
+        label="Try again"
+        variant="secondary"
+        onPress={onRetry}
+        loading={retrying}
+        style={{ alignSelf: "stretch", marginTop: spacing.space2 }}
+      />
     </Card>
   );
 }

@@ -60,8 +60,8 @@ export default function AreaSheet() {
         hint={error ?? "5 digits"}
       />
       <Text tone="inkMuted">
-        Discover shows players, Open leagues and open matches near this ZIP. Changing it here also updates your profile. Others only
-        ever see your town and an approximate distance.
+        Discover shows players, Open leagues and open matches near this ZIP. Changing it here also updates your profile. Others only ever
+        see your town and an approximate distance.
       </Text>
       <Button label="Save" onPress={() => void submit()} loading={save.isPending} disabled={!isZip(zip)} />
     </SheetBody>

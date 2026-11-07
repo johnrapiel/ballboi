@@ -43,7 +43,10 @@ export default function PlayerCardScreen() {
         if (i === 0) go();
       });
     } else {
-      Alert.alert(p.name, undefined, [{ text: title, onPress: go }, { text: "Cancel", style: "cancel" }]);
+      Alert.alert(p.name, undefined, [
+        { text: title, onPress: go },
+        { text: "Cancel", style: "cancel" },
+      ]);
     }
   }
 
@@ -76,7 +79,11 @@ export default function PlayerCardScreen() {
           ) : (
             <ProblemCard
               title="Can't load this player right now"
-              body={isOfflineError(player.error) ? "You're offline. Check your connection and try again." : "Check your connection and try again."}
+              body={
+                isOfflineError(player.error)
+                  ? "You're offline. Check your connection and try again."
+                  : "Check your connection and try again."
+              }
               onRetry={() => void player.refetch()}
               retrying={player.isRefetching}
             />

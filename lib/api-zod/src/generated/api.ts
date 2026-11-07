@@ -96,6 +96,86 @@ export const SaveDiscoverAvailabilityResponse = zod.object({
 });
 
 /**
+ * @summary Open leagues near you, nearest first, with a count for each distance chip
+ */
+export const listDiscoverLeaguesQueryRadiusMax = 30;
+
+export const ListDiscoverLeaguesQueryParams = zod.object({
+  radius: zod.coerce
+    .number()
+    .min(1)
+    .max(listDiscoverLeaguesQueryRadiusMax)
+    .optional(),
+});
+
+export const ListDiscoverLeaguesResponse = zod.object({
+  leagues: zod.array(
+    zod.object({
+      leagueId: zod.number(),
+      name: zod.string(),
+      detail: zod.string(),
+      status: zod.string(),
+      tags: zod.array(zod.enum(["outside_level", "full", "started"])),
+      joining: zod.enum(["request", "waitlist"]),
+      myRequest: zod.union([
+        zod.object({
+          kind: zod.enum(["request", "waitlist"]),
+          status: zod.enum(["pending", "declined"]),
+        }),
+        zod.null(),
+      ]),
+      spoken: zod.string(),
+    }),
+  ),
+  counts: zod.array(
+    zod.object({
+      radius: zod.number(),
+      count: zod.number(),
+    }),
+  ),
+  radius: zod.number(),
+  total: zod.number(),
+  needsArea: zod.boolean(),
+});
+
+/**
+ * @summary An Open league's Discover page, and where you stand with it
+ */
+export const GetDiscoverLeagueParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const GetDiscoverLeagueResponse = zod.object({
+  leagueId: zod.number(),
+  name: zod.string(),
+  organizerName: zod.string(),
+  location: zod.string().nullable(),
+  distance: zod.string().nullable(),
+  format: zod.string(),
+  type: zod.string(),
+  levelText: zod.string(),
+  outsideLevel: zod.boolean(),
+  myRating: zod.number().nullable(),
+  startDate: zod.string().nullable(),
+  startLabel: zod.string().nullable(),
+  seasonWeeks: zod.number().nullable(),
+  started: zod.boolean(),
+  full: zod.boolean(),
+  rosterCap: zod.number().nullable(),
+  spotsTaken: zod.number(),
+  spotsLeft: zod.number().nullable(),
+  joining: zod.enum(["request", "waitlist"]),
+  myRequest: zod.union([
+    zod.object({
+      kind: zod.enum(["request", "waitlist"]),
+      status: zod.enum(["pending", "declined"]),
+    }),
+    zod.null(),
+  ]),
+  member: zod.boolean(),
+});
+
+/**
  * @summary Your area, hidden profile, plays, last distance and hours, for Discover
  */
 export const GetDiscoverMeResponse = zod.object({
@@ -1989,6 +2069,10 @@ export const GetLeagueJoinRequestsResponseItem = zod.object({
     ),
   kind: zod.enum(["request", "waitlist"]),
   status: zod.enum(["pending", "approved", "declined", "withdrawn"]),
+  note: zod
+    .string()
+    .nullish()
+    .describe("The asker's optional note to the organizer"),
   createdAt: zod.string(),
   message: zod.string().optional(),
 });
@@ -2006,6 +2090,12 @@ export const RequestToJoinLeagueParams = zod.object({
 export const RequestToJoinLeagueBody = zod.object({
   playerName: zod.string(),
   skillLevel: zod.string().nullish(),
+  note: zod
+    .string()
+    .nullish()
+    .describe(
+      "Optional note to the organizer with a request from Discover, up to 300 characters",
+    ),
 });
 
 export const RequestToJoinLeagueResponse = zod.object({
@@ -2033,6 +2123,10 @@ export const RequestToJoinLeagueResponse = zod.object({
     ),
   kind: zod.enum(["request", "waitlist"]),
   status: zod.enum(["pending", "approved", "declined", "withdrawn"]),
+  note: zod
+    .string()
+    .nullish()
+    .describe("The asker's optional note to the organizer"),
   createdAt: zod.string(),
   message: zod.string().optional(),
 });
@@ -2070,6 +2164,10 @@ export const GetMyLeagueJoinRequestResponse = zod.union([
       ),
     kind: zod.enum(["request", "waitlist"]),
     status: zod.enum(["pending", "approved", "declined", "withdrawn"]),
+    note: zod
+      .string()
+      .nullish()
+      .describe("The asker's optional note to the organizer"),
     createdAt: zod.string(),
     message: zod.string().optional(),
   }),
@@ -3392,6 +3490,12 @@ export const JoinLeagueViaInviteParams = zod.object({
 export const JoinLeagueViaInviteBody = zod.object({
   playerName: zod.string(),
   skillLevel: zod.string().nullish(),
+  note: zod
+    .string()
+    .nullish()
+    .describe(
+      "Optional note to the organizer with a request from Discover, up to 300 characters",
+    ),
 });
 
 export const JoinLeagueViaInviteResponse = zod.object({

@@ -96,6 +96,56 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /discover/leagues:
+    get:
+      operationId: listDiscoverLeagues
+      tags: [discover]
+      summary: Open leagues near you, nearest first, with a count for each distance chip
+      parameters:
+      - name: radius
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 30
+      responses:
+        '200':
+          description: Open leagues near you
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverLeagues'
+        '500':
+          description: Couldn't load leagues
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/leagues/{leagueId}:
+    get:
+      operationId: getDiscoverLeague
+      tags: [discover]
+      summary: An Open league's Discover page, and where you stand with it
+      parameters:
+      - name: leagueId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: The league
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverLeague'
+        '404':
+          description: Not an Open league any more
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /discover/me:
     get:
       operationId: getDiscoverMe
@@ -5911,6 +5961,113 @@ components:
           items:
             type: integer
       required: [slots]
+    DiscoverLeague:
+      type: object
+      properties:
+        leagueId:
+          type: integer
+        name:
+          type: string
+        organizerName:
+          type: string
+        location:
+          type: [string, 'null']
+        distance:
+          type: [string, 'null']
+        format:
+          type: string
+        type:
+          type: string
+        levelText:
+          type: string
+        outsideLevel:
+          type: boolean
+        myRating:
+          type: [number, 'null']
+        startDate:
+          type: [string, 'null']
+        startLabel:
+          type: [string, 'null']
+        seasonWeeks:
+          type: [integer, 'null']
+        started:
+          type: boolean
+        full:
+          type: boolean
+        rosterCap:
+          type: [integer, 'null']
+        spotsTaken:
+          type: integer
+        spotsLeft:
+          type: [integer, 'null']
+        joining:
+          type: string
+          enum: [request, waitlist]
+        myRequest:
+          $ref: '#/components/schemas/DiscoverLeagueRequest'
+        member:
+          type: boolean
+      required: [leagueId, name, organizerName, location, distance, format, type, levelText, outsideLevel, myRating, startDate, startLabel, seasonWeeks, started, full, rosterCap, spotsTaken, spotsLeft, joining, myRequest, member]
+    DiscoverLeagueCard:
+      type: object
+      properties:
+        leagueId:
+          type: integer
+        name:
+          type: string
+        detail:
+          type: string
+        status:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+            enum: [outside_level, full, started]
+        joining:
+          type: string
+          enum: [request, waitlist]
+        myRequest:
+          $ref: '#/components/schemas/DiscoverLeagueRequest'
+        spoken:
+          type: string
+      required: [leagueId, name, detail, status, tags, joining, myRequest, spoken]
+    DiscoverLeagueRequest:
+      oneOf:
+      - type: object
+        properties:
+          kind:
+            type: string
+            enum: [request, waitlist]
+          status:
+            type: string
+            enum: [pending, declined]
+        required: [kind, status]
+      - type: 'null'
+    DiscoverLeagues:
+      type: object
+      properties:
+        leagues:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiscoverLeagueCard'
+        counts:
+          type: array
+          items:
+            type: object
+            properties:
+              radius:
+                type: integer
+              count:
+                type: integer
+            required: [radius, count]
+        radius:
+          type: integer
+        total:
+          type: integer
+        needsArea:
+          type: boolean
+      required: [leagues, counts, radius, total, needsArea]
     DiscoverMe:
       type: object
       properties:
@@ -6828,6 +6985,9 @@ components:
         status:
           type: string
           enum: [pending, approved, declined, withdrawn]
+        note:
+          type: ["string", "null"]
+          description: The asker's optional note to the organizer
         createdAt:
           type: string
         message:
@@ -8116,6 +8276,9 @@ components:
           type: string
         skillLevel:
           type: ["string", "null"]
+        note:
+          type: ["string", "null"]
+          description: Optional note to the organizer with a request from Discover, up to 300 characters
       required:
         - playerName
 
