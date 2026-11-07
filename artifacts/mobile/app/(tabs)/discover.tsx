@@ -11,6 +11,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AreaRow, DiscoverTabs, DistanceChips, FiltersButton, LinkButton } from "@/components/discover/Controls";
 import { LeagueCard } from "@/components/discover/LeagueCard";
+import { MatchAlertsCard } from "@/components/discover/MatchAlerts";
+import { OpenMatchCard } from "@/components/discover/OpenMatchCard";
 import { PlayerRow } from "@/components/discover/PlayerRow";
 import { EmptyBlock, NoteCard, ProblemCard, SkeletonRows } from "@/components/discover/States";
 import { TabScreen } from "@/components/TabHeader";
@@ -20,6 +22,7 @@ import { useColors } from "@/hooks/useColors";
 import { useDiscoverMe, useDiscoverPlayers, useSaveRadius } from "@/hooks/useDiscover";
 import { discoverState, useDiscoverState } from "@/hooks/useDiscoverFilters";
 import { useDiscoverLeagues } from "@/hooks/useDiscoverLeagues";
+import { useOpenMatches } from "@/hooks/useDiscoverOpenMatches";
 import { isOfflineError } from "@/lib/api";
 import { RADIUS_STEPS, countFor, countLine, filtersSpoken, inviteMessage, type DiscoverTab } from "@/lib/discover";
 
@@ -79,7 +82,7 @@ export default function DiscoverScreen() {
         ) : tab === "leagues" ? (
           <LeaguesTab />
         ) : (
-          <ComingTab />
+          <MatchesTab />
         )}
       </ScrollView>
     </TabScreen>
@@ -181,7 +184,7 @@ function PlayersTab() {
           body={`Ball Boi is new${me.data?.area ? ` near ${me.data.area.zip}` : " here"}. Try a wider distance, post an open match, or invite friends who play.`}
         >
           {widenTo ? <Button label={`Widen to ${widenTo} mi`} onPress={() => pickRadius(widenTo)} /> : null}
-          <Button label="Post an open match" variant="secondary" onPress={() => discoverState.setTab("matches")} />
+          <Button label="Post an open match" variant="secondary" onPress={() => router.push("/discover/match/new")} />
           <Button
             label="Invite a friend"
             variant="secondary"
@@ -290,7 +293,103 @@ function LeaguesTab() {
   );
 }
 
-/** Open matches arrive in the last Discover PR. */
-function ComingTab() {
-  return <EmptyBlock title="Open matches" body="Open matches near you show up here." />;
+/** Open matches near you (brief items 38 to 46; canvas W2_DiscoverMatches). */
+function MatchesTab() {
+  const router = useRouter();
+  const { radius } = useDiscoverState();
+  const me = useDiscoverMe();
+  const q = useOpenMatches(radius, !!me.data);
+  const saveRadius = useSaveRadius();
+  const data = q.data;
+  const counts = data?.counts ?? [];
+  const pickRadius = (r: number) => {
+    discoverState.setRadius(r);
+    saveRadius.mutate(r);
+  };
+  const widenTo = RADIUS_STEPS.find((r) => r > radius && (countFor(counts, r) ?? 0) > 0) ?? RADIUS_STEPS.find((r) => r > radius);
+  const loading = !data && (q.isLoading || me.isLoading);
+  const post = () => router.push("/discover/match/new");
+
+  async function invite() {
+    try {
+      await Share.share({ message: inviteMessage(me.data?.area?.zip ?? null) });
+    } catch {
+      // Closing the share sheet is fine.
+    }
+  }
+
+  return (
+    <>
+      <Button label="Post an open match" onPress={post} />
+      <DistanceChips
+        radius={radius}
+        counts={counts}
+        noun="open matches"
+        onPick={pickRadius}
+        onCustom={() => router.push("/discover/radius")}
+      />
+      <Text variant="small" tone="inkMuted" accessibilityLiveRegion="polite">
+        {loading || q.isFetching
+          ? `Finding open matches within ${radius} mi…`
+          : q.isError && !data
+            ? `Within ${radius} mi`
+            : countLine(data?.total ?? 0, radius, "open match")}
+      </Text>
+
+      {data?.notices.map((n) => (
+        <NoteCard
+          key={`notice-${n.id}`}
+          symbol="person.3.fill"
+          title="This match filled up"
+          body={`${n.when}${n.courtName ? ` at ${n.courtName}` : ""} is full. Here are other open matches near you.`}
+        />
+      ))}
+
+      {loading ? (
+        <SkeletonRows rows={3} />
+      ) : q.isError && !data ? (
+        <ProblemCard
+          title="Can't load open matches right now"
+          body={
+            isOfflineError(q.error)
+              ? "You're offline. Check your connection and try again."
+              : "Check your connection and try again. Your distance stays as it is."
+          }
+          onRetry={() => void q.refetch()}
+          retrying={q.isRefetching}
+        />
+      ) : data?.needsArea ? (
+        <EmptyBlock title="Add your ZIP" body="Discover shows open matches near your home ZIP.">
+          <Button label="Add your ZIP" onPress={() => router.push("/discover/area")} />
+        </EmptyBlock>
+      ) : data && data.matches.length === 0 ? (
+        <>
+          <EmptyBlock title={`No open matches within ${radius} mi`} body="Post one and players nearby can join with one tap.">
+            <Button label="Post an open match" variant="secondary" onPress={post} />
+            {widenTo ? <Button label={`Widen to ${widenTo} mi`} variant="secondary" onPress={() => pickRadius(widenTo)} /> : null}
+            <Button
+              label="Invite friends"
+              variant="secondary"
+              onPress={() => void invite()}
+              accessibilityHint="Opens the share sheet with your invite link"
+            />
+          </EmptyBlock>
+          <MatchAlertsCard on={data.matchAlerts} />
+        </>
+      ) : data ? (
+        <>
+          <View style={{ gap: spacing.space3 }}>
+            {data.matches.map((m) => (
+              <OpenMatchCard
+                key={m.id}
+                match={m}
+                onPress={() => router.push({ pathname: "/discover/match/[id]", params: { id: String(m.id) } })}
+              />
+            ))}
+          </View>
+          <MatchAlertsCard on={data.matchAlerts} />
+        </>
+      ) : null}
+    </>
+  );
 }

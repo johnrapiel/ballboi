@@ -12,18 +12,21 @@ import { Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useUpcomingMatchPlans } from "@/hooks/useDiscoverMatchPlans";
+import { useMyOpenMatches } from "@/hooks/useDiscoverOpenMatches";
 import { planDetail, planWhen } from "@/lib/discover";
 
 export function DiscoverMatchesSection() {
   const c = useColors();
   const router = useRouter();
   const q = useUpcomingMatchPlans();
+  const open = useMyOpenMatches();
   const matches = q.data?.matches ?? [];
-  if (!matches.length) return null;
+  const posts = open.data?.matches ?? [];
+  if (!matches.length && !posts.length) return null;
   return (
     <View style={{ gap: spacing.space2 }}>
       <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ paddingHorizontal: spacing.space1 }}>
-        Set up in chat
+        Set up in Discover
       </Text>
       <Card style={{ padding: 0, overflow: "hidden" }}>
         {matches.map((m, i) => (
@@ -58,6 +61,44 @@ export function DiscoverMatchesSection() {
             <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} />
           </Pressable>
         ))}
+        {posts.map((p, i) => {
+          const full = p.status === "full";
+          const line = `${p.format === "doubles" ? "Doubles" : "Singles"} · ${p.courtName ?? "Court not set"} · ${full ? "Group chat" : `${p.spotsLeft} ${p.spotsLeft === 1 ? "spot" : "spots"} left`}`;
+          return (
+            <Pressable
+              key={`open-${p.id}`}
+              onPress={() =>
+                router.push(
+                  full
+                    ? { pathname: "/discover/match/chat/[id]", params: { id: String(p.id) } }
+                    : { pathname: "/discover/match/[id]", params: { id: String(p.id) } },
+                )
+              }
+              accessibilityRole="button"
+              accessibilityLabel={`Open match, ${p.when.replace(" · ", ", ")}, ${line.replace(/ · /g, ", ")}`}
+              accessibilityHint={full ? "Opens the group chat" : "Opens the match"}
+              style={({ pressed }) => ({
+                flexDirection: "row",
+                alignItems: "center",
+                gap: spacing.space3,
+                minHeight: 56,
+                paddingHorizontal: spacing.space4,
+                paddingVertical: spacing.space3,
+                borderTopWidth: matches.length || i > 0 ? 1 : 0,
+                borderTopColor: c.hairline,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text variant="bodyStrong">{`${p.when} · Open match`}</Text>
+                <Text variant="small" tone="inkMuted">
+                  {line}
+                </Text>
+              </View>
+              <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} />
+            </Pressable>
+          );
+        })}
       </Card>
     </View>
   );
