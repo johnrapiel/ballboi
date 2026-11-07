@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { DiscoverMatchesSection } from "@/components/discover/DiscoverMatches";
-import { SymbolView, type SFSymbol } from "expo-symbols";
+import { Icon, type IconName } from "@/components/Icon";
 import React, { useCallback, useRef, useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -96,7 +96,7 @@ function NextMatch({ m, onOpen }: { m: UpcomingMatch; onOpen: () => void }) {
         </Text>
         {m.location ? (
           <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space1 }}>
-            <SymbolView name="mappin.and.ellipse" size={16} tintColor={c.inkMuted} />
+            <Icon name="mappin.and.ellipse" size={16} tintColor={c.inkMuted} />
             <Text style={{ flexShrink: 1, textAlign: "center" }}>{m.location}</Text>
           </View>
         ) : null}
@@ -134,18 +134,18 @@ function UpcomingRow({ m, last, onPress }: { m: UpcomingMatch; last: boolean; on
           {meta}
         </Text>
       </View>
-      <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} />
+      <Icon name="chevron.right" size={13} tintColor={c.inkMuted} />
     </Pressable>
   );
 }
 
 /** An empty tab: what shows up here, and a way forward. */
-function Empty({ symbol, title, message, action }: { symbol: SFSymbol; title: string; message: string; action: { label: string; onPress: () => void } }) {
+function Empty({ symbol, title, message, action }: { symbol: IconName; title: string; message: string; action: { label: string; onPress: () => void } }) {
   const c = useColors();
   return (
     <View style={{ alignItems: "center", gap: spacing.space2, paddingVertical: spacing.space8, paddingHorizontal: spacing.space4 }}>
       <View accessible accessibilityLabel={`${title}. ${message}`} style={{ alignItems: "center", gap: spacing.space2 }}>
-        <SymbolView name={symbol} size={40} tintColor={c.inkMuted} style={{ marginBottom: spacing.space2 }} />
+        <Icon name={symbol} size={40} tintColor={c.inkMuted} style={{ marginBottom: spacing.space2 }} />
         <Text variant="title" style={{ textAlign: "center" }}>
           {title}
         </Text>

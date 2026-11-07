@@ -6,7 +6,7 @@
 // "You two remember this differently…") are centered system lines.
 
 import { useRouter } from "expo-router";
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React from "react";
 import { AccessibilityInfo, Alert, View } from "react-native";
 
@@ -166,7 +166,7 @@ export function MatchCard({
         style={{ width: "88%", maxWidth: 420, gap: spacing.space2, borderRadius: radius.radiusCard }}
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2 }}>
-          {SYMBOL[event.type] ? <SymbolView name={SYMBOL[event.type]!} size={18} tintColor={c.ink} /> : null}
+          {SYMBOL[event.type] ? <Icon name={SYMBOL[event.type]!} size={18} tintColor={c.ink} /> : null}
           <Text variant="bodyStrong" style={{ flex: 1 }}>
             {copy.title}
           </Text>

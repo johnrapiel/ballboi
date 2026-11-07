@@ -6,7 +6,7 @@
 
 import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
-import { SymbolView, type SFSymbol } from "expo-symbols";
+import { Icon, type IconName } from "@/components/Icon";
 import React, { useState } from "react";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,11 +21,11 @@ import { consentKey, saveRecordingConsent } from "@/lib/recording/api";
 export const TRAINING_COPY =
   "We use match video to train our shot tracking. Your personal information is never shared or sold. Turn this off anytime in Settings.";
 
-function Point({ symbol, title, body }: { symbol: SFSymbol; title: string; body: string }) {
+function Point({ symbol, title, body }: { symbol: IconName; title: string; body: string }) {
   const c = useColors();
   return (
     <View accessible accessibilityLabel={`${title}. ${body}`} style={{ flexDirection: "row", gap: spacing.space3 }}>
-      <SymbolView name={symbol} size={22} tintColor={c.ink} style={{ marginTop: 2 }} />
+      <Icon name={symbol} size={22} tintColor={c.ink} style={{ marginTop: 2 }} />
       <View style={{ flex: 1, gap: spacing.space1 }}>
         <Text variant="bodyStrong">{title}</Text>
         <Text tone="inkMuted">{body}</Text>

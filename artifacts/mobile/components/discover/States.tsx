@@ -2,7 +2,7 @@
 // W2_DiscoverEmpty, W2_DiscoverHidden, and the "Set times" prompt): every
 // one has a way forward, so nothing dead-ends.
 
-import { SymbolView, type SFSymbol } from "expo-symbols";
+import { Icon, type IconName } from "@/components/Icon";
 import React, { useEffect } from "react";
 import { AccessibilityInfo, View } from "react-native";
 
@@ -49,12 +49,12 @@ export function SkeletonRows({ rows = 4 }: { rows?: number }) {
 }
 
 /** A card with an icon, a line or two, and an action: "Set times", "You're hidden". */
-export function NoteCard({ symbol, title, body, action }: { symbol: SFSymbol; title?: string; body: string; action?: React.ReactNode }) {
+export function NoteCard({ symbol, title, body, action }: { symbol: IconName; title?: string; body: string; action?: React.ReactNode }) {
   const c = useColors();
   return (
     <Card style={{ flexDirection: "row", gap: spacing.space3, alignItems: "flex-start", paddingVertical: spacing.space3 }}>
       <View style={{ paddingTop: 2 }}>
-        <SymbolView name={symbol} size={20} tintColor={c.ink} />
+        <Icon name={symbol} size={20} tintColor={c.ink} />
       </View>
       <View style={{ flex: 1, gap: spacing.space1 }}>
         {title ? <Text variant="bodyStrong">{title}</Text> : null}
@@ -80,7 +80,7 @@ export function ProblemCard({ title, body, onRetry, retrying }: { title: string;
         importantForAccessibility="no-hide-descendants"
         accessibilityElementsHidden
       >
-        <SymbolView name="wifi.slash" size={22} tintColor={c.ink} />
+        <Icon name="wifi.slash" size={22} tintColor={c.ink} />
       </View>
       <View
         accessible

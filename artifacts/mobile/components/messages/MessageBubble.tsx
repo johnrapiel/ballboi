@@ -1,4 +1,4 @@
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React from "react";
 import { Pressable, View, type AccessibilityActionEvent } from "react-native";
 
@@ -86,7 +86,7 @@ export function MessageBubble({
         </View>
         {failed ? (
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: spacing.space1, marginTop: spacing.space1, minHeight: 24 }}>
-            <SymbolView name="exclamationmark.circle" size={14} tintColor={c.danger} />
+            <Icon name="exclamationmark.circle" size={14} tintColor={c.danger} />
             <Text variant="small" tone="danger">
               Not sent. Tap to retry
             </Text>
