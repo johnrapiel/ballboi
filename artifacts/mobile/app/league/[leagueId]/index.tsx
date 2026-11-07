@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React, { useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
@@ -65,7 +65,7 @@ function MatchTimeRow({ when, canSet, onPress }: { when: string | null; canSet: 
   if (!canSet) {
     return when ? (
       <View accessible accessibilityLabel={`Match time, ${when}`} style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2 }}>
-        <SymbolView name="calendar" size={16} tintColor={c.inkMuted} />
+        <Icon name="calendar" size={16} tintColor={c.inkMuted} />
         <Text variant="small" tone="inkMuted">
           {when}
         </Text>
@@ -89,14 +89,14 @@ function MatchTimeRow({ when, canSet, onPress }: { when: string | null; canSet: 
         opacity: pressed ? 0.7 : 1,
       })}
     >
-      <SymbolView name="calendar" size={18} tintColor={c.ink} />
+      <Icon name="calendar" size={18} tintColor={c.ink} />
       <Text variant="bodyStrong" style={{ flex: 1 }}>
         Match time
       </Text>
       <Text variant="small" tone="inkMuted">
         {when ? value : "Set a time"}
       </Text>
-      <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} />
+      <Icon name="chevron.right" size={13} tintColor={c.inkMuted} />
     </Pressable>
   );
 }
@@ -401,7 +401,7 @@ export default function LeagueScreen() {
           {ended ? (
             // Decision 31: an admin ended the league, or the season finished. Standings are final.
             <Card accessible style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3 }}>
-              <SymbolView name="flag.checkered" size={20} tintColor={c.ink} />
+              <Icon name="flag.checkered" size={20} tintColor={c.ink} />
               <View style={{ flex: 1, gap: 2 }}>
                 <Text variant="bodyStrong">This league has ended</Text>
                 <Text variant="small" tone="inkMuted">

@@ -1,4 +1,4 @@
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
@@ -77,7 +77,7 @@ export function SettingsRow({
         </Text>
       ) : null}
       {trailing}
-      {onPress ? <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} /> : null}
+      {onPress ? <Icon name="chevron.right" size={13} tintColor={c.inkMuted} /> : null}
     </>
   );
   if (!onPress) {

@@ -1,4 +1,4 @@
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
@@ -61,7 +61,7 @@ function MatchRow({
         {notPlayed ? (
           // C6: in words with an icon, never color alone. No standings effect.
           <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space1 }}>
-            <SymbolView name="minus.circle" size={14} tintColor={c.inkMuted} />
+            <Icon name="minus.circle" size={14} tintColor={c.inkMuted} />
             <Text variant="small" tone="inkMuted">
               {result}
             </Text>
@@ -187,7 +187,7 @@ export function UpcomingWeekRow({ week, last }: { week: ScheduleWeek; last: bool
         borderBottomColor: c.hairline,
       }}
     >
-      <SymbolView name="calendar" size={18} tintColor={c.inkMuted} />
+      <Icon name="calendar" size={18} tintColor={c.inkMuted} />
       <View style={{ flex: 1 }}>
         <Text variant="bodyStrong">{`Round ${week.roundNumber}`}</Text>
         <Text variant="small" tone="inkMuted">

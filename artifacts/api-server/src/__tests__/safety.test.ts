@@ -67,7 +67,7 @@ vi.mock("@workspace/db", () => ({
   playersTable: { __name: "players", id: {}, name: {}, clerkUserId: {} },
   usersTable: { __name: "users", clerkUserId: {}, avatarUrl: {}, displayName: {} },
   REPORT_TARGET_TYPES: ["player", "league", "ball_boi_session", "match", "message", "account"],
-  REPORT_REASONS: ["harassment", "inappropriate_content", "impersonation", "spam", "cheating", "other"],
+  REPORT_REASONS: ["harassment", "inappropriate_content", "spam", "cheating", "unsafe", "other", "impersonation"],
   REPORT_STATUSES: ["open", "reviewed", "actioned", "dismissed"],
 }));
 

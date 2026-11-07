@@ -1,4 +1,4 @@
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React, { useState } from "react";
 import { ScrollView, TextInput, View, useWindowDimensions } from "react-native";
 
@@ -290,7 +290,7 @@ export function ScoreResult({
           accessibilityLabel={`${winner}, ${draft.score.replace(/\((\d+)\)/g, ", tiebreak $1")}`}
           style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.space2 }}
         >
-          <SymbolView name="checkmark" size={20} tintColor={c.ink} />
+          <Icon name="checkmark" size={20} tintColor={c.ink} />
           <Text variant="title">{winner}</Text>
           <Text variant="title" style={{ fontVariant: ["lining-nums", "tabular-nums"] }}>
             {displayScore(draft.score)}
