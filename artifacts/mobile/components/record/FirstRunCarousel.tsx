@@ -151,7 +151,7 @@ function ChoicesPage({
             <Text variant="bodyStrong" style={{ flexShrink: 1, textDecorationLine: "underline" }}>
               {RELEASE_TITLE}
             </Text>
-            {/* arrow.up.right has no brush drawing yet; the underline and hint say it opens a page. */}
+            <Icon name="arrow.up.right" size={14} tintColor={c.ink} />
           </Pressable>
           <Text tone="inkMuted">
             You're testing Ball Boi before it launches. The release explains how the matches you record are used for
