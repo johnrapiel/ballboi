@@ -21,13 +21,8 @@ Nothing runs until step 6, so the PR is safe to merge before setup is done.
    - `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`
    - `EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID`, `EXPO_PUBLIC_CLERK_GOOGLE_IOS_URL_SCHEME` (once Google sign-in is set up)
    These are public IDs, so "Plain text" or "Sensitive" visibility is fine. Never put secret keys here.
-3. **Create the App Store Connect app record** for `tennis.ballboi` (App Store Connect > Apps > +), if it doesn't exist yet.
-4. **Run the first build by hand**, so EAS saves the Apple credentials the workflow needs:
-   ```sh
-   cd artifacts/mobile
-   eas build --profile staging --platform ios --auto-submit
-   ```
-   Sign in with your Apple ID, let EAS manage certificates, and say yes when it offers to create an App Store Connect API key.
+3. **App Store Connect app record**: done Nov 6, 2026 (Ball Boi, App Store ID 6831844206, set as `ascAppId` in `eas.json`).
+4. **Apple credentials in EAS**: the distribution certificate and provisioning profile were already in EAS (Oct 2026). The App Store Connect API key "Expo EAS Ball Boi" (Admin) is uploaded under expo.dev > ballboi > Credentials > tennis.ballboi, so builds and TestFlight uploads run without an Apple login. No terminal step needed.
 5. **Add yourself as an internal tester.** App Store Connect > Ball Boi > TestFlight > Internal Testing. Install the TestFlight app on your iPhone.
 6. **Connect GitHub to EAS.** expo.dev > ballboi > Project settings > GitHub: install the Expo GitHub app, connect `johnrapiel/ballboi`, and set the base directory to `artifacts/mobile`. From here on, merges run the workflow.
 
