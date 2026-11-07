@@ -1,13 +1,13 @@
 // First-message filter. Spec: "Filtered first messages: links, phone numbers,
 // and slurs blocked until accepted." Checklist 3a: Objectionable content filter.
 //
-// Links and phone numbers are checked here. Slurs are matched against a term
+// Links, email addresses and phone numbers are checked here. Slurs are matched against a term
 // list loaded at runtime, never committed to the repo: in production Stream's
 // blocklist and AI moderation also screen every message.
 
 import { readFileSync } from "node:fs";
 
-export type FilterReason = "link" | "phone" | "blocked_term";
+export type FilterReason = "link" | "email" | "phone" | "blocked_term";
 
 export interface FilterResult {
   ok: boolean;
@@ -25,6 +25,14 @@ const LINK_PATTERNS: RegExp[] = [
   new RegExp(`\\b[a-z0-9-]{2,}\\.(?:${TLDS})\\b`, "i"),
   /\b[a-z0-9-]{2,}\s*(?:\.|\bdot\b)\s*(?:com|net|org|io)\b/i,
   /\b(?:t\.me|wa\.me|bit\.ly)\//i,
+];
+
+// Email addresses, including spelled-out ones ("sam at example dot com").
+// Checked before links, so the message names the right thing.
+const EMAIL_PATTERNS: RegExp[] = [
+  /\b[a-z0-9._%+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}\b/i,
+  /\b[a-z0-9._%+-]+\s*(?:\(at\)|\[at\])\s*[a-z0-9-]+\s*(?:\.|\(dot\)|\[dot\]|\bdot\b)\s*[a-z]{2,}\b/i,
+  /\b[a-z0-9._%+-]+\s+at\s+[a-z0-9-]+\s+dot\s+(?:com|net|org|io|co|me|edu|us)\b/i,
 ];
 
 // US-style numbers (555-123-4567, (555) 123 4567, 555.123.4567, +1 555...)
@@ -126,6 +134,7 @@ export class FirstMessageFilter {
   }
 
   check(text: string): FilterResult {
+    if (EMAIL_PATTERNS.some((p) => p.test(text))) return { ok: false, reason: "email" };
     if (LINK_PATTERNS.some((p) => p.test(text))) return { ok: false, reason: "link" };
     if (PHONE_PATTERNS.some((p) => p.test(text)) || hasLocalPhone(text)) return { ok: false, reason: "phone" };
     if (this.terms.size) {
@@ -142,6 +151,7 @@ export class FirstMessageFilter {
 /** What the app shows. Plain words, no hint about which word tripped it. */
 export const FILTER_MESSAGES: Record<FilterReason, string> = {
   link: "First messages can't include links. Remove the link and try again.",
+  email: "First messages can't include email addresses. Share contact details once they reply.",
   phone: "First messages can't include phone numbers. Share contact details once they reply.",
   blocked_term: "That message can't be sent. Keep first messages friendly.",
 };

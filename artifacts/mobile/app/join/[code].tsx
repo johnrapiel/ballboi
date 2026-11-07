@@ -11,15 +11,17 @@ import {
   joinLeagueViaInvite,
 } from "@workspace/api-client-react";
 
-import { Button, Card, Text } from "@/components/ui";
-import { radius, spacing, type } from "@/constants/tokens";
+import { Avatar } from "@/components/Avatar";
+import { RatingBadge } from "@/components/RatingBadge";
+import { Button, Card, Text, TextButton } from "@/components/ui";
+import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useGate } from "@/hooks/useGate";
 import { useProfile } from "@/hooks/useProfile";
 import { cleanCode, savePendingJoinCode } from "@/lib/leagueInvite";
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { shortDate } from "@/lib/leagueSchedule";
-import { playersLabel } from "@/lib/leagues";
+import { photoUrl } from "@/lib/photos";
 
 // Join a league (decision C1, Oct 31 review). Opened by an invite link
 // (https://ballboi.tennis/join/CODE or ballboi://join/CODE) and by a code
@@ -28,6 +30,36 @@ import { playersLabel } from "@/lib/leagues";
 // - Join league: before the season starts, the player is in.
 // - Ask to join: a Private league that started or is full asks the organizer.
 // - Join waitlist: an Open league that started or is full holds a spot for next season.
+// Approved canvas: Join league invite. The invite as a card with a brush
+// title, Where, Players and Starts as a list, "You'll join as" from your
+// profile, and the one button pinned at the bottom. Cancel at the top left,
+// like any iOS modal.
+
+/** A label and value row in the invite's list. */
+function DetailRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
+  const c = useColors();
+  return (
+    <View
+      accessible
+      accessibilityLabel={`${label}, ${value}`}
+      style={{
+        minHeight: 52,
+        flexDirection: "row",
+        flexWrap: "wrap",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: spacing.space3,
+        paddingHorizontal: spacing.space4,
+        paddingVertical: spacing.space3,
+        borderBottomWidth: last ? 0 : 1,
+        borderBottomColor: c.hairline,
+      }}
+    >
+      <Text>{label}</Text>
+      <Text tone="inkMuted">{value}</Text>
+    </View>
+  );
+}
 
 /** Centered at default sizes; scrolls at the largest text sizes. */
 function Page({ children }: { children: React.ReactNode }) {
@@ -56,10 +88,11 @@ function errorText(e: unknown, fallback: string): string {
 
 type Done = { kind: "joined" | "requested" | "waitlisted"; leagueId: number | null; message: string };
 
-const ACTION_LABEL = { join: "Join league", request: "Ask to join", waitlist: "Join waitlist" } as const;
+const ACTION_LABEL = { join: "Join the league", request: "Ask to join", waitlist: "Join waitlist" } as const;
 
 export default function JoinLeagueScreen() {
   const c = useColors();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { isLoaded, isSignedIn } = useAuth();
@@ -194,13 +227,11 @@ export default function JoinLeagueScreen() {
   }
 
   const leagueName = invite.leagueName ?? "this league";
-  const details = [
-    invite.playerCount != null ? playersLabel(invite.playerCount) : null,
-    invite.startDate ? `${invite.joinAction === "join" ? "Starts" : "Started"} ${shortDate(invite.startDate)}` : null,
-    invite.location,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const rows = [
+    invite.location ? { label: "Where", value: invite.location } : null,
+    invite.playerCount != null ? { label: "Players", value: `${invite.playerCount} joined` } : null,
+    invite.startDate ? { label: invite.joinAction === "join" ? "Starts" : "Started", value: shortDate(invite.startDate) } : null,
+  ].filter((r): r is { label: string; value: string } => !!r);
 
   // ── After joining ─────────────────────────────────────────────────────────
   if (done || invite.alreadyMember || invite.pendingRequest) {
@@ -245,53 +276,68 @@ export default function JoinLeagueScreen() {
         ? "This league isn't taking players this season. Join the waitlist to get a spot when next season opens."
         : null;
   return (
-    <Page>
-      <View style={{ gap: spacing.space2 }}>
-        <Text variant="label" tone="inkMuted">
-          League invite
-        </Text>
-        <Text variant="displayL" accessibilityRole="header">
-          {leagueName}
-        </Text>
-        {details ? <Text tone="inkMuted">{details}</Text> : null}
-      </View>
+    <View style={{ flex: 1, backgroundColor: c.paper }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space3, paddingBottom: spacing.space6, gap: spacing.space4 }}
+      >
+        <TextButton label="Cancel" onPress={close} style={{ alignSelf: "flex-start", paddingHorizontal: 0 }} />
 
-      {/* The code, filled in from the link, in the same ticket style as the code sheet. */}
+        <Card style={{ alignItems: "center", gap: spacing.space2, paddingVertical: spacing.space6 }}>
+          <Text variant="small" tone="inkMuted">
+            You're invited to
+          </Text>
+          <Text variant="brushM" accessibilityRole="header" style={{ textAlign: "center" }}>
+            {leagueName}
+          </Text>
+          <Text variant="small" tone="inkMuted" style={{ textAlign: "center" }} accessibilityLabel={`Invite code ${code.split("").join(" ")}`}>
+            {`Invite code ${code}`}
+          </Text>
+        </Card>
+
+        {rows.length ? (
+          <Card style={{ padding: 0, overflow: "hidden" }}>
+            {rows.map((r, i) => (
+              <DetailRow key={r.label} label={r.label} value={r.value} last={i === rows.length - 1} />
+            ))}
+          </Card>
+        ) : null}
+
+        {note ? (
+          <Card>
+            <Text>{note}</Text>
+          </Card>
+        ) : null}
+
+        <View style={{ gap: spacing.space2 }}>
+          <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ paddingHorizontal: spacing.space1 }}>
+            You'll join as
+          </Text>
+          <Card style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3 }}>
+            <Avatar name={playerName} uri={photoUrl(profile?.avatarUrl)} size={44} />
+            <View style={{ flex: 1, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.space2 }}>
+              <Text variant="bodyStrong">{playerName}</Text>
+              {profile?.rating != null ? <RatingBadge rating={profile.rating} source={profile.ratingSource ?? "self"} /> : null}
+            </View>
+          </Card>
+          <Text variant="small" tone="inkMuted" style={{ paddingHorizontal: spacing.space1 }}>
+            From your profile. Change it anytime in Profile.
+          </Text>
+        </View>
+      </ScrollView>
+
+      {/* The one button, pinned at the bottom (approved canvas). */}
       <View
-        accessible
-        accessibilityLabel={`Invite code ${code.split("").join(" ")}`}
         style={{
-          minHeight: 64,
-          justifyContent: "center",
           paddingHorizontal: spacing.space4,
-          backgroundColor: c.sand,
-          borderWidth: 1,
-          borderStyle: "dashed",
-          borderColor: c.hairlineStrong,
-          borderRadius: radius.radiusMd,
-          gap: spacing.space1,
+          paddingTop: spacing.space3,
+          paddingBottom: insets.bottom + spacing.space3,
+          gap: spacing.space2,
+          borderTopWidth: 1,
+          borderTopColor: c.hairline,
+          backgroundColor: c.paper,
         }}
       >
-        <Text variant="label" tone="inkMuted">
-          Invite code
-        </Text>
-        <Text
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          maxFontSizeMultiplier={1.5}
-          style={[type.bodyStrong, { fontSize: 22, lineHeight: 28, letterSpacing: 5, fontVariant: ["lining-nums", "tabular-nums"] }]}
-        >
-          {code}
-        </Text>
-      </View>
-
-      {note ? (
-        <Card>
-          <Text>{note}</Text>
-        </Card>
-      ) : null}
-
-      <View style={{ gap: spacing.space3 }}>
         {error ? (
           <Text tone="danger" accessibilityLiveRegion="polite">
             {error}
@@ -302,11 +348,10 @@ export default function JoinLeagueScreen() {
           onPress={() => void join()}
           loading={busy}
           accessibilityHint={
-            action === "request" ? "Sends the organizer a request" : action === "waitlist" ? "Holds a spot for next season" : `Joins ${leagueName}`
+            action === "request" ? "Sends the league admin a request" : action === "waitlist" ? "Holds a spot for next season" : `Joins ${leagueName}`
           }
         />
-        <Button label="Not now" variant="secondary" onPress={close} />
       </View>
-    </Page>
+    </View>
   );
 }

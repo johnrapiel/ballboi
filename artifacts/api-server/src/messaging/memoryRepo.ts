@@ -96,6 +96,12 @@ export class MemoryMessagingRepo implements MessagingRepo {
     return out;
   }
 
+  async blockedByMe(userId: string) {
+    const out = new Set<string>();
+    for (const [x, y] of this.blocks) if (x === userId) out.add(y);
+    return out;
+  }
+
   async restrictedSet(userIds: string[]) {
     return new Set(userIds.filter((id) => this.restricted.has(id)));
   }

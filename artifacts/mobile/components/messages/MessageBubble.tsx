@@ -16,19 +16,17 @@ export interface BubbleProps {
   /** Who sent it, for VoiceOver: "You" or the other player's name. */
   senderName: string;
   status?: BubbleStatus;
-  /** Their messages: report and block, from a long press or VoiceOver actions. */
+  /** Their messages: Report, from a long press or a VoiceOver action. Block is inside Report (finding 20). */
   onReport?: () => void;
-  onBlock?: () => void;
-  /** Long press on their message: the action sheet with the same choices. */
+  /** Long press on their message: the action sheet with Report message. */
   onLongPress?: () => void;
   /** Your failed message: send it again. */
   onRetry?: () => void;
-  blockLabel?: string;
 }
 
 /**
- * One message. VoiceOver reads sender, text and time in one swipe. Report and
- * block are VoiceOver custom actions as well as a long press, and a failed
+ * One message. VoiceOver reads sender, text and time in one swipe. Report is
+ * a VoiceOver custom action as well as a long press, and a failed
  * send says so in words, not just with a red icon.
  */
 export function MessageBubble({
@@ -38,10 +36,8 @@ export function MessageBubble({
   senderName,
   status = "sent",
   onReport,
-  onBlock,
   onLongPress,
   onRetry,
-  blockLabel,
 }: BubbleProps) {
   const c = useColors();
   const failed = status === "failed";
@@ -52,14 +48,10 @@ export function MessageBubble({
     sending ? "Sending" : failed ? "Not sent. Tap to retry" : spokenTime(at),
   ].join(". ");
 
-  const actions = [
-    ...(onReport ? [{ name: "report", label: "Report message" }] : []),
-    ...(onBlock ? [{ name: "block", label: blockLabel ?? "Block" }] : []),
-  ];
+  const actions = onReport ? [{ name: "report", label: "Report message" }] : [];
 
   const onAction = (e: AccessibilityActionEvent) => {
     if (e.nativeEvent.actionName === "report") onReport?.();
-    if (e.nativeEvent.actionName === "block") onBlock?.();
     if (e.nativeEvent.actionName === "activate") onRetry?.();
   };
 

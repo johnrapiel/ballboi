@@ -2,8 +2,8 @@
 // ("Behind Ball Boi's own messaging interface in code, so moving to a
 // self-built backend later is a contained swap, not a rewrite").
 //
-// A provider only moves message text. Every rule (Message Requests, the
-// first-message filter, throttles, blocks, restrictions) lives in
+// A provider only moves message text. Every rule (the first-message
+// filter, throttles, blocks, restrictions) lives in
 // MessagingService, so swapping Stream for something else never touches them.
 
 export interface ProviderMessage {

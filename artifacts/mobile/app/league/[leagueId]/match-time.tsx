@@ -1,8 +1,7 @@
 import * as Haptics from "expo-haptics";
-import { router, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { AccessibilityInfo, Pressable, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AccessibilityInfo } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -14,18 +13,16 @@ import {
 } from "@workspace/api-client-react";
 
 import { MatchTimeFields, hhmm, timeFromHHMM } from "@/components/league/MatchTimeFields";
+import { SheetBody, useSheetClose } from "@/components/Sheet";
 import { Button, Text } from "@/components/ui";
-import { MIN_TAP, spacing } from "@/constants/tokens";
-import { useColors } from "@/hooks/useColors";
 import { zoneSuffix } from "@/lib/leagueSchedule";
 
 // Manage > Match time (PR 4). An admin sets one weekly match day and time for
 // a club league, or turns it off so players pick. Pairings still in review
-// pick it up; rounds already out keep the times they have.
+// pick it up; rounds already out keep the times they have. A bottom sheet:
+// no Cancel, drag down to close, and it asks before discarding a change.
 
 export default function LeagueMatchTimeScreen() {
-  const c = useColors();
-  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { leagueId: raw } = useLocalSearchParams<{ leagueId: string }>();
   const leagueId = Number(raw);
@@ -38,6 +35,12 @@ export default function LeagueMatchTimeScreen() {
   const [day, setDay] = useState(2);
   const [time, setTime] = useState<Date>(() => timeFromHHMM(null));
   const [error, setError] = useState<string | null>(null);
+  const [touched, setTouched] = useState(false);
+  const sheet = useSheetClose(touched && !save.isPending);
+  const edit = <T,>(set: (v: T) => void) => (v: T) => {
+    setTouched(true);
+    set(v);
+  };
 
   // Start from what the league has now.
   useEffect(() => {
@@ -64,7 +67,7 @@ export default function LeagueMatchTimeScreen() {
       ]);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       AccessibilityInfo.announceForAccessibility("Match time saved");
-      router.back();
+      sheet.finish();
     } catch (e) {
       const data = (e as { data?: { error?: string } | null }).data;
       setError(data?.error ?? "Couldn't save the match time. Check your connection and try again.");
@@ -74,26 +77,15 @@ export default function LeagueMatchTimeScreen() {
   const zone = zoneSuffix(league?.timeZone).trim();
 
   return (
-    <ScrollView
-      style={{ backgroundColor: c.linen }}
-      contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space6, gap: spacing.space4 }}
-    >
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Cancel"
-          style={({ pressed }) => ({ minHeight: MIN_TAP, minWidth: MIN_TAP, justifyContent: "center", opacity: pressed ? 0.6 : 1 })}
-        >
-          <Text variant="body">Cancel</Text>
-        </Pressable>
-        <Text variant="bodyStrong" accessibilityRole="header">
-          Match time
-        </Text>
-        <View style={{ minWidth: MIN_TAP }} />
-      </View>
-
-      <MatchTimeFields enabled={enabled} onEnabledChange={setEnabled} day={day} onDayChange={setDay} time={time} onTimeChange={setTime} />
+    <SheetBody title="Match time" close={sheet.close}>
+      <MatchTimeFields
+        enabled={enabled}
+        onEnabledChange={edit(setEnabled)}
+        day={day}
+        onDayChange={edit(setDay)}
+        time={time}
+        onTimeChange={edit(setTime)}
+      />
 
       <Text variant="small" tone="inkMuted">
         {`Applies from the next round. Matches already out keep their times.${zone ? ` Times are in the league's time zone (${zone}).` : ""}`}
@@ -106,6 +98,6 @@ export default function LeagueMatchTimeScreen() {
       ) : null}
 
       <Button label="Save" onPress={onSave} disabled={!league} loading={save.isPending} />
-    </ScrollView>
+    </SheetBody>
   );
 }

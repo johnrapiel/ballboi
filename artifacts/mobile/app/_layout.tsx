@@ -27,6 +27,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { sheetOptions } from "@/components/Sheet";
 import { Button, ScrollScreen, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { accountStatusKey } from "@/hooks/useAccountStatus";
@@ -179,32 +180,11 @@ function RootLayoutNav() {
         <Stack.Screen name="age-check" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="eighteen-plus" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="messages" options={{ ...pushedHeader, title: "Messages" }} />
+        <Stack.Screen name="messages" options={{ ...pushedHeader, title: "" }} />
         <Stack.Screen name="delete-account" options={{ ...pushedHeader, title: "Delete account" }} />
         <Stack.Screen name="settings" options={{ ...pushedHeader, title: "Settings" }} />
-        <Stack.Screen
-          name="league/new"
-          options={{
-            headerShown: true,
-            presentation: "modal",
-            title: "New league",
-            headerShadowVisible: false,
-            headerTintColor: colors.ink,
-            headerStyle: { backgroundColor: colors.paper },
-            headerTitleStyle: { fontFamily: "DMSans_600SemiBold", color: colors.ink },
-          }}
-        />
-        <Stack.Screen
-          name="league/join"
-          options={{
-            headerShown: false,
-            presentation: "formSheet",
-            sheetAllowedDetents: "fitToContents",
-            sheetGrabberVisible: true,
-            sheetCornerRadius: 18,
-            contentStyle: { backgroundColor: colors.linen },
-          }}
-        />
+        <Stack.Screen name="league/new" options={sheetOptions(colors.linen, { fill: true })} />
+        <Stack.Screen name="league/join" options={sheetOptions(colors.linen)} />
         <Stack.Screen
           name="league/invite/[leagueId]"
           options={{
@@ -217,39 +197,9 @@ function RootLayoutNav() {
             headerStyle: { backgroundColor: colors.paper },
           }}
         />
-        <Stack.Screen
-          name="league/[leagueId]/score/[matchId]"
-          options={{
-            headerShown: false,
-            presentation: "formSheet",
-            sheetAllowedDetents: [1.0],
-            sheetGrabberVisible: true,
-            sheetCornerRadius: 18,
-            contentStyle: { backgroundColor: colors.linen },
-          }}
-        />
-        <Stack.Screen
-          name="league/[leagueId]/time/[matchId]"
-          options={{
-            headerShown: false,
-            presentation: "formSheet",
-            sheetAllowedDetents: [1.0],
-            sheetGrabberVisible: true,
-            sheetCornerRadius: 18,
-            contentStyle: { backgroundColor: colors.linen },
-          }}
-        />
-        <Stack.Screen
-          name="league/[leagueId]/match-time"
-          options={{
-            headerShown: false,
-            presentation: "formSheet",
-            sheetAllowedDetents: "fitToContents",
-            sheetGrabberVisible: true,
-            sheetCornerRadius: 18,
-            contentStyle: { backgroundColor: colors.linen },
-          }}
-        />
+        <Stack.Screen name="league/[leagueId]/score/[matchId]" options={sheetOptions(colors.linen)} />
+        <Stack.Screen name="league/[leagueId]/time/[matchId]" options={sheetOptions(colors.linen)} />
+        <Stack.Screen name="league/[leagueId]/match-time" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="league/[leagueId]/manage" options={{ ...pushedHeader, title: "" }} />
         <Stack.Screen name="league/[leagueId]/round/[roundId]" options={{ ...pushedHeader, title: "" }} />
         <Stack.Screen name="league/[leagueId]/scores" options={{ ...pushedHeader, title: "" }} />
@@ -282,18 +232,8 @@ function RootLayoutNav() {
         />
         <Stack.Screen name="join/[code]" options={{ headerShown: false, presentation: "modal" }} />
         <Stack.Screen name="record/invite/[code]" options={{ headerShown: false, presentation: "modal" }} />
-        <Stack.Screen
-          name="record/score/[matchId]"
-          options={{
-            headerShown: true,
-            presentation: "modal",
-            title: "Enter score",
-            headerShadowVisible: false,
-            headerTintColor: colors.ink,
-            headerStyle: { backgroundColor: colors.paper },
-            headerTitleStyle: { fontFamily: "DMSans_600SemiBold", color: colors.ink },
-          }}
-        />
+        <Stack.Screen name="record/score/[matchId]" options={sheetOptions(colors.linen)} />
+        <Stack.Screen name="report/[playerId]" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="replay/[matchId]" options={{ ...pushedHeader, title: "Replay" }} />
       </Stack>
       {covered ? <Cover /> : null}

@@ -1,3 +1,5 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { logger } from "../lib/logger";
 import { moderationRepo } from "./drizzleModeration";
 import { DrizzleMessagingRepo } from "./drizzleRepo";
@@ -11,7 +13,8 @@ import { MessagingService } from "./service";
 let service: MessagingService | null = null;
 /**
  * Picks the provider from MESSAGING_PROVIDER. "memory" (the default) needs no
- * keys and keeps messages until the API restarts.
+ * keys and saves messages to MESSAGING_MEMORY_FILE (a file in the system temp
+ * folder by default), so chats keep their history when the API restarts.
  */
 export function createProvider(env: NodeJS.ProcessEnv = process.env): MessagingProvider {
   const name = env.MESSAGING_PROVIDER ?? "memory";
@@ -23,7 +26,7 @@ export function createProvider(env: NodeJS.ProcessEnv = process.env): MessagingP
   } else if (name !== "memory") {
     logger.warn({ provider: name }, "Unknown MESSAGING_PROVIDER, using memory");
   }
-  return new MemoryMessagingProvider();
+  return new MemoryMessagingProvider({ file: env.MESSAGING_MEMORY_FILE || join(tmpdir(), "ballboi-messages.json") });
 }
 
 export function getMessagingService(): MessagingService {

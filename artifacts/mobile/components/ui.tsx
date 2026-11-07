@@ -100,8 +100,11 @@ export function TextLink({ style, ...rest }: TextLinkProps) {
 
 export interface ButtonProps extends Omit<PressableProps, "children"> {
   label: string;
-  /** primary: ink pill. secondary: outlined pill. destructive: danger pill. */
-  variant?: "primary" | "secondary" | "destructive";
+  /**
+   * primary: ink pill. secondary: outlined pill. destructive: danger pill.
+   * destructiveOutline: danger outline pill, for a quieter red action (Sign out).
+   */
+  variant?: "primary" | "secondary" | "destructive" | "destructiveOutline";
   loading?: boolean;
   /** Spoken by VoiceOver. Defaults to `label`. */
   accessibilityLabel?: string;
@@ -119,7 +122,7 @@ export function Button({
 }: ButtonProps) {
   const c = useColors();
   const fill = variant === "primary" ? c.ink : variant === "destructive" ? c.danger : "transparent";
-  const textColor = variant === "secondary" ? c.ink : c.onInk;
+  const textColor = variant === "secondary" ? c.ink : variant === "destructiveOutline" ? c.danger : c.onInk;
   const inactive = disabled || loading;
   return (
     <Pressable
@@ -136,8 +139,8 @@ export function Button({
           paddingVertical: spacing.space3,
           borderRadius: radius.radiusPill,
           backgroundColor: fill,
-          borderWidth: variant === "secondary" ? 1 : 0,
-          borderColor: c.hairlineStrong,
+          borderWidth: variant === "secondary" || variant === "destructiveOutline" ? 1 : 0,
+          borderColor: variant === "destructiveOutline" ? c.danger : c.hairlineStrong,
           alignItems: "center",
           justifyContent: "center",
           opacity: inactive ? 0.5 : state.pressed ? 0.85 : 1,

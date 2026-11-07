@@ -2541,13 +2541,14 @@ export interface AppealReceipt {
   supportEmail: string;
 }
 
+/**
+ * Always active. Message Requests were removed (Nov 6).
+ */
 export type ConversationViewState =
   (typeof ConversationViewState)[keyof typeof ConversationViewState];
 
 export const ConversationViewState = {
   active: "active",
-  awaiting_reply: "awaiting_reply",
-  request: "request",
 } as const;
 
 export type ConversationViewOther = {
@@ -2564,7 +2565,10 @@ export type ConversationViewLastMessage = {
 
 export interface ConversationView {
   id: number;
+  /** Always active. Message Requests were removed (Nov 6). */
   state: ConversationViewState;
+  /** You blocked the other person. Read only, with Unblock in the app. */
+  blocked: boolean;
   other: ConversationViewOther;
   lastMessage: ConversationViewLastMessage;
   unread: number;
@@ -2585,7 +2589,6 @@ export interface MessageView {
 
 export interface MessagesSummary {
   unread: number;
-  requests: number;
 }
 
 export type ConversationList = MessagesSummary & {
@@ -3023,18 +3026,6 @@ export type DecideAppeal200 = {
 export type GetAdminMe200 = {
   admin: boolean;
 };
-
-export type GetConversationsParams = {
-  box?: GetConversationsBox;
-};
-
-export type GetConversationsBox =
-  (typeof GetConversationsBox)[keyof typeof GetConversationsBox];
-
-export const GetConversationsBox = {
-  messages: "messages",
-  requests: "requests",
-} as const;
 
 export type GetMessageContacts200 = {
   contacts: MessageContact[];

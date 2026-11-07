@@ -67,7 +67,7 @@ export class DrizzleModerationRepo implements ModerationRepo {
     return rows.length > 0;
   }
 
-  /** Restricted, banned or suspended: no new conversations, pending requests hidden. */
+  /** Restricted, banned or suspended: no new conversations. */
   async restrictedSet(subjects: string[]) {
     if (!subjects.length) return new Set<string>();
     const now = new Date();

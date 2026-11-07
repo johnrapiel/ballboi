@@ -5,13 +5,17 @@
 // - "Upload on cellular": Wi-Fi only by default (spec: After the match,
 //   Upload). It's about this phone's data plan, so it's saved on the phone.
 // Both stick after the app closes.
+// Delete account sits at the bottom, in red, and opens the delete flow with
+// its own confirm (Apple 5.1.1(v); finding 21).
 
 import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, View } from "react-native";
 
 import { TRAINING_COPY } from "@/components/record/ConsentScreen";
+import { SettingsRow as ListSettingsRow, SettingsSection } from "@/components/SettingsList";
 import { Toggle } from "@/components/Toggle";
 import { Button, Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
@@ -55,6 +59,7 @@ function SettingRow({
 
 export default function SettingsScreen() {
   const c = useColors();
+  const router = useRouter();
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
   const consent = useRecordingConsent();
@@ -91,9 +96,9 @@ export default function SettingsScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
-      contentContainerStyle={{ padding: spacing.space4, gap: spacing.space4 }}
+      contentContainerStyle={{ padding: spacing.space4, paddingBottom: spacing.space12, gap: spacing.space4 }}
     >
-      <Text variant="label" accessibilityRole="header">
+      <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ paddingHorizontal: spacing.space1 }}>
         Ball Boi
       </Text>
 
@@ -124,6 +129,18 @@ export default function SettingsScreen() {
           onChange={changeCellular}
         />
       ) : null}
+
+      <View style={{ marginTop: spacing.space6 }}>
+        <SettingsSection title="Account">
+          <ListSettingsRow
+            title="Delete account"
+            destructive
+            onPress={() => router.push("/delete-account")}
+            accessibilityHint="Explains what's deleted, then asks you to confirm"
+            last
+          />
+        </SettingsSection>
+      </View>
     </ScrollView>
   );
 }
