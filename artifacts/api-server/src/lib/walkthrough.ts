@@ -47,8 +47,8 @@ export const REPORT_REASONS = ["harassment", "inappropriate_content", "impersona
 
 export type Command =
   | { kind: "help" }
-  | { kind: "seed"; me: string | null }
-  | { kind: "demo"; me: string | null; leagueId: number | null; name: string }
+  | { kind: "seed"; me: string | null; counts: boolean }
+  | { kind: "demo"; me: string | null; leagueId: number | null; name: string; counts: boolean }
   | { kind: "accounts" }
   | { kind: "message"; as: SeededLetter; to: Letter; text: string }
   | { kind: "join"; as: SeededLetter; code: string }
@@ -86,13 +86,15 @@ function flag(args: string[], name: string): string | null {
 export function parseCommand(argv: string[]): Command | { error: string } {
   const [verb, ...rest] = argv;
   if (!verb || verb === "help" || verb === "--help") return { kind: "help" };
-  if (verb === "seed") return { kind: "seed", me: flag(rest, "--me") };
+  // --counts prints only numbers (no names, emails or codes): for the staging seed in GitHub Actions.
+  const counts = rest.includes("--counts");
+  if (verb === "seed") return { kind: "seed", me: flag(rest, "--me"), counts };
   if (verb === "accounts") return { kind: "accounts" };
   if (verb === "demo") {
     const raw = flag(rest, "--league");
     const leagueId = raw === null ? null : Number(raw);
-    if (leagueId !== null && !(Number.isInteger(leagueId) && leagueId > 0)) return { error: 'Usage: demo [--league <id>] [--name "League name"] [--me <email>]' };
-    return { kind: "demo", me: flag(rest, "--me"), leagueId, name: flag(rest, "--name") ?? DEMO_LEAGUE_NAME };
+    if (leagueId !== null && !(Number.isInteger(leagueId) && leagueId > 0)) return { error: 'Usage: demo [--league <id>] [--name "League name"] [--me <email>] [--counts]' };
+    return { kind: "demo", me: flag(rest, "--me"), leagueId, name: flag(rest, "--name") ?? DEMO_LEAGUE_NAME, counts };
   }
 
   if (verb === "time") {
@@ -154,9 +156,11 @@ export const HELP = `Ball Boi walkthrough tools (development only)
 
   pnpm seed:walkthrough                    Reset and create the walkthrough test data
   pnpm walkthrough accounts                List the seeded accounts and how to sign in as them
-  pnpm seed:demo                           Fill "Test League 1" with 12 players and 3 weeks of
-                                           results, plus 25 players and 2 Open leagues nearby
-                                           (--league <id> or --name "..." for another league)
+  pnpm seed:demo                           Test League 1 with 13 players and 3 weeks of results
+                                           (made if you don't have it), a second league you run,
+                                           a past league with playoffs, 31 players and 2 Open
+                                           leagues nearby (--league <id> or --name "..." to fill
+                                           another league; --counts prints numbers only)
 
 Act as B, C or D (needs the API running: pnpm dev)
   pnpm walkthrough as C message A "Hi"     Send a message (starts a conversation if needed)
@@ -173,3 +177,22 @@ Time controls for a league (seeded league by default, or pass a league id)
   pnpm walkthrough pair-now                Draft the next round now, for review in Manage
 
 The same time controls are on the phone: league > Manage > Testing tools.`;
+
+/**
+ * One line about a failure that's safe to print in a shared log: secret
+ * values from the environment, connection strings and email addresses are
+ * replaced. Used for the staging seed in GitHub Actions.
+ */
+export function redact(text: string, env: NodeJS.ProcessEnv = process.env): string {
+  let out = text;
+  for (const key of ["DATABASE_URL", "CLERK_SECRET_KEY", "ADMIN_EMAIL", "S3_SECRET_ACCESS_KEY", "S3_ACCESS_KEY_ID"]) {
+    const value = env[key];
+    if (value && value.length >= 4) out = out.split(value).join(`[${key}]`);
+  }
+  return out
+    .replace(/\b(postgres(?:ql)?|https?):\/\/\S+/gi, "[url]")
+    .replace(/\bsk_(?:test|live)_\w+/g, "[key]")
+    .replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, "[email]")
+    .split("\n")[0]
+    .slice(0, 300);
+}

@@ -42,7 +42,7 @@ export const DEMO_AREAS: Record<string, DemoArea> = {
   "02139": { town: "Cambridge", latitude: 42.36, longitude: -71.1 },
 };
 
-/** 12 players who join Test League 1. Ratings sit around a typical 3.5 rec league. */
+/** 12 players who join Test League 1, so 13 with John. Ratings sit around a typical 3.5 rec league. */
 export const DEMO_LEAGUE_PLAYERS: DemoPerson[] = [
   { firstName: "Maya", lastName: "Chen", rating: 3.5, zip: "12508", hand: "right", bio: "Played in college a while back. Getting the serve back." },
   { firstName: "Marcus", lastName: "Hall", rating: 4.0, zip: "12601", hand: "right", bio: "Big forehand, working on everything else." },
@@ -82,6 +82,15 @@ export const DEMO_NEARBY_PLAYERS: DemoPerson[] = [
   { firstName: "Owen", lastName: "Hughes", rating: 3.0, zip: "12563", hand: "right", bio: null },
   { firstName: "Carmen", lastName: "Diaz", rating: 4.5, zip: "12524", hand: "right", bio: "Competitive singles, any surface." },
   { firstName: "Will", lastName: "Turner", rating: 3.5, zip: "12590", hand: "right", bio: "Dad of two, I play when I can." },
+  { firstName: "Hector", lastName: "Ramirez", rating: 3.0, zip: "12550", hand: "right", bio: "Saturday mornings at Downing Park." },
+  { firstName: "Lily", lastName: "Tran", rating: 4.0, zip: "10516", hand: "left", bio: "Cold Spring lefty. Heavy topspin backhand." },
+  { firstName: "Daniel", lastName: "Okafor", rating: 3.5, zip: "12524", hand: "right", bio: null },
+  { firstName: "Margaret", lastName: "Walsh", rating: 2.5, zip: "12508", hand: "right", bio: "Picked it back up this summer." },
+  { firstName: "Theo", lastName: "Lindqvist", rating: 4.5, zip: "12601", hand: "right", bio: "Ex-junior. Looking for tough singles." },
+  { firstName: "Ava", lastName: "Morales", rating: 3.0, zip: "12553", hand: "right", bio: null },
+  { firstName: "Sean", lastName: "McCarthy", rating: 3.5, zip: "10516", hand: "right", bio: "Weekday evenings at Mayor's Park." },
+  { firstName: "Ines", lastName: "Duarte", rating: 4.0, zip: "12590", hand: "left", bio: null },
+  { firstName: "Paul", lastName: "Greenberg", rating: 5.0, zip: "12561", hand: "right", bio: "Teaching pro. Happy to hit with 4.5+." },
   // Far away: they exist, but shouldn't show up near 12590.
   { firstName: "Isaac", lastName: "Levy", rating: 3.5, zip: "11215", hand: "right", bio: "Prospect Park regular." },
   { firstName: "Tara", lastName: "Quinn", rating: 4.0, zip: "10025", hand: "right", bio: null },
@@ -116,13 +125,52 @@ export const DEMO_OPEN_LEAGUES = [
   },
 ] as const;
 
+/** Public courts in parks around the Hudson Valley. No private addresses. */
 export const DEMO_COURTS = [
   "Memorial Park, Beacon",
   "Spratt Park, Poughkeepsie",
+  "College Hill Park, Poughkeepsie",
   "Brinckerhoff Park, Fishkill",
   "Robinson Lane courts, Wappingers Falls",
+  "Downing Park, Newburgh",
+  "Mayor's Park, Cold Spring",
   "Hyde Park Town courts",
 ];
+
+/**
+ * John's second current league: Open, run by him, full, mid-season, so it
+ * has a waitlist. Members are nearby players (they still show in Discover).
+ */
+export const DEMO_SECOND_LEAGUE = {
+  name: "Dutchess County Singles",
+  location: "Spratt Park, Poughkeepsie",
+  format: "flex",
+  minRating: "3.0",
+  maxRating: "4.5",
+  rosterCap: 10,
+  weeks: 8,
+  playoffSize: 4,
+  /** Today is day 2 of this round. */
+  currentRound: 3,
+  members: ["Grace Adeyemi", "Luis Moreno", "Megan Doyle", "Ryan O'Connor", "Leah Goldberg", "Kenji Watanabe", "Will Turner", "Hector Ramirez", "Ines Duarte"],
+  waitlist: ["Daniel Okafor", "Sean McCarthy", "Ava Morales"],
+} as const;
+
+/** John's past league: ended a few weeks ago, with final standings and a finished top-8 playoff. */
+export const DEMO_PAST_LEAGUE = {
+  name: "Hudson Valley Summer Singles",
+  location: "Downing Park, Newburgh",
+  format: "flex",
+  weeks: 8,
+  playoffSize: 8,
+  /** Days between the final's play-by date and today. */
+  endedDaysAgo: 20,
+  organizer: "Elena Ortiz",
+  members: ["Maya Chen", "Marcus Hall", "Diego Alvarez", "Aisha Mensah", "Ben Russo", "Nate Fischer", "Andre Thomas", "Jamal Wright", "Brianna Scott", "Lily Tran"],
+} as const;
+
+/** Asks to join Test League 1 after its season started: a pending request for John. */
+export const DEMO_JOIN_REQUEST = "Olivia Park";
 
 /** Clerk development instances accept "+clerk_test" emails with code 424242. */
 export function demoEmail(p: Pick<DemoPerson, "firstName" | "lastName">): string {
@@ -183,7 +231,9 @@ export function simulateMatch(rand: () => number, rating1: number, rating2: numb
   let w1 = 0;
   let w2 = 0;
   while (w1 < 2 && w2 < 2) {
-    const p1Wins = rand() < p1;
+    // Momentum: whoever took the first set usually takes the second, so most matches are straight sets.
+    const chance = sets.length === 1 ? (w1 ? Math.min(0.95, p1 + 0.2) : Math.max(0.05, p1 - 0.2)) : p1;
+    const p1Wins = rand() < chance;
     if (w1 === 1 && w2 === 1 && rand() < 0.7) {
       const loser = pick(rand, [3, 4, 5, 6, 7, 8]);
       sets.push(p1Wins ? `10-${loser}` : `${loser}-10`);
@@ -195,6 +245,45 @@ export function simulateMatch(rand: () => number, rating1: number, rating2: numb
     else w2++;
   }
   return { score: sets.join(", "), winnerSide: w1 > w2 ? 1 : 2 };
+}
+
+/**
+ * A match whose winner is already decided (for John's results, so he has wins
+ * and losses): draws until the simulated winner is `side`. Falls back to
+ * flipping the score, which is still a real score.
+ */
+export function simulateMatchWon(rand: () => number, rating1: number, rating2: number, side: 1 | 2): { score: string; winnerSide: 1 | 2 } {
+  for (let i = 0; i < 40; i++) {
+    const m = simulateMatch(rand, rating1, rating2);
+    if (m.winnerSide === side) return m;
+  }
+  const m = simulateMatch(rand, rating1, rating2);
+  return m.winnerSide === side ? m : { score: m.score.split(", ").map(flip).join(", "), winnerSide: side };
+}
+
+/** Scores from the winner's side when the opponent retired; the last set can be unfinished. */
+const RETIREMENTS = ["6-3, 2-1", "4-6, 6-4, 3-0", "6-2, 4-4", "7-5, 1-0"];
+
+/** A retirement (RET) from player 1's side, won by `side`, as the app stores it. */
+export function retirementScore(rand: () => number, side: 1 | 2): string {
+  const winnerView = pick(rand, RETIREMENTS);
+  const sets = side === 1 ? winnerView : winnerView.split(", ").map(flip).join(", ");
+  return `${sets} RET`;
+}
+
+/** Whether a stored score includes a 10-point match tiebreak. */
+export function hasMatchTiebreak(score: string): boolean {
+  return score.split(", ").some((s) => /^\d+-\d+$/.test(s) && Math.max(...s.split("-").map(Number)) >= 10);
+}
+
+/** The season start that puts `today` on the last day (the deadline) of round `round`. */
+export function startForDeadlineDay(today: string, round: number): string {
+  return new Date(Date.parse(`${today}T00:00:00Z`) - (round * 7 - 1) * 86_400_000).toISOString().slice(0, 10);
+}
+
+/** The season start that puts `today` on day `day` (1 to 7) of round `round`. */
+export function startForRoundDay(today: string, round: number, day: number): string {
+  return new Date(Date.parse(`${today}T00:00:00Z`) - ((round - 1) * 7 + day - 1) * 86_400_000).toISOString().slice(0, 10);
 }
 
 /** The season start that keeps the league's weekday and puts `today` in round `round`. */

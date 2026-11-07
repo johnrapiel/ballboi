@@ -1,7 +1,7 @@
 // The walkthrough commands (development only). Entry point: walkthrough.ts.
 
 import { clerkClient } from "@clerk/express";
-import { db, leaguesTable, matchesTable, playersTable } from "@workspace/db";
+import { db, leaguesTable, matchesTable, playersTable, pool } from "@workspace/db";
 import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { devToolsAllowed, type TimeAction } from "../lib/devTime.js";
 import { shortDate } from "../lib/leagueCalendar.js";
@@ -16,7 +16,7 @@ import {
 } from "../lib/walkthrough.js";
 import { applyTimeAction, pairNow } from "../services/devLeagueTime.js";
 import { fullName, idFor, Problem, seed, seededIds, seededLeague } from "./walkthroughData.js";
-import { seedDemo } from "./demoSeed.js";
+import { seedDemo, type DemoSummary } from "./demoSeed.js";
 
 
 // ─── Acting as B, C or D ─────────────────────────────────────────────────────
@@ -155,6 +155,33 @@ async function leagueIdFrom(arg: "seeded" | number): Promise<number> {
   return league.id;
 }
 
+// ─── Seeding ─────────────────────────────────────────────────────────────────
+
+/** The seed only writes rows. If the tables aren't there, stop before touching anything. */
+async function checkTables() {
+  const needed = ["users", "leagues", "players", "matches", "league_rounds", "league_join_requests", "playoff_brackets", "schema_migrations"];
+  const { rows } = await pool.query<{ name: string; found: string | null }>(
+    "SELECT name, to_regclass('public.' || name)::text AS found FROM unnest($1::text[]) AS name",
+    [needed],
+  );
+  const missing = rows.filter((r) => !r.found).map((r) => r.name);
+  if (missing.length) {
+    throw new Problem(`The database is missing tables (${missing.join(", ")}). Set it up first (pnpm db:push locally; on staging, deploy the API). Nothing was changed.`);
+  }
+}
+
+/** Numbers only, for a shared log (the staging seed in GitHub Actions). */
+export function demoCounts(d: DemoSummary): string {
+  return [
+    "Demo data is ready.",
+    `Demo accounts: ${d.leaguePlayers + d.nearby + d.farAway} (${d.accountsCreated} new in Clerk)`,
+    `Test League 1: ${d.league.players} players, ${d.league.played} played, ${d.league.inGrace} in grace week, ${d.league.notPlayed} not played; match today: ${d.johnsMatchToday ? "yes" : "no"}; round ${d.draftRound ?? "-"} draft for review; ${d.joinRequests} join request`,
+    `Second league: ${d.second.players} players, ${d.second.played} played, ${d.second.inGrace} in grace week, ${d.second.notPlayed} not played; match later this week: ${d.johnsMatchLater ? "yes" : "no"}; ${d.second.waitlist} on the waitlist`,
+    `Past league: ${d.past.players} players, ${d.past.played} played, ${d.past.playoffMatches} playoff matches`,
+    `Discover: ${d.nearby} nearby, ${d.farAway} far away; ${d.openLeagues.length} Open leagues starting soon`,
+  ].join("\n");
+}
+
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 /** Runs one walkthrough command. Returns the process exit code. */
@@ -178,7 +205,12 @@ export async function runCommand(argv: string[]): Promise<number> {
       console.log(HELP);
       return 0;
     case "seed": {
+      await checkTables();
       const s = await seed(cmd.me);
+      if (cmd.counts) {
+        console.log(`Walkthrough data is ready: ${SEEDED_LETTERS.length} test accounts, 1 league with 2 players, 1 match today.`);
+        return 0;
+      }
       console.log(`
 Walkthrough data is ready.
 
@@ -200,27 +232,38 @@ Next: pnpm walkthrough help
       return 0;
     }
     case "demo": {
+      await checkTables();
       const d = await seedDemo(cmd);
-      const when = d.johnsMatchToday
-        ? new Date(d.johnsMatchToday.at).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })
-        : "";
+      if (cmd.counts) {
+        console.log(demoCounts(d));
+        return 0;
+      }
+      const time = (at: string) => new Date(at).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" });
+      const day = (at: string) => new Date(at).toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "long" });
+      const rec = (r: { wins: number; losses: number }) => `${r.wins} and ${r.losses}`;
       console.log(`
 Demo data is ready. Pull to refresh in the app.
 
-${d.league.name} (id ${d.league.id})
-  ${d.leaguePlayers} players joined, so 13 with you. Season moved to start ${shortDate(d.league.startDate)} (${d.league.weeks} weeks): today is week 4.
-  Weeks 1 to 3: ${d.completed} matches played, ${d.inGrace} entered late in the grace week, ${d.notPlayed} never played.
-  Your record: ${d.johnRecord.wins} and ${d.johnRecord.losses}.${d.league.inviteCode ? `  Invite code: ${d.league.inviteCode}` : ""}
-${d.johnsMatchToday ? `  Tonight: you vs ${d.johnsMatchToday.opponent}, ${when} at ${d.johnsMatchToday.location}.` : ""}
+${d.league.name} (id ${d.league.id}): Private, you run it
+  ${d.league.players} players with you. Season moved to start ${shortDate(d.league.startDate)} (${d.league.weeks} weeks): today is the last day of week 4.
+  ${d.league.played} matches played, ${d.league.inGrace} entered late in the grace week, ${d.league.notPlayed} never played. Your record: ${rec(d.league.johnRecord)}.
+${d.johnsMatchToday ? `  Tonight: you vs ${d.johnsMatchToday.opponent}, ${time(d.johnsMatchToday.at)} at ${d.johnsMatchToday.location}.\n` : ""}${d.draftRound ? `  Round ${d.draftRound} pairings are waiting for your review in Manage (they go out tomorrow).\n` : ""}  ${d.joinRequests} join request waiting in Manage.${d.league.inviteCode ? `  Invite code: ${d.league.inviteCode}` : ""}
 
-Not in your league
+${d.second.name} (id ${d.second.id}): Open, you run it, full
+  ${d.second.players} players with you, today is week 3. ${d.second.played} played, ${d.second.inGrace} in the grace week, ${d.second.notPlayed} never played. Your record: ${rec(d.second.johnRecord)}.
+${d.johnsMatchLater ? `  ${day(d.johnsMatchLater.at)}: you vs ${d.johnsMatchLater.opponent}, ${time(d.johnsMatchLater.at)} at ${d.johnsMatchLater.location}.\n` : ""}  ${d.second.waitlist} players on the waitlist for next season.
+
+${d.past.name} (id ${d.past.id}): ended
+  ${d.past.players} players, ${d.past.played} matches, your record ${rec(d.past.johnRecord)}${d.past.johnSeed ? `, playoff seed ${d.past.johnSeed}` : ""}. Champion: ${d.past.champion}.
+
+Not in your leagues
   ${d.nearby} players within about 30 miles of 12590, and ${d.farAway} far away (Brooklyn, Manhattan, Cambridge) that Discover should never show you.
   Open leagues starting soon: ${d.openLeagues.join(", ")}.
 
 Sign in as any demo player with Email: ballboi-demo-first-last+clerk_test@example.com, code ${TEST_EMAIL_CODE}
   (for example ballboi-demo-maya-chen+clerk_test@example.com)
 
-Run it again any time to reset to this same data.
+Messages aren't seeded. Run it again any time to reset to this same data.
 `);
       return 0;
     }
