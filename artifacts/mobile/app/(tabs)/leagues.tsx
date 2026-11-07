@@ -1,7 +1,7 @@
 import { useUser } from "@clerk/expo";
 import { useQueries } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -159,7 +159,7 @@ function PastLeagueRow({ league, standing, onPress, last }: { league: League; st
           {sub}
         </Text>
       </View>
-      <SymbolView name="chevron.right" size={14} tintColor={c.inkMuted} />
+      <Icon name="chevron.right" size={14} tintColor={c.inkMuted} />
     </Pressable>
   );
 }

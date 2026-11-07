@@ -1,4 +1,4 @@
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
@@ -45,7 +45,7 @@ export function ResultRow({ r, last, onPress }: { r: LeagueWeekResult; last: boo
           {sub}
         </Text>
       </View>
-      <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} />
+      <Icon name="chevron.right" size={13} tintColor={c.inkMuted} />
     </Pressable>
   );
 }

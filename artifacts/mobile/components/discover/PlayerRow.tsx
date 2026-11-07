@@ -1,4 +1,4 @@
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
@@ -54,7 +54,7 @@ export function PlayerRow({ player, onPress, last }: { player: DiscoverPlayerRow
         </Text>
       </View>
       <View style={{ paddingTop: spacing.space3 }}>
-        <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} />
+        <Icon name="chevron.right" size={13} tintColor={c.inkMuted} />
       </View>
     </Pressable>
   );

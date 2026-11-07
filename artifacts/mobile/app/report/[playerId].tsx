@@ -1,7 +1,7 @@
 import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React, { useState } from "react";
 import { AccessibilityInfo, Alert, Pressable, TextInput, View } from "react-native";
 
@@ -148,7 +148,7 @@ export default function ReportSheet() {
                 {r.label}
               </Text>
               {/* A check, not color, marks the reason picked. */}
-              <View style={{ width: 20, alignItems: "center" }}>{on ? <SymbolView name="checkmark" size={16} tintColor={c.ink} /> : null}</View>
+              <View style={{ width: 20, alignItems: "center" }}>{on ? <Icon name="checkmark" size={16} tintColor={c.ink} /> : null}</View>
             </Pressable>
           );
         })}

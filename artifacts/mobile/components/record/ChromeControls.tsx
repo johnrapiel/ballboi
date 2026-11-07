@@ -1,7 +1,7 @@
 // Controls for the dark camera screen, styled with the Night palette in
 // lib/recording/chrome.ts. Same sizes and roles as the shared components.
 
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
@@ -101,7 +101,7 @@ export function ChromeChoice<T extends string | number>({
                 opacity: pressed ? 0.85 : 1,
               })}
             >
-              {on ? <SymbolView name="checkmark" size={12} tintColor={chrome.onButton} /> : null}
+              {on ? <Icon name="checkmark" size={12} tintColor={chrome.onButton} /> : null}
               <Text variant="bodyStrong" style={{ color: on ? chrome.onButton : chrome.text }}>
                 {o.label}
               </Text>

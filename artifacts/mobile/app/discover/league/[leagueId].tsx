@@ -11,7 +11,7 @@
 // Outside your level is a note, never a stop: the organizer decides.
 
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { SymbolView, type SFSymbol } from "expo-symbols";
+import { Icon, type IconName } from "@/components/Icon";
 import React from "react";
 import { AccessibilityInfo, Alert, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -191,7 +191,7 @@ function rows(l: DiscoverLeague): { label: string; value: string }[] {
   return out;
 }
 
-function Note({ symbol, title, body }: { symbol: SFSymbol; title: string; body: string }) {
+function Note({ symbol, title, body }: { symbol: IconName; title: string; body: string }) {
   const c = useColors();
   return (
     <Card
@@ -199,7 +199,7 @@ function Note({ symbol, title, body }: { symbol: SFSymbol; title: string; body: 
       accessible
       accessibilityLabel={`${title}. ${body}`}
     >
-      <SymbolView name={symbol} size={20} tintColor={c.ink} />
+      <Icon name={symbol} size={20} tintColor={c.ink} />
       <View style={{ flex: 1, gap: spacing.space1 }}>
         <Text variant="bodyStrong">{title}</Text>
         <Text variant="small" tone="inkMuted">

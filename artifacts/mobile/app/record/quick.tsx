@@ -11,7 +11,7 @@
 
 import { useAuth } from "@clerk/expo";
 import { useRouter } from "expo-router";
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Share, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -64,7 +64,7 @@ function OptionRow({
         opacity: pressed ? 0.7 : 1,
       })}
     >
-      <SymbolView name={selected ? "checkmark.circle.fill" : "circle"} size={22} tintColor={c.ink} />
+      <Icon name={selected ? "checkmark.circle.fill" : "circle"} size={22} tintColor={c.ink} />
       <View style={{ flex: 1 }}>
         <Text>{label}</Text>
         {detail ? (
@@ -198,7 +198,7 @@ export default function QuickMatchScreen() {
             accessibilityLabel={DOUBLES_MESSAGE}
             style={{ flexDirection: "row", gap: spacing.space2, alignItems: "flex-start" }}
           >
-            <SymbolView name="info.circle" size={18} tintColor={c.ink} style={{ marginTop: 2 }} />
+            <Icon name="info.circle" size={18} tintColor={c.ink} style={{ marginTop: 2 }} />
             <Text style={{ flex: 1 }}>{DOUBLES_MESSAGE}</Text>
           </Card>
         ) : (

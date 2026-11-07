@@ -1,4 +1,4 @@
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React, { useEffect } from "react";
 import { View } from "react-native";
 
@@ -63,7 +63,7 @@ export function DoublesRecordButton({ matchId, logView = true }: { matchId: numb
         accessibilityLabel={DOUBLES_MESSAGE}
         style={{ flexDirection: "row", gap: spacing.space2, alignItems: "flex-start" }}
       >
-        <SymbolView name="info.circle" size={16} tintColor={c.inkMuted} style={{ marginTop: 3 }} />
+        <Icon name="info.circle" size={16} tintColor={c.inkMuted} style={{ marginTop: 3 }} />
         <Text variant="small" tone="inkMuted" style={{ flex: 1 }}>
           {DOUBLES_MESSAGE}
         </Text>

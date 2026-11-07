@@ -19,9 +19,9 @@ import { deleteLeagueDataFor } from "./leagueAccountDeletion";
 import { deleteMessagingData } from "../messaging/accountDeletion";
 import { ObjectStorageService } from "./objectStorage";
 import { deleteRecordingData } from "./recordingCleanup";
+import { deleteDiscoverData } from "../services/discover/accountDeletion";
 import { sessionFiles } from "./sessionFiles";
 import { withdrawFromRecordings, type WithdrawalInput, type WithdrawnMatch } from "./withdrawal";
-import { deleteDiscoverData } from "../services/discover/accountDeletion";
 
 /**
  * App Store guideline 5.1.1(v): people must be able to delete their account and
