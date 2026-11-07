@@ -284,7 +284,12 @@ export function FirstRunCarousel({
   }, [index, enter, reduceMotion]);
 
   async function next() {
-    if (!canLeave || saving) return;
+    if (saving) return;
+    if (!canLeave) {
+      // A swipe can't get past page 2 either; say why.
+      AccessibilityInfo.announceForAccessibility(RELEASE_BLOCKED);
+      return;
+    }
     setError(null);
     if (page === "choices") {
       setSaving(true);

@@ -40,8 +40,10 @@ import {
   Linking,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -106,6 +108,8 @@ const SHORT_RECORDING_SECONDS = 2 * 60;
 const MIN_PIECE_MS = 1500;
 /** After Resume recording, how long to keep trying while the camera comes back. */
 const RESUME_GIVE_UP_MS = 10_000;
+/** Room the ready screen keeps for the top bar, Record button and a status line, outside its scrolling panels. */
+const READY_RESERVED = 250;
 /** Within this many seconds of the 4-hour cap counts as reaching it. */
 const CAP_SLACK_SECONDS = 5;
 
@@ -142,6 +146,7 @@ interface Piece {
 export default function RecordScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   const params = useLocalSearchParams<{ matchId: string; opponent?: string; league?: string }>();
   const matchId = Number(params.matchId);
   const opponent = params.opponent ?? "your opponent";
@@ -765,6 +770,12 @@ export default function RecordScreen() {
       >
         {phase === "ready" ? (
           <>
+            {/* At the largest text sizes the panels scroll, so Record and Close stay on screen. */}
+            <ScrollView
+              style={{ alignSelf: "stretch", flexGrow: 0, maxHeight: Math.max(160, height - insets.top - insets.bottom - READY_RESERVED) }}
+              contentContainerStyle={{ gap: spacing.space4 }}
+              showsVerticalScrollIndicator
+            >
             <View style={[styles.panel, { backgroundColor: chrome.scrim, alignSelf: "stretch", gap: spacing.space4 }]}>
               <Text style={{ color: chrome.text, textAlign: "center" }}>
                 Mount your phone on the fence behind the baseline, turned sideways, with the whole court in view.
@@ -801,6 +812,7 @@ export default function RecordScreen() {
                 />
               </View>
             </View>
+            </ScrollView>
             {agreementMissing ? (
               <View style={[styles.pill]}>
                 <Text variant="small" style={{ color: chrome.text, textAlign: "center" }}>
