@@ -22,6 +22,13 @@ on:
       - 'lib/api-client-react/**'
       - 'pnpm-lock.yaml'
 
+# Every job uses the repo's Node and pnpm. Without this, the native-change
+# check runs on an older image whose pnpm can't read pnpm-lock.yaml.
+defaults:
+  tools:
+    node: '22'
+    pnpm: '10.34.7'
+
 jobs:
   fingerprint:
     name: Check for native changes
