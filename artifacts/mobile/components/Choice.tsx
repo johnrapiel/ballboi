@@ -81,7 +81,10 @@ export function ChoiceGroup<T extends string | number>({
   );
 }
 
-/** A 44pt round button with an SF Symbol, for a screen's main action in the header. */
+/**
+ * A 44pt round button with an SF Symbol, for in-page headers (TabHeader) and
+ * in-page rows. In the native navigation bar use HeaderIconButton instead.
+ */
 export function IconButton({
   symbol,
   label,
@@ -115,6 +118,45 @@ export function IconButton({
       })}
     >
       <SymbolView name={symbol} size={18} tintColor={c.ink} />
+    </Pressable>
+  );
+}
+
+/**
+ * A plain SF Symbol button for the native navigation bar (headerRight and
+ * headerLeft). It draws no circle, fill or border of its own: on iOS 26 the
+ * system draws the Liquid Glass circle, so ours would show as a second one.
+ * The hit area is still at least 44x44pt.
+ */
+export function HeaderIconButton({
+  symbol,
+  label,
+  hint,
+  onPress,
+}: {
+  symbol: SFSymbol;
+  label: string;
+  /** What happens on tap, read by VoiceOver after the label. */
+  hint?: string;
+  onPress: () => void;
+}) {
+  const c = useColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={hint}
+      hitSlop={4}
+      style={({ pressed }) => ({
+        minWidth: MIN_TAP,
+        minHeight: MIN_TAP,
+        alignItems: "center",
+        justifyContent: "center",
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <SymbolView name={symbol} size={20} tintColor={c.ink} />
     </Pressable>
   );
 }

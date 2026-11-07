@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { IconButton } from "@/components/Choice";
+import { HeaderIconButton, IconButton } from "@/components/Choice";
 import { MessageBubble, type BubbleStatus } from "@/components/messages/MessageBubble";
 import { Button, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
@@ -258,7 +258,7 @@ export default function ConversationScreen() {
           headerTintColor: c.ink,
           headerStyle: { backgroundColor: c.paper },
           headerTitleStyle: { fontFamily: "DMSans_600SemiBold", color: c.ink },
-          headerRight: reportable ? () => <IconButton symbol="ellipsis" label={`More options for ${name}`} onPress={playerMenu} /> : undefined,
+          headerRight: reportable ? () => <HeaderIconButton symbol="ellipsis" label={`More options for ${name}`} onPress={playerMenu} /> : undefined,
         }}
       />
 
