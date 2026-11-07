@@ -240,7 +240,10 @@ describe("match card routes", () => {
     expect(push).toHaveBeenLastCalledWith(["b"], "John says you didn't show", expect.any(String), "/messages");
     const res = await as("b").post("/api/match-plans/1/dispute").expect(200);
     expect(res.body.events.at(-1).type).toBe("no_show_disputed");
-    expect(repo.reports).toHaveLength(1);
+    // Logged against both players, so a pattern from either one shows up for moderators (F12).
+    expect(repo.reports).toHaveLength(2);
+    expect((repo.reports as { subject: string; planId: number }[]).map((r) => r.subject).sort()).toEqual(["a", "b"]);
+    expect(new Set((repo.reports as { planId: number }[]).map((r) => r.planId))).toEqual(new Set([1]));
     await as("b").post("/api/match-plans/1/admit").expect(409);
   });
 

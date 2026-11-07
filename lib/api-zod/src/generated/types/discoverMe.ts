@@ -27,4 +27,6 @@ export interface DiscoverMe {
    * @nullable
    */
   freeSummary: string | null;
+  /** Alerts for new open matches near you, up to 2 a day */
+  matchAlerts: boolean;
 }
