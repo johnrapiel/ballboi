@@ -1,4 +1,4 @@
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
@@ -108,7 +108,7 @@ function YourLeagues({ leagues, onOpen }: { leagues: LeagueWeekLeague[]; onOpen:
                 {leagueLine(l)}
               </Text>
             </View>
-            <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} />
+            <Icon name="chevron.right" size={13} tintColor={c.inkMuted} />
           </Pressable>
         ))}
       </Card>
