@@ -29,13 +29,11 @@ import { chrome } from "@/lib/recording/chrome";
 const MARGIN = 28;
 const HANDLE = MIN_TAP;
 
-// The arrows (arrow.left, arrow.up, arrow.down, arrow.right) have no brush
-// drawings yet, so the buttons show the word until they are drawn.
-const MOVES: { dir: Nudge; word: string; label: string }[] = [
-  { dir: "left", word: "Left", label: "left" },
-  { dir: "up", word: "Up", label: "up" },
-  { dir: "down", word: "Down", label: "down" },
-  { dir: "right", word: "Right", label: "right" },
+const MOVES: { dir: Nudge; symbol: "arrow.up" | "arrow.down" | "arrow.left" | "arrow.right"; label: string }[] = [
+  { dir: "left", symbol: "arrow.left", label: "left" },
+  { dir: "up", symbol: "arrow.up", label: "up" },
+  { dir: "down", symbol: "arrow.down", label: "down" },
+  { dir: "right", symbol: "arrow.right", label: "right" },
 ];
 
 export interface CourtLineFixProps {
@@ -218,9 +216,8 @@ export function CourtLineFix({ still, initial, onDone, onSkip }: CourtLineFixPro
                 onPress={() => move(selected, m.dir)}
                 hitSlop={2}
                 style={({ pressed }) => ({
-                  minWidth: MIN_TAP,
-                  minHeight: MIN_TAP,
-                  paddingHorizontal: spacing.space3,
+                  width: MIN_TAP,
+                  height: MIN_TAP,
                   borderRadius: MIN_TAP / 2,
                   borderWidth: 1,
                   borderColor: chrome.border,
@@ -230,9 +227,7 @@ export function CourtLineFix({ still, initial, onDone, onSkip }: CourtLineFixPro
                   opacity: pressed ? 0.85 : 1,
                 })}
               >
-                <Text variant="small" style={{ color: chrome.text }} importantForAccessibility="no" accessibilityElementsHidden>
-                  {m.word}
-                </Text>
+                <Icon name={m.symbol} size={16} tintColor={chrome.text} />
               </Pressable>
             ))}
           </View>

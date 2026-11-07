@@ -68,13 +68,11 @@ export function CourtLines({
 
 export type CourtStatusText = FrameStatus | "Phone moved" | "Court not locked";
 
-// viewfinder and ellipsis.circle have no brush drawings yet; those two
-// statuses show the words alone until they are drawn.
-const ICON: Record<CourtStatusText, IconName | null> = {
+const ICON: Record<CourtStatusText, IconName> = {
   "Court locked": "checkmark.circle",
-  "Court in frame": null,
+  "Court in frame": "viewfinder",
   "Court not in frame": "exclamationmark.triangle",
-  "Finding the court": null,
+  "Finding the court": "ellipsis.circle",
   "Phone moved": "exclamationmark.triangle",
   "Court not locked": "questionmark.circle",
 };
@@ -99,7 +97,7 @@ export function CourtStatus({ status }: { status: CourtStatusText }) {
         alignSelf: "center",
       }}
     >
-      {ICON[status] ? <Icon name={ICON[status]} size={16} tintColor={chrome.text} /> : null}
+      <Icon name={ICON[status]} size={16} tintColor={chrome.text} />
       <Text variant="bodyStrong" style={{ color: chrome.text, flexShrink: 1 }}>
         {status}
       </Text>
