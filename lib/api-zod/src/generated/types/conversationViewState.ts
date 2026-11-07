@@ -6,11 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Always active. Message Requests were removed (Nov 6).
+ */
 export type ConversationViewState =
   (typeof ConversationViewState)[keyof typeof ConversationViewState];
 
 export const ConversationViewState = {
   active: "active",
-  awaiting_reply: "awaiting_reply",
-  request: "request",
 } as const;

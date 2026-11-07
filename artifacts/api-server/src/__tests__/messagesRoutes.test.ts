@@ -46,7 +46,7 @@ describe("messages routes", () => {
     expect((await supertest(app()).post("/api/messages").send({})).status).toBe(401);
   });
 
-  it("start a request, list it on both sides, and accept it with a reply", async () => {
+  it("send a first message straight to the inbox, with no Message Requests (finding 17)", async () => {
     const start = await supertest(app())
       .post("/api/messages")
       .send({ playerId: 3, text: "Up for a hit?", clientMessageId: "client-0001" });
@@ -55,28 +55,27 @@ describe("messages routes", () => {
     const id = start.body.conversationId as number;
 
     const mine = await supertest(app()).get("/api/messages");
-    expect(mine.body.conversations[0]).toMatchObject({ id, state: "awaiting_reply", canSend: false });
+    expect(mine.body.conversations[0]).toMatchObject({ id, state: "active", canSend: true, blocked: false });
+    expect(mine.body).not.toHaveProperty("requests");
 
-    const blocked = await supertest(app()).post(`/api/messages/${id}/messages`).send({ text: "Hello?", clientMessageId: "client-0002" });
-    expect(blocked.status).toBe(409);
-    expect(blocked.body).toEqual({ error: "You can send more once Casey Fox replies.", code: "awaiting_reply" });
+    // The sender can keep sending without waiting for a reply.
+    const again = await supertest(app()).post(`/api/messages/${id}/messages`).send({ text: "Hello?", clientMessageId: "client-0002" });
+    expect(again.status).toBe(201);
 
     mockUserId = "casey";
-    const requests = await supertest(app()).get("/api/messages?box=requests");
-    // The unread request counts toward the badge until it's opened.
-    expect(requests.body).toMatchObject({ requests: 1, unread: 1 });
-    expect(requests.body.conversations[0]).toMatchObject({ id, state: "request", other: { name: "Alex Kim", playerId: 1 } });
+    // An older app asking for the requests box gets the one inbox.
+    const inbox = await supertest(app()).get("/api/messages?box=requests");
+    expect(inbox.body).toMatchObject({ unread: 2 });
+    expect(inbox.body.conversations[0]).toMatchObject({ id, state: "active", other: { name: "Alex Kim", playerId: 1 } });
 
     const thread = await supertest(app()).get(`/api/messages/${id}`);
     expect(thread.status).toBe(200);
-    expect(thread.body.messages).toHaveLength(1);
+    expect(thread.body.messages).toHaveLength(2);
     expect(thread.body.olderCursor).toBeNull();
-    // Read but not answered: off the badge, still waiting in Message Requests.
-    expect((await supertest(app()).get("/api/messages/summary")).body).toEqual({ unread: 0, requests: 1 });
+    expect((await supertest(app()).get("/api/messages/summary")).body).toEqual({ unread: 0 });
 
     const reply = await supertest(app()).post(`/api/messages/${id}/messages`).send({ text: "Sure", clientMessageId: "client-0003" });
     expect(reply.status).toBe(201);
-    expect((await supertest(app()).get("/api/messages/summary")).body).toEqual({ unread: 0, requests: 0 });
   });
 
   it("return the filter's plain-language reason", async () => {
@@ -88,11 +87,10 @@ describe("messages routes", () => {
     expect(res.body.error).toMatch(/phone numbers/);
   });
 
-  it("let the recipient delete a request", async () => {
+  it("no longer have a way to delete a request", async () => {
     const start = await supertest(app()).post("/api/messages").send({ playerId: 3, text: "Hi", clientMessageId: "client-0001" });
     mockUserId = "casey";
-    expect((await supertest(app()).post(`/api/messages/${start.body.conversationId}/decline`)).status).toBe(204);
-    expect((await supertest(app()).get("/api/messages?box=requests")).body.conversations).toEqual([]);
+    expect((await supertest(app()).post(`/api/messages/${start.body.conversationId}/decline`)).status).toBe(404);
   });
 
   it("hide conversations you're not in", async () => {

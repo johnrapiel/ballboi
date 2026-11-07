@@ -1,17 +1,18 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
-import { ActivityIndicator, Pressable, ScrollView, Share, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useGetLeague, useGetLeagueInvites } from "@workspace/api-client-react";
 
-import { Button, Card, Text } from "@/components/ui";
+import { InviteCard } from "@/components/league/InviteCard";
+import { Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { inviteMessage } from "@/lib/leagueInvite";
 
 // Invite players (spec: Onboarding > Run a league "then a share link";
-// canvas: Admin · Invite players). Shown right after starting a league.
+// approved canvas: Admin · Invite players). Shown right after starting a
+// league: the code with copy and share (finding 11).
 
 export default function InvitePlayersScreen() {
   const c = useColors();
@@ -26,13 +27,6 @@ export default function InvitePlayersScreen() {
   const name = leagueQ.data?.name ?? "your league";
 
   const done = () => router.dismissTo("/(tabs)/leagues");
-
-  async function share() {
-    if (!invite) return;
-    await Share.share({
-      message: inviteMessage(leagueQ.data?.name ?? "my league", invite.code),
-    });
-  }
 
   return (
     <>
@@ -56,38 +50,14 @@ export default function InvitePlayersScreen() {
         style={{ flex: 1, backgroundColor: c.paper }}
         contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space6 }}
       >
-        <View style={{ gap: spacing.space2 }}>
-          <Text variant="label" tone="inkMuted">
-            {name}
-          </Text>
-          <Text variant="displayL" accessibilityRole="header">
+        <View style={{ gap: spacing.space1 }}>
+          <Text variant="brushM" accessibilityRole="header">
             Invite players
           </Text>
-          <Text tone="inkMuted">Your league is ready. Share the code so players can join from the Leagues tab.</Text>
+          <Text tone="inkMuted">{`${name} is ready. Players join with this code or link from the Leagues tab.`}</Text>
         </View>
 
-        <Card style={{ alignItems: "center", gap: spacing.space4, paddingVertical: spacing.space6 }}>
-          <Text variant="label" tone="inkMuted">
-            Invite code
-          </Text>
-          {invitesQ.isLoading ? (
-            <ActivityIndicator color={c.ink} accessibilityLabel="Loading invite code" />
-          ) : invite ? (
-            <Text
-              variant="displayL"
-              selectable
-              accessibilityLabel={`Invite code ${invite.code.split("").join(" ")}`}
-              style={{ letterSpacing: 4, textAlign: "center" }}
-            >
-              {invite.code}
-            </Text>
-          ) : (
-            <Text tone="inkMuted" style={{ textAlign: "center" }}>
-              Couldn't load the invite code. Pull down on Leagues and open the league to try again.
-            </Text>
-          )}
-          <Button label="Share" onPress={share} disabled={!invite} style={{ alignSelf: "stretch" }} />
-        </Card>
+        <InviteCard leagueName={leagueQ.data?.name ?? "my league"} code={invite?.code ?? null} loading={invitesQ.isLoading} onRetry={() => void invitesQ.refetch()} />
       </ScrollView>
     </>
   );

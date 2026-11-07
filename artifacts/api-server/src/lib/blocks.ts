@@ -16,6 +16,15 @@ export async function blockedAccountsFor(clerkUserId: string): Promise<Set<strin
   return new Set([...mine, ...theirs].map((r) => r.id));
 }
 
+/** Accounts this person blocked, one way only (their chats stay visible to them, with Unblock). */
+export async function accountsBlockedBy(clerkUserId: string): Promise<Set<string>> {
+  const rows = await db
+    .select({ id: userBlocksTable.blockedClerkUserId })
+    .from(userBlocksTable)
+    .where(eq(userBlocksTable.blockerClerkUserId, clerkUserId));
+  return new Set(rows.map((r) => r.id));
+}
+
 /** Pair keys ("<lowId>-<highId>") for player pairs where either account blocked the other. */
 export async function blockedPlayerPairs(playerIds: number[]): Promise<Set<string>> {
   const pairs = new Set<string>();

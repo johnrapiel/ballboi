@@ -11,7 +11,10 @@ import type { ConversationViewState } from "./conversationViewState";
 
 export interface ConversationView {
   id: number;
+  /** Always active. Message Requests were removed (Nov 6). */
   state: ConversationViewState;
+  /** You blocked the other person. Read only, with Unblock in the app. */
+  blocked: boolean;
   other: ConversationViewOther;
   lastMessage: ConversationViewLastMessage;
   unread: number;

@@ -4,7 +4,7 @@
 // - seed: resets the walkthrough's test data, then creates accounts B, C and
 //   D, a Private league run by John (A) with B in it, and today's A vs B match.
 // - as B|C|D ...: acts as a seeded account through the running API with a
-//   real Clerk session, so every rule (Message Requests, first-message
+//   real Clerk session, so every rule (first-message
 //   filter, join lock, first score stands) applies exactly as in the app.
 // - time / pair-now: the same dev-only time controls as Manage > Testing tools.
 //

@@ -248,3 +248,13 @@ export function countdownSpoken(seconds: number): string {
   const parts = [m ? `${m} ${m === 1 ? "minute" : "minutes"}` : null, s || !m ? `${s} ${s === 1 ? "second" : "seconds"}` : null];
   return parts.filter(Boolean).join(" ");
 }
+
+/**
+ * The days a match time can be picked in (finding 10): today through the
+ * round's last day, never days already past. Dates are YYYY-MM-DD in the
+ * league's time zone. Null when the whole round is past.
+ */
+export function pickableDays(startDate: string, lastDay: string, today: string): { first: string; last: string } | null {
+  const first = today > startDate ? today : startDate;
+  return first > lastDay ? null : { first, last: lastDay };
+}

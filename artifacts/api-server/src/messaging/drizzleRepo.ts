@@ -1,7 +1,7 @@
 import { clerkClient } from "@clerk/express";
 import { db, dmConversationsTable, playersTable, usersTable, type DmConversation, type DmStatus } from "@workspace/db";
 import { and, eq, gte, inArray, or, sql } from "drizzle-orm";
-import { blockedAccountsFor } from "../lib/blocks";
+import { accountsBlockedBy, blockedAccountsFor } from "../lib/blocks";
 import { moderationRepo } from "./drizzleModeration";
 import type { ConversationPatch, ConversationRecord, MessagingRepo, NewConversation, PersonSummary } from "./repo";
 
@@ -108,6 +108,10 @@ export class DrizzleMessagingRepo implements MessagingRepo {
 
   blockedSetFor(userId: string) {
     return blockedAccountsFor(userId);
+  }
+
+  blockedByMe(userId: string) {
+    return accountsBlockedBy(userId);
   }
 
   restrictedSet(userIds: string[]) {

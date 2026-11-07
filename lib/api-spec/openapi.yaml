@@ -4625,15 +4625,7 @@ paths:
     get:
       operationId: getConversations
       tags: [messages]
-      summary: The inbox or the requests box, with unread and request counts
-      parameters:
-      - name: box
-        in: query
-        required: false
-        schema:
-          type: string
-          enum: [messages, requests]
-          default: messages
+      summary: The inbox, with the unread count. There are no Message Requests (Nov 6); every message lands here.
       responses:
         '200':
           description: Conversations
@@ -4656,7 +4648,7 @@ paths:
     post:
       operationId: startConversation
       tags: [messages]
-      summary: Send a first message to a player. Someone outside your leagues gets it as a request.
+      summary: Send a first message to a player. It goes straight to their inbox; from outside your leagues it can't carry links, emails or phone numbers.
       requestBody:
         required: true
         content:
@@ -4671,7 +4663,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SentMessage'
         '400':
-          description: Text missing or too long, or messaging yourself. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          description: Text missing or too long, or messaging yourself. The error has a code, such as not_found, blocked, restricted or filtered_<reason>.
           content:
             application/json:
               schema:
@@ -4683,25 +4675,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Blocked, or the account is restricted. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          description: Blocked, or the account is restricted. The error has a code, such as not_found, blocked, restricted or filtered_<reason>.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: The player has no account. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '409':
-          description: Waiting for the other person to reply to the request. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          description: The player has no account. The error has a code, such as not_found, blocked, restricted or filtered_<reason>.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '422':
-          description: The first-message filter stopped it. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          description: The first-message filter stopped it. The error has a code, such as not_found, blocked, restricted or filtered_<reason>.
           content:
             application/json:
               schema:
@@ -4716,7 +4702,7 @@ paths:
     get:
       operationId: getMessagesSummary
       tags: [messages]
-      summary: Unread messages and waiting requests, for the badge
+      summary: Unread messages, for the badge
       responses:
         '200':
           description: Counts
@@ -4867,7 +4853,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SentMessage'
         '400':
-          description: Text missing or too long. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          description: Text missing or too long. The error has a code, such as not_found, blocked, restricted or filtered_<reason>.
           content:
             application/json:
               schema:
@@ -4879,63 +4865,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Blocked, or the account is restricted. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          description: Blocked, or the account is restricted. The error has a code, such as not_found, blocked, restricted or filtered_<reason>.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Conversation not available. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '409':
-          description: Waiting for the other person to reply to the request. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          description: Conversation not available. The error has a code, such as not_found, blocked, restricted or filtered_<reason>.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '422':
-          description: The first-message filter stopped it. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '503':
-          description: Messaging isn't available right now
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /messages/{id}/decline:
-    post:
-      operationId: declineMessageRequest
-      tags: [messages]
-      summary: Decline a message request
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
-      responses:
-        '204':
-          description: Declined
-        '400':
-          description: Not a request (code not_request)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Not signed in
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Conversation not available
+          description: The first-message filter stopped it. The error has a code, such as not_found, blocked, restricted or filtered_<reason>.
           content:
             application/json:
               schema:
@@ -4971,7 +4913,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ReportReceipt'
         '400':
-          description: No reason, or your own message. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          description: No reason, or your own message. The error has a code, such as not_found, blocked, restricted or filtered_<reason>.
           content:
             application/json:
               schema:
@@ -4983,7 +4925,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Conversation or message not available. The error has a code, such as not_found, blocked, restricted, awaiting_reply or filtered_<reason>.
+          description: Conversation or message not available. The error has a code, such as not_found, blocked, restricted or filtered_<reason>.
           content:
             application/json:
               schema:
@@ -8499,7 +8441,11 @@ components:
           type: integer
         state:
           type: string
-          enum: [active, awaiting_reply, request]
+          enum: [active]
+          description: Always active. Message Requests were removed (Nov 6).
+        blocked:
+          type: boolean
+          description: You blocked the other person. Read only, with Unblock in the app.
         other:
           type: object
           properties:
@@ -8527,7 +8473,7 @@ components:
         sendBlockedReason:
           type: [string, 'null']
           description: Why the composer is off, in plain words
-      required: [id, state, other, lastMessage, unread, canSend, sendBlockedReason]
+      required: [id, state, blocked, other, lastMessage, unread, canSend, sendBlockedReason]
     MessageView:
       type: object
       properties:
@@ -8545,9 +8491,7 @@ components:
       properties:
         unread:
           type: integer
-        requests:
-          type: integer
-      required: [unread, requests]
+      required: [unread]
     ConversationList:
       allOf:
       - $ref: '#/components/schemas/MessagesSummary'

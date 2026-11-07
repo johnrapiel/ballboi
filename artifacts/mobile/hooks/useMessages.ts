@@ -3,16 +3,19 @@
 // Stream directly. New messages arrive by polling while a screen is open.
 
 import { useAuth } from "@clerk/expo";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiErrorMessage, apiFetch } from "@/lib/api";
 
-export type ConversationState = "active" | "awaiting_reply" | "request";
+/** Always active: there are no Message Requests (finding 17, John, Nov 6). */
+export type ConversationState = "active";
 
 export interface Conversation {
   id: number;
   state: ConversationState;
+  /** You blocked the other person: read only, with Unblock. */
+  blocked: boolean;
   other: { name: string; playerId: number | null };
   lastMessage: { text: string; fromMe: boolean; at: string } | null;
   unread: number;
@@ -28,10 +31,8 @@ export interface Message {
 }
 
 export interface MessagesSummary {
-  /** Unread messages everywhere, Message Requests included. */
+  /** Unread messages everywhere. */
   unread: number;
-  /** Message Requests waiting for a reply, read or not. */
-  requests: number;
 }
 
 export interface Thread {
@@ -81,22 +82,22 @@ function useApi() {
 
 export const messagesKeys = {
   all: ["messages"] as const,
-  list: (box: "messages" | "requests") => ["messages", "list", box] as const,
+  list: ["messages", "list"] as const,
   summary: ["messages", "summary"] as const,
   thread: (id: number) => ["messages", "thread", id] as const,
   contacts: ["messages", "contacts"] as const,
 };
 
-export function useConversations(box: "messages" | "requests") {
+export function useConversations() {
   const call = useApi();
   return useQuery({
-    queryKey: messagesKeys.list(box),
-    queryFn: () => call<{ conversations: Conversation[] } & MessagesSummary>(`/api/messages?box=${box}`),
+    queryKey: messagesKeys.list,
+    queryFn: () => call<{ conversations: Conversation[] } & MessagesSummary>("/api/messages"),
     refetchInterval: 15_000,
   });
 }
 
-/** For the Messages button badge and the Message Requests count. */
+/** For the Messages button badge. */
 export function useMessagesSummary() {
   const call = useApi();
   return useQuery({
@@ -106,7 +107,7 @@ export function useMessagesSummary() {
   });
 }
 
-/** The Messages button's badge: unread messages, Message Requests included. A request you've read stops counting. */
+/** The Messages button's badge: unread messages. */
 export function badgeCount(summary: MessagesSummary | undefined): number {
   return summary?.unread ?? 0;
 }
@@ -226,12 +227,6 @@ export function useMessagesActions() {
         method: "POST",
         body: JSON.stringify({ messageId, reason }),
       }, "We couldn't send your report. Try again."),
-    decline: (conversationId: number) => call<void>(`/api/messages/${conversationId}/decline`, { method: "POST" }),
     addSamples: () => call<void>("/api/dev/messages/samples", { method: "POST" }),
   };
-}
-
-export function useDeclineRequest() {
-  const actions = useMessagesActions();
-  return useMutation({ mutationFn: actions.decline, onSettled: actions.refresh });
 }

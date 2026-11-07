@@ -15,24 +15,28 @@ const SLOP = (MIN_TAP - SEGMENT) / 2;
 /**
  * Tabs within one screen, styled like an iOS segmented control. The selected
  * tab sits on linen in ink; the others are muted. VoiceOver reads it as a
- * selected tab, so the colour is never the only signal.
+ * selected tab (or a checked radio button for a form choice), so the colour
+ * is never the only signal.
  */
 export function SegmentedTabs<T extends string>({
   tabs,
   value,
   onChange,
   label,
+  choice = false,
 }: {
   tabs: { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
   /** What the tabs switch between, for VoiceOver. */
   label: string;
+  /** A form choice (Format, Playoffs) rather than tabs: VoiceOver reads radio buttons. */
+  choice?: boolean;
 }) {
   const c = useColors();
   return (
     <View
-      accessibilityRole="tablist"
+      accessibilityRole={choice ? "radiogroup" : "tablist"}
       accessibilityLabel={label}
       style={{ flexDirection: "row", padding: 2, borderRadius: 9, backgroundColor: c.sand }}
     >
@@ -42,8 +46,8 @@ export function SegmentedTabs<T extends string>({
           <Pressable
             key={t.value}
             onPress={() => onChange(t.value)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
+            accessibilityRole={choice ? "radio" : "tab"}
+            accessibilityState={choice ? { checked: on } : { selected: on }}
             accessibilityLabel={t.label}
             hitSlop={{ top: SLOP, bottom: SLOP }}
             style={({ pressed }) => ({
