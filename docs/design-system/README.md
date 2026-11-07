@@ -1,16 +1,14 @@
-<!-- Snapshot of the Ball Boi design system: https://claude.ai/artifact/XRuxb1uAfy18AQ1irQCkrf (2026-10-29, accessibility pass), updated 2026-11-06 to match the 24 screens John approved in the design refresh audit. Where this snapshot and an approved screen differed, the approved screen won. The live design system should get the same updates; until it does, this snapshot is the newer source. -->
-
 # Ball Boi
 
 Rec leagues, done properly.
 
-Ball Boi is a tennis app with heritage manners. Think Wilson's navy-and-cream restraint, with the hand of a painter: brush ink, a hand-drawn ring, warm paper. Everything is built from the roundel: navy brush ink on warm paper.
+Ball Boi is a tennis app with heritage manners. Think Wilson's navy restraint, with the hand of a painter: brush ink and a hand-drawn ring. Everything is built from the roundel's navy brush ink, set on a clean ivory ground by day and warm charcoal at night.
 
 ## Principles
 
-- **One ink.** Navy does almost everything: text, buttons, rules, the ring, every shape. If a screen looks good in navy and cream alone, it's done.
+- **One ink.** Navy does almost everything: text, buttons, rules, the ring, every shape. If a screen looks good in navy and ivory alone, it's done.
 - **Color is rare.** `court` green appears only when something good or live needs saying. Most screens use none. `danger` appears only for destructive actions and errors.
-- **Paper, not glass.** Warm cream grounds with a faint grain. No gradients, no glassmorphism, no neon.
+- **Clean ground, not glass.** An ivory page with white cards by day, warm charcoal at night, no grain (John, Nov 6). No gradients, no glassmorphism, no neon.
 - **Hand-made, not decorated.** The brush headers, the ring, the painted ball and the roundel carry the brushwork. Never more than one motif per screen.
 - **Hairlines over shadows.** Cards sit on a 1px `hairline` border with a 16px corner (`radius-card`). The Next match card is the one soft card: no border, more padding, everything centred. Only floating things (sheets, menus) and the selected segment of a segmented control get a shadow.
 - **Brush for the page, serif for the moment, sans for the work.** Nanum Brush Script carries page headers, echoing the roundel. Cormorant Garamond carries scores, ranks, records, section headings and card titles. DM Sans carries everything you tap or read in a list.
@@ -35,14 +33,14 @@ The italic display style (`title-italic`) is the quiet flourish. Use it for one 
 | --- | --- |
 | `ink` | Text, primary actions, the ring, the painted ball (the logo's brush) |
 | `ink-muted` | Meta and secondary text |
-| `paper` | Page ground, with grain |
-| `linen` | Cards, sheets, the tab bar |
-| `sand` | Sunken wells, zebra rows, your own row, the segmented control's track (the logo's paper). Never a pill or chip fill |
+| `paper` | Page ground: ivory by day, warm charcoal at night. No grain |
+| `linen` | Cards, sheets, the tab bar: white by day, lifted charcoal at night |
+| `sand` | Light stone: sunken wells, zebra rows, your own row, avatars, the segmented control's track. Never a pill or chip fill |
 | `on-ink` | White on navy: button labels, the app icon's ball |
 | `court` | The one accent. Wins, confirmations, live, links. Sparingly |
 | `danger` | Destructive and errors only |
 
-Night session (dark) inverts to harbor navy with cream ink. Same rules apply. Every text pair clears 4.5:1 in both themes. `court` and `danger` are text-safe on `paper`, `linen` and `sand`.
+Night session (dark) is warm charcoal with ivory ink, the dark match for the ivory Day (John, Nov 6; replaces harbor navy). Navy stays the brand ink in Day. Same rules apply. Every text pair clears 4.5:1 in both themes. `court` and `danger` are text-safe on `paper`, `linen` and `sand`.
 
 Retired in this refresh: `pool` (teal), `clay` (terracotta) and `sun` (yellow). Live matches move to `court`, links and wins to `court`, the focus ring to `ink`. Two exceptions John approved (Nov 5) and kept as rules (Nov 6): Ball Boi Replay and Replay stats keep the original camera court, with the teal court from above, winners in `pool` or `court`, the ball in yellow and errors in `clay`, each with its own shape; and the Rec pill on the recording screen stays clay. Nowhere else uses them.
 
@@ -81,7 +79,7 @@ When iOS Increase Contrast is on, `ink-muted`, `hairline` and `hairline-strong` 
 - **Text styles scale fully** with the user's text size. Layouts reflow; nothing truncates.
 - **Display and brush styles stop at 1.5x**, so headers, heroes and scores never clip.
 - **Bold Text:** every style goes one weight heavier (DM Sans 400 to 600, 600 to 700; Cormorant 500 to 600, 600 to 700).
-- **Night session:** Cormorant goes one weight heavier, because light hairlines thin out on navy.
+- **Night session:** Cormorant goes one weight heavier, because light hairlines thin out on a dark ground.
 - **The brush font has one weight,** so Bold Text and Night session leave it as is. Its strokes are already heavy enough for both.
 
 ## Charts and replay
@@ -103,7 +101,8 @@ Pick one per screen. Brush headers are type, not a motif, so a screen with a bru
 1. **Brush ring.** The logo's hand-drawn circle, wrapped around the single thing that matters: the match winner on a score card (instead of a Won pill), your rank in standings, Champion in the bracket.
 2. **Painted ball.** The app icon's hand-painted ball, in `ink` on paper or `on-ink` on an ink field. One, large, in a hero, the splash or a celebration. Never as a repeating pattern. Its paint fills the selected tab's brush icon (John, Nov 5, kept as a rule Nov 6); that's the only place it appears in color, and the tab bar doesn't count toward a screen's one motif.
 3. **Roundel.** The logo itself, cropped to its circle, in the places listed under Logo. Decorative to VoiceOver.
-4. **Paper grain.** `.bb-grain` on the page ground only. Never on cards.
+
+The paper grain is retired (John, Nov 6): on ivory and charcoal it reads as dirt, not paper. `.bb-grain` stays in the stylesheet as a plain `paper` ground so older screens don't break.
 
 ## Shape and space
 
@@ -113,21 +112,21 @@ Pick one per screen. Brush headers are type, not a motif, so a screen with a bru
 
 ## Iconography
 
-The tab bar uses the custom brush icon set John approved (Nov 5): hand-drawn Home, Leagues, Discover and Profile in `ink-muted`, with the selected tab filled with the painted ball's paint under an `ink` outline. Ball Boi keeps the logo ball. Sources are in `docs/design-system/icons`, and `scripts/design/tab-icons.py` draws the app's Day and Night PNGs from them. Everywhere else: thin 1.5px line icons, round caps, drawn in `ink`. Lucide at stroke-width 1.5 is a good match. No duotone icons, no emoji in UI.
+The tab bar uses the custom brush icon set John approved (Nov 5): hand-drawn Home, Leagues, Discover and Profile in `ink-muted`, with the selected tab filled with the painted ball's paint under an `ink` outline. Ball Boi keeps the logo ball. They're in the Icons group below; the app repo keeps the source SVGs in `docs/design-system/icons` and draws its Day and Night PNGs with `scripts/design/tab-icons.py`. Everywhere else: thin 1.5px line icons, round caps, drawn in `ink`. Lucide at stroke-width 1.5 is a good match. No duotone icons, no emoji in UI.
 
 ## Logo
 
-The roundel (`assets/Logos/ball-boi-roundel.png`) is the wordmark. Show it at 40px minimum, cropped to its circle, on its own textured paper. Do not recolor, outline or place it on photos.
+The roundel is the wordmark. `assets/Logos/ball-boi-roundel.png` is the painted original on paper, for print and marketing. In the app use the transparent traces: `ball-boi-roundel-ink.svg` by day, `ball-boi-roundel-white.svg` at night. Show it at 40px minimum. Do not recolor, outline or place it on photos.
 
 Where it appears:
 - Splash, Welcome, the marketing site and App Store screenshots
-- At 44px in place of the Home tab header's title, left aligned on the row with Messages, with no date or greeting. Ink on paper by day; the paper roundel at night
+- At 44px in place of the Home tab header's title, left aligned on the row with Messages, with no date or greeting. The brushstroke in ink by day; at night the brushstroke alone in white, with no paper fill (John, Nov 6)
 - Player-facing empty states on the main tabs (Leagues, Discover), at 120px in place of the symbol. Not on Home, which already has it in the header
 - Behind the badge in milestone moments (first win, first Ball Boi match, 5- and 10-match win streaks)
 - Stamped on every shareable match recap
 - An About footer at the bottom of Profile
 
-Inside the app it's decorative: the screen's title or text carries the meaning, so VoiceOver skips it. In Night session it keeps its own paper, like a sticker on navy.
+Inside the app it's decorative: the screen's title or text carries the meaning, so VoiceOver skips it. In Night session it drops its paper fill: just the brushstroke, in white.
 
 The app icon (`assets/Logos/ball-boi-app-icon.png`) is the symbol: the hand-painted ball in white (`on-ink`) on an `ink` tile with a faint paper grain. No wordmark in the icon; iOS prints the name beneath it.
 
@@ -136,6 +135,6 @@ The app icon (`assets/Logos/ball-boi-app-icon.png`) is the symbol: the hand-pain
 1. Load the two Google families in `components/bundle.css`.
 2. Replace `pool` with `court`, `clay` with `court` (live) and drop every use of `sun`. The focus ring becomes `ink`.
 3. Replace drop shadows on cards with the `hairline` border.
-4. Add `.bb-grain` to the page body. The cabana awning is retired; delete it.
+4. Set the page body on `paper` with no grain texture. The cabana awning is retired; delete it.
 5. Mark live matches with the filled `court` chip and its dot, and winners with the brush ring.
 6. Standings rank on wins, then head to head between players level on wins, then share of sets won, then share of games won. Tables show rank, player and W–L, with no Pts column.
