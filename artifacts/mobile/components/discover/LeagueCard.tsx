@@ -1,4 +1,4 @@
-import { SymbolView, type SFSymbol } from "expo-symbols";
+import { Icon, type IconName } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
@@ -7,7 +7,7 @@ import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { leagueTagLabel, type DiscoverLeagueCard, type LeagueTag } from "@/lib/discover";
 
-const TAG_SYMBOL: Record<LeagueTag, SFSymbol> = {
+const TAG_SYMBOL: Record<LeagueTag, IconName> = {
   outside_level: "arrow.up.arrow.down",
   full: "person.3.fill",
   started: "calendar.badge.clock",
@@ -32,7 +32,7 @@ export function LeagueTagPill({ tag }: { tag: LeagueTag }) {
         alignSelf: "flex-start",
       }}
     >
-      <SymbolView name={TAG_SYMBOL[tag]} size={12} tintColor={c.ink} />
+      <Icon name={TAG_SYMBOL[tag]} size={12} tintColor={c.ink} />
       <Text variant="pill">{leagueTagLabel(tag)}</Text>
     </View>
   );
@@ -66,7 +66,7 @@ export function LeagueCard({ league, onPress }: { league: DiscoverLeagueCard; on
             {league.status}
           </Text>
           <View style={{ position: "absolute", right: spacing.space4, top: spacing.space4 }} pointerEvents="none">
-            <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} />
+            <Icon name="chevron.right" size={13} tintColor={c.inkMuted} />
           </View>
         </Card>
       )}

@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -37,7 +37,7 @@ export function MessagesButton({ unread = 0 }: { unread?: number }) {
         opacity: pressed ? 0.7 : 1,
       })}
     >
-      <SymbolView name="message" size={20} tintColor={c.ink} />
+      <Icon name="message" size={20} tintColor={c.ink} />
       {unread > 0 && (
         <View
           importantForAccessibility="no-hide-descendants"

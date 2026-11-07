@@ -11,10 +11,10 @@
 import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { useLocalSearchParams } from "expo-router";
-import { SymbolView } from "expo-symbols";
 import React, { useState } from "react";
 import { AccessibilityInfo, Alert, PixelRatio, Platform, Pressable, View, useWindowDimensions } from "react-native";
 
+import { Icon } from "@/components/Icon";
 import { SheetBody, useSheetClose } from "@/components/Sheet";
 import { Button, Card, Field, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
@@ -114,7 +114,7 @@ export default function FeedbackSheet() {
               </Text>
               {/* A check, not color, marks the pick. */}
               <View style={{ width: 20, alignItems: "center" }}>
-                {on ? <SymbolView name="checkmark" size={16} tintColor={c.ink} /> : null}
+                {on ? <Icon name="checkmark" size={16} tintColor={c.ink} /> : null}
               </View>
             </Pressable>
           );

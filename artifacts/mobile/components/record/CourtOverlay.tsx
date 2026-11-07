@@ -2,11 +2,11 @@
 // drawn over the preview, and a status line that says in words whether the
 // court is in frame (G1: never color alone).
 
-import { SymbolView } from "expo-symbols";
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import Svg, { Line } from "react-native-svg";
 
+import { Icon, type IconName } from "@/components/Icon";
 import { Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import type { FrameStatus } from "@/lib/court/aim";
@@ -68,11 +68,13 @@ export function CourtLines({
 
 export type CourtStatusText = FrameStatus | "Phone moved" | "Court not locked";
 
-const ICON: Record<CourtStatusText, "checkmark.circle" | "viewfinder" | "exclamationmark.triangle" | "ellipsis.circle" | "questionmark.circle"> = {
+// viewfinder and ellipsis.circle have no brush drawings yet; those two
+// statuses show the words alone until they are drawn.
+const ICON: Record<CourtStatusText, IconName | null> = {
   "Court locked": "checkmark.circle",
-  "Court in frame": "viewfinder",
+  "Court in frame": null,
   "Court not in frame": "exclamationmark.triangle",
-  "Finding the court": "ellipsis.circle",
+  "Finding the court": null,
   "Phone moved": "exclamationmark.triangle",
   "Court not locked": "questionmark.circle",
 };
@@ -97,7 +99,7 @@ export function CourtStatus({ status }: { status: CourtStatusText }) {
         alignSelf: "center",
       }}
     >
-      <SymbolView name={ICON[status]} size={16} tintColor={chrome.text} />
+      {ICON[status] ? <Icon name={ICON[status]} size={16} tintColor={chrome.text} /> : null}
       <Text variant="bodyStrong" style={{ color: chrome.text, flexShrink: 1 }}>
         {status}
       </Text>
