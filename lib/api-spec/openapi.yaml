@@ -10,6 +10,8 @@ servers:
 tags:
   - name: dev
     description: Development-only walkthrough tools. Not available in production.
+  - name: discover
+    description: Players near you, Open leagues, Open matches and the court directory
   - name: health
     description: Health operations
   - name: leagues
@@ -46,6 +48,503 @@ tags:
     description: Profile photo uploads and loads
 
 paths:
+  /courts:
+    get:
+      operationId: listCourts
+      tags: [discover]
+      summary: The court directory, nearest first, searchable
+      parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 60
+      responses:
+        '200':
+          description: Courts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourtList'
+        '500':
+          description: Couldn't load courts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      operationId: addCourt
+      tags: [discover]
+      summary: Add a missing court with a name and an address (the address needs its ZIP). The same name in the same ZIP returns the court that's there.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewCourtInput'
+      responses:
+        '200':
+          description: Already in the directory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddedCourt'
+        '201':
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddedCourt'
+        '400':
+          description: A name or address we can't use
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many courts added today
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /courts/home:
+    get:
+      operationId: getHomeCourt
+      tags: [discover]
+      summary: Your home court
+      responses:
+        '200':
+          description: Your home court, or null
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HomeCourt'
+    put:
+      operationId: setHomeCourt
+      tags: [discover]
+      summary: Set or clear your home court
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HomeCourtInput'
+      responses:
+        '200':
+          description: Your home court, or null
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HomeCourt'
+        '404':
+          description: Not in the directory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /dev/match-plans/{id}/shift:
+    post:
+      operationId: shiftMatchPlan
+      tags: [discover]
+      summary: Dev only, move a match card's times earlier by some hours to try the day-before and after-match steps now
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchPlanShiftInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchPlan'
+        '409':
+          description: Not possible now (the reason is in error)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /match-plans:
+    post:
+      operationId: sendMatchPlan
+      tags: [discover]
+      summary: Send a match card in a chat (a newer card replaces an older one still waiting)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewMatchPlanInput'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchPlan'
+        '409':
+          description: Not possible now (the reason is in error)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /match-plans/upcoming:
+    get:
+      operationId: listUpcomingMatchPlans
+      tags: [discover]
+      summary: Your added Discover matches still to play, for Home and My matches
+      responses:
+        '200':
+          description: Matches
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpcomingMatchPlans'
+  /match-plans/with/{userId}:
+    get:
+      operationId: getMatchPlansWithUser
+      tags: [discover]
+      summary: The match cards in your chat with a player, and what you can do with each
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Cards
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchPlansWithUser'
+        '404':
+          description: No such player
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /match-plans/{id}/{command}:
+    post:
+      operationId: actOnMatchPlan
+      tags: [discover]
+      summary: "Answer a match card: accept, decline, undo, still-on, cancel, not-played, no-show, dispute or admit"
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: command
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchPlan'
+        '409':
+          description: Not possible now (the reason is in error)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/area:
+    put:
+      operationId: setDiscoverArea
+      tags: [discover]
+      summary: Change your home ZIP from Discover. Also updates your profile's home area.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscoverAreaInput'
+      responses:
+        '200':
+          description: Your Discover settings with the new area
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverMe'
+        '400':
+          description: "We couldn't find that ZIP"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/availability:
+    put:
+      operationId: saveDiscoverAvailability
+      tags: [discover]
+      summary: Save the "When you can play" grid (a Monday to Sunday week of hours)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscoverAvailabilityInput'
+      responses:
+        '200':
+          description: Your Discover settings with the new hours
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverMe'
+        '400':
+          description: An hour outside the grid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/leagues:
+    get:
+      operationId: listDiscoverLeagues
+      tags: [discover]
+      summary: Open leagues near you, nearest first, with a count for each distance chip
+      parameters:
+      - name: radius
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 30
+      responses:
+        '200':
+          description: Open leagues near you
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverLeagues'
+        '500':
+          description: Couldn't load leagues
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/leagues/{leagueId}:
+    get:
+      operationId: getDiscoverLeague
+      tags: [discover]
+      summary: An Open league's Discover page, and where you stand with it
+      parameters:
+      - name: leagueId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: The league
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverLeague'
+        '404':
+          description: Not an Open league any more
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/me:
+    get:
+      operationId: getDiscoverMe
+      tags: [discover]
+      summary: Your area, hidden profile, plays, last distance and hours, for Discover
+      responses:
+        '200':
+          description: Your Discover settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverMe'
+        '404':
+          description: No profile yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/players:
+    get:
+      operationId: listDiscoverPlayers
+      tags: [discover]
+      summary: Players near you, nearest first, with a count for each distance chip
+      description: >-
+        Never you, hidden players, anyone blocked either way, or banned and
+        suspended accounts. Distances are approximate whole miles between home
+        ZIP centers. The app saves a distance you pick with PUT /discover/settings.
+      parameters:
+      - name: radius
+        in: query
+        required: false
+        description: Miles, 1 to 30. Defaults to your last distance.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 30
+      - name: level
+        in: query
+        required: false
+        description: close (within 0.5), wider (within 1.0) or any
+        schema:
+          type: string
+          enum: [close, wider, any]
+      - name: plays
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [singles, doubles, either]
+      - name: free
+        in: query
+        required: false
+        description: '"1" keeps players whose hours overlap yours. Ignored until you set times.'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Players near you
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverPlayers'
+        '500':
+          description: Couldn't load players
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/players/{userId}:
+    get:
+      operationId: getDiscoverPlayer
+      tags: [discover]
+      summary: A player card from Discover
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: The player card
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverPlayerCard'
+        '404':
+          description: Not in Discover for you (hidden, blocked, or gone)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/players/{userId}/block:
+    post:
+      operationId: blockDiscoverPlayer
+      tags: [discover]
+      summary: Block a player by user id ("Also block" on a message report from a player with no league player record)
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          description: Blocked
+        '404':
+          description: No such player, or yourself
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      operationId: unblockDiscoverPlayer
+      tags: [discover]
+      summary: Unblock a player by user id, from a blocked chat
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          description: Unblocked (or wasn't blocked)
+  /discover/players/{userId}/report:
+    post:
+      operationId: reportDiscoverPlayer
+      tags: [discover]
+      summary: Report a player by user id, and optionally block them in the same step (F3, F9)
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscoverReportInput'
+      responses:
+        '201':
+          description: Report filed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverReportResult'
+        '400':
+          description: No reason, or Something else without a note
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No such player, or yourself
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /discover/settings:
+    put:
+      operationId: saveDiscoverSettings
+      tags: [discover]
+      summary: Show me in Discover, what you play, and your last distance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscoverSettingsInput'
+      responses:
+        '200':
+          description: Your Discover settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverMe'
+        '400':
+          description: A value that isn't allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /healthz:
     get:
       operationId: healthCheck
@@ -4795,6 +5294,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /messages/with-user/{userId}:
+    get:
+      operationId: getConversationWithUser
+      tags: [messages]
+      summary: The conversation with a Discover player (by user id), if there is one
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Conversation id or null
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversationId:
+                    type: [integer, 'null']
+                required: [conversationId]
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /messages/with-player/{playerId}:
     get:
       operationId: getConversationWithPlayer
@@ -5621,6 +6148,458 @@ components:
       schema:
         type: integer
   schemas:
+    AddedCourt:
+      allOf:
+      - $ref: '#/components/schemas/CourtCard'
+      - type: object
+        properties:
+          existing:
+            type: boolean
+            description: The court was already in the directory
+        required: [existing]
+    CourtCard:
+      type: object
+      properties:
+        courtId:
+          type: integer
+        name:
+          type: string
+        address:
+          type: string
+        distance:
+          type: [string, 'null']
+          description: '"~3 mi", or null with no home area'
+      required: [courtId, name, address, distance]
+    CourtList:
+      type: object
+      properties:
+        courts:
+          type: array
+          items:
+            $ref: '#/components/schemas/CourtCard'
+        homeCourtId:
+          type: [integer, 'null']
+      required: [courts, homeCourtId]
+    DiscoverArea:
+      type: object
+      description: Your home ZIP and its town. Others only ever see the town and an approximate distance.
+      properties:
+        zip:
+          type: string
+        town:
+          type: string
+        state:
+          type: string
+      required: [zip, town, state]
+    DiscoverAreaInput:
+      type: object
+      properties:
+        zip:
+          type: string
+          description: Five digits
+      required: [zip]
+    DiscoverAvailabilityInput:
+      type: object
+      properties:
+        slots:
+          type: array
+          description: Free hours, each day * 24 + hour. Monday is day 0; hours 6 (6 AM) to 21 (9 PM).
+          items:
+            type: integer
+      required: [slots]
+    DiscoverLeague:
+      type: object
+      properties:
+        leagueId:
+          type: integer
+        name:
+          type: string
+        organizerName:
+          type: string
+        location:
+          type: [string, 'null']
+        distance:
+          type: [string, 'null']
+        format:
+          type: string
+        type:
+          type: string
+        levelText:
+          type: string
+        outsideLevel:
+          type: boolean
+        myRating:
+          type: [number, 'null']
+        startDate:
+          type: [string, 'null']
+        startLabel:
+          type: [string, 'null']
+        seasonWeeks:
+          type: [integer, 'null']
+        started:
+          type: boolean
+        full:
+          type: boolean
+        rosterCap:
+          type: [integer, 'null']
+        spotsTaken:
+          type: integer
+        spotsLeft:
+          type: [integer, 'null']
+        joining:
+          type: string
+          enum: [request, waitlist]
+        myRequest:
+          $ref: '#/components/schemas/DiscoverLeagueRequest'
+        member:
+          type: boolean
+      required: [leagueId, name, organizerName, location, distance, format, type, levelText, outsideLevel, myRating, startDate, startLabel, seasonWeeks, started, full, rosterCap, spotsTaken, spotsLeft, joining, myRequest, member]
+    DiscoverLeagueCard:
+      type: object
+      properties:
+        leagueId:
+          type: integer
+        name:
+          type: string
+        detail:
+          type: string
+        status:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+            enum: [outside_level, full, started]
+        joining:
+          type: string
+          enum: [request, waitlist]
+        myRequest:
+          $ref: '#/components/schemas/DiscoverLeagueRequest'
+        spoken:
+          type: string
+      required: [leagueId, name, detail, status, tags, joining, myRequest, spoken]
+    DiscoverLeagueRequest:
+      oneOf:
+      - type: object
+        properties:
+          kind:
+            type: string
+            enum: [request, waitlist]
+          status:
+            type: string
+            enum: [pending, declined]
+        required: [kind, status]
+      - type: 'null'
+    DiscoverLeagues:
+      type: object
+      properties:
+        leagues:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiscoverLeagueCard'
+        counts:
+          type: array
+          items:
+            type: object
+            properties:
+              radius:
+                type: integer
+              count:
+                type: integer
+            required: [radius, count]
+        radius:
+          type: integer
+        total:
+          type: integer
+        needsArea:
+          type: boolean
+      required: [leagues, counts, radius, total, needsArea]
+    DiscoverMe:
+      type: object
+      properties:
+        area:
+          oneOf:
+          - $ref: '#/components/schemas/DiscoverArea'
+          - type: 'null'
+        homeZip:
+          type: [string, 'null']
+        hidden:
+          type: boolean
+          description: Show me in Discover is off
+        plays:
+          type: [string, 'null']
+          enum: [singles, doubles, both, null]
+        radius:
+          type: integer
+          description: Last distance picked, 1 to 30 miles
+        rating:
+          type: [number, 'null']
+        slots:
+          type: array
+          items:
+            type: integer
+        hoursFree:
+          type: integer
+        freeSummary:
+          type: [string, 'null']
+          description: '"Weekday evenings, weekend mornings", or null with no hours set'
+      required: [area, homeZip, hidden, plays, radius, rating, slots, hoursFree, freeSummary]
+    DiscoverPlayerCard:
+      type: object
+      properties:
+        userId:
+          type: integer
+        name:
+          type: string
+        avatarUrl:
+          type: [string, 'null']
+        rating:
+          type: [number, 'null']
+        ratingSource:
+          type: [string, 'null']
+        town:
+          type: [string, 'null']
+        distance:
+          type: [string, 'null']
+          description: '"~4 mi away"'
+        plays:
+          type: [string, 'null']
+          enum: [singles, doubles, both, null]
+        freeSummary:
+          type: [string, 'null']
+        homeCourt:
+          type: [string, 'null']
+        played:
+          type: integer
+        noShows:
+          type: integer
+        wins:
+          type: integer
+        losses:
+          type: integer
+      required: [userId, name, avatarUrl, rating, ratingSource, town, distance, plays, freeSummary, homeCourt, played, noShows, wins, losses]
+    DiscoverPlayerRow:
+      type: object
+      properties:
+        userId:
+          type: integer
+        name:
+          type: string
+        avatarUrl:
+          type: [string, 'null']
+        rating:
+          type: [number, 'null']
+        ratingSource:
+          type: [string, 'null']
+        distance:
+          type: string
+          description: '"~4 mi"'
+        plays:
+          type: [string, 'null']
+          enum: [singles, doubles, both, null]
+        played:
+          type: integer
+        noShows:
+          type: integer
+        reliability:
+          type: string
+          description: '"Played 14 · 1 no-show" or "New to Ball Boi"'
+        spoken:
+          type: string
+          description: The whole row in one line for VoiceOver
+      required: [userId, name, avatarUrl, rating, ratingSource, distance, plays, played, noShows, reliability, spoken]
+    DiscoverPlayers:
+      type: object
+      properties:
+        players:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiscoverPlayerRow'
+        counts:
+          type: array
+          description: Players at each distance chip (5, 10, 15, 30 and a custom distance), with the other filters as they are
+          items:
+            type: object
+            properties:
+              radius:
+                type: integer
+              count:
+                type: integer
+            required: [radius, count]
+        radius:
+          type: integer
+        total:
+          type: integer
+        needsArea:
+          type: boolean
+          description: You have no home ZIP Discover can place yet
+      required: [players, counts, radius, total, needsArea]
+    DiscoverReportInput:
+      type: object
+      properties:
+        reason:
+          type: string
+          enum: [harassment, inappropriate_content, spam, cheating, unsafe, other]
+        details:
+          type: [string, 'null']
+          description: Required for other ("Tell us what happened")
+        block:
+          type: boolean
+          description: Also block them
+      required: [reason]
+    DiscoverReportResult:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+        blocked:
+          type: boolean
+      required: [id, status, blocked]
+    DiscoverSettingsInput:
+      type: object
+      properties:
+        hidden:
+          type: boolean
+        plays:
+          type: [string, 'null']
+          enum: [singles, doubles, both, null]
+        radius:
+          type: integer
+          minimum: 1
+          maximum: 30
+    HomeCourt:
+      type: object
+      properties:
+        court:
+          oneOf:
+          - $ref: '#/components/schemas/CourtCard'
+          - type: 'null'
+      required: [court]
+    HomeCourtInput:
+      type: object
+      properties:
+        courtId:
+          type: [integer, 'null']
+      required: [courtId]
+    MatchPlan:
+      type: object
+      properties:
+        id:
+          type: integer
+        startsAt:
+          type: string
+        timeZone:
+          type: string
+        courtName:
+          type: [string, 'null']
+        kind:
+          type: string
+          enum: [singles, practice]
+        matchId:
+          type: [integer, 'null']
+        score:
+          type: [string, 'null']
+        mine:
+          type: boolean
+          description: You sent this card
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchPlanEvent'
+      required: [id, startsAt, timeZone, courtName, kind, matchId, score, mine, events]
+    MatchPlanEvent:
+      type: object
+      properties:
+        key:
+          type: string
+        type:
+          type: string
+          enum: [proposed, added, undone, declined, day_before, canceled, did_it_happen, not_played, no_show_reported, no_show_disputed, no_show_confirmed, scored]
+        at:
+          type: string
+        by:
+          type: [string, 'null']
+          enum: [me, them, null]
+        actions:
+          type: array
+          items:
+            type: string
+            enum: [accept, decline, undo, still_on, cancel, score, no_show, not_played, dispute, admit]
+        state:
+          type: string
+        meIn:
+          type: boolean
+        themIn:
+          type: boolean
+        about:
+          type: string
+          enum: [me, them]
+        deadline:
+          type: string
+      required: [key, type, at, by, actions]
+    MatchPlanShiftInput:
+      type: object
+      properties:
+        hours:
+          type: number
+      required: [hours]
+    MatchPlansWithUser:
+      type: object
+      properties:
+        otherName:
+          type: string
+        blocked:
+          type: boolean
+        devTools:
+          type: boolean
+        plans:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchPlan'
+      required: [otherName, blocked, devTools, plans]
+    NewMatchPlanInput:
+      type: object
+      properties:
+        userId:
+          type: integer
+        startsAt:
+          type: string
+          description: ISO 8601, in the future, within 60 days
+        timeZone:
+          type: string
+        courtId:
+          type: [integer, 'null']
+        kind:
+          type: string
+          enum: [singles, practice]
+      required: [userId, startsAt]
+    UpcomingMatchPlans:
+      type: object
+      properties:
+        matches:
+          type: array
+          items:
+            allOf:
+            - $ref: '#/components/schemas/MatchPlan'
+            - type: object
+              properties:
+                otherName:
+                  type: string
+                otherUserId:
+                  type: [integer, 'null']
+              required: [otherName, otherUserId]
+      required: [matches]
+    NewCourtInput:
+      type: object
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+          description: Street, town and the 5-digit ZIP
+      required: [name, address]
     LeagueMembership:
       type: object
       properties:
@@ -6385,6 +7364,9 @@ components:
         status:
           type: string
           enum: [pending, approved, declined, withdrawn]
+        note:
+          type: ["string", "null"]
+          description: The asker's optional note to the organizer
         createdAt:
           type: string
         message:
@@ -7673,6 +8655,9 @@ components:
           type: string
         skillLevel:
           type: ["string", "null"]
+        note:
+          type: ["string", "null"]
+          description: Optional note to the organizer with a request from Discover, up to 300 characters
       required:
         - playerName
 
@@ -8300,7 +9285,7 @@ components:
           maxLength: 100
         reason:
           type: string
-          enum: [harassment, inappropriate_content, impersonation, spam, cheating, other]
+          enum: [harassment, inappropriate_content, spam, cheating, unsafe, other, impersonation, no_show_dispute]
         details:
           type: [string, 'null']
           description: Kept to 1000 characters
@@ -8630,6 +9615,9 @@ components:
               type: string
             playerId:
               type: [integer, 'null']
+            userId:
+              type: [integer, 'null']
+              description: Their users.id, for report and block when they have no player record (a Discover player)
           required: [name, playerId]
         lastMessage:
           oneOf:
@@ -8709,14 +9697,17 @@ components:
       required: [name, playerId]
     NewConversationInput:
       type: object
+      description: Send playerId (a league player) or userId (a Discover player, who may be in no league).
       properties:
         playerId:
+          type: integer
+        userId:
           type: integer
         text:
           type: string
         clientMessageId:
           type: string
-      required: [playerId, text]
+      required: [text]
     NewMessageInput:
       type: object
       properties:
@@ -8733,7 +9724,7 @@ components:
           type: string
         reason:
           type: string
-          enum: [harassment, inappropriate_content, impersonation, spam, cheating, other]
+          enum: [harassment, inappropriate_content, spam, cheating, unsafe, other, impersonation, no_show_dispute]
         details:
           type: [string, 'null']
       required: [messageId, reason]

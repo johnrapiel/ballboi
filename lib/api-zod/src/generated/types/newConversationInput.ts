@@ -6,8 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Send playerId (a league player) or userId (a Discover player, who may be in no league).
+ */
 export interface NewConversationInput {
-  playerId: number;
+  playerId?: number;
+  userId?: number;
   text: string;
   clientMessageId?: string;
 }

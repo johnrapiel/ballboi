@@ -1,4 +1,4 @@
-import { SymbolView, type SFSymbol } from "expo-symbols";
+import { Icon, type IconName } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
@@ -64,7 +64,7 @@ export function ChoiceGroup<T extends string | number>({
                 opacity: pressed ? 0.8 : 1,
               })}
             >
-              {on ? <SymbolView name="checkmark" size={12} tintColor={c.onInk} /> : null}
+              {on ? <Icon name="checkmark" size={12} tintColor={c.onInk} /> : null}
               <Text variant="bodyStrong" tone={on ? "onInk" : "ink"}>
                 {o.label}
               </Text>
@@ -81,14 +81,14 @@ export function ChoiceGroup<T extends string | number>({
   );
 }
 
-/** A 44pt round button with an SF Symbol, for a screen's main action in the header. */
+/** A 44pt round button with a brush icon, for a screen's main action in the header. */
 export function IconButton({
   symbol,
   label,
   hint,
   onPress,
 }: {
-  symbol: SFSymbol;
+  symbol: IconName;
   label: string;
   /** What happens on tap, read by VoiceOver after the label. */
   hint?: string;
@@ -114,7 +114,7 @@ export function IconButton({
         opacity: pressed ? 0.7 : 1,
       })}
     >
-      <SymbolView name={symbol} size={18} tintColor={c.ink} />
+      <Icon name={symbol} size={18} tintColor={c.ink} />
     </Pressable>
   );
 }
