@@ -14,7 +14,7 @@ _Ported from `feat/compliance` (#5) on Oct 21, 2026 and updated for the current 
 | Primary category | Sports |
 | Secondary category | Health & Fitness |
 | Privacy Policy URL | https://ballboi.tennis/privacy (live, last updated Oct 18, 2026) |
-| Terms of Use (EULA) | https://ballboi.tennis/terms (live). Also link it in the description, since subscriptions need it |
+| Terms of Use (EULA) | https://ballboi.tennis/terms (live). Also link it in the description |
 | Support URL | A ballboi.tennis page with support@ballboi.tennis (the address the live policy and terms use) |
 | Encryption | Standard HTTPS only. `ios.config.usesNonExemptEncryption: false` is set in `artifacts/mobile/app.json` |
 
@@ -35,7 +35,7 @@ Answer for what the submitted build collects. Rows marked _at launch_ come with 
 | User ID (Clerk ID, linked UTR ID) | Yes | Yes | App Functionality |
 | Device ID (push token) | Yes | Yes | App Functionality |
 | Coarse Location (home area, travel mode) | _At launch_ | Yes | App Functionality |
-| Purchases (Ball Boi Pro) | _At launch_ | Yes | App Functionality |
+| Purchases (Ball Boi Pro) | No (Ball Boi Pro parked, spec decision 82; add back when Pro ships) | | |
 | Crash data, analytics | No (add if Sentry, PostHog or similar is added) | | |
 
 ## Age rating questionnaire
@@ -64,8 +64,7 @@ Demo account (password sign-in is enabled for this account only):
   Password: <set in Clerk>
 
 Seeded data: a league with a scheduled and a completed match, two Ball Boi
-replays, a message thread, a Message Request, and an open match. The 3 free
-months are already used, so the Ball Boi Pro paywall is live.
+replays, a message thread, a Message Request, and an open match.
 
 Recording needs a real device on a court. A 60-second screen recording of a
 recording session is attached.
