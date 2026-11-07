@@ -809,6 +809,13 @@ export default function RecordScreen() {
               ) : null}
               <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", columnGap: spacing.space4 }}>
                 <ChromeLink
+                  label="Something not working?"
+                  accessibilityHint="Tell us what went wrong. It goes to Ball Boi support."
+                  onPress={() =>
+                    router.push({ pathname: "/feedback", params: { source: "ready", matchId: String(matchId) } })
+                  }
+                />
+                <ChromeLink
                   label="Setup tips"
                   accessibilityHint="Shows where to put your phone and what to check first."
                   onPress={() => {

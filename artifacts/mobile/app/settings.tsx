@@ -131,6 +131,17 @@ export default function SettingsScreen() {
       ) : null}
 
       <View style={{ marginTop: spacing.space6 }}>
+        <SettingsSection title="Help">
+          <ListSettingsRow
+            title="Something not working?"
+            onPress={() => router.push({ pathname: "/feedback", params: { source: "settings" } })}
+            accessibilityHint="Tell us what went wrong. It goes to Ball Boi support."
+            last
+          />
+        </SettingsSection>
+      </View>
+
+      <View style={{ marginTop: spacing.space2 }}>
         <SettingsSection title="Account">
           <ListSettingsRow
             title="Delete account"

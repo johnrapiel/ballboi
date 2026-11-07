@@ -35,6 +35,7 @@ import quickMatchRouter from "./quickMatch";
 import ratingsRouter from "./ratings";
 import recordingRouter from "./recording";
 import trainingConsentRouter from "./trainingConsent";
+import feedbackRouter from "./feedback";
 
 const router: IRouter = Router();
 
@@ -75,5 +76,6 @@ router.use(quickMatchRouter);
 router.use(ratingsRouter);
 router.use(recordingRouter);
 router.use(trainingConsentRouter);
+router.use(feedbackRouter);
 
 export default router;

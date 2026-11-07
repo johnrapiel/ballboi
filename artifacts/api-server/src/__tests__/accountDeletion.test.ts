@@ -46,6 +46,7 @@ const tables = {
   usersTable: table("users", ["clerkUserId", "avatarUrl"]),
   userBlocksTable: table("user_blocks", ["blockerClerkUserId", "blockedClerkUserId"]),
   contentReportsTable: table("content_reports", ["reporterClerkUserId"]),
+  supportReportsTable: table("support_reports", ["clerkUserId"]),
 };
 
 const tx = {

@@ -40,6 +40,8 @@ tags:
     description: Player-to-player messages
   - name: recording
     description: Recording consent, Quick matches and the recordings list
+  - name: support
+    description: "\"Something not working?\" reports"
   - name: notifications
     description: Push notification registration
   - name: storage
@@ -5056,6 +5058,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /feedback:
+    post:
+      operationId: sendFeedback
+      tags: [support]
+      summary: "\"Something not working?\" report: saved and emailed to support@ballboi.tennis"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackReport'
+      responses:
+        '201':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                required: [id]
+        '400':
+          description: No problem picked, or Something else without text
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many reports this hour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't save
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /recording/consent:
     get:
       operationId: getRecordingConsent
@@ -8832,6 +8880,29 @@ components:
         opponentName:
           type: [string, 'null']
       required: [needsOpponentAgreement, opponentName]
+    FeedbackReport:
+      type: object
+      properties:
+        problem:
+          type: string
+          enum: [recording_stopped, upload_stuck, camera_mic, match_missing, score_not_saved, app_froze, something_else]
+        note:
+          type: [string, 'null']
+          maxLength: 2000
+          description: Required for something_else
+        source:
+          type: string
+          enum: [settings, ready, processing, replay]
+        matchId:
+          type: [integer, 'null']
+          description: Attached only when the sender played in the match
+        appVersion:
+          type: [string, 'null']
+        deviceModel:
+          type: [string, 'null']
+        osVersion:
+          type: [string, 'null']
+      required: [problem, source]
     ConsentChoice:
       type: object
       properties:
