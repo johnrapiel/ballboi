@@ -15,13 +15,7 @@ export const LOW_STORAGE_BYTES = 1 * 1024 ** 3;
 export const MIN_START_STORAGE_GB = 2;
 export const MIN_START_STORAGE_BYTES = MIN_START_STORAGE_GB * 1024 ** 3;
 
-export type StopReason = "user" | "battery" | "storage" | "time";
-
-export const STOP_MESSAGES: Record<Exclude<StopReason, "user">, string> = {
-  battery: "Battery low. Recording stopped and saved.",
-  storage: "Phone storage almost full. Recording stopped and saved.",
-  time: "Recording reached 4 hours. Stopped and saved.",
-};
+export { STOP_CUES, STOP_MESSAGES, type StopReason } from "@/lib/recording/stopMessages";
 
 /** Battery or storage problem right now, or null when it's fine to keep going. */
 export async function checkLimits(): Promise<"battery" | "storage" | null> {

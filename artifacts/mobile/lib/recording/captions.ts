@@ -16,3 +16,38 @@ export function captionDurationMs(text: string): number {
 export function captionWaitMs(text: string, shownAtMs: number, nowMs: number): number {
   return Math.max(0, shownAtMs + captionDurationMs(text) - nowMs);
 }
+
+/** How long a coach caption stays up: at least 2 seconds, and as long as its line plays. */
+export function cueCaptionMs(text: string, clipMs: number): number {
+  return Math.max(captionDurationMs(text), Math.ceil(clipMs));
+}
+
+// G9: captions show only where someone can see them. On the mounted phone
+// during setup and the countdown (the player is at the phone, moving it);
+// once recording starts, on the Live Activity and Apple Watch instead, never
+// the mounted screen.
+
+export type CoachMoment = "setup" | "countdown" | "recording" | "after";
+
+/** True when the mounted phone's screen shows the caption at this moment. */
+export function captionOnMountedScreen(moment: CoachMoment): boolean {
+  return moment === "setup" || moment === "countdown";
+}
+
+/**
+ * True when the caption goes to the Live Activity and Watch at this moment:
+ * always, during setup as well as the match (acceptance 34), so a player
+ * away from the mounted phone can read every line.
+ */
+export function captionOnLiveActivity(_moment: CoachMoment): boolean {
+  return true;
+}
+
+/**
+ * True when VoiceOver should read a caption on the mounted phone. When the
+ * line played out loud from the same phone, it's already heard: reading it
+ * too would double it. Muted, or a clip that couldn't play, it's read once.
+ */
+export function announceCaption(played: boolean): boolean {
+  return !played;
+}

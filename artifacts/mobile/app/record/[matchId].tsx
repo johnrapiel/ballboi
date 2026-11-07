@@ -67,7 +67,10 @@ import { CourtLines, CourtStatus, type CourtStatusText } from "@/components/reco
 import { FirstRunCarousel } from "@/components/record/FirstRunCarousel";
 import { Button, Screen, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
-import { frameStatus } from "@/lib/court/aim";
+import { COACH_LINES, captionFor, type CueId } from "@/lib/coachLines";
+import { frameStatus, type AimStep, type LockState } from "@/lib/court/aim";
+import { COACH_START, countdownCueDue, countdownOpening, COUNTDOWN_QUIET_MS, nextCoachCue, type CoachState } from "@/lib/court/coach";
+import { hasMoved, type Attitude } from "@/lib/court/motion";
 import { calibrationFromFit, toCalibration, type CourtCalibration } from "@/lib/court/calibration";
 import { captureFrame, discard as discardStill, keepStill, releaseFrame, type CourtStill } from "@/lib/court/frame";
 import { DEFAULT_CORNERS, isCourtShape, type Corners } from "@/lib/court/geometry";
@@ -80,9 +83,9 @@ import {
   useMatchFilming,
   useRecordingConsent,
 } from "@/lib/recording/api";
-import { captionDurationMs, captionWaitMs } from "@/lib/recording/captions";
+import { announceCaption, captionOnMountedScreen, captionWaitMs, cueCaptionMs, type CoachMoment } from "@/lib/recording/captions";
 import { chrome } from "@/lib/recording/chrome";
-import { countdownClock, cueAt, START_DELAYS, type StartDelayMinutes } from "@/lib/recording/countdown";
+import { countdownClock, START_DELAYS, type StartDelayMinutes } from "@/lib/recording/countdown";
 import { deleteRecording, keepRecording } from "@/lib/recording/files";
 import { formatElapsed, spokenDuration } from "@/lib/recording/format";
 import { LOW_BATTERY_START_MESSAGE } from "@/lib/recording/limits";
@@ -95,6 +98,7 @@ import {
   hasRoomToStart,
   MAX_RECORDING_SECONDS,
   MIN_START_STORAGE_GB,
+  STOP_CUES,
   STOP_MESSAGES,
   useSafetyCap,
   type StopReason,
@@ -109,7 +113,17 @@ import {
 } from "@/lib/recording/segments";
 import { VIDEO_CODEC, VIDEO_QUALITY, VIDEO_STABILIZATION } from "@/lib/recording/settings";
 import { drainQueue } from "@/lib/recording/uploader";
-import { prepareVoice, say, stopVoice } from "@/lib/recording/voice";
+import {
+  loadVoiceMuted,
+  playCue,
+  preloadVoice,
+  prepareVoice,
+  releaseVoice,
+  setVoiceMuted,
+  stopVoice,
+  useVoiceMuted,
+  voiceBusy,
+} from "@/lib/recording/voice";
 
 type Phase =
   | "ready"
@@ -189,6 +203,16 @@ export default function RecordScreen() {
   const captionShownAt = useRef(0);
   const captionText = useRef<string | null>(null);
   const captionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The voice coach: its repeat state (G8), where the phone was at the last correction, and the correction on screen. */
+  const coachState = useRef<CoachState>(COACH_START);
+  const coachAttitude = useRef<Attitude | null>(null);
+  const stickyCue = useRef<CueId | null>(null);
+  const stickyStep = useRef<AimStep | null>(null);
+  const saidSetup = useRef(false);
+  const countdownToken = useRef(0);
+  const muted = useVoiceMuted();
+  const mutedRef = useRef(muted);
+  mutedRef.current = muted;
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [stopReason, setStopReason] = useState<StopReason>("user");
@@ -240,12 +264,21 @@ export default function RecordScreen() {
     cameraReady && !tipsOpen && (phase === "ready" || phase === "countdown"),
     true,
     {
-      // VoiceOver hears the two moments that change what a player can do.
-      onLocked: () => AccessibilityInfo.announceForAccessibility("Court locked. Record is on."),
+      onFrame: (step, lock) => coachFrame(step, lock),
+      // "Perfect. Court locked." then the chime.
+      onLocked: () => {
+        coachState.current = COACH_START;
+        clearStickyCaption();
+        say("locked");
+        say("chime");
+      },
+      onLockLost: () => {
+        coachState.current = COACH_START;
+        // Bumped during the countdown: say so, and the lock check runs again.
+        if (phaseRef.current === "countdown" && startAt.current - Date.now() > COUNTDOWN_QUIET_MS) say("moved");
+      },
       onRecordAnyway: () => {
-        if (courtRef.current.lock.stage !== "locked") {
-          AccessibilityInfo.announceForAccessibility("Record anyway is on. You can fix the court lines after.");
-        }
+        if (courtRef.current.lock.stage !== "locked" && phaseRef.current === "ready") say("recordAnyway");
       },
     },
   );
@@ -264,9 +297,11 @@ export default function RecordScreen() {
   useEffect(() => {
     mounted.current = true;
     prepareVoice();
+    preloadVoice();
+    loadVoiceMuted();
     return () => {
       mounted.current = false;
-      stopVoice();
+      releaseVoice();
       if (captionTimer.current) clearTimeout(captionTimer.current);
       // Leaving mid-fix: the match uploads without corners, and the server finds the court.
       fixAnswer.current?.(null);
@@ -312,47 +347,136 @@ export default function RecordScreen() {
     return () => clearInterval(t);
   }, [phase]);
 
-  // Countdown: a cue at each whole minute, 30 s, 10 s, then 5 to 1, each spoken and captioned.
+  // Line 01 once the camera is up and setup starts.
+  useEffect(() => {
+    if (!cameraReady || phase !== "ready" || tipsOpen || saidSetup.current) return;
+    saidSetup.current = true;
+    say("setup");
+    // say reads refs only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cameraReady, phase, tipsOpen]);
+
+  // Countdown: 14, 15 or 16 at the start, 17 at one minute left, 18 at ten
+  // seconds, and 19 timed so capture starts as it ends. Start Now is a
+  // countdown as long as line 19, so it plays 19 only. Capture waits for 19 to
+  // finish, so the voice never lands in the recording.
   useEffect(() => {
     if (phase !== "countdown") return;
-    const total = delay * 60;
+    const totalMs = Math.max(0, startAt.current - Date.now());
+    const played = new Set<CueId>();
+    const token = ++countdownToken.current;
+    // After an earlier piece, iOS may still have the audio set up for the camera's microphone.
+    if (segments.current.length > 0) prepareVoice(true);
+    const opening = countdownOpening(delay);
+    if (opening && totalMs > COACH_LINES.go.ms) {
+      played.add(opening);
+      say(opening);
+    }
     let last = -1;
     const tick = () => {
-      const left = Math.max(0, Math.ceil((startAt.current - Date.now()) / 1000));
-      if (left === last) return;
-      last = left;
-      setSecondsLeft(left);
-      const cue = cueAt(left, total);
-      if (cue) {
-        speak(cue);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      const msLeft = Math.max(0, startAt.current - Date.now());
+      const left = Math.ceil(msLeft / 1000);
+      if (left !== last) {
+        last = left;
+        setSecondsLeft(left);
       }
-      if (left === 0) runRecording(segments.current.length > 0 ? RESUME_GIVE_UP_MS : 0);
+      const cue = countdownCueDue(msLeft, totalMs, played, COACH_LINES.go.ms);
+      if (!cue) return;
+      played.add(cue);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      if (cue !== "go") {
+        say(cue);
+        return;
+      }
+      say(cue).then(() => {
+        if (countdownToken.current !== token || phaseRef.current !== "countdown" || !mounted.current) return;
+        runRecording(segments.current.length > 0 ? RESUME_GIVE_UP_MS : 0);
+      });
     };
     tick();
-    const t = setInterval(tick, 250);
+    const t = setInterval(tick, 200);
     return () => clearInterval(t);
-    // runRecording reads refs only; the countdown restarts only on a new phase or delay.
+    // say and runRecording read refs only; the countdown restarts only on a new phase or delay.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, delay]);
 
   useSafetyCap(phase === "recording", (reason) => stop(reason));
 
-  /** Says a cue and shows it as a caption for at least 2 seconds (D24). */
-  function speak(text: string) {
-    say(text);
-    showCaption(text);
+  function coachMoment(): CoachMoment {
+    const p = phaseRef.current;
+    if (p === "ready") return "setup";
+    if (p === "countdown") return "countdown";
+    if (p === "recording" || p === "rejoining") return "recording";
+    return "after";
   }
 
-  function showCaption(text: string) {
+  /**
+   * Says one coach line from the manifest. Its caption shows on the mounted
+   * screen only during setup and the countdown (G9), for at least 2 seconds
+   * or as long as the line plays. VoiceOver reads the caption only when the
+   * line wasn't heard (muted, or the clip didn't play), so it's never doubled.
+   */
+  async function say(id: CueId, opts: { sticky?: boolean } = {}): Promise<void> {
+    const text = captionFor(id);
+    if (text && captionOnMountedScreen(coachMoment())) showCaption(text, COACH_LINES[id].ms, opts.sticky ?? false);
+    if (text && mutedRef.current) AccessibilityInfo.announceForAccessibility(text);
+    const { played } = await playCue(id);
+    if (text && !mutedRef.current && announceCaption(played)) AccessibilityInfo.announceForAccessibility(text);
+  }
+
+  /** One court frame: the next correction or "Hold your phone there", one at a time (G8). */
+  function coachFrame(step: AimStep, lock: LockState) {
+    const p = phaseRef.current;
+    if (p !== "ready" && p !== "countdown") return;
+    // Close to capture, lines 18 and 19 come first.
+    if (p === "countdown" && startAt.current - Date.now() <= COUNTDOWN_QUIET_MS) return;
+    const attitude = courtRef.current.attitude.current;
+    const { cue, state } = nextCoachCue(coachState.current, {
+      now: Date.now(),
+      step,
+      stage: lock.stage,
+      busy: voiceBusy(),
+      movedSinceLast: hasMoved(coachAttitude.current, attitude),
+    });
+    // The step changed away from the correction on screen: its caption goes.
+    if (stickyCue.current && step !== stickyStep.current) clearStickyCaption();
+    coachState.current = state;
+    if (!cue) return;
+    if (cue !== "hold") {
+      coachAttitude.current = attitude;
+      stickyCue.current = cue;
+      stickyStep.current = step;
+    }
+    say(cue, { sticky: cue !== "hold" });
+  }
+
+  function showCaption(text: string, clipMs: number, sticky: boolean) {
     if (captionTimer.current) clearTimeout(captionTimer.current);
+    captionTimer.current = null;
     captionShownAt.current = Date.now();
     captionText.current = text;
     setCaption(text);
+    if (sticky) return;
+    stickyCue.current = null;
     captionTimer.current = setTimeout(() => {
       captionText.current = null;
       if (mounted.current) setCaption(null);
-    }, captionDurationMs(text));
+    }, cueCaptionMs(text, clipMs));
+  }
+
+  /** A correction's caption stays up while it applies (G8), then goes once it's had its time. */
+  function clearStickyCaption() {
+    if (!stickyCue.current) return;
+    stickyCue.current = null;
+    stickyStep.current = null;
+    const text = captionText.current;
+    if (!text) return;
+    const wait = captionWaitMs(text, captionShownAt.current, Date.now());
+    captionTimer.current = setTimeout(() => {
+      if (captionText.current !== text) return;
+      captionText.current = null;
+      if (mounted.current) setCaption(null);
+    }, wait);
   }
 
   /** Waits until the caption on screen has had its time, so leaving never cuts it short. */
@@ -489,16 +613,16 @@ export default function RecordScreen() {
       await requestMic().catch(() => {});
     }
     setError(null);
-    if (delay === 0) {
-      runRecording(segments.current.length > 0 ? RESUME_GIVE_UP_MS : 0);
-      return;
-    }
-    startAt.current = Date.now() + delay * 60 * 1000;
+    // Start Now is a countdown as long as line 19 ("Three. Two. One. Recording
+    // has started."), so capture starts as it ends.
+    startAt.current = Date.now() + (delay === 0 ? COACH_LINES.go.ms : delay * 60 * 1000);
     setPhase("countdown");
   }
 
   function cancelCountdown(announce = true) {
+    countdownToken.current++;
     stopVoice();
+    stickyCue.current = null;
     captionText.current = null;
     setCaption(null);
     setPhase(segments.current.length > 0 ? "interrupted" : "ready");
@@ -514,7 +638,7 @@ export default function RecordScreen() {
     const confirm = setTimeout(() => {
       if (pieceStart.current !== started || !mounted.current) return;
       setPhase("recording");
-      speak("Recording");
+      // No voice here: the camera is capturing (line 19 already said it).
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }, MIN_PIECE_MS);
     try {
@@ -689,9 +813,8 @@ export default function RecordScreen() {
     Haptics.notificationAsync(
       reason === "user" ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning,
     ).catch(() => {});
-    const message = reason === "user" ? "Recording stopped" : STOP_MESSAGES[reason];
-    speak(message);
-    AccessibilityInfo.announceForAccessibility(message);
+    // No voice yet: the camera is still finishing the file. Line 20 or 21, or
+    // the chime, plays once capture has ended (finish).
     camera.current?.stopRecording();
   }
 
@@ -712,7 +835,12 @@ export default function RecordScreen() {
     setStopReason(reason);
     setPhase("saving");
     const pieces = segments.current;
-    // The "Recording stopped" caption gets its 2 seconds before anything covers it (D24).
+    // Capture has ended: now the coach may speak. iOS left the audio set up
+    // for the camera's microphone, so it's set back to the speaker first.
+    if (pieces.length > 0) {
+      await prepareVoice(true);
+      await say(STOP_CUES[reason]);
+    }
     await captionDone();
     if (pieces.length === 0) {
       closeWithoutRecording();
@@ -912,7 +1040,26 @@ export default function RecordScreen() {
             {pillText}
           </Text>
         </View>
-        <View style={{ width: MIN_TAP }} pointerEvents="none" />
+        {phase === "ready" || counting || interrupted ? (
+          // Mute: silences the voice coach on this phone; captions keep showing.
+          <Pressable
+            accessibilityRole="switch"
+            accessibilityLabel="Voice coach"
+            accessibilityState={{ checked: !muted }}
+            accessibilityHint={muted ? "Off. Captions still show." : "On. Plays even with the silent switch on."}
+            onPress={() => {
+              const next = !muted;
+              setVoiceMuted(next);
+              AccessibilityInfo.announceForAccessibility(next ? "Voice coach off" : "Voice coach on");
+            }}
+            hitSlop={4}
+            style={({ pressed }) => [styles.round, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            <SymbolView name={muted ? "speaker.slash.fill" : "speaker.wave.2.fill"} size={18} tintColor={chrome.text} />
+          </Pressable>
+        ) : (
+          <View style={{ width: MIN_TAP }} pointerEvents="none" />
+        )}
       </View>
 
       {/* G1: whether the court is in frame, in words and an icon, under the top bar. */}
@@ -923,10 +1070,11 @@ export default function RecordScreen() {
       ) : null}
 
       {/* D24: every spoken cue also shows as text, for at least 2 seconds. */}
-      {caption && !counting ? (
+      {/* G9: coach captions on the mounted screen only while setting up and counting down. */}
+      {caption && phase === "ready" ? (
         <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }]}>
           <View style={[styles.caption, { backgroundColor: chrome.scrim }]}>
-            <Text variant="title" style={{ color: chrome.text, textAlign: "center" }} accessibilityLiveRegion="polite">
+            <Text variant="title" style={{ color: chrome.text, textAlign: "center" }}>
               {caption}
             </Text>
           </View>
@@ -1056,11 +1204,7 @@ export default function RecordScreen() {
               {countdownClock(secondsLeft)}
             </Text>
             {caption ? (
-              <Text
-                variant="bodyStrong"
-                style={{ color: chrome.text, textAlign: "center" }}
-                accessibilityLiveRegion="polite"
-              >
+              <Text variant="bodyStrong" style={{ color: chrome.text, textAlign: "center" }}>
                 {caption}
               </Text>
             ) : null}
