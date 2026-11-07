@@ -84,6 +84,8 @@ export interface HomePlayoffItem {
   playBy: string | null;
   /** The play-by date has passed, so the league admin enters the result. */
   pastPlayBy: boolean;
+  scheduledAt: string | null;
+  location: string | null;
 }
 
 export interface HomeResult {
@@ -97,6 +99,31 @@ export interface HomeResult {
   inGrace: boolean;
   playoff: boolean;
   completedAt: string | null;
+}
+
+/** Your season across the leagues still running (finding 14: Home and My matches). */
+export interface HomeSeason {
+  wins: number;
+  losses: number;
+  played: number;
+  /** Your latest results in a row, e.g. won 2; null before your first result. */
+  streak: { won: boolean; count: number } | null;
+}
+
+/** Wins, losses and the current streak, from results newest first. */
+export function seasonFrom(results: Pick<HomeResult, "won">[]): HomeSeason {
+  const wins = results.filter((r) => r.won).length;
+  let count = 0;
+  for (const r of results) {
+    if (r.won !== results[0].won) break;
+    count++;
+  }
+  return {
+    wins,
+    losses: results.length - wins,
+    played: results.length,
+    streak: results.length ? { won: results[0].won, count } : null,
+  };
 }
 
 export interface HomeDraft {
@@ -206,13 +233,15 @@ export function buildLeagueHome(input: HomeInput) {
         timeZone: zone(m.leagueId!),
         playBy,
         pastPlayBy: !!playBy && todayIn(m.leagueId!) > playBy,
+        scheduledAt: m.scheduledAt,
+        location: m.location,
       };
     });
 
-  const recent: HomeResult[] = live
+  // Every result, newest first. Home shows the last five; My matches shows all.
+  const results: HomeResult[] = live
     .filter((m) => m.status === "completed" && m.score && m.winnerId != null && mySide(m) && m.leagueId != null)
     .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? "") || b.id - a.id)
-    .slice(0, 5)
     .map((m) => {
       const side = mySide(m)!;
       return {
@@ -233,5 +262,65 @@ export function buildLeagueHome(input: HomeInput) {
     .sort((a, b) => a.startDate.localeCompare(b.startDate))
     .map((r) => ({ leagueId: r.leagueId, leagueName: leagueName(r.leagueId), roundId: r.id, roundNumber: r.roundNumber, startDate: r.startDate, timeZone: zone(r.leagueId) }));
 
-  return { today: todayFor(null, input.now), thisWeek: week, playoffs, drafts, recent };
+  // Season stats count leagues that are still running: an ended league's
+  // season is over (decision 31).
+  const season = seasonFrom(results.filter((r) => !ended(r.leagueId)));
+
+  return { today: todayFor(null, input.now), thisWeek: week, playoffs, drafts, recent: results.slice(0, 5), results, season };
+}
+
+export interface HomeStandingRow {
+  rank: number;
+  playerId: number;
+  playerName: string;
+  wins: number;
+  losses: number;
+  you: boolean;
+}
+
+/** One of your leagues on Home: where you stand, and the top of its table. */
+export interface HomeLeague {
+  leagueId: number;
+  leagueName: string;
+  location: string | null;
+  /** Your rank, or null once you're out of the standings. */
+  rank: number | null;
+  /** How many players are in the standings. */
+  playerCount: number;
+  wins: number;
+  losses: number;
+  /** The top three, plus your row if you're further down. */
+  rows: HomeStandingRow[];
+}
+
+/**
+ * Finding 14: with one league, Home shows its standings; with two or more,
+ * a "Your leagues" list. Only leagues you play in that are still running.
+ */
+export function homeLeagues(input: {
+  myPlayers: { id: number; leagueId: number | null; leftAt: Date | null }[];
+  leagues: { id: number; name: string; location?: string | null; endedAt?: Date | null; status?: string }[];
+  standings: Map<number, { rank: number; playerId: number; playerName: string; wins: number; losses: number }[]>;
+}): HomeLeague[] {
+  const out: HomeLeague[] = [];
+  for (const me of input.myPlayers) {
+    if (me.leftAt || me.leagueId == null) continue;
+    const league = input.leagues.find((l) => l.id === me.leagueId);
+    if (!league || leagueHasEnded(league)) continue;
+    const table = input.standings.get(league.id) ?? [];
+    const mine = table.find((r) => r.playerId === me.id);
+    const top = table.slice(0, 3);
+    const shown = mine && !top.includes(mine) ? [...top, mine] : top;
+    out.push({
+      leagueId: league.id,
+      leagueName: league.name,
+      location: league.location ?? null,
+      rank: mine?.rank ?? null,
+      playerCount: table.length,
+      wins: mine?.wins ?? 0,
+      losses: mine?.losses ?? 0,
+      rows: shown.map((r) => ({ rank: r.rank, playerId: r.playerId, playerName: r.playerName, wins: r.wins, losses: r.losses, you: r.playerId === me.id })),
+    });
+  }
+  return out.sort((a, b) => a.leagueName.localeCompare(b.leagueName));
 }

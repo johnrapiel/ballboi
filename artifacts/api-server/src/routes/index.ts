@@ -9,6 +9,7 @@ import leagueMembershipRouter from "./leagueMembership";
 import leagueScheduleRouter from "./leagueSchedule";
 import leagueScoresRouter from "./leagueScores";
 import matchTimesRouter from "./matchTimes";
+import matchDetailRouter from "./matchDetail";
 import leaguesRouter from "./leagues";
 import playersRouter from "./players";
 import playerSearchRouter from "./playerSearch";
@@ -47,6 +48,7 @@ router.use(leagueMembershipRouter);
 router.use(leagueScheduleRouter);
 router.use(leagueScoresRouter);
 router.use(matchTimesRouter);
+router.use(matchDetailRouter);
 router.use(leaguesRouter);
 // Before players: /players/search would otherwise read "search" as a player id.
 router.use(playerSearchRouter);

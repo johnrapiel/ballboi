@@ -1213,6 +1213,43 @@ paths:
               schema:
                 $ref: "#/components/schemas/LeagueWeek"
 
+  /me/matches/{matchId}:
+    get:
+      operationId: getMyMatch
+      tags: [leagues]
+      summary: Match detail for one of your league matches - details, the score from your side, who entered or changed it, and the Ball Boi Replay once it exists
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Match detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchDetail"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Not a player in this match
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /dev/leagues/{leagueId}/tools:
     get:
       operationId: getDevLeagueTools
@@ -1330,7 +1367,7 @@ paths:
     post:
       operationId: enterLeagueScore
       tags: [leagues]
-      summary: Enter a league match score from your own side. The first score entered stands.
+      summary: Enter a league match score from your own side. Either player can edit it for 24 hours after.
       parameters:
         - $ref: "#/components/parameters/LeagueIdParam"
         - name: matchId
@@ -1563,11 +1600,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /leagues/{leagueId}/matches/{matchId}/score/undo:
+  /leagues/{leagueId}/matches/{matchId}/score/edit:
     post:
-      operationId: undoLeagueScore
+      operationId: editLeagueScore
       tags: [leagues]
-      summary: The player who entered a score undoes it within 10 minutes. Standings recompute.
+      summary: Either player edits the score from their own side, for 24 hours after it was entered. The latest edit stands and standings recompute.
       parameters:
         - $ref: "#/components/parameters/LeagueIdParam"
         - name: matchId
@@ -1575,13 +1612,19 @@ paths:
           required: true
           schema:
             type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnterScoreBody"
       responses:
         "200":
-          description: Score cleared
+          description: Score edited
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UndoneScore"
+                $ref: "#/components/schemas/EditedScore"
         "400":
           description: "Invalid id or input"
           content:
@@ -1589,7 +1632,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: Someone else entered this score
+          description: Not a player in this match
           content:
             application/json:
               schema:
@@ -1601,7 +1644,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "409":
-          description: The 10 minutes have passed, or there's no score to undo
+          description: The 24 hours have passed, the admin corrected it, or there's no score to edit
           content:
             application/json:
               schema:
@@ -5796,7 +5839,9 @@ components:
         pastPlayBy:
           type: boolean
           description: The play-by date has passed, so the league admin enters the result
-      required: [leagueId, leagueName, matchId, round, opponentName, singles, timeZone, playBy, pastPlayBy]
+        scheduledAt: { type: ["string", "null"] }
+        location: { type: ["string", "null"] }
+      required: [leagueId, leagueName, matchId, round, opponentName, singles, timeZone, playBy, pastPlayBy, scheduledAt, location]
 
     LeagueWeekDraft:
       type: object
@@ -5879,8 +5924,67 @@ components:
           items: { $ref: "#/components/schemas/LeagueWeekDraft" }
         recent:
           type: array
+          description: Your last five results
           items: { $ref: "#/components/schemas/LeagueWeekResult" }
-      required: [today, thisWeek, playoffs, drafts, recent]
+        results:
+          type: array
+          description: Every result, newest first, for My matches
+          items: { $ref: "#/components/schemas/LeagueWeekResult" }
+        season: { $ref: "#/components/schemas/LeagueWeekSeason" }
+        leagues:
+          type: array
+          description: Leagues you play in that are still running, with where you stand
+          items: { $ref: "#/components/schemas/LeagueWeekLeague" }
+      required: [today, thisWeek, playoffs, drafts, recent, results, season, leagues]
+
+    LeagueWeekSeason:
+      type: object
+      description: Your results across leagues still running
+      properties:
+        wins: { type: integer }
+        losses: { type: integer }
+        played: { type: integer }
+        streak:
+          oneOf:
+            - $ref: "#/components/schemas/LeagueWeekStreak"
+            - type: "null"
+      required: [wins, losses, played, streak]
+
+    LeagueWeekStreak:
+      type: object
+      properties:
+        won: { type: boolean }
+        count: { type: integer }
+      required: [won, count]
+
+    LeagueWeekStandingRow:
+      type: object
+      properties:
+        rank: { type: integer }
+        playerId: { type: integer }
+        playerName: { type: string }
+        wins: { type: integer }
+        losses: { type: integer }
+        you: { type: boolean }
+      required: [rank, playerId, playerName, wins, losses, you]
+
+    LeagueWeekLeague:
+      type: object
+      properties:
+        leagueId: { type: integer }
+        leagueName: { type: string }
+        location: { type: ["string", "null"] }
+        rank:
+          type: ["integer", "null"]
+          description: Your rank, or null if you're not in the standings
+        playerCount: { type: integer }
+        wins: { type: integer }
+        losses: { type: integer }
+        rows:
+          type: array
+          description: The top three, plus your row if you're further down
+          items: { $ref: "#/components/schemas/LeagueWeekStandingRow" }
+      required: [leagueId, leagueName, location, rank, playerCount, wins, losses, rows]
 
     DevLeagueTools:
       type: object
@@ -6029,14 +6133,84 @@ components:
           type: boolean
       required: [playerId, playerName, setByAdmin]
 
-    UndoneScore:
+    EditedScore:
       type: object
       properties:
         matchId: { type: integer }
-        status: { type: string }
-        score: { type: "null" }
-        winnerId: { type: "null" }
-      required: [matchId, status, score, winnerId]
+        score:
+          type: string
+          description: From player 1's side
+        winnerId: { type: ["integer", "null"] }
+        editedAt: { type: string }
+        editedBy: { type: string }
+      required: [matchId, score, winnerId, editedAt, editedBy]
+
+    MatchDetailPlayer:
+      type: object
+      properties:
+        playerId: { type: integer }
+        name: { type: string }
+        you: { type: boolean }
+        hasAccount: { type: boolean }
+      required: [playerId, name, you, hasAccount]
+
+    MatchDetailSide:
+      type: object
+      properties:
+        players:
+          type: array
+          items: { $ref: "#/components/schemas/MatchDetailPlayer" }
+        won: { type: boolean }
+      required: [players, won]
+
+    MatchDetailReplay:
+      type: object
+      properties:
+        durationSeconds: { type: ["integer", "null"] }
+        shotCount: { type: integer }
+      required: [durationSeconds, shotCount]
+
+    MatchDetail:
+      type: object
+      properties:
+        matchId: { type: integer }
+        leagueId: { type: integer }
+        leagueName: { type: string }
+        singles: { type: boolean }
+        timeZone: { type: ["string", "null"] }
+        roundNumber: { type: ["integer", "null"] }
+        playoffRound: { type: ["string", "null"] }
+        scheduledAt: { type: ["string", "null"] }
+        completedAt: { type: ["string", "null"] }
+        location: { type: ["string", "null"] }
+        played: { type: boolean }
+        voided: { type: boolean }
+        inGrace: { type: boolean }
+        score:
+          type: ["string", "null"]
+          description: From your side, your games first
+        you: { $ref: "#/components/schemas/MatchDetailSide" }
+        opponents: { $ref: "#/components/schemas/MatchDetailSide" }
+        enteredBy:
+          type: ["string", "null"]
+          description: The player who first entered the score; null when the league admin did
+        enteredAt: { type: ["string", "null"] }
+        editUntil:
+          type: ["string", "null"]
+          description: When your 24 hours to edit the score run out (ISO time); null when you can't edit it
+        editedBy:
+          type: ["string", "null"]
+          description: The player who last edited the score, for "Score edited by {name}"
+        editedAt: { type: ["string", "null"] }
+        correctedBy: { type: ["string", "null"] }
+        correctedAt: { type: ["string", "null"] }
+        leagueEnded: { type: boolean }
+        replay:
+          description: Set once a Ball Boi analysis of this match has finished
+          oneOf:
+            - $ref: "#/components/schemas/MatchDetailReplay"
+            - type: "null"
+      required: [matchId, leagueId, leagueName, singles, timeZone, roundNumber, playoffRound, scheduledAt, completedAt, location, played, voided, inGrace, score, you, opponents, enteredBy, enteredAt, editUntil, editedBy, editedAt, correctedBy, correctedAt, leagueEnded, replay]
 
     CorrectedScore:
       type: object
@@ -6090,9 +6264,12 @@ components:
           type: ["string", "null"]
         location:
           type: ["string", "null"]
-        undoUntil:
+        editUntil:
           type: ["string", "null"]
-          description: When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.
+          description: When the caller's 24 hours to edit the score run out (ISO time). Set for either player while they can still edit it.
+        editedBy:
+          type: ["string", "null"]
+          description: The player who last edited the score, for "Score edited by {name}"
         correctedBy:
           type: ["string", "null"]
           description: The admin who corrected the score, for "Corrected by {admin} on {date}"
@@ -6100,8 +6277,8 @@ components:
           type: ["string", "null"]
         scoreClearedBy:
           type: ["string", "null"]
-          description: The player who undid the score, shown to the opponent until a new score is in
-      required: [matchId, player1Id, player1Name, player2Id, player2Name, player1Rating, player2Rating, player1HasAccount, player2HasAccount, status, score, winnerId, inGrace, voided, locked, scheduledAt, location, undoUntil, correctedBy, correctedAt, scoreClearedBy]
+          description: Older matches only, from before Undo was replaced by the 24-hour edit. The player who undid the score, shown until a new score is in
+      required: [matchId, player1Id, player1Name, player2Id, player2Name, player1Rating, player2Rating, player1HasAccount, player2HasAccount, status, score, winnerId, inGrace, voided, locked, scheduledAt, location, editUntil, editedBy, correctedBy, correctedAt, scoreClearedBy]
 
     MatchPlayerRating:
       type: object

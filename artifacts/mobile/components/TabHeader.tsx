@@ -69,6 +69,7 @@ export function TabScreen({
   title,
   action,
   roundel,
+  bare,
   children,
 }: {
   title: string;
@@ -76,13 +77,15 @@ export function TabScreen({
   action?: React.ReactNode;
   /** Show the roundel in place of the title. Home only. */
   roundel?: boolean;
+  /** No roundel or title: Home with nothing to show yet, where the roundel sits in the empty state. */
+  bare?: boolean;
   children: React.ReactNode;
 }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
   return (
     <View style={{ flex: 1, backgroundColor: c.paper, paddingTop: insets.top + spacing.space2 }}>
-      <TabHeader title={title} action={action} roundel={roundel} />
+      <TabHeader title={title} action={action} roundel={roundel} bare={bare} />
       {children}
     </View>
   );
@@ -93,16 +96,19 @@ export function TabScreen({
  * roundel's lettering, with Messages in the top-right corner. The title
  * always matches the tab label. Home shows the roundel alone, left aligned,
  * with no title, date or greeting (John, Nov 5); VoiceOver still reads the
- * tab's name as the header.
+ * tab's name as the header. With nothing on Home yet, the header is bare and
+ * the roundel sits large in the empty state instead (finding 27, Nov 6).
  */
 export function TabHeader({
   title,
   action,
   roundel,
+  bare,
 }: {
   title: string;
   action?: React.ReactNode;
   roundel?: boolean;
+  bare?: boolean;
 }) {
   const summary = useMessagesSummary();
   return (
@@ -116,7 +122,9 @@ export function TabHeader({
         paddingBottom: spacing.space3,
       }}
     >
-      {roundel ? (
+      {bare ? (
+        <View accessible accessibilityRole="header" accessibilityLabel={title} style={{ minHeight: 44, minWidth: 44 }} />
+      ) : roundel ? (
         <View accessible accessibilityRole="header" accessibilityLabel={title}>
           <Roundel size={44} />
         </View>

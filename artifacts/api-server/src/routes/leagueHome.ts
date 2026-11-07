@@ -11,7 +11,9 @@ import {
 } from "@workspace/db";
 import { eq, inArray, or } from "drizzle-orm";
 import { todayFor } from "../lib/leagueCalendar.js";
-import { buildLeagueHome } from "../lib/leagueHome.js";
+import { buildLeagueHome, homeLeagues, seasonFrom } from "../lib/leagueHome.js";
+import { computeStandings } from "../lib/leagueStandings.js";
+import { getPastSeasonNames } from "../services/seasonService.js";
 import { playoffPlayBy } from "../services/leaguePlayoffs.js";
 
 // Home tab's league section (spec: Navigation > Home): this week's matches
@@ -33,7 +35,7 @@ router.get("/me/league-week", async (req, res) => {
   const leagueIds = [...new Set([...myPlayers.map((p) => p.leagueId).filter((id): id is number => id != null), ...adminLeagueIds])];
   const now = new Date();
   if (leagueIds.length === 0) {
-    res.json({ today: todayFor(null, now), thisWeek: [], playoffs: [], drafts: [], recent: [] });
+    res.json({ today: todayFor(null, now), thisWeek: [], playoffs: [], drafts: [], recent: [], results: [], season: seasonFrom([]), leagues: [] });
     return;
   }
 
@@ -67,8 +69,30 @@ router.get("/me/league-week", async (req, res) => {
     if (playBy) playBys.set(m.id, playBy);
   }
 
-  res.json(
-    buildLeagueHome({
+  // Finding 14: standings for each league you play in, as the league page
+  // ranks them (past seasons left out).
+  const playingIn = [...new Set(myPlayers.filter((p) => !p.leftAt && p.leagueId != null).map((p) => p.leagueId!))];
+  const standings = new Map<number, ReturnType<typeof computeStandings>>();
+  if (playingIn.length) {
+    const [leaguePlayers, leagueMatches] = await Promise.all([
+      db.select().from(playersTable).where(inArray(playersTable.leagueId, playingIn)),
+      db.select().from(matchesTable).where(inArray(matchesTable.leagueId, playingIn)),
+    ]);
+    for (const id of playingIn) {
+      const past = await getPastSeasonNames(id);
+      standings.set(
+        id,
+        computeStandings(
+          leaguePlayers.filter((p) => p.leagueId === id),
+          leagueMatches.filter((m) => m.leagueId === id),
+          (season) => season === null || !past.includes(season),
+        ),
+      );
+    }
+  }
+
+  res.json({
+    ...buildLeagueHome({
       now,
       myPlayers,
       leagues,
@@ -80,7 +104,8 @@ router.get("/me/league-week", async (req, res) => {
       adminLeagueIds,
       playoffPlayBy: playBys,
     }),
-  );
+    leagues: homeLeagues({ myPlayers, leagues, standings }),
+  });
 });
 
 export default router;

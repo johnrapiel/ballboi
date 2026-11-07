@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { checkCorrection, checkUndo, recordChanges, undoDeadline, UNDO_WINDOW_MS } from "../lib/leagueScoreChanges.js";
+import { checkCorrection, checkEdit, EDIT_WINDOW_MS, editDeadline, recordChanges } from "../lib/leagueScoreChanges.js";
 
-// Oct 31 review: C4 (undo for 10 minutes) and C5 (admins correct scores).
+// Finding 7 (John, Nov 6): either player edits the score for 24 hours, then it
+// locks. C5: admins correct scores from Manage.
 
 const enteredAt = "2026-11-06T18:00:00.000Z";
 const played = {
@@ -14,38 +15,54 @@ const played = {
   recordedByClerkUserId: "user_a",
   correctedAt: null,
 };
+const players = ["user_a", "user_b"];
 const at = (ms: number) => new Date(Date.parse(enteredAt) + ms);
+const HOUR = 60 * 60_000;
 
-describe("undoDeadline", () => {
-  it("gives the player who entered the score 10 minutes", () => {
-    expect(undoDeadline(played, "user_a", at(60_000))).toBe(new Date(Date.parse(enteredAt) + UNDO_WINDOW_MS).toISOString());
+describe("editDeadline", () => {
+  it("gives both players 24 hours from when the score was entered", () => {
+    const until = new Date(Date.parse(enteredAt) + EDIT_WINDOW_MS).toISOString();
+    expect(editDeadline(played, "user_a", players, at(HOUR))).toBe(until);
+    expect(editDeadline(played, "user_b", players, at(23 * HOUR))).toBe(until);
   });
-  it("is null for the opponent", () => {
-    expect(undoDeadline(played, "user_b", at(60_000))).toBeNull();
+  it("is null for anyone not in the match", () => {
+    expect(editDeadline(played, "user_c", players, at(HOUR))).toBeNull();
+    expect(editDeadline(played, null, players, at(HOUR))).toBeNull();
   });
-  it("is null after 10 minutes", () => {
-    expect(undoDeadline(played, "user_a", at(UNDO_WINDOW_MS))).toBeNull();
+  it("locks after 24 hours", () => {
+    expect(editDeadline(played, "user_a", players, at(EDIT_WINDOW_MS))).toBeNull();
   });
-  it("is null once an admin corrected the score, and for playoffs", () => {
-    expect(undoDeadline({ ...played, correctedAt: new Date() }, "user_a", at(1000))).toBeNull();
-    expect(undoDeadline({ ...played, playoffBracketId: 3 }, "user_a", at(1000))).toBeNull();
+  it("is null once an admin corrected it, or when the admin entered the result", () => {
+    expect(editDeadline({ ...played, correctedAt: new Date() }, "user_a", players, at(1000))).toBeNull();
+    expect(editDeadline({ ...played, recordedByClerkUserId: "admin" }, "user_a", players, at(1000))).toBeNull();
+  });
+  it("is null with no score", () => {
+    expect(editDeadline({ ...played, status: "scheduled", score: null }, "user_a", players, at(1000))).toBeNull();
   });
 });
 
-describe("checkUndo", () => {
-  it("lets the entering player undo inside the window", () => {
-    expect(checkUndo(played, "user_a", at(9 * 60_000))).toEqual({ ok: true });
+describe("checkEdit", () => {
+  it("lets either player edit inside the 24 hours", () => {
+    expect(checkEdit(played, "user_a", players, at(HOUR))).toEqual({ ok: true });
+    expect(checkEdit(played, "user_b", players, at(23 * HOUR))).toEqual({ ok: true });
   });
-  it("refuses everyone else", () => {
-    expect(checkUndo(played, "user_b", at(1000))).toMatchObject({ ok: false, status: 403 });
+  it("refuses anyone not in the match", () => {
+    expect(checkEdit(played, "user_c", players, at(1000))).toMatchObject({ ok: false, status: 403 });
   });
-  it("lets the first score stand after 10 minutes", () => {
-    const out = checkUndo(played, "user_a", at(UNDO_WINDOW_MS + 1));
+  it("locks after 24 hours and points to the league admin", () => {
+    const out = checkEdit(played, "user_a", players, at(EDIT_WINDOW_MS + 1));
     expect(out).toMatchObject({ ok: false, status: 409 });
-    if (!out.ok) expect(out.error).toMatch(/stands/);
+    if (!out.ok) expect(out.error).toMatch(/league admin can correct it/);
   });
-  it("has nothing to undo on an unplayed match", () => {
-    expect(checkUndo({ ...played, status: "scheduled", score: null }, "user_a", at(1000))).toMatchObject({ ok: false });
+  it("refuses a corrected score, an unplayed match and a cancelled one", () => {
+    expect(checkEdit({ ...played, correctedAt: new Date() }, "user_a", players, at(1000))).toMatchObject({ ok: false });
+    expect(checkEdit({ ...played, status: "scheduled", score: null }, "user_a", players, at(1000))).toMatchObject({ ok: false });
+    expect(checkEdit({ ...played, voidedAt: new Date() }, "user_a", players, at(1000))).toMatchObject({ ok: false });
+  });
+  it("edits a playoff score only until the match it feeds is played", () => {
+    const playoff = { ...played, playoffBracketId: 2 };
+    expect(checkEdit(playoff, "user_a", players, at(1000), { next: { status: "scheduled" } })).toEqual({ ok: true });
+    expect(checkEdit(playoff, "user_a", players, at(1000), { next: { status: "completed" } })).toMatchObject({ ok: false, status: 409 });
   });
 });
 
@@ -67,7 +84,7 @@ describe("checkCorrection", () => {
 });
 
 describe("recordChanges", () => {
-  it("takes a win and a loss back on undo", () => {
+  it("takes a win and a loss back when a result is cleared", () => {
     expect(recordChanges([1], [2], 1, null)).toEqual([
       { playerId: 1, wins: -1, losses: 0 },
       { playerId: 2, wins: 0, losses: -1 },

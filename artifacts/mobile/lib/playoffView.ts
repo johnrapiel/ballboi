@@ -9,16 +9,17 @@ import { WALKOVER_SCORE, flipScore } from "./tennisScore";
 type Round = BracketSlot["round"];
 
 /** The line under Save on the score screen, and its VoiceOver hint (C9). */
-export function scoreNote(input: { correcting: boolean; settling: boolean; playoffRound: Round | null }): { text: string; hint: string } {
+export function scoreNote(input: { correcting: boolean; settling: boolean; editing?: boolean; playoffRound: Round | null }): { text: string; hint: string } {
+  if (input.editing) return { text: "Standings update, and your opponent sees that you edited it.", hint: "Saves your edit and updates standings" };
   if (input.correcting) return { text: "Players can't change a score. Only league admins can correct one.", hint: "Asks you to confirm, then updates standings" };
   if (input.settling) return { text: "The winner moves on in the playoffs. Both players are told.", hint: "Asks you to confirm" };
   if (input.playoffRound === "final") {
-    return { text: "This decides the champion. Your league admin can correct it.", hint: "Decides the champion" };
+    return { text: "This decides the champion. Either player can edit it for 24 hours.", hint: "Decides the champion" };
   }
   if (input.playoffRound) {
-    return { text: "This sends the winner to the next round. Your league admin can correct it.", hint: "Sends the winner to the next round" };
+    return { text: "This sends the winner to the next round. Either player can edit it for 24 hours, until that round is played.", hint: "Sends the winner to the next round" };
   }
-  return { text: "You can undo for 10 minutes after you save. After that, the score stands.", hint: "You can undo it for 10 minutes" };
+  return { text: "Either player can edit it for 24 hours after you save.", hint: "Either player can edit it for 24 hours" };
 }
 
 /** A stored score (player 1's side) from the winner's side, or "by W/O" (C18, Q5). */

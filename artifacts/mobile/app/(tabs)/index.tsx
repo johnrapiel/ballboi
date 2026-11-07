@@ -1,17 +1,19 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import { SymbolView } from "expo-symbols";
 import React, { useCallback, useRef } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from "react-native";
+import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useGetMyLeagueWeek, type LeagueWeekItem, type LeagueWeekPlayoff, type LeagueWeekResult } from "@workspace/api-client-react";
+import { useGetMyLeagueWeek, type LeagueWeekItem, type LeagueWeekPlayoff } from "@workspace/api-client-react";
 
 import { EmptyState } from "@/components/EmptyState";
+import { HomeLeagues, SectionHead } from "@/components/HomeLeagues";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
 import { MatchCard, type MatchCardAction } from "@/components/MatchCard";
 import { DoublesRecordButton } from "@/components/record/DoublesMatchCard";
+import { ResultRow } from "@/components/ResultRow";
+import { SeasonStats } from "@/components/SeasonStats";
 import { TabScreen } from "@/components/TabHeader";
-import { Button, Card, ResultTag, Text } from "@/components/ui";
+import { Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { dateRange, deadlineDate, isToday, matchWhen, pairingTime, shortDate } from "@/lib/leagueSchedule";
@@ -27,8 +29,15 @@ import { openRecorder } from "@/lib/recording/start";
 // next to Enter score, any day that week. A match with a set time today comes
 // first, under Today. Doubles shows Record dimmed with the reason.
 //
-// C4: Home refreshes each time you come back to it, so a score, undo, join,
-// leave or end shows straight away. Q5b: a playoff match shows its play-by
+// C4: Home refreshes each time you come back to it, so a score, edit, join,
+// leave or end shows straight away.
+//
+// Fix 2 (findings 6, 14, 27; John, Nov 6): your season stats sit above the
+// next match, with See all opening My matches. With one league its standings
+// follow; with two or more, Your leagues. Recent results open Match detail.
+// With nothing to show yet, the roundel sits large in the empty state and the
+// header has none; once there's content it's back in the top left. No "Go to
+// Leagues" button: Leagues is the next tab. Q5b: a playoff match shows its play-by
 // date; after it, the admin enters the result, so Home offers nothing.
 
 function weekDetail(i: LeagueWeekItem): string {
@@ -42,46 +51,6 @@ function weekDetail(i: LeagueWeekItem): string {
 
 /** Whether a week's match can be played (and so scored or recorded) now. */
 const playable = (i: LeagueWeekItem) => !i.bye && i.matchId != null && i.phase !== "upcoming" && !i.played;
-
-// A recent result: W in green or L in red, never an icon (John, Nov 5), then
-// the score and who it was against. The whole row is one VoiceOver button.
-function ResultRow({ r, last, onPress }: { r: LeagueWeekResult; last: boolean; onPress: () => void }) {
-  const c = useColors();
-  const outcome = r.won ? "Won" : "Lost";
-  const sub = [`vs. ${r.opponentName}`, r.leagueName, r.playoff ? "Playoffs" : null, r.inGrace ? "Grace week, not in standings" : null]
-    .filter(Boolean)
-    .join(" · ");
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${outcome} ${r.score}. ${sub}`}
-      accessibilityHint="Opens the league"
-      style={({ pressed }) => ({
-        minHeight: 56,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.space3,
-        paddingHorizontal: spacing.space4,
-        paddingVertical: spacing.space3,
-        borderBottomWidth: last ? 0 : 1,
-        borderBottomColor: c.hairline,
-        opacity: pressed ? 0.7 : 1,
-      })}
-    >
-      <ResultTag won={r.won} />
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text variant="bodyStrong" style={{ fontVariant: ["lining-nums", "tabular-nums"] }}>
-          {r.score}
-        </Text>
-        <Text variant="small" tone="inkMuted">
-          {sub}
-        </Text>
-      </View>
-      <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} />
-    </Pressable>
-  );
-}
 
 export default function HomeScreen() {
   const c = useColors();
@@ -167,21 +136,33 @@ export default function HomeScreen() {
   };
 
   const nothing =
-    !!week && week.thisWeek.length === 0 && week.playoffs.length === 0 && week.drafts.length === 0 && week.recent.length === 0;
+    !!week &&
+    week.thisWeek.length === 0 &&
+    week.playoffs.length === 0 &&
+    week.drafts.length === 0 &&
+    week.recent.length === 0 &&
+    week.leagues.length === 0;
+  const showStats = !!week && (week.leagues.length > 0 || week.results.length > 0);
+  const seeAll = (tab: "upcoming" | "results") => router.push({ pathname: "/matches", params: { tab } });
+  // The first match section carries See all, so it sits by the next match.
+  const firstHead = todays.length > 0 ? "today" : week && (week.playoffs.length > 0 || rest.length > 0) ? "week" : null;
+  const matchHead = (title: string, seeAllHere: boolean) => (
+    <SectionHead title={title} onSeeAll={seeAllHere ? () => seeAll("upcoming") : undefined} seeAllLabel="See all matches" />
+  );
 
   return (
-    <TabScreen title="Home" roundel>
+    <TabScreen title="Home" roundel={!nothing} bare={nothing}>
       {weekQ.isLoading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <ActivityIndicator color={c.ink} accessibilityLabel="Loading" />
         </View>
       ) : nothing ? (
-        <View style={{ flex: 1, paddingBottom: insets.bottom }}>
-          <EmptyState symbol="tennisball" title="No league matches yet" message="Start or join a league, and your matches show up here each week." />
-          <View style={{ paddingHorizontal: spacing.space4, paddingBottom: spacing.space8 }}>
-            <Button label="Go to Leagues" variant="secondary" onPress={() => router.push("/(tabs)/leagues")} />
-          </View>
-        </View>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom }}
+          refreshControl={<RefreshControl refreshing={weekQ.isRefetching} onRefresh={() => void weekQ.refetch()} tintColor={c.ink} />}
+        >
+          <EmptyState roundel title="No league matches yet" message="Start or join a league in Leagues, and your matches show up here each week." />
+        </ScrollView>
       ) : (
         <ScrollView
           contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space3 }}
@@ -196,11 +177,11 @@ export default function HomeScreen() {
             </Card>
           ) : null}
 
+          {showStats && week ? <SeasonStats season={week.season} /> : null}
+
           {todays.length > 0 ? (
             <>
-              <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ marginTop: spacing.space2, paddingHorizontal: spacing.space1 }}>
-                Today
-              </Text>
+              {matchHead("Today", firstHead === "today")}
               {todays.map(weekCard)}
             </>
           ) : null}
@@ -215,24 +196,20 @@ export default function HomeScreen() {
             />
           ))}
 
-          {week && (week.playoffs.length > 0 || rest.length > 0) ? (
-            <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ marginTop: spacing.space2, paddingHorizontal: spacing.space1 }}>
-              This week
-            </Text>
-          ) : null}
+          {week && (week.playoffs.length > 0 || rest.length > 0) ? matchHead("This week", firstHead === "week") : null}
 
           {week?.playoffs.map(playoffCard)}
 
           {rest.map(weekCard)}
 
+          {week ? <HomeLeagues leagues={week.leagues} onOpen={openLeague} /> : null}
+
           {week && week.recent.length > 0 ? (
             <>
-              <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ marginTop: spacing.space2, paddingHorizontal: spacing.space1 }}>
-                Recent results
-              </Text>
+              <SectionHead title="Recent results" onSeeAll={() => seeAll("results")} seeAllLabel="See all results" />
               <Card style={{ padding: 0, overflow: "hidden" }}>
                 {week.recent.map((r, n) => (
-                  <ResultRow key={r.matchId} r={r} last={n === week.recent.length - 1} onPress={() => openLeague(r.leagueId)} />
+                  <ResultRow key={r.matchId} r={r} last={n === week.recent.length - 1} onPress={() => router.push(`/match/${r.matchId}`)} />
                 ))}
               </Card>
             </>

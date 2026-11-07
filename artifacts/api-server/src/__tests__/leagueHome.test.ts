@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildLeagueHome, type HomeInput, type HomeMatch } from "../lib/leagueHome.js";
+import { buildLeagueHome, homeLeagues, seasonFrom, type HomeInput, type HomeMatch } from "../lib/leagueHome.js";
 
 // Spec: Navigation > Home. This week's matches, pairings, and recent results.
 
@@ -69,7 +69,7 @@ describe("buildLeagueHome", () => {
 
   it("shows my unscored playoff match", () => {
     const home = buildLeagueHome(input({ matches: [match(200, null, 10, 20, { playoffBracketId: 5, playoffRound: "semifinal" })] }));
-    expect(home.playoffs).toEqual([{ leagueId: 1, leagueName: "Tuesday Flex", matchId: 200, round: "semifinal", opponentName: "Alex", singles: true, timeZone: "America/New_York", playBy: null, pastPlayBy: false }]);
+    expect(home.playoffs).toEqual([{ leagueId: 1, leagueName: "Tuesday Flex", matchId: 200, round: "semifinal", opponentName: "Alex", singles: true, timeZone: "America/New_York", playBy: null, pastPlayBy: false, scheduledAt: null, location: null }]);
   });
 
   it("leaves out leagues I've left", () => {
@@ -130,5 +130,49 @@ describe("buildLeagueHome playoffs (PR 5)", () => {
       input({ matches: [match(101, 2, 20, 10, { status: "completed", score: "6-3, 2-1 RET", winnerId: 20, completedAt: "2026-11-12T10:00:00Z" })] }),
     );
     expect(home.recent[0]).toMatchObject({ score: "3-6, 1-2 RET", won: false });
+  });
+});
+
+describe("season stats, all results and your leagues (finding 14)", () => {
+  const done = (id: number, winner: number, completedAt: string, extra: Partial<HomeMatch> = {}) =>
+    match(id, 2, 10, 20, { status: "completed", score: winner === 10 ? "6-3, 6-4" : "3-6, 4-6", winnerId: winner, completedAt, ...extra });
+
+  it("counts wins, losses and the current streak, newest first", () => {
+    expect(seasonFrom([{ won: true }, { won: true }, { won: false }, { won: true }])).toEqual({ wins: 3, losses: 1, played: 4, streak: { won: true, count: 2 } });
+    expect(seasonFrom([{ won: false }, { won: true }])).toMatchObject({ streak: { won: false, count: 1 } });
+    expect(seasonFrom([])).toEqual({ wins: 0, losses: 0, played: 0, streak: null });
+  });
+
+  it("keeps every result for My matches and the last five for Home", () => {
+    const matches = Array.from({ length: 7 }, (_, i) => done(300 + i, i % 2 ? 10 : 20, `2026-11-0${i + 1}T10:00:00Z`));
+    const home = buildLeagueHome(input({ matches }));
+    expect(home.results).toHaveLength(7);
+    expect(home.recent).toHaveLength(5);
+    expect(home.recent[0].matchId).toBe(306);
+    expect(home.season).toMatchObject({ wins: 3, losses: 4, played: 7, streak: { won: false, count: 1 } });
+  });
+
+  it("leaves an ended league's results out of the season stats", () => {
+    const home = buildLeagueHome(
+      input({ leagues: [{ id: 1, name: "Tuesday Flex", leagueType: "singles", endedAt: new Date() }], matches: [done(300, 10, "2026-11-01T10:00:00Z")] }),
+    );
+    expect(home.results).toHaveLength(1);
+    expect(home.season.played).toBe(0);
+  });
+
+  it("summarises each running league: your rank, record, and the top three plus you", () => {
+    const table = [1, 2, 3, 4, 5].map((rank) => ({ rank, playerId: rank === 5 ? 10 : 100 + rank, playerName: `P${rank}`, wins: 6 - rank, losses: rank - 1 }));
+    const out = homeLeagues({
+      myPlayers: [{ id: 10, leagueId: 1, leftAt: null }, { id: 11, leagueId: 2, leftAt: null }, { id: 12, leagueId: 3, leftAt: new Date() }],
+      leagues: [
+        { id: 1, name: "Tuesday Flex", location: "Beacon Courts" },
+        { id: 2, name: "Old league", endedAt: new Date() },
+        { id: 3, name: "Left league" },
+      ],
+      standings: new Map([[1, table]]),
+    });
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ leagueName: "Tuesday Flex", location: "Beacon Courts", rank: 5, playerCount: 5, wins: 1, losses: 4 });
+    expect(out[0].rows.map((r) => [r.rank, r.you])).toEqual([[1, false], [2, false], [3, false], [5, true]]);
   });
 });

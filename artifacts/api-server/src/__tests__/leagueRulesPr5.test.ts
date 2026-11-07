@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { checkTennisScore, flipScore, isRetiredScore, WALKOVER_SCORE } from "../lib/tennisScore.js";
 import { checkScoreEntry, parseMatchScore, scoreFromSide } from "../lib/leagueScoring.js";
-import { checkCorrection, checkUndo, FINAL_SCORES_MESSAGE } from "../lib/leagueScoreChanges.js";
+import { checkCorrection, checkEdit, FINAL_SCORES_MESSAGE } from "../lib/leagueScoreChanges.js";
 import { planDropout, playoffRoundWindow, settleProblem, walkoverResult } from "../lib/playoffs.js";
 import { accumulateScoreTotals } from "../lib/scoringUtils.js";
 import { pairKey, pairRound, ROUND_ROBIN_WEIGHTS, type PairingPlayer } from "../lib/pairing.js";
@@ -172,9 +172,9 @@ describe("final scores after End (Q9)", () => {
     player4Id: null,
   };
 
-  it("refuses corrections and undo once the league has ended", () => {
+  it("refuses corrections and edits once the league has ended", () => {
     expect(checkCorrection(played, null, true)).toEqual({ ok: false, status: 409, error: FINAL_SCORES_MESSAGE });
-    expect(checkUndo(played, "u1", new Date(), true)).toEqual({ ok: false, status: 409, error: FINAL_SCORES_MESSAGE });
+    expect(checkEdit(played, "u1", ["u1", "u2"], new Date(), { leagueEnded: true })).toEqual({ ok: false, status: 409, error: FINAL_SCORES_MESSAGE });
     expect(checkCorrection(played, null, false)).toEqual({ ok: true });
   });
 });

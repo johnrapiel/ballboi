@@ -11,7 +11,7 @@ import {
   getGetMyPlayersQueryKey,
 } from "@workspace/api-client-react";
 
-// C4, C23: after a score, undo, correction, join, leave or end, everything that
+// C4, C23: after a score, edit, correction, join, leave or end, everything that
 // shows that league goes stale together: its page, its rounds and bracket,
 // standings, the Leagues tab and Home. One list, so no screen misses one.
 
@@ -29,7 +29,13 @@ export function leagueQueryKeys(leagueId: number | null | undefined): readonly u
   ];
 }
 
-/** Refresh every screen that shows this league, Home included. */
+/** Match detail queries (one per match), which show a league's scores too. */
+export const isMatchDetailKey = (key: readonly unknown[]): boolean => typeof key[0] === "string" && key[0].startsWith("/api/me/matches/");
+
+/** Refresh every screen that shows this league, Home and Match detail included. */
 export function refreshLeague(queryClient: QueryClient, leagueId: number | null | undefined): Promise<void> {
-  return Promise.all(leagueQueryKeys(leagueId).map((queryKey) => queryClient.invalidateQueries({ queryKey }))).then(() => undefined);
+  return Promise.all([
+    ...leagueQueryKeys(leagueId).map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+    queryClient.invalidateQueries({ predicate: (q) => isMatchDetailKey(q.queryKey) }),
+  ]).then(() => undefined);
 }

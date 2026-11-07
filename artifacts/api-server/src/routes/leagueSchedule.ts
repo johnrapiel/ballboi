@@ -4,7 +4,8 @@ import { db, leagueRoundByesTable, leagueRoundsTable, leaguesTable, matchesTable
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { canViewLeague, getLeagueRole, PRIVATE_LEAGUE } from "../lib/leagueAccess.js";
 import { graceEndFor, leagueZone, roundPhase, roundWindow, todayFor } from "../lib/leagueCalendar.js";
-import { undoDeadline } from "../lib/leagueScoreChanges.js";
+import { editDeadline } from "../lib/leagueScoreChanges.js";
+import { matchParticipantIds } from "../lib/leagueScoring.js";
 import { leagueHasEnded } from "../lib/leagueLifecycle.js";
 import { planBye, planLock, planSwap, unpairedPlayers } from "../lib/roundEdits.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
@@ -46,6 +47,11 @@ async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDe
   };
   const activeIds = players.filter((p) => !p.leftAt).map((p) => p.id);
   const ended = leagueHasEnded(league);
+  // The Ball Boi accounts playing in a match, for who may edit its score.
+  const accounts = (m: (typeof matches)[number]) =>
+    matchParticipantIds(m)
+      .map((id) => players.find((p) => p.id === id)?.clerkUserId)
+      .filter((id): id is string => !!id);
 
   return rounds.map((r) => {
     const roundMatches = matches.filter((m) => m.roundId === r.id);
@@ -88,9 +94,10 @@ async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDe
           locked: m.locked,
           scheduledAt: m.scheduledAt ?? null,
           location: m.location ?? null,
-          // C4: set only for the player who entered the score, while they can
-          // undo it. Never once the league has ended: its scores are final (Q9).
-          undoUntil: ended ? null : undoDeadline(m, userId, now),
+          // Finding 7: set for either player while they can still edit the
+          // score. Never once the league has ended: its scores are final (Q9).
+          editUntil: ended ? null : editDeadline(m, userId, accounts(m), now),
+          editedBy: m.status === "completed" && m.scoreEditedAt ? (m.scoreEditedByName ?? "A player") : null,
           // C5: shown to both players and in Manage.
           correctedBy: m.correctedAt ? (m.correctedByName ?? "League admin") : null,
           correctedAt: m.correctedAt ? m.correctedAt.toISOString() : null,
