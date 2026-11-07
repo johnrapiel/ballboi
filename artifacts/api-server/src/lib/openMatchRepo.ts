@@ -16,7 +16,8 @@ import { and, asc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { boundingBox, type Point } from "./discoverArea.js";
 import type { NewOpenMatch, OpenMatchRow } from "./openMatch.js";
 
-export type JoinResult = "joined" | "filled" | "full" | "closed" | "already" | "own";
+/** "blocked": the joiner and someone already in the match have blocked each other, either way. */
+export type JoinResult = "joined" | "filled" | "full" | "closed" | "already" | "own" | "blocked";
 
 export interface OpenMatchMessage {
   id: number;
@@ -41,6 +42,8 @@ export interface OpenMatchRepo {
   people(clerkUserIds: string[]): Promise<Map<string, { userId: number; name: string; rating: number | null }>>;
   courtName(courtId: number): Promise<string | null>;
   isBlocked(a: string, b: string): Promise<boolean>;
+  /** Which of `others` have a block with `me`, either way. */
+  blockedAmong(me: string, others: string[]): Promise<Set<string>>;
   alertCandidates(since: Date): Promise<{ clerkUserId: string; point: Point; radius: number; rating: number | null; sentToday: number }[]>;
   logAlerts(clerkUserIds: string[], openMatchId: number): Promise<void>;
 }
@@ -105,10 +108,20 @@ export class DrizzleOpenMatchRepo implements OpenMatchRepo {
         gt(openMatchesTable.startsAt, now),
         sql`${openMatchesTable.areaLatitude} BETWEEN ${box.minLat} AND ${box.maxLat}`,
         sql`${openMatchesTable.areaLongitude} BETWEEN ${box.minLon} AND ${box.maxLon}`,
+        // Not if the viewer and the poster, or anyone already in, have a block either way.
         sql`NOT EXISTS (
           SELECT 1 FROM user_blocks b
-          WHERE (b.blocker_clerk_user_id = ${viewer} AND b.blocked_clerk_user_id = ${openMatchesTable.posterClerkUserId})
-             OR (b.blocker_clerk_user_id = ${openMatchesTable.posterClerkUserId} AND b.blocked_clerk_user_id = ${viewer}))`,
+          WHERE (b.blocker_clerk_user_id = ${viewer} AND (
+                  b.blocked_clerk_user_id = ${openMatchesTable.posterClerkUserId}
+                  OR b.blocked_clerk_user_id IN (SELECT p.clerk_user_id FROM open_match_players p WHERE p.open_match_id = ${openMatchesTable.id} AND p.status = 'in')))
+             OR (b.blocked_clerk_user_id = ${viewer} AND (
+                  b.blocker_clerk_user_id = ${openMatchesTable.posterClerkUserId}
+                  OR b.blocker_clerk_user_id IN (SELECT p.clerk_user_id FROM open_match_players p WHERE p.open_match_id = ${openMatchesTable.id} AND p.status = 'in'))))`,
+        // Not from a poster who is banned or suspended right now, like Players.
+        sql`NOT EXISTS (
+          SELECT 1 FROM account_sanctions s
+          WHERE s.clerk_user_id = ${openMatchesTable.posterClerkUserId} AND s.lifted_at IS NULL
+            AND (s.ends_at IS NULL OR s.ends_at > now()))`,
       ),
     );
     return hydrate(flat(rows));
@@ -151,6 +164,14 @@ export class DrizzleOpenMatchRepo implements OpenMatchRepo {
       if (m.poster_clerk_user_id === clerkUserId) return { result: "own" as const };
       const players = await tx.select().from(openMatchPlayersTable).where(eq(openMatchPlayersTable.openMatchId, id));
       if (players.some((p) => p.clerkUserId === clerkUserId && p.status === "in")) return { result: "already" as const };
+      // Checked under the lock, so two players who blocked each other can't both get in at once.
+      const inNow = [m.poster_clerk_user_id, ...players.filter((p) => p.status === "in").map((p) => p.clerkUserId)];
+      const blocks = await tx.execute(sql`
+        SELECT 1 FROM user_blocks
+        WHERE (blocker_clerk_user_id = ${clerkUserId} AND blocked_clerk_user_id IN (${sql.join(inNow.map((x) => sql`${x}`), sql`, `)}))
+           OR (blocked_clerk_user_id = ${clerkUserId} AND blocker_clerk_user_id IN (${sql.join(inNow.map((x) => sql`${x}`), sql`, `)}))
+        LIMIT 1`);
+      if (blocks.rows.length) return { result: "blocked" as const };
       const taken = players.filter((p) => p.status === "in").length;
       if (m.status === "full" || taken >= Number(m.spots)) return { result: "full" as const };
       const mine = players.find((p) => p.clerkUserId === clerkUserId);
@@ -273,6 +294,17 @@ export class DrizzleOpenMatchRepo implements OpenMatchRepo {
       WHERE (blocker_clerk_user_id = ${a} AND blocked_clerk_user_id = ${b})
          OR (blocker_clerk_user_id = ${b} AND blocked_clerk_user_id = ${a}) LIMIT 1`);
     return result.rows.length > 0;
+  }
+
+  async blockedAmong(me: string, others: string[]) {
+    const ids = others.filter((x) => x !== me);
+    if (!ids.length) return new Set<string>();
+    const list = sql.join(ids.map((x) => sql`${x}`), sql`, `);
+    const result = await db.execute(sql`
+      SELECT blocked_clerk_user_id AS id FROM user_blocks WHERE blocker_clerk_user_id = ${me} AND blocked_clerk_user_id IN (${list})
+      UNION
+      SELECT blocker_clerk_user_id AS id FROM user_blocks WHERE blocked_clerk_user_id = ${me} AND blocker_clerk_user_id IN (${list})`);
+    return new Set((result.rows as { id: string }[]).map((r) => String(r.id)));
   }
 
   async alertCandidates(since: Date) {

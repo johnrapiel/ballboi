@@ -36,6 +36,8 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
 }
 
 export const SPOT_FILLED = "This spot just filled";
+/** A join refused because of a block, worded so it never says who or why. */
+export const NOT_AVAILABLE = "This match isn't available.";
 
 export function createOpenMatchesRouter(
   repo: OpenMatchRepo = new DrizzleOpenMatchRepo(),
@@ -55,6 +57,8 @@ export function createOpenMatchesRouter(
   async function detail(m: OpenMatchRow & { matchId: number | null }, me: string) {
     const mine = await discover.me(me);
     const people = await repo.people([m.posterClerkUserId, ...m.joined]);
+    // A block made after both joined: they still hold their spots, but each is left out of the other's Players.
+    const hidden = await repo.blockedAmong(me, [m.posterClerkUserId, ...m.joined]);
     const person = (id: string, poster: boolean) => ({
       userId: people.get(id)?.userId ?? 0,
       name: id === me ? "You" : (people.get(id)?.name ?? "Player"),
@@ -78,7 +82,10 @@ export function createOpenMatchesRouter(
       spots: m.spots,
       spotsLeft: spotsLeft(m),
       total: m.spots + 1,
-      players: [person(m.posterClerkUserId, true), ...m.joined.map((id) => person(id, false))],
+      players: [
+        ...(hidden.has(m.posterClerkUserId) ? [] : [person(m.posterClerkUserId, true)]),
+        ...m.joined.filter((id) => !hidden.has(id)).map((id) => person(id, false)),
+      ],
       role,
       started: now >= m.startsAt,
       chatTitle: chatTitle(m),
@@ -148,9 +155,10 @@ export function createOpenMatchesRouter(
       // Alerts for new posts: near the post, level fits, at most 2 a day each.
       const candidates = await repo.alertCandidates(new Date(now.getTime() - 24 * 3_600_000));
       const to: string[] = [];
-      for (const who of alertRecipients({ poster: me, point: mine.area.point, minRating: parsed.minRating, maxRating: parsed.maxRating }, candidates)) {
-        if (!(await repo.isBlocked(me, who))) to.push(who);
-      }
+      // A new post has only the poster in it, so a block with the poster is the only one to check.
+      const recipients = alertRecipients({ poster: me, point: mine.area.point, minRating: parsed.minRating, maxRating: parsed.maxRating }, candidates);
+      const blocked = await repo.blockedAmong(me, recipients);
+      to.push(...recipients.filter((who) => !blocked.has(who)));
       await repo.logAlerts(to, id);
       const label = windowLabel(parsed.startsAt, parsed.endsAt, parsed.timeZone);
       notify(to, "New open match near you", `${parsed.format === "doubles" ? `Doubles, need ${parsed.spots}` : "Singles"} · ${label}${courtName ? ` · ${courtName}` : ""}`);
@@ -165,7 +173,10 @@ export function createOpenMatchesRouter(
     const me = getAuth(req).userId!;
     try {
       const m = await repo.one(Number(req.params.id));
-      if (!m || m.status === "canceled" || (await repo.isBlocked(me, m.posterClerkUserId))) {
+      const everyone = m ? [m.posterClerkUserId, ...m.joined] : [];
+      // Someone outside the match never sees it if they have a block with anyone in it.
+      // Players already in keep their view (blocked players are left out of it in detail()).
+      if (!m || m.status === "canceled" || (!everyone.includes(me) && (await repo.blockedAmong(me, everyone)).size > 0)) {
         res.status(404).json({ error: "This match isn't open any more." });
         return;
       }
@@ -190,11 +201,12 @@ export function createOpenMatchesRouter(
       const everyone = [m.posterClerkUserId, ...m.joined];
       switch (action) {
         case "join": {
-          if (await repo.isBlocked(me, m.posterClerkUserId)) {
-            res.status(404).json({ error: "This match isn't open any more." });
+          // The repo checks blocks with the poster and everyone already in, under the join lock.
+          const result = await repo.join(id, me, now);
+          if (result === "blocked") {
+            res.status(404).json({ error: NOT_AVAILABLE, code: "unavailable" });
             return;
           }
-          const result = await repo.join(id, me, now);
           if (result === "full") {
             res.status(409).json({ error: SPOT_FILLED, code: "filled" });
             return;
@@ -269,7 +281,8 @@ export function createOpenMatchesRouter(
             return;
           }
           const msg = await repo.send(id, me, text);
-          notify(everyone.filter((x) => x !== me), chatTitle(m), `${meName}: ${text.slice(0, 120)}`);
+          const blocked = await repo.blockedAmong(me, everyone);
+          notify(everyone.filter((x) => x !== me && !blocked.has(x)), chatTitle(m), `${meName}: ${text.slice(0, 120)}`);
           res.status(201).json({ id: msg.id, text: msg.text, at: msg.createdAt.toISOString(), fromMe: true, senderName: "You", senderUserId: null });
           return;
         }
@@ -290,7 +303,10 @@ export function createOpenMatchesRouter(
         return;
       }
       const after = Number((req.query as Record<string, unknown>).after) || 0;
-      const rows = await repo.messages(m.id, after);
+      // Messages from anyone you have a block with (either way) are left out of your view.
+      const all = await repo.messages(m.id, after);
+      const blocked = await repo.blockedAmong(me, [...new Set(all.map((r) => r.senderClerkUserId).filter((x): x is string => !!x))]);
+      const rows = all.filter((r) => !r.senderClerkUserId || !blocked.has(r.senderClerkUserId));
       const people = await repo.people([...new Set(rows.map((r) => r.senderClerkUserId).filter((x): x is string => !!x))]);
       res.json({
         open: m.status === "full",

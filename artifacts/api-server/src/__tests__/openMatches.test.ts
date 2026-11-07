@@ -21,7 +21,7 @@ import {
   type OpenMatchRow,
 } from "../lib/openMatch";
 import type { JoinResult, OpenMatchMessage, OpenMatchRepo } from "../lib/openMatchRepo";
-import { createOpenMatchesRouter, SPOT_FILLED } from "../routes/openMatches";
+import { createOpenMatchesRouter, NOT_AVAILABLE, SPOT_FILLED } from "../routes/openMatches";
 import { MemoryDiscoverRepo } from "./discoverMemoryRepo";
 
 const H = 3_600_000;
@@ -112,8 +112,18 @@ class MemoryOpenMatches implements OpenMatchRepo {
   msgs: OpenMatchMessage[] = [];
   alerts: string[] = [];
   candidates: { clerkUserId: string; point: { latitude: number; longitude: number }; radius: number; rating: number | null; sentToday: number }[] = [];
-  async near() {
-    return this.rows.filter((r) => r.status === "open");
+  /** [blocker, blocked] pairs. */
+  blocks: [string, string][] = [];
+  /** Posters banned or suspended right now. */
+  sanctioned = new Set<string>();
+  private blockedWith(a: string, b: string) {
+    return this.blocks.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
+  }
+  // Mirrors the SQL in DrizzleOpenMatchRepo.near: blocks with the poster or anyone in, and sanctioned posters.
+  async near(viewer: string) {
+    return this.rows.filter(
+      (r) => r.status === "open" && !this.sanctioned.has(r.posterClerkUserId) && ![r.posterClerkUserId, ...r.joined].some((x) => this.blockedWith(viewer, x)),
+    );
   }
   async one(id: number) {
     const r = this.rows.find((x) => x.id === id);
@@ -128,6 +138,7 @@ class MemoryOpenMatches implements OpenMatchRepo {
     const r = this.rows.find((x) => x.id === id)!;
     if (r.posterClerkUserId === who) return "own";
     if (r.status !== "open" || r.joined.length >= r.spots) return "full";
+    if ([r.posterClerkUserId, ...r.joined].some((x) => this.blockedWith(who, x))) return "blocked";
     r.joined.push(who);
     if (r.joined.length >= r.spots) {
       r.status = "full";
@@ -169,8 +180,11 @@ class MemoryOpenMatches implements OpenMatchRepo {
   async courtName() {
     return "Beacon Courts";
   }
-  async isBlocked() {
-    return false;
+  async isBlocked(a: string, b: string) {
+    return this.blockedWith(a, b);
+  }
+  async blockedAmong(me: string, others: string[]) {
+    return new Set(others.filter((x) => x !== me && this.blockedWith(me, x)));
   }
   async alertCandidates() {
     return this.candidates;
@@ -253,6 +267,77 @@ describe("open match routes", () => {
     await as("a").post("/api/open-matches/1/cancel").expect(200);
     expect(push).toHaveBeenLastCalledWith(["b"], expect.stringMatching(/canceled/), expect.any(String), "/discover");
     await as("b").get("/api/open-matches/1").expect(404);
+  });
+
+  describe("blocked players", () => {
+    it("refuses a join when the joiner and anyone already in have a block, either way", async () => {
+      await post();
+      await as("b").post("/api/open-matches/1/join").expect(200);
+      repo.blocks = [["c", "b"]];
+      await as("c").post("/api/open-matches/1/join").expect(404, { error: NOT_AVAILABLE, code: "unavailable" });
+      repo.blocks = [["b", "c"]];
+      await as("c").post("/api/open-matches/1/join").expect(404, { error: NOT_AVAILABLE, code: "unavailable" });
+      expect(repo.rows[0].joined).toEqual(["b"]);
+      repo.blocks = [["a", "c"]];
+      await as("c").post("/api/open-matches/1/join").expect(404, { error: NOT_AVAILABLE, code: "unavailable" });
+      repo.blocks = [];
+      await as("c").post("/api/open-matches/1/join").expect(200);
+    });
+
+    it("hides the post from a player with a block with anyone in it, in the list and on open", async () => {
+      await post();
+      await as("b").post("/api/open-matches/1/join");
+      repo.blocks = [["b", "c"]];
+      const list = await as("c").get("/api/open-matches").expect(200);
+      expect(list.body.matches).toHaveLength(0);
+      await as("c").get("/api/open-matches/1").expect(404);
+      const others = await as("d").get("/api/open-matches").expect(200);
+      expect(others.body.matches).toHaveLength(1);
+    });
+
+    it("leaves alerts for new posts out for players with a block with the poster", async () => {
+      repo.blocks = [["d", "a"]];
+      repo.candidates = ["c", "d"].map((clerkUserId) => ({ clerkUserId, point: wappingers.point, radius: 10, rating: 3.5, sentToday: 0 }));
+      await post().expect(201);
+      expect(repo.alerts).toEqual(["c"]);
+      expect(push).toHaveBeenCalledWith(["c"], "New open match near you", expect.any(String), "/discover");
+    });
+
+    it("leaves blocked players out of each other's Players and group chat after both joined", async () => {
+      await post();
+      await as("b").post("/api/open-matches/1/join");
+      await as("c").post("/api/open-matches/1/join");
+      await as("b").post("/api/open-matches/1/messages").send({ text: "From Theo" }).expect(201);
+      await as("c").post("/api/open-matches/1/messages").send({ text: "From Mia" }).expect(201);
+      repo.blocks = [["c", "b"]];
+
+      const asB = await as("b").get("/api/open-matches/1").expect(200);
+      expect(asB.body.players.map((p: { userId: number }) => p.userId)).toEqual([1, 2]);
+      expect(asB.body.spotsLeft).toBe(0);
+      const asC = await as("c").get("/api/open-matches/1").expect(200);
+      expect(asC.body.players.map((p: { userId: number }) => p.userId)).toEqual([1, 3]);
+      const asA = await as("a").get("/api/open-matches/1").expect(200);
+      expect(asA.body.players).toHaveLength(3);
+
+      const chatB = await as("b").get("/api/open-matches/1/messages").expect(200);
+      expect(chatB.body.messages.map((m: { text: string }) => m.text)).not.toContain("From Mia");
+      expect(chatB.body.messages.map((m: { text: string }) => m.text)).toContain("From Theo");
+      const chatC = await as("c").get("/api/open-matches/1/messages").expect(200);
+      expect(chatC.body.messages.map((m: { text: string }) => m.text)).not.toContain("From Theo");
+      const chatA = await as("a").get("/api/open-matches/1/messages").expect(200);
+      expect(chatA.body.messages.map((m: { text: string }) => m.text)).toEqual(expect.arrayContaining(["From Theo", "From Mia"]));
+
+      push.mockClear();
+      await as("c").post("/api/open-matches/1/messages").send({ text: "Hi all" }).expect(201);
+      expect(push).toHaveBeenCalledWith(["a"], expect.any(String), "Mia Kowalski: Hi all", "/discover");
+    });
+  });
+
+  it("leaves posts from banned or suspended players out of the list", async () => {
+    await post();
+    repo.sanctioned.add("a");
+    const list = await as("b").get("/api/open-matches").expect(200);
+    expect(list.body.matches).toHaveLength(0);
   });
 
   it("refuses a time that has passed", async () => {

@@ -46,11 +46,18 @@ export default function DiscoverScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const players = useDiscoverPlayers(radius, filters, !!me.data && tab === "players");
+  const leagues = useDiscoverLeagues(radius, !!me.data && tab === "leagues");
+  const matches = useOpenMatches(radius, !!me.data && tab === "matches");
 
+  // Pull to refresh reloads your area and the list on the tab you're on.
   async function refresh() {
     setRefreshing(true);
-    await Promise.all([me.refetch(), tab === "players" ? players.refetch() : Promise.resolve()]);
-    setRefreshing(false);
+    const list = tab === "players" ? players : tab === "leagues" ? leagues : matches;
+    try {
+      await Promise.all([me.refetch(), list.refetch()]);
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   const area = me.data?.area ?? null;
