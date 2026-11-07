@@ -39,7 +39,7 @@
     [hidden]{display:none !important}
     html.no-js #soon{display:none !important}
     html.no-js #ea-form{display:grid !important}
-    .ea{display:grid;grid-template-columns:minmax(0,1fr) 9.5ch auto;align-items:end;gap:12px;max-width:560px;text-align:left}
+    .ea{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px;max-width:560px;text-align:left}
     .field{display:flex;flex-direction:column;gap:6px}
     .field label{font-size:15px;font-weight:800}
     .field label span{font-weight:500;color:var(--muted)}
@@ -87,10 +87,6 @@
           <label for="ea-email">Email</label>
           <input id="ea-email" name="email" type="email" autocomplete="email" maxlength="254" required aria-describedby="ea-status">
         </div>
-        <div class="field">
-          <label for="ea-zip">Zip <span>(optional)</span></label>
-          <input id="ea-zip" name="zip" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="5" pattern="[0-9]{5}" aria-describedby="ea-status">
-        </div>
         <div class="hp" aria-hidden="true"><label for="ea-website">Website</label><input id="ea-website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
         <button class="btn" type="submit">Join</button>
         <p class="status" id="ea-status" role="status"></p>
@@ -108,6 +104,6 @@
   </footer>
   <canvas id="balls" aria-hidden="true"></canvas>
   <script src="/balls.js?v=7" defer></script>
-  <script src="/early-access.js?v=1" defer></script>
+  <script src="/early-access.js?v=2" defer></script>
 </body>
 </html>

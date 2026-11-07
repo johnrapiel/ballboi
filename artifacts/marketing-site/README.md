@@ -10,7 +10,7 @@ ballboitennis.com and both `www` addresses serve or redirect to the same site.
 |---|---|
 | `index.html` | Home page: roundel, headline, subhead, "Get early access" pill and sign-up form |
 | `_worker.js` | Handles early-access sign-ups at `POST /api/early-access` and serves everything else. Drag-and-drop deploys support this file but not a `functions/` folder |
-| `early-access.js` | Opens the sign-up form from the pill, validates, posts, and shows "You're on the list" |
+| `early-access.js` | Opens the email form from the pill, validates, posts, and shows "You're on the list" |
 | `balls.js` | The pill's ball animation. Desktop: hover the pill. Phones: plays once on load. Off under Reduce Motion |
 | `privacy.html`, `terms.html`, `legal.css` | Legal pages, served at `/privacy` and `/terms` |
 | `assets/roundel-ink.*` | The roundel with no paper (navy strokes, transparent), 888px from the 1024px master |
@@ -28,7 +28,7 @@ ballboitennis.com and both `www` addresses serve or redirect to the same site.
 
 ## Early access sign-ups
 
-The pill opens a form: email (required) and zip (optional, to invite local testers first). Sign-ups go to a Cloudflare D1 database. Free: D1 and the worker stay well inside Cloudflare's free limits.
+The pill opens a one-field form: email only, to keep it seamless (decided Nov 7, 2026). Sign-ups go to a Cloudflare D1 database. Free: D1 and the worker stay well inside Cloudflare's free limits.
 
 - **Spam:** a hidden "website" field that only bots fill; those sign-ups are dropped silently. If spam gets through anyway, add Cloudflare Turnstile (free).
 - **Duplicates:** signing up twice keeps one row.
@@ -41,7 +41,7 @@ The pill opens a form: email (required) and zip (optional, to invite local teste
 3. Deploy. The table is created on the first sign-up.
 
 **See the list:** D1 > `ballboi-early-access` > Console, then run
-`SELECT email, zip, created_at FROM early_access ORDER BY created_at;`
+`SELECT email, created_at FROM early_access ORDER BY created_at;`
 
 **Remove someone:** `DELETE FROM early_access WHERE email = 'name@example.com';`
 

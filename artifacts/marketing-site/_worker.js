@@ -5,11 +5,9 @@
 // Everything else is served from the static files as usual.
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const ZIP_RE = /^\d{5}$/;
 
 const SCHEMA = `CREATE TABLE IF NOT EXISTS early_access (
   email TEXT PRIMARY KEY,
-  zip TEXT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 )`;
 
@@ -48,19 +46,15 @@ async function earlyAccess(request, env) {
   if (String(data.website || "").trim()) return done("joined") || json({ ok: true });
 
   const email = String(data.email || "").trim().toLowerCase();
-  const zip = String(data.zip || "").trim();
   if (!email || email.length > 254 || !EMAIL_RE.test(email)) return done("invalid") || json({ ok: false, error: "email" }, 400);
-  if (zip && !ZIP_RE.test(zip)) return done("invalid") || json({ ok: false, error: "zip" }, 400);
 
   if (!env.DB) return done("error") || json({ ok: false, error: "not_configured" }, 503);
 
   try {
     await env.DB.prepare(SCHEMA).run();
-    // Signing up twice is fine: keep the first sign-up, add a zip if it was missing.
-    await env.DB.prepare(
-      "INSERT INTO early_access (email, zip) VALUES (?1, ?2) ON CONFLICT(email) DO UPDATE SET zip = COALESCE(early_access.zip, excluded.zip)"
-    )
-      .bind(email, zip || null)
+    // Signing up twice is fine: the first sign-up stays.
+    await env.DB.prepare("INSERT INTO early_access (email) VALUES (?1) ON CONFLICT(email) DO NOTHING")
+      .bind(email)
       .run();
   } catch {
     return done("error") || json({ ok: false, error: "server" }, 500);
