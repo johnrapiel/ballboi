@@ -235,3 +235,16 @@ describe("match cards in chat", () => {
     expect([d.getDate(), d.getHours(), d.getMinutes()]).toEqual([8, 18, 0]);
   });
 });
+
+import { needLabel, openMatchesPath, waitingLine, whosInLine, windowEnd } from "../discover";
+
+describe("open matches", () => {
+  it("writes the tags and lines", () => {
+    expect(needLabel(2)).toBe("Need 2");
+    expect(whosInLine({ total: 4, spotsLeft: 1 })).toBe("Who's in · 3 of 4");
+    expect(waitingLine(2)).toBe("2 spots left. We'll open a group chat when they fill, and let you know.");
+    expect(waitingLine(1)).toBe("1 spot left. We'll open a group chat when it fills, and let you know.");
+    expect(openMatchesPath(12)).toBe("/api/open-matches?radius=12");
+    expect(windowEnd(new Date("2026-11-14T14:00:00Z"), 2).toISOString()).toBe("2026-11-14T16:00:00.000Z");
+  });
+});
