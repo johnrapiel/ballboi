@@ -187,3 +187,51 @@ describe("court directory", () => {
     expect(courtsPath("  beacon  park ")).toBe("/api/courts?q=beacon%20park");
   });
 });
+
+import { actionLabel, defaultPlanStart, eventCopy, planDetail, type MatchPlan, type PlanEvent } from "../discover";
+
+describe("match cards in chat", () => {
+  const plan: MatchPlan = {
+    id: 1,
+    startsAt: "2026-11-12T23:00:00.000Z",
+    timeZone: "America/New_York",
+    courtName: "Fishkill Rec Park",
+    kind: "singles",
+    matchId: 9,
+    score: null,
+    mine: false,
+    events: [],
+  };
+  const ev = (e: Partial<PlanEvent>): PlanEvent => ({
+    key: "k",
+    type: "proposed",
+    at: "2026-11-10T12:00:00Z",
+    by: "them",
+    actions: [],
+    ...e,
+  });
+
+  it("asks the other player and tells the sender they're waiting", () => {
+    expect(eventCopy(ev({ state: "waiting" }), plan, "Sam Whitfield").title).toBe("Add this match?");
+    expect(eventCopy(ev({ state: "waiting", by: "me" }), plan, "Sam Whitfield").body).toMatch(/Waiting for Sam\.$/);
+    expect(eventCopy(ev({ state: "replaced" }), plan, "Sam").title).toBe("Replaced by a newer time");
+  });
+
+  it("says the dispute line exactly (F12)", () => {
+    expect(eventCopy(ev({ type: "no_show_disputed" }), plan, "Sam").title).toBe(
+      "You two remember this differently, so we've left it off both cards.",
+    );
+  });
+
+  it("labels the answers", () => {
+    expect(actionLabel("accept", "Sam")).toBe("I'm in");
+    expect(actionLabel("decline", "Sam")).toBe("Can't make it");
+    expect(actionLabel("dispute", "Sam")).toBe("That's not right");
+    expect(planDetail({ courtName: null, kind: "practice" })).toBe("Court not set · Practice hit");
+  });
+
+  it("starts a new card tomorrow at 6 PM", () => {
+    const d = defaultPlanStart(new Date(2026, 10, 7, 9, 30));
+    expect([d.getDate(), d.getHours(), d.getMinutes()]).toEqual([8, 18, 0]);
+  });
+});

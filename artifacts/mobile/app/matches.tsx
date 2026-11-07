@@ -1,4 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { DiscoverMatchesSection } from "@/components/discover/DiscoverMatches";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import React, { useCallback, useRef, useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from "react-native";
@@ -205,6 +206,8 @@ export default function MyMatchesScreen() {
       <>
         <SeasonStats season={week.season} played />
         <LightTabs tab={tab} onChange={switchTab} />
+        {/* Matches set up in a Discover chat (Wave 2, Session F). */}
+        {tab === "upcoming" ? <DiscoverMatchesSection /> : null}
         {tab === "upcoming" ? (
           upcoming.length === 0 ? (
             <Empty

@@ -1,5 +1,5 @@
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AccessibilityInfo,
   ActionSheetIOS,
@@ -21,6 +21,8 @@ import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { MessagesApiError, useMessagesActions, useOlderMessages, useThread, type Message } from "@/hooks/useMessages";
 import { useReportBlock } from "@/hooks/useReportBlock";
+import { MatchCard, useMatchCardActions, type MatchCardItem } from "@/components/chat/MatchCard";
+import { useMatchPlans } from "@/hooks/useDiscoverMatchPlans";
 import { newClientMessageId } from "@/lib/messages";
 
 // A conversation (spec: Messaging and moderation). Opens from Messages, from
@@ -46,7 +48,17 @@ interface Pending {
   status: Exclude<BubbleStatus, "sent">;
 }
 
-type Row = { key: string; text: string; at: string; fromMe: boolean; status: BubbleStatus; serverId?: string; clientId?: string };
+type Row = {
+  key: string;
+  text: string;
+  at: string;
+  fromMe: boolean;
+  status: BubbleStatus;
+  serverId?: string;
+  clientId?: string;
+  /** A match card step (Discover, F2), shown in time order with the messages. */
+  card?: MatchCardItem;
+};
 
 function chooseIOS(title: string, options: string[], destructiveIndex: number | undefined, onPick: (i: number) => void) {
   if (Platform.OS === "ios") {
@@ -88,6 +100,22 @@ export default function ConversationScreen() {
   const userId = conversation?.other.userId ?? startUserId;
   /** Who Report and Unblock are about: their league player, else their account. */
   const reportable = playerId || userId ? { id: playerId ?? null, userId: userId ?? null, name } : null;
+  // Match cards with this player (Discover, F2).
+  const plans = useMatchPlans(userId ?? null);
+  const cardActions = useMatchCardActions(name);
+  // Back from a sheet or the score: refresh the cards, and find the chat a first card opened.
+  useFocusEffect(
+    useCallback(() => {
+      void plans.refetch();
+      if (conversationId === null && startUserId !== null) {
+        actions
+          .conversationWithUser(startUserId)
+          .then((r) => r.conversationId && setConversationId(r.conversationId))
+          .catch(() => undefined);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [conversationId, startUserId]),
+  );
 
   const [draft, setDraft] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
@@ -137,8 +165,12 @@ export default function ConversationScreen() {
     const waiting = pending
       .filter((p) => !serverMessages.some((m) => m.id.endsWith(`-${p.clientId}`)))
       .map<Row>((p) => ({ key: p.clientId, text: p.text, at: p.at, fromMe: true, status: p.status, clientId: p.clientId }));
-    return [...sent, ...waiting].reverse(); // inverted list: newest first
-  }, [serverMessages, pending]);
+    const cards: Row[] = (plans.data?.plans ?? []).flatMap((plan) =>
+      plan.events.map((event) => ({ key: `card-${event.key}`, text: "", at: event.at, fromMe: event.by === "me", status: "sent" as const, card: { plan, event } })),
+    );
+    // Messages and match card steps in time order; inverted list: newest first.
+    return [...sent, ...waiting, ...cards].sort((a, b) => a.at.localeCompare(b.at)).reverse();
+  }, [serverMessages, pending, plans.data]);
 
   const showNotice = (text: string) => {
     setNotice(text);
@@ -261,7 +293,10 @@ export default function ConversationScreen() {
               </View>
             ) : undefined
           }
-          renderItem={({ item }) => (
+          renderItem={({ item }) =>
+            item.card ? (
+              <MatchCard item={item.card} otherName={name} devTools={plans.data?.devTools || __DEV__} onAction={cardActions.run} busy={cardActions.busy} />
+            ) : (
             <MessageBubble
               text={item.text}
               at={item.at}
@@ -272,7 +307,8 @@ export default function ConversationScreen() {
               onReport={!item.fromMe && item.serverId && reportable ? () => reportMessage(item.serverId!) : undefined}
               onLongPress={!item.fromMe && item.serverId && reportable ? () => messageMenu(item.serverId!) : undefined}
             />
-          )}
+            )
+          }
           ListEmptyComponent={
             // Inverted lists flip their children; flip the empty state back.
             <View style={{ transform: [{ scaleY: -1 }], padding: spacing.space8, alignItems: "center" }}>
@@ -326,6 +362,14 @@ export default function ConversationScreen() {
           </Text>
         ) : (
           <View style={{ flexDirection: "row", alignItems: "flex-end", gap: spacing.space2 }}>
+            {userId && !plans.data?.blocked ? (
+              <IconButton
+                symbol="calendar.badge.plus"
+                label="Add a match"
+                hint={`Sends ${name} a match card with a day, time and court`}
+                onPress={() => router.push({ pathname: "/discover/plan/[userId]", params: { userId: String(userId), name } })}
+              />
+            ) : null}
             <TextInput
               value={draft}
               onChangeText={(t) => {

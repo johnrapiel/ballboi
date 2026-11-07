@@ -318,6 +318,136 @@ export interface HomeCourtInput {
   courtId: number | null;
 }
 
+export type MatchPlanKind = (typeof MatchPlanKind)[keyof typeof MatchPlanKind];
+
+export const MatchPlanKind = {
+  singles: "singles",
+  practice: "practice",
+} as const;
+
+export type MatchPlanEventType =
+  (typeof MatchPlanEventType)[keyof typeof MatchPlanEventType];
+
+export const MatchPlanEventType = {
+  proposed: "proposed",
+  added: "added",
+  undone: "undone",
+  declined: "declined",
+  day_before: "day_before",
+  canceled: "canceled",
+  did_it_happen: "did_it_happen",
+  not_played: "not_played",
+  no_show_reported: "no_show_reported",
+  no_show_disputed: "no_show_disputed",
+  no_show_confirmed: "no_show_confirmed",
+  scored: "scored",
+} as const;
+
+/**
+ * @nullable
+ */
+export type MatchPlanEventBy =
+  | (typeof MatchPlanEventBy)[keyof typeof MatchPlanEventBy]
+  | null;
+
+export const MatchPlanEventBy = {
+  me: "me",
+  them: "them",
+} as const;
+
+export type MatchPlanEventActionsItem =
+  (typeof MatchPlanEventActionsItem)[keyof typeof MatchPlanEventActionsItem];
+
+export const MatchPlanEventActionsItem = {
+  accept: "accept",
+  decline: "decline",
+  undo: "undo",
+  still_on: "still_on",
+  cancel: "cancel",
+  score: "score",
+  no_show: "no_show",
+  not_played: "not_played",
+  dispute: "dispute",
+  admit: "admit",
+} as const;
+
+export type MatchPlanEventAbout =
+  (typeof MatchPlanEventAbout)[keyof typeof MatchPlanEventAbout];
+
+export const MatchPlanEventAbout = {
+  me: "me",
+  them: "them",
+} as const;
+
+export interface MatchPlanEvent {
+  key: string;
+  type: MatchPlanEventType;
+  at: string;
+  /** @nullable */
+  by: MatchPlanEventBy;
+  actions: MatchPlanEventActionsItem[];
+  state?: string;
+  meIn?: boolean;
+  themIn?: boolean;
+  about?: MatchPlanEventAbout;
+  deadline?: string;
+}
+
+export interface MatchPlan {
+  id: number;
+  startsAt: string;
+  timeZone: string;
+  /** @nullable */
+  courtName: string | null;
+  kind: MatchPlanKind;
+  /** @nullable */
+  matchId: number | null;
+  /** @nullable */
+  score: string | null;
+  /** You sent this card */
+  mine: boolean;
+  events: MatchPlanEvent[];
+}
+
+export interface MatchPlanShiftInput {
+  hours: number;
+}
+
+export interface MatchPlansWithUser {
+  otherName: string;
+  blocked: boolean;
+  devTools: boolean;
+  plans: MatchPlan[];
+}
+
+export type NewMatchPlanInputKind =
+  (typeof NewMatchPlanInputKind)[keyof typeof NewMatchPlanInputKind];
+
+export const NewMatchPlanInputKind = {
+  singles: "singles",
+  practice: "practice",
+} as const;
+
+export interface NewMatchPlanInput {
+  userId: number;
+  /** ISO 8601, in the future, within 60 days */
+  startsAt: string;
+  timeZone?: string;
+  /** @nullable */
+  courtId?: number | null;
+  kind?: NewMatchPlanInputKind;
+}
+
+export type UpcomingMatchPlansMatchesItem = MatchPlan & {
+  otherName: string;
+  /** @nullable */
+  otherUserId: number | null;
+};
+
+export interface UpcomingMatchPlans {
+  matches: UpcomingMatchPlansMatchesItem[];
+}
+
 export interface NewCourtInput {
   name: string;
   /** Street, town and the 5-digit ZIP */
@@ -2688,6 +2818,7 @@ export const NewReportReason = {
   unsafe: "unsafe",
   other: "other",
   impersonation: "impersonation",
+  no_show_dispute: "no_show_dispute",
 } as const;
 
 export interface NewReport {
@@ -3105,6 +3236,7 @@ export const MessageReportInputReason = {
   unsafe: "unsafe",
   other: "other",
   impersonation: "impersonation",
+  no_show_dispute: "no_show_dispute",
 } as const;
 
 export interface MessageReportInput {

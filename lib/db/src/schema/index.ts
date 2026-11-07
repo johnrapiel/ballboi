@@ -26,4 +26,5 @@ export * from "./recordingConsent";
 export * from "./recordingDemand";
 export * from "./courtDirectory";
 export * from "./discover";
+export * from "./matchPlans";
 export * from "./weeklyAvailability";

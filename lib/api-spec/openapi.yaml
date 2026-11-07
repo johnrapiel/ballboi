@@ -143,6 +143,125 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /dev/match-plans/{id}/shift:
+    post:
+      operationId: shiftMatchPlan
+      tags: [discover]
+      summary: Dev only, move a match card's times earlier by some hours to try the day-before and after-match steps now
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchPlanShiftInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchPlan'
+        '409':
+          description: Not possible now (the reason is in error)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /match-plans:
+    post:
+      operationId: sendMatchPlan
+      tags: [discover]
+      summary: Send a match card in a chat (a newer card replaces an older one still waiting)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewMatchPlanInput'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchPlan'
+        '409':
+          description: Not possible now (the reason is in error)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /match-plans/upcoming:
+    get:
+      operationId: listUpcomingMatchPlans
+      tags: [discover]
+      summary: Your added Discover matches still to play, for Home and My matches
+      responses:
+        '200':
+          description: Matches
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpcomingMatchPlans'
+  /match-plans/with/{userId}:
+    get:
+      operationId: getMatchPlansWithUser
+      tags: [discover]
+      summary: The match cards in your chat with a player, and what you can do with each
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Cards
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchPlansWithUser'
+        '404':
+          description: No such player
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /match-plans/{id}/{command}:
+    post:
+      operationId: actOnMatchPlan
+      tags: [discover]
+      summary: "Answer a match card: accept, decline, undo, still-on, cancel, not-played, no-show, dispute or admit"
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: command
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchPlan'
+        '409':
+          description: Not possible now (the reason is in error)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /discover/area:
     put:
       operationId: setDiscoverArea
@@ -6364,6 +6483,114 @@ components:
         courtId:
           type: [integer, 'null']
       required: [courtId]
+    MatchPlan:
+      type: object
+      properties:
+        id:
+          type: integer
+        startsAt:
+          type: string
+        timeZone:
+          type: string
+        courtName:
+          type: [string, 'null']
+        kind:
+          type: string
+          enum: [singles, practice]
+        matchId:
+          type: [integer, 'null']
+        score:
+          type: [string, 'null']
+        mine:
+          type: boolean
+          description: You sent this card
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchPlanEvent'
+      required: [id, startsAt, timeZone, courtName, kind, matchId, score, mine, events]
+    MatchPlanEvent:
+      type: object
+      properties:
+        key:
+          type: string
+        type:
+          type: string
+          enum: [proposed, added, undone, declined, day_before, canceled, did_it_happen, not_played, no_show_reported, no_show_disputed, no_show_confirmed, scored]
+        at:
+          type: string
+        by:
+          type: [string, 'null']
+          enum: [me, them, null]
+        actions:
+          type: array
+          items:
+            type: string
+            enum: [accept, decline, undo, still_on, cancel, score, no_show, not_played, dispute, admit]
+        state:
+          type: string
+        meIn:
+          type: boolean
+        themIn:
+          type: boolean
+        about:
+          type: string
+          enum: [me, them]
+        deadline:
+          type: string
+      required: [key, type, at, by, actions]
+    MatchPlanShiftInput:
+      type: object
+      properties:
+        hours:
+          type: number
+      required: [hours]
+    MatchPlansWithUser:
+      type: object
+      properties:
+        otherName:
+          type: string
+        blocked:
+          type: boolean
+        devTools:
+          type: boolean
+        plans:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchPlan'
+      required: [otherName, blocked, devTools, plans]
+    NewMatchPlanInput:
+      type: object
+      properties:
+        userId:
+          type: integer
+        startsAt:
+          type: string
+          description: ISO 8601, in the future, within 60 days
+        timeZone:
+          type: string
+        courtId:
+          type: [integer, 'null']
+        kind:
+          type: string
+          enum: [singles, practice]
+      required: [userId, startsAt]
+    UpcomingMatchPlans:
+      type: object
+      properties:
+        matches:
+          type: array
+          items:
+            allOf:
+            - $ref: '#/components/schemas/MatchPlan'
+            - type: object
+              properties:
+                otherName:
+                  type: string
+                otherUserId:
+                  type: [integer, 'null']
+              required: [otherName, otherUserId]
+      required: [matches]
     NewCourtInput:
       type: object
       properties:
@@ -9058,7 +9285,7 @@ components:
           maxLength: 100
         reason:
           type: string
-          enum: [harassment, inappropriate_content, spam, cheating, unsafe, other, impersonation]
+          enum: [harassment, inappropriate_content, spam, cheating, unsafe, other, impersonation, no_show_dispute]
         details:
           type: [string, 'null']
           description: Kept to 1000 characters
@@ -9497,7 +9724,7 @@ components:
           type: string
         reason:
           type: string
-          enum: [harassment, inappropriate_content, spam, cheating, unsafe, other, impersonation]
+          enum: [harassment, inappropriate_content, spam, cheating, unsafe, other, impersonation, no_show_dispute]
         details:
           type: [string, 'null']
       required: [messageId, reason]
