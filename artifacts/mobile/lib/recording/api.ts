@@ -116,6 +116,19 @@ export interface RecordingConsent {
   consented: boolean;
   consentedAt: string | null;
   trainingEnabled: boolean;
+  /**
+   * The Beta Footage Release (B9). Only asked for while the beta backend's
+   * setting is on; `needed` means show the checkbox, unchecked. Older servers
+   * don't send it.
+   */
+  release?: {
+    required: boolean;
+    version: number;
+    url: string;
+    agreedVersion: number | null;
+    agreedAt: string | null;
+    needed: boolean;
+  };
 }
 
 export const consentKey = ["recording", "consent"] as const;
@@ -134,14 +147,19 @@ export function useRecordingConsent() {
   });
 }
 
-/** Saves the first-recording screen's answer. */
+/**
+ * Saves the "Your choices" page. `releaseVersion` is the release version the
+ * person just agreed to by checking the box; leave it out when the release
+ * isn't asked for.
+ */
 export async function saveRecordingConsent(
   trainingEnabled: boolean,
   getToken: () => Promise<string | null>,
+  releaseVersion?: number,
 ): Promise<RecordingConsent> {
   const res = await apiFetch("/api/recording/consent", getToken, {
     method: "POST",
-    body: JSON.stringify({ trainingEnabled }),
+    body: JSON.stringify(releaseVersion != null ? { trainingEnabled, releaseVersion } : { trainingEnabled }),
   });
   if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't save your choice. Try again."));
   return (await res.json()) as RecordingConsent;
