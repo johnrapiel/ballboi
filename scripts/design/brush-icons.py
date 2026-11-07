@@ -453,6 +453,95 @@ def _(p):
     p.stroke(L(5.4, 9.4, 5.2, 4), 0.95)
     p.stroke(L(5.4, 9.6, 10.6, 9.2), 0.95)
 
+def poly(*pts):
+    """One stroke through corner points: sharp corners, tapered only at its ends."""
+    out = []
+    for a, b in zip(pts, pts[1:]):
+        seg = L(*a, *b)
+        out += seg if not out else seg[1:]
+    return out
+
+def arrow(p, angle):
+    """A full-size arrow pointing at angle degrees (0 = right, 90 = down)."""
+    rot = lambda x, y: (12 + x * math.cos(math.radians(angle)) - y * math.sin(math.radians(angle)),
+                        12 + x * math.sin(math.radians(angle)) + y * math.cos(math.radians(angle)))
+    tail, tip = rot(-8, 0), rot(7.7, 0)
+    p.stroke(L(*tail, *rot(7.4, 0)))
+    p.stroke(L(*rot(1.6, -6.2), *tip)); p.stroke(L(*rot(1.6, 6.2), *tip))
+
+@icon("arrow.left")
+def _(p): arrow(p, 180)
+
+@icon("arrow.up")
+def _(p): arrow(p, 270)
+
+@icon("arrow.down")
+def _(p): arrow(p, 90)
+
+@icon("arrow.right")
+def _(p): arrow(p, 0)
+
+@icon("arrow.up.right")
+def _(p):
+    # Opens a page outside the app.
+    p.stroke(L(5.6, 18.4, 17.4, 6.6))
+    p.stroke(L(8.6, 6, 17.9, 6.1)); p.stroke(L(17.9, 6.1, 18, 15.4))
+
+@icon("viewfinder")
+def _(p):
+    # Four corner brackets: the court in frame.
+    p.stroke(poly((3.6, 8.8), (3.6, 3.6), (8.8, 3.6)))
+    p.stroke(poly((15.2, 3.6), (20.4, 3.6), (20.4, 8.8)))
+    p.stroke(poly((20.4, 15.2), (20.4, 20.4), (15.2, 20.4)))
+    p.stroke(poly((8.8, 20.4), (3.6, 20.4), (3.6, 15.2)))
+
+@icon("ellipsis.circle")
+def _(p): ring(p); [p.dot(x, 12, 1.2) for x in (8, 12, 16)]
+
+def mic(p):
+    p.stroke(A(12, 6.6, 3.2, 180, 360), 0.95); p.stroke(A(12, 10.8, 3.2, 0, 180), 0.95)
+    p.stroke(L(8.8, 6.6, 8.8, 10.8), 0.95); p.stroke(L(15.2, 6.6, 15.2, 10.8), 0.95)
+    p.stroke(E(12, 11, 6.4, 6.2, 0, 180), 0.85)
+    p.stroke(L(12, 17.4, 12, 20.4), 0.85); p.stroke(L(8.6, 20.6, 15.4, 20.6), 0.85)
+
+@icon("mic.slash")
+def _(p): mic(p); p.stroke(L(4, 3.4, 20, 20.6))
+
+def speaker(p, dx=0.0):
+    # Outlined, so a slash stays readable across it.
+    p.stroke(poly((3.6 + dx, 8.8), (7.8 + dx, 8.8), (12.6 + dx, 4.4), (12.6 + dx, 19.6), (7.8 + dx, 15.2), (3.6 + dx, 15.2), (3.6 + dx, 9)))
+
+@icon("speaker.wave.2.fill")
+def _(p):
+    speaker(p, -0.8)
+    p.stroke(A(12.4, 12, 3.6, -42, 42), 0.85); p.stroke(A(12.4, 12, 7.6, -46, 46), 0.85)
+
+@icon("speaker.slash.fill")
+def _(p): speaker(p, 1.6); p.stroke(L(3.6, 3.4, 20.6, 20.6))
+
+@icon("battery.25")
+def _(p):
+    p.stroke(poly((2.8, 7.4), (18.6, 7.4), (18.6, 16.6), (2.8, 16.6), (2.8, 7.6)), 0.95)
+    p.stroke(L(21, 10.4, 21, 13.6), 1.1)
+    p.blob([(5.2, 9.8), (8.6, 9.8), (8.6, 14.2), (5.2, 14.2)])
+
+@icon("externaldrive.badge.exclamationmark")
+def _(p):
+    # A drive with its upper right corner left open for the warning badge.
+    p.stroke(L(2.8, 10.6, 12.2, 10.6)); p.stroke(L(2.6, 10.8, 2.6, 19.2))
+    p.stroke(L(2.8, 19.4, 15.6, 19.4)); p.stroke(L(15.8, 19.2, 15.8, 14.4))
+    p.dot(6, 15.6, 1.1); p.stroke(L(8.8, 15.6, 12.4, 15.6), 0.75)
+    p.stroke(RING(17.4, 7.8, 4.6, start=200), 0.85)
+    p.stroke(L(17.4, 5.4, 17.4, 8.6), 0.75); p.dot(17.4, 10.6, 0.85)
+
+@icon("megaphone")
+def _(p):
+    # "Posted": an open match announced near you.
+    p.stroke(poly((3.6, 9.6), (7.6, 9.6), (16.4, 4.4), (16.4, 19.6), (7.6, 14.4), (3.6, 14.4), (3.6, 9.8)))
+    p.stroke(L(7.6, 9.8, 7.6, 14.2), 0.75)
+    p.stroke(L(8, 14.8, 9.6, 19.8), 0.9)
+    p.stroke(A(16.4, 12, 4.6, -38, 38), 0.8)
+
 # ---------- write ----------
 
 def build():
