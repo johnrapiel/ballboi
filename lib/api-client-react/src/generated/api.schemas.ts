@@ -6,6 +6,200 @@
  * OpenAPI spec version: 0.1.0
  */
 /**
+ * Your home ZIP and its town. Others only ever see the town and an approximate distance.
+ */
+export interface DiscoverArea {
+  zip: string;
+  town: string;
+  state: string;
+}
+
+export interface DiscoverAreaInput {
+  /** Five digits */
+  zip: string;
+}
+
+export interface DiscoverAvailabilityInput {
+  /** Free hours, each day * 24 + hour. Monday is day 0; hours 6 (6 AM) to 21 (9 PM). */
+  slots: number[];
+}
+
+/**
+ * @nullable
+ */
+export type DiscoverMePlays =
+  | (typeof DiscoverMePlays)[keyof typeof DiscoverMePlays]
+  | null;
+
+export const DiscoverMePlays = {
+  singles: "singles",
+  doubles: "doubles",
+  both: "both",
+} as const;
+
+export interface DiscoverMe {
+  area: DiscoverArea | null;
+  /** @nullable */
+  homeZip: string | null;
+  /** Show me in Discover is off */
+  hidden: boolean;
+  /** @nullable */
+  plays: DiscoverMePlays;
+  /** Last distance picked, 1 to 30 miles */
+  radius: number;
+  /** @nullable */
+  rating: number | null;
+  slots: number[];
+  hoursFree: number;
+  /**
+   * "Weekday evenings, weekend mornings", or null with no hours set
+   * @nullable
+   */
+  freeSummary: string | null;
+}
+
+/**
+ * @nullable
+ */
+export type DiscoverPlayerCardPlays =
+  | (typeof DiscoverPlayerCardPlays)[keyof typeof DiscoverPlayerCardPlays]
+  | null;
+
+export const DiscoverPlayerCardPlays = {
+  singles: "singles",
+  doubles: "doubles",
+  both: "both",
+} as const;
+
+export interface DiscoverPlayerCard {
+  userId: number;
+  name: string;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** @nullable */
+  rating: number | null;
+  /** @nullable */
+  ratingSource: string | null;
+  /** @nullable */
+  town: string | null;
+  /**
+   * "~4 mi away"
+   * @nullable
+   */
+  distance: string | null;
+  /** @nullable */
+  plays: DiscoverPlayerCardPlays;
+  /** @nullable */
+  freeSummary: string | null;
+  played: number;
+  noShows: number;
+  wins: number;
+  losses: number;
+}
+
+/**
+ * @nullable
+ */
+export type DiscoverPlayerRowPlays =
+  | (typeof DiscoverPlayerRowPlays)[keyof typeof DiscoverPlayerRowPlays]
+  | null;
+
+export const DiscoverPlayerRowPlays = {
+  singles: "singles",
+  doubles: "doubles",
+  both: "both",
+} as const;
+
+export interface DiscoverPlayerRow {
+  userId: number;
+  name: string;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** @nullable */
+  rating: number | null;
+  /** @nullable */
+  ratingSource: string | null;
+  /** "~4 mi" */
+  distance: string;
+  /** @nullable */
+  plays: DiscoverPlayerRowPlays;
+  played: number;
+  noShows: number;
+  /** "Played 14 · 1 no-show" or "New to Ball Boi" */
+  reliability: string;
+  /** The whole row in one line for VoiceOver */
+  spoken: string;
+}
+
+export type DiscoverPlayersCountsItem = {
+  radius: number;
+  count: number;
+};
+
+export interface DiscoverPlayers {
+  players: DiscoverPlayerRow[];
+  /** Players at each distance chip (5, 10, 15, 30 and a custom distance), with the other filters as they are */
+  counts: DiscoverPlayersCountsItem[];
+  radius: number;
+  total: number;
+  /** You have no home ZIP Discover can place yet */
+  needsArea: boolean;
+}
+
+export type DiscoverReportInputReason =
+  (typeof DiscoverReportInputReason)[keyof typeof DiscoverReportInputReason];
+
+export const DiscoverReportInputReason = {
+  harassment: "harassment",
+  inappropriate_content: "inappropriate_content",
+  spam: "spam",
+  cheating: "cheating",
+  unsafe: "unsafe",
+  other: "other",
+} as const;
+
+export interface DiscoverReportInput {
+  reason: DiscoverReportInputReason;
+  /**
+   * Required for other ("Tell us what happened")
+   * @nullable
+   */
+  details?: string | null;
+  /** Also block them */
+  block?: boolean;
+}
+
+export interface DiscoverReportResult {
+  id: number;
+  status: string;
+  blocked: boolean;
+}
+
+/**
+ * @nullable
+ */
+export type DiscoverSettingsInputPlays =
+  | (typeof DiscoverSettingsInputPlays)[keyof typeof DiscoverSettingsInputPlays]
+  | null;
+
+export const DiscoverSettingsInputPlays = {
+  singles: "singles",
+  doubles: "doubles",
+  both: "both",
+} as const;
+
+export interface DiscoverSettingsInput {
+  hidden?: boolean;
+  /** @nullable */
+  plays?: DiscoverSettingsInputPlays;
+  /**
+   * @minimum 1
+   * @maximum 30
+   */
+  radius?: number;
+}
+
+/**
  * @nullable
  */
 export type LeagueMembershipRole =
@@ -2354,10 +2548,11 @@ export type NewReportReason =
 export const NewReportReason = {
   harassment: "harassment",
   inappropriate_content: "inappropriate_content",
-  impersonation: "impersonation",
   spam: "spam",
   cheating: "cheating",
+  unsafe: "unsafe",
   other: "other",
+  impersonation: "impersonation",
 } as const;
 
 export interface NewReport {
@@ -2686,6 +2881,11 @@ export type ConversationViewOther = {
   name: string;
   /** @nullable */
   playerId: number | null;
+  /**
+   * Their users.id, for report and block when they have no player record (a Discover player)
+   * @nullable
+   */
+  userId?: number | null;
 };
 
 export type ConversationViewLastMessage = {
@@ -2743,8 +2943,12 @@ export interface MessageContact {
   playerId: number;
 }
 
+/**
+ * Send playerId (a league player) or userId (a Discover player, who may be in no league).
+ */
 export interface NewConversationInput {
-  playerId: number;
+  playerId?: number;
+  userId?: number;
   text: string;
   clientMessageId?: string;
 }
@@ -2761,10 +2965,11 @@ export type MessageReportInputReason =
 export const MessageReportInputReason = {
   harassment: "harassment",
   inappropriate_content: "inappropriate_content",
-  impersonation: "impersonation",
   spam: "spam",
   cheating: "cheating",
+  unsafe: "unsafe",
   other: "other",
+  impersonation: "impersonation",
 } as const;
 
 export interface MessageReportInput {
@@ -2970,6 +3175,42 @@ export interface UploadConflict {
   missingParts?: number[];
 }
 
+export type ListDiscoverPlayersParams = {
+  /**
+   * Miles, 1 to 30. Defaults to your last distance.
+   * @minimum 1
+   * @maximum 30
+   */
+  radius?: number;
+  /**
+   * close (within 0.5), wider (within 1.0) or any
+   */
+  level?: ListDiscoverPlayersLevel;
+  plays?: ListDiscoverPlayersPlays;
+  /**
+   * "1" keeps players whose hours overlap yours. Ignored until you set times.
+   */
+  free?: string;
+};
+
+export type ListDiscoverPlayersLevel =
+  (typeof ListDiscoverPlayersLevel)[keyof typeof ListDiscoverPlayersLevel];
+
+export const ListDiscoverPlayersLevel = {
+  close: "close",
+  wider: "wider",
+  any: "any",
+} as const;
+
+export type ListDiscoverPlayersPlays =
+  (typeof ListDiscoverPlayersPlays)[keyof typeof ListDiscoverPlayersPlays];
+
+export const ListDiscoverPlayersPlays = {
+  singles: "singles",
+  doubles: "doubles",
+  either: "either",
+} as const;
+
 export type GetLeaguesParams = {
   /**
    * @nullable
@@ -3160,6 +3401,11 @@ export type GetAdminMe200 = {
 
 export type GetMessageContacts200 = {
   contacts: MessageContact[];
+};
+
+export type GetConversationWithUser200 = {
+  /** @nullable */
+  conversationId: number | null;
 };
 
 export type GetConversationWithPlayer200 = {

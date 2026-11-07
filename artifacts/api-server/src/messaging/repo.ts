@@ -27,6 +27,8 @@ export interface PersonSummary {
   name: string;
   /** A player record for this account, used by report and block. Null if they have none. */
   playerId: number | null;
+  /** Their account's user id (users.id), for report and block when they have no player record yet (a Discover player). */
+  userId?: number | null;
 }
 
 /** Everything MessagingService reads or writes outside the provider. */
@@ -54,6 +56,8 @@ export interface MessagingRepo {
   restrictedSet(userIds: string[]): Promise<Set<string>>;
   people(userIds: string[]): Promise<Map<string, PersonSummary>>;
   accountForPlayer(playerId: number): Promise<string | null>;
+  /** The account behind a user id (users.id): messaging a Discover player who isn't in a league. */
+  accountForUser(userId: number): Promise<string | null>;
   /** People this person can message freely (league mates), for New message. */
   contactsFor(userId: string): Promise<{ userId: string; name: string; playerId: number | null }[]>;
   /** Account deletion: removes every conversation record they're in. */
