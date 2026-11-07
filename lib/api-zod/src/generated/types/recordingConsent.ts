@@ -5,6 +5,7 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+import type { BetaReleaseStatus } from "./betaReleaseStatus";
 
 export interface RecordingConsent {
   consented: boolean;
@@ -14,4 +15,5 @@ export interface RecordingConsent {
    */
   consentedAt: string | null;
   trainingEnabled: boolean;
+  release: BetaReleaseStatus;
 }
