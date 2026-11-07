@@ -8,6 +8,96 @@
 import * as zod from "zod";
 
 /**
+ * @summary The court directory, nearest first, searchable
+ */
+export const listCourtsQueryQMax = 60;
+
+export const ListCourtsQueryParams = zod.object({
+  q: zod.coerce.string().max(listCourtsQueryQMax).optional(),
+});
+
+export const ListCourtsResponse = zod.object({
+  courts: zod.array(
+    zod.object({
+      courtId: zod.number(),
+      name: zod.string(),
+      address: zod.string(),
+      distance: zod
+        .string()
+        .nullable()
+        .describe('\"~3 mi\", or null with no home area'),
+    }),
+  ),
+  homeCourtId: zod.number().nullable(),
+});
+
+/**
+ * @summary Add a missing court with a name and an address (the address needs its ZIP). The same name in the same ZIP returns the court that's there.
+ */
+export const AddCourtBody = zod.object({
+  name: zod.string(),
+  address: zod.string().describe("Street, town and the 5-digit ZIP"),
+});
+
+export const AddCourtResponse = zod
+  .object({
+    courtId: zod.number(),
+    name: zod.string(),
+    address: zod.string(),
+    distance: zod
+      .string()
+      .nullable()
+      .describe('\"~3 mi\", or null with no home area'),
+  })
+  .and(
+    zod.object({
+      existing: zod
+        .boolean()
+        .describe("The court was already in the directory"),
+    }),
+  );
+
+/**
+ * @summary Your home court
+ */
+export const GetHomeCourtResponse = zod.object({
+  court: zod.union([
+    zod.object({
+      courtId: zod.number(),
+      name: zod.string(),
+      address: zod.string(),
+      distance: zod
+        .string()
+        .nullable()
+        .describe('\"~3 mi\", or null with no home area'),
+    }),
+    zod.null(),
+  ]),
+});
+
+/**
+ * @summary Set or clear your home court
+ */
+export const SetHomeCourtBody = zod.object({
+  courtId: zod.number().nullable(),
+});
+
+export const SetHomeCourtResponse = zod.object({
+  court: zod.union([
+    zod.object({
+      courtId: zod.number(),
+      name: zod.string(),
+      address: zod.string(),
+      distance: zod
+        .string()
+        .nullable()
+        .describe('\"~3 mi\", or null with no home area'),
+    }),
+    zod.null(),
+  ]),
+});
+
+/**
  * @summary Change your home ZIP from Discover. Also updates your profile's home area.
  */
 export const SetDiscoverAreaBody = zod.object({
@@ -305,6 +395,7 @@ export const GetDiscoverPlayerResponse = zod.object({
     ])
     .nullable(),
   freeSummary: zod.string().nullable(),
+  homeCourt: zod.string().nullable(),
   played: zod.number(),
   noShows: zod.number(),
   wins: zod.number(),

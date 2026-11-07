@@ -5,6 +5,28 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+export interface CourtCard {
+  courtId: number;
+  name: string;
+  address: string;
+  /**
+   * "~3 mi", or null with no home area
+   * @nullable
+   */
+  distance: string | null;
+}
+
+export type AddedCourt = CourtCard & {
+  /** The court was already in the directory */
+  existing: boolean;
+};
+
+export interface CourtList {
+  courts: CourtCard[];
+  /** @nullable */
+  homeCourtId: number | null;
+}
+
 /**
  * Your home ZIP and its town. Others only ever see the town and an approximate distance.
  */
@@ -177,6 +199,8 @@ export interface DiscoverPlayerCard {
   plays: DiscoverPlayerCardPlays;
   /** @nullable */
   freeSummary: string | null;
+  /** @nullable */
+  homeCourt: string | null;
   played: number;
   noShows: number;
   wins: number;
@@ -283,6 +307,21 @@ export interface DiscoverSettingsInput {
    * @maximum 30
    */
   radius?: number;
+}
+
+export interface HomeCourt {
+  court: CourtCard | null;
+}
+
+export interface HomeCourtInput {
+  /** @nullable */
+  courtId: number | null;
+}
+
+export interface NewCourtInput {
+  name: string;
+  /** Street, town and the 5-digit ZIP */
+  address: string;
 }
 
 /**
@@ -3270,6 +3309,13 @@ export interface UploadConflict {
   /** Part numbers storage doesn't have yet */
   missingParts?: number[];
 }
+
+export type ListCourtsParams = {
+  /**
+   * @maxLength 60
+   */
+  q?: string;
+};
 
 export type ListDiscoverLeaguesParams = {
   /**

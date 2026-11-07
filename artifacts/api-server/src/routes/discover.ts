@@ -167,6 +167,7 @@ export function createDiscoverRouter(repo: DiscoverRepo = new DrizzleDiscoverRep
         distance: miles == null ? null : `${distanceLabel(miles)} away`,
         plays: isOneOf(PLAYS, p.plays) ? p.plays : null,
         freeSummary: availabilitySummary(p.slots),
+        homeCourt: p.homeCourt ?? null,
         played: r.played,
         noShows: r.noShows,
         wins: r.wins,

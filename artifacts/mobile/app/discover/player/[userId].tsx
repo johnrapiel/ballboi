@@ -195,6 +195,7 @@ function Details({ p }: { p: DiscoverPlayerCard }) {
   const rows = [
     { label: "Plays", value: playsLabel(p.plays) },
     { label: "Free", value: p.freeSummary },
+    { label: "Home court", value: p.homeCourt },
   ].filter((r): r is { label: string; value: string } => !!r.value);
   if (!rows.length) return null;
   return (
