@@ -4,8 +4,8 @@
 // the open spots. One action at the bottom: I'm in, Drop out, Cancel match
 // (your post), or Open group chat once it's full.
 
+import { Icon, type IconName } from "@/components/Icon";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { SymbolView } from "expo-symbols";
 import React, { useState } from "react";
 import { AccessibilityInfo, Alert, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -164,7 +164,6 @@ export default function OpenMatchScreen() {
           <Note symbol="checkmark.circle" title="You're in" body={waitingLine(m.spotsLeft)} />
         ) : m.role === "poster" && !full ? (
           <Note
-            symbol="megaphone"
             title="Posted"
             body="Players near you who fit can see it. When the last spot fills, a group chat opens for everyone and the post leaves Discover."
           />
@@ -260,7 +259,8 @@ export default function OpenMatchScreen() {
   );
 }
 
-function Note({ symbol, title, body }: { symbol: "person.3.fill" | "checkmark.circle" | "megaphone"; title: string; body: string }) {
+// "Posted" has no icon until a brush megaphone is drawn; the title carries the meaning.
+function Note({ symbol, title, body }: { symbol?: IconName; title: string; body: string }) {
   const c = useColors();
   return (
     <Card
@@ -269,7 +269,7 @@ function Note({ symbol, title, body }: { symbol: "person.3.fill" | "checkmark.ci
       accessibilityLabel={`${title}. ${body}`}
       accessibilityLiveRegion="polite"
     >
-      <SymbolView name={symbol} size={20} tintColor={c.ink} />
+      {symbol ? <Icon name={symbol} size={20} tintColor={c.ink} /> : null}
       <View style={{ flex: 1, gap: spacing.space1 }}>
         <Text variant="bodyStrong">{title}</Text>
         <Text variant="small" tone="inkMuted">

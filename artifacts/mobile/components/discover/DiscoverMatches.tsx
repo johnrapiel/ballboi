@@ -95,7 +95,7 @@ export function DiscoverMatchesSection() {
                   {line}
                 </Text>
               </View>
-              <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} />
+              <Icon name="chevron.right" size={13} tintColor={c.inkMuted} />
             </Pressable>
           );
         })}

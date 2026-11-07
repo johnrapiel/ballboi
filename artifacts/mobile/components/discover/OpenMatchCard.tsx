@@ -1,7 +1,7 @@
-import { SymbolView } from "expo-symbols";
 import React from "react";
 import { Pressable, View } from "react-native";
 
+import { Icon } from "@/components/Icon";
 import { Card, Pill, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -20,7 +20,7 @@ export function OpenMatchCard({ match, onPress }: { match: Card_; onPress: () =>
       {({ pressed }) => (
         <Card style={{ gap: spacing.space2, paddingRight: spacing.space8, opacity: pressed ? 0.75 : 1 }}>
           <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.space2 }}>
-            <SymbolView name="calendar" size={16} tintColor={c.ink} />
+            <Icon name="calendar" size={16} tintColor={c.ink} />
             <Text variant="bodyStrong" style={{ flexShrink: 1 }}>
               {match.when}
             </Text>
@@ -33,7 +33,7 @@ export function OpenMatchCard({ match, onPress }: { match: Card_; onPress: () =>
             {match.where}
           </Text>
           <View style={{ position: "absolute", right: spacing.space4, top: spacing.space4 }} pointerEvents="none">
-            <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} />
+            <Icon name="chevron.right" size={13} tintColor={c.inkMuted} />
           </View>
         </Card>
       )}
