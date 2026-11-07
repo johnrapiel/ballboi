@@ -1,4 +1,4 @@
-<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-11-02 with rev 74). Updated in the repo on 2026-11-04 with the Wave 1 review decisions (48 to 78) and on 2026-11-06 with decision 79, which the live doc still needs. The live doc wins if they differ. Refresh this file when the live doc changes. -->
+<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-11-02 with rev 74). Updated in the repo on 2026-11-04 with the Wave 1 review decisions (48 to 78) and on 2026-11-06 with decision 79, which the live doc still needs. Decisions 84 to 99 (the beta recording and footage release, B1 to B16) added 2026-11-07. The live doc wins if they differ. Refresh this file when the live doc changes. -->
 
 # Ball Boi: Flows and Feature Spec
 
@@ -231,15 +231,15 @@ The phone films with the rear camera, so its screen faces away from the court. V
 - **Built by John with Claude Code acting as the ML engineer,** starting from open-source tennis models (ball tracking, court keypoints, player pose), running as a server pipeline that reads video from R2
 - **Labeled test set before launch:** 10 to 15 singles matches filmed with the app's own mount guidance across different courts, lighting, and skill levels (public courts, indoor bubbles, a night match under lights). Every shot labeled for type, in/out, and point ending in a labeling tool Claude Code builds
 - **Automatic eval:** every model change is scored against the test set
-- **Per-stat accuracy bar,** e.g. shot type ≥ 90%, in/out on close calls ≥ 85%, serve placement ≥ 85%. A stat that misses its bar is hidden at launch, not shown with a disclaimer
-- **Beta:** commissioned local players record through a TestFlight build pointed at a private (non-public) production tenant; they sign a short footage release
+- **Per-stat accuracy bar,** e.g. shot type ≥ 90%, in/out on close calls ≥ 85%, serve placement ≥ 85%, point endings 85% correct, rally length within 1 shot on 85% of points, first-serve % within 5 points, placement in the right zone 80% (decision 98). A stat that misses its bar is hidden at launch, not shown with a disclaimer
+- **Beta:** 3 to 5 commissioned local players, invited by email as TestFlight external testers, record through builds pointed at a private (non-public) tenant. They agree to the Ball Boi Beta Footage Release (ballboi.tennis/beta-release) with a checkbox in the first-recording carousel, and confirm any opponent not on Ball Boi agreed to be filmed. The beta starts once the voice coach merges (decisions 84 to 99)
 
 **Core stats (launch, each gated on its accuracy bar)**
 
 - **Shot type:** forehand, backhand, serve, volley, overhead
 - **In or out,** with uncertain calls labeled "Close call" instead of stated as fact
 - **Placement heatmaps** for landing spots and hitting positions, using labels and patterns, not color alone
-- **Serve:** first-serve %, placement by box, estimated speed
+- **Serve:** first-serve % and placement by box. Estimated serve speed is out of launch until there's a way to measure it (decision 98)
 - **Rally:** rally length and point endings (winner, forced error, unforced error)
 
 **Replay:** a simulated court, never match video. Ball paths, shot-by-shot list, and winner and error markers on the scrubber. Jump to any point; filter by shot type or outcome ("every backhand error"). Modes: Shot by shot, Rallies, Heatmap, Timeline, Stats, Compare.
@@ -363,7 +363,7 @@ _Phases are ordered, not dated. The live doc shows these as a chart._
 
 Coaching tips return only once a coach-authored library exists, and doubles analysis waits on per-player shot attribution.
 
-## Decision log (updated Nov 4, 2026)
+## Decision log (updated Nov 7, 2026)
 
 | # | Decision |
 | --- | --- |
@@ -448,3 +448,19 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 79 | Standings break ties on wins by head to head between the tied players, then share of sets won, then share of games won; playoff seeding uses the same order (John, Nov 6) |
 | 82 | Ball Boi Pro is parked until there's traction: no paywall, subscription, free-months clock or In-App Purchase at launch. Shot analysis, replay, trends and career stats are free for everyone, and every recorded singles match is analyzed. The full plan (decisions 3, 14 and 33 to 42) is saved in `docs/backlog/ball-boi-pro.md`. Playing stays free (decision 32) (John, Nov 7) |
 | 83 | Pending John: with no Pro, does a player see their opponent's full breakdown for matches they played together? Until decided, each player sees only their own (Nov 7) |
+| 84 | A small beta of 3 to 5 commissioned players starts once Session G's voice coach merges. John's own test-set filming can start sooner (John, Nov 7, B1) |
+| 85 | Beta testers use the same app as everyone: no beta flag. During the beta the app only exists on TestFlight, so a server setting on the private beta backend turns the release requirement on; it's off for the App Store launch. No opponent recording notice is needed for the beta (John, Nov 7, B2) |
+| 86 | A "Something not working?" form: pick a likely problem or "Something else" with a free-text box, optional note, Send. Attaches app version, iPhone model, iOS version and the match. Saved server-side and emailed to support@ballboi.tennis. Lives in Settings plus a small link on the ready-to-record screen, the processing card and the replay placeholder. Also covers the checklist's in-app support contact (John, Nov 7, B3) |
+| 87 | Beta testers are TestFlight external testers invited by email; every new build goes to them automatically (John, Nov 7, B4) |
+| 88 | After upload, while no stat has passed its bar, the processing card reads "Uploaded / Thanks. Ball Boi's shot tracking is still learning, so stats and your replay come in a later update. Your match is saved." (John, Nov 7, B5) |
+| 89 | Beta footage is kept until launch, the cheapest option, then normal retention rules apply; audio is still deleted after processing (John, Nov 7, B6) |
+| 90 | A phone setup guide: a graphic of the ideal position (fence behind the baseline, centered, high, sideways, back camera to the court, screen to the fence, both baselines in view) and a checklist (that position, 10% battery or plugged in, 2 GB free, Do Not Disturb on). Shows before every recording with a "Don't show this again" checkbox; a "Setup tips" link on the ready screen always brings it back. In Ball Boi's navy and brush style, as the visual companion to the voice coach (John, Nov 7, B7) |
+| 91 | The first recording opens a three-page carousel: 1) What Ball Boi records (filming others, audio for analysis only, video never shown); 2) Your choices (training toggle and the release checkbox; Next stays off until checked); 3) Set up your phone, ending in Open camera. Later recordings show page 3 alone. Swipe or Next and Back, no auto-advance, VoiceOver reads "Page 2 of 3", Reduce Motion fades. Replaces the single consent screen (John, Nov 7, B8) |
+| 92 | The beta release is a checkbox inside the consent flow (page 2), not its own screen. Agreement is stored server-side with the release version and date; a new version shows the page again unchecked (John, Nov 7, B9) |
+| 93 | Opponents outside the beta: the tester confirms they agreed. When the opponent is a placeholder (not on Ball Boi), the ready screen shows "[Name] agreed to be filmed." and Start stays off until it's checked. Chosen over requiring both players to be testers (John, Nov 7, B10) |
+| 94 | A confirmed placeholder opponent's match can be used in the labeled test set and scoring, never training (keeps decision 15). Flagged for the legal consult (John, Nov 7, B11) |
+| 95 | Withdrawing (email support or delete account) deletes all of that tester's video within 30 days, including test-set and training copies. Hand-made shot labels stay with the name removed; already-trained models aren't rebuilt (John, Nov 7, B12) |
+| 96 | The Ball Boi Beta Footage Release is approved as written, hosted at ballboi.tennis/beta-release styled like /privacy, and sent to the planned legal consult (biometric data, audio recording) before testers sign (John, Nov 7, B13) |
+| 97 | Labeling tool speed-ups, in order: jump to the next hit (detects the hit sound in John's local files, nothing leaves his Mac), then undo, resume at the last position, and a progress count, in the same fix (John, Nov 7, B14) |
+| 98 | New accuracy bars: point endings 85% correct; rally length within 1 shot on 85% of points; first-serve % within 5 points of truth; placement in the right zone 80% of the time. Estimated serve speed is dropped from launch until there's a way to measure it (John, Nov 7, B15) |
+| 99 | Pre-labeling uses only Ball Boi's own models, on John's Mac or Ball Boi's servers; no outside AI service sees footage, so the in-app copy and the release stay true (John, Nov 7, B16) |
