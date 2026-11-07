@@ -76,6 +76,18 @@
   .suggested { font-weight: 600; }
   .agree-diff { font-weight: 600; }
   #anSummary:empty, #anStatus:empty { display: none; }
+  .progress { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .header-end { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  /* Warnings: a border and the word "Check", never color alone. */
+  .warning { border: 1px solid var(--danger); background: var(--sand); padding: 8px 10px; border-radius: 6px;
+             margin: 8px 0; font-size: 13px; }
+  .warning strong { color: var(--danger); }
+  .warning ul { margin: 4px 0 0; padding-left: 18px; }
+  .warning li + li { margin-top: 4px; }
+  .warning button { min-height: 32px; padding: 4px 8px; font-size: 13px; margin-left: 6px; }
+  button:disabled, button[aria-disabled="true"] { opacity: .55; cursor: default; }
+  .conditions input { min-width: 0; width: 100%; }
+  .group input[type="text"] { min-width: 0; }
   .empty { padding: 40px; text-align: center; color: #fff; }
   @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 </style>
@@ -88,7 +100,12 @@
   </label>
   <span id="matchHelp" class="muted"></span>
   <label class="inline"><input type="checkbox" id="doneToggle"> Labeling done</label>
-  <span id="saveStatus" class="status muted" role="status" aria-live="polite"></span>
+  <span id="progress" class="progress" aria-live="off"></span>
+  <div class="header-end">
+    <button id="undoBtn" aria-disabled="true">Undo <kbd class="mod">Cmd</kbd>+<kbd>Z</kbd></button>
+    <button id="redoBtn" aria-disabled="true">Redo <kbd>Shift</kbd>+<kbd class="mod">Cmd</kbd>+<kbd>Z</kbd></button>
+    <span id="saveStatus" class="status muted" role="status" aria-live="polite"></span>
+  </div>
 </header>
 
 <main>
@@ -98,9 +115,11 @@
       <canvas class="overlay" id="overlay" role="img"
               aria-label="Video frame. Click to mark the bounce of the selected shot, or a court corner while calibrating."></canvas>
       <canvas class="loupe" id="loupe" aria-hidden="true"></canvas>
-      <div class="banner" id="banner" role="status" aria-live="assertive"></div>
+      <div class="banner" id="banner" role="status" aria-live="polite"></div>
     </div>
     <div class="transport" role="group" aria-label="Playback">
+      <button id="prevHit" aria-label="Previous hit, Shift J">Previous hit <kbd>Shift</kbd>+<kbd>J</kbd></button>
+      <button id="nextHit" aria-label="Next hit, J">Next hit <kbd>J</kbd></button>
       <button id="backSecond" aria-label="Back 1 second">-1s</button>
       <button id="backFrame" aria-label="Back 1 frame">-1 frame</button>
       <button id="playPause" class="primary" aria-label="Play">Play</button>
@@ -115,10 +134,12 @@
       <span class="time" id="timeReadout" aria-live="off">0:00.000</span>
       <button id="calibrate">Calibrate court</button>
     </div>
+    <p class="muted"><span id="hitStatus" role="status" aria-live="polite"></span> <span id="hitPct" aria-hidden="true"></span></p>
     <p class="muted" id="calibrationNote"></p>
 
     <div class="panel">
       <h2>Shots in this match</h2>
+      <div class="warning" id="pointWarnings" hidden></div>
       <label class="inline muted">Order
         <select id="shotOrder" aria-label="Order of the shot list">
           <option value="time">By time</option>
@@ -190,7 +211,7 @@
             <button data-field="hitter" data-value="near">Near side</button>
             <button data-field="hitter" data-value="far">Far side</button>
           </div></fieldset>
-        <fieldset><legend>Type</legend>
+        <fieldset><legend>Type <kbd>Shift</kbd> + <kbd>S F B V O</kbd></legend>
           <div class="group">
             <button data-field="type" data-value="serve">Serve</button>
             <button data-field="type" data-value="forehand">Forehand</button>
@@ -200,11 +221,12 @@
           </div></fieldset>
         <fieldset id="serveField"><legend>Serve number</legend>
           <div class="group">
-            <button data-field="serveNumber" data-value="1">First</button>
-            <button data-field="serveNumber" data-value="2">Second</button>
+            <button data-field="serveNumber" data-value="1">First <kbd>1</kbd></button>
+            <button data-field="serveNumber" data-value="2">Second <kbd>2</kbd></button>
           </div></fieldset>
         <fieldset><legend>Bounce</legend>
           <p class="muted" id="bounceText">Not marked. Find the frame where the ball lands, then click the bounce on the video.</p>
+          <p class="muted">After the bounce, press <kbd>Down</kbd> for the next shot or <kbd>J</kbd> for the next hit.</p>
           <button id="clearBounce">Clear bounce</button>
         </fieldset>
         <fieldset><legend>Result</legend>
@@ -225,7 +247,8 @@
             <button data-field="pointEnd" data-value="winner">Winner <kbd>W</kbd></button>
             <button data-field="pointEnd" data-value="forced_error">Forced error <kbd>E</kbd></button>
             <button data-field="pointEnd" data-value="unforced_error">Unforced error <kbd>U</kbd></button>
-          </div></fieldset>
+          </div>
+          <p class="warning" id="pointEndWarning" hidden></p></fieldset>
         <div class="group">
           <button id="jumpShot">Jump to contact <kbd>Enter</kbd></button>
           <button id="jumpBounce">Jump to bounce</button>
@@ -251,15 +274,22 @@
         <dt><kbd>Space</kbd></dt><dd>Play or pause</dd>
         <dt><kbd>,</kbd> <kbd>.</kbd></dt><dd>Back or forward 1 frame</dd>
         <dt><kbd>Shift</kbd> + <kbd>,</kbd> <kbd>.</kbd></dt><dd>Back or forward 1 second</dd>
+        <dt><kbd>J</kbd></dt><dd>Jump to the next hit (sound of the ball being hit)</dd>
+        <dt><kbd>Shift</kbd> + <kbd>J</kbd></dt><dd>Jump to the previous hit</dd>
         <dt><kbd>S F B V O</kbd></dt><dd>Add a serve, forehand, backhand, volley, overhead</dd>
+        <dt><kbd>Shift</kbd> + <kbd>S F B V O</kbd></dt><dd>Change the selected shot's type</dd>
         <dt><kbd>Up</kbd> <kbd>Down</kbd></dt><dd>Previous or next shot</dd>
         <dt><kbd>H</kbd></dt><dd>Switch hitter</dd>
+        <dt><kbd>1</kbd> <kbd>2</kbd></dt><dd>First or second serve</dd>
         <dt><kbd>I X N Z</kbd></dt><dd>In, out, net, no bounce</dd>
         <dt><kbd>C</kbd></dt><dd>Toggle close call</dd>
         <dt><kbd>W E U 0</kbd></dt><dd>Winner, forced error, unforced error, none</dd>
         <dt><kbd>K</kbd></dt><dd>Calibrate the court from this frame</dd>
         <dt><kbd>Y</kbd></dt><dd>Confirm a suggested shot looks right</dd>
         <dt><kbd>Delete</kbd></dt><dd>Delete the selected shot</dd>
+        <dt><kbd class="mod">Cmd</kbd> + <kbd>Z</kbd></dt><dd>Undo</dd>
+        <dt><kbd>Shift</kbd> + <kbd class="mod">Cmd</kbd> + <kbd>Z</kbd></dt><dd>Redo</dd>
+        <dt><kbd>Esc</kbd></dt><dd>Cancel calibrating</dd>
         <dt>Click video</dt><dd>Mark the selected shot's bounce</dd>
       </dl>
     </div>
@@ -280,6 +310,62 @@ let saveTimer = null, saving = false, dirty = false;
 let mouse = null;
 let analysis = null;        // latest analysis result for this match
 let anPoll = null;
+let hits = null;            // detected hit times (seconds) for this match, from its audio
+let hitPoll = null;
+let pendingResume = null;   // video time to restore once the video has loaded
+let undoStack = [], redoStack = [];
+const HISTORY_LIMIT = 150;
+const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+// ─── Undo and redo ─────────────────────────────────────────────────────────
+// Each change saves a copy of the shots and calibrations first, so undo puts
+// back exactly what was there (and autosave writes it).
+function snapshot() {
+  return {shots: structuredClone(label.shots), calibrations: structuredClone(label.calibrations),
+          status: label.status, selectedId};
+}
+function record(what) {
+  if (!label) return;
+  undoStack.push({what, state: snapshot()});
+  if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+  redoStack = [];
+  renderHistory();
+}
+function restore(state) {
+  label.shots = state.shots; label.calibrations = state.calibrations; label.status = state.status;
+  selectedId = label.shots.some(s => s.id === state.selectedId) ? state.selectedId : null;
+  $("doneToggle").checked = label.status === "done";
+}
+function undo() {
+  const entry = undoStack.pop();
+  if (!entry) { announce("Nothing to undo."); return; }
+  redoStack.push({what: entry.what, state: snapshot()});
+  restore(entry.state); announce(`Undid: ${entry.what}.`);
+  scheduleSave(); renderAll();
+}
+function redo() {
+  const entry = redoStack.pop();
+  if (!entry) { announce("Nothing to redo."); return; }
+  undoStack.push({what: entry.what, state: snapshot()});
+  restore(entry.state); announce(`Redid: ${entry.what}.`);
+  scheduleSave(); renderAll();
+}
+function renderHistory() {
+  const u = undoStack[undoStack.length - 1], r = redoStack[redoStack.length - 1];
+  $("undoBtn").setAttribute("aria-disabled", String(!u)); $("redoBtn").setAttribute("aria-disabled", String(!r));
+  $("undoBtn").setAttribute("aria-label", u ? `Undo ${u.what}` : "Undo, nothing to undo");
+  $("redoBtn").setAttribute("aria-label", r ? `Redo ${r.what}` : "Redo, nothing to redo");
+}
+
+// ─── Resume where you left off (this browser only) ─────────────────────────
+const RESUME_KEY = (id) => `ballboi.labeling.resume.${id}`;
+const LAST_MATCH_KEY = "ballboi.labeling.lastMatch";
+function readStore(key) { try { return JSON.parse(localStorage.getItem(key) || "null"); } catch { return null; } }
+function writeStore(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* private window */ } }
+function saveResume() {
+  if (!label || pendingResume !== null || video.readyState < 1) return;
+  writeStore(RESUME_KEY(label.matchId), {shotId: selectedId, time: +video.currentTime.toFixed(3)});
+}
 
 // ─── Geometry (mirrors services/court_model.py) ────────────────────────────
 function solve(A, b) {
@@ -371,7 +457,9 @@ window.addEventListener("beforeunload", (e) => { if (dirty || saving) { e.preven
 // ─── Matches ───────────────────────────────────────────────────────────────
 const STATUS_TEXT = {not_started: "not started", in_progress: "in progress", done: "done", unreadable: "file can't be read"};
 async function refreshMatchList(selectFirst = true) {
-  const data = await (await fetch("/api/videos")).json();
+  let data;
+  try { data = await (await fetch("/api/videos")).json(); }
+  catch (e) { if (selectFirst) setStatus(`Can't reach the labeling tool: ${e.message}. Is it still running?`, true); return; }
   const sel = $("matchSelect"), current = sel.value;
   sel.innerHTML = "";
   for (const v of data.videos) {
@@ -379,14 +467,24 @@ async function refreshMatchList(selectFirst = true) {
     o.textContent = `${v.matchId} (${STATUS_TEXT[v.status] || v.status}, ${v.shots} shots)`; sel.append(o);
   }
   $("matchHelp").textContent = data.videos.length ? "" : `No videos in ${data.videosDir}`;
+  const last = readStore(LAST_MATCH_KEY);
   if (current) sel.value = current;
+  else if (last && data.videos.some(v => v.matchId === last)) sel.value = last;
   if (selectFirst && data.videos.length && !label) loadMatch(sel.value);
 }
 async function loadMatch(id) {
   if (dirty) await save();
+  saveResume();
   const res = await fetch(`/api/labels/${encodeURIComponent(id)}`);
+  if (!res.ok) { setStatus(`Can't open ${id}: ${(await res.json()).error}`, true); return; }
   label = await res.json(); selectedId = null; calibrating = null;
   label.calibrations ||= []; label.shots ||= []; label.conditions ||= {};
+  undoStack = []; redoStack = []; renderHistory();
+  writeStore(LAST_MATCH_KEY, id);
+  const resume = readStore(RESUME_KEY(id));
+  if (resume?.shotId && label.shots.some(s => s.id === resume.shotId)) selectedId = resume.shotId;
+  pendingResume = typeof resume?.time === "number" ? resume.time : null;
+  hits = null; clearTimeout(hitPoll); loadHits(id);
   video.src = `/video/${encodeURIComponent(id)}`;
   const {width, height} = label.video || {};
   if (width && height) stage.style.aspectRatio = `${width} / ${height}`;
@@ -419,6 +517,7 @@ function addShot(type) {
   }
   const shot = {id: nextId(), time: t, hitter, type, serveNumber, bounce: null, result: "none",
                 closeCall: false, pointEnd: null};
+  record(`add ${type} at ${fmt(t)}`);
   label.shots.push(shot); label.shots.sort((a, b) => a.time - b.time);
   selectedId = shot.id; announce(`Added ${type} at ${fmt(t)}, ${hitter} side`);
   scheduleSave(); renderAll();
@@ -428,6 +527,7 @@ function touched(s) {
 }
 function confirmSuggestion() {
   const s = selected(); if (!s || s.source !== "model") return;
+  record(`confirm ${s.type} at ${fmt(s.time)}`);
   s.reviewed = true; scheduleSave(); announce("Confirmed."); stepToNextUnchecked();
 }
 function stepToNextUnchecked() {
@@ -435,20 +535,51 @@ function stepToNextUnchecked() {
   if (next) { selectedId = next.id; seek(next.time); }
   renderAll();
 }
+const FIELD_WORDS = {hitter: "hitter", type: "type", serveNumber: "serve number", result: "result",
+  closeCall: "close call", pointEnd: "point ending"};
 function setField(field, value) {
-  const s = selected(); if (!s) return;
-  touched(s);
+  const s = selected(); if (!s) { announce("Select or add a shot first."); return false; }
   if (field === "serveNumber") value = Number(value);
   if (field === "closeCall") value = value === true || value === "true";
   if (field === "pointEnd") value = value || null;
+  if (s[field] === value && !(s.source === "model" && !s.reviewed)) return false;
+  record(`${FIELD_WORDS[field] || field} on the ${s.type} at ${fmt(s.time)}`);
+  touched(s);
   s[field] = value;
   if (field === "type") s.serveNumber = value === "serve" ? (s.serveNumber || 1) : null;
   scheduleSave(); renderAll();
+  if (field === "pointEnd" && value && pointEndProblem(s)) {
+    announce(`Check: ${LABEL[value]} is on the ${s.type} at ${fmt(s.time)}, but the next shot isn't a serve. `
+      + "Point endings go on the last shot of the point.");
+  }
+  return true;
+}
+function changeType(type) {
+  const s = selected(); if (!s) { announce("Select a shot first, then Shift plus the letter changes its type."); return; }
+  if (s.type === type) { announce(`It's already a ${type}.`); return; }
+  const was = s.type;
+  if (setField("type", type)) announce(`Changed the ${was} at ${fmt(s.time)} to a ${type}.`);
+}
+function setServeNumber(n) {
+  const s = selected(); if (!s) { announce("Select a serve first."); return; }
+  if (s.type !== "serve") { announce("Serve number is for serves only."); return; }
+  setField("serveNumber", n);
+}
+// A point ending belongs on the last shot of a point, so the next shot (if any) is a serve.
+function pointEndProblem(s) {
+  if (!s.pointEnd) return null;
+  const sorted = [...label.shots].sort((a, b) => a.time - b.time);
+  const next = sorted[sorted.indexOf(s) + 1];
+  return next && next.type !== "serve" ? next : null;
+}
+function pointEndProblems() {
+  return (label?.shots || []).filter(s => pointEndProblem(s)).sort((a, b) => a.time - b.time);
 }
 function markBounce(point) {
   const s = selected(); if (!s) { announce("Select or add a shot first, then click its bounce."); return; }
   const t = +video.currentTime.toFixed(3);
   const c = toCourt(point, t);
+  record(`bounce on the ${s.type} at ${fmt(s.time)}`);
   touched(s);
   s.bounce = {time: t, image: point.map(v => +v.toFixed(4)), court: c ? c.map(v => +v.toFixed(3)) : null};
   if (c) {
@@ -459,10 +590,12 @@ function markBounce(point) {
   scheduleSave(); renderAll();
 }
 function deleteSelected() {
-  const s = selected(); if (!s) return;
-  if (!confirm(`Delete the ${s.type} at ${fmt(s.time)}?`)) return;
+  const s = selected(); if (!s) { announce("Select a shot to delete first."); return; }
+  // No confirm dialog: undo brings it back.
+  record(`delete ${s.type} at ${fmt(s.time)}`);
   const i = label.shots.indexOf(s); label.shots.splice(i, 1);
   selectedId = label.shots[Math.min(i, label.shots.length - 1)]?.id || null;
+  announce(`Deleted the ${s.type} at ${fmt(s.time)}. ${IS_MAC ? "Cmd" : "Ctrl"}+Z brings it back.`);
   scheduleSave(); renderAll();
 }
 function orderedShots() {
@@ -502,7 +635,7 @@ function renderShots() {
     }
     const cells = [b, LABEL[s.hitter], typeCell, s.serveNumber ? (s.serveNumber === 1 ? "First" : "Second") : "",
       LABEL[s.result] + (s.bounce ? "" : (s.result === "in" || s.result === "out" ? " (no spot)" : "")),
-      s.closeCall ? "Yes" : "", s.pointEnd ? LABEL[s.pointEnd] : ""];
+      s.closeCall ? "Yes" : "", s.pointEnd ? LABEL[s.pointEnd] + (pointEndProblem(s) ? " · Check" : "") : ""];
     for (const c of cells) { const td = document.createElement("td"); td.append(c); tr.append(td); }
     body.append(tr);
   }
@@ -526,6 +659,10 @@ function renderEditor() {
     btn.setAttribute("aria-pressed", String(cur === v));
   }
   $("serveField").hidden = s.type !== "serve";
+  const next = pointEndProblem(s);
+  $("pointEndWarning").hidden = !next;
+  if (next) $("pointEndWarning").innerHTML = `<strong>Check:</strong> the next shot (${next.type} at ${fmt(next.time)}) `
+    + "isn't a serve, so this may not be the last shot of the point.";
   const b = s.bounce;
   if (!b) $("bounceText").textContent = "Not marked. Find the frame where the ball lands, then click the bounce on the video.";
   else if (!b.court) $("bounceText").textContent = `Marked at ${fmt(b.time)}. Calibrate the court to place it.`;
@@ -542,7 +679,45 @@ function renderCalibrationNote() {
     : "Calibrate the court first: press K on a clear frame, then click the four singles corners.";
   $("calibrate").setAttribute("aria-pressed", String(!!calibrating));
 }
-function renderAll() { renderShots(); renderEditor(); renderCalibrationNote(); renderAnalysis(); draw(); }
+function renderPointWarnings() {
+  const box = $("pointWarnings"), problems = pointEndProblems();
+  box.hidden = !problems.length; box.replaceChildren();
+  if (!problems.length) return;
+  const head = document.createElement("p"); head.style.margin = "0";
+  head.innerHTML = `<strong>Check:</strong> ${problems.length === 1 ? "a point ending isn't" : `${problems.length} point endings aren't`} `
+    + "on the last shot of a point (the next shot isn't a serve).";
+  const ul = document.createElement("ul");
+  for (const s of problems.slice(0, 5)) {
+    const li = document.createElement("li");
+    li.textContent = `${LABEL[s.pointEnd]} on the ${s.type} at ${fmt(s.time)}`;
+    const go = document.createElement("button"); go.textContent = "Go to shot";
+    go.setAttribute("aria-label", `Go to the ${s.type} at ${fmt(s.time)}`);
+    go.onclick = () => { selectedId = s.id; seek(s.time); renderAll(); };
+    li.append(go); ul.append(li);
+  }
+  if (problems.length > 5) { const li = document.createElement("li"); li.textContent = `and ${problems.length - 5} more`; ul.append(li); }
+  box.append(head, ul);
+}
+const hms = (t) => {
+  t = Math.max(0, Math.floor(t || 0));
+  const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = String(t % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
+};
+function renderProgress() {
+  if (!label) { $("progress").textContent = ""; return; }
+  const shots = [...label.shots].sort((a, b) => a.time - b.time);
+  const i = shots.findIndex(s => s.id === selectedId);
+  const unchecked = shots.filter(s => s.source === "model" && !s.reviewed).length;
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  const shotPart = i >= 0 ? `Shot ${i + 1} of ${shots.length}` : plural(shots.length, "shot");
+  const dur = video.duration || label.video?.durationSeconds;
+  const timePart = dur ? `${hms(video.currentTime)} of ${hms(dur)}` : hms(video.currentTime);
+  $("progress").textContent = `${shotPart} · ${timePart} · ${plural(unchecked, "suggestion")} to check`;
+}
+function renderAll() {
+  renderShots(); renderEditor(); renderCalibrationNote(); renderAnalysis(); renderPointWarnings();
+  renderProgress(); renderHistory(); saveResume(); draw();
+}
 
 function draw() {
   const r = overlay.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
@@ -679,6 +854,7 @@ function renderAnalysis() {
 function copyAnalysisToLabels() {
   if (!analysis || !label) return;
   let added = 0;
+  record("use analysis as labels");
   for (const m of analysis.shots || []) {
     if (label.shots.some(s => Math.abs(s.time - m.time) <= 0.25)) continue;
     label.shots.push({
@@ -691,6 +867,7 @@ function copyAnalysisToLabels() {
     });
     added++;
   }
+  if (!added) { undoStack.pop(); renderHistory(); }
   label.shots.sort((a, b) => a.time - b.time);
   $("shotOrder").value = "check";
   scheduleSave(); stepToNextUnchecked();
@@ -756,16 +933,74 @@ function announce(text) {
   clearTimeout(announce.t); if (!calibrating) announce.t = setTimeout(() => { b.style.display = "none"; }, 4000);
 }
 
+// ─── Hits (found in the video's own sound, on this computer) ──────────────
+function setHitStatus(text, isError = false, pct = "") {
+  const el = $("hitStatus");
+  if (el.textContent !== text) el.textContent = text;
+  el.classList.toggle("error", isError); $("hitPct").textContent = pct;
+}
+async function loadHits(id) {
+  clearTimeout(hitPoll);
+  let st;
+  try { st = await (await fetch(`/api/hits/${encodeURIComponent(id)}`)).json(); }
+  catch (e) {
+    if (label?.matchId !== id) return;
+    setHitStatus(`Couldn't reach the tool to find hits (${e.message}). Trying again.`, true);
+    hitPoll = setTimeout(() => loadHits(id), 5000); return;
+  }
+  if (label?.matchId !== id) return;
+  if (st.state === "running") {
+    setHitStatus("Finding hits in the sound. Keep labeling meanwhile.", false, `${Math.round((st.progress || 0) * 100)}% done`);
+    hitPoll = setTimeout(() => loadHits(id), 1500);
+  } else if (st.state === "done") {
+    hits = (st.hits || []).map(h => h.time).sort((a, b) => a - b);
+    setHitStatus(hits.length ? `${hits.length} hits found. J jumps to the next one, Shift+J back.`
+      : "No hits found in this video's sound. Step with , and . instead.");
+  } else {
+    setHitStatus(st.message || st.error || "Couldn't find hits.", true);
+  }
+}
+function jumpHit(dir) {
+  if (!label) return;
+  if (!hits) { announce($("hitStatus").textContent || "Still finding hits."); return; }
+  // Half a frame of slack, so a press on a hit moves on to the next one.
+  const t = video.currentTime, eps = 0.5 / fps();
+  const i = dir > 0 ? hits.findIndex(h => h > t + eps) : hits.findLastIndex(h => h < t - eps);
+  if (i < 0) { announce(dir > 0 ? "No more hits after this point." : "No hits before this point."); return; }
+  seek(hits[i]);
+  announce(`Hit ${i + 1} of ${hits.length}, ${fmt(hits[i])}`);
+}
+
 // ─── Playback ──────────────────────────────────────────────────────────────
 function seek(t) { video.pause(); video.currentTime = Math.max(0, Math.min(video.duration || t, t)); }
 function nudge(seconds) { seek(video.currentTime + seconds); }
 function togglePlay() { video.paused ? video.play() : video.pause(); }
 video.addEventListener("play", () => { $("playPause").textContent = "Pause"; $("playPause").setAttribute("aria-label", "Pause"); });
-video.addEventListener("pause", () => { $("playPause").textContent = "Play"; $("playPause").setAttribute("aria-label", "Play"); });
-video.addEventListener("timeupdate", () => { $("timeReadout").textContent = `${fmt(video.currentTime)}  frame ${Math.round(video.currentTime * fps())}`; draw(); });
-video.addEventListener("seeked", draw);
+video.addEventListener("pause", () => { $("playPause").textContent = "Play"; $("playPause").setAttribute("aria-label", "Play"); saveResume(); });
+let lastResumeSave = 0;
+video.addEventListener("timeupdate", () => {
+  $("timeReadout").textContent = `${fmt(video.currentTime)}  frame ${Math.round(video.currentTime * fps())}`;
+  renderProgress(); draw();
+  if (Date.now() - lastResumeSave > 1000) { lastResumeSave = Date.now(); saveResume(); }
+});
+video.addEventListener("seeked", () => { renderProgress(); saveResume(); draw(); });
 video.addEventListener("loadedmetadata", () => {
-  if (!label.video?.width) stage.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`; draw();
+  if (!label.video?.width) stage.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
+  if (pendingResume !== null) {
+    const t = Math.min(pendingResume, video.duration || pendingResume);
+    pendingResume = null;
+    if (t > 0) {
+      video.currentTime = t;
+      const s = selected();
+      announce(`Back where you left off: ${hms(t)}${s ? `, ${s.type} at ${fmt(s.time)} selected` : ""}.`);
+    }
+  }
+  renderProgress(); draw();
+});
+window.addEventListener("pagehide", saveResume);
+video.addEventListener("error", () => {
+  if (!label) return;
+  setStatus(`This browser can't play ${label.video?.file || "this video"}. Try Safari, or convert it to H.264 MP4.`, true);
 });
 new ResizeObserver(draw).observe(stage);
 
@@ -786,6 +1021,7 @@ overlay.addEventListener("click", (e) => {
     calibrating.push(p);
     if (calibrating.length < 4) { announce(`Click the ${court.order[calibrating.length]} singles corner (${calibrating.length + 1} of 4).`); draw(); return; }
     const fromTime = +video.currentTime.toFixed(3);
+    record(`court calibration at ${fmt(fromTime)}`);
     label.calibrations = label.calibrations.filter(c => Math.abs(c.fromTime - fromTime) > 0.001);
     label.calibrations.push({fromTime, corners: calibrating.map(q => q.map(v => +v.toFixed(4)))});
     calibrating = null;
@@ -814,6 +1050,7 @@ $("doneToggle").onchange = (e) => {
     announce(`${unchecked} suggested shot${unchecked > 1 ? "s" : ""} still need a look before this match is done.`);
     return;
   }
+  record(e.target.checked ? "mark labeling done" : "mark labeling not done");
   label.status = e.target.checked ? "done" : "in_progress"; scheduleSave();
 };
 for (const k of ["venue", "surface", "lighting", "level"])
@@ -821,7 +1058,14 @@ for (const k of ["venue", "surface", "lighting", "level"])
 $("labeler").addEventListener("input", (e) => { label.labeler = e.target.value.trim(); scheduleSave(); });
 for (const b of document.querySelectorAll("[data-add]")) b.onclick = () => addShot(b.dataset.add);
 for (const b of document.querySelectorAll("[data-field]")) b.onclick = () => setField(b.dataset.field, b.dataset.value);
-$("clearBounce").onclick = () => { const s = selected(); if (s) { s.bounce = null; scheduleSave(); renderAll(); } };
+$("clearBounce").onclick = () => {
+  const s = selected(); if (!s?.bounce) return;
+  record(`clear bounce on the ${s.type} at ${fmt(s.time)}`); touched(s);
+  s.bounce = null; scheduleSave(); renderAll();
+};
+$("undoBtn").onclick = undo; $("redoBtn").onclick = redo;
+$("prevHit").onclick = () => jumpHit(-1); $("nextHit").onclick = () => jumpHit(1);
+if (!IS_MAC) for (const k of document.querySelectorAll("kbd.mod")) k.textContent = "Ctrl";
 $("jumpShot").onclick = () => { const s = selected(); if (s) seek(s.time); };
 $("jumpBounce").onclick = () => { const s = selected(); if (s?.bounce) seek(s.bounce.time); };
 $("deleteShot").onclick = deleteSelected;
@@ -839,26 +1083,41 @@ const KEYS = {
   u: () => setField("pointEnd", "unforced_error"), "0": () => setField("pointEnd", ""),
   k: startCalibration,
   y: confirmSuggestion,
+  j: () => jumpHit(1), J: () => jumpHit(-1),
+  "1": () => setServeNumber(1), "2": () => setServeNumber(2),
+  S: () => changeType("serve"), F: () => changeType("forehand"), B: () => changeType("backhand"),
+  V: () => changeType("volley"), O: () => changeType("overhead"),
   ArrowUp: () => step(-1), ArrowDown: () => step(1),
   Enter: () => { const s = selected(); if (s) seek(s.time); },
   Delete: deleteSelected, Backspace: deleteSelected,
   Escape: () => { if (calibrating) { calibrating = null; announce("Calibration cancelled."); renderAll(); } },
 };
+const isTextField = (el) => el.tagName === "TEXTAREA" || el.isContentEditable
+  || (el.tagName === "INPUT" && !["checkbox", "radio", "button"].includes(el.type));
 document.addEventListener("keydown", (e) => {
-  if (e.metaKey || e.ctrlKey || e.altKey) return;
   const tag = e.target.tagName;
-  if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+  // Undo / redo. Text fields keep their own undo for typing.
+  if ((IS_MAC ? e.metaKey : e.ctrlKey) && !e.altKey && ["z", "y"].includes(e.key.toLowerCase())) {
+    if (isTextField(e.target) || !label) return;
+    e.preventDefault();
+    (e.shiftKey || e.key.toLowerCase() === "y") ? redo() : undo();
+    return;
+  }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (isTextField(e.target) || tag === "SELECT") return;
   if (e.key === "Enter" && tag === "BUTTON") return;   // let Enter press the focused button
-  if (e.key === " " && tag === "BUTTON" && e.target !== $("playPause")) return;
+  if (e.key === " " && (tag === "BUTTON" || tag === "INPUT") && e.target !== $("playPause")) return;
   let key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   if (e.shiftKey && (key === "," || key === "<")) key = "<";
   if (e.shiftKey && (key === "." || key === ">")) key = ">";
+  if (e.shiftKey && "jsfbvo".includes(key) && key.length === 1) key = key.toUpperCase();
   const fn = KEYS[key]; if (!fn || !label) return;
   e.preventDefault(); fn();
 });
 
 (async () => {
-  court = await (await fetch("/api/court")).json();
+  try { court = await (await fetch("/api/court")).json(); }
+  catch (e) { setStatus(`Can't reach the labeling tool: ${e.message}. Start it again, then reload.`, true); return; }
   await refreshMatchList(true);
 })();
 </script>
