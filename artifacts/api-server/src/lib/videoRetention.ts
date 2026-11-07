@@ -12,6 +12,20 @@
 //
 // A failed analysis keeps the raw upload for FAILED_ANALYSIS_GRACE_DAYS so it
 // can be re-run after a fix, then the sweep deletes it.
+//
+// Beta (spec decision 89, B6): while BETA_RELEASE_REQUIRED is on, beta footage
+// is kept until launch. The ML server makes the video-only copy for every
+// match, and it's kept even when not every player left training on
+// (metadata.heldForBeta). The raw upload, the only copy with audio, is still
+// deleted after analysis. Once the setting is off at launch, the hourly sweep
+// applies the normal rule again and deletes held copies that aren't eligible.
+// A held copy is for the labeled test set; it's only ever trained on when
+// matchIsTrainingEligible() says so.
+//
+// Withdrawal (spec decision 95, B12): when a player deletes their account,
+// every session in a match they played gets metadata.withdrawnAt. Its videos
+// are deleted at once, raw and copy, beta or not, and the sweep retries any
+// delete that failed, well within the 30 days the release promises.
 
 import { ballBoiSessionsTable, db } from "@workspace/db";
 import { and, eq, isNotNull, lt, or, sql } from "drizzle-orm";
@@ -19,6 +33,7 @@ import { logger } from "./logger";
 import { ObjectStorageService } from "./objectStorage";
 import { matchIsTrainingEligible } from "./trainingEligibility";
 import { segmentPathsOf } from "./mlDispatch";
+import { readBetaRelease } from "./betaRelease";
 
 export const TRAINING_PREFIX = "/objects/training/";
 export const FAILED_ANALYSIS_GRACE_DAYS = 7;
@@ -30,6 +45,8 @@ export interface RetentionDeps {
   deleteObject(objectPath: string): Promise<void>;
   saveSession(sessionId: number, changes: { videoObjectPath: string | null; metadata: Record<string, unknown> }): Promise<void>;
   now(): Date;
+  /** Beta footage is kept until launch (B6). Defaults to off when left out. */
+  betaHold?(): boolean;
 }
 
 export interface RetentionPlan {
@@ -72,7 +89,13 @@ const defaultDeps: RetentionDeps = {
     await db.update(ballBoiSessionsTable).set(changes).where(eq(ballBoiSessionsTable.id, sessionId));
   },
   now: () => new Date(),
+  betaHold: () => readBetaRelease().required,
 };
+
+/** A player in this match withdrew (deleted their account): its video goes, beta or not. */
+export function isWithdrawn(metadata: Record<string, unknown>): boolean {
+  return typeof metadata.withdrawnAt === "string";
+}
 
 /**
  * Deletes what the rules say to delete. Call once analysis has finished.
@@ -90,13 +113,17 @@ export async function settleSessionVideo(
   const otherRaw = segmentPathsOf(metadata);
   if (!session.videoObjectPath && !candidate && otherRaw.length === 0) return;
 
+  const withdrawn = isWithdrawn(metadata);
   let eligible = false;
-  try {
-    eligible = await deps.isTrainingEligible(session.matchId);
-  } catch (err) {
-    logger.warn({ err, sessionId: session.id }, "Video retention: couldn't check training; treating as off");
+  if (!withdrawn) {
+    try {
+      eligible = await deps.isTrainingEligible(session.matchId);
+    } catch (err) {
+      logger.warn({ err, sessionId: session.id }, "Video retention: couldn't check training; treating as off");
+    }
   }
-  const plan = planRetention(session.videoObjectPath, candidate, eligible, otherRaw);
+  const held = !withdrawn && !eligible && !!deps.betaHold?.();
+  const plan = planRetention(session.videoObjectPath, candidate, eligible || held, otherRaw);
   if (existingCopy && existingCopy !== candidate && !plan.remove.includes(existingCopy)) plan.remove.push(existingCopy);
 
   const failed = new Set<string>();
@@ -117,8 +144,10 @@ export async function settleSessionVideo(
   if (otherLeft.length > 0) next.segmentPaths = otherLeft;
   else delete next.segmentPaths;
   if (rawGone && otherLeft.length === 0) next.rawVideoDeletedAt = now;
-  if (plan.keepTrainingCopy) next.keptForTrainingAt = metadata.keptForTrainingAt ?? now;
+  if (plan.keepTrainingCopy && !held) next.keptForTrainingAt = metadata.keptForTrainingAt ?? now;
   else delete next.keptForTrainingAt;
+  if (plan.keepTrainingCopy && held) next.heldForBeta = true;
+  else delete next.heldForBeta;
 
   await deps.saveSession(session.id, {
     videoObjectPath: rawGone ? null : session.videoObjectPath,
@@ -126,8 +155,13 @@ export async function settleSessionVideo(
   });
 }
 
-/** True only when every player left training on. Errors count as off. */
+/**
+ * Whether the ML server should make the video-only copy: when every player
+ * left training on, and for every match while beta footage is kept (B6).
+ * Errors count as off.
+ */
 export async function keepForTraining(matchId: number): Promise<boolean> {
+  if (readBetaRelease().required) return true;
   try {
     return await matchIsTrainingEligible(matchId);
   } catch (err) {
@@ -150,6 +184,14 @@ export async function sweepSessionVideos(deps: RetentionDeps = defaultDeps): Pro
       or(
         and(
           eq(ballBoiSessionsTable.status, "completed"),
+          or(
+            isNotNull(ballBoiSessionsTable.videoObjectPath),
+            sql`${ballBoiSessionsTable.metadata}->>'trainingVideoPath' is not null`,
+            sql`${ballBoiSessionsTable.metadata}->>'segmentPaths' is not null`,
+          ),
+        ),
+        and(
+          sql`${ballBoiSessionsTable.metadata}->>'withdrawnAt' is not null`,
           or(
             isNotNull(ballBoiSessionsTable.videoObjectPath),
             sql`${ballBoiSessionsTable.metadata}->>'trainingVideoPath' is not null`,

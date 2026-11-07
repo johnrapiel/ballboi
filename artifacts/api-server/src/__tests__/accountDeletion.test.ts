@@ -14,6 +14,10 @@ vi.mock("@clerk/express", () => ({
 
 vi.mock("../lib/autoLinkPlayer.js", () => ({ autoLinkPlayersForUser: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../lib/recordingCleanup", () => ({ deleteRecordingData: vi.fn().mockResolvedValue(undefined) }));
+const { withdrawals } = vi.hoisted(() => ({ withdrawals: [] as unknown[] }));
+vi.mock("../lib/withdrawal", () => ({
+  withdrawFromRecordings: async (input: unknown) => void withdrawals.push(input),
+}));
 const { messagingDeleted } = vi.hoisted(() => ({ messagingDeleted: [] as string[] }));
 vi.mock("../messaging/accountDeletion", () => ({
   deleteMessagingData: async (id: string) => void messagingDeleted.push(id),
@@ -108,6 +112,7 @@ const log = { warn: vi.fn(), info: vi.fn() };
 beforeEach(() => {
   calls.length = 0;
   messagingDeleted.length = 0;
+  withdrawals.length = 0;
   for (const k of Object.keys(selectResults)) delete selectResults[k];
   for (const k of Object.keys(secondSelectResults)) delete secondSelectResults[k];
   for (const k of Object.keys(selectCounts)) delete selectCounts[k];
@@ -130,7 +135,7 @@ describe("deleteAccount", () => {
     ];
     selectResults.ball_boi_sessions = [
       { id: 1, matchId: 100, videoObjectPath: "/objects/uploads/a" },
-      { id: 2, matchId: 101, videoObjectPath: null },
+      { id: 2, matchId: 101, videoObjectPath: null, metadata: { trainingVideoPath: "/objects/training/session-2.mp4" } },
     ];
     selectResults.matches = [
       { id: 100, player1Id: 7, player2Id: 20 },
@@ -177,15 +182,25 @@ describe("deleteAccount", () => {
     expect(anonymize?.values).toEqual({ name: DELETED_PLAYER_NAME, email: null, phone: null, bio: null, clerkUserId: null });
 
     // Each video once, even when listed twice; Clerk last.
-    expect(order).toEqual(["video:/objects/uploads/a", "video:/objects/uploads/b", "clerk"]);
+    // The deleted recording's kept copy goes too.
+    expect(order).toEqual([
+      "video:/objects/uploads/a",
+      "video:/objects/training/session-2.mp4",
+      "video:/objects/uploads/b",
+      "clerk",
+    ]);
     expect(deleteClerkUser).toHaveBeenCalledWith("user_delete_me");
     // Messages and conversations go too (checklist 5.1.1(v)).
     expect(messagingDeleted).toEqual(["user_delete_me"]);
+    // Withdrawal (B12): every match they played, plus the recording deleted outright for the test-set email.
+    expect(withdrawals).toEqual([
+      { clerkUserId: "user_delete_me", playerIds: [7, 9], deletedSessions: [{ matchId: 101, sessionId: 2, recordedAt: null }] },
+    ]);
     expect(summary).toEqual({
       playersAnonymized: 2,
       recordingsDeleted: 1,
       recordingsKeptForOpponents: 1,
-      videosDeleted: 2,
+      videosDeleted: 3,
       videoDeleteFailures: 0,
     });
   });
