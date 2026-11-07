@@ -22,6 +22,14 @@ on:
       - 'lib/api-client-react/**'
       - 'pnpm-lock.yaml'
 
+# When merges land close together, the running build finishes and only the
+# newest waiting merge builds next; runs queued in between are dropped (they're
+# included in the newest one). Saves monthly builds on busy days.
+concurrency:
+  group: ${{ workflow.filename }}-${{ github.ref }}
+  cancel_in_progress: false
+  queue: single
+
 # Every job uses the repo's Node and pnpm. Without this, the native-change
 # check runs on an older image whose pnpm can't read pnpm-lock.yaml.
 defaults:
