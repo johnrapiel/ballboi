@@ -164,6 +164,7 @@ export default function OpenMatchScreen() {
           <Note symbol="checkmark.circle" title="You're in" body={waitingLine(m.spotsLeft)} />
         ) : m.role === "poster" && !full ? (
           <Note
+            symbol="megaphone"
             title="Posted"
             body="Players near you who fit can see it. When the last spot fills, a group chat opens for everyone and the post leaves Discover."
           />
@@ -259,7 +260,6 @@ export default function OpenMatchScreen() {
   );
 }
 
-// "Posted" has no icon until a brush megaphone is drawn; the title carries the meaning.
 function Note({ symbol, title, body }: { symbol?: IconName; title: string; body: string }) {
   const c = useColors();
   return (
