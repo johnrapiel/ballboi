@@ -95,8 +95,25 @@ export function ScoreGrid({
   const [rowH, setRowH] = useState<{ me: number; them: number }>({ me: boxH, them: boxH });
   const heightOf = (side: "me" | "them") => Math.max(boxH, rowH[side]);
 
+  // How wide the grid row is, to decide whether the sets fit beside the names.
+  const [rowW, setRowW] = useState(0);
+  const NAMES_MIN = 72;
+  const setsW = sets.length * boxW + Math.max(0, sets.length - 1) * spacing.space2;
+  const room = Math.max(0, rowW - NAMES_MIN - spacing.space3);
+  // Wave 1 Fix 1d: in a sheet that hugs its content, react-native-screens
+  // looks for a scroll view in the sheet and snaps its frame to the sheet's
+  // top left corner (it does that to size a sheet's main scroll view). Since
+  // the sheet itself stopped scrolling (Fix 1b), the set columns' sideways
+  // scroll view was the one it found, so the sets jumped up over the title
+  // while the names stayed put. So: when the sets fit, there is no scroll view
+  // at all, just a row. Only when they don't fit (4 or 5 sets, or larger text)
+  // do they scroll sideways, and then the scroll view sits inside its own
+  // clipped box, behind a spacer, where the sheet doesn't look for it and a
+  // snap couldn't move it out of place anyway.
+  const scrolls = rowW > 0 && setsW > room;
+
   const names = (
-    <View style={{ flexShrink: 1, flexGrow: 1, flexBasis: 0, minWidth: 72 }}>
+    <View style={{ flexShrink: 1, flexGrow: 1, flexBasis: 0, minWidth: NAMES_MIN }}>
       <View style={{ height: headH }} />
       {(["me", "them"] as const).map((side) => (
         <View
@@ -115,48 +132,72 @@ export function ScoreGrid({
     </View>
   );
 
+  const columns = (
+    <View style={{ flexDirection: "row", gap: spacing.space2 }}>
+      {sets.map((s, i) => {
+        const off = i >= activeSets;
+        const n = i + 1;
+        const offNote = off ? ". Only needed if you split the first two sets" : "";
+        return (
+          <View key={i} style={{ width: boxW }}>
+            <View
+              onLayout={i === 0 ? (e) => setHeadH(e.nativeEvent.layout.height) : undefined}
+              style={{ paddingBottom: spacing.space1 }}
+              importantForAccessibility="no-hide-descendants"
+              accessibilityElementsHidden
+            >
+              <Text variant="section" tone="inkMuted" style={{ textAlign: "center" }}>
+                {`Set ${n}`}
+              </Text>
+            </View>
+            {(["me", "them"] as const).map((side) => (
+              <View
+                key={side}
+                style={{ height: heightOf(side), justifyContent: "center", marginTop: side === "them" ? spacing.space2 : 0 }}
+              >
+                <ScoreBox
+                  value={s[side]}
+                  onChange={(v) => onChange(i, { [side]: v })}
+                  disabled={off}
+                  width={boxW}
+                  height={boxH}
+                  label={`Set ${n}, ${side === "me" ? firstPossessive : secondPossessive} games${off ? "" : `: ${s[side] || "empty"}`}${offNote}`}
+                />
+              </View>
+            ))}
+          </View>
+        );
+      })}
+    </View>
+  );
+
   return (
     <View style={{ gap: spacing.space3 }}>
-      <View style={{ flexDirection: "row", gap: spacing.space3 }}>
+      <View
+        onLayout={(e) => {
+          const w = Math.round(e.nativeEvent.layout.width);
+          setRowW((prev) => (prev === w ? prev : w));
+        }}
+        style={{ flexDirection: "row", gap: spacing.space3 }}
+      >
         {names}
-        <ScrollView horizontal alwaysBounceHorizontal={false} showsHorizontalScrollIndicator style={{ flexGrow: 0 }}>
-          <View style={{ flexDirection: "row", gap: spacing.space2 }}>
-            {sets.map((s, i) => {
-              const off = i >= activeSets;
-              const n = i + 1;
-              const offNote = off ? ". Only needed if you split the first two sets" : "";
-              return (
-                <View key={i} style={{ width: boxW }}>
-                  <View
-                    onLayout={i === 0 ? (e) => setHeadH(e.nativeEvent.layout.height) : undefined}
-                    style={{ paddingBottom: spacing.space1 }}
-                    importantForAccessibility="no-hide-descendants"
-                    accessibilityElementsHidden
-                  >
-                    <Text variant="section" tone="inkMuted" style={{ textAlign: "center" }}>
-                      {`Set ${n}`}
-                    </Text>
-                  </View>
-                  {(["me", "them"] as const).map((side) => (
-                    <View
-                      key={side}
-                      style={{ height: heightOf(side), justifyContent: "center", marginTop: side === "them" ? spacing.space2 : 0 }}
-                    >
-                      <ScoreBox
-                        value={s[side]}
-                        onChange={(v) => onChange(i, { [side]: v })}
-                        disabled={off}
-                        width={boxW}
-                        height={boxH}
-                        label={`Set ${n}, ${side === "me" ? firstPossessive : secondPossessive} games${off ? "" : `: ${s[side] || "empty"}`}${offNote}`}
-                      />
-                    </View>
-                  ))}
-                </View>
-              );
-            })}
+        {scrolls ? (
+          <View collapsable={false} style={{ width: room, flexGrow: 0, flexShrink: 0, overflow: "hidden" }}>
+            {/* Keeps the scroll view off the "first child" path the sheet searches. */}
+            <View collapsable={false} pointerEvents="none" style={{ position: "absolute", width: 0, height: 0 }} />
+            <ScrollView
+              horizontal
+              alwaysBounceHorizontal={false}
+              showsHorizontalScrollIndicator
+              keyboardShouldPersistTaps="handled"
+              style={{ width: room, flexGrow: 0 }}
+            >
+              {columns}
+            </ScrollView>
           </View>
-        </ScrollView>
+        ) : (
+          columns
+        )}
       </View>
 
       {sets.slice(0, activeSets).map((s, i) =>
