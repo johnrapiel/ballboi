@@ -20,6 +20,8 @@ export const leagueJoinRequestsTable = pgTable(
     playerName: text("player_name").notNull(),
     skillLevel: text("skill_level").notNull().default("3.0"),
     kind: text("kind").$type<JoinRequestKind>().notNull().default("request"),
+    /** Optional note to the organizer from Discover's "Request a spot" (migration 20261107_f_open_leagues.sql). */
+    note: text("note"),
     status: text("status").$type<JoinRequestStatus>().notNull().default("pending"),
     decidedByClerkUserId: text("decided_by_clerk_user_id"),
     decidedAt: timestamp("decided_at", { withTimezone: true }),

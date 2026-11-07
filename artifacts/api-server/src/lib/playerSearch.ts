@@ -11,15 +11,14 @@ export const MAX_QUERY = 60;
 export const STRANGER_LIMIT = 25;
 
 /**
- * Hidden profile hook (finding #15, "respect Discover's hidden profile once
- * #117 lands"). #117 adds `users.discover_hidden`. Until it merges there is no
- * setting to read, so this is false and nobody is hidden. When #117 merges,
- * set this to true; playerSearchRepo.ts then adds `discover_hidden = false`
- * to the "All Ball Boi players" query (see hiddenProfileFilter there).
+ * Hidden profile (finding #15): "Show me in Discover" off
+ * (`discover_profiles.hidden`, Wave 2 Session F) also drops a player from
+ * the "All Ball Boi players" part of Quick match and New message search
+ * (see hiddenProfileFilter in playerSearchRepo.ts).
  * League mates and past opponents stay listed either way: the spec's hidden
  * profile opts out of discovery "while keeping leagues and Ball Boi".
  */
-export const RESPECT_HIDDEN_PROFILE = false;
+export const RESPECT_HIDDEN_PROFILE = true;
 
 /** One person as the repo found them. */
 export interface SearchCandidate {

@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
@@ -40,14 +40,14 @@ export function ModerationRow() {
         opacity: pressed ? 0.8 : 1,
       })}
     >
-      <SymbolView name="checkmark.shield" size={20} tintColor={c.ink} />
+      <Icon name="checkmark.shield" size={20} tintColor={c.ink} />
       <View style={{ flex: 1 }}>
         <Text variant="bodyStrong">Moderation</Text>
         <Text variant="small" tone="inkMuted">
           {sub}
         </Text>
       </View>
-      <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} />
+      <Icon name="chevron.right" size={13} tintColor={c.inkMuted} />
     </Pressable>
   );
 }

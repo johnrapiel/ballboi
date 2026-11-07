@@ -1,5 +1,5 @@
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AccessibilityInfo,
   ActionSheetIOS,
@@ -21,10 +21,13 @@ import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { MessagesApiError, useMessagesActions, useOlderMessages, useThread, type Message } from "@/hooks/useMessages";
 import { useReportBlock } from "@/hooks/useReportBlock";
+import { MatchCard, useMatchCardActions, type MatchCardItem } from "@/components/chat/MatchCard";
+import { useMatchPlans } from "@/hooks/useDiscoverMatchPlans";
 import { newClientMessageId } from "@/lib/messages";
 
 // A conversation (spec: Messaging and moderation). Opens from Messages, from
-// New message, and later from a player card with id "new" plus playerId.
+// New message, and from a player card with id "new" plus playerId, or plus
+// userId for a Discover player who may be in no league yet.
 // - Every message goes straight to the inbox; there are no Message Requests
 //   (finding 17).
 // - Every message from the other player can be reported with a long press or
@@ -45,7 +48,17 @@ interface Pending {
   status: Exclude<BubbleStatus, "sent">;
 }
 
-type Row = { key: string; text: string; at: string; fromMe: boolean; status: BubbleStatus; serverId?: string; clientId?: string };
+type Row = {
+  key: string;
+  text: string;
+  at: string;
+  fromMe: boolean;
+  status: BubbleStatus;
+  serverId?: string;
+  clientId?: string;
+  /** A match card step (Discover, F2), shown in time order with the messages. */
+  card?: MatchCardItem;
+};
 
 function chooseIOS(title: string, options: string[], destructiveIndex: number | undefined, onPick: (i: number) => void) {
   if (Platform.OS === "ios") {
@@ -67,14 +80,16 @@ export default function ConversationScreen() {
   const c = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ id: string; playerId?: string; name?: string }>();
+  const params = useLocalSearchParams<{ id: string; playerId?: string; userId?: string; name?: string }>();
   const startPlayerId = params.playerId ? Number(params.playerId) : null;
+  const startUserId = params.userId ? Number(params.userId) : null;
+  const startsNew = startPlayerId !== null || startUserId !== null;
 
   const [conversationId, setConversationId] = useState<number | null>(() => {
     const n = Number(params.id);
     return params.id !== "new" && Number.isInteger(n) && n > 0 ? n : null;
   });
-  const [lookingUp, setLookingUp] = useState(params.id === "new" && startPlayerId !== null);
+  const [lookingUp, setLookingUp] = useState(params.id === "new" && startsNew);
   const thread = useThread(conversationId);
   const history = useOlderMessages(conversationId, thread.data);
   const actions = useMessagesActions();
@@ -82,6 +97,25 @@ export default function ConversationScreen() {
   const conversation = thread.data?.conversation;
   const name = conversation?.other.name ?? params.name ?? "Player";
   const playerId = conversation?.other.playerId ?? startPlayerId;
+  const userId = conversation?.other.userId ?? startUserId;
+  /** Who Report and Unblock are about: their league player, else their account. */
+  const reportable = playerId || userId ? { id: playerId ?? null, userId: userId ?? null, name } : null;
+  // Match cards with this player (Discover, F2).
+  const plans = useMatchPlans(userId ?? null);
+  const cardActions = useMatchCardActions(name);
+  // Back from a sheet or the score: refresh the cards, and find the chat a first card opened.
+  useFocusEffect(
+    useCallback(() => {
+      void plans.refetch();
+      if (conversationId === null && startUserId !== null) {
+        actions
+          .conversationWithUser(startUserId)
+          .then((r) => r.conversationId && setConversationId(r.conversationId))
+          .catch(() => undefined);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [conversationId, startUserId]),
+  );
 
   const [draft, setDraft] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
@@ -92,9 +126,8 @@ export default function ConversationScreen() {
 
   // Opened from a player: reuse an existing conversation with them.
   useEffect(() => {
-    if (params.id !== "new" || startPlayerId === null) return;
-    actions
-      .conversationWithPlayer(startPlayerId)
+    if (params.id !== "new" || !startsNew) return;
+    (startPlayerId !== null ? actions.conversationWithPlayer(startPlayerId) : actions.conversationWithUser(startUserId!))
       .then((r) => {
         if (r.conversationId) setConversationId(r.conversationId);
       })
@@ -132,8 +165,12 @@ export default function ConversationScreen() {
     const waiting = pending
       .filter((p) => !serverMessages.some((m) => m.id.endsWith(`-${p.clientId}`)))
       .map<Row>((p) => ({ key: p.clientId, text: p.text, at: p.at, fromMe: true, status: p.status, clientId: p.clientId }));
-    return [...sent, ...waiting].reverse(); // inverted list: newest first
-  }, [serverMessages, pending]);
+    const cards: Row[] = (plans.data?.plans ?? []).flatMap((plan) =>
+      plan.events.map((event) => ({ key: `card-${event.key}`, text: "", at: event.at, fromMe: event.by === "me", status: "sent" as const, card: { plan, event } })),
+    );
+    // Messages and match card steps in time order; inverted list: newest first.
+    return [...sent, ...waiting, ...cards].sort((a, b) => a.at.localeCompare(b.at)).reverse();
+  }, [serverMessages, pending, plans.data]);
 
   const showNotice = (text: string) => {
     setNotice(text);
@@ -145,8 +182,11 @@ export default function ConversationScreen() {
     try {
       if (conversationId) {
         await actions.send(conversationId, text, clientId);
-      } else if (startPlayerId !== null) {
-        const res = await actions.start(startPlayerId, text, clientId);
+      } else if (startsNew) {
+        const res =
+          startPlayerId !== null
+            ? await actions.start(startPlayerId, text, clientId)
+            : await actions.startWithUser(startUserId!, text, clientId);
         setConversationId(res.conversationId);
         router.setParams({ id: String(res.conversationId) });
       }
@@ -183,24 +223,24 @@ export default function ConversationScreen() {
   };
 
   const reportMessage = (messageId: string) => {
-    if (!conversationId || !playerId) return;
-    reportBlock.open({ id: playerId, name }, { conversationId, messageId });
+    if (!conversationId || !reportable) return;
+    reportBlock.open(reportable, { conversationId, messageId });
   };
 
   // Long press: Report is the only action (finding 20).
   const messageMenu = (messageId: string) => chooseIOS(name, ["Report message"], undefined, () => reportMessage(messageId));
   const playerMenu = () => {
-    if (playerId) chooseIOS(name, [`Report ${name}`], undefined, () => reportBlock.open({ id: playerId, name }));
+    if (reportable) chooseIOS(name, [`Report ${name}`], undefined, () => reportBlock.open(reportable));
   };
 
   const blocked = !!conversation?.blocked;
   const unblock = () => {
-    if (!playerId || unblocking) return;
+    if (!reportable || unblocking) return;
     setUnblocking(true);
-    void reportBlock.unblock({ id: playerId, name }).finally(() => setUnblocking(false));
+    void reportBlock.unblock(reportable).finally(() => setUnblocking(false));
   };
 
-  const canSend = conversation ? conversation.canSend : startPlayerId !== null;
+  const canSend = conversation ? conversation.canSend : startsNew;
   const loading = lookingUp || (conversationId !== null && thread.isPending);
 
   return (
@@ -218,7 +258,7 @@ export default function ConversationScreen() {
           headerTintColor: c.ink,
           headerStyle: { backgroundColor: c.paper },
           headerTitleStyle: { fontFamily: "DMSans_600SemiBold", color: c.ink },
-          headerRight: playerId ? () => <IconButton symbol="ellipsis" label={`More options for ${name}`} onPress={playerMenu} /> : undefined,
+          headerRight: reportable ? () => <IconButton symbol="ellipsis" label={`More options for ${name}`} onPress={playerMenu} /> : undefined,
         }}
       />
 
@@ -253,7 +293,10 @@ export default function ConversationScreen() {
               </View>
             ) : undefined
           }
-          renderItem={({ item }) => (
+          renderItem={({ item }) =>
+            item.card ? (
+              <MatchCard item={item.card} otherName={name} devTools={plans.data?.devTools || __DEV__} onAction={cardActions.run} busy={cardActions.busy} />
+            ) : (
             <MessageBubble
               text={item.text}
               at={item.at}
@@ -261,10 +304,11 @@ export default function ConversationScreen() {
               senderName={item.fromMe ? "You" : name}
               status={item.status}
               onRetry={item.clientId ? () => retry(item.clientId!) : undefined}
-              onReport={!item.fromMe && item.serverId && playerId ? () => reportMessage(item.serverId!) : undefined}
-              onLongPress={!item.fromMe && item.serverId && playerId ? () => messageMenu(item.serverId!) : undefined}
+              onReport={!item.fromMe && item.serverId && reportable ? () => reportMessage(item.serverId!) : undefined}
+              onLongPress={!item.fromMe && item.serverId && reportable ? () => messageMenu(item.serverId!) : undefined}
             />
-          )}
+            )
+          }
           ListEmptyComponent={
             // Inverted lists flip their children; flip the empty state back.
             <View style={{ transform: [{ scaleY: -1 }], padding: spacing.space8, alignItems: "center" }}>
@@ -318,6 +362,14 @@ export default function ConversationScreen() {
           </Text>
         ) : (
           <View style={{ flexDirection: "row", alignItems: "flex-end", gap: spacing.space2 }}>
+            {userId && !plans.data?.blocked ? (
+              <IconButton
+                symbol="calendar.badge.plus"
+                label="Add a match"
+                hint={`Sends ${name} a match card with a day, time and court`}
+                onPress={() => router.push({ pathname: "/discover/plan/[userId]", params: { userId: String(userId), name } })}
+              />
+            ) : null}
             <TextInput
               value={draft}
               onChangeText={(t) => {
