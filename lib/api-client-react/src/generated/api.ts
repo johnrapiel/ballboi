@@ -131,6 +131,7 @@ import type {
   ListCourtsParams,
   ListDiscoverLeaguesParams,
   ListDiscoverPlayersParams,
+  ListOpenMatchesParams,
   LockMatchBody,
   LogDoublesViewBody,
   Match,
@@ -148,12 +149,18 @@ import type {
   ModeratorReasonInput,
   MyJoinRequest,
   MyMatchesResponse,
+  MyOpenMatches,
   MyScheduleResponse,
   NewConversationInput,
   NewCourtInput,
   NewMatchPlanInput,
   NewMessageInput,
+  NewOpenMatchInput,
   NewReport,
+  OpenMatchActionInput,
+  OpenMatchDetail,
+  OpenMatchList,
+  OpenMatchMessages,
   PhotoUploadRequest,
   PhotoUploadTicket,
   Player,
@@ -976,6 +983,524 @@ export const useActOnMatchPlan = <
   TContext
 > => {
   return useMutation(getActOnMatchPlanMutationOptions(options));
+};
+
+/**
+ * @summary Open matches near you, soonest first, with a count per distance chip
+ */
+export const getListOpenMatchesUrl = (params?: ListOpenMatchesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/open-matches?${stringifiedParams}`
+    : `/api/open-matches`;
+};
+
+export const listOpenMatches = async (
+  params?: ListOpenMatchesParams,
+  options?: RequestInit,
+): Promise<OpenMatchList> => {
+  return customFetch<OpenMatchList>(getListOpenMatchesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListOpenMatchesQueryKey = (params?: ListOpenMatchesParams) => {
+  return [`/api/open-matches`, ...(params ? [params] : [])] as const;
+};
+
+export const getListOpenMatchesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listOpenMatches>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListOpenMatchesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listOpenMatches>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListOpenMatchesQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listOpenMatches>>> = ({
+    signal,
+  }) => listOpenMatches(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listOpenMatches>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListOpenMatchesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listOpenMatches>>
+>;
+export type ListOpenMatchesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Open matches near you, soonest first, with a count per distance chip
+ */
+
+export function useListOpenMatches<
+  TData = Awaited<ReturnType<typeof listOpenMatches>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListOpenMatchesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listOpenMatches>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListOpenMatchesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Post an open match
+ */
+export const getPostOpenMatchUrl = () => {
+  return `/api/open-matches`;
+};
+
+export const postOpenMatch = async (
+  newOpenMatchInput: NewOpenMatchInput,
+  options?: RequestInit,
+): Promise<OpenMatchDetail> => {
+  return customFetch<OpenMatchDetail>(getPostOpenMatchUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(newOpenMatchInput),
+  });
+};
+
+export const getPostOpenMatchMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof postOpenMatch>>,
+    TError,
+    { data: BodyType<NewOpenMatchInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof postOpenMatch>>,
+  TError,
+  { data: BodyType<NewOpenMatchInput> },
+  TContext
+> => {
+  const mutationKey = ["postOpenMatch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof postOpenMatch>>,
+    { data: BodyType<NewOpenMatchInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return postOpenMatch(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PostOpenMatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof postOpenMatch>>
+>;
+export type PostOpenMatchMutationBody = BodyType<NewOpenMatchInput>;
+export type PostOpenMatchMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Post an open match
+ */
+export const usePostOpenMatch = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof postOpenMatch>>,
+    TError,
+    { data: BodyType<NewOpenMatchInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof postOpenMatch>>,
+  TError,
+  { data: BodyType<NewOpenMatchInput> },
+  TContext
+> => {
+  return useMutation(getPostOpenMatchMutationOptions(options));
+};
+
+/**
+ * @summary Open matches you posted or hold a spot in, still to play, for Home
+ */
+export const getListMyOpenMatchesUrl = () => {
+  return `/api/open-matches/mine`;
+};
+
+export const listMyOpenMatches = async (
+  options?: RequestInit,
+): Promise<MyOpenMatches> => {
+  return customFetch<MyOpenMatches>(getListMyOpenMatchesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListMyOpenMatchesQueryKey = () => {
+  return [`/api/open-matches/mine`] as const;
+};
+
+export const getListMyOpenMatchesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMyOpenMatches>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMyOpenMatches>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListMyOpenMatchesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listMyOpenMatches>>
+  > = ({ signal }) => listMyOpenMatches({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMyOpenMatches>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListMyOpenMatchesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listMyOpenMatches>>
+>;
+export type ListMyOpenMatchesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Open matches you posted or hold a spot in, still to play, for Home
+ */
+
+export function useListMyOpenMatches<
+  TData = Awaited<ReturnType<typeof listMyOpenMatches>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMyOpenMatches>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListMyOpenMatchesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary One open match, who's in, and what you can do
+ */
+export const getGetOpenMatchUrl = (id: number) => {
+  return `/api/open-matches/${id}`;
+};
+
+export const getOpenMatch = async (
+  id: number,
+  options?: RequestInit,
+): Promise<OpenMatchDetail> => {
+  return customFetch<OpenMatchDetail>(getGetOpenMatchUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetOpenMatchQueryKey = (id: number) => {
+  return [`/api/open-matches/${id}`] as const;
+};
+
+export const getGetOpenMatchQueryOptions = <
+  TData = Awaited<ReturnType<typeof getOpenMatch>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getOpenMatch>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetOpenMatchQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getOpenMatch>>> = ({
+    signal,
+  }) => getOpenMatch(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getOpenMatch>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetOpenMatchQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getOpenMatch>>
+>;
+export type GetOpenMatchQueryError = ErrorType<unknown>;
+
+/**
+ * @summary One open match, who's in, and what you can do
+ */
+
+export function useGetOpenMatch<
+  TData = Awaited<ReturnType<typeof getOpenMatch>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getOpenMatch>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetOpenMatchQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary The group chat of a filled open match (add ?after=<id> for only newer lines)
+ */
+export const getGetOpenMatchMessagesUrl = (id: number) => {
+  return `/api/open-matches/${id}/messages`;
+};
+
+export const getOpenMatchMessages = async (
+  id: number,
+  options?: RequestInit,
+): Promise<OpenMatchMessages> => {
+  return customFetch<OpenMatchMessages>(getGetOpenMatchMessagesUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetOpenMatchMessagesQueryKey = (id: number) => {
+  return [`/api/open-matches/${id}/messages`] as const;
+};
+
+export const getGetOpenMatchMessagesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getOpenMatchMessages>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getOpenMatchMessages>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetOpenMatchMessagesQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getOpenMatchMessages>>
+  > = ({ signal }) => getOpenMatchMessages(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getOpenMatchMessages>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetOpenMatchMessagesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getOpenMatchMessages>>
+>;
+export type GetOpenMatchMessagesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary The group chat of a filled open match (add ?after=<id> for only newer lines)
+ */
+
+export function useGetOpenMatchMessages<
+  TData = Awaited<ReturnType<typeof getOpenMatchMessages>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getOpenMatchMessages>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetOpenMatchMessagesQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary join, drop, remove (poster; body userId), cancel (poster), or messages (send to the group chat; body text)
+ */
+export const getActOnOpenMatchUrl = (id: number, action: string) => {
+  return `/api/open-matches/${id}/${action}`;
+};
+
+export const actOnOpenMatch = async (
+  id: number,
+  action: string,
+  openMatchActionInput?: OpenMatchActionInput,
+  options?: RequestInit,
+): Promise<OpenMatchDetail> => {
+  return customFetch<OpenMatchDetail>(getActOnOpenMatchUrl(id, action), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(openMatchActionInput),
+  });
+};
+
+export const getActOnOpenMatchMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof actOnOpenMatch>>,
+    TError,
+    { id: number; action: string; data: BodyType<OpenMatchActionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof actOnOpenMatch>>,
+  TError,
+  { id: number; action: string; data: BodyType<OpenMatchActionInput> },
+  TContext
+> => {
+  const mutationKey = ["actOnOpenMatch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof actOnOpenMatch>>,
+    { id: number; action: string; data: BodyType<OpenMatchActionInput> }
+  > = (props) => {
+    const { id, action, data } = props ?? {};
+
+    return actOnOpenMatch(id, action, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ActOnOpenMatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof actOnOpenMatch>>
+>;
+export type ActOnOpenMatchMutationBody = BodyType<OpenMatchActionInput>;
+export type ActOnOpenMatchMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary join, drop, remove (poster; body userId), cancel (poster), or messages (send to the group chat; body text)
+ */
+export const useActOnOpenMatch = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof actOnOpenMatch>>,
+    TError,
+    { id: number; action: string; data: BodyType<OpenMatchActionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof actOnOpenMatch>>,
+  TError,
+  { id: number; action: string; data: BodyType<OpenMatchActionInput> },
+  TContext
+> => {
+  return useMutation(getActOnOpenMatchMutationOptions(options));
 };
 
 /**

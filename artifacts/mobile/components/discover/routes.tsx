@@ -22,5 +22,9 @@ export function discoverScreens(linen: string, pushed: Header) {
     <Stack.Screen key="courts" name="courts/index" options={{ ...pushed, title: "Home court" }} />,
     <Stack.Screen key="court-new" name="courts/new" options={sheetOptions(linen)} />,
     <Stack.Screen key="plan" name="discover/plan/[userId]" options={sheetOptions(linen)} />,
+    <Stack.Screen key="match-new" name="discover/match/new" options={{ ...pushed, presentation: "modal", title: "Post an open match" }} />,
+    <Stack.Screen key="match" name="discover/match/[id]" options={{ ...pushed, title: "" }} />,
+    <Stack.Screen key="match-chat" name="discover/match/chat/[id]" options={{ ...pushed, title: "" }} />,
+    <Stack.Screen key="match-players" name="discover/match/players/[id]" options={sheetOptions(linen)} />,
   ];
 }

@@ -216,15 +216,17 @@ export function createMatchPlansRouter(
           notify(other, `${myName} says you didn't show`, `For ${when}. If that's not right, tell us by ${whenLabel(deadline, plan.timeZone)}.`);
           break;
         }
-        case "dispute":
+        case "dispute": {
           await repo.update(id, { noShowStatus: "disputed", noShowAnsweredAt: now });
-          await repo.file({
-            subject: me,
-            planId: id,
-            details: `Disputed no-show. ${await repo.name(plan.noShowReporterClerkUserId ?? other)} said ${myName} didn't show for ${when}; ${myName} said that's not right. Left off both player cards.`,
-          });
+          // Logged against both players (F12), so a pattern from either one shows in the
+          // moderation queue: someone who keeps missing matches, or keeps making false claims.
+          const reporter = plan.noShowReporterClerkUserId ?? other;
+          const details = `Disputed no-show. ${await repo.name(reporter)} said ${myName} didn't show for ${when}; ${myName} said that's not right. Left off both player cards.`;
+          await repo.file({ subject: me, planId: id, details });
+          await repo.file({ subject: reporter, planId: id, details });
           notify(other, "You two remember this differently", `So we've left the no-show for ${when} off both cards.`);
           break;
+        }
         case "admit":
           await repo.update(id, { noShowStatus: "confirmed", noShowAnsweredAt: now });
           break;

@@ -25,9 +25,9 @@ export class MemoryDiscoverRepo implements DiscoverRepo {
   async reliability(ids: string[]) {
     return new Map(ids.map((id) => [id, { played: 3, noShows: 0, wins: 2, losses: 1 }]));
   }
-  async saveSettings(id: string, input: { hidden?: boolean; plays?: string | null; radius?: number }) {
+  async saveSettings(id: string, input: { hidden?: boolean; plays?: string | null; radius?: number; matchAlerts?: boolean }) {
     const m = this.mes.get(id)!;
-    this.mes.set(id, { ...m, ...("hidden" in input ? { hidden: input.hidden! } : {}), ...(input.plays !== undefined ? { plays: input.plays } : {}), ...(input.radius ? { radius: input.radius } : {}) });
+    this.mes.set(id, { ...m, ...("hidden" in input ? { hidden: input.hidden! } : {}), ...(input.plays !== undefined ? { plays: input.plays } : {}), ...(input.radius ? { radius: input.radius } : {}), ...(input.matchAlerts !== undefined ? { matchAlerts: input.matchAlerts } : {}) });
   }
   async setArea(id: string, area: Area) {
     const m = this.mes.get(id)!;

@@ -372,6 +372,189 @@ export const ActOnMatchPlanResponse = zod.object({
 });
 
 /**
+ * @summary Open matches near you, soonest first, with a count per distance chip
+ */
+export const listOpenMatchesQueryRadiusMax = 30;
+
+export const ListOpenMatchesQueryParams = zod.object({
+  radius: zod.coerce
+    .number()
+    .min(1)
+    .max(listOpenMatchesQueryRadiusMax)
+    .optional(),
+});
+
+export const ListOpenMatchesResponse = zod.object({
+  matches: zod.array(
+    zod.object({
+      id: zod.number(),
+      when: zod.string(),
+      detail: zod.string(),
+      where: zod.string(),
+      tags: zod.array(zod.enum(["your_post", "youre_in", "need"])),
+      need: zod.number().nullable(),
+      spoken: zod.string(),
+    }),
+  ),
+  counts: zod.array(
+    zod.object({
+      radius: zod.number(),
+      count: zod.number(),
+    }),
+  ),
+  radius: zod.number(),
+  total: zod.number(),
+  needsArea: zod.boolean(),
+  matchAlerts: zod.boolean(),
+  notices: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        when: zod.string(),
+        courtName: zod.string().nullable(),
+        format: zod.string(),
+      }),
+    )
+    .describe('\"This match filled up\" for posts you were taken off'),
+});
+
+/**
+ * @summary Post an open match
+ */
+export const postOpenMatchBodySpotsMax = 3;
+
+export const PostOpenMatchBody = zod.object({
+  startsAt: zod.string(),
+  endsAt: zod.string(),
+  timeZone: zod.string().optional(),
+  format: zod.enum(["singles", "doubles"]),
+  spots: zod.number().min(1).max(postOpenMatchBodySpotsMax).optional(),
+  level: zod.enum(["close", "wider", "any"]).optional(),
+  courtId: zod.number().nullish(),
+  note: zod.string().nullish(),
+});
+
+/**
+ * @summary Open matches you posted or hold a spot in, still to play, for Home
+ */
+export const ListMyOpenMatchesResponse = zod.object({
+  matches: zod.array(
+    zod.object({
+      id: zod.number(),
+      when: zod.string(),
+      format: zod.enum(["singles", "doubles"]),
+      courtName: zod.string().nullable(),
+      status: zod.string(),
+      spotsLeft: zod.number(),
+      total: zod.number(),
+      chatTitle: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary One open match, who's in, and what you can do
+ */
+export const GetOpenMatchParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetOpenMatchResponse = zod.object({
+  id: zod.number(),
+  when: zod.string(),
+  startsAt: zod.string(),
+  endsAt: zod.string(),
+  format: zod.enum(["singles", "doubles"]),
+  levelText: zod.string(),
+  courtName: zod.string().nullable(),
+  distance: zod.string().nullable(),
+  note: zod.string().nullable(),
+  status: zod.string(),
+  spots: zod.number(),
+  spotsLeft: zod.number(),
+  total: zod.number(),
+  players: zod.array(
+    zod.object({
+      userId: zod.number(),
+      name: zod.string(),
+      rating: zod.number().nullable(),
+      poster: zod.boolean(),
+      me: zod.boolean(),
+    }),
+  ),
+  role: zod.enum(["poster", "in", "none"]),
+  started: zod.boolean(),
+  chatTitle: zod.string(),
+  matchId: zod.number().nullable(),
+});
+
+/**
+ * @summary The group chat of a filled open match (add ?after=<id> for only newer lines)
+ */
+export const GetOpenMatchMessagesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetOpenMatchMessagesResponse = zod.object({
+  open: zod.boolean(),
+  messages: zod.array(
+    zod.object({
+      id: zod.number(),
+      text: zod.string(),
+      at: zod.string(),
+      fromMe: zod.boolean(),
+      senderName: zod
+        .string()
+        .nullable()
+        .describe("Null for a line from Ball Boi"),
+      senderUserId: zod.number().nullable(),
+    }),
+  ),
+});
+
+/**
+ * @summary join, drop, remove (poster; body userId), cancel (poster), or messages (send to the group chat; body text)
+ */
+export const ActOnOpenMatchParams = zod.object({
+  id: zod.coerce.number(),
+  action: zod.coerce.string(),
+});
+
+export const ActOnOpenMatchBody = zod.object({
+  userId: zod.number().optional(),
+  text: zod.string().optional(),
+});
+
+export const ActOnOpenMatchResponse = zod.object({
+  id: zod.number(),
+  when: zod.string(),
+  startsAt: zod.string(),
+  endsAt: zod.string(),
+  format: zod.enum(["singles", "doubles"]),
+  levelText: zod.string(),
+  courtName: zod.string().nullable(),
+  distance: zod.string().nullable(),
+  note: zod.string().nullable(),
+  status: zod.string(),
+  spots: zod.number(),
+  spotsLeft: zod.number(),
+  total: zod.number(),
+  players: zod.array(
+    zod.object({
+      userId: zod.number(),
+      name: zod.string(),
+      rating: zod.number().nullable(),
+      poster: zod.boolean(),
+      me: zod.boolean(),
+    }),
+  ),
+  role: zod.enum(["poster", "in", "none"]),
+  started: zod.boolean(),
+  chatTitle: zod.string(),
+  matchId: zod.number().nullable(),
+});
+
+/**
  * @summary Change your home ZIP from Discover. Also updates your profile's home area.
  */
 export const SetDiscoverAreaBody = zod.object({
@@ -411,6 +594,9 @@ export const SetDiscoverAreaResponse = zod.object({
     .describe(
       '\"Weekday evenings, weekend mornings\", or null with no hours set',
     ),
+  matchAlerts: zod
+    .boolean()
+    .describe("Alerts for new open matches near you, up to 2 a day"),
 });
 
 /**
@@ -457,6 +643,9 @@ export const SaveDiscoverAvailabilityResponse = zod.object({
     .describe(
       '\"Weekday evenings, weekend mornings\", or null with no hours set',
     ),
+  matchAlerts: zod
+    .boolean()
+    .describe("Alerts for new open matches near you, up to 2 a day"),
 });
 
 /**
@@ -575,6 +764,9 @@ export const GetDiscoverMeResponse = zod.object({
     .describe(
       '\"Weekday evenings, weekend mornings\", or null with no hours set',
     ),
+  matchAlerts: zod
+    .boolean()
+    .describe("Alerts for new open matches near you, up to 2 a day"),
 });
 
 /**
@@ -729,6 +921,7 @@ export const SaveDiscoverSettingsBody = zod.object({
     ])
     .nullish(),
   radius: zod.number().min(1).max(saveDiscoverSettingsBodyRadiusMax).optional(),
+  matchAlerts: zod.boolean().optional(),
 });
 
 export const SaveDiscoverSettingsResponse = zod.object({
@@ -764,6 +957,9 @@ export const SaveDiscoverSettingsResponse = zod.object({
     .describe(
       '\"Weekday evenings, weekend mornings\", or null with no hours set',
     ),
+  matchAlerts: zod
+    .boolean()
+    .describe("Alerts for new open matches near you, up to 2 a day"),
 });
 
 /**
