@@ -1,4 +1,4 @@
-import { SymbolView, type SFSymbol } from "expo-symbols";
+import { Icon, type IconName } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
@@ -24,7 +24,7 @@ export function ListRow({
   title: string;
   subtitle?: string | null;
   trailing?: string | null;
-  symbol?: SFSymbol;
+  symbol?: IconName;
   onPress?: () => void;
   accessibilityHint?: string;
   last?: boolean;
@@ -34,7 +34,7 @@ export function ListRow({
   const label = [title, subtitle, trailing].filter(Boolean).join(". ");
   const body = (
     <>
-      {symbol ? <SymbolView name={symbol} size={18} tintColor={destructive ? c.danger : c.ink} /> : null}
+      {symbol ? <Icon name={symbol} size={18} tintColor={destructive ? c.danger : c.ink} /> : null}
       <View style={{ flex: 1, gap: 2 }}>
         <Text variant="bodyStrong" tone={destructive ? "danger" : "ink"}>
           {title}
@@ -50,7 +50,7 @@ export function ListRow({
           {trailing}
         </Text>
       ) : null}
-      {onPress ? <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} /> : null}
+      {onPress ? <Icon name="chevron.right" size={13} tintColor={c.inkMuted} /> : null}
     </>
   );
   const style = {

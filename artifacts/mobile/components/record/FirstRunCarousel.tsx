@@ -14,7 +14,6 @@
 import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
 import * as WebBrowser from "expo-web-browser";
-import { SymbolView, type SFSymbol } from "expo-symbols";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AccessibilityInfo,
@@ -29,6 +28,7 @@ import {
 import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Icon, type IconName } from "@/components/Icon";
 import { Checkbox } from "@/components/record/Checkbox";
 import { SetupGraphic } from "@/components/record/SetupGraphic";
 import { Toggle } from "@/components/Toggle";
@@ -58,11 +58,11 @@ const TITLES: Record<FirstRunPage, string> = {
 /** A horizontal drag this far, mostly sideways, turns the page. */
 const SWIPE_PX = 60;
 
-function Point({ symbol, title, body }: { symbol: SFSymbol; title: string; body: string }) {
+function Point({ symbol, title, body }: { symbol: IconName; title: string; body: string }) {
   const c = useColors();
   return (
     <View accessible accessibilityLabel={`${title}. ${body}`} style={{ flexDirection: "row", gap: spacing.space3 }}>
-      <SymbolView name={symbol} size={22} tintColor={c.ink} style={{ marginTop: 2 }} />
+      <Icon name={symbol} size={22} tintColor={c.ink} style={{ marginTop: 2 }} />
       <View style={{ flex: 1, gap: spacing.space1 }}>
         <Text variant="bodyStrong">{title}</Text>
         <Text tone="inkMuted">{body}</Text>
@@ -151,7 +151,7 @@ function ChoicesPage({
             <Text variant="bodyStrong" style={{ flexShrink: 1, textDecorationLine: "underline" }}>
               {RELEASE_TITLE}
             </Text>
-            <SymbolView name="arrow.up.right" size={14} tintColor={c.ink} />
+            {/* arrow.up.right has no brush drawing yet; the underline and hint say it opens a page. */}
           </Pressable>
           <Text tone="inkMuted">
             You're testing Ball Boi before it launches. The release explains how the matches you record are used for
@@ -178,7 +178,7 @@ function SetupPage({ hide, setHide }: { hide: boolean; setHide: (v: boolean) => 
             accessibilityLabel={`${item.title}. ${item.detail}`}
             style={{ flexDirection: "row", gap: spacing.space3 }}
           >
-            <SymbolView name="checkmark.circle" size={22} tintColor={c.ink} style={{ marginTop: 1 }} />
+            <Icon name="checkmark.circle" size={22} tintColor={c.ink} style={{ marginTop: 1 }} />
             <View style={{ flex: 1, gap: spacing.space1 }}>
               <Text variant="bodyStrong">{item.title}</Text>
               <Text tone="inkMuted">{item.detail}</Text>

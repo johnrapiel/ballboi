@@ -27,6 +27,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { discoverScreens } from "@/components/discover/routes";
 import { sheetOptions } from "@/components/Sheet";
 import { Button, ScrollScreen, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
@@ -238,6 +239,7 @@ function RootLayoutNav() {
         <Stack.Screen name="replay/[matchId]" options={{ ...pushedHeader, title: "Replay" }} />
         <Stack.Screen name="matches" options={{ ...pushedHeader, title: "" }} />
         <Stack.Screen name="match/[matchId]" options={{ ...pushedHeader, title: "" }} />
+        {discoverScreens(colors.linen, pushedHeader)}
       </Stack>
       {covered ? <Cover /> : null}
     </View>

@@ -14,6 +14,7 @@ vi.mock("@clerk/express", () => ({
 
 vi.mock("../lib/autoLinkPlayer.js", () => ({ autoLinkPlayersForUser: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../lib/recordingCleanup", () => ({ deleteRecordingData: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("../services/discover/accountDeletion", () => ({ deleteDiscoverData: vi.fn().mockResolvedValue(undefined) }));
 const { messagingDeleted } = vi.hoisted(() => ({ messagingDeleted: [] as string[] }));
 vi.mock("../messaging/accountDeletion", () => ({
   deleteMessagingData: async (id: string) => void messagingDeleted.push(id),

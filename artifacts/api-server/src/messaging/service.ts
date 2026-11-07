@@ -49,7 +49,7 @@ export interface ConversationView {
   state: ConversationState;
   /** You blocked the other person: read only, with Unblock. */
   blocked: boolean;
-  other: { name: string; playerId: number | null };
+  other: { name: string; playerId: number | null; userId?: number | null };
   lastMessage: { text: string; fromMe: boolean; at: string } | null;
   unread: number;
   canSend: boolean;
@@ -234,8 +234,25 @@ export class MessagingService {
 
   /** Your conversation with a player, if there is one you can see. For opening a chat from a player. */
   async conversationWithPlayer(me: string, playerId: unknown): Promise<number | null> {
-    const id = Number(playerId);
-    const other = Number.isInteger(id) ? await this.repo.accountForPlayer(id) : null;
+    return this.conversationWith(me, await this.accountFor({ playerId }));
+  }
+
+  /** Your conversation with a Discover player (by user id), if there is one you can see. */
+  async conversationWithUser(me: string, userId: unknown): Promise<number | null> {
+    return this.conversationWith(me, await this.accountFor({ userId }));
+  }
+
+  /** The account for a league player id, or a user id from Discover (someone who may be in no league yet). */
+  private async accountFor(input: { playerId?: unknown; userId?: unknown }): Promise<string | null> {
+    if (input.userId !== undefined && input.userId !== null) {
+      const userId = Number(input.userId);
+      return Number.isInteger(userId) ? this.repo.accountForUser(userId) : null;
+    }
+    const playerId = Number(input.playerId);
+    return Number.isInteger(playerId) ? this.repo.accountForPlayer(playerId) : null;
+  }
+
+  private async conversationWith(me: string, other: string | null): Promise<number | null> {
     if (!other || other === me) return null;
     const c = await this.repo.findByPair(pairKeyFor(me, other));
     if (!c) return null;
@@ -265,11 +282,10 @@ export class MessagingService {
   }
 
   /** The first message to a player: finds or creates the conversation, then sends. */
-  async start(me: string, input: { playerId: unknown; text: unknown; clientMessageId: unknown }) {
+  async start(me: string, input: { playerId?: unknown; userId?: unknown; text: unknown; clientMessageId: unknown }) {
     const text = this.cleanText(input.text);
     const clientId = this.cleanMessageId(input.clientMessageId);
-    const playerId = Number(input.playerId);
-    const other = Number.isInteger(playerId) ? await this.repo.accountForPlayer(playerId) : null;
+    const other = await this.accountFor(input);
     if (!other) throw new MessagingError(404, "no_account", "This player doesn't have an account yet.");
     if (other === me) throw new MessagingError(400, "self", "You can't message yourself.");
 
@@ -414,6 +430,8 @@ export class MessagingService {
     }
     const reason = input.reason as ReportReason;
     const details = typeof input.details === "string" ? input.details.trim().slice(0, 1000) || undefined : undefined;
+    // "Something else" opens a required text field (F9).
+    if (reason === "other" && !details) throw new MessagingError(400, "details_required", "Tell us what happened.");
     const messageId = typeof input.messageId === "string" ? input.messageId : "";
     const message = messageId ? await this.provider.getMessage(messageId) : null;
     if (!message || message.channelId !== c.channelId) throw new MessagingError(404, "message_not_found", "That message isn't available.");

@@ -32,11 +32,13 @@ describe("player search helpers", () => {
       p("Alex", { inYourLeagues: true }),
       p("Ben", { playedBefore: true }),
       p("Cara"),
-      // On Ball Boi but not messageable until messaging by account lands (#117).
+      // On Ball Boi with no player row yet: messaged by account (Discover).
       p("Dee", { playerId: null }),
+      // No account and no player row: nothing to message.
+      p("Eve", { playerId: null, userId: null }),
     ]);
     expect(sections.leagues.map((x) => x.name)).toEqual(["Alex"]);
-    expect(sections.everyone.map((x) => x.name)).toEqual(["Ben", "Cara"]);
+    expect(sections.everyone.map((x) => x.name)).toEqual(["Ben", "Cara", "Dee"]);
   });
 
   it("picks a Quick match opponent by account when it can", () => {

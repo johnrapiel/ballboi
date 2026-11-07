@@ -1,8 +1,11 @@
 import { Router, type IRouter } from "express";
 import { devToolsAllowed } from "../lib/devTime";
+import courtsRouter from "./courts";
 import devLeagueToolsRouter from "./devLeagueTools";
+import discoverRouter from "./discover";
 import healthRouter from "./health";
 import leagueAdminsRouter from "./leagueAdmins";
+import matchPlansRouter from "./matchPlans";
 import leagueHomeRouter from "./leagueHome";
 import leagueLifecycleRouter from "./leagueLifecycle";
 import leagueMembershipRouter from "./leagueMembership";
@@ -41,6 +44,8 @@ const router: IRouter = Router();
 
 // Dev-only walkthrough tools: not mounted in production (lib/devTime.ts).
 if (devToolsAllowed()) router.use(devLeagueToolsRouter);
+router.use(courtsRouter);
+router.use(discoverRouter);
 router.use(healthRouter);
 router.use(leagueAdminsRouter);
 router.use(leagueHomeRouter);
@@ -48,6 +53,7 @@ router.use(leagueLifecycleRouter);
 router.use(leagueMembershipRouter);
 router.use(leagueScheduleRouter);
 router.use(leagueScoresRouter);
+router.use(matchPlansRouter);
 router.use(matchTimesRouter);
 router.use(matchDetailRouter);
 router.use(leaguesRouter);

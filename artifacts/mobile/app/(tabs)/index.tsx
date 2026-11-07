@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useGetMyLeagueWeek, type LeagueWeekItem, type LeagueWeekPlayoff } from "@workspace/api-client-react";
 
 import { EmptyState } from "@/components/EmptyState";
+import { DiscoverMatchesSection } from "@/components/discover/DiscoverMatches";
 import { HomeLeagues, SectionHead } from "@/components/HomeLeagues";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
 import { MatchCard, type MatchCardAction } from "@/components/MatchCard";
@@ -161,6 +162,9 @@ export default function HomeScreen() {
           contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom }}
           refreshControl={<RefreshControl refreshing={weekQ.isRefetching} onRefresh={() => void weekQ.refetch()} tintColor={c.ink} />}
         >
+          <View style={{ padding: spacing.space4 }}>
+            <DiscoverMatchesSection />
+          </View>
           <EmptyState roundel title="No league matches yet" message="Start or join a league in Leagues, and your matches show up here each week." />
         </ScrollView>
       ) : (
@@ -178,6 +182,9 @@ export default function HomeScreen() {
           ) : null}
 
           {showStats && week ? <SeasonStats season={week.season} /> : null}
+
+          {/* Matches set up in a Discover chat (Wave 2, Session F). */}
+          <DiscoverMatchesSection />
 
           {todays.length > 0 ? (
             <>
