@@ -9,39 +9,19 @@ import React, { useCallback, useEffect, useState } from "react";
 import { RefreshControl, ScrollView, Share, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import {
-  AreaRow,
-  DiscoverTabs,
-  DistanceChips,
-  FiltersButton,
-  LinkButton,
-} from "@/components/discover/Controls";
+import { AreaRow, DiscoverTabs, DistanceChips, FiltersButton, LinkButton } from "@/components/discover/Controls";
+import { LeagueCard } from "@/components/discover/LeagueCard";
 import { PlayerRow } from "@/components/discover/PlayerRow";
-import {
-  EmptyBlock,
-  NoteCard,
-  ProblemCard,
-  SkeletonRows,
-} from "@/components/discover/States";
+import { EmptyBlock, NoteCard, ProblemCard, SkeletonRows } from "@/components/discover/States";
 import { TabScreen } from "@/components/TabHeader";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import {
-  useDiscoverMe,
-  useDiscoverPlayers,
-  useSaveRadius,
-} from "@/hooks/useDiscover";
+import { useDiscoverMe, useDiscoverPlayers, useSaveRadius } from "@/hooks/useDiscover";
 import { discoverState, useDiscoverState } from "@/hooks/useDiscoverFilters";
+import { useDiscoverLeagues } from "@/hooks/useDiscoverLeagues";
 import { isOfflineError } from "@/lib/api";
-import {
-  RADIUS_STEPS,
-  countFor,
-  countLine,
-  filtersSpoken,
-  inviteMessage,
-  type DiscoverTab,
-} from "@/lib/discover";
+import { RADIUS_STEPS, countFor, countLine, filtersSpoken, inviteMessage, type DiscoverTab } from "@/lib/discover";
 
 export default function DiscoverScreen() {
   const c = useColors();
@@ -62,18 +42,11 @@ export default function DiscoverScreen() {
   );
 
   const [refreshing, setRefreshing] = useState(false);
-  const players = useDiscoverPlayers(
-    radius,
-    filters,
-    !!me.data && tab === "players",
-  );
+  const players = useDiscoverPlayers(radius, filters, !!me.data && tab === "players");
 
   async function refresh() {
     setRefreshing(true);
-    await Promise.all([
-      me.refetch(),
-      tab === "players" ? players.refetch() : Promise.resolve(),
-    ]);
+    await Promise.all([me.refetch(), tab === "players" ? players.refetch() : Promise.resolve()]);
     setRefreshing(false);
   }
 
@@ -89,19 +62,10 @@ export default function DiscoverScreen() {
           paddingBottom: insets.bottom + 96,
           gap: spacing.space3,
         }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={refresh}
-            tintColor={c.ink}
-          />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.ink} />}
       >
         <AreaRow area={area} onPress={changeArea} />
-        <DiscoverTabs
-          value={tab}
-          onChange={(t: DiscoverTab) => discoverState.setTab(t)}
-        />
+        <DiscoverTabs value={tab} onChange={(t: DiscoverTab) => discoverState.setTab(t)} />
 
         {me.isError && !me.data ? (
           <ProblemCard
@@ -112,8 +76,10 @@ export default function DiscoverScreen() {
           />
         ) : tab === "players" ? (
           <PlayersTab />
+        ) : tab === "leagues" ? (
+          <LeaguesTab />
         ) : (
-          <ComingTab tab={tab} />
+          <ComingTab />
         )}
       </ScrollView>
     </TabScreen>
@@ -139,9 +105,7 @@ function PlayersTab() {
   const openFilters = () => router.push("/discover/filters");
   const setTimes = () => router.push("/availability");
 
-  const widenTo =
-    RADIUS_STEPS.find((r) => r > radius && (countFor(counts, r) ?? 0) > 0) ??
-    RADIUS_STEPS.find((r) => r > radius);
+  const widenTo = RADIUS_STEPS.find((r) => r > radius && (countFor(counts, r) ?? 0) > 0) ?? RADIUS_STEPS.find((r) => r > radius);
 
   async function invite() {
     try {
@@ -153,25 +117,14 @@ function PlayersTab() {
 
   return (
     <>
-      <DistanceChips
-        radius={radius}
-        counts={counts}
-        noun="players"
-        onPick={pickRadius}
-        onCustom={() => router.push("/discover/radius")}
-      />
+      <DistanceChips radius={radius} counts={counts} noun="players" onPick={pickRadius} onCustom={() => router.push("/discover/radius")} />
 
       {me.data?.hidden ? (
         <NoteCard
           symbol="eye.slash"
           title="You're hidden from Discover"
           body="Players near you can't find you. You can still browse, message and join matches."
-          action={
-            <LinkButton
-              label="Change in Settings"
-              onPress={() => router.push("/settings")}
-            />
-          }
+          action={<LinkButton label="Change in Settings" onPress={() => router.push("/settings")} />}
         />
       ) : null}
 
@@ -184,35 +137,21 @@ function PlayersTab() {
           gap: spacing.space2,
         }}
       >
-        <Text
-          variant="small"
-          tone="inkMuted"
-          accessibilityLiveRegion="polite"
-          style={{ flexShrink: 1 }}
-        >
+        <Text variant="small" tone="inkMuted" accessibilityLiveRegion="polite" style={{ flexShrink: 1 }}>
           {loading || players.isFetching
             ? `Finding players within ${radius} mi…`
             : players.isError && !data
               ? `Within ${radius} mi`
               : countLine(n, radius)}
         </Text>
-        <FiltersButton
-          onPress={openFilters}
-          accessibilityLabel={`Filters: ${filtersSpoken(filters)}`}
-        />
+        <FiltersButton onPress={openFilters} accessibilityLabel={`Filters: ${filtersSpoken(filters)}`} />
       </View>
 
       {noTimes ? (
         <NoteCard
           symbol="calendar"
           body="Add when you can play to find players free when you are."
-          action={
-            <LinkButton
-              label="Set times"
-              accessibilityLabel="Set times: when you can play"
-              onPress={setTimes}
-            />
-          }
+          action={<LinkButton label="Set times" accessibilityLabel="Set times: when you can play" onPress={setTimes} />}
         />
       ) : null}
 
@@ -234,27 +173,15 @@ function PlayersTab() {
           title="Add your ZIP"
           body="Discover shows players near your home ZIP. Others only see your town and an approximate distance."
         >
-          <Button
-            label="Add your ZIP"
-            onPress={() => router.push("/discover/area")}
-          />
+          <Button label="Add your ZIP" onPress={() => router.push("/discover/area")} />
         </EmptyBlock>
       ) : data && data.players.length === 0 ? (
         <EmptyBlock
           title={`No players within ${radius} mi`}
           body={`Ball Boi is new${me.data?.area ? ` near ${me.data.area.zip}` : " here"}. Try a wider distance, post an open match, or invite friends who play.`}
         >
-          {widenTo ? (
-            <Button
-              label={`Widen to ${widenTo} mi`}
-              onPress={() => pickRadius(widenTo)}
-            />
-          ) : null}
-          <Button
-            label="Post an open match"
-            variant="secondary"
-            onPress={() => discoverState.setTab("matches")}
-          />
+          {widenTo ? <Button label={`Widen to ${widenTo} mi`} onPress={() => pickRadius(widenTo)} /> : null}
+          <Button label="Post an open match" variant="secondary" onPress={() => discoverState.setTab("matches")} />
           <Button
             label="Invite a friend"
             variant="secondary"
@@ -291,16 +218,79 @@ function PlayersTab() {
   );
 }
 
-/** Open leagues and Open matches arrive in the next two Discover PRs. */
-function ComingTab({ tab }: { tab: DiscoverTab }) {
+/** Open leagues near you (brief items 17 to 22; canvas W2_DiscoverLeagues). */
+function LeaguesTab() {
+  const router = useRouter();
+  const { radius } = useDiscoverState();
+  const me = useDiscoverMe();
+  const q = useDiscoverLeagues(radius, !!me.data);
+  const saveRadius = useSaveRadius();
+  const data = q.data;
+  const counts = data?.counts ?? [];
+  const pickRadius = (r: number) => {
+    discoverState.setRadius(r);
+    saveRadius.mutate(r);
+  };
+  const widenTo = RADIUS_STEPS.find((r) => r > radius && (countFor(counts, r) ?? 0) > 0) ?? RADIUS_STEPS.find((r) => r > radius);
+  const loading = !data && (q.isLoading || me.isLoading);
+
   return (
-    <EmptyBlock
-      title={tab === "leagues" ? "Open leagues" : "Open matches"}
-      body={
-        tab === "leagues"
-          ? "Open leagues near you show up here."
-          : "Open matches near you show up here."
-      }
-    />
+    <>
+      <DistanceChips
+        radius={radius}
+        counts={counts}
+        noun="Open leagues"
+        onPick={pickRadius}
+        onCustom={() => router.push("/discover/radius")}
+      />
+      <Text variant="small" tone="inkMuted" accessibilityLiveRegion="polite">
+        {loading || q.isFetching
+          ? `Finding Open leagues within ${radius} mi…`
+          : q.isError && !data
+            ? `Within ${radius} mi`
+            : countLine(data?.total ?? 0, radius, "Open league")}
+      </Text>
+      {loading ? (
+        <SkeletonRows rows={3} />
+      ) : q.isError && !data ? (
+        <ProblemCard
+          title="Can't load Open leagues right now"
+          body={
+            isOfflineError(q.error)
+              ? "You're offline. Check your connection and try again."
+              : "Check your connection and try again. Your distance stays as it is."
+          }
+          onRetry={() => void q.refetch()}
+          retrying={q.isRefetching}
+        />
+      ) : data?.needsArea ? (
+        <EmptyBlock title="Add your ZIP" body="Discover shows Open leagues near your home ZIP.">
+          <Button label="Add your ZIP" onPress={() => router.push("/discover/area")} />
+        </EmptyBlock>
+      ) : data && data.leagues.length === 0 ? (
+        <EmptyBlock
+          title={`No Open leagues within ${radius} mi`}
+          body="Try a wider distance, or start your own league and make it Open so players near you can ask for a spot."
+        >
+          {widenTo ? <Button label={`Widen to ${widenTo} mi`} onPress={() => pickRadius(widenTo)} /> : null}
+          <Button label="Start a league" variant="secondary" onPress={() => router.push("/league/new")} />
+        </EmptyBlock>
+      ) : data ? (
+        <View style={{ gap: spacing.space3 }}>
+          {data.leagues.map((l) => (
+            <LeagueCard
+              key={l.leagueId}
+              league={l}
+              onPress={() => router.push({ pathname: "/discover/league/[leagueId]", params: { leagueId: String(l.leagueId) } })}
+            />
+          ))}
+        </View>
+      ) : null}
+    </>
   );
+}
+
+/** Open matches arrive in the last Discover PR. */
+function ComingTab() {
+  return <EmptyBlock title="Open matches" body="Open matches near you show up here." />;
 }

@@ -1,7 +1,9 @@
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { getAuth } from "@clerk/express";
 import { availabilitySummary, parseSlots } from "../lib/discoverAvailability.js";
-import { ZIP_NOT_FOUND, areaForZip, distanceLabel, milesBetween } from "../lib/discoverArea.js";
+import { ZIP_NOT_FOUND, areaForZip, distanceLabel, milesBetween, parseRadius } from "../lib/discoverArea.js";
+import { formatLabel, leagueState, levelText, nearbyLeagues, outsideLevel, typeLabel } from "../lib/discoverLeagues.js";
+import { shortDate } from "../lib/leagueCalendar.js";
 import { isOneOf, nearbyPlayers, parseDiscoverSettings, parseFilters, PLAYS } from "../lib/discoverPlayers.js";
 import { DrizzleDiscoverRepo, reliabilityOrEmpty, type DiscoverMe, type DiscoverRepo } from "../lib/discoverRepo.js";
 import { logger } from "../lib/logger.js";
@@ -172,6 +174,68 @@ export function createDiscoverRouter(repo: DiscoverRepo = new DrizzleDiscoverRep
       });
     } catch (err) {
       fail(res, err, "Discover player failed", "Can't load this player right now. Try again.");
+    }
+  });
+
+  /** Open leagues near you (brief items 17 to 22), with a count per distance chip. */
+  router.get("/discover/leagues", requireAuth, async (req, res) => {
+    try {
+      const me = await loadMe(req, res);
+      if (!me) return;
+      const radius = parseRadius((req.query as Record<string, unknown>).radius, me.radius);
+      if (!me.area) {
+        res.json({ leagues: [], counts: [], radius, total: 0, needsArea: true });
+        return;
+      }
+      const candidates = await repo.openLeagues(me.clerkUserId, me.area.point, Math.max(30, radius));
+      const { leagues, counts } = nearbyLeagues(me.area.point, me.rating, candidates, radius);
+      res.json({ leagues, counts, radius, total: leagues.length, needsArea: false });
+    } catch (err) {
+      fail(res, err, "Discover leagues failed", "Can't load Open leagues right now. Check your connection and try again.");
+    }
+  });
+
+  /** One Open league's Discover page: what it is, and where you stand with it. */
+  router.get("/discover/leagues/:leagueId", requireAuth, async (req, res) => {
+    const leagueId = Number(req.params.leagueId);
+    if (!Number.isInteger(leagueId) || leagueId <= 0) {
+      res.status(400).json({ error: "Invalid league" });
+      return;
+    }
+    try {
+      const me = await loadMe(req, res);
+      if (!me) return;
+      const l = await repo.openLeague(me.clerkUserId, leagueId);
+      if (!l) {
+        res.status(404).json({ error: "This league isn't open to new players right now." });
+        return;
+      }
+      const { left, started, full, joining } = leagueState(l);
+      res.json({
+        leagueId: l.leagueId,
+        name: l.name,
+        organizerName: l.organizerName,
+        location: l.location,
+        distance: me.area ? distanceLabel(milesBetween(me.area.point, l.point)) : null,
+        format: formatLabel(l.format),
+        type: typeLabel(l.leagueType),
+        levelText: levelText(l),
+        outsideLevel: outsideLevel(l, me.rating),
+        myRating: me.rating,
+        startDate: l.startDate,
+        startLabel: l.startDate ? shortDate(l.startDate) : null,
+        seasonWeeks: l.seasonWeeks,
+        started,
+        full,
+        rosterCap: l.rosterCap,
+        spotsTaken: l.activePlayers,
+        spotsLeft: left,
+        joining,
+        myRequest: l.myRequest,
+        member: l.member,
+      });
+    } catch (err) {
+      fail(res, err, "Discover league failed", "Can't load this league right now. Try again.");
     }
   });
 

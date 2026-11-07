@@ -58,7 +58,12 @@ export default function WhenIPlayScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: c.paper, padding: spacing.space4 }}>
         {me.isError ? (
-          <ProblemCard title="Can't load this right now" body="Check your connection and try again." onRetry={() => void me.refetch()} retrying={me.isRefetching} />
+          <ProblemCard
+            title="Can't load this right now"
+            body="Check your connection and try again."
+            onRetry={() => void me.refetch()}
+            retrying={me.isRefetching}
+          />
         ) : null}
       </View>
     );

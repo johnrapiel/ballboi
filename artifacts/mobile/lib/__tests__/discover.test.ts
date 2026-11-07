@@ -144,3 +144,31 @@ describe("the hour grid (F7)", () => {
     expect(sameSlots(new Set([1]), [1, 2])).toBe(false);
   });
 });
+
+import { leagueStanding, leagueTagLabel, seasonLine, spotsLine } from "../discover";
+
+describe("Open leagues", () => {
+  const base = { member: false, myRequest: null, joining: "request" as const };
+
+  it("knows where you stand", () => {
+    expect(leagueStanding(base)).toBe("request");
+    expect(leagueStanding({ ...base, joining: "waitlist" })).toBe("waitlist");
+    expect(leagueStanding({ ...base, myRequest: { kind: "request", status: "pending" } })).toBe("requested");
+    expect(leagueStanding({ ...base, myRequest: { kind: "waitlist", status: "pending" } })).toBe("waitlisted");
+    expect(leagueStanding({ ...base, myRequest: { kind: "request", status: "declined" } })).toBe("declined");
+    expect(leagueStanding({ ...base, member: true })).toBe("member");
+  });
+
+  it("writes the season and spots lines", () => {
+    expect(seasonLine({ startLabel: "Sun, Nov 22", seasonWeeks: 8, started: false })).toBe("Starts Sun, Nov 22 · 8 weeks");
+    expect(seasonLine({ startLabel: "Sun, Nov 1", seasonWeeks: null, started: true })).toBe("Started Sun, Nov 1");
+    expect(spotsLine({ rosterCap: 16, spotsTaken: 13, spotsLeft: 3 })).toBe("13 of 16 taken · 3 left");
+    expect(spotsLine({ rosterCap: null, spotsTaken: 4, spotsLeft: null })).toBeNull();
+  });
+
+  it("names every tag in words", () => {
+    expect(leagueTagLabel("outside_level")).toBe("Outside your level");
+    expect(leagueTagLabel("full")).toBe("Full");
+    expect(leagueTagLabel("started")).toBe("Season started");
+  });
+});
