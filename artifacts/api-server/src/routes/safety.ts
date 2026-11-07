@@ -50,7 +50,8 @@ export function parseReport(body: unknown): ParsedReport | { error: string } {
   if (!isOneOf(REPORT_TARGET_TYPES, b.targetType) || b.targetType === "message" || b.targetType === "account") {
     return { error: "Unknown report target" };
   }
-  if (!isOneOf(REPORT_REASONS, b.reason)) return { error: "Unknown report reason" };
+  // no_show_dispute is filed by Ball Boi itself, never by a player.
+  if (!isOneOf(REPORT_REASONS, b.reason) || b.reason === "no_show_dispute") return { error: "Unknown report reason" };
   const targetId =
     typeof b.targetId === "number" && Number.isFinite(b.targetId)
       ? String(b.targetId)

@@ -21,5 +21,6 @@ export function discoverScreens(linen: string, pushed: Header) {
     <Stack.Screen key="request" name="discover/request/[leagueId]" options={sheetOptions(linen)} />,
     <Stack.Screen key="courts" name="courts/index" options={{ ...pushed, title: "Home court" }} />,
     <Stack.Screen key="court-new" name="courts/new" options={sheetOptions(linen)} />,
+    <Stack.Screen key="plan" name="discover/plan/[userId]" options={sheetOptions(linen)} />,
   ];
 }

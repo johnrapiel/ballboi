@@ -371,3 +371,163 @@ export function courtSpoken(c: CourtCard, selected: boolean): string {
     .filter(Boolean)
     .join(", ");
 }
+
+// ─── Setting up a match in chat (F2, F12, F13) ───────────────────────────────
+
+export type PlanAction = "accept" | "decline" | "undo" | "still_on" | "cancel" | "score" | "no_show" | "not_played" | "dispute" | "admit";
+
+export interface PlanEvent {
+  key: string;
+  type:
+    | "proposed"
+    | "added"
+    | "undone"
+    | "declined"
+    | "day_before"
+    | "canceled"
+    | "did_it_happen"
+    | "not_played"
+    | "no_show_reported"
+    | "no_show_disputed"
+    | "no_show_confirmed"
+    | "scored";
+  at: string;
+  by: "me" | "them" | null;
+  actions: PlanAction[];
+  state?: string;
+  meIn?: boolean;
+  themIn?: boolean;
+  about?: "me" | "them";
+  deadline?: string;
+}
+
+export interface MatchPlan {
+  id: number;
+  startsAt: string;
+  timeZone: string;
+  courtName: string | null;
+  kind: "singles" | "practice";
+  matchId: number | null;
+  score: string | null;
+  mine: boolean;
+  events: PlanEvent[];
+}
+
+/** "Thu, Nov 12 at 6:00 PM", in this phone's time zone. */
+export function planWhen(iso: string): string {
+  const d = new Date(iso);
+  const day = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `${day} at ${time}`;
+}
+
+/** "6 PM" or "6:30 PM". */
+export function planTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).replace(":00", "");
+}
+
+export const kindLabel = (k: MatchPlan["kind"]) => (k === "practice" ? "Practice hit" : "Singles");
+
+/** "Fishkill Rec Park · Singles", or "Court not set · Singles". */
+export function planDetail(p: Pick<MatchPlan, "courtName" | "kind">): string {
+  return `${p.courtName ?? "Court not set"} · ${kindLabel(p.kind)}`;
+}
+
+/** The words on each chat card for this viewer (canvas W2_Chat*). */
+export function eventCopy(e: PlanEvent, p: MatchPlan, other: string): { title: string; body: string | null; status?: boolean } {
+  const when = planWhen(p.startsAt);
+  const them = other.split(" ")[0] || other;
+  switch (e.type) {
+    case "proposed":
+      if (e.state === "replaced") return { title: "Replaced by a newer time", body: `${when} · ${planDetail(p)}` };
+      if (e.state === "declined" || e.state === "undone" || e.state === "added")
+        return { title: e.by === "me" ? "You sent a match" : `${them} sent a match`, body: `${when} · ${planDetail(p)}` };
+      return e.by === "me"
+        ? { title: when, body: `${planDetail(p)}. Waiting for ${them}.` }
+        : { title: "Add this match?", body: `${when} · ${planDetail(p)}. It goes on both your schedules.` };
+    case "declined":
+      return {
+        title: e.by === "me" ? "You can't make it" : `${them} can't make it`,
+        body: `${when}. Send another time when you find one.`,
+        status: true,
+      };
+    case "added":
+      return {
+        title: "Match added",
+        body: `${when} · ${planDetail(p)}. It's on both your schedules.${e.actions.includes("undo") ? " Either of you can undo it for a few minutes." : ""}`,
+      };
+    case "undone":
+      return { title: `${e.by === "me" ? "You" : them} undid ${when}`, body: "It's off both your schedules.", status: true };
+    case "day_before":
+      return {
+        title: `Still on for tomorrow at ${planTime(p.startsAt)}?`,
+        body: `${when} · ${p.courtName ?? "Court not set"} · with ${them}${e.themIn ? `\n${them} is in` : ""}${e.meIn ? "\nYou're in" : ""}\nNo answer means you're still on. We'll remind you 2 hours before.`,
+      };
+    case "canceled":
+      return {
+        title: `${e.by === "me" ? "You" : them} canceled ${when}`,
+        body: "It's off both your schedules. Canceling before a match never counts as a no-show.",
+        status: true,
+      };
+    case "did_it_happen":
+      return { title: `Did your match with ${them} happen?`, body: `${when} · ${p.courtName ?? "Court not set"}` };
+    case "not_played":
+      return {
+        title: `${e.by === "me" ? "You" : them} said you didn't play`,
+        body: "It's off both your schedules. Nothing goes on either card.",
+        status: true,
+      };
+    case "no_show_reported": {
+      const by = e.deadline ? planWhen(e.deadline) : "";
+      return e.about === "me"
+        ? {
+            title: `${them} says you didn't show`,
+            body: `${when} · ${p.courtName ?? "Court not set"}.${e.actions.length ? ` If that's not right, tell us by ${by}. Otherwise a no-show goes on your player card.` : ""}`,
+          }
+        : {
+            title: `You said ${them} didn't show`,
+            body: `We asked ${them}. If they don't say otherwise by ${by}, a no-show goes on their player card.`,
+          };
+    }
+    case "no_show_disputed":
+      return { title: "You two remember this differently, so we've left it off both cards.", body: null, status: true };
+    case "no_show_confirmed":
+      return e.about === "me"
+        ? { title: "A no-show is on your player card", body: `For ${when}.`, status: true }
+        : { title: `A no-show is on ${them}'s player card`, body: `For ${when}.`, status: true };
+    case "scored":
+      return { title: "Score is in", body: p.score ? `${when} · ${p.score}` : when, status: true };
+  }
+}
+
+/** The button words for each answer. */
+export function actionLabel(a: PlanAction, them: string): string {
+  switch (a) {
+    case "accept":
+    case "still_on":
+      return "I'm in";
+    case "decline":
+    case "cancel":
+      return "Can't make it";
+    case "undo":
+      return "Undo";
+    case "score":
+      return "Enter the score";
+    case "no_show":
+      return "They didn't show";
+    case "not_played":
+      return "We didn't play";
+    case "dispute":
+      return "That's not right";
+    case "admit":
+      return "I couldn't make it";
+  }
+}
+
+/** A new card starts tomorrow at 6 PM, the most common time to play after work. */
+export function defaultPlanStart(now: Date): Date {
+  const d = new Date(now);
+  d.setDate(d.getDate() + 1);
+  d.setHours(18, 0, 0, 0);
+  return d;
+}

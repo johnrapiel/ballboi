@@ -135,6 +135,9 @@ import type {
   Match,
   MatchBallBoiShotCallbackBody,
   MatchDetail,
+  MatchPlan,
+  MatchPlanShiftInput,
+  MatchPlansWithUser,
   MatchShot,
   MatchStatistics,
   MatchTime,
@@ -146,6 +149,7 @@ import type {
   MyScheduleResponse,
   NewConversationInput,
   NewCourtInput,
+  NewMatchPlanInput,
   NewMessageInput,
   NewReport,
   PhotoUploadRequest,
@@ -189,6 +193,7 @@ import type {
   SwapPlayersBody,
   TopPlayer,
   TrainingChoice,
+  UpcomingMatchPlans,
   UpdateLeagueBody,
   UpdateMatchBody,
   UpdatePlayerBody,
@@ -546,6 +551,429 @@ export const useSetHomeCourt = <
   TContext
 > => {
   return useMutation(getSetHomeCourtMutationOptions(options));
+};
+
+/**
+ * @summary Dev only, move a match card's times earlier by some hours to try the day-before and after-match steps now
+ */
+export const getShiftMatchPlanUrl = (id: number) => {
+  return `/api/dev/match-plans/${id}/shift`;
+};
+
+export const shiftMatchPlan = async (
+  id: number,
+  matchPlanShiftInput: MatchPlanShiftInput,
+  options?: RequestInit,
+): Promise<MatchPlan> => {
+  return customFetch<MatchPlan>(getShiftMatchPlanUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(matchPlanShiftInput),
+  });
+};
+
+export const getShiftMatchPlanMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof shiftMatchPlan>>,
+    TError,
+    { id: number; data: BodyType<MatchPlanShiftInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof shiftMatchPlan>>,
+  TError,
+  { id: number; data: BodyType<MatchPlanShiftInput> },
+  TContext
+> => {
+  const mutationKey = ["shiftMatchPlan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof shiftMatchPlan>>,
+    { id: number; data: BodyType<MatchPlanShiftInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return shiftMatchPlan(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ShiftMatchPlanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof shiftMatchPlan>>
+>;
+export type ShiftMatchPlanMutationBody = BodyType<MatchPlanShiftInput>;
+export type ShiftMatchPlanMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Dev only, move a match card's times earlier by some hours to try the day-before and after-match steps now
+ */
+export const useShiftMatchPlan = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof shiftMatchPlan>>,
+    TError,
+    { id: number; data: BodyType<MatchPlanShiftInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof shiftMatchPlan>>,
+  TError,
+  { id: number; data: BodyType<MatchPlanShiftInput> },
+  TContext
+> => {
+  return useMutation(getShiftMatchPlanMutationOptions(options));
+};
+
+/**
+ * @summary Send a match card in a chat (a newer card replaces an older one still waiting)
+ */
+export const getSendMatchPlanUrl = () => {
+  return `/api/match-plans`;
+};
+
+export const sendMatchPlan = async (
+  newMatchPlanInput: NewMatchPlanInput,
+  options?: RequestInit,
+): Promise<MatchPlan> => {
+  return customFetch<MatchPlan>(getSendMatchPlanUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(newMatchPlanInput),
+  });
+};
+
+export const getSendMatchPlanMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendMatchPlan>>,
+    TError,
+    { data: BodyType<NewMatchPlanInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendMatchPlan>>,
+  TError,
+  { data: BodyType<NewMatchPlanInput> },
+  TContext
+> => {
+  const mutationKey = ["sendMatchPlan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendMatchPlan>>,
+    { data: BodyType<NewMatchPlanInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return sendMatchPlan(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendMatchPlanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendMatchPlan>>
+>;
+export type SendMatchPlanMutationBody = BodyType<NewMatchPlanInput>;
+export type SendMatchPlanMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Send a match card in a chat (a newer card replaces an older one still waiting)
+ */
+export const useSendMatchPlan = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendMatchPlan>>,
+    TError,
+    { data: BodyType<NewMatchPlanInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendMatchPlan>>,
+  TError,
+  { data: BodyType<NewMatchPlanInput> },
+  TContext
+> => {
+  return useMutation(getSendMatchPlanMutationOptions(options));
+};
+
+/**
+ * @summary Your added Discover matches still to play, for Home and My matches
+ */
+export const getListUpcomingMatchPlansUrl = () => {
+  return `/api/match-plans/upcoming`;
+};
+
+export const listUpcomingMatchPlans = async (
+  options?: RequestInit,
+): Promise<UpcomingMatchPlans> => {
+  return customFetch<UpcomingMatchPlans>(getListUpcomingMatchPlansUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListUpcomingMatchPlansQueryKey = () => {
+  return [`/api/match-plans/upcoming`] as const;
+};
+
+export const getListUpcomingMatchPlansQueryOptions = <
+  TData = Awaited<ReturnType<typeof listUpcomingMatchPlans>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listUpcomingMatchPlans>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListUpcomingMatchPlansQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listUpcomingMatchPlans>>
+  > = ({ signal }) => listUpcomingMatchPlans({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listUpcomingMatchPlans>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListUpcomingMatchPlansQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listUpcomingMatchPlans>>
+>;
+export type ListUpcomingMatchPlansQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Your added Discover matches still to play, for Home and My matches
+ */
+
+export function useListUpcomingMatchPlans<
+  TData = Awaited<ReturnType<typeof listUpcomingMatchPlans>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listUpcomingMatchPlans>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListUpcomingMatchPlansQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary The match cards in your chat with a player, and what you can do with each
+ */
+export const getGetMatchPlansWithUserUrl = (userId: number) => {
+  return `/api/match-plans/with/${userId}`;
+};
+
+export const getMatchPlansWithUser = async (
+  userId: number,
+  options?: RequestInit,
+): Promise<MatchPlansWithUser> => {
+  return customFetch<MatchPlansWithUser>(getGetMatchPlansWithUserUrl(userId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMatchPlansWithUserQueryKey = (userId: number) => {
+  return [`/api/match-plans/with/${userId}`] as const;
+};
+
+export const getGetMatchPlansWithUserQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMatchPlansWithUser>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMatchPlansWithUser>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetMatchPlansWithUserQueryKey(userId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMatchPlansWithUser>>
+  > = ({ signal }) =>
+    getMatchPlansWithUser(userId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMatchPlansWithUser>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMatchPlansWithUserQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMatchPlansWithUser>>
+>;
+export type GetMatchPlansWithUserQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary The match cards in your chat with a player, and what you can do with each
+ */
+
+export function useGetMatchPlansWithUser<
+  TData = Awaited<ReturnType<typeof getMatchPlansWithUser>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMatchPlansWithUser>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMatchPlansWithUserQueryOptions(userId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Answer a match card: accept, decline, undo, still-on, cancel, not-played, no-show, dispute or admit
+ */
+export const getActOnMatchPlanUrl = (id: number, command: string) => {
+  return `/api/match-plans/${id}/${command}`;
+};
+
+export const actOnMatchPlan = async (
+  id: number,
+  command: string,
+  options?: RequestInit,
+): Promise<MatchPlan> => {
+  return customFetch<MatchPlan>(getActOnMatchPlanUrl(id, command), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getActOnMatchPlanMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof actOnMatchPlan>>,
+    TError,
+    { id: number; command: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof actOnMatchPlan>>,
+  TError,
+  { id: number; command: string },
+  TContext
+> => {
+  const mutationKey = ["actOnMatchPlan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof actOnMatchPlan>>,
+    { id: number; command: string }
+  > = (props) => {
+    const { id, command } = props ?? {};
+
+    return actOnMatchPlan(id, command, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ActOnMatchPlanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof actOnMatchPlan>>
+>;
+
+export type ActOnMatchPlanMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Answer a match card: accept, decline, undo, still-on, cancel, not-played, no-show, dispute or admit
+ */
+export const useActOnMatchPlan = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof actOnMatchPlan>>,
+    TError,
+    { id: number; command: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof actOnMatchPlan>>,
+  TError,
+  { id: number; command: string },
+  TContext
+> => {
+  return useMutation(getActOnMatchPlanMutationOptions(options));
 };
 
 /**

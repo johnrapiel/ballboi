@@ -17,4 +17,5 @@ export const MessageReportInputReason = {
   unsafe: "unsafe",
   other: "other",
   impersonation: "impersonation",
+  no_show_dispute: "no_show_dispute",
 } as const;
