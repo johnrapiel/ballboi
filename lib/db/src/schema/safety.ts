@@ -21,7 +21,13 @@ export const userBlocksTable = pgTable(
 // "message": a direct message, with a snapshot of the conversation around it.
 // "account": filed by the system (older auto-restrict rows) or an appeal, not by a person.
 export const REPORT_TARGET_TYPES = ["player", "league", "ball_boi_session", "match", "message", "account"] as const;
-export const REPORT_REASONS = ["harassment", "inappropriate_content", "impersonation", "spam", "cheating", "other"] as const;
+// The six a player picks from, in this order, everywhere (F9, Nov 7): Harassment
+// or threats; Inappropriate photo or words; Spam; False scores or cheating;
+// Unsafe at a match; Something else (with a required note). "impersonation"
+// is no longer offered and stays valid only for reports filed before Nov 7.
+export const REPORT_REASONS = ["harassment", "inappropriate_content", "spam", "cheating", "unsafe", "other", "impersonation", "no_show_dispute"] as const;
+// "no_show_dispute": filed by Ball Boi, not a player, when someone answers a
+// Discover no-show with "That's not right" (F12), so a pattern shows up.
 export const REPORT_STATUSES = ["open", "reviewed", "actioned", "dismissed"] as const;
 /** user: a person reported it. auto: auto-restrict fired (retired Nov 2026; older rows only). stream: Stream moderation flagged it. appeal: a banned or suspended person appealed. */
 export const REPORT_SOURCES = ["user", "auto", "stream", "appeal"] as const;

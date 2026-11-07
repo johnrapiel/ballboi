@@ -21,12 +21,15 @@ const preferredPlayerId = (clerkUserIdColumn: SQL) => sql`(
   SELECT p.id FROM players p WHERE p.clerk_user_id = ${clerkUserIdColumn}
   ORDER BY (p.league_id IS NOT NULL), p.id LIMIT 1)`;
 
-/** See RESPECT_HIDDEN_PROFILE in playerSearch.ts: switch it on when #117 adds users.discover_hidden. */
-const hiddenProfileFilter = (): SQL => (RESPECT_HIDDEN_PROFILE ? sql`AND u.discover_hidden = false` : sql``);
+/** See RESPECT_HIDDEN_PROFILE in playerSearch.ts: "Show me in Discover" off hides you from strangers. */
+const hiddenProfileFilter = (): SQL =>
+  RESPECT_HIDDEN_PROFILE
+    ? sql`AND NOT EXISTS (SELECT 1 FROM discover_profiles d WHERE d.clerk_user_id = u.clerk_user_id AND d.hidden = true)`
+    : sql``;
 
 /**
  * Findable: finished onboarding, not you, not blocked either way, not banned
- * or suspended right now, and (once #117 lands) not hidden.
+ * or suspended right now, and not hidden from Discover.
  */
 const findableWhere = (me: string): SQL => sql`
   u.onboarding_complete = true

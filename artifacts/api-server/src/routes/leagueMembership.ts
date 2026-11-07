@@ -52,6 +52,7 @@ function requestJson(r: typeof leagueJoinRequestsTable.$inferSelect, profiles: P
     rating: playerProfileLevel(asker, profiles),
     kind: r.kind,
     status: r.status,
+    note: r.note ?? null,
     createdAt: r.createdAt.toISOString(),
   };
 }
@@ -150,9 +151,11 @@ router.post("/leagues/:leagueId/join-requests", requireAuth, async (req, res) =>
   if (outcome.kind === "refuse") { res.status(outcome.status).json({ error: outcome.error }); return; }
 
   const kind = outcome.kind === "waitlist" ? "waitlist" : "request";
+  // An optional note to the organizer, from Discover's "Request a spot".
+  const note = typeof req.body?.note === "string" ? req.body.note.trim().slice(0, 300) || null : null;
   const [created] = await db
     .insert(leagueJoinRequestsTable)
-    .values({ leagueId, clerkUserId: userId!, playerName, skillLevel, kind })
+    .values({ leagueId, clerkUserId: userId!, playerName, skillLevel, kind, note })
     .onConflictDoNothing()
     .returning();
   if (!created) { res.status(409).json({ error: "You already asked to join this league" }); return; }

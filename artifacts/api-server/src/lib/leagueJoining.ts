@@ -45,14 +45,8 @@ export function joinOutcome(input: {
   if (via === "request" && league.visibility !== "open") {
     return { kind: "refuse", status: 403, error: "This league is invite-only. Ask its admin for an invite link." };
   }
-  if (via === "request" && input.skillLevel) {
-    const rating = Number(input.skillLevel);
-    const min = league.minRating ? Number(league.minRating) : null;
-    const max = league.maxRating ? Number(league.maxRating) : null;
-    if ((min !== null && rating < min) || (max !== null && rating > max)) {
-      return { kind: "refuse", status: 400, error: `This league is for ${ratingRangeLabel(league)} players.` };
-    }
-  }
+  // Outside the league's level range you can still ask, and the organizer
+  // decides (Discover brief item 20, Nov 7). Discover says so up front.
   const started = hasSeasonStarted(league.startDate, input.today);
   const full = !!league.rosterCap && input.activePlayerCount >= league.rosterCap;
   // Private leagues never waitlist: the organizer decides (decision 30).

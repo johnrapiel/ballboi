@@ -3,58 +3,97 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import React, { useState } from "react";
-import { AccessibilityInfo, Alert, Pressable, View } from "react-native";
+import { AccessibilityInfo, Alert, Pressable, TextInput, View } from "react-native";
 
 import { CheckboxCard } from "@/components/CheckboxCard";
 import { SheetBody, useSheetClose } from "@/components/Sheet";
-import { Button, Card, Text } from "@/components/ui";
-import { spacing } from "@/constants/tokens";
+import { Button, Card, Text, useTypeStyle } from "@/components/ui";
+import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { discoverKeys } from "@/hooks/useDiscover";
 import { messagesKeys } from "@/hooks/useMessages";
 import { BLOCK_EFFECTS, REPORT_REASONS, type ReportReasonCode } from "@/hooks/useReportBlock";
 import { apiErrorMessage, apiFetch } from "@/lib/api";
 
 // Report (spec: Messaging and moderation; App Store guideline 1.2; John,
-// Nov 6, finding 20). The only safety action anywhere a player shows. Pick a
-// reason, and tick "Also block [name]" to block them too: no messages either
-// way, and they're out of search and pairing. A bottom sheet, by the sheet
-// rule: brush title, no Cancel, drag down to close, asks before discarding.
+// Nov 6, finding 20; F3 and F9, Nov 7). The only safety action anywhere a
+// player shows: a chat, a message, a league player, a Discover player card.
+// The same six reasons everywhere, in this order; "Something else" opens a
+// required "Tell us what happened" field, and the others have no note. Tick
+// "Also block [name]" to block them too: no messages either way, and they're
+// out of Discover, search and pairing. A bottom sheet, by the sheet rule:
+// brush title, no Cancel, drag down to close, asks before discarding.
+//
+// The route's playerId is a league player id, or "u<userId>" for a Discover
+// player who has no league player record yet.
 
 export default function ReportSheet() {
   const c = useColors();
+  const body = useTypeStyle("body");
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
   const params = useLocalSearchParams<{ playerId: string; name?: string; conversationId?: string; messageId?: string }>();
-  const playerId = Number(params.playerId);
+  const byUser = params.playerId?.startsWith("u") ?? false;
+  const targetId = Number(byUser ? params.playerId.slice(1) : params.playerId);
   const name = params.name ?? "this player";
   const conversationId = params.conversationId ? Number(params.conversationId) : null;
   const messageId = params.messageId ?? null;
   const aboutMessage = conversationId != null && !!messageId;
 
   const [reason, setReason] = useState<ReportReasonCode | null>(null);
+  const [details, setDetails] = useState("");
   const [alsoBlock, setAlsoBlock] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const sheet = useSheetClose((reason !== null || alsoBlock) && !sending);
+  const sheet = useSheetClose((reason !== null || alsoBlock || details.trim() !== "") && !sending);
+
+  const needsDetails = reason === "other";
+  const ready = reason !== null && (!needsDetails || details.trim().length > 0);
+  const note = needsDetails ? details.trim() : undefined;
+
+  /** Blocks by league player, else by account (a Discover player). */
+  async function block(): Promise<boolean> {
+    const res = byUser
+      ? await apiFetch(`/api/discover/players/${targetId}/block`, getToken, { method: "POST" })
+      : await apiFetch(`/api/players/${targetId}/block`, getToken, { method: "POST" });
+    return res.ok;
+  }
 
   async function send() {
-    if (!reason || sending) return;
+    if (!ready || sending) return;
     setSending(true);
     setError(null);
     try {
-      const res = aboutMessage
-        ? await apiFetch(`/api/messages/${conversationId}/report`, getToken, { method: "POST", body: JSON.stringify({ messageId, reason }) })
-        : await apiFetch("/api/reports", getToken, {
-            method: "POST",
-            body: JSON.stringify({ targetType: "player", targetId: String(playerId), reason }),
-          });
-      if (!res.ok) throw new Error(await apiErrorMessage(res, "We couldn't send your report. Try again."));
       let blocked = false;
-      if (alsoBlock) {
-        const b = await apiFetch(`/api/players/${playerId}/block`, getToken, { method: "POST" });
-        blocked = b.ok;
+      if (aboutMessage) {
+        const res = await apiFetch(`/api/messages/${conversationId}/report`, getToken, {
+          method: "POST",
+          body: JSON.stringify({ messageId, reason, details: note }),
+        });
+        if (!res.ok) throw new Error(await apiErrorMessage(res, "We couldn't send your report. Try again."));
+      } else if (byUser) {
+        // A Discover player: report and block in one call.
+        const res = await apiFetch(`/api/discover/players/${targetId}/report`, getToken, {
+          method: "POST",
+          body: JSON.stringify({ reason, details: note, block: alsoBlock }),
+        });
+        if (!res.ok) throw new Error(await apiErrorMessage(res, "We couldn't send your report. Try again."));
+        blocked = ((await res.json()) as { blocked?: boolean }).blocked === true;
+      } else {
+        const res = await apiFetch("/api/reports", getToken, {
+          method: "POST",
+          body: JSON.stringify({ targetType: "player", targetId: String(targetId), reason, details: note }),
+        });
+        if (!res.ok) throw new Error(await apiErrorMessage(res, "We couldn't send your report. Try again."));
       }
-      await queryClient.invalidateQueries({ queryKey: messagesKeys.all });
+      // A Discover player's own report already blocked them in the same call.
+      if (alsoBlock && !(byUser && !aboutMessage)) blocked = await block();
+      // Blocked players leave Discover, search and messages at once.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: messagesKeys.all }),
+        queryClient.invalidateQueries({ queryKey: discoverKeys.all }),
+        queryClient.invalidateQueries({ queryKey: ["players", "search"] }),
+      ]);
       const said = blocked
         ? `Report sent, and ${name} is blocked.`
         : alsoBlock
@@ -92,6 +131,7 @@ export default function ReportSheet() {
               accessibilityRole="radio"
               accessibilityState={{ checked: on }}
               accessibilityLabel={r.label}
+              accessibilityHint={r.code === "other" ? "Opens a field to tell us what happened" : undefined}
               style={({ pressed }) => ({
                 minHeight: 52,
                 flexDirection: "row",
@@ -114,6 +154,41 @@ export default function ReportSheet() {
         })}
       </Card>
 
+      {needsDetails ? (
+        <View style={{ gap: spacing.space2 }}>
+          <Text variant="bodyStrong" importantForAccessibility="no" accessibilityElementsHidden>
+            Tell us what happened
+          </Text>
+          <TextInput
+            value={details}
+            onChangeText={(t) => {
+              setDetails(t.slice(0, 1000));
+              setError(null);
+            }}
+            multiline
+            maxLength={1000}
+            accessibilityLabel="Tell us what happened"
+            accessibilityHint="Required for Something else"
+            placeholderTextColor={c.inkMuted}
+            style={[
+              body.style,
+              {
+                minHeight: 88,
+                paddingHorizontal: 14,
+                paddingVertical: spacing.space3,
+                borderRadius: radius.radiusSm,
+                borderWidth: 1,
+                borderColor: c.hairlineStrong,
+                backgroundColor: c.linen,
+                color: c.ink,
+                textAlignVertical: "top",
+              },
+            ]}
+            maxFontSizeMultiplier={body.maxFontSizeMultiplier}
+          />
+        </View>
+      ) : null}
+
       <CheckboxCard
         title={`Also block ${name}`}
         description={`${BLOCK_EFFECTS} They aren't told. You can unblock from your chat with them.`}
@@ -131,9 +206,9 @@ export default function ReportSheet() {
         label={alsoBlock ? "Send report and block" : "Send report"}
         variant={alsoBlock ? "destructive" : "primary"}
         onPress={() => void send()}
-        disabled={!reason}
+        disabled={!ready}
         loading={sending}
-        accessibilityHint={reason ? undefined : "Pick a reason first"}
+        accessibilityHint={reason == null ? "Pick a reason first" : needsDetails && !ready ? "Tell us what happened first" : undefined}
       />
     </SheetBody>
   );

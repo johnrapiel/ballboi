@@ -17,6 +17,7 @@ import { Toggle } from "@/components/Toggle";
 import { Button, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { useDiscoverMe } from "@/hooks/useDiscover";
 import { useProfile } from "@/hooks/useProfile";
 import { useStableGetToken } from "@/hooks/useStableGetToken";
 import { confirmSignOut } from "@/lib/confirmSignOut";
@@ -245,8 +246,8 @@ export default function ProfileScreen() {
             value={profile ? profile.homeZip ?? "Not set" : null}
             onPress={() => router.push("/profile/edit/home")}
             accessibilityHint="Change your home area"
-            last
           />
+          <WhenIPlayRow />
         </SettingsSection>
 
         {SHOW_MATCH_DAY_REMINDERS && Platform.OS !== "web" ? (
@@ -285,5 +286,20 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
     </TabScreen>
+  );
+}
+
+/** Profile › When I play (Discover, F7, F8): what you play and when you're free. */
+function WhenIPlayRow() {
+  const router = useRouter();
+  const me = useDiscoverMe();
+  return (
+    <SettingsRow
+      title="When I play"
+      subtitle={me.data ? me.data.freeSummary ?? "Add when you can play" : null}
+      onPress={() => router.push("/discover/play")}
+      accessibilityHint="Singles or doubles, and the hours you're usually free"
+      last
+    />
   );
 }

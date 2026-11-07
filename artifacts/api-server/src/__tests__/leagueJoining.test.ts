@@ -48,10 +48,9 @@ describe("joinOutcome", () => {
     });
   });
 
-  it("checks an Open league's rating range on requests", () => {
+  it("lets a player outside an Open league's level range ask; the organizer decides", () => {
     const out = joinOutcome({ league: open, activePlayerCount: 3, today: "2026-11-01", via: "request", skillLevel: "4.5" });
-    expect(out).toMatchObject({ kind: "refuse", status: 400 });
-    if (out.kind === "refuse") expect(out.error).toMatch(/3.0 to 4.0/);
+    expect(out).toEqual({ kind: "request" });
   });
 });
 
