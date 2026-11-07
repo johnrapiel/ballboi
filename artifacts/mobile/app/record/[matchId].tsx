@@ -1053,12 +1053,9 @@ export default function RecordScreen() {
               AccessibilityInfo.announceForAccessibility(next ? "Voice coach off" : "Voice coach on");
             }}
             hitSlop={4}
-            style={({ pressed }) => [styles.round, { width: undefined, minWidth: MIN_TAP, paddingHorizontal: spacing.space3, opacity: pressed ? 0.7 : 1 }]}
+            style={({ pressed }) => [styles.round, { opacity: pressed ? 0.7 : 1 }]}
           >
-            {/* speaker.wave.2.fill and speaker.slash.fill have no brush drawings yet, so the button says it in words. */}
-            <Text variant="small" style={{ color: chrome.text }} importantForAccessibility="no" accessibilityElementsHidden>
-              {muted ? "Voice off" : "Voice on"}
-            </Text>
+            <Icon name={muted ? "speaker.slash.fill" : "speaker.wave.2.fill"} size={18} tintColor={chrome.text} />
           </Pressable>
         ) : (
           <View style={{ width: MIN_TAP }} pointerEvents="none" />
@@ -1106,7 +1103,7 @@ export default function RecordScreen() {
             {micState(micPerm) === "denied" ? (
               <View style={[styles.panel, { backgroundColor: chrome.panel, alignSelf: "stretch" }]}>
                 <View style={{ flexDirection: "row", gap: spacing.space2, alignItems: "flex-start" }} accessible>
-                  {/* mic.slash has no brush drawing yet; the title says the microphone is off. */}
+                  <Icon name="mic.slash" size={18} tintColor={chrome.text} style={{ marginTop: 2 }} />
                   <View style={{ flex: 1, gap: spacing.space1 }}>
                     <Text variant="bodyStrong" style={{ color: chrome.text }}>
                       {MIC_DENIED_TITLE}
