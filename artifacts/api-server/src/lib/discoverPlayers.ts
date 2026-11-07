@@ -170,6 +170,7 @@ export interface DiscoverSettingsInput {
   hidden?: boolean;
   plays?: Plays | null;
   radius?: number;
+  matchAlerts?: boolean;
 }
 
 export function parseDiscoverSettings(body: unknown): DiscoverSettingsInput | { error: string } {
@@ -182,6 +183,10 @@ export function parseDiscoverSettings(body: unknown): DiscoverSettingsInput | { 
   if (b.plays !== undefined) {
     if (b.plays !== null && !isOneOf(PLAYS, b.plays)) return { error: "Pick singles, doubles or both." };
     out.plays = b.plays as Plays | null;
+  }
+  if (b.matchAlerts !== undefined) {
+    if (typeof b.matchAlerts !== "boolean") return { error: "Choose on or off." };
+    out.matchAlerts = b.matchAlerts;
   }
   if (b.radius !== undefined) {
     if (typeof b.radius !== "number" || !Number.isFinite(b.radius)) return { error: "Pick a distance from 1 to 30 miles." };

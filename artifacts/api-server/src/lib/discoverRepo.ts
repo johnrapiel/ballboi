@@ -35,6 +35,8 @@ export interface DiscoverMe {
   plays: string | null;
   radius: number;
   slots: number[];
+  /** "Alerts for new posts" (open matches near you that fit your level). */
+  matchAlerts?: boolean;
 }
 
 /** Extra counts a later feature adds to reliability (Discover no-shows, F13). */
@@ -258,6 +260,7 @@ export class DrizzleDiscoverRepo implements DiscoverRepo {
       plays: profile?.plays ?? null,
       radius: profile?.radiusMiles ?? 10,
       slots: week?.slots ?? [],
+      matchAlerts: profile?.matchAlerts ?? false,
     };
   }
 
@@ -330,6 +333,7 @@ export class DrizzleDiscoverRepo implements DiscoverRepo {
     if (input.hidden !== undefined) set.hidden = input.hidden;
     if (input.plays !== undefined) set.plays = input.plays;
     if (input.radius !== undefined) set.radiusMiles = input.radius;
+    if (input.matchAlerts !== undefined) set.matchAlerts = input.matchAlerts;
     if (!Object.keys(set).length) return;
     await db
       .insert(discoverProfilesTable)
