@@ -92,6 +92,22 @@ function ScoreLine({ name, won, games, other, tiebreaks, sets }: { name: string;
   );
 }
 
+/** The small pencil next to the score: "Edit score" for VoiceOver, a 44pt target. */
+function EditPencil({ onPress }: { onPress: () => void }) {
+  const c = useColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel="Edit score"
+      accessibilityHint="Opens Enter score with this score filled in"
+      style={({ pressed }) => ({ width: MIN_TAP, height: MIN_TAP, marginLeft: -spacing.space3, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.6 : 1 })}
+    >
+      <SymbolView name="pencil" size={18} tintColor={c.ink} />
+    </Pressable>
+  );
+}
+
 export default function MatchDetailScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
@@ -218,7 +234,8 @@ export default function MatchDetailScreen() {
   const replaySpoken = d.replay
     ? ["Ball Boi Replay", durationSpoken(d.replay.durationSeconds), `${d.replay.shotCount} shots`].filter(Boolean).join(". ")
     : "";
-  const stacked = fontScale >= 1.6;
+  const editScore = () =>
+    router.push({ pathname: "/league/[leagueId]/score/[matchId]", params: { leagueId: String(d.leagueId), matchId: String(d.matchId), edit: "1" } });
 
   return (
     <ScrollView
@@ -227,9 +244,8 @@ export default function MatchDetailScreen() {
       refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void refetch()} tintColor={c.ink} />}
     >
       {header}
-      <Text variant="title" accessibilityRole="header" style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}>
-        {`Match against ${them}`}
-      </Text>
+      {/* The screen's name for VoiceOver; the nav bar title stays empty, as designed. */}
+      <View accessible accessibilityRole="header" accessibilityLabel={`Match against ${them}`} style={{ position: "absolute", width: 1, height: 1 }} />
 
       <Card style={{ borderWidth: 0, paddingVertical: spacing.space6, gap: spacing.space4 }}>
         <View accessible accessibilityLabel={[when, stage, d.location].filter(Boolean).join(". ")} style={{ alignItems: "center", gap: 2 }}>
@@ -246,18 +262,23 @@ export default function MatchDetailScreen() {
         <View style={{ height: 1, backgroundColor: c.hairline }} />
 
         {d.played && !walkover ? (
-          <View accessible accessibilityLabel={`${scoreSpoken}${notes.length ? ` ${notes.join(". ")}.` : ""}`}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2 }} importantForAccessibility="no-hide-descendants">
-              <View style={{ flex: 1 }} />
+          <View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2, minHeight: MIN_TAP }}>
+              <View style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
+                {/* Finding 7: the pencil sits right by the score, only during the 24 hours. */}
+                {d.editUntil ? <EditPencil onPress={editScore} /> : null}
+              </View>
               {Array.from({ length: sets }, (_, i) => (
-                <Text key={i} variant="small" tone="inkMuted" style={{ width: Math.round(36 * Math.min(fontScale, 1.5)), textAlign: "center" }}>
+                <Text key={i} variant="small" tone="inkMuted" accessibilityElementsHidden importantForAccessibility="no" style={{ width: Math.round(36 * Math.min(fontScale, 1.5)), textAlign: "center" }}>
                   {i + 1}
                 </Text>
               ))}
             </View>
+            <View accessible accessibilityLabel={`${scoreSpoken}${notes.length ? ` ${notes.join(". ")}.` : ""}`}>
             <ScoreLine name={you} won={youWon} games={youGames} other={themGames} tiebreaks={tbs} sets={sets} />
             <View style={{ height: 1, backgroundColor: c.hairline }} />
             <ScoreLine name={them} won={!youWon} games={themGames} other={youGames} tiebreaks={tbs} sets={sets} />
+            </View>
           </View>
         ) : (
           <View accessible accessibilityLabel={`${scoreSpoken}${notes.length ? ` ${notes.join(". ")}.` : ""}`} style={{ alignItems: "center", gap: spacing.space1 }}>
@@ -270,9 +291,9 @@ export default function MatchDetailScreen() {
           </View>
         )}
 
-        {notes.length || d.editUntil ? (
-          <View style={{ flexDirection: stacked ? "column" : "row", alignItems: stacked ? "flex-start" : "center", gap: spacing.space2 }}>
-            <View style={{ flex: stacked ? undefined : 1, gap: 2 }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+        {notes.length ? (
+          <View style={{ gap: 2 }}>
+            <View style={{ gap: 2 }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
               {notes
                 .filter((n) => !walkover || !n.includes("walkover"))
                 .map((n) => (
@@ -281,25 +302,6 @@ export default function MatchDetailScreen() {
                   </Text>
                 ))}
             </View>
-            {d.editUntil ? (
-              <Pressable
-                onPress={() => router.push({ pathname: "/league/[leagueId]/score/[matchId]", params: { leagueId: String(d.leagueId), matchId: String(d.matchId), edit: "1" } })}
-                accessibilityRole="button"
-                accessibilityLabel="Edit score"
-                accessibilityHint="Opens Enter score with this score filled in"
-                hitSlop={spacing.space1}
-                style={({ pressed }) => ({
-                  width: MIN_TAP,
-                  height: MIN_TAP,
-                  alignSelf: stacked ? "flex-start" : "center",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  opacity: pressed ? 0.6 : 1,
-                })}
-              >
-                <SymbolView name="pencil" size={18} tintColor={c.ink} />
-              </Pressable>
-            ) : null}
           </View>
         ) : null}
       </Card>
