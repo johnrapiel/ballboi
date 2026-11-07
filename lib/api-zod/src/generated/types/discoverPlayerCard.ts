@@ -27,6 +27,8 @@ export interface DiscoverPlayerCard {
   plays: DiscoverPlayerCardPlays;
   /** @nullable */
   freeSummary: string | null;
+  /** @nullable */
+  homeCourt: string | null;
   played: number;
   noShows: number;
   wins: number;

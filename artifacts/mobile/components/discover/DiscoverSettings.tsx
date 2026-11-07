@@ -1,6 +1,6 @@
 // Settings › Discover (canvas W2_SettingsDiscover; F3: no Blocked players
-// row). "Show me in Discover" and Your area. Home court and match alerts
-// join this section in later Discover PRs.
+// row). "Show me in Discover", Your area and Home court. Match alerts join
+// this section with Open matches.
 
 import { useRouter } from "expo-router";
 import React from "react";
@@ -11,6 +11,7 @@ import { Toggle } from "@/components/Toggle";
 import { Button, Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { useHomeCourt } from "@/hooks/useCourts";
 import { useDiscoverMe, useSaveDiscoverSettings } from "@/hooks/useDiscover";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 
@@ -19,6 +20,7 @@ export function DiscoverSettings({ extraRows }: { extraRows?: React.ReactNode })
   const router = useRouter();
   const me = useDiscoverMe();
   const save = useSaveDiscoverSettings();
+  const home = useHomeCourt();
 
   async function setShown(shown: boolean) {
     try {
@@ -66,6 +68,12 @@ export function DiscoverSettings({ extraRows }: { extraRows?: React.ReactNode })
               value={me.data.area?.zip ?? me.data.homeZip ?? "Not set"}
               onPress={() => router.push("/discover/area")}
               accessibilityHint="Change the ZIP Discover searches from"
+            />
+            <SettingsRow
+              title="Home court"
+              value={home.data ? (home.data.court?.name ?? "Not set") : null}
+              onPress={() => router.push({ pathname: "/courts", params: { mode: "home" } })}
+              accessibilityHint="Pick from the court directory. It shows on your player card."
               last={!extraRows}
             />
             {extraRows}
