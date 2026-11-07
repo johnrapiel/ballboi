@@ -16,7 +16,9 @@ import {
 } from "@workspace/db";
 import { and, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { areaForZip, boundingBox, type Area, type Point } from "./discoverArea.js";
+import type { OpenLeagueCandidate } from "./discoverLeagues.js";
 import type { DiscoverCandidate, DiscoverSettingsInput } from "./discoverPlayers.js";
+import { todayFor } from "./leagueCalendar.js";
 import { countPlayed, EMPTY_RELIABILITY, type Reliability } from "./reliability.js";
 
 export interface DiscoverMe {
@@ -54,7 +56,77 @@ export interface DiscoverRepo {
   fileReport(input: { reporter: string; subject: string; userId: number; reason: ReportReason; details?: string }): Promise<number>;
   block(viewer: string, target: string): Promise<void>;
   unblock(viewer: string, target: string): Promise<void>;
+  /** Open leagues whose organizer plays within `miles`: not ended, not yours already, organizer not blocked either way. */
+  openLeagues(viewer: string, point: Point, miles: number): Promise<OpenLeagueCandidate[]>;
+  /** One Open league for its Discover page, with whether you're already in it. Null when it isn't Open or doesn't exist. */
+  openLeague(viewer: string, leagueId: number): Promise<(OpenLeagueCandidate & { member: boolean }) | null>;
 }
+
+type LeagueRow = {
+  id: number;
+  name: string;
+  format: string;
+  league_type: string;
+  location: string | null;
+  start_date: string | null;
+  season_weeks: number | null;
+  min_rating: string | null;
+  max_rating: string | null;
+  roster_cap: number | null;
+  time_zone: string | null;
+  organizer_name: string | null;
+  area_latitude: number;
+  area_longitude: number;
+  active: number | string;
+  member: boolean;
+  my_kind: string | null;
+  my_status: string | null;
+};
+
+const leagueSelect = (viewer: string) => sql`
+  SELECT l.id, l.name, l.format, l.league_type, l.location, l.start_date, l.season_weeks, l.min_rating, l.max_rating,
+    l.roster_cap, l.time_zone, u.display_name AS organizer_name, d.area_latitude, d.area_longitude,
+    (SELECT count(*) FROM players p WHERE p.league_id = l.id AND p.left_at IS NULL) AS active,
+    EXISTS (SELECT 1 FROM players p WHERE p.league_id = l.id AND p.clerk_user_id = ${viewer} AND p.left_at IS NULL) AS member,
+    r.kind AS my_kind, r.status AS my_status
+  FROM leagues l
+  JOIN discover_profiles d ON d.clerk_user_id = l.created_by_clerk_user_id
+  LEFT JOIN users u ON u.clerk_user_id = l.created_by_clerk_user_id
+  LEFT JOIN LATERAL (
+    SELECT q.kind, q.status FROM league_join_requests q
+    WHERE q.league_id = l.id AND q.clerk_user_id = ${viewer}
+      AND (q.status = 'pending' OR (q.status = 'declined' AND q.player_dismissed_at IS NULL))
+    ORDER BY q.created_at DESC LIMIT 1) r ON true`;
+
+const leagueWhere = (viewer: string) => sql`
+  l.visibility = 'open' AND l.ended_at IS NULL AND l.status <> 'completed'
+  AND d.area_latitude IS NOT NULL AND d.area_longitude IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM user_blocks b
+    WHERE (b.blocker_clerk_user_id = ${viewer} AND b.blocked_clerk_user_id = l.created_by_clerk_user_id)
+       OR (b.blocker_clerk_user_id = l.created_by_clerk_user_id AND b.blocked_clerk_user_id = ${viewer}))`;
+
+const toLeague = (r: LeagueRow): OpenLeagueCandidate & { member: boolean } => ({
+  leagueId: Number(r.id),
+  name: r.name,
+  format: r.format,
+  leagueType: r.league_type,
+  location: r.location,
+  startDate: r.start_date,
+  seasonWeeks: r.season_weeks == null ? null : Number(r.season_weeks),
+  minRating: r.min_rating,
+  maxRating: r.max_rating,
+  rosterCap: r.roster_cap == null ? null : Number(r.roster_cap),
+  organizerName: r.organizer_name?.trim() || "the organizer",
+  point: { latitude: Number(r.area_latitude), longitude: Number(r.area_longitude) },
+  today: todayFor({ timeZone: r.time_zone }),
+  activePlayers: Number(r.active),
+  myRequest:
+    r.my_kind && r.my_status
+      ? { kind: r.my_kind === "waitlist" ? "waitlist" : "request", status: r.my_status === "declined" ? "declined" : "pending" }
+      : null,
+  member: !!r.member,
+});
 
 /** Placed in Discover: onboarded, with a point, not hidden. */
 const discoverableWhere = sql`
@@ -299,6 +371,23 @@ export class DrizzleDiscoverRepo implements DiscoverRepo {
     await db
       .delete(userBlocksTable)
       .where(and(eq(userBlocksTable.blockerClerkUserId, viewer), eq(userBlocksTable.blockedClerkUserId, target)));
+  }
+
+  async openLeagues(viewer: string, point: Point, miles: number): Promise<OpenLeagueCandidate[]> {
+    await this.syncAreas();
+    const box = boundingBox(point, miles);
+    const result = await db.execute(sql`${leagueSelect(viewer)}
+      WHERE ${leagueWhere(viewer)}
+        AND d.area_latitude BETWEEN ${box.minLat} AND ${box.maxLat}
+        AND d.area_longitude BETWEEN ${box.minLon} AND ${box.maxLon}`);
+    return (result.rows as LeagueRow[]).map(toLeague).filter((l) => !l.member);
+  }
+
+  async openLeague(viewer: string, leagueId: number) {
+    await this.syncAreas();
+    const result = await db.execute(sql`${leagueSelect(viewer)} WHERE ${leagueWhere(viewer)} AND l.id = ${leagueId}`);
+    const row = (result.rows as LeagueRow[])[0];
+    return row ? toLeague(row) : null;
   }
 
   async saveSlots(clerkUserId: string, slots: number[]): Promise<void> {

@@ -5,7 +5,14 @@ import { useAuth } from "@clerk/expo";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiErrorMessage, apiFetch } from "@/lib/api";
-import { playersPath, type DiscoverMe, type DiscoverPlayerCard, type DiscoverPlayers, type Plays, type PlayerFilters } from "@/lib/discover";
+import {
+  playersPath,
+  type DiscoverMe,
+  type DiscoverPlayerCard,
+  type DiscoverPlayers,
+  type Plays,
+  type PlayerFilters,
+} from "@/lib/discover";
 
 export const discoverKeys = {
   all: ["discover"] as const,
@@ -53,8 +60,7 @@ function useSaveMe<T>(path: string, method: "PUT", body: (v: T) => unknown, fall
   const { getToken } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (v: T) =>
-      json<DiscoverMe>(await apiFetch(path, getToken, { method, body: JSON.stringify(body(v)) }), fallback),
+    mutationFn: async (v: T) => json<DiscoverMe>(await apiFetch(path, getToken, { method, body: JSON.stringify(body(v)) }), fallback),
     onSuccess: async (me) => {
       qc.setQueryData(discoverKeys.me, me);
       await qc.invalidateQueries({ queryKey: discoverKeys.all });

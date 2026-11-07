@@ -138,7 +138,12 @@ export default function AvailabilityScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: c.paper, padding: spacing.space4 }}>
         {me.isError ? (
-          <ProblemCard title="Can't load your times" body="Check your connection and try again." onRetry={() => void me.refetch()} retrying={me.isRefetching} />
+          <ProblemCard
+            title="Can't load your times"
+            body="Check your connection and try again."
+            onRetry={() => void me.refetch()}
+            retrying={me.isRefetching}
+          />
         ) : (
           <Text tone="inkMuted" accessibilityRole="progressbar">
             Loading your times…
@@ -162,19 +167,32 @@ export default function AvailabilityScreen() {
           <Text tone="inkMuted">Tap or drag the hours you're usually free in a week. Tap an hour to fill its whole row.</Text>
         </View>
 
-        <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: spacing.space2 }}>
+        <View
+          style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: spacing.space2 }}
+        >
           <Text variant="bodyStrong">Monday to Sunday</Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <View style={{ width: 14, height: 14, borderRadius: 3, backgroundColor: c.ink }} importantForAccessibility="no" accessibilityElementsHidden />
+            <View
+              style={{ width: 14, height: 14, borderRadius: 3, backgroundColor: c.ink }}
+              importantForAccessibility="no"
+              accessibilityElementsHidden
+            />
             <Text variant="small" accessibilityLiveRegion="polite" accessibilityRole="text">
               {hoursFreeLine(slots.size)}
             </Text>
           </View>
         </View>
 
-        <View accessibilityLabel="Hours you're free, Monday to Sunday" onLayout={(e: LayoutChangeEvent) => setGridW(e.nativeEvent.layout.width)}>
+        <View
+          accessibilityLabel="Hours you're free, Monday to Sunday"
+          onLayout={(e: LayoutChangeEvent) => setGridW(e.nativeEvent.layout.width)}
+        >
           {/* Day letters */}
-          <View style={{ flexDirection: "row", gap: GAP, marginBottom: spacing.space1 }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+          <View
+            style={{ flexDirection: "row", gap: GAP, marginBottom: spacing.space1 }}
+            importantForAccessibility="no-hide-descendants"
+            accessibilityElementsHidden
+          >
             <View style={{ width: LABEL_W }} />
             {DAY_LETTERS.map((d, i) => (
               <Text key={i} variant="label" tone="inkMuted" maxFontSizeMultiplier={1.3} style={{ width: cellW, textAlign: "center" }}>
@@ -250,7 +268,13 @@ export default function AvailabilityScreen() {
           backgroundColor: c.paper,
         }}
       >
-        <Button label="Save" onPress={() => void onSave()} loading={save.isPending} disabled={!dirty} accessibilityHint={dirty ? undefined : "Mark or clear an hour first"} />
+        <Button
+          label="Save"
+          onPress={() => void onSave()}
+          loading={save.isPending}
+          disabled={!dirty}
+          accessibilityHint={dirty ? undefined : "Mark or clear an hour first"}
+        />
       </View>
     </View>
   );

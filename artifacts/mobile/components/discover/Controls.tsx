@@ -10,15 +10,7 @@ import { Pressable, View, useWindowDimensions, type StyleProp, type ViewStyle } 
 import { Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import {
-  RADIUS_STEPS,
-  areaLine,
-  countFor,
-  isCustomRadius,
-  radiusChipSpoken,
-  type DiscoverArea,
-  type DiscoverTab,
-} from "@/lib/discover";
+import { RADIUS_STEPS, areaLine, countFor, isCustomRadius, radiusChipSpoken, type DiscoverArea, type DiscoverTab } from "@/lib/discover";
 
 /** Text sizes at which rows of controls stack instead of sitting side by side. */
 export function useLargeText(threshold = 1.35): boolean {
@@ -143,7 +135,11 @@ export function DiscoverTabs({ value, onChange }: { value: DiscoverTab; onChange
               opacity: pressed ? 0.7 : 1,
             })}
           >
-            <Text variant="segment" tone="ink" style={{ textAlign: stacked ? "left" : "center", fontFamily: on ? "DMSans_600SemiBold" : undefined }}>
+            <Text
+              variant="segment"
+              tone="ink"
+              style={{ textAlign: stacked ? "left" : "center", fontFamily: on ? "DMSans_600SemiBold" : undefined }}
+            >
               {t.label}
             </Text>
           </Pressable>
@@ -246,7 +242,10 @@ export function LinkButton({
       accessibilityRole="link"
       accessibilityLabel={accessibilityLabel ?? label}
       hitSlop={4}
-      style={({ pressed }) => [{ minHeight: MIN_TAP, justifyContent: "center", alignSelf: "flex-start", opacity: pressed ? 0.6 : 1 }, style]}
+      style={({ pressed }) => [
+        { minHeight: MIN_TAP, justifyContent: "center", alignSelf: "flex-start", opacity: pressed ? 0.6 : 1 },
+        style,
+      ]}
     >
       <Text variant="bodyStrong" style={{ textDecorationLine: "underline" }}>
         {label}
@@ -256,7 +255,15 @@ export function LinkButton({
 }
 
 /** The Filters button beside the count line: an outlined 44pt pill. */
-export function FiltersButton({ onPress, accessibilityLabel, active }: { onPress: () => void; accessibilityLabel: string; active?: boolean }) {
+export function FiltersButton({
+  onPress,
+  accessibilityLabel,
+  active,
+}: {
+  onPress: () => void;
+  accessibilityLabel: string;
+  active?: boolean;
+}) {
   const c = useColors();
   return (
     <Pressable

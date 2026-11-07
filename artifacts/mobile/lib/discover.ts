@@ -103,7 +103,7 @@ export function countFor(counts: { radius: number; count: number }[], radius: nu
 }
 
 /** "14 players within 10 mi". */
-export function countLine(n: number, radius: number, noun: "player" | "open league" | "open match" = "player"): string {
+export function countLine(n: number, radius: number, noun: "player" | "Open league" | "open match" = "player"): string {
   const plural = noun === "open match" ? "open matches" : `${noun}s`;
   return `${n} ${n === 1 ? noun : plural} within ${radius} mi`;
 }
@@ -262,4 +262,84 @@ export const INVITE_LINK = "https://ballboi.tennis";
 /** What "Invite a friend" fills into the iOS share sheet. */
 export function inviteMessage(zip: string | null): string {
   return `Play tennis with me on Ball Boi. I'm finding matches${zip ? ` near ${zip}` : ""}. Join me so we can play: ${INVITE_LINK}`;
+}
+
+// ─── Open leagues (brief items 17 to 22) ─────────────────────────────────────
+
+export type LeagueTag = "outside_level" | "full" | "started";
+export type LeagueRequest = { kind: "request" | "waitlist"; status: "pending" | "declined" } | null;
+
+export interface DiscoverLeagueCard {
+  leagueId: number;
+  name: string;
+  detail: string;
+  status: string;
+  tags: LeagueTag[];
+  joining: "request" | "waitlist";
+  myRequest: LeagueRequest;
+  spoken: string;
+}
+
+export interface DiscoverLeagues {
+  leagues: DiscoverLeagueCard[];
+  counts: { radius: number; count: number }[];
+  radius: number;
+  total: number;
+  needsArea: boolean;
+}
+
+export interface DiscoverLeague {
+  leagueId: number;
+  name: string;
+  organizerName: string;
+  location: string | null;
+  distance: string | null;
+  format: string;
+  type: string;
+  levelText: string;
+  outsideLevel: boolean;
+  myRating: number | null;
+  startDate: string | null;
+  startLabel: string | null;
+  seasonWeeks: number | null;
+  started: boolean;
+  full: boolean;
+  rosterCap: number | null;
+  spotsTaken: number;
+  spotsLeft: number | null;
+  joining: "request" | "waitlist";
+  myRequest: LeagueRequest;
+  member: boolean;
+}
+
+export const leaguesPath = (radius: number) => `/api/discover/leagues?radius=${clampRadius(radius)}`;
+
+/** A tag's words: always text with its icon, never color alone. */
+export function leagueTagLabel(t: LeagueTag): string {
+  return t === "outside_level" ? "Outside your level" : t === "full" ? "Full" : "Season started";
+}
+
+/** The organizer's first name, for "Dave approves requests…". */
+export const firstName = (name: string) => name.trim().split(/\s+/)[0] || name;
+
+/** Where you stand with an Open league, for its page. */
+export type LeagueStanding = "member" | "requested" | "waitlisted" | "declined" | "request" | "waitlist";
+
+export function leagueStanding(l: Pick<DiscoverLeague, "member" | "myRequest" | "joining">): LeagueStanding {
+  if (l.member) return "member";
+  if (l.myRequest?.status === "pending") return l.myRequest.kind === "waitlist" ? "waitlisted" : "requested";
+  if (l.myRequest?.status === "declined") return "declined";
+  return l.joining;
+}
+
+/** "Starts Sun, Nov 22 · 8 weeks" or "Started Sun, Nov 1 · 8 weeks". */
+export function seasonLine(l: Pick<DiscoverLeague, "startLabel" | "seasonWeeks" | "started">): string {
+  const start = l.startLabel ? `${l.started ? "Started" : "Starts"} ${l.startLabel}` : "Start date not set yet";
+  return l.seasonWeeks ? `${start} · ${l.seasonWeeks} weeks` : start;
+}
+
+/** "13 of 16 taken · 3 left", or null with no roster cap. */
+export function spotsLine(l: Pick<DiscoverLeague, "rosterCap" | "spotsTaken" | "spotsLeft">): string | null {
+  if (!l.rosterCap) return null;
+  return `${l.spotsTaken} of ${l.rosterCap} taken · ${l.spotsLeft ?? 0} left`;
 }

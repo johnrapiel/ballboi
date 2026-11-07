@@ -24,6 +24,92 @@ export interface DiscoverAvailabilityInput {
   slots: number[];
 }
 
+export type DiscoverLeagueJoining =
+  (typeof DiscoverLeagueJoining)[keyof typeof DiscoverLeagueJoining];
+
+export const DiscoverLeagueJoining = {
+  request: "request",
+  waitlist: "waitlist",
+} as const;
+
+export type DiscoverLeagueRequest = {
+  kind: "request" | "waitlist";
+  status: "pending" | "declined";
+} | null;
+
+export interface DiscoverLeague {
+  leagueId: number;
+  name: string;
+  organizerName: string;
+  /** @nullable */
+  location: string | null;
+  /** @nullable */
+  distance: string | null;
+  format: string;
+  type: string;
+  levelText: string;
+  outsideLevel: boolean;
+  /** @nullable */
+  myRating: number | null;
+  /** @nullable */
+  startDate: string | null;
+  /** @nullable */
+  startLabel: string | null;
+  /** @nullable */
+  seasonWeeks: number | null;
+  started: boolean;
+  full: boolean;
+  /** @nullable */
+  rosterCap: number | null;
+  spotsTaken: number;
+  /** @nullable */
+  spotsLeft: number | null;
+  joining: DiscoverLeagueJoining;
+  myRequest: DiscoverLeagueRequest;
+  member: boolean;
+}
+
+export type DiscoverLeagueCardTagsItem =
+  (typeof DiscoverLeagueCardTagsItem)[keyof typeof DiscoverLeagueCardTagsItem];
+
+export const DiscoverLeagueCardTagsItem = {
+  outside_level: "outside_level",
+  full: "full",
+  started: "started",
+} as const;
+
+export type DiscoverLeagueCardJoining =
+  (typeof DiscoverLeagueCardJoining)[keyof typeof DiscoverLeagueCardJoining];
+
+export const DiscoverLeagueCardJoining = {
+  request: "request",
+  waitlist: "waitlist",
+} as const;
+
+export interface DiscoverLeagueCard {
+  leagueId: number;
+  name: string;
+  detail: string;
+  status: string;
+  tags: DiscoverLeagueCardTagsItem[];
+  joining: DiscoverLeagueCardJoining;
+  myRequest: DiscoverLeagueRequest;
+  spoken: string;
+}
+
+export type DiscoverLeaguesCountsItem = {
+  radius: number;
+  count: number;
+};
+
+export interface DiscoverLeagues {
+  leagues: DiscoverLeagueCard[];
+  counts: DiscoverLeaguesCountsItem[];
+  radius: number;
+  total: number;
+  needsArea: boolean;
+}
+
 /**
  * @nullable
  */
@@ -906,6 +992,11 @@ export interface JoinRequest {
   rating?: MatchPlayerRating | null;
   kind: JoinRequestKind;
   status: JoinRequestStatus;
+  /**
+   * The asker's optional note to the organizer
+   * @nullable
+   */
+  note?: string | null;
   createdAt: string;
   message?: string;
 }
@@ -2144,6 +2235,11 @@ export interface JoinLeagueBody {
   playerName: string;
   /** @nullable */
   skillLevel?: string | null;
+  /**
+   * Optional note to the organizer with a request from Discover, up to 300 characters
+   * @nullable
+   */
+  note?: string | null;
 }
 
 export type JoinLeagueResponseLeague = {
@@ -3174,6 +3270,14 @@ export interface UploadConflict {
   /** Part numbers storage doesn't have yet */
   missingParts?: number[];
 }
+
+export type ListDiscoverLeaguesParams = {
+  /**
+   * @minimum 1
+   * @maximum 30
+   */
+  radius?: number;
+};
 
 export type ListDiscoverPlayersParams = {
   /**

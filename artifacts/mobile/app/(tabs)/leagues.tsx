@@ -21,6 +21,7 @@ import {
 
 import { IconButton } from "@/components/Choice";
 import { EmptyState } from "@/components/EmptyState";
+import { discoverState } from "@/hooks/useDiscoverFilters";
 import { TabScreen } from "@/components/TabHeader";
 import { Button, Card, Chip, Pill, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
@@ -307,6 +308,11 @@ export default function LeaguesScreen() {
   };
 
   const startLeague = () => router.push("/league/new");
+  // Discover's Open leagues tab (Wave 2, Session F).
+  const findOpenLeague = () => {
+    discoverState.setTab("leagues");
+    router.push("/(tabs)/discover");
+  };
 
   return (
     <TabScreen title="Leagues" action={<IconButton symbol="plus" label="Start a league" onPress={startLeague} />}>
@@ -344,8 +350,9 @@ export default function LeaguesScreen() {
 
           {!leaguesQ.isError && leagues.length === 0 && requests.length === 0 ? (
             <View style={{ minHeight: 240, gap: spacing.space4 }}>
-              <EmptyState roundel title="No leagues yet" message="Leagues you start or join show up here." />
+              <EmptyState roundel title="No leagues yet" message="Start one for your group, or find an Open league near you and ask for a spot." />
               <Button label="Start a league" onPress={startLeague} />
+              <Button label="Find an Open league" variant="secondary" onPress={findOpenLeague} accessibilityHint="Opens Open leagues in Discover" />
             </View>
           ) : null}
 

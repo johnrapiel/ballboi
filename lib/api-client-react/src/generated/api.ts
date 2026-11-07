@@ -68,6 +68,8 @@ import type {
   DiscardResult,
   DiscoverAreaInput,
   DiscoverAvailabilityInput,
+  DiscoverLeague,
+  DiscoverLeagues,
   DiscoverMe,
   DiscoverPlayerCard,
   DiscoverPlayers,
@@ -121,6 +123,7 @@ import type {
   LeagueRoundWithMatchups,
   LeagueSchedule,
   LeagueWeek,
+  ListDiscoverLeaguesParams,
   ListDiscoverPlayersParams,
   LockMatchBody,
   LogDoublesViewBody,
@@ -370,6 +373,195 @@ export const useSaveDiscoverAvailability = <
 > => {
   return useMutation(getSaveDiscoverAvailabilityMutationOptions(options));
 };
+
+/**
+ * @summary Open leagues near you, nearest first, with a count for each distance chip
+ */
+export const getListDiscoverLeaguesUrl = (
+  params?: ListDiscoverLeaguesParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/discover/leagues?${stringifiedParams}`
+    : `/api/discover/leagues`;
+};
+
+export const listDiscoverLeagues = async (
+  params?: ListDiscoverLeaguesParams,
+  options?: RequestInit,
+): Promise<DiscoverLeagues> => {
+  return customFetch<DiscoverLeagues>(getListDiscoverLeaguesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDiscoverLeaguesQueryKey = (
+  params?: ListDiscoverLeaguesParams,
+) => {
+  return [`/api/discover/leagues`, ...(params ? [params] : [])] as const;
+};
+
+export const getListDiscoverLeaguesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDiscoverLeagues>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: ListDiscoverLeaguesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDiscoverLeagues>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListDiscoverLeaguesQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listDiscoverLeagues>>
+  > = ({ signal }) =>
+    listDiscoverLeagues(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDiscoverLeagues>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDiscoverLeaguesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDiscoverLeagues>>
+>;
+export type ListDiscoverLeaguesQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Open leagues near you, nearest first, with a count for each distance chip
+ */
+
+export function useListDiscoverLeagues<
+  TData = Awaited<ReturnType<typeof listDiscoverLeagues>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: ListDiscoverLeaguesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDiscoverLeagues>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDiscoverLeaguesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary An Open league's Discover page, and where you stand with it
+ */
+export const getGetDiscoverLeagueUrl = (leagueId: number) => {
+  return `/api/discover/leagues/${leagueId}`;
+};
+
+export const getDiscoverLeague = async (
+  leagueId: number,
+  options?: RequestInit,
+): Promise<DiscoverLeague> => {
+  return customFetch<DiscoverLeague>(getGetDiscoverLeagueUrl(leagueId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDiscoverLeagueQueryKey = (leagueId: number) => {
+  return [`/api/discover/leagues/${leagueId}`] as const;
+};
+
+export const getGetDiscoverLeagueQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDiscoverLeague>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDiscoverLeague>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetDiscoverLeagueQueryKey(leagueId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getDiscoverLeague>>
+  > = ({ signal }) =>
+    getDiscoverLeague(leagueId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!leagueId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDiscoverLeague>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDiscoverLeagueQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDiscoverLeague>>
+>;
+export type GetDiscoverLeagueQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary An Open league's Discover page, and where you stand with it
+ */
+
+export function useGetDiscoverLeague<
+  TData = Awaited<ReturnType<typeof getDiscoverLeague>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDiscoverLeague>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDiscoverLeagueQueryOptions(leagueId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Your area, hidden profile, plays, last distance and hours, for Discover
