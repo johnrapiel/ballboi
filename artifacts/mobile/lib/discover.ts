@@ -22,6 +22,7 @@ export interface DiscoverMe {
   slots: number[];
   hoursFree: number;
   freeSummary: string | null;
+  matchAlerts?: boolean;
 }
 
 export interface DiscoverPlayerRow {
@@ -530,4 +531,86 @@ export function defaultPlanStart(now: Date): Date {
   d.setDate(d.getDate() + 1);
   d.setHours(18, 0, 0, 0);
   return d;
+}
+
+// ─── Open matches (F6; brief items 38 to 46) ─────────────────────────────────
+
+export type OpenMatchTag = "your_post" | "youre_in" | "need";
+
+export interface OpenMatchCard {
+  id: number;
+  when: string;
+  detail: string;
+  where: string;
+  tags: OpenMatchTag[];
+  need: number | null;
+  spoken: string;
+}
+
+export interface OpenMatchList {
+  matches: OpenMatchCard[];
+  counts: { radius: number; count: number }[];
+  radius: number;
+  total: number;
+  needsArea: boolean;
+  matchAlerts: boolean;
+  notices: { id: number; when: string; courtName: string | null; format: string }[];
+}
+
+export interface OpenMatchPlayer {
+  userId: number;
+  name: string;
+  rating: number | null;
+  poster: boolean;
+  me: boolean;
+}
+
+export interface OpenMatchDetail {
+  id: number;
+  when: string;
+  startsAt: string;
+  endsAt: string;
+  format: "singles" | "doubles";
+  levelText: string;
+  courtName: string | null;
+  distance: string | null;
+  note: string | null;
+  status: string;
+  spots: number;
+  spotsLeft: number;
+  total: number;
+  players: OpenMatchPlayer[];
+  role: "poster" | "in" | "none";
+  started: boolean;
+  chatTitle: string;
+  matchId: number | null;
+}
+
+export interface GroupMessage {
+  id: number;
+  text: string;
+  at: string;
+  fromMe: boolean;
+  senderName: string | null;
+  senderUserId: number | null;
+}
+
+export const openMatchesPath = (radius: number) => `/api/open-matches?radius=${clampRadius(radius)}`;
+
+/** "Need 2", the doubles tag (F6). */
+export const needLabel = (n: number) => `Need ${n}`;
+
+/** "Who's in · 3 of 4". */
+export function whosInLine(m: Pick<OpenMatchDetail, "total" | "spotsLeft">): string {
+  return `Who's in · ${m.total - m.spotsLeft} of ${m.total}`;
+}
+
+/** "2 spots left. We'll open a group chat when they fill, and let you know." */
+export function waitingLine(left: number): string {
+  return `${left} ${left === 1 ? "spot" : "spots"} left. We'll open a group chat when ${left === 1 ? "it fills" : "they fill"}, and let you know.`;
+}
+
+/** The open match form's window: a start, and an end the given hours later. */
+export function windowEnd(start: Date, hours: number): Date {
+  return new Date(start.getTime() + hours * 3_600_000);
 }

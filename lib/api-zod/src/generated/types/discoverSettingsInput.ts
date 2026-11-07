@@ -16,4 +16,5 @@ export interface DiscoverSettingsInput {
    * @maximum 30
    */
   radius?: number;
+  matchAlerts?: boolean;
 }
