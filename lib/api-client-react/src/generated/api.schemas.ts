@@ -164,6 +164,8 @@ export interface DiscoverMe {
    * @nullable
    */
   freeSummary: string | null;
+  /** Alerts for new open matches near you, up to 2 a day */
+  matchAlerts: boolean;
 }
 
 /**
@@ -307,6 +309,7 @@ export interface DiscoverSettingsInput {
    * @maximum 30
    */
   radius?: number;
+  matchAlerts?: boolean;
 }
 
 export interface HomeCourt {
@@ -446,6 +449,183 @@ export type UpcomingMatchPlansMatchesItem = MatchPlan & {
 
 export interface UpcomingMatchPlans {
   matches: UpcomingMatchPlansMatchesItem[];
+}
+
+export type MyOpenMatchesMatchesItemFormat =
+  (typeof MyOpenMatchesMatchesItemFormat)[keyof typeof MyOpenMatchesMatchesItemFormat];
+
+export const MyOpenMatchesMatchesItemFormat = {
+  singles: "singles",
+  doubles: "doubles",
+} as const;
+
+export type MyOpenMatchesMatchesItem = {
+  id: number;
+  when: string;
+  format: MyOpenMatchesMatchesItemFormat;
+  /** @nullable */
+  courtName: string | null;
+  status: string;
+  spotsLeft: number;
+  total: number;
+  chatTitle: string;
+};
+
+export interface MyOpenMatches {
+  matches: MyOpenMatchesMatchesItem[];
+}
+
+export type NewOpenMatchInputFormat =
+  (typeof NewOpenMatchInputFormat)[keyof typeof NewOpenMatchInputFormat];
+
+export const NewOpenMatchInputFormat = {
+  singles: "singles",
+  doubles: "doubles",
+} as const;
+
+export type NewOpenMatchInputLevel =
+  (typeof NewOpenMatchInputLevel)[keyof typeof NewOpenMatchInputLevel];
+
+export const NewOpenMatchInputLevel = {
+  close: "close",
+  wider: "wider",
+  any: "any",
+} as const;
+
+export interface NewOpenMatchInput {
+  startsAt: string;
+  endsAt: string;
+  timeZone?: string;
+  format: NewOpenMatchInputFormat;
+  /**
+   * @minimum 1
+   * @maximum 3
+   */
+  spots?: number;
+  level?: NewOpenMatchInputLevel;
+  /** @nullable */
+  courtId?: number | null;
+  /** @nullable */
+  note?: string | null;
+}
+
+export interface OpenMatchActionInput {
+  userId?: number;
+  text?: string;
+}
+
+export type OpenMatchCardTagsItem =
+  (typeof OpenMatchCardTagsItem)[keyof typeof OpenMatchCardTagsItem];
+
+export const OpenMatchCardTagsItem = {
+  your_post: "your_post",
+  youre_in: "youre_in",
+  need: "need",
+} as const;
+
+export interface OpenMatchCard {
+  id: number;
+  when: string;
+  detail: string;
+  where: string;
+  tags: OpenMatchCardTagsItem[];
+  /** @nullable */
+  need: number | null;
+  spoken: string;
+}
+
+export type OpenMatchDetailFormat =
+  (typeof OpenMatchDetailFormat)[keyof typeof OpenMatchDetailFormat];
+
+export const OpenMatchDetailFormat = {
+  singles: "singles",
+  doubles: "doubles",
+} as const;
+
+export type OpenMatchDetailPlayersItem = {
+  userId: number;
+  name: string;
+  /** @nullable */
+  rating: number | null;
+  poster: boolean;
+  me: boolean;
+};
+
+export type OpenMatchDetailRole =
+  (typeof OpenMatchDetailRole)[keyof typeof OpenMatchDetailRole];
+
+export const OpenMatchDetailRole = {
+  poster: "poster",
+  in: "in",
+  none: "none",
+} as const;
+
+export interface OpenMatchDetail {
+  id: number;
+  when: string;
+  startsAt: string;
+  endsAt: string;
+  format: OpenMatchDetailFormat;
+  levelText: string;
+  /** @nullable */
+  courtName: string | null;
+  /** @nullable */
+  distance: string | null;
+  /** @nullable */
+  note: string | null;
+  status: string;
+  spots: number;
+  spotsLeft: number;
+  total: number;
+  players: OpenMatchDetailPlayersItem[];
+  role: OpenMatchDetailRole;
+  started: boolean;
+  chatTitle: string;
+  /** @nullable */
+  matchId: number | null;
+}
+
+export type OpenMatchListCountsItem = {
+  radius: number;
+  count: number;
+};
+
+export type OpenMatchListNoticesItem = {
+  id: number;
+  when: string;
+  /** @nullable */
+  courtName: string | null;
+  format: string;
+};
+
+export interface OpenMatchList {
+  matches: OpenMatchCard[];
+  counts: OpenMatchListCountsItem[];
+  radius: number;
+  total: number;
+  needsArea: boolean;
+  matchAlerts: boolean;
+  /** "This match filled up" for posts you were taken off */
+  notices: OpenMatchListNoticesItem[];
+}
+
+export type OpenMatchMessagesMessagesItem = {
+  id: number;
+  text: string;
+  at: string;
+  fromMe: boolean;
+  /**
+   * Null for a line from Ball Boi
+   * @nullable
+   */
+  senderName: string | null;
+  /** @nullable */
+  senderUserId: number | null;
+};
+
+export interface OpenMatchMessages {
+  open: boolean;
+  messages: OpenMatchMessagesMessagesItem[];
 }
 
 export interface NewCourtInput {
@@ -3530,6 +3710,14 @@ export type ListCourtsParams = {
    * @maxLength 60
    */
   q?: string;
+};
+
+export type ListOpenMatchesParams = {
+  /**
+   * @minimum 1
+   * @maximum 30
+   */
+  radius?: number;
 };
 
 export type ListDiscoverLeaguesParams = {

@@ -27,5 +27,6 @@ export * from "./recordingDemand";
 export * from "./courtDirectory";
 export * from "./discover";
 export * from "./matchPlans";
+export * from "./openMatches";
 export * from "./weeklyAvailability";
 export * from "./feedback";
