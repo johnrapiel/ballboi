@@ -10,4 +10,9 @@ export interface JoinLeagueBody {
   playerName: string;
   /** @nullable */
   skillLevel?: string | null;
+  /**
+   * Optional note to the organizer with a request from Discover, up to 300 characters
+   * @nullable
+   */
+  note?: string | null;
 }

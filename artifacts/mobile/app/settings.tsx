@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, View } from "react-native";
 
+import { DiscoverSettings } from "@/components/discover/DiscoverSettings";
 import { TRAINING_COPY } from "@/components/record/ConsentScreen";
 import { SettingsRow as ListSettingsRow, SettingsSection } from "@/components/SettingsList";
 import { Toggle } from "@/components/Toggle";
@@ -129,6 +130,10 @@ export default function SettingsScreen() {
           onChange={changeCellular}
         />
       ) : null}
+
+      <View style={{ marginTop: spacing.space6 }}>
+        <DiscoverSettings />
+      </View>
 
       <View style={{ marginTop: spacing.space6 }}>
         <SettingsSection title="Help">

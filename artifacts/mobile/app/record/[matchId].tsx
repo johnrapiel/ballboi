@@ -29,7 +29,7 @@ import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo
 import * as Haptics from "expo-haptics";
 import { useKeepAwake } from "expo-keep-awake";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React, { useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
@@ -719,7 +719,7 @@ export default function RecordScreen() {
             hitSlop={4}
             style={({ pressed }) => [styles.round, { opacity: pressed ? 0.7 : 1 }]}
           >
-            <SymbolView name="xmark" size={18} tintColor={chrome.text} />
+            <Icon name="xmark" size={18} tintColor={chrome.text} />
           </Pressable>
         ) : (
           // Keeps the time pill centred while recording.
@@ -731,8 +731,8 @@ export default function RecordScreen() {
           accessibilityLabel={status}
           style={[styles.pill, { flexShrink: 1 }]}
         >
-          {recording ? <SymbolView name="record.circle" size={14} tintColor={chrome.danger} /> : null}
-          {rejoining || interrupted ? <SymbolView name="pause.circle" size={14} tintColor={chrome.text} /> : null}
+          {recording ? <Icon name="record.circle" size={14} tintColor={chrome.danger} /> : null}
+          {rejoining || interrupted ? <Icon name="pause.circle" size={14} tintColor={chrome.text} /> : null}
           {/* D26: long names wrap instead of being cut off. */}
           <Text variant="bodyStrong" style={{ color: chrome.text, flexShrink: 1, textAlign: "center" }}>
             {pillText}
@@ -774,7 +774,7 @@ export default function RecordScreen() {
             {micState(micPerm) === "denied" ? (
               <View style={[styles.panel, { backgroundColor: chrome.panel, alignSelf: "stretch" }]}>
                 <View style={{ flexDirection: "row", gap: spacing.space2, alignItems: "flex-start" }} accessible>
-                  <SymbolView name="mic.slash" size={18} tintColor={chrome.text} style={{ marginTop: 2 }} />
+                  {/* mic.slash has no brush drawing yet; the title says the microphone is off. */}
                   <View style={{ flex: 1, gap: spacing.space1 }}>
                     <Text variant="bodyStrong" style={{ color: chrome.text }}>
                       {MIC_DENIED_TITLE}
@@ -792,7 +792,7 @@ export default function RecordScreen() {
                 Mount your phone on the fence behind the baseline, turned sideways, with the whole court in view.
               </Text>
               <View style={{ flexDirection: "row", gap: spacing.space2, alignItems: "flex-start" }} accessible>
-                <SymbolView name="moon.fill" size={16} tintColor={chrome.text} style={{ marginTop: 2 }} />
+                <Icon name="moon.fill" size={16} tintColor={chrome.text} style={{ marginTop: 2 }} />
                 <Text variant="small" style={{ color: chrome.text, flex: 1 }}>
                   {DND_HINT}
                 </Text>
@@ -915,7 +915,7 @@ export default function RecordScreen() {
           <View style={[styles.panel, { backgroundColor: chrome.panel, alignSelf: "stretch" }]}>
             {stopReason !== "user" && phase !== "error" ? (
               <View style={{ flexDirection: "row", gap: spacing.space2, alignItems: "center" }} accessible>
-                <SymbolView name="exclamationmark.triangle" size={16} tintColor={chrome.text} />
+                <Icon name="exclamationmark.triangle" size={16} tintColor={chrome.text} />
                 <Text variant="bodyStrong" style={{ color: chrome.text, flex: 1 }}>
                   {STOP_MESSAGES[stopReason]}
                 </Text>
