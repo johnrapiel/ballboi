@@ -41,6 +41,7 @@ export function meView(me: DiscoverMe) {
     slots: me.slots,
     hoursFree: me.slots.length,
     freeSummary: availabilitySummary(me.slots),
+    matchAlerts: me.matchAlerts ?? false,
   };
 }
 
