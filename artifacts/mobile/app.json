@@ -16,10 +16,7 @@
     },
     "ios": {
       "bundleIdentifier": "tennis.ballboi",
-      "icon": {
-        "light": "./assets/images/icon-light.png",
-        "dark": "./assets/images/icon-dark.png"
-      },
+      "icon": "./assets/images/icon-light.png",
       "supportsTablet": false,
       "config": {
         "usesNonExemptEncryption": false
