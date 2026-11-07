@@ -145,6 +145,12 @@
         }
       ],
       [
+        "expo-sensors",
+        {
+          "motionPermission": "Ball Boi checks whether your mounted phone has moved, so the court lines stay lined up while it records your match."
+        }
+      ],
+      [
         "expo-audio",
         {
           "microphonePermission": "Ball Boi listens for the sound of the ball being hit to detect shots. Audio is never played back and is deleted after your match is analyzed.",

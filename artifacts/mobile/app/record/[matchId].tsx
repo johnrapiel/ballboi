@@ -23,6 +23,19 @@
 // call rang and wasn't answered), the camera starts again on its own as soon
 // as it can: only the ringing seconds are lost. The pieces upload together
 // and are joined in order on the server.
+//
+// Court detection (Wave 2, spec: Ball Boi > Recording and Processing). While
+// setting up and counting down, the phone reads about one small frame a
+// second and finds the court lines in it (lib/court). The overlay draws what
+// it found and says in words whether the court is in frame. Record turns on
+// once the court locks, or after about 20 seconds as Record anyway. Frames
+// stop the moment capture starts: while recording, the motion sensor says
+// whether the phone has moved. After the stop, a locked court that never
+// moved goes with the match as its four corners. Otherwise the phone looks
+// once more and, if it still isn't sure, the player fixes the lines on that
+// still (CourtLineFix) or skips, and the server finds the court itself. The
+// match is in the upload queue before the fix shows, held until it's
+// answered, so a dead battery never loses it.
 
 import { useAuth } from "@clerk/expo";
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo-camera";
@@ -49,9 +62,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Checkbox } from "@/components/record/Checkbox";
 import { ChromeButton, ChromeChoice, ChromeLink } from "@/components/record/ChromeControls";
+import { CourtLineFix } from "@/components/record/CourtLineFix";
+import { CourtLines, CourtStatus, type CourtStatusText } from "@/components/record/CourtOverlay";
 import { FirstRunCarousel } from "@/components/record/FirstRunCarousel";
 import { Button, Screen, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
+import { frameStatus } from "@/lib/court/aim";
+import { calibrationFromFit, toCalibration, type CourtCalibration } from "@/lib/court/calibration";
+import { captureFrame, discard as discardStill, keepStill, releaseFrame, type CourtStill } from "@/lib/court/frame";
+import { DEFAULT_CORNERS, isCourtShape, type Corners } from "@/lib/court/geometry";
+import type { PhoneOrientation } from "@/lib/court/overlay";
+import { useCourtWatch } from "@/lib/court/useCourtWatch";
 import {
   abandonQuickMatch,
   discardOnServer,
@@ -68,7 +89,7 @@ import { LOW_BATTERY_START_MESSAGE } from "@/lib/recording/limits";
 import { firstRunPages, type FirstRunPage } from "@/lib/recording/firstRun";
 import { MIC_DENIED_BODY, MIC_DENIED_TITLE, micState } from "@/lib/recording/permissions";
 import { loadHideSetup } from "@/lib/recording/prefs";
-import { enqueue, getQueue } from "@/lib/recording/queue";
+import { enqueue, getQueue, updateQueued } from "@/lib/recording/queue";
 import {
   batteryBlocksStart,
   hasRoomToStart,
@@ -100,6 +121,8 @@ type Phase =
   | "interrupted"
   | "saving"
   | "deciding"
+  /** The phone wasn't sure where the court is: the player fixes the lines. */
+  | "courtFix"
   | "error";
 
 /** A stop you chose under this many seconds asks "Keep this recording?" first (#79 note, D1). */
@@ -108,10 +131,12 @@ const SHORT_RECORDING_SECONDS = 2 * 60;
 const MIN_PIECE_MS = 1500;
 /** After Resume recording, how long to keep trying while the camera comes back. */
 const RESUME_GIVE_UP_MS = 10_000;
-/** Room the ready screen keeps for the top bar, Record button and a status line, outside its scrolling panels. */
-const READY_RESERVED = 250;
+/** Room the ready screen keeps for the top bar, the court status, Record button and a hint line, outside its scrolling panels. */
+const READY_RESERVED = 310;
 /** Within this many seconds of the 4-hour cap counts as reaching it. */
 const CAP_SLACK_SECONDS = 5;
+/** Longest wait for the camera's look at the court after the stop. */
+const FRAME_TIMEOUT_MS = 3000;
 
 export const DND_HINT = "Put your phone on Do Not Disturb before you hit record so the video isn't interrupted.";
 
@@ -146,7 +171,7 @@ interface Piece {
 export default function RecordScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const params = useLocalSearchParams<{ matchId: string; opponent?: string; league?: string }>();
   const matchId = Number(params.matchId);
   const opponent = params.opponent ?? "your opponent";
@@ -192,11 +217,40 @@ export default function RecordScreen() {
   const [introDone, setIntroDone] = useState(false);
   /** "Setup tips" on the ready screen: the setup page on its own. */
   const [tipsOpen, setTipsOpen] = useState(false);
+  /** How the mounted phone is held, for drawing the court over the preview. */
+  const [orientation, setOrientation] = useState<PhoneOrientation>("portrait");
+  /** The court corners when recording started from a lock, or null. */
+  const lockedAtStart = useRef<CourtCalibration | null>(null);
+  /** The still for the court-line fix, and where its handles start. */
+  const [fixStill, setFixStill] = useState<CourtStill | null>(null);
+  const [fixStart, setFixStart] = useState<Corners>(DEFAULT_CORNERS);
+  const fixAnswer = useRef<((c: CourtCalibration | null) => void) | null>(null);
+  /** The setup frame saved as a still when recording started without a lock. */
+  const setupStill = useRef<Promise<CourtStill | null> | null>(null);
 
   const setPhase = (p: Phase) => {
     phaseRef.current = p;
     setPhaseState(p);
   };
+
+  // The court check: frames while setting up and counting down, the motion
+  // sensor the whole time the camera is open.
+  const court = useCourtWatch(
+    camera,
+    cameraReady && !tipsOpen && (phase === "ready" || phase === "countdown"),
+    true,
+    {
+      // VoiceOver hears the two moments that change what a player can do.
+      onLocked: () => AccessibilityInfo.announceForAccessibility("Court locked. Record is on."),
+      onRecordAnyway: () => {
+        if (courtRef.current.lock.stage !== "locked") {
+          AccessibilityInfo.announceForAccessibility("Record anyway is on. You can fix the court lines after.");
+        }
+      },
+    },
+  );
+  const courtRef = useRef(court);
+  courtRef.current = court;
 
   // The mounted phone must never auto-lock: iOS stops the camera when it does.
   useKeepAwake();
@@ -214,6 +268,8 @@ export default function RecordScreen() {
       mounted.current = false;
       stopVoice();
       if (captionTimer.current) clearTimeout(captionTimer.current);
+      // Leaving mid-fix: the match uploads without corners, and the server finds the court.
+      fixAnswer.current?.(null);
     };
   }, []);
 
@@ -507,6 +563,9 @@ export default function RecordScreen() {
     setError(null);
     let retryingSince: number | null = retryMs > 0 ? Date.now() : null;
     let retryLimit = retryMs;
+    if (segments.current.length === 0) noteCourtAtStart();
+    // A court-check photo still being taken finishes first, so it never lands in the video.
+    await Promise.race([courtRef.current.idle(), sleep(FRAME_TIMEOUT_MS)]);
     try {
       while (mounted.current) {
         const left = remainingSeconds(segments.current, MAX_RECORDING_SECONDS);
@@ -569,6 +628,61 @@ export default function RecordScreen() {
     }
   }
 
+  /**
+   * Just before the first piece: a locked court becomes the match's corners,
+   * and the newest setup frame is kept in case the court-line fix needs it.
+   */
+  function noteCourtAtStart() {
+    const c = courtRef.current;
+    lockedAtStart.current = c.lock.stage === "locked" ? calibrationFromFit(c.lock.lockedFit) : null;
+    const frame = c.latestFrame.current;
+    if (!lockedAtStart.current && frame && !setupStill.current) {
+      setupStill.current = keepStill(frame);
+    }
+  }
+
+  /**
+   * The match's court corners after the stop: the lock from setup if the
+   * phone never moved, or a fresh look now. When the phone still isn't sure,
+   * returns the still for the court-line fix. A battery stop has no time for
+   * a question, so the server finds the court.
+   */
+  async function settleCourt(reason: StopReason): Promise<{ calibration: CourtCalibration | null; still: CourtStill | null; start: Corners }> {
+    const none = { calibration: null, still: null, start: DEFAULT_CORNERS };
+    if (lockedAtStart.current && !courtRef.current.movedSinceLock) {
+      return { ...none, calibration: lockedAtStart.current };
+    }
+    const frame = await Promise.race([captureFrame(camera.current), sleep(FRAME_TIMEOUT_MS).then(() => null)]);
+    try {
+      const found = frame ? calibrationFromFit(frame.fit) : null;
+      if (found) return { ...none, calibration: found };
+      if (reason === "battery" || !mounted.current) return none;
+      const still = frame ? await keepStill(frame) : await (setupStill.current ?? Promise.resolve(null));
+      if (!still) return none;
+      const start = frame?.fit && isCourtShape(frame.fit.corners) ? frame.fit.corners : DEFAULT_CORNERS;
+      return { calibration: null, still, start };
+    } finally {
+      releaseFrame(frame);
+    }
+  }
+
+  /** Shows the court-line fix and waits for Save or Skip. */
+  function askCourtFix(still: CourtStill, start: Corners): Promise<CourtCalibration | null> {
+    return new Promise((resolve) => {
+      fixAnswer.current = resolve;
+      setFixStart(start);
+      setFixStill(still);
+      setPhase("courtFix");
+    });
+  }
+
+  function answerCourtFix(corners: Corners | null) {
+    const resolve = fixAnswer.current;
+    fixAnswer.current = null;
+    setPhase("saving");
+    resolve?.(corners ? toCalibration(corners, "phone-fixed") : null);
+  }
+
   function stop(reason: StopReason = "user") {
     stopRequested.current = true;
     reasonRef.current = reason;
@@ -614,6 +728,8 @@ export default function RecordScreen() {
       if ((await askKeepOrDiscard(joined.durationSeconds)) === "discard") {
         for (const p of pieces) deleteRecording(p.uri);
         segments.current = [];
+        setupStill.current?.then((st) => discardStill(st?.uri));
+        setupStill.current = null;
         // No session exists yet. A Quick match only existed for this
         // recording, so it goes too (Q18); league matches stay. Sent in the
         // background so a weak signal never leaves you stuck on the camera.
@@ -628,7 +744,11 @@ export default function RecordScreen() {
       }
       setPhase("saving");
     }
-    // Into the upload queue: Wi-Fi by default, kept on the phone until the server confirms.
+    // The court's corners: from the lock, a fresh look, or the player's fix.
+    const settled = await settleCourt(reason);
+    // Into the upload queue: Wi-Fi by default, kept on the phone until the
+    // server confirms. Held while the court-line fix is open, so the corners
+    // go with the match; saved first, so the match is safe either way.
     await enqueue({
       id,
       matchId,
@@ -640,7 +760,22 @@ export default function RecordScreen() {
       segments: pieces,
       leagueId,
       ...(opponentAgreedAt ? { opponentAgreedAt } : {}),
+      courtCalibration: settled.calibration,
+      courtLinesPending: settled.still !== null,
     });
+    if (settled.still) {
+      const fixed = await askCourtFix(settled.still, settled.start);
+      await updateQueued(id, { courtCalibration: fixed, courtLinesPending: false });
+      discardStill(settled.still.uri);
+    }
+    setupStill.current?.then((st) => {
+      if (st && st.uri !== settled.still?.uri) discardStill(st.uri);
+    });
+    setupStill.current = null;
+    if (!mounted.current) {
+      drainQueue();
+      return;
+    }
     drainQueue();
     AccessibilityInfo.announceForAccessibility("Match saved. It uploads on Wi-Fi.");
     // Straight to the score prompt; the stop message carries over.
@@ -676,7 +811,34 @@ export default function RecordScreen() {
   // B10: an opponent who isn't on Ball Boi must have agreed before Start turns on.
   const needsAgreement = !!filming.data?.needsOpponentAgreement;
   const agreementMissing = needsAgreement && !opponentAgreedAt;
-  const startOff = !cameraReady || agreementMissing;
+  // Record turns on once the court locks, or after about 20 seconds as Record anyway.
+  const courtLocked = court.lock.stage === "locked";
+  const courtReady = courtLocked || court.recordAnyway;
+  const startOff = !cameraReady || agreementMissing || !courtReady;
+  const setupStatus: CourtStatusText = frameStatus(court.lock.stage, court.step);
+  // While recording there are no frames: the motion sensor says if the phone moved (G1).
+  const recordingStatus: CourtStatusText = lockedAtStart.current
+    ? court.movedSinceLock
+      ? "Phone moved"
+      : "Court in frame"
+    : "Court not locked";
+  const recordLabel = courtLocked ? "Record" : "Record anyway";
+  const startHint = agreementMissing
+    ? "Check the box above to start."
+    : !courtReady
+      ? "Line up the court first. Record anyway turns on after about 20 seconds."
+      : DND_HINT;
+
+  if (phase === "courtFix" && fixStill) {
+    return (
+      <CourtLineFix
+        still={fixStill}
+        initial={fixStart}
+        onDone={(corners) => answerCourtFix(corners)}
+        onSkip={() => answerCourtFix(null)}
+      />
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: chrome.ground }}>
@@ -692,11 +854,23 @@ export default function RecordScreen() {
         // The app is portrait-only, but a fence-mounted phone is usually
         // sideways. Record in whichever way the phone is actually held.
         responsiveOrientationWhenOrientationLocked
+        onResponsiveOrientationChanged={(e) => {
+          const o = e.orientation;
+          if (o === "portrait" || o === "portraitUpsideDown" || o === "landscapeLeft" || o === "landscapeRight") {
+            setOrientation(o);
+          }
+        }}
+        // The court check's frames are silent, with no screen flash.
+        animateShutter={false}
         onCameraReady={() => setCameraReady(true)}
         accessible={false}
         importantForAccessibility="no-hide-descendants"
         accessibilityElementsHidden
       />
+
+      {phase === "ready" || counting ? (
+        <CourtLines fit={court.fit} locked={courtLocked} orientation={orientation} width={width} height={height} />
+      ) : null}
 
       <View
         pointerEvents="box-none"
@@ -740,6 +914,13 @@ export default function RecordScreen() {
         </View>
         <View style={{ width: MIN_TAP }} pointerEvents="none" />
       </View>
+
+      {/* G1: whether the court is in frame, in words and an icon, under the top bar. */}
+      {phase === "ready" || counting || recording || rejoining ? (
+        <View pointerEvents="none" style={{ position: "absolute", top: insets.top + spacing.space2 + MIN_TAP + spacing.space2, left: spacing.space4, right: spacing.space4 }}>
+          <CourtStatus status={phase === "ready" || counting ? setupStatus : recordingStatus} />
+        </View>
+      ) : null}
 
       {/* D24: every spoken cue also shows as text, for at least 2 seconds. */}
       {caption && !counting ? (
@@ -837,11 +1018,23 @@ export default function RecordScreen() {
                   Check the box above to start.
                 </Text>
               </View>
+            ) : !courtReady ? (
+              <View style={[styles.pill]}>
+                <Text variant="small" style={{ color: chrome.text, textAlign: "center" }}>
+                  Record turns on when the court locks.
+                </Text>
+              </View>
+            ) : !courtLocked ? (
+              <View style={[styles.pill]}>
+                <Text variant="small" style={{ color: chrome.text, textAlign: "center" }}>
+                  Record anyway. You can fix the court lines after.
+                </Text>
+              </View>
             ) : null}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={delay === 0 ? "Record" : `Start ${delay} minute countdown`}
-              accessibilityHint={agreementMissing ? "Check the box above to start." : DND_HINT}
+              accessibilityLabel={delay === 0 ? recordLabel : `${courtLocked ? "Start" : "Start anyway,"} ${delay} minute countdown`}
+              accessibilityHint={startHint}
               accessibilityState={{ disabled: startOff }}
               disabled={startOff}
               onPress={pressStart}

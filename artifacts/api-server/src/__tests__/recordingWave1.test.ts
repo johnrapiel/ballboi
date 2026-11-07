@@ -202,6 +202,37 @@ describe("D3: who can record a match", () => {
     expect(rows.sessions[0].metadata).toEqual({ source: "ios" });
   });
 
+  it("keeps the court corners the phone found or the player fixed (Wave 2 court detection)", async () => {
+    const points = [
+      { x: 0.1, y: 0.93 },
+      { x: 0.9, y: 0.93 },
+      { x: 0.63, y: 0.3 },
+      { x: 0.37, y: 0.3 },
+    ];
+    const pointOrder = ["Near left baseline", "Near right baseline", "Far right baseline", "Far left baseline"];
+    await supertest(app)
+      .post("/api/ball-boi/matches/20/sessions/start")
+      .send({ metadata: { source: "ios", courtCalibration: { version: 1, pointOrder, points, source: "phone-detected", confidence: 0.7, extra: "dropped" } } });
+    expect(rows.sessions[0].metadata).toEqual({
+      source: "ios",
+      courtCalibration: { version: 1, pointOrder, points, source: "phone-detected", confidence: 0.7 },
+    });
+  });
+
+  it("drops court corners that can't be a court", async () => {
+    const pointOrder = ["Near left baseline", "Near right baseline", "Far right baseline", "Far left baseline"];
+    const crossed = [
+      { x: 0.1, y: 0.93 },
+      { x: 0.9, y: 0.93 },
+      { x: 0.37, y: 0.3 },
+      { x: 0.63, y: 0.3 },
+    ];
+    await supertest(app)
+      .post("/api/ball-boi/matches/20/sessions/start")
+      .send({ metadata: { source: "ios", courtCalibration: { version: 1, pointOrder, points: crossed } } });
+    expect(rows.sessions[0].metadata).toEqual({ source: "ios" });
+  });
+
   it("dates the session from when the match was recorded (D19)", async () => {
     const yesterday = new Date(now.getTime() - 20 * 60 * 60 * 1000).toISOString();
     await supertest(app).post("/api/ball-boi/matches/20/sessions/start").send({ recordedAt: yesterday });

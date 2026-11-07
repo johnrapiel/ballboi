@@ -73,6 +73,8 @@ export async function drainQueue(): Promise<void> {
       const cellularOn = await loadUploadOnCellular();
       for (const rec of getQueue()) {
         if (rec.state === "uploading" || discarding.has(rec.id)) continue;
+        // The player is still fixing the court lines for this match.
+        if (rec.courtLinesPending) continue;
         // Cleared meanwhile (sign-out or Delete account).
         if (!getQueue().some((r) => r.id === rec.id)) continue;
         // A failed upload tries again on the next trigger (Wi-Fi back, app reopened), not in a tight loop.
