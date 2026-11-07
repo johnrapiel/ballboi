@@ -85,7 +85,7 @@ export function useSetDiscoverArea() {
 }
 
 export function useSaveDiscoverSettings() {
-  return useSaveMe<{ hidden?: boolean; plays?: Plays | null; radius?: number }>(
+  return useSaveMe<{ hidden?: boolean; plays?: Plays | null; radius?: number; matchAlerts?: boolean }>(
     "/api/discover/settings",
     "PUT",
     (v) => v,

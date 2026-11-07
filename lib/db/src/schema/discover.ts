@@ -27,6 +27,8 @@ export const discoverProfilesTable = pgTable(
     areaLatitude: real("area_latitude"),
     areaLongitude: real("area_longitude"),
     /** Optional home court from the court directory, shown on the player card (migration 20261108_f_court_directory.sql). */
+    /** "Alerts for new posts": open matches near you that fit your level, up to 2 a day (migration 20261108_f_open_matches.sql). */
+    matchAlerts: boolean("match_alerts").notNull().default(false),
     homeCourtId: integer("home_court_id").references(() => directoryCourtsTable.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
