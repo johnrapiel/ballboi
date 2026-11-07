@@ -5261,19 +5261,57 @@ export const GetRecordingConsentResponse = zod.object({
   consented: zod.boolean(),
   consentedAt: zod.string().nullable().describe("ISO 8601 date and time"),
   trainingEnabled: zod.boolean(),
+  release: zod
+    .object({
+      required: zod.boolean().describe("The server setting is on"),
+      version: zod.number().describe("The current release version"),
+      url: zod.string(),
+      agreedVersion: zod.number().nullable(),
+      agreedAt: zod.string().nullable().describe("ISO 8601 date and time"),
+      needed: zod
+        .boolean()
+        .describe(
+          "Show the release checkbox, unchecked, before the next recording",
+        ),
+    })
+    .describe(
+      "The Ball Boi Beta Footage Release. Only asked for while the server's BETA_RELEASE_REQUIRED setting is on.",
+    ),
 });
 
 /**
- * @summary Agree to recording on the first-recording screen, with the training choice
+ * @summary Agree to recording on the first-recording carousel, with the training choice and, while it's asked for, the beta release
  */
 export const GiveRecordingConsentBody = zod.object({
   trainingEnabled: zod.boolean(),
+  releaseVersion: zod
+    .number()
+    .optional()
+    .describe(
+      "The release version the person agreed to by checking the box. Required while the release is needed.",
+    ),
 });
 
 export const GiveRecordingConsentResponse = zod.object({
   consented: zod.boolean(),
   consentedAt: zod.string().nullable().describe("ISO 8601 date and time"),
   trainingEnabled: zod.boolean(),
+  release: zod
+    .object({
+      required: zod.boolean().describe("The server setting is on"),
+      version: zod.number().describe("The current release version"),
+      url: zod.string(),
+      agreedVersion: zod.number().nullable(),
+      agreedAt: zod.string().nullable().describe("ISO 8601 date and time"),
+      needed: zod
+        .boolean()
+        .describe(
+          "Show the release checkbox, unchecked, before the next recording",
+        ),
+    })
+    .describe(
+      "The Ball Boi Beta Footage Release. Only asked for while the server's BETA_RELEASE_REQUIRED setting is on.",
+    ),
 });
 
 /**
@@ -5287,6 +5325,22 @@ export const SetRecordingTrainingResponse = zod.object({
   consented: zod.boolean(),
   consentedAt: zod.string().nullable().describe("ISO 8601 date and time"),
   trainingEnabled: zod.boolean(),
+  release: zod
+    .object({
+      required: zod.boolean().describe("The server setting is on"),
+      version: zod.number().describe("The current release version"),
+      url: zod.string(),
+      agreedVersion: zod.number().nullable(),
+      agreedAt: zod.string().nullable().describe("ISO 8601 date and time"),
+      needed: zod
+        .boolean()
+        .describe(
+          "Show the release checkbox, unchecked, before the next recording",
+        ),
+    })
+    .describe(
+      "The Ball Boi Beta Footage Release. Only asked for while the server's BETA_RELEASE_REQUIRED setting is on.",
+    ),
 });
 
 /**
