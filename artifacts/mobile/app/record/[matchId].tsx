@@ -1066,12 +1066,9 @@ export default function RecordScreen() {
               AccessibilityInfo.announceForAccessibility(next ? "Voice coach off" : "Voice coach on");
             }}
             hitSlop={4}
-            style={({ pressed }) => [styles.round, { width: undefined, minWidth: MIN_TAP, paddingHorizontal: spacing.space3, opacity: pressed ? 0.7 : 1 }]}
+            style={({ pressed }) => [styles.round, { opacity: pressed ? 0.7 : 1 }]}
           >
-            {/* speaker.wave.2.fill and speaker.slash.fill have no brush drawings yet, so the button says it in words. */}
-            <Text variant="small" style={{ color: chrome.text }} importantForAccessibility="no" accessibilityElementsHidden>
-              {muted ? "Voice off" : "Voice on"}
-            </Text>
+            <Icon name={muted ? "speaker.slash.fill" : "speaker.wave.2.fill"} size={18} tintColor={chrome.text} />
           </Pressable>
         ) : (
           <View style={{ width: MIN_TAP }} pointerEvents="none" />
@@ -1085,8 +1082,8 @@ export default function RecordScreen() {
           style={{ position: "absolute", top: insets.top + spacing.space2 + MIN_TAP + spacing.space2, left: spacing.space4, right: spacing.space4, gap: spacing.space2 }}
         >
           <CourtStatus status={phase === "ready" || counting ? setupStatus : recordingStatus} />
-          {recording && warnings.battery ? <WarningPill text={BATTERY_WARNING} /> : null}
-          {recording && warnings.storage ? <WarningPill text={STORAGE_WARNING} /> : null}
+          {recording && warnings.battery ? <WarningPill text={BATTERY_WARNING} symbol="battery.25" /> : null}
+          {recording && warnings.storage ? <WarningPill text={STORAGE_WARNING} symbol="externaldrive.badge.exclamationmark" /> : null}
         </View>
       ) : null}
 
@@ -1124,7 +1121,7 @@ export default function RecordScreen() {
             {micState(micPerm) === "denied" ? (
               <View style={[styles.panel, { backgroundColor: chrome.panel, alignSelf: "stretch" }]}>
                 <View style={{ flexDirection: "row", gap: spacing.space2, alignItems: "flex-start" }} accessible>
-                  {/* mic.slash has no brush drawing yet; the title says the microphone is off. */}
+                  <Icon name="mic.slash" size={18} tintColor={chrome.text} style={{ marginTop: 2 }} />
                   <View style={{ flex: 1, gap: spacing.space1 }}>
                     <Text variant="bodyStrong" style={{ color: chrome.text }}>
                       {MIC_DENIED_TITLE}
@@ -1303,14 +1300,11 @@ export default function RecordScreen() {
   );
 }
 
-/**
- * A warning while recording, in words, never color alone. The battery.25 and
- * externaldrive.badge.exclamationmark icons have no brush drawings yet, so
- * the pill shows the words alone until they are drawn.
- */
-function WarningPill({ text }: { text: string }) {
+/** A warning while recording: an icon and the words, never color alone. */
+function WarningPill({ text, symbol }: { text: string; symbol: "battery.25" | "externaldrive.badge.exclamationmark" }) {
   return (
     <View accessible accessibilityRole="text" accessibilityLabel={text} style={[styles.pill, { alignSelf: "center" }]}>
+      <Icon name={symbol} size={16} tintColor={chrome.text} />
       <Text variant="bodyStrong" style={{ color: chrome.text, flexShrink: 1 }}>
         {text}
       </Text>
