@@ -12,7 +12,7 @@ import { ActivityIndicator, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
-import { ANALYZING_DETAIL, FAILED_TITLE } from "@/components/record/ProcessingCard";
+import { FAILED_TITLE, UPLOADED_DETAIL, UPLOADED_TITLE } from "@/components/record/ProcessingCard";
 import { Button } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -60,22 +60,11 @@ export default function ReplayScreen() {
         message="You can remove it from Your recordings on the Ball Boi tab."
       />
     );
-  } else if (data.session.processingStatus !== "completed") {
-    body = (
-      <EmptyState
-        symbol="hourglass"
-        title="Analyzing"
-        message={ANALYZING_DETAIL}
-      />
-    );
   } else {
-    body = (
-      <EmptyState
-        symbol="sportscourt"
-        title="Replay is coming"
-        message="Ball Boi has analyzed this match. The replay will show here in an upcoming update."
-      />
-    );
+    // Spec decision 88 (B5): no stat has passed its accuracy bar and the
+    // simulated replay isn't built, so analyzing and analyzed both say the
+    // match is saved and stats come later. Never "Analyzing".
+    body = <EmptyState symbol="checkmark.circle" title={UPLOADED_TITLE} message={UPLOADED_DETAIL} />;
   }
 
   return (

@@ -5507,6 +5507,11 @@ export const GetMyRecordingsResponseItem = zod.object({
     .describe(
       "The short reason shown on a failed card; null unless stage is failed",
     ),
+  stillLearning: zod
+    .boolean()
+    .describe(
+      'Analyzing or done, but no stat has passed its accuracy bar yet, so the card reads \"Uploaded\" instead of \"Analyzing\" or \"Replay is ready\"',
+    ),
 });
 export const GetMyRecordingsResponse = zod.array(GetMyRecordingsResponseItem);
 

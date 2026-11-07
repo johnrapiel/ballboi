@@ -38,6 +38,13 @@ import { discardQueued, retryUpload, uploadNowOnCellular } from "@/lib/recording
 
 /** Shown while analyzing, on the card and on the Replay screen (D12). */
 export const ANALYZING_DETAIL = "Check back here for your replay.";
+/**
+ * After upload, while no stat has passed its accuracy bar (spec decision 88,
+ * B5). Replaces "Analyzing" and "Replay is ready" until stats exist.
+ */
+export const UPLOADED_TITLE = "Uploaded";
+export const UPLOADED_DETAIL =
+  "Thanks. Ball Boi's shot tracking is still learning, so stats and your replay come in a later update. Your match is saved.";
 /** Shown when analysis can't finish, on the card and on the Replay screen (Q16). */
 export const FAILED_TITLE = "Ball Boi couldn't analyze this match";
 
@@ -81,6 +88,9 @@ function serverStatus(rec: ServerRecording, lost: boolean): Status {
       text: "Didn't upload",
       detail: "The video isn't on this phone anymore, so Ball Boi can't analyze this match.",
     };
+  }
+  if (rec.stillLearning && (rec.stage === "analyzing" || rec.stage === "ready")) {
+    return { symbol: "checkmark.circle", text: UPLOADED_TITLE, detail: UPLOADED_DETAIL };
   }
   switch (rec.stage) {
     case "uploading":
@@ -252,7 +262,7 @@ export function ServerProcessingCard({ rec, lost = false }: { rec: ServerRecordi
   const status = serverStatus(rec, lost);
   const canRemove = lost || rec.stage === "failed";
   const needsScore = rec.leagueId === null && !rec.scoreEntered && !lost;
-  const ready = rec.stage === "ready" && !lost;
+  const ready = rec.stage === "ready" && !lost && !rec.stillLearning;
 
   const remove = async () => {
     setRemoving(true);

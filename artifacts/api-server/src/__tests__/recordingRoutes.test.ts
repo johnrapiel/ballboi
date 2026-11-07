@@ -247,3 +247,18 @@ describe("phone session metadata (B10)", () => {
     expect(publicSession({ metadata: { opponentAgreedAt: "t", statGates: {} } }).metadata).toEqual({ opponentAgreedAt: "t" });
   });
 });
+
+describe("stillLearning (B5)", () => {
+  it("reads Uploaded until a stat has passed its bar", async () => {
+    const { stillLearning } = await import("../routes/recording.js");
+    const shown = { statGates: { stats: { rally_length: { shown: true } } } };
+    const none = { statGates: { stats: { rally_length: { shown: false } } } };
+    expect(stillLearning("ready", none, false)).toBe(true);
+    expect(stillLearning("ready", {}, true)).toBe(true);
+    expect(stillLearning("ready", shown, false)).toBe(false);
+    expect(stillLearning("analyzing", {}, false)).toBe(true);
+    expect(stillLearning("analyzing", {}, true)).toBe(false);
+    expect(stillLearning("uploading", {}, false)).toBe(false);
+    expect(stillLearning("failed", {}, false)).toBe(false);
+  });
+});

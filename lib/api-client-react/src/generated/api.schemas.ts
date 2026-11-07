@@ -2955,6 +2955,8 @@ export interface RecordingListItem {
    * @nullable
    */
   failedReason: string | null;
+  /** Analyzing or done, but no stat has passed its accuracy bar yet, so the card reads "Uploaded" instead of "Analyzing" or "Replay is ready" */
+  stillLearning: boolean;
 }
 
 export interface DiscardResult {

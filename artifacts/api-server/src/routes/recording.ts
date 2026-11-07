@@ -11,7 +11,7 @@ import {
   playersTable,
   playoffBracketsTable,
 } from "@workspace/db";
-import { and, desc, eq, gte, inArray, isNull, ne, or } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import pino from "pino";
 import {
   isRecordableNow,
@@ -26,6 +26,7 @@ import {
 import { planDiscard } from "../lib/recordingDiscard";
 import { ANALYSIS_MAX_RETRIES, failureReason, retryPending } from "../lib/analysisFailure";
 import { deleteSessionFiles } from "../lib/sessionFiles";
+import { shownStats } from "../lib/statGates";
 
 // Ball Boi recording: the matches a player can record now.
 // Spec: Ball Boi > Recording ("Every recording starts from a match").
@@ -142,6 +143,49 @@ router.get("/recording/todays-matches", requireAuth, async (req: Request, res: R
   }
 });
 
+/**
+ * Spec decision 88 (B5): while no stat has passed its accuracy bar, a
+ * recording that's analyzing or done reads "Uploaded" with a thank-you, not
+ * "Analyzing" or "Replay is ready". A finished session knows from its own
+ * statGates. One still analyzing goes by the newest finished analysis: if
+ * that one showed no stat, nothing has passed yet.
+ */
+export function stillLearning(
+  stage: string,
+  sessionMetadata: unknown,
+  latestShowsStats: boolean,
+): boolean {
+  if (stage === "ready") return shownStats(sessionMetadata).size === 0;
+  if (stage === "analyzing") return !latestShowsStats;
+  return false;
+}
+
+const LATEST_GATES_TTL_MS = 10 * 60 * 1000;
+let latestGates: { at: number; showsStats: boolean } | null = null;
+
+/** Did the newest finished analysis show any stat? Cached for 10 minutes; errors count as no. */
+async function latestShowsStats(): Promise<boolean> {
+  if (latestGates && Date.now() - latestGates.at < LATEST_GATES_TTL_MS) return latestGates.showsStats;
+  try {
+    const [row] = await db
+      .select({ metadata: ballBoiSessionsTable.metadata })
+      .from(ballBoiSessionsTable)
+      .where(and(eq(ballBoiSessionsTable.status, "completed"), sql`${ballBoiSessionsTable.metadata}->'statGates' is not null`))
+      .orderBy(desc(ballBoiSessionsTable.updatedAt))
+      .limit(1);
+    latestGates = { at: Date.now(), showsStats: !!row && shownStats(row.metadata).size > 0 };
+  } catch (err) {
+    logger.warn({ err }, "Couldn't read the latest stat gates; treating stats as not ready");
+    return false;
+  }
+  return latestGates.showsStats;
+}
+
+/** For tests. */
+export function resetLatestGatesCache() {
+  latestGates = null;
+}
+
 /** How far back the Ball Boi tab lists your recordings. */
 const RECENT_DAYS = 60;
 const RECENT_LIMIT = 30;
@@ -218,11 +262,16 @@ router.get("/recording/sessions", requireAuth, async (req: Request, res: Respons
       : [];
     const names = Object.fromEntries(players.map((p) => [p.id, p.name]));
     const byId = new Map(matches.map((m) => [m.id, m]));
+    const stages = new Map(
+      sessions.map((s) => [s.id, recordingStage(s.status, s.processingStatus, retryPending(s, ANALYSIS_MAX_RETRIES))]),
+    );
+    const anyAnalyzing = [...stages.values()].some((st) => st === "analyzing");
+    const latest = anyAnalyzing ? await latestShowsStats() : false;
     res.json(
       sessions.map((s) => {
         const m = byId.get(s.matchId);
         const described = m ? toRecordableMatch(m, myIds, names, {}) : null;
-        const stage = recordingStage(s.status, s.processingStatus, retryPending(s, ANALYSIS_MAX_RETRIES));
+        const stage = stages.get(s.id)!;
         const recordedAt = s.recordingStartedAt ?? s.createdAt;
         return {
           sessionId: s.id,
@@ -235,6 +284,7 @@ router.get("/recording/sessions", requireAuth, async (req: Request, res: Respons
           scoreEntered: !!m?.score,
           recordedByYou: s.recordedByClerkUserId === userId,
           failedReason: stage === "failed" ? failureReason(s.processingError) : null,
+          stillLearning: stillLearning(stage, s.metadata, latest),
         };
       }),
     );
