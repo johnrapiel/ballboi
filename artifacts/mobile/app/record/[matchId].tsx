@@ -955,7 +955,7 @@ export default function RecordScreen() {
             {micState(micPerm) === "denied" ? (
               <View style={[styles.panel, { backgroundColor: chrome.panel, alignSelf: "stretch" }]}>
                 <View style={{ flexDirection: "row", gap: spacing.space2, alignItems: "flex-start" }} accessible>
-                  {/* mic.slash has no brush drawing yet; the title says the microphone is off. */}
+                  <Icon name="mic.slash" size={18} tintColor={chrome.text} style={{ marginTop: 2 }} />
                   <View style={{ flex: 1, gap: spacing.space1 }}>
                     <Text variant="bodyStrong" style={{ color: chrome.text }}>
                       {MIC_DENIED_TITLE}
