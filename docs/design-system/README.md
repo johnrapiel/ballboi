@@ -131,7 +131,7 @@ The tab bar uses the custom brush icon set John approved (Nov 5): hand-drawn Hom
 The roundel is the wordmark. `assets/Logos/ball-boi-roundel.png` is the painted original on paper, for print and marketing. In the app use the transparent traces: `ball-boi-roundel-ink.svg` by day, `ball-boi-roundel-white.svg` at night. Show it at 40px minimum. Do not recolor, outline or place it on photos.
 
 Where it appears:
-- Splash, Welcome, the marketing site and App Store screenshots
+- Splash, Welcome, the marketing site and App Store screenshots. On the splash it sits alone on `paper`. On Welcome the roundel, headline and subline are one group, centred between the status bar and the first button (John, Nov 6)
 - At 44px in place of the Home tab header's title, left aligned on the row with Messages, with no date or greeting, once Home has something to show. The brushstroke in ink by day; at night the brushstroke alone in white, with no paper fill (John, Nov 6)
 - Player-facing empty states on the main tabs (Home, Leagues, Discover), at 120px in place of the symbol. On Home it appears here only while there's nothing to show yet, and the header then has no roundel, so it's never on screen twice (John, Nov 6, finding 27)
 - Behind the badge in milestone moments (first win, first Ball Boi match, 5- and 10-match win streaks)
@@ -140,7 +140,7 @@ Where it appears:
 
 Inside the app it's decorative: the screen's title or text carries the meaning, so VoiceOver skips it. In Night session it drops its paper fill: just the brushstroke, in white.
 
-The app icon (`assets/Logos/ball-boi-app-icon.png`) is the symbol: the hand-painted ball in white (`on-ink`) on an `ink` tile with a faint paper grain. No wordmark in the icon; iOS prints the name beneath it.
+The app icon (`assets/Logos/ball-boi-app-icon.png`) is the symbol: the hand-painted ball in `ink` on a white tile, to match the ivory Day palette (John, Nov 6). In iOS Dark Mode the home screen shows the dark variant (`assets/Logos/ball-boi-app-icon-dark.png`): the ball in white on an `ink` tile. No wordmark in the icon; iOS prints the name beneath it.
 
 ## Applying it to the app
 
