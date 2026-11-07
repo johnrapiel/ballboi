@@ -1,4 +1,4 @@
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
@@ -49,7 +49,7 @@ function PlayerLine({ p, won, me }: { p: BracketSeed | null; won: boolean; me: b
       </View>
       {won ? (
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space1 }}>
-          <SymbolView name="checkmark" size={12} tintColor={c.ink} />
+          <Icon name="checkmark" size={12} tintColor={c.ink} />
           <Text variant="section">Won</Text>
         </View>
       ) : null}

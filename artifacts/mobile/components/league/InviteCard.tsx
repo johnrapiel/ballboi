@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { SymbolView, type SFSymbol } from "expo-symbols";
+import { Icon, type IconName } from "@/components/Icon";
 import React, { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, Pressable, Share, View } from "react-native";
 
@@ -16,7 +16,7 @@ import { inviteMessage, joinUrl } from "@/lib/leagueInvite";
 // A league with no code yet (one made before codes were automatic) gets a
 // Create invite code button instead of an error.
 
-function IconAction({ symbol, label, hint, onPress }: { symbol: SFSymbol; label: string; hint: string; onPress: () => void }) {
+function IconAction({ symbol, label, hint, onPress }: { symbol: IconName; label: string; hint: string; onPress: () => void }) {
   const c = useColors();
   return (
     <Pressable
@@ -35,7 +35,7 @@ function IconAction({ symbol, label, hint, onPress }: { symbol: SFSymbol; label:
         opacity: pressed ? 0.6 : 1,
       })}
     >
-      <SymbolView name={symbol} size={20} tintColor={c.ink} />
+      <Icon name={symbol} size={20} tintColor={c.ink} />
     </Pressable>
   );
 }
@@ -115,7 +115,7 @@ export function InviteCard({
           </View>
           {copied ? (
             <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space1 }}>
-              <SymbolView name="checkmark" size={14} tintColor={c.ink} />
+              <Icon name="checkmark" size={14} tintColor={c.ink} />
               <Text variant="small">Copied</Text>
             </View>
           ) : note ? (

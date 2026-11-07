@@ -132,8 +132,8 @@ describe("buildSearchResults", () => {
     expect(res.more).toBe(true);
   });
 
-  it("leaves the hidden profile hook off until #117 adds the setting", () => {
-    expect(RESPECT_HIDDEN_PROFILE).toBe(false);
+  it("respects Discover's hidden profile now that Discover has the setting", () => {
+    expect(RESPECT_HIDDEN_PROFILE).toBe(true);
   });
 });
 

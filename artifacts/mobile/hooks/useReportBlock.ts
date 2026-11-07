@@ -16,21 +16,34 @@ import { AccessibilityInfo, Alert } from "react-native";
 import { apiErrorMessage, apiFetch } from "@/lib/api";
 
 export interface ReportablePlayer {
-  id: number;
+  /** Their league player id, when they have one. */
+  id: number | null;
+  /** Their account (users.id), for a Discover player with no league player yet. */
+  userId?: number | null;
   name: string;
 }
 
-// Server reason codes (lib/db/src/schema/safety.ts) with plain labels.
+// The six reasons, in this order, everywhere a player can be reported (F9,
+// Nov 7): server codes (lib/db/src/schema/safety.ts) with plain labels.
+// "Something else" opens a required "Tell us what happened" field; the
+// others have no note.
 export const REPORT_REASONS = [
   { code: "harassment", label: "Harassment or threats" },
   { code: "inappropriate_content", label: "Inappropriate photo or words" },
-  { code: "impersonation", label: "Pretending to be someone else" },
   { code: "spam", label: "Spam" },
   { code: "cheating", label: "False scores or cheating" },
+  { code: "unsafe", label: "Unsafe at a match" },
   { code: "other", label: "Something else" },
 ] as const;
 
 export type ReportReasonCode = (typeof REPORT_REASONS)[number]["code"];
+
+/** Labels for the Moderation screens, including reasons only older reports carry. */
+export const REPORT_REASON_LABELS: { code: string; label: string }[] = [
+  ...REPORT_REASONS,
+  { code: "impersonation", label: "Pretending to be someone else" },
+  { code: "no_show_dispute", label: "Disputed no-show" },
+];
 
 // What blocking really does, messages first, in the same words everywhere
 // (the Report sheet's checkbox, after blocking, the unblock confirm). Blocks
@@ -63,7 +76,8 @@ export function useReportBlock() {
     router.push({
       pathname: "/report/[playerId]",
       params: {
-        playerId: String(player.id),
+        // "u<userId>" for a Discover player with no league player record.
+        playerId: player.id != null ? String(player.id) : `u${player.userId}`,
         name: player.name,
         ...(target.conversationId != null ? { conversationId: String(target.conversationId) } : {}),
         ...(target.messageId ? { messageId: target.messageId } : {}),
@@ -79,7 +93,10 @@ export function useReportBlock() {
         {
           text: "Unblock",
           onPress: () =>
-            apiFetch(`/api/players/${player.id}/block`, getToken, { method: "DELETE" })
+            // By league player, else by account (a Discover player).
+            (player.id != null
+              ? apiFetch(`/api/players/${player.id}/block`, getToken, { method: "DELETE" })
+              : apiFetch(`/api/discover/players/${player.userId}/block`, getToken, { method: "DELETE" }))
               .then(async (res) => {
                 if (!res.ok) throw new Error(await apiErrorMessage(res, "We couldn't unblock this player. Try again."));
                 await queryClient.invalidateQueries({ queryKey: ["messages"] });

@@ -8,6 +8,765 @@
 import * as zod from "zod";
 
 /**
+ * @summary The court directory, nearest first, searchable
+ */
+export const listCourtsQueryQMax = 60;
+
+export const ListCourtsQueryParams = zod.object({
+  q: zod.coerce.string().max(listCourtsQueryQMax).optional(),
+});
+
+export const ListCourtsResponse = zod.object({
+  courts: zod.array(
+    zod.object({
+      courtId: zod.number(),
+      name: zod.string(),
+      address: zod.string(),
+      distance: zod
+        .string()
+        .nullable()
+        .describe('\"~3 mi\", or null with no home area'),
+    }),
+  ),
+  homeCourtId: zod.number().nullable(),
+});
+
+/**
+ * @summary Add a missing court with a name and an address (the address needs its ZIP). The same name in the same ZIP returns the court that's there.
+ */
+export const AddCourtBody = zod.object({
+  name: zod.string(),
+  address: zod.string().describe("Street, town and the 5-digit ZIP"),
+});
+
+export const AddCourtResponse = zod
+  .object({
+    courtId: zod.number(),
+    name: zod.string(),
+    address: zod.string(),
+    distance: zod
+      .string()
+      .nullable()
+      .describe('\"~3 mi\", or null with no home area'),
+  })
+  .and(
+    zod.object({
+      existing: zod
+        .boolean()
+        .describe("The court was already in the directory"),
+    }),
+  );
+
+/**
+ * @summary Your home court
+ */
+export const GetHomeCourtResponse = zod.object({
+  court: zod.union([
+    zod.object({
+      courtId: zod.number(),
+      name: zod.string(),
+      address: zod.string(),
+      distance: zod
+        .string()
+        .nullable()
+        .describe('\"~3 mi\", or null with no home area'),
+    }),
+    zod.null(),
+  ]),
+});
+
+/**
+ * @summary Set or clear your home court
+ */
+export const SetHomeCourtBody = zod.object({
+  courtId: zod.number().nullable(),
+});
+
+export const SetHomeCourtResponse = zod.object({
+  court: zod.union([
+    zod.object({
+      courtId: zod.number(),
+      name: zod.string(),
+      address: zod.string(),
+      distance: zod
+        .string()
+        .nullable()
+        .describe('\"~3 mi\", or null with no home area'),
+    }),
+    zod.null(),
+  ]),
+});
+
+/**
+ * @summary Dev only, move a match card's times earlier by some hours to try the day-before and after-match steps now
+ */
+export const ShiftMatchPlanParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ShiftMatchPlanBody = zod.object({
+  hours: zod.number(),
+});
+
+export const ShiftMatchPlanResponse = zod.object({
+  id: zod.number(),
+  startsAt: zod.string(),
+  timeZone: zod.string(),
+  courtName: zod.string().nullable(),
+  kind: zod.enum(["singles", "practice"]),
+  matchId: zod.number().nullable(),
+  score: zod.string().nullable(),
+  mine: zod.boolean().describe("You sent this card"),
+  events: zod.array(
+    zod.object({
+      key: zod.string(),
+      type: zod.enum([
+        "proposed",
+        "added",
+        "undone",
+        "declined",
+        "day_before",
+        "canceled",
+        "did_it_happen",
+        "not_played",
+        "no_show_reported",
+        "no_show_disputed",
+        "no_show_confirmed",
+        "scored",
+      ]),
+      at: zod.string(),
+      by: zod
+        .union([zod.literal("me"), zod.literal("them"), zod.literal(null)])
+        .nullable(),
+      actions: zod.array(
+        zod.enum([
+          "accept",
+          "decline",
+          "undo",
+          "still_on",
+          "cancel",
+          "score",
+          "no_show",
+          "not_played",
+          "dispute",
+          "admit",
+        ]),
+      ),
+      state: zod.string().optional(),
+      meIn: zod.boolean().optional(),
+      themIn: zod.boolean().optional(),
+      about: zod.enum(["me", "them"]).optional(),
+      deadline: zod.string().optional(),
+    }),
+  ),
+});
+
+/**
+ * @summary Send a match card in a chat (a newer card replaces an older one still waiting)
+ */
+export const SendMatchPlanBody = zod.object({
+  userId: zod.number(),
+  startsAt: zod.string().describe("ISO 8601, in the future, within 60 days"),
+  timeZone: zod.string().optional(),
+  courtId: zod.number().nullish(),
+  kind: zod.enum(["singles", "practice"]).optional(),
+});
+
+/**
+ * @summary Your added Discover matches still to play, for Home and My matches
+ */
+export const ListUpcomingMatchPlansResponse = zod.object({
+  matches: zod.array(
+    zod
+      .object({
+        id: zod.number(),
+        startsAt: zod.string(),
+        timeZone: zod.string(),
+        courtName: zod.string().nullable(),
+        kind: zod.enum(["singles", "practice"]),
+        matchId: zod.number().nullable(),
+        score: zod.string().nullable(),
+        mine: zod.boolean().describe("You sent this card"),
+        events: zod.array(
+          zod.object({
+            key: zod.string(),
+            type: zod.enum([
+              "proposed",
+              "added",
+              "undone",
+              "declined",
+              "day_before",
+              "canceled",
+              "did_it_happen",
+              "not_played",
+              "no_show_reported",
+              "no_show_disputed",
+              "no_show_confirmed",
+              "scored",
+            ]),
+            at: zod.string(),
+            by: zod
+              .union([
+                zod.literal("me"),
+                zod.literal("them"),
+                zod.literal(null),
+              ])
+              .nullable(),
+            actions: zod.array(
+              zod.enum([
+                "accept",
+                "decline",
+                "undo",
+                "still_on",
+                "cancel",
+                "score",
+                "no_show",
+                "not_played",
+                "dispute",
+                "admit",
+              ]),
+            ),
+            state: zod.string().optional(),
+            meIn: zod.boolean().optional(),
+            themIn: zod.boolean().optional(),
+            about: zod.enum(["me", "them"]).optional(),
+            deadline: zod.string().optional(),
+          }),
+        ),
+      })
+      .and(
+        zod.object({
+          otherName: zod.string(),
+          otherUserId: zod.number().nullable(),
+        }),
+      ),
+  ),
+});
+
+/**
+ * @summary The match cards in your chat with a player, and what you can do with each
+ */
+export const GetMatchPlansWithUserParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const GetMatchPlansWithUserResponse = zod.object({
+  otherName: zod.string(),
+  blocked: zod.boolean(),
+  devTools: zod.boolean(),
+  plans: zod.array(
+    zod.object({
+      id: zod.number(),
+      startsAt: zod.string(),
+      timeZone: zod.string(),
+      courtName: zod.string().nullable(),
+      kind: zod.enum(["singles", "practice"]),
+      matchId: zod.number().nullable(),
+      score: zod.string().nullable(),
+      mine: zod.boolean().describe("You sent this card"),
+      events: zod.array(
+        zod.object({
+          key: zod.string(),
+          type: zod.enum([
+            "proposed",
+            "added",
+            "undone",
+            "declined",
+            "day_before",
+            "canceled",
+            "did_it_happen",
+            "not_played",
+            "no_show_reported",
+            "no_show_disputed",
+            "no_show_confirmed",
+            "scored",
+          ]),
+          at: zod.string(),
+          by: zod
+            .union([zod.literal("me"), zod.literal("them"), zod.literal(null)])
+            .nullable(),
+          actions: zod.array(
+            zod.enum([
+              "accept",
+              "decline",
+              "undo",
+              "still_on",
+              "cancel",
+              "score",
+              "no_show",
+              "not_played",
+              "dispute",
+              "admit",
+            ]),
+          ),
+          state: zod.string().optional(),
+          meIn: zod.boolean().optional(),
+          themIn: zod.boolean().optional(),
+          about: zod.enum(["me", "them"]).optional(),
+          deadline: zod.string().optional(),
+        }),
+      ),
+    }),
+  ),
+});
+
+/**
+ * @summary Answer a match card: accept, decline, undo, still-on, cancel, not-played, no-show, dispute or admit
+ */
+export const ActOnMatchPlanParams = zod.object({
+  id: zod.coerce.number(),
+  command: zod.coerce.string(),
+});
+
+export const ActOnMatchPlanResponse = zod.object({
+  id: zod.number(),
+  startsAt: zod.string(),
+  timeZone: zod.string(),
+  courtName: zod.string().nullable(),
+  kind: zod.enum(["singles", "practice"]),
+  matchId: zod.number().nullable(),
+  score: zod.string().nullable(),
+  mine: zod.boolean().describe("You sent this card"),
+  events: zod.array(
+    zod.object({
+      key: zod.string(),
+      type: zod.enum([
+        "proposed",
+        "added",
+        "undone",
+        "declined",
+        "day_before",
+        "canceled",
+        "did_it_happen",
+        "not_played",
+        "no_show_reported",
+        "no_show_disputed",
+        "no_show_confirmed",
+        "scored",
+      ]),
+      at: zod.string(),
+      by: zod
+        .union([zod.literal("me"), zod.literal("them"), zod.literal(null)])
+        .nullable(),
+      actions: zod.array(
+        zod.enum([
+          "accept",
+          "decline",
+          "undo",
+          "still_on",
+          "cancel",
+          "score",
+          "no_show",
+          "not_played",
+          "dispute",
+          "admit",
+        ]),
+      ),
+      state: zod.string().optional(),
+      meIn: zod.boolean().optional(),
+      themIn: zod.boolean().optional(),
+      about: zod.enum(["me", "them"]).optional(),
+      deadline: zod.string().optional(),
+    }),
+  ),
+});
+
+/**
+ * @summary Change your home ZIP from Discover. Also updates your profile's home area.
+ */
+export const SetDiscoverAreaBody = zod.object({
+  zip: zod.string().describe("Five digits"),
+});
+
+export const SetDiscoverAreaResponse = zod.object({
+  area: zod.union([
+    zod
+      .object({
+        zip: zod.string(),
+        town: zod.string(),
+        state: zod.string(),
+      })
+      .describe(
+        "Your home ZIP and its town. Others only ever see the town and an approximate distance.",
+      ),
+    zod.null(),
+  ]),
+  homeZip: zod.string().nullable(),
+  hidden: zod.boolean().describe("Show me in Discover is off"),
+  plays: zod
+    .union([
+      zod.literal("singles"),
+      zod.literal("doubles"),
+      zod.literal("both"),
+      zod.literal(null),
+    ])
+    .nullable(),
+  radius: zod.number().describe("Last distance picked, 1 to 30 miles"),
+  rating: zod.number().nullable(),
+  slots: zod.array(zod.number()),
+  hoursFree: zod.number(),
+  freeSummary: zod
+    .string()
+    .nullable()
+    .describe(
+      '\"Weekday evenings, weekend mornings\", or null with no hours set',
+    ),
+});
+
+/**
+ * @summary Save the "When you can play" grid (a Monday to Sunday week of hours)
+ */
+export const SaveDiscoverAvailabilityBody = zod.object({
+  slots: zod
+    .array(zod.number())
+    .describe(
+      "Free hours, each day \* 24 + hour. Monday is day 0; hours 6 (6 AM) to 21 (9 PM).",
+    ),
+});
+
+export const SaveDiscoverAvailabilityResponse = zod.object({
+  area: zod.union([
+    zod
+      .object({
+        zip: zod.string(),
+        town: zod.string(),
+        state: zod.string(),
+      })
+      .describe(
+        "Your home ZIP and its town. Others only ever see the town and an approximate distance.",
+      ),
+    zod.null(),
+  ]),
+  homeZip: zod.string().nullable(),
+  hidden: zod.boolean().describe("Show me in Discover is off"),
+  plays: zod
+    .union([
+      zod.literal("singles"),
+      zod.literal("doubles"),
+      zod.literal("both"),
+      zod.literal(null),
+    ])
+    .nullable(),
+  radius: zod.number().describe("Last distance picked, 1 to 30 miles"),
+  rating: zod.number().nullable(),
+  slots: zod.array(zod.number()),
+  hoursFree: zod.number(),
+  freeSummary: zod
+    .string()
+    .nullable()
+    .describe(
+      '\"Weekday evenings, weekend mornings\", or null with no hours set',
+    ),
+});
+
+/**
+ * @summary Open leagues near you, nearest first, with a count for each distance chip
+ */
+export const listDiscoverLeaguesQueryRadiusMax = 30;
+
+export const ListDiscoverLeaguesQueryParams = zod.object({
+  radius: zod.coerce
+    .number()
+    .min(1)
+    .max(listDiscoverLeaguesQueryRadiusMax)
+    .optional(),
+});
+
+export const ListDiscoverLeaguesResponse = zod.object({
+  leagues: zod.array(
+    zod.object({
+      leagueId: zod.number(),
+      name: zod.string(),
+      detail: zod.string(),
+      status: zod.string(),
+      tags: zod.array(zod.enum(["outside_level", "full", "started"])),
+      joining: zod.enum(["request", "waitlist"]),
+      myRequest: zod.union([
+        zod.object({
+          kind: zod.enum(["request", "waitlist"]),
+          status: zod.enum(["pending", "declined"]),
+        }),
+        zod.null(),
+      ]),
+      spoken: zod.string(),
+    }),
+  ),
+  counts: zod.array(
+    zod.object({
+      radius: zod.number(),
+      count: zod.number(),
+    }),
+  ),
+  radius: zod.number(),
+  total: zod.number(),
+  needsArea: zod.boolean(),
+});
+
+/**
+ * @summary An Open league's Discover page, and where you stand with it
+ */
+export const GetDiscoverLeagueParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const GetDiscoverLeagueResponse = zod.object({
+  leagueId: zod.number(),
+  name: zod.string(),
+  organizerName: zod.string(),
+  location: zod.string().nullable(),
+  distance: zod.string().nullable(),
+  format: zod.string(),
+  type: zod.string(),
+  levelText: zod.string(),
+  outsideLevel: zod.boolean(),
+  myRating: zod.number().nullable(),
+  startDate: zod.string().nullable(),
+  startLabel: zod.string().nullable(),
+  seasonWeeks: zod.number().nullable(),
+  started: zod.boolean(),
+  full: zod.boolean(),
+  rosterCap: zod.number().nullable(),
+  spotsTaken: zod.number(),
+  spotsLeft: zod.number().nullable(),
+  joining: zod.enum(["request", "waitlist"]),
+  myRequest: zod.union([
+    zod.object({
+      kind: zod.enum(["request", "waitlist"]),
+      status: zod.enum(["pending", "declined"]),
+    }),
+    zod.null(),
+  ]),
+  member: zod.boolean(),
+});
+
+/**
+ * @summary Your area, hidden profile, plays, last distance and hours, for Discover
+ */
+export const GetDiscoverMeResponse = zod.object({
+  area: zod.union([
+    zod
+      .object({
+        zip: zod.string(),
+        town: zod.string(),
+        state: zod.string(),
+      })
+      .describe(
+        "Your home ZIP and its town. Others only ever see the town and an approximate distance.",
+      ),
+    zod.null(),
+  ]),
+  homeZip: zod.string().nullable(),
+  hidden: zod.boolean().describe("Show me in Discover is off"),
+  plays: zod
+    .union([
+      zod.literal("singles"),
+      zod.literal("doubles"),
+      zod.literal("both"),
+      zod.literal(null),
+    ])
+    .nullable(),
+  radius: zod.number().describe("Last distance picked, 1 to 30 miles"),
+  rating: zod.number().nullable(),
+  slots: zod.array(zod.number()),
+  hoursFree: zod.number(),
+  freeSummary: zod
+    .string()
+    .nullable()
+    .describe(
+      '\"Weekday evenings, weekend mornings\", or null with no hours set',
+    ),
+});
+
+/**
+ * Never you, hidden players, anyone blocked either way, or banned and suspended accounts. Distances are approximate whole miles between home ZIP centers. The app saves a distance you pick with PUT /discover/settings.
+ * @summary Players near you, nearest first, with a count for each distance chip
+ */
+export const listDiscoverPlayersQueryRadiusMax = 30;
+
+export const ListDiscoverPlayersQueryParams = zod.object({
+  radius: zod.coerce
+    .number()
+    .min(1)
+    .max(listDiscoverPlayersQueryRadiusMax)
+    .optional()
+    .describe("Miles, 1 to 30. Defaults to your last distance."),
+  level: zod
+    .enum(["close", "wider", "any"])
+    .optional()
+    .describe("close (within 0.5), wider (within 1.0) or any"),
+  plays: zod.enum(["singles", "doubles", "either"]).optional(),
+  free: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      '\"1\" keeps players whose hours overlap yours. Ignored until you set times.',
+    ),
+});
+
+export const ListDiscoverPlayersResponse = zod.object({
+  players: zod.array(
+    zod.object({
+      userId: zod.number(),
+      name: zod.string(),
+      avatarUrl: zod.string().nullable(),
+      rating: zod.number().nullable(),
+      ratingSource: zod.string().nullable(),
+      distance: zod.string().describe('\"~4 mi\"'),
+      plays: zod
+        .union([
+          zod.literal("singles"),
+          zod.literal("doubles"),
+          zod.literal("both"),
+          zod.literal(null),
+        ])
+        .nullable(),
+      played: zod.number(),
+      noShows: zod.number(),
+      reliability: zod
+        .string()
+        .describe('\"Played 14 · 1 no-show\" or \"New to Ball Boi\"'),
+      spoken: zod.string().describe("The whole row in one line for VoiceOver"),
+    }),
+  ),
+  counts: zod
+    .array(
+      zod.object({
+        radius: zod.number(),
+        count: zod.number(),
+      }),
+    )
+    .describe(
+      "Players at each distance chip (5, 10, 15, 30 and a custom distance), with the other filters as they are",
+    ),
+  radius: zod.number(),
+  total: zod.number(),
+  needsArea: zod
+    .boolean()
+    .describe("You have no home ZIP Discover can place yet"),
+});
+
+/**
+ * @summary A player card from Discover
+ */
+export const GetDiscoverPlayerParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const GetDiscoverPlayerResponse = zod.object({
+  userId: zod.number(),
+  name: zod.string(),
+  avatarUrl: zod.string().nullable(),
+  rating: zod.number().nullable(),
+  ratingSource: zod.string().nullable(),
+  town: zod.string().nullable(),
+  distance: zod.string().nullable().describe('\"~4 mi away\"'),
+  plays: zod
+    .union([
+      zod.literal("singles"),
+      zod.literal("doubles"),
+      zod.literal("both"),
+      zod.literal(null),
+    ])
+    .nullable(),
+  freeSummary: zod.string().nullable(),
+  homeCourt: zod.string().nullable(),
+  played: zod.number(),
+  noShows: zod.number(),
+  wins: zod.number(),
+  losses: zod.number(),
+});
+
+/**
+ * @summary Block a player by user id ("Also block" on a message report from a player with no league player record)
+ */
+export const BlockDiscoverPlayerParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+/**
+ * @summary Unblock a player by user id, from a blocked chat
+ */
+export const UnblockDiscoverPlayerParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+/**
+ * @summary Report a player by user id, and optionally block them in the same step (F3, F9)
+ */
+export const ReportDiscoverPlayerParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const ReportDiscoverPlayerBody = zod.object({
+  reason: zod.enum([
+    "harassment",
+    "inappropriate_content",
+    "spam",
+    "cheating",
+    "unsafe",
+    "other",
+  ]),
+  details: zod
+    .string()
+    .nullish()
+    .describe('Required for other (\"Tell us what happened\")'),
+  block: zod.boolean().optional().describe("Also block them"),
+});
+
+/**
+ * @summary Show me in Discover, what you play, and your last distance
+ */
+export const saveDiscoverSettingsBodyRadiusMax = 30;
+
+export const SaveDiscoverSettingsBody = zod.object({
+  hidden: zod.boolean().optional(),
+  plays: zod
+    .union([
+      zod.literal("singles"),
+      zod.literal("doubles"),
+      zod.literal("both"),
+      zod.literal(null),
+    ])
+    .nullish(),
+  radius: zod.number().min(1).max(saveDiscoverSettingsBodyRadiusMax).optional(),
+});
+
+export const SaveDiscoverSettingsResponse = zod.object({
+  area: zod.union([
+    zod
+      .object({
+        zip: zod.string(),
+        town: zod.string(),
+        state: zod.string(),
+      })
+      .describe(
+        "Your home ZIP and its town. Others only ever see the town and an approximate distance.",
+      ),
+    zod.null(),
+  ]),
+  homeZip: zod.string().nullable(),
+  hidden: zod.boolean().describe("Show me in Discover is off"),
+  plays: zod
+    .union([
+      zod.literal("singles"),
+      zod.literal("doubles"),
+      zod.literal("both"),
+      zod.literal(null),
+    ])
+    .nullable(),
+  radius: zod.number().describe("Last distance picked, 1 to 30 miles"),
+  rating: zod.number().nullable(),
+  slots: zod.array(zod.number()),
+  hoursFree: zod.number(),
+  freeSummary: zod
+    .string()
+    .nullable()
+    .describe(
+      '\"Weekday evenings, weekend mornings\", or null with no hours set',
+    ),
+});
+
+/**
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
@@ -1675,6 +2434,10 @@ export const GetLeagueJoinRequestsResponseItem = zod.object({
     ),
   kind: zod.enum(["request", "waitlist"]),
   status: zod.enum(["pending", "approved", "declined", "withdrawn"]),
+  note: zod
+    .string()
+    .nullish()
+    .describe("The asker's optional note to the organizer"),
   createdAt: zod.string(),
   message: zod.string().optional(),
 });
@@ -1692,6 +2455,12 @@ export const RequestToJoinLeagueParams = zod.object({
 export const RequestToJoinLeagueBody = zod.object({
   playerName: zod.string(),
   skillLevel: zod.string().nullish(),
+  note: zod
+    .string()
+    .nullish()
+    .describe(
+      "Optional note to the organizer with a request from Discover, up to 300 characters",
+    ),
 });
 
 export const RequestToJoinLeagueResponse = zod.object({
@@ -1719,6 +2488,10 @@ export const RequestToJoinLeagueResponse = zod.object({
     ),
   kind: zod.enum(["request", "waitlist"]),
   status: zod.enum(["pending", "approved", "declined", "withdrawn"]),
+  note: zod
+    .string()
+    .nullish()
+    .describe("The asker's optional note to the organizer"),
   createdAt: zod.string(),
   message: zod.string().optional(),
 });
@@ -1756,6 +2529,10 @@ export const GetMyLeagueJoinRequestResponse = zod.union([
       ),
     kind: zod.enum(["request", "waitlist"]),
     status: zod.enum(["pending", "approved", "declined", "withdrawn"]),
+    note: zod
+      .string()
+      .nullish()
+      .describe("The asker's optional note to the organizer"),
     createdAt: zod.string(),
     message: zod.string().optional(),
   }),
@@ -3078,6 +3855,12 @@ export const JoinLeagueViaInviteParams = zod.object({
 export const JoinLeagueViaInviteBody = zod.object({
   playerName: zod.string(),
   skillLevel: zod.string().nullish(),
+  note: zod
+    .string()
+    .nullish()
+    .describe(
+      "Optional note to the organizer with a request from Discover, up to 300 characters",
+    ),
 });
 
 export const JoinLeagueViaInviteResponse = zod.object({
@@ -4735,10 +5518,12 @@ export const CreateReportBody = zod.object({
   reason: zod.enum([
     "harassment",
     "inappropriate_content",
-    "impersonation",
     "spam",
     "cheating",
+    "unsafe",
     "other",
+    "impersonation",
+    "no_show_dispute",
   ]),
   details: zod.string().nullish().describe("Kept to 1000 characters"),
 });
@@ -5121,6 +5906,12 @@ export const GetConversationsResponse = zod
           other: zod.object({
             name: zod.string(),
             playerId: zod.number().nullable(),
+            userId: zod
+              .number()
+              .nullish()
+              .describe(
+                "Their users.id, for report and block when they have no player record (a Discover player)",
+              ),
           }),
           lastMessage: zod.union([
             zod.object({
@@ -5144,11 +5935,16 @@ export const GetConversationsResponse = zod
 /**
  * @summary Send a first message to a player. It goes straight to their inbox; from outside your leagues it can't carry links, emails or phone numbers.
  */
-export const StartConversationBody = zod.object({
-  playerId: zod.number(),
-  text: zod.string(),
-  clientMessageId: zod.string().optional(),
-});
+export const StartConversationBody = zod
+  .object({
+    playerId: zod.number().optional(),
+    userId: zod.number().optional(),
+    text: zod.string(),
+    clientMessageId: zod.string().optional(),
+  })
+  .describe(
+    "Send playerId (a league player) or userId (a Discover player, who may be in no league).",
+  );
 
 /**
  * @summary Unread messages, for the badge
@@ -5167,6 +5963,17 @@ export const GetMessageContactsResponse = zod.object({
       playerId: zod.number(),
     }),
   ),
+});
+
+/**
+ * @summary The conversation with a Discover player (by user id), if there is one
+ */
+export const GetConversationWithUserParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const GetConversationWithUserResponse = zod.object({
+  conversationId: zod.number().nullable(),
 });
 
 /**
@@ -5208,6 +6015,12 @@ export const GetConversationResponse = zod.object({
     other: zod.object({
       name: zod.string(),
       playerId: zod.number().nullable(),
+      userId: zod
+        .number()
+        .nullish()
+        .describe(
+          "Their users.id, for report and block when they have no player record (a Discover player)",
+        ),
     }),
     lastMessage: zod.union([
       zod.object({
@@ -5262,10 +6075,12 @@ export const ReportMessageBody = zod.object({
   reason: zod.enum([
     "harassment",
     "inappropriate_content",
-    "impersonation",
     "spam",
     "cheating",
+    "unsafe",
     "other",
+    "impersonation",
+    "no_show_dispute",
   ]),
   details: zod.string().nullish(),
 });

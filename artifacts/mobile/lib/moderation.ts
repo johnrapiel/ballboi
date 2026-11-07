@@ -1,9 +1,9 @@
 // Plain words for the Moderation screens.
 
-import { REPORT_REASONS } from "@/hooks/useReportBlock";
+import { REPORT_REASON_LABELS } from "@/hooks/useReportBlock";
 
 export function reasonLabel(code: string): string {
-  return REPORT_REASONS.find((r) => r.code === code)?.label ?? "Something else";
+  return REPORT_REASON_LABELS.find((r) => r.code === code)?.label ?? "Something else";
 }
 
 /** Who or what filed the report. */

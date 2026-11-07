@@ -17,7 +17,7 @@ import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNetworkState, NetworkStateType } from "expo-network";
 import { useRouter } from "expo-router";
-import { SymbolView, type SFSymbol } from "expo-symbols";
+import { Icon, type IconName } from "@/components/Icon";
 import React, { useState } from "react";
 import { AccessibilityInfo, Alert, Pressable, View } from "react-native";
 
@@ -49,7 +49,7 @@ export const UPLOADED_DETAIL =
 export const FAILED_TITLE = "Ball Boi couldn't analyze this match";
 
 interface Status {
-  symbol: SFSymbol;
+  symbol: IconName;
   text: string;
   detail?: string;
   action?: { label: string; onPress: () => void };
@@ -136,11 +136,11 @@ function CardBody({
         </Text>
       </View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2 }}>
-        <SymbolView name={status.symbol} size={18} tintColor={c.ink} />
+        <Icon name={status.symbol} size={18} tintColor={c.ink} />
         <Text variant="bodyStrong" style={{ flex: 1 }}>
           {status.text}
         </Text>
-        {onPress ? <SymbolView name="chevron.right" size={14} tintColor={c.ink} /> : null}
+        {onPress ? <Icon name="chevron.right" size={14} tintColor={c.ink} /> : null}
       </View>
       {status.detail ? (
         <Text variant="small" tone="inkMuted">
