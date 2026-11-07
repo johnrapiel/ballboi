@@ -48,6 +48,101 @@ tags:
     description: Profile photo uploads and loads
 
 paths:
+  /courts:
+    get:
+      operationId: listCourts
+      tags: [discover]
+      summary: The court directory, nearest first, searchable
+      parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 60
+      responses:
+        '200':
+          description: Courts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourtList'
+        '500':
+          description: Couldn't load courts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      operationId: addCourt
+      tags: [discover]
+      summary: Add a missing court with a name and an address (the address needs its ZIP). The same name in the same ZIP returns the court that's there.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewCourtInput'
+      responses:
+        '200':
+          description: Already in the directory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddedCourt'
+        '201':
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddedCourt'
+        '400':
+          description: A name or address we can't use
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many courts added today
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /courts/home:
+    get:
+      operationId: getHomeCourt
+      tags: [discover]
+      summary: Your home court
+      responses:
+        '200':
+          description: Your home court, or null
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HomeCourt'
+    put:
+      operationId: setHomeCourt
+      tags: [discover]
+      summary: Set or clear your home court
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HomeCourtInput'
+      responses:
+        '200':
+          description: Your home court, or null
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HomeCourt'
+        '404':
+          description: Not in the directory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /discover/area:
     put:
       operationId: setDiscoverArea
@@ -5934,6 +6029,38 @@ components:
       schema:
         type: integer
   schemas:
+    AddedCourt:
+      allOf:
+      - $ref: '#/components/schemas/CourtCard'
+      - type: object
+        properties:
+          existing:
+            type: boolean
+            description: The court was already in the directory
+        required: [existing]
+    CourtCard:
+      type: object
+      properties:
+        courtId:
+          type: integer
+        name:
+          type: string
+        address:
+          type: string
+        distance:
+          type: [string, 'null']
+          description: '"~3 mi", or null with no home area'
+      required: [courtId, name, address, distance]
+    CourtList:
+      type: object
+      properties:
+        courts:
+          type: array
+          items:
+            $ref: '#/components/schemas/CourtCard'
+        homeCourtId:
+          type: [integer, 'null']
+      required: [courts, homeCourtId]
     DiscoverArea:
       type: object
       description: Your home ZIP and its town. Others only ever see the town and an approximate distance.
@@ -6121,6 +6248,8 @@ components:
           enum: [singles, doubles, both, null]
         freeSummary:
           type: [string, 'null']
+        homeCourt:
+          type: [string, 'null']
         played:
           type: integer
         noShows:
@@ -6129,7 +6258,7 @@ components:
           type: integer
         losses:
           type: integer
-      required: [userId, name, avatarUrl, rating, ratingSource, town, distance, plays, freeSummary, played, noShows, wins, losses]
+      required: [userId, name, avatarUrl, rating, ratingSource, town, distance, plays, freeSummary, homeCourt, played, noShows, wins, losses]
     DiscoverPlayerRow:
       type: object
       properties:
@@ -6221,6 +6350,29 @@ components:
           type: integer
           minimum: 1
           maximum: 30
+    HomeCourt:
+      type: object
+      properties:
+        court:
+          oneOf:
+          - $ref: '#/components/schemas/CourtCard'
+          - type: 'null'
+      required: [court]
+    HomeCourtInput:
+      type: object
+      properties:
+        courtId:
+          type: [integer, 'null']
+      required: [courtId]
+    NewCourtInput:
+      type: object
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+          description: Street, town and the 5-digit ZIP
+      required: [name, address]
     LeagueMembership:
       type: object
       properties:

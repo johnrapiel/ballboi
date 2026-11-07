@@ -4,11 +4,13 @@
 // moderators with your name taken off (lib/accountDeletion.ts), and blocks
 // either way go with the account there too.
 
-import { discoverProfilesTable, weeklyAvailabilityTable } from "@workspace/db";
+import { directoryCourtsTable, discoverProfilesTable, weeklyAvailabilityTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import type { Tx } from "../../lib/recordingCleanup";
 
 export async function deleteDiscoverData(tx: Tx, clerkUserId: string): Promise<void> {
   await tx.delete(weeklyAvailabilityTable).where(eq(weeklyAvailabilityTable.clerkUserId, clerkUserId));
   await tx.delete(discoverProfilesTable).where(eq(discoverProfilesTable.clerkUserId, clerkUserId));
+  // Courts you added to the directory. Anyone who picked one as a home court loses it (set null).
+  await tx.delete(directoryCourtsTable).where(eq(directoryCourtsTable.addedByClerkUserId, clerkUserId));
 }

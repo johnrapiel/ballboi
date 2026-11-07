@@ -22,6 +22,7 @@ import type {
   AccountDeletionResult,
   AccountStatus,
   ActivityItem,
+  AddedCourt,
   AgentDecision,
   AppealDecisionInput,
   AppealListItem,
@@ -53,6 +54,7 @@ import type {
   ConversationList,
   ConversationThread,
   CorrectedScore,
+  CourtList,
   CreateLeagueBody,
   CreateLeagueInviteBody,
   CreateMatchBody,
@@ -107,6 +109,8 @@ import type {
   HiddenMessageResult,
   HideMessageBody,
   HomeAreaInput,
+  HomeCourt,
+  HomeCourtInput,
   IntentsInput,
   JoinLeagueBody,
   JoinLeagueResponse,
@@ -123,6 +127,7 @@ import type {
   LeagueRoundWithMatchups,
   LeagueSchedule,
   LeagueWeek,
+  ListCourtsParams,
   ListDiscoverLeaguesParams,
   ListDiscoverPlayersParams,
   LockMatchBody,
@@ -140,6 +145,7 @@ import type {
   MyMatchesResponse,
   MyScheduleResponse,
   NewConversationInput,
+  NewCourtInput,
   NewMessageInput,
   NewReport,
   PhotoUploadRequest,
@@ -200,6 +206,347 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+/**
+ * @summary The court directory, nearest first, searchable
+ */
+export const getListCourtsUrl = (params?: ListCourtsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/courts?${stringifiedParams}`
+    : `/api/courts`;
+};
+
+export const listCourts = async (
+  params?: ListCourtsParams,
+  options?: RequestInit,
+): Promise<CourtList> => {
+  return customFetch<CourtList>(getListCourtsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListCourtsQueryKey = (params?: ListCourtsParams) => {
+  return [`/api/courts`, ...(params ? [params] : [])] as const;
+};
+
+export const getListCourtsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listCourts>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: ListCourtsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listCourts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListCourtsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listCourts>>> = ({
+    signal,
+  }) => listCourts(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listCourts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListCourtsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCourts>>
+>;
+export type ListCourtsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary The court directory, nearest first, searchable
+ */
+
+export function useListCourts<
+  TData = Awaited<ReturnType<typeof listCourts>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: ListCourtsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listCourts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListCourtsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Add a missing court with a name and an address (the address needs its ZIP). The same name in the same ZIP returns the court that's there.
+ */
+export const getAddCourtUrl = () => {
+  return `/api/courts`;
+};
+
+export const addCourt = async (
+  newCourtInput: NewCourtInput,
+  options?: RequestInit,
+): Promise<AddedCourt> => {
+  return customFetch<AddedCourt>(getAddCourtUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(newCourtInput),
+  });
+};
+
+export const getAddCourtMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addCourt>>,
+    TError,
+    { data: BodyType<NewCourtInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof addCourt>>,
+  TError,
+  { data: BodyType<NewCourtInput> },
+  TContext
+> => {
+  const mutationKey = ["addCourt"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof addCourt>>,
+    { data: BodyType<NewCourtInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return addCourt(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AddCourtMutationResult = NonNullable<
+  Awaited<ReturnType<typeof addCourt>>
+>;
+export type AddCourtMutationBody = BodyType<NewCourtInput>;
+export type AddCourtMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Add a missing court with a name and an address (the address needs its ZIP). The same name in the same ZIP returns the court that's there.
+ */
+export const useAddCourt = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addCourt>>,
+    TError,
+    { data: BodyType<NewCourtInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof addCourt>>,
+  TError,
+  { data: BodyType<NewCourtInput> },
+  TContext
+> => {
+  return useMutation(getAddCourtMutationOptions(options));
+};
+
+/**
+ * @summary Your home court
+ */
+export const getGetHomeCourtUrl = () => {
+  return `/api/courts/home`;
+};
+
+export const getHomeCourt = async (
+  options?: RequestInit,
+): Promise<HomeCourt> => {
+  return customFetch<HomeCourt>(getGetHomeCourtUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetHomeCourtQueryKey = () => {
+  return [`/api/courts/home`] as const;
+};
+
+export const getGetHomeCourtQueryOptions = <
+  TData = Awaited<ReturnType<typeof getHomeCourt>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getHomeCourt>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetHomeCourtQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getHomeCourt>>> = ({
+    signal,
+  }) => getHomeCourt({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getHomeCourt>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetHomeCourtQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getHomeCourt>>
+>;
+export type GetHomeCourtQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Your home court
+ */
+
+export function useGetHomeCourt<
+  TData = Awaited<ReturnType<typeof getHomeCourt>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getHomeCourt>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetHomeCourtQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Set or clear your home court
+ */
+export const getSetHomeCourtUrl = () => {
+  return `/api/courts/home`;
+};
+
+export const setHomeCourt = async (
+  homeCourtInput: HomeCourtInput,
+  options?: RequestInit,
+): Promise<HomeCourt> => {
+  return customFetch<HomeCourt>(getSetHomeCourtUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(homeCourtInput),
+  });
+};
+
+export const getSetHomeCourtMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setHomeCourt>>,
+    TError,
+    { data: BodyType<HomeCourtInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setHomeCourt>>,
+  TError,
+  { data: BodyType<HomeCourtInput> },
+  TContext
+> => {
+  const mutationKey = ["setHomeCourt"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setHomeCourt>>,
+    { data: BodyType<HomeCourtInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return setHomeCourt(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetHomeCourtMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setHomeCourt>>
+>;
+export type SetHomeCourtMutationBody = BodyType<HomeCourtInput>;
+export type SetHomeCourtMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Set or clear your home court
+ */
+export const useSetHomeCourt = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setHomeCourt>>,
+    TError,
+    { data: BodyType<HomeCourtInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setHomeCourt>>,
+  TError,
+  { data: BodyType<HomeCourtInput> },
+  TContext
+> => {
+  return useMutation(getSetHomeCourtMutationOptions(options));
+};
 
 /**
  * @summary Change your home ZIP from Discover. Also updates your profile's home area.

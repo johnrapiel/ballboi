@@ -1,4 +1,5 @@
 import { boolean, index, integer, pgTable, real, text, timestamp } from "drizzle-orm/pg-core";
+import { directoryCourtsTable } from "./courtDirectory";
 
 // Discover (spec: Discover; Wave 2, Session F). One row per account that
 // has been placed in Discover, kept apart from `users` so Discover's settings
@@ -25,6 +26,8 @@ export const discoverProfilesTable = pgTable(
     areaState: text("area_state"),
     areaLatitude: real("area_latitude"),
     areaLongitude: real("area_longitude"),
+    /** Optional home court from the court directory, shown on the player card (migration 20261108_f_court_directory.sql). */
+    homeCourtId: integer("home_court_id").references(() => directoryCourtsTable.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },

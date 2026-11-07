@@ -79,6 +79,8 @@ export interface DiscoverCandidate {
   town: string | null;
   plays: string | null;
   slots: number[];
+  /** Their home court's name from the court directory, if they picked one. */
+  homeCourt?: string | null;
 }
 
 export interface DiscoverPlayerRow {

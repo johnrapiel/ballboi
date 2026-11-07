@@ -172,3 +172,18 @@ describe("Open leagues", () => {
     expect(leagueTagLabel("started")).toBe("Season started");
   });
 });
+
+import { courtLine, courtSpoken, courtsPath } from "../discover";
+
+describe("court directory", () => {
+  const court = { courtId: 1, name: "Beacon Courts", address: "Memorial Park, Beacon NY 12508", distance: "~3 mi" };
+  it("writes the row and reads it out", () => {
+    expect(courtLine(court)).toBe("Beacon Courts · ~3 mi");
+    expect(courtLine({ ...court, distance: null })).toBe("Beacon Courts");
+    expect(courtSpoken(court, true)).toBe("Beacon Courts, about 3 miles away, Memorial Park, Beacon NY 12508, selected");
+  });
+  it("searches", () => {
+    expect(courtsPath("")).toBe("/api/courts");
+    expect(courtsPath("  beacon  park ")).toBe("/api/courts?q=beacon%20park");
+  });
+});

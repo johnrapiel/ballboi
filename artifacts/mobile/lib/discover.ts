@@ -56,6 +56,7 @@ export interface DiscoverPlayerCard {
   distance: string | null;
   plays: Plays | null;
   freeSummary: string | null;
+  homeCourt: string | null;
   played: number;
   noShows: number;
   wins: number;
@@ -342,4 +343,31 @@ export function seasonLine(l: Pick<DiscoverLeague, "startLabel" | "seasonWeeks" 
 export function spotsLine(l: Pick<DiscoverLeague, "rosterCap" | "spotsTaken" | "spotsLeft">): string | null {
   if (!l.rosterCap) return null;
   return `${l.spotsTaken} of ${l.rosterCap} taken · ${l.spotsLeft ?? 0} left`;
+}
+
+// ─── Court directory (F4) ────────────────────────────────────────────────────
+
+export interface CourtCard {
+  courtId: number;
+  name: string;
+  address: string;
+  distance: string | null;
+}
+
+export const courtsPath = (q: string) => {
+  const t = q.trim().replace(/\s+/g, " ").slice(0, 60);
+  return t ? `/api/courts?q=${encodeURIComponent(t)}` : "/api/courts";
+};
+
+/** "Beacon Courts · ~3 mi". */
+export function courtLine(c: Pick<CourtCard, "name" | "distance">): string {
+  return c.distance ? `${c.name} · ${c.distance}` : c.name;
+}
+
+/** VoiceOver: "Beacon Courts, about 3 miles away, Memorial Park, Beacon NY 12508". */
+export function courtSpoken(c: CourtCard, selected: boolean): string {
+  const miles = c.distance ? Number(c.distance.replace(/\D/g, "")) : null;
+  return [c.name, miles != null ? `about ${miles} mile${miles === 1 ? "" : "s"} away` : null, c.address, selected ? "selected" : null]
+    .filter(Boolean)
+    .join(", ");
 }

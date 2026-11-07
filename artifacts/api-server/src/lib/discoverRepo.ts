@@ -158,14 +158,16 @@ type CandidateRow = {
   area_town: string | null;
   plays: string | null;
   slots: number[] | null;
+  home_court: string | null;
 };
 
 const candidateSelect = sql`
   SELECT u.id AS user_id, u.clerk_user_id, u.display_name AS name, u.avatar_url, u.rating, u.rating_source,
-    d.area_latitude, d.area_longitude, d.area_town, d.plays, w.slots
+    d.area_latitude, d.area_longitude, d.area_town, d.plays, w.slots, hc.name AS home_court
   FROM users u
   JOIN discover_profiles d ON d.clerk_user_id = u.clerk_user_id
-  LEFT JOIN weekly_availability w ON w.clerk_user_id = u.clerk_user_id`;
+  LEFT JOIN weekly_availability w ON w.clerk_user_id = u.clerk_user_id
+  LEFT JOIN directory_courts hc ON hc.id = d.home_court_id`;
 
 const toCandidate = (r: CandidateRow): DiscoverCandidate => ({
   userId: Number(r.user_id),
@@ -178,6 +180,7 @@ const toCandidate = (r: CandidateRow): DiscoverCandidate => ({
   town: r.area_town,
   plays: r.plays,
   slots: r.slots ?? [],
+  homeCourt: r.home_court ?? null,
 });
 
 /** How often the background area refresh may run, at most. */

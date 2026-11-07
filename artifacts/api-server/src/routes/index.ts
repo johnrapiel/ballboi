@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { devToolsAllowed } from "../lib/devTime";
+import courtsRouter from "./courts";
 import devLeagueToolsRouter from "./devLeagueTools";
 import discoverRouter from "./discover";
 import healthRouter from "./health";
@@ -41,6 +42,7 @@ const router: IRouter = Router();
 
 // Dev-only walkthrough tools: not mounted in production (lib/devTime.ts).
 if (devToolsAllowed()) router.use(devLeagueToolsRouter);
+router.use(courtsRouter);
 router.use(discoverRouter);
 router.use(healthRouter);
 router.use(leagueAdminsRouter);
