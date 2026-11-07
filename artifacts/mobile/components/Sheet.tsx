@@ -93,35 +93,66 @@ export function SheetBody({
   const own = useSheetClose(close ? false : dirty);
   const onEscape = close ?? own.close;
 
+  // Hugging sheets (Wave 1 Fix 1b): the native `fitToContents` sheet sizes
+  // itself from its content, and it only measures that reliably when the
+  // content is a plain View with a definite height. A ScrollView with
+  // `flexGrow: 0` and `maxHeight` left the sheet blank on iOS 26. So the
+  // content is a plain View, and only when it's taller than the screen (very
+  // large text) does it switch to a ScrollView with a fixed height. Once a
+  // sheet scrolls it keeps scrolling until it closes, so it never flips back
+  // and forth while someone types.
+  const maxHeight = height - insets.top - spacing.space6;
+  const [contentH, setContentH] = useState(0);
+  const [footerH, setFooterH] = useState(0);
+  const [tall, setTall] = useState(false);
+  useEffect(() => {
+    if (!fill && !tall && contentH + footerH > maxHeight) setTall(true);
+  }, [fill, tall, contentH, footerH, maxHeight]);
+  const scrolls = fill || tall;
+
+  const padding: StyleProp<ViewStyle> = [
+    {
+      paddingTop: spacing.space6,
+      paddingHorizontal: spacing.space4,
+      paddingBottom: footer ? spacing.space4 : insets.bottom + spacing.space4,
+      gap: spacing.space4,
+    },
+    contentStyle,
+  ];
+  const content = (
+    <>
+      <Text variant="brushM" accessibilityRole="header">
+        {title}
+      </Text>
+      {children}
+    </>
+  );
+
   return (
     <View
       // The VoiceOver escape gesture (two-finger Z) closes the sheet.
       onAccessibilityEscape={onEscape}
       style={[{ backgroundColor: c.linen }, fill ? { flex: 1 } : null]}
     >
-      <ScrollView
-        ref={scrollRef}
-        keyboardShouldPersistTaps="handled"
-        // Hugging the content: the scroll view is only as tall as what's in it,
-        // up to the screen, so larger text grows the sheet before it scrolls.
-        style={fill ? { flex: 1 } : { maxHeight: height - insets.top - spacing.space6, flexGrow: 0 }}
-        contentContainerStyle={[
-          {
-            paddingTop: spacing.space6,
-            paddingHorizontal: spacing.space4,
-            paddingBottom: footer ? spacing.space4 : insets.bottom + spacing.space4,
-            gap: spacing.space4,
-          },
-          contentStyle,
-        ]}
-      >
-        <Text variant="brushM" accessibilityRole="header">
-          {title}
-        </Text>
-        {children}
-      </ScrollView>
+      {scrolls ? (
+        <ScrollView
+          ref={scrollRef}
+          keyboardShouldPersistTaps="handled"
+          // Full-height sheets fill the screen; a hugging sheet that outgrew it
+          // gets a fixed height so the native sheet can still measure it.
+          style={fill ? { flex: 1 } : { height: Math.max(0, maxHeight - footerH) }}
+          contentContainerStyle={padding}
+        >
+          {content}
+        </ScrollView>
+      ) : (
+        <View onLayout={(e) => setContentH(e.nativeEvent.layout.height)} style={padding}>
+          {content}
+        </View>
+      )}
       {footer ? (
         <View
+          onLayout={(e) => setFooterH(e.nativeEvent.layout.height)}
           style={{
             paddingHorizontal: spacing.space4,
             paddingTop: spacing.space3,
