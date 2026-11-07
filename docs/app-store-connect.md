@@ -35,7 +35,7 @@ Answer for what the submitted build collects. Rows marked _at launch_ come with 
 | User ID (Clerk ID, linked UTR ID) | Yes | Yes | App Functionality |
 | Device ID (push token) | Yes | Yes | App Functionality |
 | Coarse Location (home area, travel mode) | _At launch_ | Yes | App Functionality |
-| Purchases (Ball Boi Pro) | _At launch_ | Yes | App Functionality |
+| Purchases (Ball Boi Pro) | No (Ball Boi Pro parked, spec decision 82; add back when Pro ships) | | |
 | Crash data, analytics | No (add if Sentry, PostHog or similar is added) | | |
 
 ## Age rating questionnaire
@@ -64,8 +64,7 @@ Demo account (password sign-in is enabled for this account only):
   Password: <set in Clerk>
 
 Seeded data: a league with a scheduled and a completed match, two Ball Boi
-replays, a message thread, a Message Request, and an open match. The 3 free
-months are already used, so the Ball Boi Pro paywall is live.
+replays, a message thread, a Message Request, and an open match.
 
 Recording needs a real device on a court. A 60-second screen recording of a
 recording session is attached.
