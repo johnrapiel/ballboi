@@ -1,0 +1,78 @@
+name: Seed staging data
+
+# Loads the demo test data into the staging database, so the TestFlight app
+# has leagues, results and players to look at. Run it by hand only:
+# Actions > Seed staging data > Run workflow. Safe to run again: it resets the
+# demo data to the same state. What it makes: docs/staging-api.md.
+#
+# It only adds and removes demo rows (demo accounts, demo leagues, and the
+# rounds and matches in John's Test League 1). It never creates, drops or
+# changes tables, and it stops before writing anything if the tables aren't
+# there. The log shows counts only: no names, emails, codes or secrets.
+
+on:
+  workflow_dispatch:
+    inputs:
+      include_walkthrough:
+        description: 'Also make the walkthrough accounts B, C and D and the Walkthrough League'
+        type: boolean
+        default: false
+
+concurrency:
+  group: seed-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile --filter "@workspace/api-server..."
+
+      - name: Check the secrets are set
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+        run: |
+          missing=""
+          [ -n "$DATABASE_URL" ] || missing="$missing DATABASE_URL"
+          [ -n "$CLERK_SECRET_KEY" ] || missing="$missing CLERK_SECRET_KEY"
+          [ -n "$ADMIN_EMAIL" ] || missing="$missing ADMIN_EMAIL"
+          if [ -n "$missing" ]; then echo "Missing repository secrets:$missing. Nothing was changed."; exit 1; fi
+          # Test data only ever goes to Clerk's Development instance.
+          case "$CLERK_SECRET_KEY" in sk_test_*) ;; *) echo "CLERK_SECRET_KEY isn't a Development key. Nothing was changed."; exit 1 ;; esac
+          echo "Secrets are set."
+
+      - name: Seed demo data
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          LOG_LEVEL: fatal
+        run: pnpm --silent --filter @workspace/api-server run walkthrough demo --counts
+
+      - name: Seed walkthrough accounts
+        if: ${{ inputs.include_walkthrough }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          LOG_LEVEL: fatal
+        run: pnpm --silent --filter @workspace/api-server run walkthrough seed --counts

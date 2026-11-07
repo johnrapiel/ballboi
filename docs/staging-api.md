@@ -17,6 +17,20 @@ Cloudflare Containers need the Workers Paid plan: $5/month, which includes enoug
 - **Messages reset when the API sleeps**, because staging uses the in-memory messaging provider. Switching `MESSAGING_PROVIDER` to `stream` (with keys) fixes that.
 - **No ML server yet.** Recording and upload work; Ball Boi analysis waits until the ML server is hosted.
 
+## Test data
+
+Actions > **Seed staging data** > Run workflow loads the same demo data as `pnpm seed:demo` into staging. Run it whenever you want a fresh, realistic set to review on TestFlight; each run resets the demo data to the same state (dates move with today). It only touches demo accounts, demo leagues and the rounds and matches in your Test League 1, never anyone else's data or the tables, and its log shows counts only. Tick **include_walkthrough** to also make walkthrough accounts B, C and D (`pnpm seed:walkthrough`).
+
+What you'll see in the app (sign in with the `ADMIN_EMAIL` account):
+
+- **Test League 1** (Private, you run it): 13 players, today is the last day of week 4. Three weeks of results, your match tonight at 6:30 PM at Memorial Park, Beacon, Round 5 pairings waiting for review in Manage, and a join request from Olivia Park. Made for you if it doesn't exist yet.
+- **Dutchess County Singles** (Open, you run it): full at 10 players, week 3, your match later this week at Spratt Park, and three players on the waitlist.
+- **Hudson Valley Summer Singles** (Past): final standings and a finished top-8 playoff.
+- **Discover**: 31 players nearby (levels 2.5 to 5.0), 3 far away who shouldn't show, and two Open leagues starting soon.
+- **Messages**: not seeded. Staging keeps messages in the API's memory, so they'd vanish when it sleeps.
+
+Every demo player is a real Clerk Development account: sign in as one with `ballboi-demo-first-last+clerk_test@example.com` (for example `ballboi-demo-maya-chen+clerk_test@example.com`) and code 424242.
+
 ## Secrets
 
 Set as GitHub repository secrets (Settings > Secrets and variables > Actions). The deploy copies them to the Worker. Never commit them or paste them in chat.

@@ -1,19 +1,21 @@
 import { describe, it, expect } from "vitest";
-import { parseCommand } from "../lib/walkthrough.js";
+import { parseCommand, redact } from "../lib/walkthrough.js";
 
 // The walkthrough helper commands (pnpm walkthrough ...), dev only.
 
 describe("parseCommand", () => {
   it("reads seed and accounts", () => {
-    expect(parseCommand(["seed"])).toEqual({ kind: "seed", me: null });
-    expect(parseCommand(["seed", "--me", "j@x.com"])).toEqual({ kind: "seed", me: "j@x.com" });
+    expect(parseCommand(["seed"])).toEqual({ kind: "seed", me: null, counts: false });
+    expect(parseCommand(["seed", "--me", "j@x.com"])).toEqual({ kind: "seed", me: "j@x.com", counts: false });
+    expect(parseCommand(["seed", "--counts"])).toEqual({ kind: "seed", me: null, counts: true });
     expect(parseCommand([])).toEqual({ kind: "help" });
   });
 
   it("reads demo, defaulting to Test League 1", () => {
-    expect(parseCommand(["demo"])).toEqual({ kind: "demo", me: null, leagueId: null, name: "Test League 1" });
-    expect(parseCommand(["demo", "--league", "7", "--me", "j@x.com"])).toEqual({ kind: "demo", me: "j@x.com", leagueId: 7, name: "Test League 1" });
-    expect(parseCommand(["demo", "--name", "Tuesday Night"])).toEqual({ kind: "demo", me: null, leagueId: null, name: "Tuesday Night" });
+    expect(parseCommand(["demo"])).toEqual({ kind: "demo", me: null, leagueId: null, name: "Test League 1", counts: false });
+    expect(parseCommand(["demo", "--league", "7", "--me", "j@x.com"])).toEqual({ kind: "demo", me: "j@x.com", leagueId: 7, name: "Test League 1", counts: false });
+    expect(parseCommand(["demo", "--name", "Tuesday Night"])).toEqual({ kind: "demo", me: null, leagueId: null, name: "Tuesday Night", counts: false });
+    expect(parseCommand(["demo", "--counts"])).toEqual({ kind: "demo", me: null, leagueId: null, name: "Test League 1", counts: true });
     expect(parseCommand(["demo", "--league", "abc"])).toHaveProperty("error");
   });
 
@@ -36,5 +38,15 @@ describe("parseCommand", () => {
     expect(parseCommand(["time", "12", "season-started"])).toEqual({ kind: "time", league: 12, action: "season_started" });
     expect(parseCommand(["time", "tomorrow"])).toHaveProperty("error");
     expect(parseCommand(["pair-now", "7"])).toEqual({ kind: "pair-now", league: 7 });
+  });
+});
+
+describe("redact (staging seed logs)", () => {
+  it("hides secrets, connection strings and emails, and keeps one line", () => {
+    const env = { DATABASE_URL: "postgresql://u:pw@ep-cool.neon.tech/db?sslmode=require", ADMIN_EMAIL: "owner@example.com", CLERK_SECRET_KEY: "sk_test_abc123" };
+    const out = redact(`No Clerk account for owner@example.com via ${env.DATABASE_URL} with sk_test_abc123\nstack line`, env);
+    expect(out).toBe("No Clerk account for [ADMIN_EMAIL] via [DATABASE_URL] with [CLERK_SECRET_KEY]");
+    expect(redact("failed at postgres://x:y@host/db for someone+clerk_test@example.com", {})).toBe("failed at [url] for [email]");
+    expect(redact("key sk_live_ZZZ leaked", {})).toBe("key [key] leaked");
   });
 });
