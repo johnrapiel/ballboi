@@ -8,6 +8,12 @@
     "scheme": "ballboi",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/75bc5ac9-dfef-4a20-8677-b19f8851eff0"
+    },
     "ios": {
       "bundleIdentifier": "tennis.ballboi",
       "supportsTablet": false,
@@ -109,10 +115,10 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/roundel-ink.png",
+          "image": "./assets/images/roundel-ink@3x.png",
           "imageWidth": 160,
           "resizeMode": "contain",
-          "backgroundColor": "#ECDFC8"
+          "backgroundColor": "#FAF9F5"
         }
       ],
       "expo-web-browser",

@@ -35,6 +35,7 @@ const PAIRS = [
   ["court", "sand", TEXT, "court text in wells"],
   ["danger", "paper", TEXT, "error text on the page"],
   ["danger", "linen", TEXT, "error text on cards"],
+  ["danger", "sand", TEXT, "error text in wells"],
   ["on-ink", "court", TEXT, "label on the live chip"],
   ["on-ink", "danger", TEXT, "label on a destructive button"],
   ["hairline-strong", "paper", NON_TEXT, "input and secondary button borders"],

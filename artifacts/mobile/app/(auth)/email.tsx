@@ -20,7 +20,7 @@ import { AccessibilityInfo, Pressable, View } from "react-native";
 
 import { Button, Field, KeyboardScreen, ScrollScreen, Text, TextLink } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
-import { clerkErrorCode, friendlyAuthError } from "@/lib/authErrors";
+import { clerkErrorCode, friendlyAuthError, unfinishedAuthDetail, unfinishedAuthMessage } from "@/lib/authErrors";
 import {
   NO_ATTEMPTS,
   RESEND_COOLDOWN_SECONDS,
@@ -187,8 +187,13 @@ export default function EmailScreen() {
         return showError(message, { wrongCode: true, spoken: shouldSteer(next) ? `${message} ${STEER_MESSAGE}` : message });
       }
       if (resource.status !== "complete") {
-        logAuthIssue("status after verify", resource.status);
-        return showError("Something went wrong. Try again.");
+        // Names the fields Clerk still wants (finding #22), so a dashboard
+        // setting like "Sign-up with password" is easy to spot.
+        logAuthIssue(
+          "status after verify",
+          unfinishedAuthDetail(mode === "signUp" ? signUp : { status: signIn.status }),
+        );
+        return showError(unfinishedAuthMessage(mode));
       }
       // The auth layout moves signed-in players on to the age check.
       const { error: finalizeError } = await resource.finalize();

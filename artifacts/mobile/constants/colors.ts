@@ -5,10 +5,13 @@ import { color, radius, type ColorTokens } from "@/constants/tokens";
 // New code should read design system names directly via useColors():
 // paper, linen, sand, ink, inkMuted, onInk, hairline, hairlineStrong,
 // court (the one accent), danger, focus.
+// `scheme` says which session the palette belongs to, for the few assets
+// that come in a Day and a Night version (the roundel).
 
-function palette(t: ColorTokens) {
+function palette(t: ColorTokens, scheme: "light" | "dark") {
   return {
     ...t,
+    scheme,
     // Legacy keys used by screens that haven't been rebuilt yet.
     text: t.ink,
     tint: t.court,
@@ -32,8 +35,8 @@ function palette(t: ColorTokens) {
 }
 
 const colors = {
-  light: palette(color.light),
-  dark: palette(color.dark),
+  light: palette(color.light, "light"),
+  dark: palette(color.dark, "dark"),
   radius: radius.radiusMd,
 };
 

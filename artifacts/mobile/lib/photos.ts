@@ -26,3 +26,27 @@ export function photoSource(uri: string, token: string | null | undefined): Phot
   if (!token) return null;
   return { uri, headers: { Authorization: `Bearer ${token}` } };
 }
+
+// ─── Uploading a picked photo (finding #23) ──────────────────────────────────
+
+const PHOTO_TYPE_BY_EXTENSION: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  heic: "image/heic",
+  heif: "image/heif",
+  webp: "image/webp",
+};
+
+/**
+ * The Content-Type for a picked photo. Uses what the picker said when it's an
+ * image type the API takes, then the file's extension (the picker can leave
+ * `mimeType` empty), and otherwise JPEG, which is what the picker writes
+ * after cropping.
+ */
+export function photoContentType(mimeType: string | null | undefined, uri: string): string {
+  const given = mimeType?.split(";")[0].trim().toLowerCase();
+  if (given && Object.values(PHOTO_TYPE_BY_EXTENSION).includes(given)) return given;
+  const ext = uri.split(/[?#]/)[0].split(".").pop()?.toLowerCase() ?? "";
+  return PHOTO_TYPE_BY_EXTENSION[ext] ?? "image/jpeg";
+}

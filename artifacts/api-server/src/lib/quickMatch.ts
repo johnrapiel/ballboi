@@ -21,22 +21,34 @@ export function inviteUrl(code: string): string {
 export const MAX_NAME = 60;
 
 export type QuickMatchRequest =
-  | { ok: true; opponentPlayerId: number; opponentName?: undefined }
-  | { ok: true; opponentPlayerId?: undefined; opponentName: string }
+  | { ok: true; opponentPlayerId: number; opponentUserId?: undefined; opponentName?: undefined }
+  | { ok: true; opponentPlayerId?: undefined; opponentUserId: number; opponentName?: undefined }
+  | { ok: true; opponentPlayerId?: undefined; opponentUserId?: undefined; opponentName: string }
   | { ok: false; error: string };
 
-/** Reads POST /recording/quick-matches. Exactly one of opponentPlayerId or opponentName. */
+/**
+ * Reads POST /recording/quick-matches. Exactly one of opponentPlayerId,
+ * opponentUserId (someone found with player search) or opponentName.
+ */
 export function parseQuickMatch(body: unknown): QuickMatchRequest {
   const b = (body ?? {}) as Record<string, unknown>;
   const format = b.format ?? "singles";
   if (format === "doubles") return { ok: false, error: "Ball Boi analyzes singles for now. Doubles is coming." };
   if (format !== "singles") return { ok: false, error: "Choose singles or doubles." };
   const id = b.opponentPlayerId;
+  const userId = b.opponentUserId;
   const name = typeof b.opponentName === "string" ? b.opponentName.trim().replace(/\s+/g, " ") : "";
-  if (id != null && name) return { ok: false, error: "Pick a player or type a name, not both." };
+  if ([id != null, userId != null, !!name].filter(Boolean).length > 1) {
+    return { ok: false, error: "Pick a player or type a name, not both." };
+  }
+  const validId = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v > 0;
   if (id != null) {
-    if (typeof id !== "number" || !Number.isInteger(id) || id <= 0) return { ok: false, error: "Pick a player." };
+    if (!validId(id)) return { ok: false, error: "Pick a player." };
     return { ok: true, opponentPlayerId: id };
+  }
+  if (userId != null) {
+    if (!validId(userId)) return { ok: false, error: "Pick a player." };
+    return { ok: true, opponentUserId: userId };
   }
   if (!name) return { ok: false, error: "Who are you playing? Type their name." };
   if (name.length > MAX_NAME) return { ok: false, error: `Keep the name under ${MAX_NAME} characters.` };

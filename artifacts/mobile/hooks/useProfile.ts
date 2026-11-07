@@ -1,7 +1,7 @@
-import { useAuth } from "@clerk/expo";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 
+import { useStableGetToken } from "@/hooks/useStableGetToken";
 import { fetchProfile, type Profile } from "@/lib/onboarding";
 
 /**
@@ -9,7 +9,7 @@ import { fetchProfile, type Profile } from "@/lib/onboarding";
  * focus, so the Edit profile list shows new values after a Save and Back.
  */
 export function useProfile() {
-  const { getToken } = useAuth();
+  const getToken = useStableGetToken();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
