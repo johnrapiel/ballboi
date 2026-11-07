@@ -9,7 +9,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, ActionSheetIOS, FlatList, KeyboardAvoidingView, Platform, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { IconButton } from "@/components/Choice";
+import { HeaderIconButton } from "@/components/Choice";
 import { MessageBubble } from "@/components/messages/MessageBubble";
 import { Button, Text, useTypeStyle } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
@@ -102,7 +102,7 @@ export default function GroupChatScreen() {
             </View>
           ),
           headerRight: () => (
-            <IconButton
+            <HeaderIconButton
               symbol="person.2"
               label="Players"
               hint="Who's in, and dropping out"
