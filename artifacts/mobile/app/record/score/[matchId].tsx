@@ -12,7 +12,7 @@
 import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React, { useState } from "react";
 import { AccessibilityInfo, View } from "react-native";
 
@@ -115,7 +115,7 @@ export default function ScorePromptScreen() {
     <SheetBody title="Enter score" close={sheet.close}>
       {stopped && STOP_MESSAGES[stopped] ? (
         <Card accessible style={{ flexDirection: "row", gap: spacing.space2, alignItems: "flex-start" }}>
-          <SymbolView name="exclamationmark.triangle" size={18} tintColor={c.ink} style={{ marginTop: 2 }} />
+          <Icon name="exclamationmark.triangle" size={18} tintColor={c.ink} style={{ marginTop: 2 }} />
           <Text style={{ flex: 1 }}>{STOP_MESSAGES[stopped]}</Text>
         </Card>
       ) : null}

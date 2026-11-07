@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React, { useCallback, useRef } from "react";
 import { ActionSheetIOS, ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollView, Share, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -103,7 +103,7 @@ function EditPencil({ onPress }: { onPress: () => void }) {
       accessibilityHint="Opens Enter score with this score filled in"
       style={({ pressed }) => ({ width: MIN_TAP, height: MIN_TAP, marginLeft: -spacing.space3, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.6 : 1 })}
     >
-      <SymbolView name="pencil" size={18} tintColor={c.ink} />
+      <Icon name="pencil" size={18} tintColor={c.ink} />
     </Pressable>
   );
 }
@@ -253,7 +253,7 @@ export default function MatchDetailScreen() {
           <Text style={{ textAlign: "center" }}>{stage}</Text>
           {d.location ? (
             <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space1 }}>
-              <SymbolView name="mappin.and.ellipse" size={16} tintColor={c.inkMuted} />
+              <Icon name="mappin.and.ellipse" size={16} tintColor={c.inkMuted} />
               <Text style={{ flexShrink: 1, textAlign: "center" }}>{d.location}</Text>
             </View>
           ) : null}
@@ -324,7 +324,7 @@ export default function MatchDetailScreen() {
                 </Text>
               ) : null}
             </View>
-            <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} />
+            <Icon name="chevron.right" size={13} tintColor={c.inkMuted} />
           </Card>
         </Pressable>
       ) : null}

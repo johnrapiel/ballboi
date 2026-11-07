@@ -5,7 +5,7 @@
 // picking hands it back, and "Court not set" is allowed).
 
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React, { useState } from "react";
 import { AccessibilityInfo, Alert, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -157,7 +157,7 @@ function Row({
         opacity: pressed ? 0.7 : 1,
       })}
     >
-      {symbol ? <SymbolView name="plus.circle" size={20} tintColor={c.ink} /> : null}
+      {symbol ? <Icon name="plus.circle" size={20} tintColor={c.ink} /> : null}
       <View style={{ flex: 1, gap: 2 }}>
         <Text variant={selected || symbol ? "bodyStrong" : "body"}>{title}</Text>
         {subtitle ? (
@@ -168,7 +168,7 @@ function Row({
       </View>
       {/* A check, not color, marks the court picked (a list, not a chip). */}
       <View style={{ width: 20, alignItems: "center" }}>
-        {selected ? <SymbolView name="checkmark" size={16} tintColor={c.ink} /> : null}
+        {selected ? <Icon name="checkmark" size={16} tintColor={c.ink} /> : null}
       </View>
     </Pressable>
   );

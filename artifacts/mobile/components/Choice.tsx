@@ -1,4 +1,4 @@
-import { SymbolView, type SFSymbol } from "expo-symbols";
+import { Icon, type IconName } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
@@ -64,7 +64,7 @@ export function ChoiceGroup<T extends string | number>({
                 opacity: pressed ? 0.8 : 1,
               })}
             >
-              {on ? <SymbolView name="checkmark" size={12} tintColor={c.onInk} /> : null}
+              {on ? <Icon name="checkmark" size={12} tintColor={c.onInk} /> : null}
               <Text variant="bodyStrong" tone={on ? "onInk" : "ink"}>
                 {o.label}
               </Text>
@@ -82,7 +82,7 @@ export function ChoiceGroup<T extends string | number>({
 }
 
 /**
- * A 44pt round button with an SF Symbol, for in-page headers (TabHeader) and
+ * A 44pt round button with a brush icon, for in-page headers (TabHeader) and
  * in-page rows. In the native navigation bar use HeaderIconButton instead.
  */
 export function IconButton({
@@ -91,7 +91,7 @@ export function IconButton({
   hint,
   onPress,
 }: {
-  symbol: SFSymbol;
+  symbol: IconName;
   label: string;
   /** What happens on tap, read by VoiceOver after the label. */
   hint?: string;
@@ -117,13 +117,13 @@ export function IconButton({
         opacity: pressed ? 0.7 : 1,
       })}
     >
-      <SymbolView name={symbol} size={18} tintColor={c.ink} />
+      <Icon name={symbol} size={18} tintColor={c.ink} />
     </Pressable>
   );
 }
 
 /**
- * A plain SF Symbol button for the native navigation bar (headerRight and
+ * A plain brush icon button for the native navigation bar (headerRight and
  * headerLeft). It draws no circle, fill or border of its own: on iOS 26 the
  * system draws the Liquid Glass circle, so ours would show as a second one.
  * The hit area is still at least 44x44pt.
@@ -134,7 +134,7 @@ export function HeaderIconButton({
   hint,
   onPress,
 }: {
-  symbol: SFSymbol;
+  symbol: IconName;
   label: string;
   /** What happens on tap, read by VoiceOver after the label. */
   hint?: string;
@@ -156,7 +156,7 @@ export function HeaderIconButton({
         opacity: pressed ? 0.6 : 1,
       })}
     >
-      <SymbolView name={symbol} size={20} tintColor={c.ink} />
+      <Icon name={symbol} size={20} tintColor={c.ink} />
     </Pressable>
   );
 }

@@ -1,4 +1,4 @@
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React from "react";
 import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
 
@@ -41,7 +41,7 @@ export function SearchField({
         backgroundColor: c.linen,
       }}
     >
-      <SymbolView name="magnifyingglass" size={18} tintColor={c.inkMuted} />
+      <Icon name="magnifyingglass" size={18} tintColor={c.inkMuted} />
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -72,7 +72,7 @@ export function SearchField({
             opacity: pressed ? 0.6 : 1,
           })}
         >
-          <SymbolView name="xmark.circle.fill" size={18} tintColor={c.inkMuted} />
+          <Icon name="xmark.circle.fill" size={18} tintColor={c.inkMuted} />
         </Pressable>
       ) : (
         <View style={{ width: spacing.space2 }} />
