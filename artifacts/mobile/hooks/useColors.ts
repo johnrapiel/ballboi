@@ -4,7 +4,8 @@ import colors from "@/constants/colors";
 import { useAccessibilitySettings } from "@/hooks/useAccessibilitySettings";
 
 /**
- * Returns the Ball Boi design system colors for the device's appearance:
+ * Returns the Ball Boi design system colors for the app's appearance (Light by
+ * default, see lib/appearance.ts):
  * Day session (light) or Night session (dark). Includes the design system
  * names (paper, ink, court...) plus legacy keys for screens not yet rebuilt.
  *
