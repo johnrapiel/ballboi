@@ -39,5 +39,12 @@
         "image": "latest"
       }
     }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6831844206"
+      }
+    }
   }
 }
