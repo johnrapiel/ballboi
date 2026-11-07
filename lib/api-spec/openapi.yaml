@@ -264,6 +264,132 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /open-matches:
+    get:
+      operationId: listOpenMatches
+      tags: [discover]
+      summary: Open matches near you, soonest first, with a count per distance chip
+      parameters:
+      - name: radius
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 30
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenMatchList'
+    post:
+      operationId: postOpenMatch
+      tags: [discover]
+      summary: Post an open match
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewOpenMatchInput'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenMatchDetail'
+        '400':
+          description: A time that has passed, or another problem
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /open-matches/mine:
+    get:
+      operationId: listMyOpenMatches
+      tags: [discover]
+      summary: Open matches you posted or hold a spot in, still to play, for Home
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyOpenMatches'
+  /open-matches/{id}:
+    get:
+      operationId: getOpenMatch
+      tags: [discover]
+      summary: One open match, who's in, and what you can do
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenMatchDetail'
+  /open-matches/{id}/messages:
+    get:
+      operationId: getOpenMatchMessages
+      tags: [discover]
+      summary: The group chat of a filled open match (add ?after=<id> for only newer lines)
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenMatchMessages'
+  /open-matches/{id}/{action}:
+    post:
+      operationId: actOnOpenMatch
+      tags: [discover]
+      summary: "join, drop, remove (poster; body userId), cancel (poster), or messages (send to the group chat; body text)"
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: action
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenMatchActionInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenMatchDetail'
+        '409':
+          description: Not possible now (code filled when the last spot just went)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /discover/area:
     put:
       operationId: setDiscoverArea
@@ -6439,7 +6565,10 @@ components:
         freeSummary:
           type: [string, 'null']
           description: '"Weekday evenings, weekend mornings", or null with no hours set'
-      required: [area, homeZip, hidden, plays, radius, rating, slots, hoursFree, freeSummary]
+        matchAlerts:
+          type: boolean
+          description: Alerts for new open matches near you, up to 2 a day
+      required: [area, homeZip, hidden, plays, radius, rating, slots, hoursFree, freeSummary, matchAlerts]
     DiscoverPlayerCard:
       type: object
       properties:
@@ -6565,6 +6694,8 @@ components:
           type: integer
           minimum: 1
           maximum: 30
+        matchAlerts:
+          type: boolean
     HomeCourt:
       type: object
       properties:
@@ -6687,6 +6818,207 @@ components:
                   type: [integer, 'null']
               required: [otherName, otherUserId]
       required: [matches]
+    MyOpenMatches:
+      type: object
+      properties:
+        matches:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              when:
+                type: string
+              format:
+                type: string
+                enum: [singles, doubles]
+              courtName:
+                type: [string, 'null']
+              status:
+                type: string
+              spotsLeft:
+                type: integer
+              total:
+                type: integer
+              chatTitle:
+                type: string
+            required: [id, when, format, courtName, status, spotsLeft, total, chatTitle]
+      required: [matches]
+    NewOpenMatchInput:
+      type: object
+      properties:
+        startsAt:
+          type: string
+        endsAt:
+          type: string
+        timeZone:
+          type: string
+        format:
+          type: string
+          enum: [singles, doubles]
+        spots:
+          type: integer
+          minimum: 1
+          maximum: 3
+        level:
+          type: string
+          enum: [close, wider, any]
+        courtId:
+          type: [integer, 'null']
+        note:
+          type: [string, 'null']
+      required: [startsAt, endsAt, format]
+    OpenMatchActionInput:
+      type: object
+      properties:
+        userId:
+          type: integer
+        text:
+          type: string
+    OpenMatchCard:
+      type: object
+      properties:
+        id:
+          type: integer
+        when:
+          type: string
+        detail:
+          type: string
+        where:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+            enum: [your_post, youre_in, need]
+        need:
+          type: [integer, 'null']
+        spoken:
+          type: string
+      required: [id, when, detail, where, tags, need, spoken]
+    OpenMatchDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        when:
+          type: string
+        startsAt:
+          type: string
+        endsAt:
+          type: string
+        format:
+          type: string
+          enum: [singles, doubles]
+        levelText:
+          type: string
+        courtName:
+          type: [string, 'null']
+        distance:
+          type: [string, 'null']
+        note:
+          type: [string, 'null']
+        status:
+          type: string
+        spots:
+          type: integer
+        spotsLeft:
+          type: integer
+        total:
+          type: integer
+        players:
+          type: array
+          items:
+            type: object
+            properties:
+              userId:
+                type: integer
+              name:
+                type: string
+              rating:
+                type: [number, 'null']
+              poster:
+                type: boolean
+              me:
+                type: boolean
+            required: [userId, name, rating, poster, me]
+        role:
+          type: string
+          enum: [poster, in, none]
+        started:
+          type: boolean
+        chatTitle:
+          type: string
+        matchId:
+          type: [integer, 'null']
+      required: [id, when, startsAt, endsAt, format, levelText, courtName, distance, note, status, spots, spotsLeft, total, players, role, started, chatTitle, matchId]
+    OpenMatchList:
+      type: object
+      properties:
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpenMatchCard'
+        counts:
+          type: array
+          items:
+            type: object
+            properties:
+              radius:
+                type: integer
+              count:
+                type: integer
+            required: [radius, count]
+        radius:
+          type: integer
+        total:
+          type: integer
+        needsArea:
+          type: boolean
+        matchAlerts:
+          type: boolean
+        notices:
+          type: array
+          description: '"This match filled up" for posts you were taken off'
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              when:
+                type: string
+              courtName:
+                type: [string, 'null']
+              format:
+                type: string
+            required: [id, when, courtName, format]
+      required: [matches, counts, radius, total, needsArea, matchAlerts, notices]
+    OpenMatchMessages:
+      type: object
+      properties:
+        open:
+          type: boolean
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              text:
+                type: string
+              at:
+                type: string
+              fromMe:
+                type: boolean
+              senderName:
+                type: [string, 'null']
+                description: Null for a line from Ball Boi
+              senderUserId:
+                type: [integer, 'null']
+            required: [id, text, at, fromMe, senderName, senderUserId]
+      required: [open, messages]
     NewCourtInput:
       type: object
       properties:
