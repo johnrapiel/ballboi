@@ -30,7 +30,7 @@ Also: this PR adds `expo-updates`, a native package, so the development build on
 
 ## Limits on Expo's free plan
 
-The free plan includes 15 iOS builds and 60 minutes of workflow time a month. Skipping the build when only app code changed, and ignoring API and docs merges, keeps most months inside that. Check usage at expo.dev > Billing. If a busy month runs out, new builds stop until the limits reset the next month; the app already on your phone keeps working. The $19/month Starter plan raises the limits if that becomes a problem.
+The free plan includes 15 iOS builds and 60 minutes of workflow time a month. Skipping the build when only app code changed, ignoring API and docs merges, and building only the newest merge when several land close together keeps most months inside that. Check usage at expo.dev > Billing. If a busy month runs out, new builds stop until the limits reset the next month; the app already on your phone keeps working. The $19/month Starter plan raises the limits if that becomes a problem.
 
 ## If something fails
 
