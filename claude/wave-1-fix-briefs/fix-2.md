@@ -14,9 +14,9 @@ Rules:
 
 ## Wave 1, Fix 2: Match detail, My matches and score edits
 
-**Start after Fix 1 merges** (both touch Enter score).
+**Fix 1 (#127) has merged**, so build on the latest main: its sheet rule (components/Sheet.tsx), the score grid and the new palette are in.
 
-**Findings:** #6, #7, #14
+**Findings:** #6, #7, #14, #27
 
 **Scope:** build the approved Match detail and My matches screens (they have no route yet), Home's season stats, single-league standings and See all, and replace the 10-minute Undo with a 24-hour edit.
 
@@ -29,6 +29,7 @@ Rules:
 6. Within 24 hours of a score being entered, open Match detail as either player. Expect: a small pencil icon next to the score (VoiceOver: "Edit score", 44pt target). It opens Enter score prefilled; saving updates the score, standings recompute, and the other player sees "Score edited by [name]".
 7. After 24 hours. Expect: no pencil. Only the admin's logged correction in Manage can change it.
 8. Empty states: a player with no results, and with no upcoming matches. Expect: clear empty states with a way forward.
+9. A brand-new player with nothing on Home (finding #27). Expect: the roundel (the shared `Roundel` component) sits large in the empty state in place of the empty state icon, and the header has no roundel. Once there's content, the roundel is in the top left header as today. No "Go to league" button on Home. Update docs/design-system/README.md's Logo section to match.
 
 Replaces "first score stands" and the 10-minute Undo. Note in the PR that the spec's decision log needs #7.
 
@@ -36,3 +37,4 @@ Findings rows (from claude/walkthroughs/wave-1.md, columns: # | step | what happ
 | 6 | 1.4, Home recent results | Tapping a recent result opens the league page. The approved Match detail screen (design audit, Nov 6) was never built. Decision (John, Nov 6): build it now as a Wave 1 fix, to the approved design: plain match details like Home's card, the score alone with the brush ring on the winner, Ball Boi Replay (shown only once a replay exists; Wave 2 fills it in), More options with Share and Report only, no score edits. Recent results and My matches open it | Bug | Session C's area (`app/match/**`). JavaScript only, no build | |
 | 7 | 4.4, 4.5, scores | Replace the 10-minute Undo. Decision (John, Nov 6): no countdown or Undo banner. **Either player can edit the score for 24 hours** after it's entered; the latest edit stands, the other player sees "Score edited by [name]", and standings recompute. After 24 hours it locks, and only the admin's logged correction in Manage can change it. The edit is a small pencil icon next to the score on Match detail (#6), labeled "Edit score" for VoiceOver with a 44pt target, shown only during the 24 hours. Replaces "first score stands" and the 10-minute Undo (Oct 31 review), and the audit's "no score edits" on Match detail | Bug | Session C's area: score rules in the API (`routes/matches.ts`) plus the Enter score and Match detail screens. Ships with #6. JavaScript and API only, no build | |
 | 14 | Screen 0, Home | Home is missing the season stats. #120 held back Home's season stats, single-league standings and "See all" because they depend on My matches, an approved screen with no route. Decision (John, Nov 6): build now with Match detail (#6), to the approved designs: My matches (light text tabs for Upcoming and Results, condensed next match, stats on one line, W and L), Home's season stats above the next match, standings on Home with one league (Your leagues list with two or more), and See all opening My matches | Bug | Session C's area. Ships with #6. JavaScript only | |
+| 27 | Fix review 1, Home | Decision (John, Nov 6): when Home has nothing to show yet, the roundel sits large in the empty state in place of the empty state icon, with no roundel in the header. Once there's content, the roundel moves to the top left header as it is today. Remove the "Go to league" button from Home, since Leagues is the next tab. Replaces the design system rule that keeps the roundel out of Home's empty state (update the README and the live design system) | Bug | Ships with Fix 2 (Home and My matches). JavaScript only | |
