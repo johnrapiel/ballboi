@@ -215,6 +215,9 @@ export class MessagingService {
     if (c.userA === me && c.aUnread > 0) c = await this.repo.update(c.id, { aUnread: 0 });
     if (c.userB === me && c.bUnread > 0) c = await this.repo.update(c.id, { bUnread: 0 });
     const messages = await this.provider.listMessages(c.channelId, { limit: THREAD_PAGE, before: opts.before });
+    // A chat with messages that come back empty lost its channel (the
+    // in-memory provider, restarted). Make it again so replies still send.
+    if (!messages.length && c.lastMessageAt && !opts.before) await this.provider.ensureChannel(c.channelId, [c.userA, c.userB]);
     const [conversation] = await this.views(me, [{ ...found, c }]);
     return {
       conversation,

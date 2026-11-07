@@ -2,6 +2,9 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 
 vi.mock("@clerk/express", () => ({ clerkClient: { users: { getUser: vi.fn() } }, getAuth: () => ({ userId: null }) }));
 
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { FirstMessageFilter } from "../messaging/filter";
 import { MemoryMessagingProvider } from "../messaging/memoryProvider";
 import { MemoryMessagingRepo } from "../messaging/memoryRepo";
@@ -365,5 +368,42 @@ describe("development samples", () => {
     expect(named).toEqual(["Sam Rivera", "Jordan Lee"]);
     expect(await svc.summary("alex")).toEqual({ unread: 2 });
     expect(await svc.list("alex")).toHaveLength(2);
+  });
+});
+
+describe("after the API restarts (in-memory provider)", () => {
+  // Phone review, Nov 6: chats listed with their preview but opened blank,
+  // because the conversation is in the database and the messages were only in memory.
+  const restart = (file?: string) =>
+    new MessagingService({ repo, provider: new MemoryMessagingProvider({ now: () => now, file }), filter: new FirstMessageFilter(), now: () => now });
+
+  it("keeps the full history when messages are saved to a file", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "ballboi-msg-"));
+    const file = join(dir, "messages.json");
+    const before = restart(file);
+    const { conversationId } = await before.start("alex", { playerId: 2, text: "Hit Saturday?", clientMessageId: mid() });
+    await before.send("blair", conversationId, { text: "Yes, 9am", clientMessageId: mid() });
+
+    const after = restart(file);
+    const thread = await after.thread("alex", conversationId);
+    expect(thread.messages.map((m) => [m.text, m.fromMe])).toEqual([
+      ["Hit Saturday?", true],
+      ["Yes, 9am", false],
+    ]);
+    expect(thread.messages[0].at).toBe(now.toISOString());
+    await after.send("alex", conversationId, { text: "See you there", clientMessageId: mid() });
+    expect((await restart(file).thread("blair", conversationId)).messages).toHaveLength(3);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("lets both players send again in a chat whose history was lost", async () => {
+    const { conversationId } = await svc.start("alex", { playerId: 2, text: "Hit Saturday?", clientMessageId: mid() });
+    const after = restart();
+    const thread = await after.thread("blair", conversationId);
+    expect(thread.messages).toEqual([]);
+    expect(thread.conversation.lastMessage?.text).toBe("Hit Saturday?");
+    await after.send("blair", conversationId, { text: "Yes, 9am", clientMessageId: mid() });
+    await after.send("alex", conversationId, { text: "Great", clientMessageId: mid() });
+    expect((await after.thread("alex", conversationId)).messages.map((m) => m.text)).toEqual(["Yes, 9am", "Great"]);
   });
 });
