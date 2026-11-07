@@ -5,7 +5,9 @@
 // Wave 1 review: Record wording throughout (D27); leaving before anything is
 // recorded removes the match, so it doesn't linger under Record a match
 // (Q18); offline says so (D21); a failed player list says so, with Try
-// again (D32).
+// again (D32). Finding #15 (John, Nov 6): "Someone not on Ball Boi" comes
+// first, then a search bar, then the player list. Search finds any visible
+// player (the shared player search), never a blocked one.
 
 import { useAuth } from "@clerk/expo";
 import { useRouter } from "expo-router";
@@ -15,30 +17,44 @@ import { ActivityIndicator, Pressable, ScrollView, Share, View } from "react-nat
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChoiceGroup } from "@/components/Choice";
+import { SearchField } from "@/components/players/SearchField";
 import { Button, Card, Field, KeyboardScreen, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { usePlayerSearch } from "@/hooks/usePlayerSearch";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import {
-  abandonQuickMatch,
-  createQuickMatch,
-  DOUBLES_MESSAGE,
-  useQuickMatchOpponents,
-  type QuickMatchCreated,
-} from "@/lib/recording/api";
+  noResultsMessage,
+  personKey,
+  quickMatchOpponent,
+  relationLabel,
+  type PlayerSearchResult,
+} from "@/lib/playerSearch";
+import { abandonQuickMatch, createQuickMatch, DOUBLES_MESSAGE, type QuickMatchCreated } from "@/lib/recording/api";
 
 type Format = "singles" | "doubles";
-/** A picked player id, or "new" for someone not on Ball Boi. */
-type Pick = number | "new" | null;
+/** A picked player, or "new" for someone not on Ball Boi. */
+type Pick = PlayerSearchResult | "new" | null;
 
-function OptionRow({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+function OptionRow({
+  label,
+  detail,
+  selected,
+  onPress,
+}: {
+  label: string;
+  /** A second line, like "In your leagues". Read after the name. */
+  detail?: string | null;
+  selected: boolean;
+  onPress: () => void;
+}) {
   const c = useColors();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
-      accessibilityLabel={label}
+      accessibilityLabel={detail ? `${label}, ${detail}` : label}
       style={({ pressed }) => ({
         minHeight: MIN_TAP,
         flexDirection: "row",
@@ -49,7 +65,14 @@ function OptionRow({ label, selected, onPress }: { label: string; selected: bool
       })}
     >
       <SymbolView name={selected ? "checkmark.circle.fill" : "circle"} size={22} tintColor={c.ink} />
-      <Text style={{ flex: 1 }}>{label}</Text>
+      <View style={{ flex: 1 }}>
+        <Text>{label}</Text>
+        {detail ? (
+          <Text variant="small" tone="inkMuted">
+            {detail}
+          </Text>
+        ) : null}
+      </View>
     </Pressable>
   );
 }
@@ -59,7 +82,8 @@ export default function QuickMatchScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { getToken } = useAuth();
-  const opponents = useQuickMatchOpponents();
+  const [query, setQuery] = useState("");
+  const search = usePlayerSearch(query);
   const [format, setFormat] = useState<Format>("singles");
   const [pick, setPick] = useState<Pick>(null);
   const [name, setName] = useState("");
@@ -79,6 +103,12 @@ export default function QuickMatchScreen() {
     [],
   );
 
+  const results = search.data?.players ?? [];
+  const picked = pick !== "new" ? pick : null;
+  // Keep the picked player on screen even when a new search doesn't include them.
+  const shown = picked && !results.some((r) => personKey(r) === personKey(picked)) ? [picked, ...results] : results;
+  const none = noResultsMessage(search.query, "quickMatch");
+
   const ready = format === "singles" && (pick === "new" ? name.trim().length > 0 : pick != null);
 
   async function start() {
@@ -86,10 +116,9 @@ export default function QuickMatchScreen() {
     setSaving(true);
     setError(null);
     try {
-      const result = await createQuickMatch(
-        pick === "new" ? { opponentName: name.trim() } : { opponentPlayerId: pick },
-        getToken,
-      );
+      const opponent = pick === "new" ? { opponentName: name.trim() } : quickMatchOpponent(pick);
+      if (!opponent) throw new Error("Pick someone else, or add someone not on Ball Boi.");
+      const result = await createQuickMatch(opponent, getToken);
       pending.current = result.matchId;
       if (result.invite) setCreated(result);
       else openCamera(result);
@@ -177,26 +206,7 @@ export default function QuickMatchScreen() {
             <Text variant="label" accessibilityRole="header">
               Opponent
             </Text>
-            {opponents.isLoading ? <ActivityIndicator color={c.ink} accessibilityLabel="Loading players" /> : null}
-            {opponents.isError ? (
-              <Card style={{ gap: spacing.space3 }}>
-                <Text accessibilityRole="alert">
-                  {isOfflineError(opponents.error) ? OFFLINE_MESSAGE : "Couldn't load your players."}
-                </Text>
-                <Button
-                  variant="secondary"
-                  label="Try again"
-                  loading={opponents.isRefetching}
-                  onPress={() => opponents.refetch()}
-                />
-              </Card>
-            ) : null}
-            <View accessibilityRole="radiogroup" accessibilityLabel="Opponent">
-              {(opponents.data ?? []).map((o) => (
-                <OptionRow key={o.playerId} label={o.name} selected={pick === o.playerId} onPress={() => setPick(o.playerId)} />
-              ))}
-              <OptionRow label="Someone not on Ball Boi" selected={pick === "new"} onPress={() => setPick("new")} />
-            </View>
+            <OptionRow label="Someone not on Ball Boi" selected={pick === "new"} onPress={() => setPick("new")} />
             {pick === "new" ? (
               <Field
                 label="Their name"
@@ -208,6 +218,66 @@ export default function QuickMatchScreen() {
                 returnKeyType="done"
                 hint="We'll give you a link to send them."
               />
+            ) : null}
+
+            <View style={{ marginTop: spacing.space2 }}>
+              <SearchField
+                value={query}
+                onChangeText={setQuery}
+                label="Search Ball Boi players"
+                busy={search.searching && !!search.data}
+              />
+            </View>
+            {search.isPending ? <ActivityIndicator color={c.ink} accessibilityLabel="Loading players" /> : null}
+            {search.isError ? (
+              <Card style={{ gap: spacing.space3 }}>
+                <Text accessibilityRole="alert">
+                  {isOfflineError(search.error) ? OFFLINE_MESSAGE : "Couldn't load players."}
+                </Text>
+                <Button
+                  variant="secondary"
+                  label="Try again"
+                  loading={search.isRefetching}
+                  onPress={() => search.refetch()}
+                />
+              </Card>
+            ) : null}
+            {shown.length ? (
+              <View accessibilityRole="radiogroup" accessibilityLabel="Ball Boi players">
+                {shown.map((o) => (
+                  <OptionRow
+                    key={personKey(o)}
+                    label={o.name}
+                    detail={relationLabel(o)}
+                    selected={picked != null && personKey(picked) === personKey(o)}
+                    onPress={() => setPick(o)}
+                  />
+                ))}
+              </View>
+            ) : null}
+            {search.data && results.length === 0 && !search.searching ? (
+              <Card style={{ gap: spacing.space3 }}>
+                <View accessible accessibilityLabel={`${none.title}. ${none.message}`} style={{ gap: spacing.space1 }}>
+                  <Text variant="bodyStrong">{none.title}</Text>
+                  <Text tone="inkMuted">{none.message}</Text>
+                </View>
+                {pick !== "new" ? (
+                  <Button
+                    variant="secondary"
+                    label="Someone not on Ball Boi"
+                    accessibilityLabel={search.query ? `Add ${search.query}, someone not on Ball Boi` : "Someone not on Ball Boi"}
+                    onPress={() => {
+                      setPick("new");
+                      if (search.query && !name) setName(search.query);
+                    }}
+                  />
+                ) : null}
+              </Card>
+            ) : null}
+            {search.data?.more ? (
+              <Text variant="small" tone="inkMuted">
+                Showing the first players found. Type more of a name to find someone else.
+              </Text>
             ) : null}
           </View>
         )}

@@ -132,6 +132,7 @@ import type {
   PhotoUploadTicket,
   Player,
   PlayerIdBody,
+  PlayerSearchResponse,
   PlayerStats,
   PlayoffBracketResponse,
   PlayoffsStatusResponse,
@@ -155,6 +156,7 @@ import type {
   ScoreQuickMatch200,
   ScoreQuickMatchBody,
   ScoreResult,
+  SearchPlayersParams,
   Season,
   SelfRatingInput,
   SelfRatingResult,
@@ -1952,6 +1954,101 @@ export function useGetMyPlayers<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetMyPlayersQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Never returns you or anyone blocked either way. "Everyone else" is people who finished onboarding, aren't banned or suspended, and (once Discover's hidden profile ships) haven't hidden their profile, capped at 25 per search.
+ * @summary Player search for Quick match and New message: league mates and past opponents first, then anyone findable on Ball Boi
+ */
+export const getSearchPlayersUrl = (params?: SearchPlayersParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/players/search?${stringifiedParams}`
+    : `/api/players/search`;
+};
+
+export const searchPlayers = async (
+  params?: SearchPlayersParams,
+  options?: RequestInit,
+): Promise<PlayerSearchResponse> => {
+  return customFetch<PlayerSearchResponse>(getSearchPlayersUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getSearchPlayersQueryKey = (params?: SearchPlayersParams) => {
+  return [`/api/players/search`, ...(params ? [params] : [])] as const;
+};
+
+export const getSearchPlayersQueryOptions = <
+  TData = Awaited<ReturnType<typeof searchPlayers>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: SearchPlayersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof searchPlayers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getSearchPlayersQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof searchPlayers>>> = ({
+    signal,
+  }) => searchPlayers(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof searchPlayers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type SearchPlayersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof searchPlayers>>
+>;
+export type SearchPlayersQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Player search for Quick match and New message: league mates and past opponents first, then anyone findable on Ball Boi
+ */
+
+export function useSearchPlayers<
+  TData = Awaited<ReturnType<typeof searchPlayers>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: SearchPlayersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof searchPlayers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getSearchPlayersQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

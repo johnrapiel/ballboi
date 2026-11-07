@@ -2659,6 +2659,30 @@ export interface RecordingOpponent {
   name: string;
 }
 
+export interface PlayerSearchResult {
+  /**
+   * Pick them in Quick match with this. Null only for a league mate with no profile yet.
+   * @nullable
+   */
+  userId: number | null;
+  /**
+   * Message them with this. Null when they aren't in any league or match yet.
+   * @nullable
+   */
+  playerId: number | null;
+  name: string;
+  /** @nullable */
+  avatarUrl: string | null;
+  inYourLeagues: boolean;
+  playedBefore: boolean;
+}
+
+export interface PlayerSearchResponse {
+  players: PlayerSearchResult[];
+  /** More people matched than were returned. Type more of the name to narrow it. */
+  more: boolean;
+}
+
 /**
  * Doubles is refused for now
  */
@@ -2671,12 +2695,14 @@ export const QuickMatchInputFormat = {
 } as const;
 
 /**
- * Send opponentPlayerId or opponentName, not both.
+ * Send exactly one of opponentPlayerId, opponentUserId or opponentName.
  */
 export interface QuickMatchInput {
   /** Doubles is refused for now */
   format?: QuickMatchInputFormat;
   opponentPlayerId?: number;
+  /** A userId from GET /players/search */
+  opponentUserId?: number;
   opponentName?: string;
 }
 
@@ -2842,6 +2868,14 @@ export type GetPlayersParams = {
    * @nullable
    */
   leagueId?: number | null;
+};
+
+export type SearchPlayersParams = {
+  /**
+   * Name to search for. Every word must appear in the name. Empty lists everyone, up to the cap.
+   * @maxLength 60
+   */
+  q?: string;
 };
 
 export type GetMatchesParams = {
