@@ -8,8 +8,10 @@
 // Also Profile > Edit profile > Self-rated level (mode="edit"): prefilled, and
 // Save posts the same self-rated level. A Verified (UTR) level can't be changed
 // here, so "Linked to UTR" shows instead of the quiz.
+//
+// No "Your level" line under the cards: the selected card already says it
+// (finding #24, John, Nov 6).
 
-import { useAuth } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
@@ -20,12 +22,13 @@ import { RadioCard } from "@/components/RadioCard";
 import { RatingBadge } from "@/components/RatingBadge";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
+import { useStableGetToken } from "@/hooks/useStableGetToken";
 import { QUIZ_LEVELS, fetchProfile, formatRating, saveSelfRating, type FormMode } from "@/lib/onboarding";
 
 export default function RatingStep({ mode = "onboarding" }: { mode?: FormMode }) {
   const editing = mode === "edit";
   const router = useRouter();
-  const { getToken } = useAuth();
+  const getToken = useStableGetToken();
   const [rating, setRating] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,15 +115,6 @@ export default function RatingStep({ mode = "onboarding" }: { mode?: FormMode })
           />
         ))}
       </View>
-
-      {rating != null ? (
-        <View style={{ gap: spacing.space2 }}>
-          <Text variant="label" tone="inkMuted">
-            Your level
-          </Text>
-          <RatingBadge rating={rating} source="self" />
-        </View>
-      ) : null}
 
       <View style={{ gap: spacing.space2 }}>
         <Button

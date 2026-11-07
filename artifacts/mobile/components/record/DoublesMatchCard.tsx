@@ -1,4 +1,3 @@
-import { useAuth } from "@clerk/expo";
 import { SymbolView } from "expo-symbols";
 import React, { useEffect } from "react";
 import { View } from "react-native";
@@ -7,6 +6,7 @@ import { matchMeta } from "@/components/record/TodaysMatchCard";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { useStableGetToken } from "@/hooks/useStableGetToken";
 import { DOUBLES_MESSAGE, logDoublesView, type RecordableMatch } from "@/lib/recording/api";
 
 /**
@@ -15,7 +15,7 @@ import { DOUBLES_MESSAGE, logDoublesView, type RecordableMatch } from "@/lib/rec
  * (spec: Ball Boi > Recording, Doubles). Each view is logged as demand.
  */
 export function DoublesMatchCard({ match }: { match: RecordableMatch }) {
-  const { getToken } = useAuth();
+  const getToken = useStableGetToken();
 
   useEffect(() => {
     logDoublesView(match.id, getToken);
@@ -49,7 +49,7 @@ export function DoublesMatchCard({ match }: { match: RecordableMatch }) {
  */
 export function DoublesRecordButton({ matchId, logView = true }: { matchId: number; logView?: boolean }) {
   const c = useColors();
-  const { getToken } = useAuth();
+  const getToken = useStableGetToken();
 
   useEffect(() => {
     if (logView) logDoublesView(matchId, getToken);
