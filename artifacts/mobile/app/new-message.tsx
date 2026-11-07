@@ -12,7 +12,7 @@ import { useColors } from "@/hooks/useColors";
 import { useMessagesActions } from "@/hooks/useMessages";
 import { usePlayerSearch } from "@/hooks/usePlayerSearch";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
-import { newMessageSections, noResultsMessage, personKey, type PlayerSearchResult } from "@/lib/playerSearch";
+import { canMessage, newMessageSections, noResultsMessage, personKey, type PlayerSearchResult } from "@/lib/playerSearch";
 
 // New message (finding #18, John Nov 6): a search bar at the top, then two
 // sections, "In your leagues" and "All Ball Boi players". Search filters both.
@@ -63,12 +63,18 @@ export default function NewMessageScreen() {
 
   // Opens your existing chat with them if there is one, else a new one.
   async function pick(player: PlayerSearchResult) {
-    if (player.playerId == null || opening) return;
+    if (!canMessage(player) || opening) return;
     const key = personKey(player);
     setOpening(key);
     let existing: number | null = null;
+    // By league player when they have one, else by account (a Discover player).
+    const who = player.playerId != null ? { playerId: String(player.playerId) } : { userId: String(player.userId) };
     try {
-      existing = (await actions.conversationWithPlayer(player.playerId)).conversationId;
+      existing = (
+        player.playerId != null
+          ? await actions.conversationWithPlayer(player.playerId)
+          : await actions.conversationWithUser(player.userId!)
+      ).conversationId;
     } catch {
       // The conversation screen looks again, so a failed lookup still can't make a duplicate.
     }
@@ -76,7 +82,7 @@ export default function NewMessageScreen() {
     router.replace(
       existing
         ? { pathname: "/conversation/[id]", params: { id: String(existing) } }
-        : { pathname: "/conversation/[id]", params: { id: "new", playerId: String(player.playerId), name: player.name } },
+        : { pathname: "/conversation/[id]", params: { id: "new", ...who, name: player.name } },
     );
   }
 

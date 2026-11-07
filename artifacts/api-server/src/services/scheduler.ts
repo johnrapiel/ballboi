@@ -9,6 +9,7 @@ import { retryFailedBallBoiSessions } from "./ballBoiRetry";
 import { failStuckAnalyses } from "./ballBoiStuck";
 import { runAllLeagueDays } from "./leagueRounds";
 import { sweepSessionVideos } from "../lib/videoRetention";
+import { startMatchPlanJobs } from "./discover/matchPlanJobs";
 import { DEFAULT_LEAGUE_TIME_ZONE, addDays, dayBounds, leagueToday, leagueZone, localHour } from "../lib/leagueCalendar";
 
 function getMondayOf(date: Date): string {
@@ -452,6 +453,8 @@ async function autoGenerateRounds() {
 }
 
 export function startScheduler() {
+  // Discover match cards: day-before, 2-hour and "Did it happen?" (Wave 2, Session F).
+  startMatchPlanJobs();
   // Daily at midnight — auto-generate next rounds for leagues whose current round has expired
   cron.schedule("0 0 * * *", autoGenerateRounds, {
     timezone: "America/New_York",

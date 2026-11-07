@@ -12,12 +12,12 @@
 // handle ("Near left corner", swipe up or down for Move up, Move left...).
 
 import { Image } from "expo-image";
-import { SymbolView } from "expo-symbols";
 import React, { useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, PanResponder, Pressable, ScrollView, View, type LayoutChangeEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Line } from "react-native-svg";
 
+import { Icon } from "@/components/Icon";
 import { ChromeButton } from "@/components/record/ChromeControls";
 import { Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
@@ -29,11 +29,13 @@ import { chrome } from "@/lib/recording/chrome";
 const MARGIN = 28;
 const HANDLE = MIN_TAP;
 
-const MOVES: { dir: Nudge; symbol: "arrow.up" | "arrow.down" | "arrow.left" | "arrow.right"; label: string }[] = [
-  { dir: "left", symbol: "arrow.left", label: "left" },
-  { dir: "up", symbol: "arrow.up", label: "up" },
-  { dir: "down", symbol: "arrow.down", label: "down" },
-  { dir: "right", symbol: "arrow.right", label: "right" },
+// The arrows (arrow.left, arrow.up, arrow.down, arrow.right) have no brush
+// drawings yet, so the buttons show the word until they are drawn.
+const MOVES: { dir: Nudge; word: string; label: string }[] = [
+  { dir: "left", word: "Left", label: "left" },
+  { dir: "up", word: "Up", label: "up" },
+  { dir: "down", word: "Down", label: "down" },
+  { dir: "right", word: "Right", label: "right" },
 ];
 
 export interface CourtLineFixProps {
@@ -216,8 +218,9 @@ export function CourtLineFix({ still, initial, onDone, onSkip }: CourtLineFixPro
                 onPress={() => move(selected, m.dir)}
                 hitSlop={2}
                 style={({ pressed }) => ({
-                  width: MIN_TAP,
-                  height: MIN_TAP,
+                  minWidth: MIN_TAP,
+                  minHeight: MIN_TAP,
+                  paddingHorizontal: spacing.space3,
                   borderRadius: MIN_TAP / 2,
                   borderWidth: 1,
                   borderColor: chrome.border,
@@ -227,13 +230,15 @@ export function CourtLineFix({ still, initial, onDone, onSkip }: CourtLineFixPro
                   opacity: pressed ? 0.85 : 1,
                 })}
               >
-                <SymbolView name={m.symbol} size={16} tintColor={chrome.text} />
+                <Text variant="small" style={{ color: chrome.text }} importantForAccessibility="no" accessibilityElementsHidden>
+                  {m.word}
+                </Text>
               </Pressable>
             ))}
           </View>
           {!valid ? (
             <View style={{ flexDirection: "row", gap: spacing.space2, alignItems: "flex-start" }} accessible>
-              <SymbolView name="exclamationmark.triangle" size={16} tintColor={chrome.text} style={{ marginTop: 2 }} />
+              <Icon name="exclamationmark.triangle" size={16} tintColor={chrome.text} style={{ marginTop: 2 }} />
               <Text variant="small" style={{ color: chrome.text, flex: 1 }} accessibilityLiveRegion="polite">
                 These corners don't make a court yet. Put each circle on its own corner.
               </Text>

@@ -18,6 +18,7 @@ const { withdrawals } = vi.hoisted(() => ({ withdrawals: [] as unknown[] }));
 vi.mock("../lib/withdrawal", () => ({
   withdrawFromRecordings: async (input: unknown) => void withdrawals.push(input),
 }));
+vi.mock("../services/discover/accountDeletion", () => ({ deleteDiscoverData: vi.fn().mockResolvedValue(undefined) }));
 const { messagingDeleted } = vi.hoisted(() => ({ messagingDeleted: [] as string[] }));
 vi.mock("../messaging/accountDeletion", () => ({
   deleteMessagingData: async (id: string) => void messagingDeleted.push(id),

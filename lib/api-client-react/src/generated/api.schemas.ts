@@ -5,6 +5,455 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+export interface CourtCard {
+  courtId: number;
+  name: string;
+  address: string;
+  /**
+   * "~3 mi", or null with no home area
+   * @nullable
+   */
+  distance: string | null;
+}
+
+export type AddedCourt = CourtCard & {
+  /** The court was already in the directory */
+  existing: boolean;
+};
+
+export interface CourtList {
+  courts: CourtCard[];
+  /** @nullable */
+  homeCourtId: number | null;
+}
+
+/**
+ * Your home ZIP and its town. Others only ever see the town and an approximate distance.
+ */
+export interface DiscoverArea {
+  zip: string;
+  town: string;
+  state: string;
+}
+
+export interface DiscoverAreaInput {
+  /** Five digits */
+  zip: string;
+}
+
+export interface DiscoverAvailabilityInput {
+  /** Free hours, each day * 24 + hour. Monday is day 0; hours 6 (6 AM) to 21 (9 PM). */
+  slots: number[];
+}
+
+export type DiscoverLeagueJoining =
+  (typeof DiscoverLeagueJoining)[keyof typeof DiscoverLeagueJoining];
+
+export const DiscoverLeagueJoining = {
+  request: "request",
+  waitlist: "waitlist",
+} as const;
+
+export type DiscoverLeagueRequest = {
+  kind: "request" | "waitlist";
+  status: "pending" | "declined";
+} | null;
+
+export interface DiscoverLeague {
+  leagueId: number;
+  name: string;
+  organizerName: string;
+  /** @nullable */
+  location: string | null;
+  /** @nullable */
+  distance: string | null;
+  format: string;
+  type: string;
+  levelText: string;
+  outsideLevel: boolean;
+  /** @nullable */
+  myRating: number | null;
+  /** @nullable */
+  startDate: string | null;
+  /** @nullable */
+  startLabel: string | null;
+  /** @nullable */
+  seasonWeeks: number | null;
+  started: boolean;
+  full: boolean;
+  /** @nullable */
+  rosterCap: number | null;
+  spotsTaken: number;
+  /** @nullable */
+  spotsLeft: number | null;
+  joining: DiscoverLeagueJoining;
+  myRequest: DiscoverLeagueRequest;
+  member: boolean;
+}
+
+export type DiscoverLeagueCardTagsItem =
+  (typeof DiscoverLeagueCardTagsItem)[keyof typeof DiscoverLeagueCardTagsItem];
+
+export const DiscoverLeagueCardTagsItem = {
+  outside_level: "outside_level",
+  full: "full",
+  started: "started",
+} as const;
+
+export type DiscoverLeagueCardJoining =
+  (typeof DiscoverLeagueCardJoining)[keyof typeof DiscoverLeagueCardJoining];
+
+export const DiscoverLeagueCardJoining = {
+  request: "request",
+  waitlist: "waitlist",
+} as const;
+
+export interface DiscoverLeagueCard {
+  leagueId: number;
+  name: string;
+  detail: string;
+  status: string;
+  tags: DiscoverLeagueCardTagsItem[];
+  joining: DiscoverLeagueCardJoining;
+  myRequest: DiscoverLeagueRequest;
+  spoken: string;
+}
+
+export type DiscoverLeaguesCountsItem = {
+  radius: number;
+  count: number;
+};
+
+export interface DiscoverLeagues {
+  leagues: DiscoverLeagueCard[];
+  counts: DiscoverLeaguesCountsItem[];
+  radius: number;
+  total: number;
+  needsArea: boolean;
+}
+
+/**
+ * @nullable
+ */
+export type DiscoverMePlays =
+  | (typeof DiscoverMePlays)[keyof typeof DiscoverMePlays]
+  | null;
+
+export const DiscoverMePlays = {
+  singles: "singles",
+  doubles: "doubles",
+  both: "both",
+} as const;
+
+export interface DiscoverMe {
+  area: DiscoverArea | null;
+  /** @nullable */
+  homeZip: string | null;
+  /** Show me in Discover is off */
+  hidden: boolean;
+  /** @nullable */
+  plays: DiscoverMePlays;
+  /** Last distance picked, 1 to 30 miles */
+  radius: number;
+  /** @nullable */
+  rating: number | null;
+  slots: number[];
+  hoursFree: number;
+  /**
+   * "Weekday evenings, weekend mornings", or null with no hours set
+   * @nullable
+   */
+  freeSummary: string | null;
+}
+
+/**
+ * @nullable
+ */
+export type DiscoverPlayerCardPlays =
+  | (typeof DiscoverPlayerCardPlays)[keyof typeof DiscoverPlayerCardPlays]
+  | null;
+
+export const DiscoverPlayerCardPlays = {
+  singles: "singles",
+  doubles: "doubles",
+  both: "both",
+} as const;
+
+export interface DiscoverPlayerCard {
+  userId: number;
+  name: string;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** @nullable */
+  rating: number | null;
+  /** @nullable */
+  ratingSource: string | null;
+  /** @nullable */
+  town: string | null;
+  /**
+   * "~4 mi away"
+   * @nullable
+   */
+  distance: string | null;
+  /** @nullable */
+  plays: DiscoverPlayerCardPlays;
+  /** @nullable */
+  freeSummary: string | null;
+  /** @nullable */
+  homeCourt: string | null;
+  played: number;
+  noShows: number;
+  wins: number;
+  losses: number;
+}
+
+/**
+ * @nullable
+ */
+export type DiscoverPlayerRowPlays =
+  | (typeof DiscoverPlayerRowPlays)[keyof typeof DiscoverPlayerRowPlays]
+  | null;
+
+export const DiscoverPlayerRowPlays = {
+  singles: "singles",
+  doubles: "doubles",
+  both: "both",
+} as const;
+
+export interface DiscoverPlayerRow {
+  userId: number;
+  name: string;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** @nullable */
+  rating: number | null;
+  /** @nullable */
+  ratingSource: string | null;
+  /** "~4 mi" */
+  distance: string;
+  /** @nullable */
+  plays: DiscoverPlayerRowPlays;
+  played: number;
+  noShows: number;
+  /** "Played 14 · 1 no-show" or "New to Ball Boi" */
+  reliability: string;
+  /** The whole row in one line for VoiceOver */
+  spoken: string;
+}
+
+export type DiscoverPlayersCountsItem = {
+  radius: number;
+  count: number;
+};
+
+export interface DiscoverPlayers {
+  players: DiscoverPlayerRow[];
+  /** Players at each distance chip (5, 10, 15, 30 and a custom distance), with the other filters as they are */
+  counts: DiscoverPlayersCountsItem[];
+  radius: number;
+  total: number;
+  /** You have no home ZIP Discover can place yet */
+  needsArea: boolean;
+}
+
+export type DiscoverReportInputReason =
+  (typeof DiscoverReportInputReason)[keyof typeof DiscoverReportInputReason];
+
+export const DiscoverReportInputReason = {
+  harassment: "harassment",
+  inappropriate_content: "inappropriate_content",
+  spam: "spam",
+  cheating: "cheating",
+  unsafe: "unsafe",
+  other: "other",
+} as const;
+
+export interface DiscoverReportInput {
+  reason: DiscoverReportInputReason;
+  /**
+   * Required for other ("Tell us what happened")
+   * @nullable
+   */
+  details?: string | null;
+  /** Also block them */
+  block?: boolean;
+}
+
+export interface DiscoverReportResult {
+  id: number;
+  status: string;
+  blocked: boolean;
+}
+
+/**
+ * @nullable
+ */
+export type DiscoverSettingsInputPlays =
+  | (typeof DiscoverSettingsInputPlays)[keyof typeof DiscoverSettingsInputPlays]
+  | null;
+
+export const DiscoverSettingsInputPlays = {
+  singles: "singles",
+  doubles: "doubles",
+  both: "both",
+} as const;
+
+export interface DiscoverSettingsInput {
+  hidden?: boolean;
+  /** @nullable */
+  plays?: DiscoverSettingsInputPlays;
+  /**
+   * @minimum 1
+   * @maximum 30
+   */
+  radius?: number;
+}
+
+export interface HomeCourt {
+  court: CourtCard | null;
+}
+
+export interface HomeCourtInput {
+  /** @nullable */
+  courtId: number | null;
+}
+
+export type MatchPlanKind = (typeof MatchPlanKind)[keyof typeof MatchPlanKind];
+
+export const MatchPlanKind = {
+  singles: "singles",
+  practice: "practice",
+} as const;
+
+export type MatchPlanEventType =
+  (typeof MatchPlanEventType)[keyof typeof MatchPlanEventType];
+
+export const MatchPlanEventType = {
+  proposed: "proposed",
+  added: "added",
+  undone: "undone",
+  declined: "declined",
+  day_before: "day_before",
+  canceled: "canceled",
+  did_it_happen: "did_it_happen",
+  not_played: "not_played",
+  no_show_reported: "no_show_reported",
+  no_show_disputed: "no_show_disputed",
+  no_show_confirmed: "no_show_confirmed",
+  scored: "scored",
+} as const;
+
+/**
+ * @nullable
+ */
+export type MatchPlanEventBy =
+  | (typeof MatchPlanEventBy)[keyof typeof MatchPlanEventBy]
+  | null;
+
+export const MatchPlanEventBy = {
+  me: "me",
+  them: "them",
+} as const;
+
+export type MatchPlanEventActionsItem =
+  (typeof MatchPlanEventActionsItem)[keyof typeof MatchPlanEventActionsItem];
+
+export const MatchPlanEventActionsItem = {
+  accept: "accept",
+  decline: "decline",
+  undo: "undo",
+  still_on: "still_on",
+  cancel: "cancel",
+  score: "score",
+  no_show: "no_show",
+  not_played: "not_played",
+  dispute: "dispute",
+  admit: "admit",
+} as const;
+
+export type MatchPlanEventAbout =
+  (typeof MatchPlanEventAbout)[keyof typeof MatchPlanEventAbout];
+
+export const MatchPlanEventAbout = {
+  me: "me",
+  them: "them",
+} as const;
+
+export interface MatchPlanEvent {
+  key: string;
+  type: MatchPlanEventType;
+  at: string;
+  /** @nullable */
+  by: MatchPlanEventBy;
+  actions: MatchPlanEventActionsItem[];
+  state?: string;
+  meIn?: boolean;
+  themIn?: boolean;
+  about?: MatchPlanEventAbout;
+  deadline?: string;
+}
+
+export interface MatchPlan {
+  id: number;
+  startsAt: string;
+  timeZone: string;
+  /** @nullable */
+  courtName: string | null;
+  kind: MatchPlanKind;
+  /** @nullable */
+  matchId: number | null;
+  /** @nullable */
+  score: string | null;
+  /** You sent this card */
+  mine: boolean;
+  events: MatchPlanEvent[];
+}
+
+export interface MatchPlanShiftInput {
+  hours: number;
+}
+
+export interface MatchPlansWithUser {
+  otherName: string;
+  blocked: boolean;
+  devTools: boolean;
+  plans: MatchPlan[];
+}
+
+export type NewMatchPlanInputKind =
+  (typeof NewMatchPlanInputKind)[keyof typeof NewMatchPlanInputKind];
+
+export const NewMatchPlanInputKind = {
+  singles: "singles",
+  practice: "practice",
+} as const;
+
+export interface NewMatchPlanInput {
+  userId: number;
+  /** ISO 8601, in the future, within 60 days */
+  startsAt: string;
+  timeZone?: string;
+  /** @nullable */
+  courtId?: number | null;
+  kind?: NewMatchPlanInputKind;
+}
+
+export type UpcomingMatchPlansMatchesItem = MatchPlan & {
+  otherName: string;
+  /** @nullable */
+  otherUserId: number | null;
+};
+
+export interface UpcomingMatchPlans {
+  matches: UpcomingMatchPlansMatchesItem[];
+}
+
+export interface NewCourtInput {
+  name: string;
+  /** Street, town and the 5-digit ZIP */
+  address: string;
+}
+
 /**
  * @nullable
  */
@@ -712,6 +1161,11 @@ export interface JoinRequest {
   rating?: MatchPlayerRating | null;
   kind: JoinRequestKind;
   status: JoinRequestStatus;
+  /**
+   * The asker's optional note to the organizer
+   * @nullable
+   */
+  note?: string | null;
   createdAt: string;
   message?: string;
 }
@@ -1952,6 +2406,11 @@ export interface JoinLeagueBody {
   playerName: string;
   /** @nullable */
   skillLevel?: string | null;
+  /**
+   * Optional note to the organizer with a request from Discover, up to 300 characters
+   * @nullable
+   */
+  note?: string | null;
 }
 
 export type JoinLeagueResponseLeague = {
@@ -2356,10 +2815,12 @@ export type NewReportReason =
 export const NewReportReason = {
   harassment: "harassment",
   inappropriate_content: "inappropriate_content",
-  impersonation: "impersonation",
   spam: "spam",
   cheating: "cheating",
+  unsafe: "unsafe",
   other: "other",
+  impersonation: "impersonation",
+  no_show_dispute: "no_show_dispute",
 } as const;
 
 export interface NewReport {
@@ -2688,6 +3149,11 @@ export type ConversationViewOther = {
   name: string;
   /** @nullable */
   playerId: number | null;
+  /**
+   * Their users.id, for report and block when they have no player record (a Discover player)
+   * @nullable
+   */
+  userId?: number | null;
 };
 
 export type ConversationViewLastMessage = {
@@ -2745,8 +3211,12 @@ export interface MessageContact {
   playerId: number;
 }
 
+/**
+ * Send playerId (a league player) or userId (a Discover player, who may be in no league).
+ */
 export interface NewConversationInput {
-  playerId: number;
+  playerId?: number;
+  userId?: number;
   text: string;
   clientMessageId?: string;
 }
@@ -2763,10 +3233,12 @@ export type MessageReportInputReason =
 export const MessageReportInputReason = {
   harassment: "harassment",
   inappropriate_content: "inappropriate_content",
-  impersonation: "impersonation",
   spam: "spam",
   cheating: "cheating",
+  unsafe: "unsafe",
   other: "other",
+  impersonation: "impersonation",
+  no_show_dispute: "no_show_dispute",
 } as const;
 
 export interface MessageReportInput {
@@ -3053,6 +3525,57 @@ export interface UploadConflict {
   missingParts?: number[];
 }
 
+export type ListCourtsParams = {
+  /**
+   * @maxLength 60
+   */
+  q?: string;
+};
+
+export type ListDiscoverLeaguesParams = {
+  /**
+   * @minimum 1
+   * @maximum 30
+   */
+  radius?: number;
+};
+
+export type ListDiscoverPlayersParams = {
+  /**
+   * Miles, 1 to 30. Defaults to your last distance.
+   * @minimum 1
+   * @maximum 30
+   */
+  radius?: number;
+  /**
+   * close (within 0.5), wider (within 1.0) or any
+   */
+  level?: ListDiscoverPlayersLevel;
+  plays?: ListDiscoverPlayersPlays;
+  /**
+   * "1" keeps players whose hours overlap yours. Ignored until you set times.
+   */
+  free?: string;
+};
+
+export type ListDiscoverPlayersLevel =
+  (typeof ListDiscoverPlayersLevel)[keyof typeof ListDiscoverPlayersLevel];
+
+export const ListDiscoverPlayersLevel = {
+  close: "close",
+  wider: "wider",
+  any: "any",
+} as const;
+
+export type ListDiscoverPlayersPlays =
+  (typeof ListDiscoverPlayersPlays)[keyof typeof ListDiscoverPlayersPlays];
+
+export const ListDiscoverPlayersPlays = {
+  singles: "singles",
+  doubles: "doubles",
+  either: "either",
+} as const;
+
 export type GetLeaguesParams = {
   /**
    * @nullable
@@ -3243,6 +3766,11 @@ export type GetAdminMe200 = {
 
 export type GetMessageContacts200 = {
   contacts: MessageContact[];
+};
+
+export type GetConversationWithUser200 = {
+  /** @nullable */
+  conversationId: number | null;
 };
 
 export type GetConversationWithPlayer200 = {

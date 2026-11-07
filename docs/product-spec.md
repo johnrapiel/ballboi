@@ -1,4 +1,4 @@
-<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-11-02 with rev 74). Updated in the repo on 2026-11-04 with the Wave 1 review decisions (48 to 78), on 2026-11-06 with decision 79, and on 2026-11-07 with decisions 80 and 81. The live doc has the Nov 7 changes but still needs decisions 48 to 79. The live doc wins if they differ. Refresh this file when the live doc changes. -->
+<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-11-02 with rev 74). Updated in the repo on 2026-11-04 with the Wave 1 review decisions (48 to 78), on 2026-11-06 with decision 79, and on 2026-11-07 with decisions 80 and 81, then 82 and 83 (Ball Boi Pro parked), then 84 to 99 (beta recording and footage release, B1 to B16). The live doc was resynced on 2026-11-07 through decision 99. The live doc wins if they differ. Refresh this file when the live doc changes. -->
 
 # Ball Boi: Flows and Feature Spec
 
@@ -17,10 +17,10 @@ Ball Boi launches in the US as one app for finding local players, running league
 - **Messaging:** direct messages with a Message Requests inbox, a direct chat with your league opponent (full match threads come with Discover), moderation ladder
 - **Profile:** baseball-card player card, career stats, head-to-head
 - **Extras:** court directory, head-to-head records, shareable match recaps
-- **Pricing:** playing is free; Ball Boi Pro (analysis, replay, trends, career stats) is $7.99/month or $59.99/year after 3 free months
+- **Pricing:** everything is free at launch, including Ball Boi analysis, replay, trends, and career stats. Ball Boi Pro is parked until there's traction (decision 82)
 - **Audience:** adults only (18+)
 
-**Out of v1:** coaching tips, Ladder format, doubles shot analysis, Organizer plan, Apple Watch, weather reschedule, calendar sync, junior (under 18) players, match video playback, close-call video clips.
+**Out of v1:** Ball Boi Pro subscription (parked), coaching tips, Ladder format, doubles shot analysis, Organizer plan, Apple Watch, weather reschedule, calendar sync, junior (under 18) players, match video playback, close-call video clips.
 
 ## Roles and onboarding
 
@@ -59,7 +59,7 @@ Five tabs, with Ball Boi in the center. Messages opens from the button in the to
 | Leagues | Your leagues, each with chat, schedule, standings, and Manage for admins; Start a league |
 | Ball Boi | Start a recording, past matches, replays, trends |
 | Discover | Players near you, Open leagues, Open matches (including your own) |
-| Profile | Player card, career stats, linked UTR, subscription, settings (including training data), account deletion |
+| Profile | Player card, career stats, linked UTR, settings (including training data), account deletion |
 
 **Messages (top corner):** direct chats, including Message opponent from a league match, and Message Requests. Full match threads come with Discover. A 44pt button in the top-right of every tab with an unread count VoiceOver reads ("Messages, 3 unread").
 
@@ -223,7 +223,7 @@ The phone films with the rear camera, so its screen faces away from the court. V
 - **Upload:** Wi-Fi by default with an "Upload on cellular" switch in Settings; background upload survives the app closing; video stays on the phone until the server confirms. Signing out with recordings that haven't uploaded warns first ("2 recordings haven't uploaded. Signing out deletes them.") with Cancel and Sign out anyway
 - **Push** when the simulated replay and stats are ready
 - **Court-line fix** appears only when detection confidence is low: drag four handles on a still frame captured on the phone before upload
-- **3 free months of Pro, from the first use of any Pro feature:** full replay and stats, then Ball Boi Pro (see Pricing). A match is analyzed if either player has Pro
+- **Every match gets the full replay and stats,** free, with no paywall (see Pricing)
 
 **Processing:** court detection runs on device; shot analysis runs on the server for v1 and moves on device later.
 
@@ -232,15 +232,15 @@ The phone films with the rear camera, so its screen faces away from the court. V
 - **Built by John with Claude Code acting as the ML engineer,** starting from open-source tennis models (ball tracking, court keypoints, player pose), running as a server pipeline that reads video from R2
 - **Labeled test set before launch:** 10 to 15 singles matches filmed with the app's own mount guidance across different courts, lighting, and skill levels (public courts, indoor bubbles, a night match under lights). Every shot labeled for type, in/out, and point ending in a labeling tool Claude Code builds
 - **Automatic eval:** every model change is scored against the test set
-- **Per-stat accuracy bar,** e.g. shot type ≥ 90%, in/out on close calls ≥ 85%, serve placement ≥ 85%. A stat that misses its bar is hidden at launch, not shown with a disclaimer
-- **Beta:** commissioned local players record through a TestFlight build pointed at a private (non-public) production tenant; they sign a short footage release
+- **Per-stat accuracy bar,** e.g. shot type ≥ 90%, in/out on close calls ≥ 85%, serve placement ≥ 85%, point endings 85% correct, rally length within 1 shot on 85% of points, first-serve % within 5 points, placement in the right zone 80% (decision 98). A stat that misses its bar is hidden at launch, not shown with a disclaimer
+- **Beta:** 3 to 5 commissioned local players, invited by email as TestFlight external testers, record through builds pointed at a private (non-public) tenant. They agree to the Ball Boi Beta Footage Release (ballboi.tennis/beta-release) with a checkbox in the first-recording carousel, and confirm any opponent not on Ball Boi agreed to be filmed. The beta starts once the voice coach merges (decisions 84 to 99)
 
 **Core stats (launch, each gated on its accuracy bar)**
 
 - **Shot type:** forehand, backhand, serve, volley, overhead
 - **In or out,** with uncertain calls labeled "Close call" instead of stated as fact
 - **Placement heatmaps** for landing spots and hitting positions, using labels and patterns, not color alone
-- **Serve:** first-serve %, placement by box, estimated speed
+- **Serve:** first-serve % and placement by box. Estimated serve speed is out of launch until there's a way to measure it (decision 98)
 - **Rally:** rally length and point endings (winner, forced error, unforced error)
 
 **Replay:** a simulated court, never match video. Ball paths, shot-by-shot list, and winner and error markers on the scrubber. Jump to any point; filter by shot type or outcome ("every backhand error"). Modes: Shot by shot, Rallies, Heatmap, Timeline, Stats, Compare.
@@ -279,7 +279,7 @@ The player card is a brag sheet, never a scouting report: it shows strengths and
 | Town, app win-loss record, reliability | Public |
 | Ball Boi highlights (forehand winners, aces, first serve %, win streak) | Public, season or career toggle |
 | Head-to-head record vs. the viewer | Visible to that viewer |
-| Error patterns, heatmaps, trends | Private, except an opponent from the same match sees its full breakdown when both players have Pro |
+| Error patterns, heatmaps, trends | Private. Whether an opponent from the same match sees its full breakdown is pending (decision 83) |
 | Match video | Never shown; raw video deleted after analysis unless kept for training |
 
 - **No Ball Boi data yet:** card shows level and record with a "No Ball Boi matches yet" prompt
@@ -308,23 +308,13 @@ Four moments get a short animation and a haptic. Everything else uses standard i
 
 ## Pricing
 
-Playing is free forever. Ball Boi Pro is $7.99/month or $59.99/year after 3 free months that start the first time a player uses any Pro feature. Leagues, Discover, match requests, scores, messaging, and player cards stay free so no non-payer can stall a league.
+Everything is free at launch, Ball Boi included. Ball Boi Pro is parked until there's enough traction to charge (decision 82), so a small early group isn't put off by a price. The full Pro plan (price, free months, paywall, mixed matchups, lapsed state) is saved in `docs/backlog/ball-boi-pro.md` in the repo and `claude/backlog/ball-boi-pro.md` in the Project, to bring back later.
 
-- **What Pro includes at launch:** shot analysis, the simulated replay, trends, and full career stats. Travel mode, deeper head-to-head, and AI insights join Pro as each ships, at the same price
-- **3 free months for everyone:** the clock starts at the first use of any Pro feature (recording, trends, or career stats), and the screen that starts it says "Your 3 free months of Pro start today." No paywall and no trial sheet during it. Tracked server-side by account so reinstalling doesn't reset it
-- **Paywall ships at launch:** no free-until-X-users period and no founding member price. After the free months it appears the next time the user sets up a recording or opens a Pro feature ("Your 3 free months are up"), during setup and never at the fence
-- **"Not now" still records and uploads:** analysis waits until they subscribe, unless the opponent has Pro (see Who sees what in a match); unanalyzed matches expire after 30 days
-- **Sold through Apple In-App Purchase** as a plain auto-renewing subscription (no introductory offer, since the free period runs outside Apple), managed with RevenueCat's free tier. An external Stripe link is revisited after the Supreme Court rules on Apple's appeal in Epic v. Apple
-- **Paywall discloses** price, renewal terms, and links to Terms and Privacy
-- **After a lapse:** users keep everything they already unlocked: past breakdowns and replays, past opponent breakdowns, career stats, card highlights, and recaps. New analysis and trends require Pro
-
-**Who sees what in a match**
-
-- **A match is analyzed if either player has Pro** (paid or in their free months), whoever's phone recorded it. Shot data is stored for both players
-- **A free player sees the first 4 games:** full breakdown and replay for games 1 to 4; the rest shows locked ("Games 5 to 12 are ready. Subscribe to see them."). Subscribing later unlocks every past analyzed match
-- **Unused free months:** a free player who hasn't started theirs sees "Start your 3 free months to see the whole match." Nothing starts without their tap
-- **Opponent breakdowns are mutual:** a player sees an opponent's full breakdown for matches they played together only when both have Pro. The free player sees "Alex has Pro and can see your breakdown. Subscribe to see theirs."
-- **Placeholder opponents who join later** see "<name> recorded your match on <date>" with their training toggle, then the same 4-game teaser and free-months offer
+- **Free for everyone at launch:** leagues, Discover, match requests, scores, messaging, the player card, shot analysis, the simulated replay, trends, and full career stats
+- **Every recorded singles match is analyzed,** whoever's phone recorded it. Shot data is stored for both players
+- **No paywall, subscription, free-months clock, or In-App Purchase** in v1. No locked games or "Subscribe" prompts anywhere
+- **Opponent breakdowns:** pending John (decision 83). Until decided, a player sees only their own breakdown
+- **Club and enterprise plans:** being worked out (see League fees and decision 47)
 
 **League fees**
 
@@ -342,11 +332,10 @@ These decisions add launch-blocking items to the submission checklist. Strangers
 | Strangers can message and meet | Report, block, filtering, action within 24 hours (John, Claude agent after 6 hours), EULA covering messages | 1.2 |
 | Messaging and match alerts | APNs push with preview-hiding option; provisional notifications from sign-in | 4.5.4 |
 | Home area and travel mode | Location purpose string, While Using only | 5.1.1 |
-| Ball Boi Pro | IAP subscription after 3 free months, clear price and renewal terms | 3.1.1, 3.1.2 |
 | UTR linking | Disclose shared data and unlink path in privacy policy and labels; no partner logos without approval | 5.1.1, 5.2.1 |
 | User-to-user messaging | Re-answer age rating questionnaire; set 18+ | Age rating |
 | Account deletion | Deletes messages, video, level, removes footage from future training; revokes UTR link and Apple token | 5.1.1(v) |
-| Reviewer demo account | Password sign-in for that account only; seeded league, two Ball Boi matches, message thread, Message Request, open match; 3 free months marked expired server-side so the paywall is live; 60-second on-court recording in review notes | 2.1 |
+| Reviewer demo account | Password sign-in for that account only; seeded league, two Ball Boi matches, message thread, Message Request, open match; 60-second on-court recording in review notes | 2.1 |
 | Opponent recording notification and remote controls | APNs push-to-start Live Activities with interactive Start / Stop buttons; connections only | 4.5.4 |
 | Filming other players and training on video | Opponent recording notification, first-recording consent screen with training toggle, both-players rule, no training on non-users until they join; microphone purpose string for analysis-only audio | 5.1.1, 5.1.2 |
 | Third-party processors | Stream (messaging), Anthropic (moderation agent), Cloudflare (video storage) listed in privacy policy and SDK privacy manifests | 5.1.1, 5.1.2 |
@@ -369,30 +358,30 @@ These decisions add launch-blocking items to the submission checklist. Strangers
 
 _Phases are ordered, not dated. The live doc shows these as a chart._
 
-- **Launch (v1):** Discover; Leagues (Flex, Round robin); Ball Boi stats and simulated replay; Ball Boi Pro; court directory; head-to-head and recaps
+- **Launch (v1):** Discover; Leagues (Flex, Round robin); Ball Boi stats and simulated replay, free for everyone; court directory; head-to-head and recaps
 - **First update (v1.1):** close-call video clips; weather reschedule; calendar sync
-- **Later:** junior leagues (if there's demand); Ladder format; Organizer plan; doubles shot analysis; coaching tips; spin, swing path, footwork; Apple Watch scoring
+- **Later:** Ball Boi Pro, once there's traction; club and enterprise plans; junior leagues (if there's demand); Ladder format; Organizer plan; doubles shot analysis; coaching tips; spin, swing path, footwork; Apple Watch scoring
 
 Coaching tips return only once a coach-authored library exists, and doubles analysis waits on per-player shot attribution.
 
-## Decision log (updated Nov 4, 2026)
+## Decision log (updated Nov 7, 2026)
 
 | # | Decision |
 | --- | --- |
 | 1 | Whole app is 18+ for the MVP; junior leagues later if there's demand |
 | 2 | Age enforced with Declared Age Range API, birth-date fallback, 18+ rating, pass/fail flag only |
-| 3 | 3 months free from the first recording; soft paywall at the next use after; "Not now" records but analysis waits (replaces the free-first-match model, Oct 18) |
+| 3 | 3 months free from the first recording; soft paywall at the next use after; "Not now" records but analysis waits (replaces the free-first-match model, Oct 18) Parked by decision 82 |
 | 4 | Shot analysis built with Claude Code as ML engineer from open-source models, server-side |
 | 5 | Labeled 10 to 15 match test set, automatic eval, per-stat accuracy bars; TestFlight beta on a private tenant |
 | 6 | Training on by default, both players must leave it on, no face blurring, "personal information is never shared or sold" copy |
 | 7 | Simulated replay only; raw video deleted after analysis unless kept for training; "Close call" labels; close-call clips in v1.1 |
 | 8 | Stream Chat on the Maker plan, headless, behind Ball Boi's own interface |
 | 9 | Moderation: John primary, Claude agent after 6 hours with reversible actions only, bans human-only. Instant auto-restrict removed by decision 48 (Nov 4) |
-| 10 | Reviewer: password demo account, seeded data, live paywall, on-court screen recording |
+| 10 | Reviewer: password demo account, seeded data, on-court screen recording. The live paywall is parked with decision 82 |
 | 11 | Notifications: provisional from sign-in, full prompt at the contextual moment, Settings banner if denied |
 | 12 | Every recording starts from a match; Quick match covers casual hits, with placeholder opponents and invite links for non-users |
 | 13 | Ball Boi disabled on doubles with "Doubles is coming"; team-level doubles stats first after launch |
-| 14 | Apple IAP via RevenueCat at launch; Stripe link revisited after the Supreme Court rules |
+| 14 | Apple IAP via RevenueCat at launch; Stripe link revisited after the Supreme Court rules Parked by decision 82 |
 | 15 | No in-app notice for non-users; their footage stays out of training until they join |
 | 16 | Audio recorded for analysis only, never played back; the test set decides whether it stays |
 | 17 | Partner phone optional; live preview in v1.1; voice start command and solo visual cues post-MVP |
@@ -411,16 +400,16 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 30 | Waitlists are Open-only. A Private league's code entered after its season starts creates a join request for the admin; approved players enter the next round at zero wins (Oct 31) |
 | 31 | League admins can end and delete their league. End freezes standings and keeps history; Delete removes it and notifies members. A league's only admin can't leave without promoting a co-admin (Oct 31). The leave rule is replaced by decision 53 |
 | 32 | Playing stays free forever: leagues, Discover, match requests, scores, messaging, and the player card (Nov 2) |
-| 33 | Pro at launch is shot analysis, replay, trends, and full career stats; travel mode, deeper head-to-head, and AI insights join Pro as they ship, at the same price (Nov 2) |
-| 34 | Every account gets 3 free months of Pro, starting at the first use of any Pro feature with a "starts today" message. Replaces "from the first recording" in decision 3 (Nov 2) |
-| 35 | The paywall ships at launch; no free-until-X-users period and no founding member price (Nov 2) |
-| 36 | Pro costs $7.99/month or $59.99/year (replaces $5 / $40) (Nov 2) |
-| 37 | A match is analyzed if either player has Pro (paid or in free months), no matter whose phone recorded it (Nov 2) |
-| 38 | Free players get the full breakdown and replay for the first 4 games; the rest shows locked. Subscribing later unlocks every past analyzed match (Nov 2) |
-| 39 | Free players with unused free months see "Start your 3 free months to see the whole match"; nothing starts without their tap (Nov 2) |
-| 40 | Opponent breakdowns are mutual: a player sees an opponent's full breakdown for matches they played together only when both have Pro (Nov 2) |
-| 41 | Placeholder opponents who join later get the "recorded your match" notice and training toggle, then the 4-game teaser and free-months offer (Nov 2) |
-| 42 | When Pro lapses, players keep everything already unlocked, including past opponent breakdowns; new analysis and trends need Pro (Nov 2) |
+| 33 | Pro at launch is shot analysis, replay, trends, and full career stats; travel mode, deeper head-to-head, and AI insights join Pro as they ship, at the same price (Nov 2) Parked by decision 82 |
+| 34 | Every account gets 3 free months of Pro, starting at the first use of any Pro feature with a "starts today" message. Replaces "from the first recording" in decision 3 (Nov 2) Parked by decision 82 |
+| 35 | The paywall ships at launch; no free-until-X-users period and no founding member price (Nov 2) Parked by decision 82 |
+| 36 | Pro costs $7.99/month or $59.99/year (replaces $5 / $40) (Nov 2) Parked by decision 82 |
+| 37 | A match is analyzed if either player has Pro (paid or in free months), no matter whose phone recorded it (Nov 2) Parked by decision 82 |
+| 38 | Free players get the full breakdown and replay for the first 4 games; the rest shows locked. Subscribing later unlocks every past analyzed match (Nov 2) Parked by decision 82 |
+| 39 | Free players with unused free months see "Start your 3 free months to see the whole match"; nothing starts without their tap (Nov 2) Parked by decision 82 |
+| 40 | Opponent breakdowns are mutual: a player sees an opponent's full breakdown for matches they played together only when both have Pro (Nov 2) Parked by decision 82 |
+| 41 | Placeholder opponents who join later get the "recorded your match" notice and training toggle, then the 4-game teaser and free-months offer (Nov 2) Parked by decision 82 |
+| 42 | When Pro lapses, players keep everything already unlocked, including past opponent breakdowns; new analysis and trends need Pro (Nov 2) Parked by decision 82 |
 | 43 | The Organizer plan comes after launch, once real leagues are running (Nov 2) |
 | 44 | Casual leagues collect fees outside the app (Venmo or anything else); Ball Boi takes no cut (Nov 2) |
 | 45 | Organizers can add an optional fee and payment instructions, visible to everyone in Discover, on the league page, and on the join screen, plus a paid checklist in Manage (Nov 2) |
@@ -460,3 +449,21 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 79 | Standings break ties on wins by head to head between the tied players, then share of sets won, then share of games won; playoff seeding uses the same order (John, Nov 6) |
 | 80 | The score-entered animation shows the win-loss record ticking to its new value, never a level change; VoiceOver reads "Win recorded. You're now 15 and 6." Levels stay static unless the player edits them (John, Nov 7) |
 | 81 | The app only speaks while recording: the voice coach and countdown play from the mounted phone during a Ball Boi recording, with captions on the partner phone. No spoken cues anywhere else; VoiceOver announcements speak only when the player has VoiceOver on (John, Nov 7) |
+| 82 | Ball Boi Pro is parked until there's traction: no paywall, subscription, free-months clock or In-App Purchase at launch. Shot analysis, replay, trends and career stats are free for everyone, and every recorded singles match is analyzed. The full plan (decisions 3, 14 and 33 to 42) is saved in `docs/backlog/ball-boi-pro.md`. Playing stays free (decision 32) (John, Nov 7) |
+| 83 | Pending John: with no Pro, does a player see their opponent's full breakdown for matches they played together? Until decided, each player sees only their own (Nov 7) |
+| 84 | A small beta of 3 to 5 commissioned players starts once Session G's voice coach merges. John's own test-set filming can start sooner (John, Nov 7, B1) |
+| 85 | Beta testers use the same app as everyone: no beta flag. During the beta the app only exists on TestFlight, so a server setting on the private beta backend turns the release requirement on; it's off for the App Store launch. No opponent recording notice is needed for the beta (John, Nov 7, B2) |
+| 86 | A "Something not working?" form: pick a likely problem or "Something else" with a free-text box, optional note, Send. Attaches app version, iPhone model, iOS version and the match. Saved server-side and emailed to support@ballboi.tennis. Lives in Settings plus a small link on the ready-to-record screen, the processing card and the replay placeholder. Also covers the checklist's in-app support contact (John, Nov 7, B3) |
+| 87 | Beta testers are TestFlight external testers invited by email; every new build goes to them automatically (John, Nov 7, B4) |
+| 88 | After upload, while no stat has passed its bar, the processing card reads "Uploaded / Thanks. Ball Boi's shot tracking is still learning, so stats and your replay come in a later update. Your match is saved." (John, Nov 7, B5) |
+| 89 | Beta footage is kept until launch, the cheapest option, then normal retention rules apply; audio is still deleted after processing (John, Nov 7, B6) |
+| 90 | A phone setup guide: a graphic of the ideal position (fence behind the baseline, centered, high, sideways, back camera to the court, screen to the fence, both baselines in view) and a checklist (that position, 10% battery or plugged in, 2 GB free, Do Not Disturb on). Shows before every recording with a "Don't show this again" checkbox; a "Setup tips" link on the ready screen always brings it back. In Ball Boi's navy and brush style, as the visual companion to the voice coach (John, Nov 7, B7) |
+| 91 | The first recording opens a three-page carousel: 1) What Ball Boi records (filming others, audio for analysis only, video never shown); 2) Your choices (training toggle and the release checkbox; Next stays off until checked); 3) Set up your phone, ending in Open camera. Later recordings show page 3 alone. Swipe or Next and Back, no auto-advance, VoiceOver reads "Page 2 of 3", Reduce Motion fades. Replaces the single consent screen (John, Nov 7, B8) |
+| 92 | The beta release is a checkbox inside the consent flow (page 2), not its own screen. Agreement is stored server-side with the release version and date; a new version shows the page again unchecked (John, Nov 7, B9) |
+| 93 | Opponents outside the beta: the tester confirms they agreed. When the opponent is a placeholder (not on Ball Boi), the ready screen shows "[Name] agreed to be filmed." and Start stays off until it's checked. Chosen over requiring both players to be testers (John, Nov 7, B10) |
+| 94 | A confirmed placeholder opponent's match can be used in the labeled test set and scoring, never training (keeps decision 15). Flagged for the legal consult (John, Nov 7, B11) |
+| 95 | Withdrawing (email support or delete account) deletes all of that tester's video within 30 days, including test-set and training copies. Hand-made shot labels stay with the name removed; already-trained models aren't rebuilt (John, Nov 7, B12) |
+| 96 | The Ball Boi Beta Footage Release is approved as written, hosted at ballboi.tennis/beta-release styled like /privacy, and sent to the planned legal consult (biometric data, audio recording) before testers sign (John, Nov 7, B13) |
+| 97 | Labeling tool speed-ups, in order: jump to the next hit (detects the hit sound in John's local files, nothing leaves his Mac), then undo, resume at the last position, and a progress count, in the same fix (John, Nov 7, B14) |
+| 98 | New accuracy bars: point endings 85% correct; rally length within 1 shot on 85% of points; first-serve % within 5 points of truth; placement in the right zone 80% of the time. Estimated serve speed is dropped from launch until there's a way to measure it (John, Nov 7, B15) |
+| 99 | Pre-labeling uses only Ball Boi's own models, on John's Mac or Ball Boi's servers; no outside AI service sees footage, so the in-app copy and the release stay true (John, Nov 7, B16) |
