@@ -1,4 +1,4 @@
-<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-11-02 with rev 74). Updated in the repo on 2026-11-04 with the Wave 1 review decisions (48 to 78) and on 2026-11-06 with decision 79, which the live doc still needs. The live doc wins if they differ. Refresh this file when the live doc changes. -->
+<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-11-02 with rev 74). Updated in the repo on 2026-11-04 with the Wave 1 review decisions (48 to 78), on 2026-11-06 with decision 79, and on 2026-11-07 with decision 80. The live doc has the Nov 7 rating and animation fixes but still needs decisions 48 to 80. The live doc wins if they differ. Refresh this file when the live doc changes. -->
 
 # Ball Boi: Flows and Feature Spec
 
@@ -295,7 +295,7 @@ Four moments get a short animation and a haptic. Everything else uses standard i
 
 | Moment | Animation | Haptic |
 | --- | --- | --- |
-| Score entered | Score settles in | Success |
+| Score entered | Score settles in, then the win-loss record ticks to its new value. Levels never change from results | Success |
 | New career milestone | Badge scales in as a ring draws around it, then the title fades up. Launch set: first win, first Ball Boi match, 5- and 10-match win streaks | Success |
 | Player card reveal | Card flips from the Ball Boi back to the front, on the first view of each player only | Light |
 | Ball Boi analysis ready | Shot markers drop onto the court one by one, then "Your replay is ready" | Light ticks |
@@ -303,7 +303,7 @@ Four moments get a short animation and a haptic. Everything else uses standard i
 - **Short and once:** each runs under 1 second, plays once, and never blocks input
 - **Built with Reanimated**
 - **Reduce Motion:** every moment becomes a 200ms fade with the final state shown at once; haptics still fire
-- **VoiceOver:** each outcome is announced in text, e.g. "Milestone: First win"
+- **VoiceOver:** each outcome is announced in text, e.g. "Win recorded. You're now 15 and 6." or "Milestone: First win"
 
 ## Pricing
 
@@ -457,3 +457,4 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 77 | League opponents talk in a direct chat (Message opponent) for now; full match threads come with Discover (Oct 31, logged Nov 4) |
 | 78 | The last onboarding step is an optional research question, "What do you want to do on Ball Boi?": pick any of four options or none, and everyone lands on Home. Replaces the four setup paths (Nov 2, logged Nov 4) |
 | 79 | Standings break ties on wins by head to head between the tied players, then share of sets won, then share of games won; playoff seeding uses the same order (John, Nov 6) |
+| 80 | The score-entered animation shows the win-loss record ticking to its new value, never a level change; VoiceOver reads "Win recorded. You're now 15 and 6." Levels stay static unless the player edits them (John, Nov 7) |
