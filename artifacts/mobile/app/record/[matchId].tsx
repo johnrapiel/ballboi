@@ -1,9 +1,9 @@
 // Ball Boi recorder (spec: Ball Boi > Recording).
 //
 // Rear camera only, phone mounted on the fence, screen facing away from the
-// court. Nobody touches the fence after mounting: start now or after a
-// spoken countdown, stop by holding anywhere for 2 seconds, and the safety
-// cap stops and saves on low battery, low storage, or at 4 hours.
+// court. Start now or after a spoken countdown, stop with the Stop button
+// (it asks first) or from the other player's phone, and the safety cap
+// stops and saves on low battery, low storage, or at 4 hours.
 // The video is analysis input only: it is never played back.
 //
 // Calls and interruptions (Wave 1 review). What this relies on, from
@@ -50,7 +50,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Checkbox } from "@/components/record/Checkbox";
 import { ChromeButton, ChromeChoice, ChromeLink } from "@/components/record/ChromeControls";
 import { FirstRunCarousel } from "@/components/record/FirstRunCarousel";
-import { HoldToStop } from "@/components/record/HoldToStop";
 import { Button, Screen, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import {
@@ -661,7 +660,6 @@ export default function RecordScreen() {
   const rejoining = phase === "rejoining";
   const counting = phase === "countdown";
   const interrupted = phase === "interrupted";
-  const live = recording || rejoining;
   const status = recording
     ? `Recording, ${spokenDuration(elapsed)}`
     : rejoining || interrupted
@@ -700,8 +698,6 @@ export default function RecordScreen() {
         accessibilityElementsHidden
       />
 
-      {live ? <HoldToStop onStop={() => stop("user")} bottomInset={insets.bottom} /> : null}
-
       <View
         pointerEvents="box-none"
         style={{
@@ -726,15 +722,13 @@ export default function RecordScreen() {
             <SymbolView name="xmark" size={18} tintColor={chrome.text} />
           </Pressable>
         ) : (
-          // D25: while recording, touches here fall through to hold-to-stop.
+          // Keeps the time pill centred while recording.
           <View style={{ width: MIN_TAP }} pointerEvents="none" />
         )}
         <View
           accessible
           accessibilityRole="text"
           accessibilityLabel={status}
-          // D25: holding on the time pill stops too.
-          pointerEvents={live ? "none" : "auto"}
           style={[styles.pill, { flexShrink: 1 }]}
         >
           {recording ? <SymbolView name="record.circle" size={14} tintColor={chrome.danger} /> : null}
@@ -883,11 +877,6 @@ export default function RecordScreen() {
 
         {recording ? (
           <View style={{ alignItems: "center", gap: spacing.space3 }} pointerEvents="box-none">
-            <View style={[styles.pill]} pointerEvents="none">
-              <Text variant="small" style={{ color: chrome.text }}>
-                Press and hold anywhere for 2 seconds to stop
-              </Text>
-            </View>
             <ChromeButton variant="secondary" label="Stop" accessibilityLabel="Stop recording" onPress={confirmStop} />
           </View>
         ) : null}

@@ -205,12 +205,12 @@ The phone films with the rear camera, so its screen faces away from the court. V
 - **Voice positioning coach:** on-device court detection drives spoken guidance, one step at a time, in court terms ("Tilt up," "Toward the center of the court"), ending with "Court locked" and a chime. Plays on silent; mute toggle; shorter mode after the first few sessions
 - **The app only speaks while recording (Nov 7):** spoken cues (voice coach, countdown) play only from the mounted phone during a Ball Boi recording, and the partner phone shows them as captions. Everywhere else the app is silent. VoiceOver announcements speak only for players who turned VoiceOver on in iOS
 - **Court won't lock:** a spoken tip, then Record anyway after about 20 seconds; court lines get fixed later in the replay
-- **Partner phone is optional:** solo players use the countdown, voice coach, and press-and-hold stop. A second phone adds remote controls and a readable screen for captions
+- **Partner phone is optional:** solo players use the countdown, voice coach, and the Stop button. A second phone adds remote controls and a readable screen for captions
 - **Start:** from either player's Live Activity, or "Start in Now / 5 / 10 / 15 min" with spoken countdown cues; the court-lock check keeps running during the countdown; no auto-start
 - **Warmup:** recording can capture warmup; the match start point can be dragged in the replay
 - **Match notification:** the opponent gets "Ball Boi is recording your match," only for league mates and accepted matches; it doubles as a recording notice. Placeholder opponents get no in-app notice
 - **Live Activity on both phones:** court lock status, recording time, mounted phone battery, and Start match / Stop; either player has full controls; voice cues mirror here as captions, and to Apple Watch where available
-- **Stop:** from either player's phone, or press and hold anywhere on the mounted phone for 2 seconds
+- **Stop:** from either player's phone, or the Stop button on the mounted phone
 - **Safety cap:** auto-stop and save at low battery, low storage, or 4 hours
 - **Calls and interruptions:** a ringing call pauses recording. If it isn't picked up, recording carries on in the same match and only the ringing seconds are lost. An answered call, a manual lock or an app switch stops and saves, and coming back shows Resume recording, which adds to the same match. The screen stays awake while recording. A hint by Record reads "Put your phone on Do Not Disturb before you hit record so the video isn't interrupted."
 - **Audio:** recorded for shot detection only; never played back, deleted after processing, excluded from training on non-users. The labeled test set decides whether audio stays for launch
