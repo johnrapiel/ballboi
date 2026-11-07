@@ -20,6 +20,11 @@ export interface JoinRequest {
   rating?: MatchPlayerRating | null;
   kind: JoinRequestKind;
   status: JoinRequestStatus;
+  /**
+   * The asker's optional note to the organizer
+   * @nullable
+   */
+  note?: string | null;
   createdAt: string;
   message?: string;
 }

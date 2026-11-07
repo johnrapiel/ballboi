@@ -1,5 +1,5 @@
 import { Stack, useRouter } from "expo-router";
-import { SymbolView } from "expo-symbols";
+import { Icon } from "@/components/Icon";
 import React, { useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -191,7 +191,7 @@ function ReportRow({ report, onPress }: { report: Report; onPress: () => void })
             {lines[1]}
           </Text>
         </View>
-        <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} />
+        <Icon name="chevron.right" size={13} tintColor={c.inkMuted} />
       </Card>
     </Pressable>
   );
