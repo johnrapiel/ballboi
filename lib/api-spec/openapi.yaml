@@ -5008,6 +5008,54 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /recording/matches/{matchId}/filming:
+    get:
+      operationId: getMatchFilming
+      tags: [recording]
+      summary: Before recording, whether the opponent isn't on Ball Boi, so the recorder must confirm they agreed to be filmed
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: What the ready screen needs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchFilming'
+        '400':
+          description: Invalid match id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not a player in this match
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: The match is gone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't load
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /recording/consent:
     get:
       operationId: getRecordingConsent
@@ -8775,6 +8823,15 @@ components:
           type: boolean
           description: Show the release checkbox, unchecked, before the next recording
       required: [required, version, url, agreedVersion, agreedAt, needed]
+    MatchFilming:
+      type: object
+      properties:
+        needsOpponentAgreement:
+          type: boolean
+          description: The opponent isn't on Ball Boi. The ready screen shows "[Name] agreed to be filmed." and Start stays off until it's checked.
+        opponentName:
+          type: [string, 'null']
+      required: [needsOpponentAgreement, opponentName]
     ConsentChoice:
       type: object
       properties:

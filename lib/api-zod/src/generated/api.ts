@@ -5271,6 +5271,22 @@ export const ReportMessageBody = zod.object({
 });
 
 /**
+ * @summary Before recording, whether the opponent isn't on Ball Boi, so the recorder must confirm they agreed to be filmed
+ */
+export const GetMatchFilmingParams = zod.object({
+  matchId: zod.coerce.number(),
+});
+
+export const GetMatchFilmingResponse = zod.object({
+  needsOpponentAgreement: zod
+    .boolean()
+    .describe(
+      "The opponent isn't on Ball Boi. The ready screen shows \"[Name] agreed to be filmed.\" and Start stays off until it's checked.",
+    ),
+  opponentName: zod.string().nullable(),
+});
+
+/**
  * @summary Whether the person agreed to recording, and whether their video may train Ball Boi
  */
 export const GetRecordingConsentResponse = zod.object({

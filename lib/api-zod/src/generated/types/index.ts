@@ -179,6 +179,7 @@ export * from "./matchDetail";
 export * from "./matchDetailPlayer";
 export * from "./matchDetailReplay";
 export * from "./matchDetailSide";
+export * from "./matchFilming";
 export * from "./matchPlayerRating";
 export * from "./matchPlayerRatingSource";
 export * from "./matchRecord";

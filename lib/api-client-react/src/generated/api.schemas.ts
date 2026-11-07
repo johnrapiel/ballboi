@@ -2807,6 +2807,13 @@ export interface RecordingConsent {
   release: BetaReleaseStatus;
 }
 
+export interface MatchFilming {
+  /** The opponent isn't on Ball Boi. The ready screen shows "[Name] agreed to be filmed." and Start stays off until it's checked. */
+  needsOpponentAgreement: boolean;
+  /** @nullable */
+  opponentName: string | null;
+}
+
 export interface ConsentChoice {
   trainingEnabled: boolean;
   /** The release version the person agreed to by checking the box. Required while the release is needed. */
