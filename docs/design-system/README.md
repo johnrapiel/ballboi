@@ -140,7 +140,7 @@ Where it appears:
 
 Inside the app it's decorative: the screen's title or text carries the meaning, so VoiceOver skips it. In Night session it drops its paper fill: just the brushstroke, in white.
 
-The app icon (`assets/Logos/ball-boi-app-icon.png`) is the symbol: the hand-painted ball in white (`on-ink`) on an `ink` tile with a faint paper grain. No wordmark in the icon; iOS prints the name beneath it.
+The app icon (`assets/Logos/ball-boi-app-icon.png`) is the symbol: the hand-painted ball in `ink` on a white tile, to match the ivory Day palette (John, Nov 6). It stays white in iOS Dark Mode too, with no dark variant (John, Nov 7). No wordmark in the icon; iOS prints the name beneath it.
 
 ## Applying it to the app
 
