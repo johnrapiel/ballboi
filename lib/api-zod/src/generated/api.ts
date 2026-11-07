@@ -4594,6 +4594,7 @@ export const SetMySelfRatingBody = zod.object({
     zod.literal(3.5),
     zod.literal(4),
     zod.literal(4.5),
+    zod.literal(5),
   ]),
 });
 

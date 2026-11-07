@@ -11,7 +11,10 @@ import { inviteMessage, joinUrl } from "@/lib/leagueInvite";
 
 // The invite: the code, a copy icon and a share icon (approved canvas: Invite
 // players; findings 11 and 12). Copy puts just the code on the clipboard and
-// says "Copied", out loud for VoiceOver too. Share sends the link.
+// says "Copied", out loud for VoiceOver too. Share sends the link. It lives at
+// the top of Manage league (finding 29) and on the invite screen after Create.
+// A league with no code yet (one made before codes were automatic) gets a
+// Create invite code button instead of an error.
 
 function IconAction({ symbol, label, hint, onPress }: { symbol: SFSymbol; label: string; hint: string; onPress: () => void }) {
   const c = useColors();
@@ -43,8 +46,13 @@ export function InviteCard({
   loading,
   note,
   onRetry,
+  onCreate,
+  creating,
 }: {
   onRetry?: () => void;
+  /** The league has no active code (it loaded fine): offer to make one. */
+  onCreate?: () => void;
+  creating?: boolean;
   leagueName: string;
   code: string | null;
   loading?: boolean;
@@ -116,6 +124,13 @@ export function InviteCard({
             </Text>
           ) : null}
         </>
+      ) : onCreate ? (
+        <View style={{ gap: spacing.space2 }}>
+          <Text variant="small" tone="inkMuted">
+            This league doesn't have an invite code yet. Make one to share with players.
+          </Text>
+          <Button label="Create invite code" variant="secondary" loading={creating} onPress={onCreate} />
+        </View>
       ) : (
         <View style={{ gap: spacing.space2 }}>
           <Text variant="small" tone="inkMuted">

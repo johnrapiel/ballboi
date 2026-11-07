@@ -8,6 +8,7 @@ import { ActivityIndicator, Alert, Platform, ScrollView, View } from "react-nati
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Avatar } from "@/components/Avatar";
+import { IconButton } from "@/components/Choice";
 import { RatingBadge } from "@/components/RatingBadge";
 import { Roundel } from "@/components/Roundel";
 import { SettingsRow, SettingsSection } from "@/components/SettingsList";
@@ -23,9 +24,9 @@ import { formatRating, levelSpoken, type RatingSource } from "@/lib/onboarding";
 import { photoUrl } from "@/lib/photos";
 
 // Profile tab (approved canvas: Profile, John, Nov 6). Your player card, your
-// player details as rows that open the matching edit screen, Account (Settings
-// and Sign out) above About (finding 19). Blocked players is gone: block lives
-// in Report (finding 20). Delete account is at the bottom of Settings (finding 21).
+// player details as rows that open the matching edit screen, Account (Sign out)
+// above About (finding 19). Settings is the cog in the header, beside Messages
+// (finding 30). Blocked players is gone: block lives in Report (finding 20). Delete account is at the bottom of Settings (finding 21).
 
 function levelValue(rating: number | null | undefined, source: RatingSource | null | undefined): string {
   if (rating == null) return "Not set";
@@ -197,7 +198,17 @@ export default function ProfileScreen() {
   const displayName = profile?.displayName?.trim() || user?.fullName?.trim() || "";
 
   return (
-    <TabScreen title="Profile">
+    <TabScreen
+      title="Profile"
+      action={(
+        <IconButton
+          symbol="gearshape"
+          label="Settings"
+          hint="Ball Boi recording settings, and Delete account"
+          onPress={() => router.push("/settings")}
+        />
+      )}
+    >
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space2, paddingBottom: bottomPad + 96, gap: spacing.space6 }}
@@ -256,15 +267,10 @@ export default function ProfileScreen() {
         ) : null}
 
         {/* Account sits above About (John, Nov 6, finding 19). */}
-        <View style={{ gap: spacing.space3 }}>
-          <SettingsSection title="Account">
-            <SettingsRow
-              title="Settings"
-              onPress={() => router.push("/settings")}
-              accessibilityHint="Ball Boi recording settings, and Delete account"
-              last
-            />
-          </SettingsSection>
+        <View style={{ gap: spacing.space2 }}>
+          <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ paddingHorizontal: spacing.space1 }}>
+            Account
+          </Text>
           <Button label="Sign out" variant="destructiveOutline" onPress={handleSignOut} />
         </View>
 

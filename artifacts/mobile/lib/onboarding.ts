@@ -76,6 +76,12 @@ export const QUIZ_LEVELS: { rating: number; title: string; description: string }
     title: "Advanced",
     description: "I play tournaments, vary pace and spin on purpose, and my serve wins points outright.",
   },
+  {
+    rating: 5.0,
+    title: "Expert",
+    description:
+      "I've played college or open-level tournaments, and I can hit any shot with pace and control under pressure.",
+  },
 ];
 
 /** "3.5". Ratings are levels in half steps. */

@@ -7,9 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   useGetLeague,
-  getGetLeagueInvitesQueryKey,
   useGetLeagueBracket,
-  useGetLeagueInvites,
   useGetLeagueMembership,
   useLeaveLeague,
   useGetLeagueSchedule,
@@ -21,7 +19,6 @@ import {
 
 import { RoundCard, UpcomingWeekRow } from "@/components/league/RoundCard";
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
-import { InviteCard } from "@/components/league/InviteCard";
 import { ListRow } from "@/components/league/ListRow";
 import { StandingsTable } from "@/components/league/StandingsTable";
 import { BracketView, myPlayoffMatch, ROUND_SINGULAR } from "@/components/league/Bracket";
@@ -51,9 +48,10 @@ import { formatLabel, playersLabel, playTypeLabel } from "@/lib/leagues";
 // League (spec: Leagues; approved canvas: League detail · Standings). A brush
 // title and one meta line, then your match this week, then Standings, Matches
 // and Playoffs. Admins get a visible Manage league row (John, Nov 6, finding
-// 8) instead of a header icon. The invite (code, copy, share) sits at the top
-// until the season starts or the league is full, then moves down out of the
-// way (finding 12). Only admins can read the code, so only they see it.
+// 8) instead of a header icon, with the "Round N pairings are ready to
+// review" card directly under it, above your match (finding 29). The invite
+// (code, copy, share) lives in Manage league now (finding 29). Players see
+// neither.
 
 type Tab = "standings" | "rounds" | "playoffs";
 
@@ -222,10 +220,6 @@ export default function LeagueScreen() {
 
   const leagueQ = useGetLeague(leagueId);
   const membershipQ = useGetLeagueMembership(leagueId);
-  const canManage = !!membershipQ.data?.isAdmin;
-  const invitesQ = useGetLeagueInvites(leagueId, {
-    query: { enabled: canManage, queryKey: getGetLeagueInvitesQueryKey(leagueId) },
-  });
   const standingsQ = useGetLeagueStandings(leagueId);
   const scheduleQ = useGetLeagueSchedule(leagueId);
   const bracketQ = useGetLeagueBracket(leagueId);
@@ -246,7 +240,6 @@ export default function LeagueScreen() {
     void standingsQ.refetch();
     void scheduleQ.refetch();
     void bracketQ.refetch();
-    if (canManage) void invitesQ.refetch();
   };
 
   const enterScore = (m: ScheduleMatch) => router.push(`/league/${leagueId}/score/${m.matchId}`);
@@ -273,20 +266,6 @@ export default function LeagueScreen() {
   // Q2: doubles leagues don't run yet. One made before then says so.
   const doublesOnHold = league?.leagueType === "doubles" && !ended;
   const playoffsNote = league ? playoffLine(league.playoffSize, league.playerCount) : null;
-  // Joining locks once the season starts or the league is full (decision 30).
-  const joiningOpen = !!league && !ended && !started && !(league.rosterCap != null && league.playerCount >= league.rosterCap);
-  const invite = invitesQ.data?.find((i) => i.isActive) ?? null;
-  const inviteCard =
-    isAdmin && league && !ended ? (
-      <InviteCard
-        leagueName={league.name}
-        code={invite?.code ?? null}
-        loading={invitesQ.isLoading}
-        onRetry={() => void invitesQ.refetch()}
-        note={joiningOpen ? "Players join with this code or link until the season starts." : "Late joiners ask to join, and you approve them in Manage league."}
-      />
-    ) : null;
-
   // Dropouts (decision 27): played matches stay, the rest are cancelled.
   // Q4: an admin who leaves stops playing but still manages the league.
   function confirmLeave() {
@@ -389,19 +368,33 @@ export default function LeagueScreen() {
             ) : null}
           </View>
 
-          {joiningOpen ? inviteCard : null}
-
           {isAdmin ? (
             // Admin tools in context only (spec: Roles), as a visible row (finding 8).
             <Card style={{ padding: 0, overflow: "hidden" }}>
               <ListRow
                 title="Manage league"
-                subtitle="Pairings, players, admins and invites"
+                subtitle="Invite code, pairings, players and admins"
                 symbol="slider.horizontal.3"
                 onPress={() => router.push(`/league/${leagueId}/manage`)}
                 accessibilityHint="Opens the admin tools for this league"
                 last
               />
+            </Card>
+          ) : null}
+
+          {/* Finding 29: right under Manage league, above your match. */}
+          {draft && isAdmin && !ended ? (
+            <Card style={{ gap: spacing.space3 }}>
+              <View accessible style={{ gap: spacing.space1 }}>
+                <Text variant="section" tone="inkMuted">
+                  Admin
+                </Text>
+                <Text variant="bodyStrong">{`Round ${draft.roundNumber} pairings are ready to review`}</Text>
+                <Text variant="small" tone="inkMuted">
+                  {`They go out to players ${shortDate(draft.startDate)} at ${pairingTime(schedule?.timeZone)}.`}
+                </Text>
+              </View>
+              <Button label="Review pairings" variant="secondary" onPress={() => router.push(`/league/${leagueId}/round/${draft.roundId}`)} />
             </Card>
           ) : null}
 
@@ -461,21 +454,6 @@ export default function LeagueScreen() {
               canSetTime={league?.matchDay == null || !!schedule?.isAdmin}
               ended={ended}
             />
-          ) : null}
-
-          {draft && isAdmin && !ended ? (
-            <Card style={{ gap: spacing.space3 }}>
-              <View accessible style={{ gap: spacing.space1 }}>
-                <Text variant="section" tone="inkMuted">
-                  Admin
-                </Text>
-                <Text variant="bodyStrong">{`Round ${draft.roundNumber} pairings are ready to review`}</Text>
-                <Text variant="small" tone="inkMuted">
-                  {`They go out to players ${shortDate(draft.startDate)} at ${pairingTime(schedule?.timeZone)}.`}
-                </Text>
-              </View>
-              <Button label="Review pairings" variant="secondary" onPress={() => router.push(`/league/${leagueId}/round/${draft.roundId}`)} />
-            </Card>
           ) : null}
 
           {doublesOnHold ? null : (
@@ -576,8 +554,6 @@ export default function LeagueScreen() {
 
           </>
           )}
-
-          {joiningOpen ? null : inviteCard}
 
           {membershipQ.data?.isPlaying && !ended ? (
             <Button

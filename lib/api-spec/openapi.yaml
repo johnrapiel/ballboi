@@ -8186,7 +8186,7 @@ components:
       properties:
         rating:
           type: number
-          enum: [2.5, 3.0, 3.5, 4.0, 4.5]
+          enum: [2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
       required: [rating]
     SelfRatingResult:
       type: object
