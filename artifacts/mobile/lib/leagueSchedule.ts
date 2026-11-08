@@ -216,6 +216,23 @@ export function canEnterScore(round: ScheduleRound, m: ScheduleMatch, ended = fa
   return !ended && (round.phase === "open" || round.phase === "grace") && m.status !== "completed" && !m.voided;
 }
 
+/**
+ * League detail's "Record with Ball Boi" (John, Nov 8, option A). Any day of
+ * the match's week, grace week included, while the match can be scored:
+ * "record" on a singles match, "doubles" (dimmed, with the reason) on a
+ * doubles one. Null once the score is in, or the round is upcoming, closed,
+ * voided, or the league has ended: the same rules as Enter score.
+ */
+export function recordAction(
+  round: ScheduleRound,
+  m: ScheduleMatch,
+  ended: boolean,
+  doubles: boolean,
+): "record" | "doubles" | null {
+  if (!canEnterScore(round, m, ended) || !!m.score) return null;
+  return doubles ? "doubles" : "record";
+}
+
 /** C21: the playoff line under the standings, or null with no playoffs. */
 export function playoffLine(playoffSize: number | null | undefined, activePlayers: number): string | null {
   if (!playoffSize) return null;

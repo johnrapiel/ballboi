@@ -2,7 +2,7 @@
 // cards, Quick match) goes through the same checks.
 //
 // Used by the Ball Boi tab's "Record a match" and Home's singles match cards
-// ("Record with Ball Boi", PR 4).
+// ("Record with Ball Boi", PR 4), and League detail's match card (Nov 8).
 
 import type { useRouter } from "expo-router";
 
