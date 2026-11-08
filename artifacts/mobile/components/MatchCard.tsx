@@ -60,7 +60,7 @@ export function MatchCard({
     </View>
   );
   return (
-    <Card style={{ gap: spacing.space4, borderWidth: 0, paddingVertical: spacing.space6 }}>
+    <Card style={{ gap: spacing.space4, paddingVertical: spacing.space6 }}>
       {onOpen ? (
         <Pressable
           onPress={onOpen}
