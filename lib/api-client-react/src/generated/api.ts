@@ -145,6 +145,7 @@ import type {
   MatchPlan,
   MatchPlanShiftInput,
   MatchPlansWithUser,
+  MatchRecap,
   MatchRemindersRunInput,
   MatchShot,
   MatchStatistics,
@@ -5937,6 +5938,93 @@ export function useGetMyLeagueWeek<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetMyLeagueWeekQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary What the shareable match recap shows (decision 148). Players in the match only, once it has a score
+ */
+export const getGetMatchRecapUrl = (matchId: number) => {
+  return `/api/me/matches/${matchId}/recap`;
+};
+
+export const getMatchRecap = async (
+  matchId: number,
+  options?: RequestInit,
+): Promise<MatchRecap> => {
+  return customFetch<MatchRecap>(getGetMatchRecapUrl(matchId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMatchRecapQueryKey = (matchId: number) => {
+  return [`/api/me/matches/${matchId}/recap`] as const;
+};
+
+export const getGetMatchRecapQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMatchRecap>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  matchId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMatchRecap>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMatchRecapQueryKey(matchId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMatchRecap>>> = ({
+    signal,
+  }) => getMatchRecap(matchId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!matchId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMatchRecap>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMatchRecapQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMatchRecap>>
+>;
+export type GetMatchRecapQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary What the shareable match recap shows (decision 148). Players in the match only, once it has a score
+ */
+
+export function useGetMatchRecap<
+  TData = Awaited<ReturnType<typeof getMatchRecap>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  matchId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMatchRecap>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMatchRecapQueryOptions(matchId, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

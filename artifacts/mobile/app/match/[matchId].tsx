@@ -11,6 +11,7 @@ import { Avatar } from "@/components/Avatar";
 import { HeaderIconButton } from "@/components/Choice";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
 import { Button, Card, Text } from "@/components/ui";
+import { RecapShareButton } from "@/components/RecapShareButton";
 import { MarkedName, WinnerNames } from "@/components/WinnerNames";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -340,6 +341,9 @@ export default function MatchDetailScreen() {
           ) : null}
         </View>
       ) : null}
+
+      {/* The match recap (decision 148): an image to share, once there's a score. */}
+      {d.played && !d.voided && d.score ? <RecapShareButton matchId={d.matchId} /> : null}
     </ScrollView>
   );
 }
