@@ -2,25 +2,29 @@
 // Recording, voice positioning coach; claude/design-decisions/voice-coach.md).
 //
 // - One line at a time, never over another.
-// - A correction (02 to 08) from court detection. The same correction
-//   repeats no sooner than every 7 seconds while the phone hasn't moved, and
-//   stops after 3 times in a row (G8). Its caption stays up.
-// - "Hold your phone there" (09) once the frame is nearly right and steady,
-//   then "Perfect. Court locked." (10) and the chime when it locks.
-// - No court at all: "I can't see the court..." (11), under the same repeat
-//   rule. After about 20 seconds: "You can record anyway..." (12), once.
+// - At least 10 seconds of quiet between any two pieces of setup guidance
+//   (John, Nov 8): corrections (02 to 08) and their repeats, "Hold your phone
+//   there" (09), "I can't see the court..." (11) and Record anyway (12).
+//   The quiet counts from when the last of those lines finished playing.
+// - The same correction stops after 3 times in a row while the phone hasn't
+//   moved (G8). Once the phone moves the count starts over.
+// - "Hold your phone there" (09) once the frame is nearly right and steady.
+// - No court at all: "I can't see the court..." (11), under the same rules.
+//   After about 20 seconds without a lock: "You can record anyway..." (12),
+//   once, as soon as the quiet allows.
+// - Not held by the quiet, since they're events or timed: "Perfect. Court
+//   locked." (10) and the chime, "Your phone just moved" (13), the countdown
+//   (14 to 19) and the stop lines (20, 21). The screen plays those.
 //
 // Pure TypeScript, no React Native: tested in lib/__tests__/coach.test.ts.
 
-import type { CueId } from "@/lib/coachLines";
+import { COACH_LINES, type CueId } from "@/lib/coachLines";
 import type { AimStep, LockStage } from "@/lib/court/aim";
 
-/** G8: the same correction no sooner than this while the phone hasn't moved. */
-export const REPEAT_GAP_MS = 7000;
-/** G8: and no more than this many times in a row. */
+/** Quiet between any two pieces of setup guidance, from the end of the last one (John, Nov 8). */
+export const REPEAT_GAP_MS = 10_000;
+/** G8: the same correction no more than this many times in a row while the phone hasn't moved. */
 export const REPEAT_LIMIT = 3;
-/** After the phone moves, the same correction may come back this soon. */
-export const MOVED_GAP_MS = 3000;
 
 const STEP_CUE: Partial<Record<AimStep, CueId>> = {
   none: "noLock",
@@ -46,9 +50,11 @@ export interface CoachState {
   times: number;
   /** "Hold your phone there" said since the last correction. */
   saidHold: boolean;
+  /** No guidance before this: the last guidance line's end plus REPEAT_GAP_MS. */
+  quietUntil: number;
 }
 
-export const COACH_START: CoachState = { last: null, lastAt: 0, times: 0, saidHold: false };
+export const COACH_START: CoachState = { last: null, lastAt: 0, times: 0, saidHold: false, quietUntil: 0 };
 
 export interface CoachInput {
   now: number;
@@ -59,38 +65,49 @@ export interface CoachInput {
   busy: boolean;
   /** The phone has turned or tilted since `last` was said. */
   movedSinceLast: boolean;
+  /** About 20 seconds without a lock: "You can record anyway..." (12) is waiting to be said. */
+  recordAnywayDue?: boolean;
+}
+
+/** When the quiet after this line ends, if it starts playing now. */
+function quietAfter(cue: CueId, now: number): number {
+  return now + COACH_LINES[cue].ms + REPEAT_GAP_MS;
 }
 
 /**
- * The next correction or hold line for this frame, or null to stay quiet.
- * Locking, Record anyway and the countdown lines are played by the screen,
- * since they come from events rather than frames.
+ * The next piece of setup guidance for this frame (a correction, "Hold your
+ * phone there" or Record anyway), or null to stay quiet. Locking, "Your phone
+ * just moved" and the countdown lines are played by the screen, since they
+ * come from events rather than frames.
  */
 export function nextCoachCue(state: CoachState, input: CoachInput): { cue: CueId | null; state: CoachState } {
   const quiet = { cue: null, state };
   if (input.busy || input.stage === "locked") return quiet;
+  if (input.now < state.quietUntil) return quiet;
+  const { now } = input;
+
+  if (input.recordAnywayDue) {
+    return { cue: "recordAnyway", state: { ...state, quietUntil: quietAfter("recordAnyway", now) } };
+  }
 
   if (input.step === "ok") {
     if (input.stage === "holding" && !state.saidHold) {
-      return { cue: "hold", state: { ...state, saidHold: true, last: null, times: 0 } };
+      return { cue: "hold", state: { ...state, saidHold: true, last: null, times: 0, quietUntil: quietAfter("hold", now) } };
     }
     return quiet;
   }
 
   const cue = correctionFor(input.step);
   if (!cue) return quiet;
-  if (cue !== state.last) {
-    return { cue, state: { last: cue, lastAt: input.now, times: 1, saidHold: false } };
-  }
-  // The same correction again.
-  if (input.movedSinceLast) {
-    // They're trying: the count starts over, after a short pause.
-    if (input.now - state.lastAt < MOVED_GAP_MS) return quiet;
-    return { cue, state: { ...state, lastAt: input.now, times: 1, saidHold: false } };
-  }
+  const said = (times: number) => ({
+    cue,
+    state: { last: cue, lastAt: now, times, saidHold: false, quietUntil: quietAfter(cue, now) },
+  });
+  if (cue !== state.last) return said(1);
+  // The same correction again. They're trying: the count starts over.
+  if (input.movedSinceLast) return said(1);
   if (state.times >= REPEAT_LIMIT) return quiet;
-  if (input.now - state.lastAt < REPEAT_GAP_MS) return quiet;
-  return { cue, state: { ...state, lastAt: input.now, times: state.times + 1 } };
+  return { cue, state: { ...said(state.times + 1).state, saidHold: state.saidHold } };
 }
 
 // ---------------------------------------------------------------------------
