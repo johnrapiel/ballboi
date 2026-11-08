@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import React, { useMemo, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, TextInput, View, useColorScheme } from "react-native";
+import { Alert, Pressable, ScrollView, TextInput, View } from "react-native";
 
 import {
   createLeague,
@@ -21,7 +21,7 @@ import { MAX_WEEKS, MIN_WEEKS, readWeeks } from "@/lib/scoreEntry";
 import { Button, Card, Field, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
 import { Toggle } from "@/components/Toggle";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useScheme } from "@/hooks/useColors";
 import { useProfile } from "@/hooks/useProfile";
 
 // Start a league (spec: Leagues > Setup and Onboarding > Run a league;
@@ -200,7 +200,7 @@ export default function StartLeagueScreen() {
   const queryClient = useQueryClient();
   const { user } = useUser();
 
-  const scheme = useColorScheme();
+  const scheme = useScheme();
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const minStart = useMemo(tomorrow, []);
 

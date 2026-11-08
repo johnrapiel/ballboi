@@ -4,6 +4,7 @@ import { captureRef } from "react-native-view-shot";
 
 import { getGetMatchRecapQueryKey, useGetMatchRecap } from "@workspace/api-client-react";
 
+import { DayLook } from "@/components/DayLook";
 import { RecapImage } from "@/components/RecapImage";
 import { Button } from "@/components/ui";
 import { RECAP_SIZE, recapView } from "@/lib/recap";
@@ -58,7 +59,10 @@ export function RecapShareButton({ matchId, variant = "secondary" }: { matchId: 
           style={{ position: "absolute", left: -10000, top: 0, width: RECAP_SIZE.width, height: RECAP_SIZE.height }}
         >
           <View ref={ref} collapsable={false}>
-            <RecapImage recap={recap} />
+            {/* Always the Day look, even in Dark Mode (decision 144). */}
+            <DayLook>
+              <RecapImage recap={recap} />
+            </DayLook>
           </View>
         </View>
       ) : null}

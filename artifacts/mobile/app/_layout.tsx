@@ -17,8 +17,10 @@ import {
 import { NanumBrushScript_400Regular } from "@expo-google-fonts/nanum-brush-script";
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider, focusManager, useQueryClient } from "@tanstack/react-query";
 import { reloadAppAsync } from "expo";
-import { Stack, usePathname, useRootNavigationState, useRouter, useSegments, type Href } from "expo-router";
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname, useRootNavigationState, useRouter, useSegments, type Href } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
+import * as SystemUI from "expo-system-ui";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, AppState, StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -35,7 +37,6 @@ import { accountStatusKey } from "@/hooks/useAccountStatus";
 import { useColors } from "@/hooks/useColors";
 import { useGate } from "@/hooks/useGate";
 import { checkForAccountBlock, onAccountBlocked } from "@/lib/accountBlocked";
-import { setAppAppearance } from "@/lib/appearance";
 import { gateRedirect, type PendingLink } from "@/lib/gate";
 import { savePendingJoinCode } from "@/lib/leagueInvite";
 import { savePendingInvite } from "@/lib/recording/pendingInvite";
@@ -47,8 +48,6 @@ if (apiUrl) setBaseUrl(apiUrl);
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 
 SplashScreen.preventAutoHideAsync();
-// Light by default, whatever the iPhone's appearance (finding #3).
-setAppAppearance();
 
 // Any request refused because the account is banned or suspended rechecks the
 // account, and the gate shows the blocked screen (Wave 1 review A7).
@@ -175,8 +174,9 @@ function RootLayoutNav() {
     headerTitleStyle: { fontFamily: "DMSans_600SemiBold", color: colors.ink },
   } as const;
   return (
-    <View style={{ flex: 1 }}>
-      <Stack screenOptions={{ headerShown: false }}>
+    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+      <StatusBar style={colors.scheme === "dark" ? "light" : "dark"} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.paper } }}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="age-check" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="eighteen-plus" options={{ headerShown: false, gestureEnabled: false }} />
@@ -292,6 +292,26 @@ function CantConnect() {
   );
 }
 
+/**
+ * The app follows the iPhone's Light or Dark Mode (lib/theme.ts), switching
+ * live with no restart. The navigation theme and the window behind every
+ * screen (seen behind sheets, during swipe back and as the keyboard opens)
+ * take the same paper, so nothing flashes the other theme. The switch itself
+ * is instant, with no animation, so Reduce Motion has nothing to turn off.
+ */
+function ThemeRoot({ children }: { children: React.ReactNode }) {
+  const c = useColors();
+  useEffect(() => {
+    void SystemUI.setBackgroundColorAsync(c.paper);
+  }, [c.paper]);
+  const base = c.scheme === "dark" ? DarkTheme : DefaultTheme;
+  const theme = {
+    ...base,
+    colors: { ...base.colors, primary: c.ink, background: c.paper, card: c.paper, text: c.ink, border: c.hairline, notification: c.danger },
+  };
+  return <ThemeProvider value={theme}>{children}</ThemeProvider>;
+}
+
 function AppStart({ fontsReady }: { fontsReady: boolean }) {
   const { isLoaded } = useAuth();
   const failed = useClerkLoadFailed(isLoaded);
@@ -335,7 +355,9 @@ export default function RootLayout() {
           <QueryClientProvider client={queryClient}>
             <GestureHandlerRootView style={{ flex: 1 }}>
               <KeyboardProvider>
-                <AppStart fontsReady={fontsLoaded || !!fontError} />
+                <ThemeRoot>
+                  <AppStart fontsReady={fontsLoaded || !!fontError} />
+                </ThemeRoot>
               </KeyboardProvider>
             </GestureHandlerRootView>
           </QueryClientProvider>

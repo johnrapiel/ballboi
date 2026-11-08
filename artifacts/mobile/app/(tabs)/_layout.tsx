@@ -3,10 +3,10 @@ import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs, useRouter } from "expo-router";
 import { NativeTabs } from "expo-router/native-tabs";
 import React, { useEffect } from "react";
-import { Image, Platform, StyleSheet, useColorScheme, View, type ImageSourcePropType } from "react-native";
+import { Image, Platform, StyleSheet, View, type ImageSourcePropType } from "react-native";
 
 import { MilestoneMoment } from "@/components/MilestoneMoment";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useScheme } from "@/hooks/useColors";
 import { useGate } from "@/hooks/useGate";
 import { usePushSetup } from "@/hooks/useNotificationAccess";
 import { takePendingJoinCode } from "@/lib/leagueInvite";
@@ -80,7 +80,7 @@ const TABS: {
 /** iOS 26+: the system Liquid Glass tab bar. */
 function NativeTabLayout() {
   const c = useColors();
-  const night = useColorScheme() === "dark";
+  const night = useScheme() === "dark";
   return (
     <NativeTabs tintColor={c.ink}>
       {TABS.map((t) => {
@@ -99,7 +99,7 @@ function NativeTabLayout() {
 /** Older iOS: a standard blurred tab bar with the same tabs and icons. */
 function ClassicTabLayout() {
   const c = useColors();
-  const isDark = useColorScheme() === "dark";
+  const isDark = useScheme() === "dark";
   const isIOS = Platform.OS === "ios";
 
   return (

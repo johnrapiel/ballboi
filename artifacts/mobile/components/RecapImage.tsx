@@ -14,8 +14,9 @@ import { RECAP_SIZE, recapView } from "@/lib/recap";
 
 // The match recap image (spec decision 148, John, Nov 8), 9:16 for Instagram
 // Stories and texts, saved at 1080 x 1920. Always the Day look, whatever the
-// phone is set to: it draws with the Day palette and the ink roundel
-// directly, so it never follows Dark Mode. Its text is fixed size (it's a
+// phone is set to (decision 144): it's drawn inside <DayLook>, and it also
+// uses the Day palette and the ink roundel directly, so it never follows
+// Dark Mode. Its text is fixed size (it's a
 // picture, not a screen), and it carries a description of everything on it.
 //
 // Top to bottom: the date and league, the winner's name over "def." and the
