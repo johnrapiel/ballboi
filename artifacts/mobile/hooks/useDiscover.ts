@@ -17,7 +17,8 @@ import {
 export const discoverKeys = {
   all: ["discover"] as const,
   me: ["discover", "me"] as const,
-  players: (radius: number, f: PlayerFilters) => ["discover", "players", radius, f.level, f.plays, f.free] as const,
+  players: (radius: number, f: PlayerFilters) =>
+    ["discover", "players", radius, f.levels === "mine" ? "mine" : f.levels.join(","), f.plays, f.free] as const,
   player: (userId: number) => ["discover", "player", userId] as const,
 };
 

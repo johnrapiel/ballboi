@@ -9,6 +9,10 @@ import {
   clampRadius,
   countLine,
   filtersSpoken,
+  levelChip,
+  levelsText,
+  pickedLevels,
+  toggleLevel,
   hourShort,
   hoursFreeLine,
   initials,
@@ -52,9 +56,12 @@ describe("Discover header and chips", () => {
   });
 
   it("asks for players with the filters", () => {
-    expect(playersPath(10, DEFAULT_FILTERS)).toBe("/api/discover/players?radius=10&level=close&plays=either");
-    expect(playersPath(99, { level: "any", plays: "doubles", free: true })).toBe(
-      "/api/discover/players?radius=30&level=any&plays=doubles&free=1",
+    expect(playersPath(10, DEFAULT_FILTERS)).toBe("/api/discover/players?radius=10&levels=mine&plays=either");
+    expect(playersPath(99, { levels: [], plays: "doubles", free: true })).toBe(
+      "/api/discover/players?radius=30&levels=&plays=doubles&free=1",
+    );
+    expect(playersPath(10, { levels: [3, 3.5], plays: "either", free: false })).toBe(
+      "/api/discover/players?radius=10&levels=3.0,3.5&plays=either",
     );
   });
 
@@ -65,7 +72,24 @@ describe("Discover header and chips", () => {
   });
 
   it("reads the Filters button", () => {
-    expect(filtersSpoken(DEFAULT_FILTERS)).toBe("level close to mine, plays either, free when I'm free off");
+    expect(filtersSpoken(DEFAULT_FILTERS, 10)).toBe("distance 10 miles, your level, plays either, free when I'm free off");
+    expect(filtersSpoken({ levels: [3.5, 4], plays: "singles", free: true }, 15)).toBe(
+      "distance 15 miles, level 3.5, 4.0, plays singles, free when I'm free on",
+    );
+  });
+
+  it("lists every level with yours selected by default (John, Nov 7)", () => {
+    expect(pickedLevels("mine", 3.5)).toEqual([3.5]);
+    expect(pickedLevels("mine", 3.4)).toEqual([3.5]);
+    expect(pickedLevels("mine", null)).toEqual([]);
+    expect(toggleLevel("mine", 3.5, 4)).toEqual([3.5, 4]);
+    expect(toggleLevel("mine", 3.5, 3.5)).toEqual([]);
+    expect(toggleLevel([4, 3.5], 3.5, 3)).toEqual([3, 3.5, 4]);
+    expect(levelsText("mine", 3.5)).toBe("Showing 3.5, your level.");
+    expect(levelsText([3, 3.5, 4], 3.5)).toBe("Showing 3.0, 3.5 and 4.0.");
+    expect(levelsText([], 3.5)).toBe("Showing every level.");
+    expect(levelsText("mine", null)).toBe("Showing every level. Add your level in Profile.");
+    expect(levelChip(6)).toBe(5);
   });
 
   it("fills the invite message", () => {
