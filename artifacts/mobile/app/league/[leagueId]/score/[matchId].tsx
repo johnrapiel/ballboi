@@ -6,7 +6,9 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import {
   getGetLeagueScheduleQueryKey,
+  getGetMyCareerQueryKey,
   getGetMyMatchQueryKey,
+  getGetMyNewMilestonesQueryKey,
   useCorrectLeagueScore,
   useEditLeagueScore,
   useEnterLeagueScore,
@@ -14,10 +16,12 @@ import {
   useGetLeagueBracket,
   useGetLeagueMembership,
   useGetLeagueSchedule,
+  useGetMyPlayerCard,
   useSettlePlayoffMatch,
 } from "@workspace/api-client-react";
 
 import { ScoreGrid, ScoreResult } from "@/components/league/ScoreGrid";
+import { ScoreEnteredMoment, type Record as SeasonRecord } from "@/components/ScoreEnteredMoment";
 import { SheetBody, useSheetClose } from "@/components/Sheet";
 import { Button, Card, Text, TextButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
@@ -48,6 +52,10 @@ import { flipScore, isRetiredScore } from "@/lib/tennisScore";
 //
 // With ?settle=1 it's the admin entering the result of a playoff match after
 // its play-by date (Q5b), from player 1's side.
+//
+// After a player saves a new score, the sheet shows the score-entered moment
+// (spec: Milestone moments): the score settles in and This season's record
+// ticks to its new value, with Done to close.
 
 /** Drops the third set's boxes whenever the sheet no longer shows them. */
 function keepShownSets(sets: SetEntry[]): SetEntry[] {
@@ -111,6 +119,8 @@ export default function EnterScoreScreen() {
   const [prefilled, setPrefilled] = useState(false);
   const [touched, setTouched] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [entered, setEntered] = useState<{ score: string; won: boolean; before: SeasonRecord | null; after: SeasonRecord | null } | null>(null);
+  const cardQ = useGetMyPlayerCard();
   const draft = readScore(sets, { retired: retired && !asAdmin });
   const rows = setRowsToShow(sets);
   const save = useEnterLeagueScore();
@@ -119,7 +129,7 @@ export default function EnterScoreScreen() {
   const change = useEditLeagueScore();
   const busy = save.isPending || fix.isPending || result.isPending || change.isPending;
   // The bottom sheet rule: closing asks before it discards typed scores.
-  const sheet = useSheetClose(touched && !busy);
+  const sheet = useSheetClose(touched && !busy && !entered);
 
   // Correcting and editing start from the score as it stands.
   useEffect(() => {
@@ -175,6 +185,23 @@ export default function EnterScoreScreen() {
       else await save.mutateAsync({ leagueId, matchId, data: { score: draft.score, ...(retired ? { retired: true } : {}) } });
       await refreshLeague(queryClient, leagueId);
       void queryClient.invalidateQueries({ queryKey: getGetMyMatchQueryKey(matchId) });
+      // A result can earn a milestone (decision 149); it plays once this sheet closes.
+      void queryClient.invalidateQueries({ queryKey: getGetMyNewMilestonesQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: getGetMyCareerQueryKey() });
+      if (!asAdmin && !editing) {
+        // The score-entered moment: This season's record before and after.
+        const before = cardQ.data?.season ?? null;
+        const fresh = await cardQ.refetch().catch(() => null);
+        const after = fresh?.data?.season ?? null;
+        setEntered({
+          score: draft.score,
+          won: draft.iWon,
+          before: before ? { wins: before.wins, losses: before.losses } : null,
+          after: after ? { wins: after.wins, losses: after.losses } : null,
+        });
+        return;
+      }
+      void queryClient.invalidateQueries({ queryKey: cardQ.queryKey });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       AccessibilityInfo.announceForAccessibility(correcting ? "Score corrected" : settling ? "Result entered" : editing ? "Score edited" : "Score saved");
       sheet.finish();
@@ -208,6 +235,15 @@ export default function EnterScoreScreen() {
   }
 
   const title = correcting ? "Correct score" : settling ? "Enter result" : editing ? "Edit score" : "Enter score";
+
+  if (entered) {
+    return (
+      <SheetBody title="Score saved" close={sheet.close}>
+        <ScoreEnteredMoment score={entered.score} won={entered.won} opponent={opponent} before={entered.before} after={entered.after} />
+        <Button label="Done" onPress={() => sheet.finish()} />
+      </SheetBody>
+    );
+  }
   const loading = scheduleQ.isLoading || bracketQ.isLoading || leagueQ.isLoading;
   const loadFailed = scheduleQ.isError || bracketQ.isError || leagueQ.isError;
   // C25: offline or the request failed, and we don't have the match to show.

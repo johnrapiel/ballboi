@@ -515,6 +515,24 @@ export interface CareerWonLost {
   lost: number;
 }
 
+export type MilestoneKind = (typeof MilestoneKind)[keyof typeof MilestoneKind];
+
+export const MilestoneKind = {
+  first_win: "first_win",
+  first_ball_boi: "first_ball_boi",
+  win_streak_5: "win_streak_5",
+  win_streak_10: "win_streak_10",
+} as const;
+
+/**
+ * A career milestone, earned once (decisions 149 and 150)
+ */
+export interface Milestone {
+  kind: MilestoneKind;
+  /** When the match or recording that earned it was saved */
+  earnedAt: string;
+}
+
 /**
  * Scored matches against real Ball Boi players (league, Discover, confirmed Quick matches). Walkovers count in the record, never in sets or games
  */
@@ -532,6 +550,8 @@ export interface Career {
   results: CareerResultsItem[];
   /** Most played first; never a player blocked with you */
   headToHead: CareerHeadToHeadItem[];
+  /** Milestones you earned, oldest first (decision 150) */
+  milestones: Milestone[];
 }
 
 /**
@@ -576,6 +596,21 @@ export interface PlayerCard {
   /** @nullable */
   freeSummary: string | null;
   season: PlayerCardSeason;
+  /** Milestones the player earned, oldest first (decision 150) */
+  milestones: Milestone[];
+}
+
+export interface NewMilestones {
+  /** Milestones whose moment hasn't played yet, oldest first */
+  milestones: Milestone[];
+}
+
+export interface MilestonesSeen {
+  ok: boolean;
+}
+
+export interface MilestonesSeenBody {
+  kinds: string[];
 }
 
 export type PlayerMatchesUpcomingItemKind =

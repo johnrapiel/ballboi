@@ -572,6 +572,53 @@ def _(p):
     p.stroke(L(8, 14.8, 9.6, 19.8), 0.9)
     p.stroke(A(16.4, 12, 4.6, -38, 38), 0.8)
 
+# ---------- milestone badges (decisions 149 and 150) ----------
+#
+# One icon per launch milestone, drawn to sit inside the design system's brush
+# ring (BrushRing) on the badge: on the player card, on Career and in the
+# milestone moment. The ring carries the "badge"; these carry what was earned.
+
+def flame(p, cx, bottom, s=1.0, w=1.0):
+    """A hand-drawn flame: an outer teardrop with a lick to the left, and an inner tongue."""
+    def at(x, y): return (cx + (x - 12) * s, bottom + (y - 20.6) * s)
+    outer = (C(at(12, 3), at(16, 7), at(18.2, 10.5), at(17.6, 14.2)) +
+             C(at(17.6, 14.2), at(17.2, 18), at(14.6, 20.6), at(12, 20.6))[1:] +
+             C(at(12, 20.6), at(9.4, 20.6), at(6.6, 18.2), at(6.6, 14.6))[1:] +
+             C(at(6.6, 14.6), at(6.6, 11.4), at(9, 9.6), at(10, 7))[1:])
+    p.stroke(outer, w)
+    p.stroke(C(at(12.2, 12.2), at(14.6, 14.4), at(14.8, 17.6), at(12, 18.4)) +
+             C(at(12, 18.4), at(9.8, 18.6), at(9.4, 15.6), at(11, 13.6))[1:], 0.75 * w)
+
+@icon("milestone.firstwin")
+def _(p):
+    # First win: a trophy cup with two handles, a stem and a base.
+    p.stroke(L(6.6, 4.6, 17.4, 4.5))
+    p.stroke(C((7, 4.8), (7, 11), (9.4, 13.2), (12, 13.2)) + C((12, 13.2), (14.6, 13.2), (17, 11), (17, 4.8))[1:])
+    p.stroke(E(7, 7.6, 2.5, 2.3, 270, 90), 0.8)
+    p.stroke(E(17, 7.6, 2.5, 2.3, -90, 90), 0.8)
+    p.stroke(L(12, 13.6, 12, 17), 0.9)
+    p.stroke(L(9.4, 17.2, 14.6, 17.3), 0.8)
+    p.stroke(L(8.2, 19.6, 15.8, 19.5))
+
+@icon("milestone.ballboi")
+def _(p):
+    # First Ball Boi match: a video camera with its record dot.
+    p.stroke(L(3.6, 7.4, 14.8, 7.3)); p.stroke(L(15, 7.6, 15.1, 16.4))
+    p.stroke(L(14.9, 16.7, 3.7, 16.6)); p.stroke(L(3.4, 16.4, 3.5, 7.6))
+    p.stroke(L(15.4, 10.6, 20.5, 7.6), 0.9); p.stroke(L(20.6, 7.8, 20.6, 16.2), 0.9); p.stroke(L(20.5, 16.4, 15.4, 13.4), 0.9)
+    p.dot(7.4, 10.8, 1.25)
+
+@icon("milestone.streak5")
+def _(p):
+    # 5-match win streak: one flame.
+    flame(p, 12, 20.8, 1.0)
+
+@icon("milestone.streak10")
+def _(p):
+    # 10-match win streak: two flames, the second smaller beside it.
+    flame(p, 9.6, 21, 0.9)
+    flame(p, 17.6, 21, 0.58, 0.85)
+
 # ---------- wide marks (not icons) ----------
 #
 # The winner underline (John, Nov 8): one brush stroke under the winner's name

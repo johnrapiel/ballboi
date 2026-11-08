@@ -3,8 +3,9 @@ import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs, useRouter } from "expo-router";
 import { NativeTabs } from "expo-router/native-tabs";
 import React, { useEffect } from "react";
-import { Image, Platform, StyleSheet, type ImageSourcePropType } from "react-native";
+import { Image, Platform, StyleSheet, View, type ImageSourcePropType } from "react-native";
 
+import { MilestoneMoment } from "@/components/MilestoneMoment";
 import { useColors, useScheme } from "@/hooks/useColors";
 import { useGate } from "@/hooks/useGate";
 import { usePushSetup } from "@/hooks/useNotificationAccess";
@@ -167,8 +168,11 @@ export default function TabLayout() {
 
   if (!ready) return null;
 
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
-  }
-  return <ClassicTabLayout />;
+  // The milestone moment plays over the tabs, never blocking them (decision 149).
+  return (
+    <View style={{ flex: 1 }}>
+      {isLiquidGlassAvailable() ? <NativeTabLayout /> : <ClassicTabLayout />}
+      <MilestoneMoment ready={ready} />
+    </View>
+  );
 }

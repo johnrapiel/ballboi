@@ -7,6 +7,7 @@ import {
   matchesTable,
   playerAvailabilityTable,
   playerLocationsTable,
+  playerMilestonesTable,
   playersTable,
   pushSubscriptionsTable,
   supportReportsTable,
@@ -184,6 +185,8 @@ export async function deleteAccount(
 
     await tx.delete(pushSubscriptionsTable).where(eq(pushSubscriptionsTable.userId, clerkUserId));
     await tx.delete(expoPushTokensTable).where(eq(expoPushTokensTable.userId, clerkUserId));
+    // Career milestones (decision 150) are the account's own.
+    await tx.delete(playerMilestonesTable).where(eq(playerMilestonesTable.clerkUserId, clerkUserId));
     await tx
       .delete(userBlocksTable)
       .where(or(eq(userBlocksTable.blockerClerkUserId, clerkUserId), eq(userBlocksTable.blockedClerkUserId, clerkUserId)));

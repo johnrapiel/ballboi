@@ -15,6 +15,7 @@ import { GetMyCareerResponse } from "@workspace/api-zod";
 import { careerStats, contextFor, scoreTotals, type CareerInput, type CareerMatch } from "../lib/career";
 import type { CareerData, CareerRepo } from "../lib/careerRepo";
 import { createCareerRouter } from "../routes/career";
+import { MemoryMilestones } from "./milestoneMemoryRepo";
 
 // Career (decision 147, John, Nov 8): all-time record, best win streak, sets,
 // games and tiebreaks, seasons and head-to-head.
@@ -208,9 +209,10 @@ describe("GET /player-cards/me/career", () => {
       return new Set(this.blocks);
     }
   }
-  const app = (repo: CareerRepo) => {
+  const app = (repo: CareerRepo, milestones = new MemoryMilestones()) => {
     const a = express();
-    a.use(createCareerRouter(repo));
+    a.use(express.json());
+    a.use(createCareerRouter(repo, milestones, () => new Date("2026-11-10T12:00:00Z")));
     return a;
   };
 
@@ -227,5 +229,20 @@ describe("GET /player-cards/me/career", () => {
     expect(GetMyCareerResponse.parse(res.body)).toBeTruthy();
     expect(res.body.played).toBe(2);
     expect(res.body.headToHead).toEqual([{ userId: 102, name: "Sam Patel", wins: 1, losses: 0 }]);
+    expect(res.body.milestones).toEqual([]);
+  });
+
+  it("lists your milestones with the date each was earned, oldest first", async () => {
+    const ms = new MemoryMilestones();
+    ms.rows.set("me", [
+      { kind: "win_streak_5", earnedAt: new Date("2026-10-20T18:00:00Z"), seenAt: null, matchId: 9 },
+      { kind: "first_win", earnedAt: new Date("2026-06-01T18:00:00Z"), seenAt: new Date(), matchId: 1 },
+    ]);
+    const res = await supertest(app(new MemoryCareer([m({})]), ms)).get("/player-cards/me/career").expect(200);
+    expect(GetMyCareerResponse.parse(res.body)).toBeTruthy();
+    expect(res.body.milestones).toEqual([
+      { kind: "first_win", earnedAt: "2026-06-01T18:00:00.000Z" },
+      { kind: "win_streak_5", earnedAt: "2026-10-20T18:00:00.000Z" },
+    ]);
   });
 });

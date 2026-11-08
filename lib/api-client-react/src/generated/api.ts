@@ -156,6 +156,8 @@ import type {
   MatchTime,
   MessageReportInput,
   MessagesSummary,
+  MilestonesSeen,
+  MilestonesSeenBody,
   ModeratorReasonInput,
   MuteResult,
   MyJoinRequest,
@@ -166,6 +168,7 @@ import type {
   NewCourtInput,
   NewMatchPlanInput,
   NewMessageInput,
+  NewMilestones,
   NewOpenMatchInput,
   NewReport,
   NotificationSettings,
@@ -4249,6 +4252,167 @@ export function useGetMyCareer<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Milestones whose moment hasn't played yet (decision 149)
+ */
+export const getGetMyNewMilestonesUrl = () => {
+  return `/api/player-cards/me/milestones/new`;
+};
+
+export const getMyNewMilestones = async (
+  options?: RequestInit,
+): Promise<NewMilestones> => {
+  return customFetch<NewMilestones>(getGetMyNewMilestonesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyNewMilestonesQueryKey = () => {
+  return [`/api/player-cards/me/milestones/new`] as const;
+};
+
+export const getGetMyNewMilestonesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyNewMilestones>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyNewMilestones>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyNewMilestonesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMyNewMilestones>>
+  > = ({ signal }) => getMyNewMilestones({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyNewMilestones>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyNewMilestonesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyNewMilestones>>
+>;
+export type GetMyNewMilestonesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Milestones whose moment hasn't played yet (decision 149)
+ */
+
+export function useGetMyNewMilestones<
+  TData = Awaited<ReturnType<typeof getMyNewMilestones>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyNewMilestones>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyNewMilestonesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary The milestone moment played, so it never plays again (decision 149)
+ */
+export const getMarkMilestonesSeenUrl = () => {
+  return `/api/player-cards/me/milestones/seen`;
+};
+
+export const markMilestonesSeen = async (
+  milestonesSeenBody: MilestonesSeenBody,
+  options?: RequestInit,
+): Promise<MilestonesSeen> => {
+  return customFetch<MilestonesSeen>(getMarkMilestonesSeenUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(milestonesSeenBody),
+  });
+};
+
+export const getMarkMilestonesSeenMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof markMilestonesSeen>>,
+    TError,
+    { data: BodyType<MilestonesSeenBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof markMilestonesSeen>>,
+  TError,
+  { data: BodyType<MilestonesSeenBody> },
+  TContext
+> => {
+  const mutationKey = ["markMilestonesSeen"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof markMilestonesSeen>>,
+    { data: BodyType<MilestonesSeenBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return markMilestonesSeen(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MarkMilestonesSeenMutationResult = NonNullable<
+  Awaited<ReturnType<typeof markMilestonesSeen>>
+>;
+export type MarkMilestonesSeenMutationBody = BodyType<MilestonesSeenBody>;
+export type MarkMilestonesSeenMutationError = ErrorType<unknown>;
+
+/**
+ * @summary The milestone moment played, so it never plays again (decision 149)
+ */
+export const useMarkMilestonesSeen = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof markMilestonesSeen>>,
+    TError,
+    { data: BodyType<MilestonesSeenBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof markMilestonesSeen>>,
+  TError,
+  { data: BodyType<MilestonesSeenBody> },
+  TContext
+> => {
+  return useMutation(getMarkMilestonesSeenMutationOptions(options));
+};
 
 /**
  * @summary Another player's card and This season, from Discover (decision 139)

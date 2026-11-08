@@ -103,6 +103,10 @@ class MemoryCards implements PlayerCardRepo {
   async matchData(): Promise<MatchData> {
     throw new Error("not used here");
   }
+  milestoneRows: { kind: "first_win"; earnedAt: string }[] = [];
+  async milestones() {
+    return this.milestoneRows;
+  }
 }
 
 describe("GET /player-cards/me", () => {
@@ -147,6 +151,13 @@ describe("GET /player-cards/me", () => {
       season: { name: "Fall 2026", from: "2026-09-01", wins: 1, losses: 1, played: 2, streak: { won: false, count: 1 }, noShows: 0 },
     });
     expect(repo.windows).toEqual([FALL]);
+  });
+
+  it("carries the milestones you earned (decision 150)", async () => {
+    repo.milestoneRows = [{ kind: "first_win", earnedAt: "2026-10-01T18:00:00.000Z" }];
+    const res = await as("me").get("/api/player-cards/me").expect(200);
+    expect(GetMyPlayerCardResponse.safeParse(res.body).success).toBe(true);
+    expect(res.body.milestones).toEqual([{ kind: "first_win", earnedAt: "2026-10-01T18:00:00.000Z" }]);
   });
 
   it("asks you to finish your profile first, and needs sign-in", async () => {

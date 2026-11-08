@@ -8,6 +8,8 @@
 // tiebreak), and a league match mentions the 24-hour edit (finding 7). Saving
 // refreshes the league's standings, round and Home. A bottom sheet: no
 // Cancel or Not now, drag down to close (asks first if scores were typed).
+// Once saved, the score-entered moment plays (spec: Milestone moments): the
+// score settles in and This season's record ticks to its new value.
 
 import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
@@ -16,10 +18,18 @@ import { Icon } from "@/components/Icon";
 import React, { useState } from "react";
 import { AccessibilityInfo, View } from "react-native";
 
-import { getGetLeagueScheduleQueryKey, getGetMyLeagueWeekQueryKey, useGetLeagueSchedule } from "@workspace/api-client-react";
+import {
+  getGetLeagueScheduleQueryKey,
+  getGetMyCareerQueryKey,
+  getGetMyLeagueWeekQueryKey,
+  getGetMyNewMilestonesQueryKey,
+  useGetLeagueSchedule,
+  useGetMyPlayerCard,
+} from "@workspace/api-client-react";
 
 import { ScoreGrid, ScoreResult, displayScore } from "@/components/league/ScoreGrid";
 import { LocalProcessingCard } from "@/components/record/ProcessingCard";
+import { ScoreEnteredMoment, type Record as SeasonRecord } from "@/components/ScoreEnteredMoment";
 import { SheetBody, useSheetClose } from "@/components/Sheet";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
@@ -60,6 +70,8 @@ export default function ScorePromptScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<"saved" | "already" | null>(null);
+  const [records, setRecords] = useState<{ won: boolean; before: SeasonRecord | null; after: SeasonRecord | null } | null>(null);
+  const cardQ = useGetMyPlayerCard();
   /** "recording": only the recording went. "match": a placeholder Quick match went with it. */
   const [discarded, setDiscarded] = useState<"recording" | "match" | null>(null);
   // A discarded placeholder Quick match no longer exists, so there is no score to enter.
@@ -95,9 +107,23 @@ export default function ScorePromptScreen() {
       alreadyEntered: false,
       error: "Couldn't save the score. Check your connection and try again.",
     }));
+    if (result.ok && draft.ok) {
+      // The score-entered moment: This season's record before and after.
+      const before = cardQ.data?.season ?? null;
+      const fresh = await cardQ.refetch().catch(() => null);
+      const after = fresh?.data?.season ?? null;
+      setRecords({
+        won: draft.iWon,
+        before: before ? { wins: before.wins, losses: before.losses } : null,
+        after: after ? { wins: after.wins, losses: after.losses } : null,
+      });
+    }
     setSaving(false);
     if (result.ok || result.alreadyEntered) {
       setDone(result.ok ? "saved" : "already");
+      // A result can earn a milestone (decision 149); it plays once this sheet closes.
+      queryClient.invalidateQueries({ queryKey: getGetMyNewMilestonesQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetMyCareerQueryKey() });
       // The recording's card stops offering Enter score (D6).
       if (params.rec) updateQueued(params.rec, { scoreEntered: true }).catch(() => {});
       queryClient.invalidateQueries({ queryKey: todaysMatchesKey });
@@ -105,7 +131,8 @@ export default function ScorePromptScreen() {
       // The league shows the result, and Home drops Record for this match.
       queryClient.invalidateQueries({ queryKey: getGetMyLeagueWeekQueryKey() });
       if (leagueId != null) void refreshLeague(queryClient, leagueId);
-      AccessibilityInfo.announceForAccessibility(result.ok ? `Score saved, ${score}` : "A score is already in for this match");
+      // A saved score announces itself in the moment.
+      if (!result.ok) AccessibilityInfo.announceForAccessibility("A score is already in for this match");
     } else {
       setError(result.error);
     }
@@ -120,7 +147,9 @@ export default function ScorePromptScreen() {
         </Card>
       ) : null}
 
-      {matchGone ? null : done ? (
+      {matchGone ? null : done === "saved" && records ? (
+        <ScoreEnteredMoment score={score} won={records.won} opponent={opponent} before={records.before} after={records.after} />
+      ) : done ? (
         <View style={{ gap: spacing.space2 }} accessible>
           <Text variant="title" accessibilityRole="header">
             {done === "saved" ? "Score saved" : "Score already in"}

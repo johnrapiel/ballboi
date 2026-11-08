@@ -1,6 +1,7 @@
 import type { PlayerCard, PlayerCardSeason, PlayerMatches } from "@workspace/api-client-react";
 
 import { deadlineDate } from "./leagueSchedule";
+import { milestonesSpoken } from "./milestones";
 import type { UpcomingItem } from "./upcoming";
 
 
@@ -34,15 +35,17 @@ export function townLine(card: Pick<PlayerCard, "town" | "distance">): string | 
 
 /**
  * The card as one VoiceOver element: "Your player card. John Rapiel, level
- * 3.5, singles, Wappingers Falls. Home court Beacon Courts."
+ * 3.5, singles, Wappingers Falls, milestones: first win, 5-match win streak.
+ * Home court Beacon Courts." Milestones (decision 150) only when earned.
  */
-export function cardSpoken(card: Pick<PlayerCard, "name" | "rating" | "plays" | "town" | "distance" | "homeCourt" | "you">): string {
+export function cardSpoken(card: Pick<PlayerCard, "name" | "rating" | "plays" | "town" | "distance" | "homeCourt" | "you"> & { milestones?: PlayerCard["milestones"] }): string {
   const about = [
     card.name,
     card.rating != null ? `level ${formatRating(card.rating)}` : null,
     playsPill(card.plays)?.toLowerCase() ?? null,
     card.town,
     card.distance ? card.distance.replace("~", "about ").replace(" mi ", " miles ") : null,
+    milestonesSpoken(card.milestones),
   ]
     .filter(Boolean)
     .join(", ");

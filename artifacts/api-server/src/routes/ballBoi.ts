@@ -43,6 +43,7 @@ import { mlVideoFields } from "../lib/mlDispatch";
 import { parseRecordedAt } from "../lib/recordableMatches";
 import { phoneSessionMetadata, publicSession } from "../lib/sessionMetadata";
 import { phoneCourtCalibration } from "../lib/phoneCourtCalibration";
+import { awardMilestonesForMatch } from "../lib/milestoneRepo";
 
 const router = Router();
 
@@ -556,6 +557,9 @@ router.post("/ball-boi/sessions/:sessionId/complete", requireAuth, async (req: R
       res.json(publicSession(current ?? session));
       return;
     }
+
+    // First Ball Boi match (decision 149): the recording is saved.
+    void awardMilestonesForMatch(session.matchId);
 
     const callbackUrl = `${API_BASE_URL}/api/ball-boi/sessions/${sessionId}/ml-callback?token=${encodeURIComponent(mlCallbackToken)}`;
     try {

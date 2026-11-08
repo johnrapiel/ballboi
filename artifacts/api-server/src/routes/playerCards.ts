@@ -42,7 +42,8 @@ export function createPlayerCardsRouter(repo: PlayerCardRepo = new DrizzlePlayer
         res.status(404).json({ error: "Finish setting up your profile first." });
         return;
       }
-      res.json(cardView(person, { distance: null, season: await season(me, clock()), you: true }));
+      const [s, milestones] = await Promise.all([season(me, clock()), repo.milestones(me)]);
+      res.json(cardView(person, { distance: null, season: s, you: true, milestones }));
     } catch (err) {
       logger.error({ err }, "Player card failed");
       res.status(500).json({ error: "Can't load your player card right now." });
@@ -69,7 +70,8 @@ export function createPlayerCardsRouter(repo: PlayerCardRepo = new DrizzlePlayer
     try {
       const v = await visible(req, res);
       if (!v) return;
-      res.json(cardView(v.person, { distance: v.distance, season: await season(v.person.clerkUserId, clock()), you: false }));
+      const [s, milestones] = await Promise.all([season(v.person.clerkUserId, clock()), repo.milestones(v.person.clerkUserId)]);
+      res.json(cardView(v.person, { distance: v.distance, season: s, you: false, milestones }));
     } catch (err) {
       logger.error({ err }, "Player card failed");
       res.status(500).json({ error: "Can't load this player right now." });

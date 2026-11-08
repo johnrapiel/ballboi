@@ -162,16 +162,27 @@ function seasonFor(day: string, seasons: CareerInput["seasons"]): Omit<CareerSea
   return { key: `y:${year}`, name: year, from: `${year}-01-01`, to: `${year}-12-31` };
 }
 
-export function careerStats(input: CareerInput): CareerStats {
+/** A match that counts toward your career, from your side. */
+export interface CountedMatch {
+  m: CareerMatch;
+  side: 1 | 2;
+  /** Null when no winner was recorded. */
+  won: boolean | null;
+  /** completedAt, or "" when missing. */
+  at: string;
+  /** Accounts on the other side. */
+  opponents: string[];
+}
+
+/** Every match that counts toward the account's career, oldest first. Shared with milestones. */
+export function countedMatches(input: Pick<CareerInput, "account" | "matches" | "players">): CountedMatch[] {
   const owner = (id: number) => input.players.get(id)?.clerkUserId ?? null;
   const sideOf = (m: CareerMatch): 1 | 2 | null => {
     const one = team(m, 1).some((id) => owner(id) === input.account);
     const two = team(m, 2).some((id) => owner(id) === input.account);
     return one === two ? null : one ? 1 : 2;
   };
-
-  type Counted = { m: CareerMatch; side: 1 | 2; won: boolean | null; at: string; opponents: string[] };
-  const counted: Counted[] = [];
+  const counted: CountedMatch[] = [];
   for (const m of input.matches) {
     if (m.status !== "completed" || !m.score || m.voidedAt || NOT_PLAYED.has(m.status)) continue;
     const side = sideOf(m);
@@ -184,7 +195,12 @@ export function careerStats(input: CareerInput): CareerStats {
     const won = m.winnerId == null ? null : team(m, side).includes(m.winnerId) ? true : team(m, side === 1 ? 2 : 1).includes(m.winnerId) ? false : null;
     counted.push({ m, side, won, at: m.completedAt ?? "", opponents });
   }
-  counted.sort((a, b) => a.at.localeCompare(b.at) || a.m.id - b.m.id);
+  return counted.sort((a, b) => a.at.localeCompare(b.at) || a.m.id - b.m.id);
+}
+
+export function careerStats(input: CareerInput): CareerStats {
+  const owner = (id: number) => input.players.get(id)?.clerkUserId ?? null;
+  const counted = countedMatches(input);
 
   const totals = { sets: { won: 0, lost: 0 }, games: { won: 0, lost: 0 }, tiebreaks: { won: 0, lost: 0 } };
   const seasons = new Map<string, CareerSeason>();

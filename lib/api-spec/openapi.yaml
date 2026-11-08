@@ -1372,6 +1372,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Career'
+  /player-cards/me/milestones/new:
+    get:
+      operationId: getMyNewMilestones
+      tags: [players]
+      summary: Milestones whose moment hasn't played yet (decision 149)
+      responses:
+        '200':
+          description: New milestones
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewMilestones'
+  /player-cards/me/milestones/seen:
+    post:
+      operationId: markMilestonesSeen
+      tags: [players]
+      summary: The milestone moment played, so it never plays again (decision 149)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MilestonesSeenBody'
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MilestonesSeen'
   /player-cards/{userId}:
     get:
       operationId: getPlayerCard
@@ -7623,7 +7653,12 @@ components:
               losses:
                 type: integer
             required: [userId, name, wins, losses]
-      required: [wins, losses, played, bestWinStreak, sets, games, tiebreaks, seasons, results, headToHead]
+        milestones:
+          type: array
+          description: Milestones you earned, oldest first (decision 150)
+          items:
+            $ref: '#/components/schemas/Milestone'
+      required: [wins, losses, played, bestWinStreak, sets, games, tiebreaks, seasons, results, headToHead, milestones]
     CareerWonLost:
       type: object
       properties:
@@ -7667,7 +7702,46 @@ components:
           type: [string, 'null']
         season:
           $ref: '#/components/schemas/PlayerCardSeason'
-      required: [userId, you, name, avatarUrl, rating, ratingSource, plays, town, distance, homeCourt, slots, freeSummary, season]
+        milestones:
+          type: array
+          description: Milestones the player earned, oldest first (decision 150)
+          items:
+            $ref: '#/components/schemas/Milestone'
+      required: [userId, you, name, avatarUrl, rating, ratingSource, plays, town, distance, homeCourt, slots, freeSummary, season, milestones]
+    Milestone:
+      type: object
+      description: A career milestone, earned once (decisions 149 and 150)
+      properties:
+        kind:
+          type: string
+          enum: [first_win, first_ball_boi, win_streak_5, win_streak_10]
+        earnedAt:
+          type: string
+          description: When the match or recording that earned it was saved
+      required: [kind, earnedAt]
+    NewMilestones:
+      type: object
+      properties:
+        milestones:
+          type: array
+          description: Milestones whose moment hasn't played yet, oldest first
+          items:
+            $ref: '#/components/schemas/Milestone'
+      required: [milestones]
+    MilestonesSeen:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required: [ok]
+    MilestonesSeenBody:
+      type: object
+      properties:
+        kinds:
+          type: array
+          items:
+            type: string
+      required: [kinds]
     PlayerMatches:
       type: object
       properties:

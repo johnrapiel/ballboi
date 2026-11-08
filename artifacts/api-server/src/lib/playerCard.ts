@@ -1,6 +1,7 @@
 // The player card (spec decisions 138 and 139, John, Nov 8): the same card
 // everywhere, your own on Profile and other players' from Discover. The card
-// holds only what the player entered; This season sits under it.
+// holds what the player entered and the milestones they earned (decision
+// 150); This season sits under it.
 //
 // This season (Record, Played, Streak, No-shows) uses F13's rules
 // (decision 121) inside the current season:
@@ -13,6 +14,7 @@
 // calendar year so far. Pure, so it's easy to test.
 
 import { availabilitySummary } from "./discoverAvailability.js";
+import { isMilestoneKind, MILESTONE_KINDS, type MilestoneKind } from "./milestones.js";
 
 export interface SeasonWindow {
   name: string;
@@ -114,8 +116,25 @@ export interface CardPerson {
   slots: number[];
 }
 
-/** What the card shows: only what the player entered. */
-export function cardView(p: CardPerson, extra: { distance: string | null; season: SeasonWindow & SeasonStats; you: boolean }) {
+/** A milestone on the card (decision 150): a small badge, read with the card. */
+export interface CardMilestone {
+  kind: MilestoneKind;
+  earnedAt: string;
+}
+
+/** Known kinds only, oldest first (launch-set order on the same day). */
+export function cardMilestones(rows: { kind: string; earnedAt: Date }[]): CardMilestone[] {
+  return rows
+    .filter((r): r is { kind: MilestoneKind; earnedAt: Date } => isMilestoneKind(r.kind))
+    .sort((a, b) => a.earnedAt.getTime() - b.earnedAt.getTime() || MILESTONE_KINDS.indexOf(a.kind) - MILESTONE_KINDS.indexOf(b.kind))
+    .map((r) => ({ kind: r.kind, earnedAt: r.earnedAt.toISOString() }));
+}
+
+/**
+ * What the card shows: what the player entered, plus the milestones they
+ * earned (decision 150 changes decision 139's "only what the player entered").
+ */
+export function cardView(p: CardPerson, extra: { distance: string | null; season: SeasonWindow & SeasonStats; you: boolean; milestones: CardMilestone[] }) {
   return {
     userId: p.userId,
     you: extra.you,
@@ -130,5 +149,6 @@ export function cardView(p: CardPerson, extra: { distance: string | null; season
     slots: [...p.slots].sort((a, b) => a - b),
     freeSummary: availabilitySummary(p.slots),
     season: extra.season,
+    milestones: extra.milestones,
   };
 }
