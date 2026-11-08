@@ -39,7 +39,7 @@ export interface SubjectHistory {
 export type NewDecision = Omit<ModerationAgentDecision, "id" | "createdAt" | "confirmedAt" | "undoneAt" | "reviewedBy">;
 
 export interface AgentRepo {
-  /** Open reports older than the cutoff that the agent hasn't decided yet. */
+  /** Open reports older than the cutoff that the agent hasn't decided yet. Never appeals. */
   dueReports(createdBefore: Date, limit: number): Promise<ReportForReview[]>;
   history(subject: string, excludeReportId: number): Promise<SubjectHistory>;
   setReportStatus(id: number, status: string): Promise<void>;
@@ -97,7 +97,7 @@ export const AGENT_TOOLS = [
   },
   {
     name: "restrict_account",
-    description: "Stop the reported person starting new conversations and hide their pending requests until a human reviews.",
+    description: "Stop the reported person starting new conversations until a human reviews.",
     input_schema: {
       type: "object",
       properties: { reason: { type: "string", description: "One plain sentence for the moderator." } },
@@ -168,6 +168,8 @@ export class ModerationAgent {
     const due = await this.deps.repo.dueReports(new Date(this.now().getTime() - AGENT_DELAY_HOURS * HOUR), limit);
     const out: ModerationAgentDecision[] = [];
     for (const report of due) {
+      // Appeals are human-only (spec step 4). The repo leaves them out too.
+      if (report.source === "appeal") continue;
       try {
         out.push(await this.review(report));
       } catch {
@@ -285,7 +287,9 @@ export class MemoryAgentRepo implements AgentRepo {
 
   async dueReports(createdBefore: Date, limit: number) {
     return this.reports
-      .filter((r) => r.status === "open" && r.createdAt <= createdBefore && !this.decisions.some((d) => d.reportId === r.id))
+      .filter(
+        (r) => r.status === "open" && r.source !== "appeal" && r.createdAt <= createdBefore && !this.decisions.some((d) => d.reportId === r.id),
+      )
       .slice(0, limit);
   }
   async history(subject: string) {

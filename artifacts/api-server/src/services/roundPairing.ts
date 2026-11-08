@@ -1,4 +1,5 @@
-import { db, matchesTable, playersTable, leagueRoundsTable } from "@workspace/db";
+import { db, matchesTable, playersTable, leagueRoundsTable, leaguesTable } from "@workspace/db";
+import { roundMatchTime } from "../lib/leagueCalendar.js";
 import { eq, and, max, asc, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getAutoSeason } from "./seasonService.js";
@@ -181,6 +182,8 @@ export async function generateAllRounds(
   }
 
   const newRounds: GeneratedRound[] = [];
+  // A club's weekly match day and time, when the admin set one (PR 4).
+  const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   const toGenerate = totalRounds - existingRounds.length;
   const autoSeason = await getAutoSeason(leagueId);
   const playerIds = players.map((p) => p.id);
@@ -242,15 +245,21 @@ export async function generateAllRounds(
       }
     }
 
+    // Legacy rounds have no admin review: they go out to players as they're
+    // made (the admin's Generate, or the legacy scheduler job), so they count
+    // as published (decision 29; migration 20261029_c_league_rules.sql did the
+    // same for rounds made before it).
     const [newRound] = await db.insert(leagueRoundsTable).values({
       leagueId,
       roundNumber,
       startDate: roundStart,
       endDate: roundEnd,
       status,
+      publishedAt: new Date(),
     }).returning();
 
     const matchups: GeneratedRound["matchups"] = [];
+    const scheduledAt = league ? roundMatchTime(league, { startDate: roundStart, endDate: roundEnd }) : null;
     for (const { p1, p2 } of selectedPairs) {
       const [match] = await db.insert(matchesTable).values({
         leagueId,
@@ -260,6 +269,7 @@ export async function generateAllRounds(
         generatedFrom: "round",
         weekOf: roundStart,
         roundId: newRound.id,
+        ...(scheduledAt ? { scheduledAt } : {}),
         ...(autoSeason ? { season: autoSeason } : {}),
       }).returning();
 

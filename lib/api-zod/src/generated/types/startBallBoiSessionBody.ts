@@ -8,5 +8,8 @@
 import type { StartBallBoiSessionBodyMetadata } from "./startBallBoiSessionBodyMetadata";
 
 export interface StartBallBoiSessionBody {
+  /** Only source and opponentAgreedAt are kept. Any other key is ignored. */
   metadata?: StartBallBoiSessionBodyMetadata;
+  /** When the match was recorded. The session is created when the upload starts, which can be days later. */
+  recordedAt?: Date;
 }

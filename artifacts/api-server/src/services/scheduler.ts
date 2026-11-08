@@ -1,21 +1,16 @@
 import cron from "node-cron";
-import { db, leaguesTable, scheduleGenerationLogsTable, matchesTable, playersTable, playerAvailabilityTable, matchRemindersLogTable, leagueRoundsTable, playoffBracketsTable } from "@workspace/db";
-import { eq, and, gte, lt, inArray, desc, asc, isNull } from "drizzle-orm";
+import { db, leaguesTable, scheduleGenerationLogsTable, playersTable, leagueRoundsTable, playoffBracketsTable } from "@workspace/db";
+import { eq, and, desc, asc, isNull } from "drizzle-orm";
 import { generateWeeklyMatches, saveGeneratedMatches } from "./matchGeneration";
 import { generateAllRounds } from "./roundPairing";
 import { sendPushToUsers } from "../routes/notifications";
 import { logger } from "../lib/logger";
 import { retryFailedBallBoiSessions } from "./ballBoiRetry";
+import { failStuckAnalyses } from "./ballBoiStuck";
 import { runAllLeagueDays } from "./leagueRounds";
 import { sweepSessionVideos } from "../lib/videoRetention";
-
-function getMondayOf(date: Date): string {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().slice(0, 10);
-}
+import { runMatchReminders } from "./push/matchReminderJob";
+import { startMatchPlanJobs } from "./discover/matchPlanJobs";
 
 function getNextMonday(date: Date): string {
   const d = new Date(date);
@@ -100,300 +95,11 @@ async function autoGenerateSchedules() {
   }
 }
 
-// Wednesday 5PM reminder: notify players who haven't set availability
-async function availabilityReminder() {
-  logger.info("CRON: Running Wednesday availability reminder");
-  const leagueIds = await getActiveLeagueIds();
-  const weekOf = getMondayOf(new Date());
-
-  for (const leagueId of leagueIds) {
-    try {
-      const allPlayers = await db
-        .select()
-        .from(playersTable)
-        .where(eq(playersTable.leagueId, leagueId));
-
-      const withAvailability = await db
-        .select({ clerkUserId: playersTable.clerkUserId })
-        .from(playerAvailabilityTable)
-        .leftJoin(playersTable, eq(playerAvailabilityTable.playerId, playersTable.id))
-        .where(
-          and(
-            eq(playerAvailabilityTable.leagueId, leagueId),
-            eq(playerAvailabilityTable.weekOf, weekOf)
-          )
-        );
-
-      const haveSet = new Set(withAvailability.map((r) => r.clerkUserId).filter(Boolean));
-      const missing = allPlayers
-        .filter((p) => p.clerkUserId && !haveSet.has(p.clerkUserId))
-        .map((p) => p.clerkUserId as string);
-
-      if (missing.length > 0) {
-        await sendPushToUsers(
-          missing,
-          "Set Your Availability",
-          "Deadline tonight at midnight — set your availability for this week's matches!",
-          "/availability"
-        );
-        logger.info({ leagueId, reminderCount: missing.length }, "CRON: Sent availability reminders");
-      }
-    } catch (err) {
-      logger.error({ err, leagueId }, "CRON: Failed to send availability reminders");
-    }
-  }
-}
-
-// Sunday 9AM: remind players about upcoming week matches
-async function upcomingMatchesReminder() {
-  logger.info("CRON: Running Sunday match reminders");
-  const leagueIds = await getActiveLeagueIds();
-  const nextMonday = getNextMonday(new Date());
-  const nextSunday = new Date(nextMonday);
-  nextSunday.setDate(nextSunday.getDate() + 6);
-  const nextSundayStr = nextSunday.toISOString().slice(0, 10);
-
-  for (const leagueId of leagueIds) {
-    try {
-      const confirmedLog = await db
-        .select()
-        .from(scheduleGenerationLogsTable)
-        .where(
-          and(
-            eq(scheduleGenerationLogsTable.leagueId, leagueId),
-            eq(scheduleGenerationLogsTable.weekOf, nextMonday),
-            eq(scheduleGenerationLogsTable.status, "confirmed")
-          )
-        );
-
-      if (!confirmedLog.length) continue;
-
-      const upcomingMatches = await db
-        .select()
-        .from(matchesTable)
-        .where(
-          and(
-            eq(matchesTable.leagueId, leagueId),
-            eq(matchesTable.weekOf, nextMonday),
-            eq(matchesTable.status, "scheduled")
-          )
-        );
-
-      const playerIds = [
-        ...upcomingMatches.map((m) => m.player1Id),
-        ...upcomingMatches.map((m) => m.player2Id),
-      ].filter((id): id is number => id !== null);
-
-      if (!playerIds.length) continue;
-
-      const players = await db
-        .select()
-        .from(playersTable)
-        .where(eq(playersTable.leagueId, leagueId));
-
-      const userIds = players
-        .filter((p) => playerIds.includes(p.id) && p.clerkUserId)
-        .map((p) => p.clerkUserId as string);
-
-      if (userIds.length > 0) {
-        await sendPushToUsers(
-          userIds,
-          "Upcoming Matches This Week",
-          `You have a match scheduled for the week of ${nextMonday}. Check the schedule for details.`,
-          "/matches"
-        );
-        logger.info({ leagueId, notified: userIds.length }, "CRON: Sent upcoming match reminders");
-      }
-    } catch (err) {
-      logger.error({ err, leagueId }, "CRON: Failed to send match reminders");
-    }
-  }
-}
-
-// Returns the UTC timestamp for midnight of a given "YYYY-MM-DD" date in the ET timezone.
-// Tries UTC-4 (EDT) and UTC-5 (EST) and picks whichever lands on 00:00 ET for that date.
-function getUTCForETMidnight(etDateStr: string): Date {
-  for (const offsetHours of [4, 5]) {
-    const [year, month, day] = etDateStr.split("-").map(Number);
-    const candidate = new Date(Date.UTC(year, month - 1, day, offsetHours, 0, 0, 0));
-    const dateCheck = candidate.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-    const timeCheck = candidate.toLocaleTimeString("en-US", {
-      timeZone: "America/New_York",
-      hour12: false,
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    if (dateCheck === etDateStr && timeCheck === "00:00") {
-      return candidate;
-    }
-  }
-  // Fallback: treat as UTC-5 (EST)
-  const [year, month, day] = etDateStr.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day, 5, 0, 0, 0));
-}
-
-// Returns the UTC ISO range for "tomorrow" in America/New_York timezone (half-open: [start, end))
-function getTomorrowRangeET(): { windowStart: string; windowEnd: string; reminderForDate: string } {
-  const now = new Date();
-
-  // Get tomorrow's calendar date in ET, then the day after.
-  // Adding 24h is always safe for finding the next calendar day (DST shift is only ±1h).
-  const tomorrowDateET = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-    .toLocaleDateString("en-CA", { timeZone: "America/New_York" }); // "YYYY-MM-DD"
-  const dayAfterDateET = new Date(now.getTime() + 48 * 60 * 60 * 1000)
-    .toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-
-  const windowStart = getUTCForETMidnight(tomorrowDateET);
-  const windowEnd = getUTCForETMidnight(dayAfterDateET);
-
-  return { windowStart: windowStart.toISOString(), windowEnd: windowEnd.toISOString(), reminderForDate: tomorrowDateET };
-}
-
-// Daily 8AM: send day-before match reminders to players with a match the following day
-async function dayBeforeMatchReminder() {
-  logger.info("CRON: Running day-before match reminders");
-
-  // Target the full calendar day of "tomorrow" in ET
-  const { windowStart: windowStartStr, windowEnd: windowEndStr, reminderForDate } = getTomorrowRangeET();
-  logger.info({ windowStart: windowStartStr, windowEnd: windowEndStr, reminderForDate }, "CRON: Day-before reminder window");
-
-  try {
-    // Fetch only scheduled matches whose scheduledAt falls within tomorrow (ET)
-    const tomorrowMatches = await db
-      .select()
-      .from(matchesTable)
-      .where(
-        and(
-          eq(matchesTable.status, "scheduled"),
-          gte(matchesTable.scheduledAt, windowStartStr),
-          lt(matchesTable.scheduledAt, windowEndStr)
-        )
-      );
-
-    if (!tomorrowMatches.length) {
-      logger.info("CRON: No day-before matches to remind");
-      return;
-    }
-
-    logger.info({ count: tomorrowMatches.length }, "CRON: Sending day-before reminders");
-
-    const playerIdSet = new Set<number>();
-    for (const m of tomorrowMatches) {
-      playerIdSet.add(m.player1Id);
-      playerIdSet.add(m.player2Id);
-      if (m.player3Id) playerIdSet.add(m.player3Id);
-      if (m.player4Id) playerIdSet.add(m.player4Id);
-    }
-
-    const playerIdList = Array.from(playerIdSet);
-
-    const players = playerIdList.length > 0
-      ? await db.select().from(playersTable).where(inArray(playersTable.id, playerIdList))
-      : [];
-    const playerMap: Record<number, typeof players[0]> = {};
-    for (const p of players) playerMap[p.id] = p;
-
-    for (const match of tomorrowMatches) {
-      try {
-        const [claimedReminder] = await db
-          .insert(matchRemindersLogTable)
-          .values({
-            matchId: match.id,
-            reminderType: "day_before_match",
-            reminderForDate,
-          })
-          .onConflictDoNothing({
-            target: [
-              matchRemindersLogTable.matchId,
-              matchRemindersLogTable.reminderType,
-              matchRemindersLogTable.reminderForDate,
-            ],
-          })
-          .returning({ id: matchRemindersLogTable.id });
-
-        if (!claimedReminder) {
-          logger.info({ matchId: match.id, reminderForDate }, "CRON: Day-before reminder already sent, skipping");
-          continue;
-        }
-
-        const p1 = playerMap[match.player1Id];
-        const p2 = playerMap[match.player2Id];
-        const p3 = match.player3Id ? playerMap[match.player3Id] : null;
-        const p4 = match.player4Id ? playerMap[match.player4Id] : null;
-        const isDoubles = p3 != null && p4 != null;
-
-        // Format match time
-        const matchTime = new Date(match.scheduledAt!);
-        const timeStr = matchTime.toLocaleString("en-US", {
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          timeZone: "America/New_York",
-        });
-
-        const locationStr = match.location ?? "Location TBD";
-
-        const matchLink = `/matches/${match.id}`;
-
-        if (isDoubles) {
-          // Doubles: send to all four players with their team vs opponent team info
-          const team1Names = `${p1?.name ?? "Unknown"} & ${p3?.name ?? "Unknown"}`;
-          const team2Names = `${p2?.name ?? "Unknown"} & ${p4?.name ?? "Unknown"}`;
-
-          const team1Ids = [p1, p3]
-            .filter((player) => player?.clerkUserId && player.dayBeforeMatchReminderEnabled)
-            .map((player) => player!.clerkUserId as string);
-          const team2Ids = [p2, p4]
-            .filter((player) => player?.clerkUserId && player.dayBeforeMatchReminderEnabled)
-            .map((player) => player!.clerkUserId as string);
-
-          if (team1Ids.length > 0) {
-            await sendPushToUsers(
-              team1Ids,
-              "Match Tomorrow",
-              `vs ${team2Names} at ${timeStr}. ${locationStr}`,
-              matchLink
-            );
-          }
-          if (team2Ids.length > 0) {
-            await sendPushToUsers(
-              team2Ids,
-              "Match Tomorrow",
-              `vs ${team1Names} at ${timeStr}. ${locationStr}`,
-              matchLink
-            );
-          }
-        } else {
-          // Singles: send to each player with their specific opponent
-          if (p1?.clerkUserId && p1.dayBeforeMatchReminderEnabled) {
-            await sendPushToUsers(
-              [p1.clerkUserId],
-              "Match Tomorrow",
-              `vs ${p2?.name ?? "Unknown"} at ${timeStr}. ${locationStr}`,
-              matchLink
-            );
-          }
-          if (p2?.clerkUserId && p2.dayBeforeMatchReminderEnabled) {
-            await sendPushToUsers(
-              [p2.clerkUserId],
-              "Match Tomorrow",
-              `vs ${p1?.name ?? "Unknown"} at ${timeStr}. ${locationStr}`,
-              matchLink
-            );
-          }
-        }
-
-        logger.info({ matchId: match.id, scheduledAt: match.scheduledAt, reminderForDate }, "CRON: Sent day-before reminder");
-      } catch (err) {
-        logger.error({ err, matchId: match.id }, "CRON: Failed to send day-before reminder for match");
-      }
-    }
-  } catch (err) {
-    logger.error({ err }, "CRON: Failed to run day-before match reminder job");
-  }
-}
+// Match day reminders (Wave 2, Session G; decision 127) run every 5 minutes
+// from services/push/matchReminderJob.ts: the day-before at 8 AM on the
+// match's clock, 2 hours before, and the Sunday nudge for league matches with
+// no set time. The Wednesday "set your availability" reminder and the old
+// Sunday and day-before jobs are gone.
 
 async function autoGenerateRounds() {
   logger.info("CRON: Running daily round promotion check");
@@ -467,17 +173,18 @@ async function autoGenerateRounds() {
 }
 
 export function startScheduler() {
+  // Discover match cards: day-before, 2-hour and "Did it happen?" (Wave 2, Session F).
+  startMatchPlanJobs();
   // Daily at midnight — auto-generate next rounds for leagues whose current round has expired
   cron.schedule("0 0 * * *", autoGenerateRounds, {
     timezone: "America/New_York",
   });
 
-  // Daily at 7:00 AM — weekly league loop: draft tomorrow's pairings for admin
-  // review, send out rounds that start today (spec: Leagues > Weekly loop).
-  cron.schedule("0 7 * * *", () => {
+  // Hourly — weekly league loop: at 7:00 AM on each league's own clock, draft
+  // tomorrow's pairings for admin review and send out rounds that start today
+  // (spec: Leagues > Weekly loop). Leagues run on their creator's time zone.
+  cron.schedule("0 * * * *", () => {
     runAllLeagueDays().catch((err) => logger.error({ err }, "CRON: League day failed"));
-  }, {
-    timezone: "America/New_York",
   });
 
   // Thursday at 9:00 AM — auto-generate availability-based schedules
@@ -485,19 +192,11 @@ export function startScheduler() {
     timezone: "America/New_York",
   });
 
-  // Wednesday at 5:00 PM — remind players to set availability
-  cron.schedule("0 17 * * 3", availabilityReminder, {
-    timezone: "America/New_York",
-  });
-
-  // Sunday at 9:00 AM — remind players about upcoming matches
-  cron.schedule("0 9 * * 0", upcomingMatchesReminder, {
-    timezone: "America/New_York",
-  });
-
-  // Daily at 8:00 AM — remind players about matches the next day
-  cron.schedule("0 8 * * *", dayBeforeMatchReminder, {
-    timezone: "America/New_York",
+  // Every 5 minutes — match day reminders: the day-before at 8 AM on the
+  // match's clock, 2 hours before, and Sunday 9 AM for league matches with no
+  // set time. Each at most once (decision 127).
+  cron.schedule("*/5 * * * *", () => {
+    void runMatchReminders(new Date(), sendPushToUsers);
   });
 
   // Every minute — retry Ball Boi sessions that failed due to ML service unavailability
@@ -507,11 +206,17 @@ export function startScheduler() {
     });
   });
 
+  // Every 5 minutes — an analysis that never heard back from the ML server
+  // turns to failed within an hour instead of "Analyzing" forever (D11)
+  cron.schedule("*/5 * * * *", () => {
+    failStuckAnalyses().catch((err) => logger.error({ err }, "CRON: Stuck analysis sweep failed"));
+  });
+
   // Hourly at :17 — delete match video the spec says not to keep (raw uploads
   // after analysis, training copies once a player turns training off)
   cron.schedule("17 * * * *", () => {
     sweepSessionVideos().catch((err) => logger.error({ err }, "CRON: Video retention sweep failed"));
   });
 
-  logger.info("Scheduler started: Daily 7AM (league rounds), Thu 9AM (auto-generate), Wed 5PM (availability reminder), Sun 9AM (match reminder), Daily 8AM (day-before reminder), every 1min (Ball Boi retry), hourly (video retention)");
+  logger.info("Scheduler started: 7AM league time (league rounds), Thu 9AM (auto-generate), every 5min (match day reminders: 8AM day before, 2h before, Sun 9AM nudge), every 1min (Ball Boi retry), every 5min (stuck analysis), hourly (video retention)");
 }

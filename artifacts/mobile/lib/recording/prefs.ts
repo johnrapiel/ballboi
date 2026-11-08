@@ -48,3 +48,32 @@ export function useUploadOnCellular(): boolean {
     () => value,
   );
 }
+
+// "Don't show this again" on the setup page (B7). Per phone, like the
+// cellular switch: the "Setup tips" link on the ready screen always opens it.
+
+const HIDE_SETUP_KEY = "ballboi.recording.hideSetup";
+let hideSetup = false;
+let hideSetupLoaded = false;
+
+/** Reads the setup page choice once per launch. Never throws. */
+export async function loadHideSetup(): Promise<boolean> {
+  if (hideSetupLoaded) return hideSetup;
+  try {
+    hideSetup = (await AsyncStorage.getItem(HIDE_SETUP_KEY)) === "1";
+  } catch {
+    hideSetup = false;
+  }
+  hideSetupLoaded = true;
+  return hideSetup;
+}
+
+export async function setHideSetup(hide: boolean) {
+  hideSetup = hide;
+  hideSetupLoaded = true;
+  try {
+    await AsyncStorage.setItem(HIDE_SETUP_KEY, hide ? "1" : "0");
+  } catch {
+    // Kept for this launch.
+  }
+}

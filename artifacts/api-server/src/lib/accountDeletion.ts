@@ -9,14 +9,20 @@ import {
   playerLocationsTable,
   playersTable,
   pushSubscriptionsTable,
+  supportReportsTable,
   userBlocksTable,
   usersTable,
 } from "@workspace/db";
 import { eq, inArray, or, sql } from "drizzle-orm";
+import { DELETED_PLAYER_NAME } from "./deletedPlayer";
 import { deleteLeagueDataFor } from "./leagueAccountDeletion";
 import { deleteMessagingData } from "../messaging/accountDeletion";
 import { ObjectStorageService } from "./objectStorage";
 import { deleteRecordingData } from "./recordingCleanup";
+import { deleteDiscoverData } from "../services/discover/accountDeletion";
+import { deleteNotificationData } from "../services/push/accountDeletion";
+import { sessionFiles } from "./sessionFiles";
+import { withdrawFromRecordings, type WithdrawalInput, type WithdrawnMatch } from "./withdrawal";
 
 /**
  * App Store guideline 5.1.1(v): people must be able to delete their account and
@@ -34,17 +40,24 @@ import { deleteRecordingData } from "./recordingCleanup";
  * - League player records are anonymized, not deleted, so opponents' match
  *   history and standings stay correct. The name becomes "Deleted player";
  *   email, phone and bio are cleared and the account link is removed.
+ * - A league they run alone gets a new admin: the member they picked, or the
+ *   longest-standing member (lib/leagueAccountDeletion.ts).
  * - Their profile photo file is deleted with the profile.
  * - Messages they sent and every conversation they're in are deleted
  *   (messaging/accountDeletion.ts).
  * - Last, the Clerk user is deleted. That signs them out everywhere and, for
  *   Sign in with Apple, removes the Apple connection on Clerk's side.
  *
- * Not built yet, so nothing to delete: training-set membership, UTR links.
+ * - Withdrawal (B12, lib/withdrawal.ts): every recording of a match they
+ *   played, whoever recorded it, loses its video now, including the copy kept
+ *   for testing or training, and support gets the list of matches whose
+ *   test-set copies must be deleted by hand.
+ *
+ * Not built yet, so nothing to delete: UTR links.
  * Each of those features must hook in here when it lands.
  */
 
-export const DELETED_PLAYER_NAME = "Deleted player";
+export { DELETED_PLAYER_NAME };
 /** Stands in for the recorder's Clerk ID on recordings kept for the opponent. */
 export const DELETED_RECORDER_ID = "deleted";
 
@@ -61,13 +74,27 @@ type Log = { warn: (o: object, m: string) => void; info: (o: object, m: string) 
 export interface DeletionDeps {
   storage?: Pick<ObjectStorageService, "deleteObject">;
   deleteClerkUser?: (id: string) => Promise<unknown>;
+  withdraw?: (input: WithdrawalInput, log: Log) => Promise<unknown>;
 }
 
-export async function deleteAccount(clerkUserId: string, log: Log, deps: DeletionDeps = {}): Promise<DeletionSummary> {
+/** Choices the person made on the Delete account screen. */
+export interface DeletionChoices {
+  /** League ID to the player who takes over a league they run alone (S4). */
+  newAdmins?: Record<number, number>;
+}
+
+export async function deleteAccount(
+  clerkUserId: string,
+  log: Log,
+  deps: DeletionDeps = {},
+  choices: DeletionChoices = {},
+): Promise<DeletionSummary> {
   const storage = deps.storage ?? new ObjectStorageService();
   const deleteClerkUser = deps.deleteClerkUser ?? ((id: string) => clerkClient.users.deleteUser(id));
 
-  const { videoPaths, playersAnonymized, recordingsDeleted, recordingsKept, photoPaths } = await db.transaction(async (tx) => {
+  const withdraw = deps.withdraw ?? withdrawFromRecordings;
+
+  const { videoPaths, playersAnonymized, recordingsDeleted, recordingsKept, photoPaths, playerIds, deletedSessions } = await db.transaction(async (tx) => {
     const players = await tx
       .select({ id: playersTable.id })
       .from(playersTable)
@@ -79,6 +106,9 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
         id: ballBoiSessionsTable.id,
         matchId: ballBoiSessionsTable.matchId,
         videoObjectPath: ballBoiSessionsTable.videoObjectPath,
+        metadata: ballBoiSessionsTable.metadata,
+        recordingStartedAt: ballBoiSessionsTable.recordingStartedAt,
+        createdAt: ballBoiSessionsTable.createdAt,
       })
       .from(ballBoiSessionsTable)
       .where(eq(ballBoiSessionsTable.recordedByClerkUserId, clerkUserId));
@@ -161,17 +191,37 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
       .update(contentReportsTable)
       .set({ reporterClerkUserId: null })
       .where(eq(contentReportsTable.reporterClerkUserId, clerkUserId));
-    await deleteLeagueDataFor(tx, clerkUserId);
+    // "Something not working?" reports stay for support, without the account.
+    await tx
+      .update(supportReportsTable)
+      .set({ clerkUserId: null })
+      .where(eq(supportReportsTable.clerkUserId, clerkUserId));
+    const promotions = await deleteLeagueDataFor(tx, clerkUserId, choices.newAdmins ?? {});
+    if (promotions.length) log.info({ promotions }, "Account deletion: leagues handed to a new admin");
     const profiles = await tx
       .select({ avatarUrl: usersTable.avatarUrl })
       .from(usersTable)
       .where(eq(usersTable.clerkUserId, clerkUserId));
     const photoPaths = profiles.map((u) => u.avatarUrl).filter((p): p is string => !!p && p.startsWith("/objects/"));
     await deleteRecordingData(tx, clerkUserId);
+    await deleteDiscoverData(tx, clerkUserId);
+    await deleteNotificationData(tx, clerkUserId, playerIds);
     await tx.delete(usersTable).where(eq(usersTable.clerkUserId, clerkUserId));
 
-    const sessionPaths = sessions.map((s) => s.videoObjectPath).filter((p): p is string => !!p);
+    // Every stored file: the raw upload, its pieces, and a kept video-only
+    // copy. Kept recordings' copies are handled by the withdrawal below.
+    const sessionPaths = [
+      ...keep.map((s) => s.videoObjectPath).filter((p): p is string => !!p),
+      ...drop.flatMap((s) => sessionFiles({ id: s.id, videoObjectPath: s.videoObjectPath, metadata: s.metadata }).objects),
+    ];
+    const deletedSessions: WithdrawnMatch[] = drop.map((s) => ({
+      matchId: s.matchId,
+      sessionId: s.id,
+      recordedAt: s.recordingStartedAt ?? s.createdAt ?? null,
+    }));
     return {
+      playerIds,
+      deletedSessions,
       videoPaths: [...new Set([...sessionPaths, ...legacyPaths])],
       playersAnonymized: playerIds.length,
       recordingsDeleted: drop.length,
@@ -199,6 +249,14 @@ export async function deleteAccount(clerkUserId: string, log: Log, deps: Deletio
     } catch (err) {
       log.warn({ err, path }, "Account deletion: profile photo not deleted; needs manual cleanup");
     }
+  }
+
+  // Withdrawal (B12). Never blocks the deletion: the sweep retries video
+  // deletes, and a failure here is logged with what's left to do.
+  try {
+    await withdraw({ clerkUserId, playerIds, deletedSessions }, log);
+  } catch (err) {
+    log.warn({ err, playerIds }, "Account deletion: withdrawal step failed; recordings of these players' matches need their video deleted by hand");
   }
 
   await deleteMessagingData(clerkUserId, log);

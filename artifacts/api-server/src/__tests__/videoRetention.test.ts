@@ -97,3 +97,41 @@ describe("settleSessionVideo", () => {
     expect(saved).toEqual([]);
   });
 });
+
+describe("beta footage (B6) and withdrawal (B12)", () => {
+  it("holds the video-only copy until launch while the beta release is on, but still deletes the raw upload", async () => {
+    const { d, deleted, saved } = deps(false);
+    await settleSessionVideo({ id: 1, matchId: 1, videoObjectPath: RAW, metadata: {} }, COPY, { ...d, betaHold: () => true });
+    expect(deleted).toEqual([RAW]);
+    expect(saved[0].metadata).toMatchObject({ trainingVideoPath: COPY, heldForBeta: true });
+    expect(saved[0].metadata).not.toHaveProperty("keptForTrainingAt");
+  });
+
+  it("applies the normal rule again once the beta is over", async () => {
+    const { d, deleted, saved } = deps(false);
+    await settleSessionVideo(
+      { id: 1, matchId: 1, videoObjectPath: null, metadata: { trainingVideoPath: COPY, heldForBeta: true } },
+      null,
+      { ...d, betaHold: () => false },
+    );
+    expect(deleted).toEqual([COPY]);
+    expect(saved[0].metadata).not.toHaveProperty("heldForBeta");
+  });
+
+  it("deletes everything from a withdrawn match, beta or training", async () => {
+    const { d, deleted, saved } = deps(true);
+    await settleSessionVideo(
+      {
+        id: 1,
+        matchId: 1,
+        videoObjectPath: RAW,
+        metadata: { trainingVideoPath: COPY, withdrawnAt: "2026-11-07T00:00:00Z", segmentPaths: [RAW, "/objects/uploads/raw-1-1"] },
+      },
+      null,
+      { ...d, betaHold: () => true },
+    );
+    expect(deleted.sort()).toEqual([COPY, RAW, "/objects/uploads/raw-1-1"].sort());
+    expect(saved[0].videoObjectPath).toBeNull();
+    expect(saved[0].metadata.trainingVideoPath).toBeNull();
+  });
+});

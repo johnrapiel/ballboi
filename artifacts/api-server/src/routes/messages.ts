@@ -5,7 +5,8 @@ import { getMessagingService } from "../messaging";
 import { MessagingError, type MessagingService } from "../messaging/service";
 import { logger } from "../lib/logger";
 
-// Direct messages and Message Requests. Spec: Messaging and moderation.
+// Direct messages. Spec: Messaging and moderation. There are no Message
+// Requests (finding 17): every message goes straight to the inbox.
 // The app talks only to these routes; the provider behind them can change.
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -45,10 +46,11 @@ export function createMessagesRouter(getService: () => MessagingService = getMes
   router.get(
     "/messages",
     requireAuth,
-    handle(async (svc, me, req, res) => {
-      const box = req.query.box === "requests" ? "requests" : "messages";
-      const [conversations, summary] = await Promise.all([svc.list(me, box), svc.summary(me)]);
-      res.json({ conversations, ...summary });
+    // An older app may still ask for ?box=requests; there's one inbox now.
+    handle(async (svc, me, _req, res) => {
+      // Group chats (F15) come as their own list, so an older app that only reads conversations still works.
+      const [conversations, groups, summary] = await Promise.all([svc.list(me), svc.groups(me), svc.summary(me)]);
+      res.json({ conversations, groups, ...summary });
     }),
   );
 
@@ -76,13 +78,51 @@ export function createMessagesRouter(getService: () => MessagingService = getMes
     }),
   );
 
+  router.get(
+    "/messages/with-user/:userId",
+    requireAuth,
+    handle(async (svc, me, req, res) => {
+      res.json({ conversationId: await svc.conversationWithUser(me, req.params.userId) });
+    }),
+  );
+
   router.post(
     "/messages",
     requireAuth,
     handle(async (svc, me, req, res) => {
       const body = (req.body ?? {}) as Record<string, unknown>;
-      const result = await svc.start(me, { playerId: body.playerId, text: body.text, clientMessageId: body.clientMessageId });
+      const result = await svc.start(me, { playerId: body.playerId, userId: body.userId, text: body.text, clientMessageId: body.clientMessageId });
       res.status(201).json(result);
+    }),
+  );
+
+  // ─── Group chats (F15): an open match's chat, on the same service ─────────
+
+  router.get(
+    "/messages/groups/:id",
+    requireAuth,
+    handle(async (svc, me, req, res) => {
+      const before = typeof req.query.before === "string" ? req.query.before : undefined;
+      res.json(await svc.groupThread(me, idParam(req), { before }));
+    }),
+  );
+
+  router.post(
+    "/messages/groups/:id/messages",
+    requireAuth,
+    handle(async (svc, me, req, res) => {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      res.status(201).json(await svc.sendToGroup(me, idParam(req), { text: body.text, clientMessageId: body.clientMessageId }));
+    }),
+  );
+
+  router.post(
+    "/messages/groups/:id/report",
+    requireAuth,
+    handle(async (svc, me, req, res) => {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const report = await svc.reportGroupMessage(me, idParam(req), { messageId: body.messageId, reason: body.reason, details: body.details });
+      res.status(201).json({ ...report, status: "open" });
     }),
   );
 
@@ -101,15 +141,6 @@ export function createMessagesRouter(getService: () => MessagingService = getMes
     handle(async (svc, me, req, res) => {
       const body = (req.body ?? {}) as Record<string, unknown>;
       res.status(201).json(await svc.send(me, idParam(req), { text: body.text, clientMessageId: body.clientMessageId }));
-    }),
-  );
-
-  router.post(
-    "/messages/:id/decline",
-    requireAuth,
-    handle(async (svc, me, req, res) => {
-      await svc.decline(me, idParam(req));
-      res.status(204).end();
     }),
   );
 

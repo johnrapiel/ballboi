@@ -5,6 +5,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSyncExternalStore } from "react";
 
+import type { CourtCalibration } from "@/lib/court/calibration";
+import type { RecordedSegment } from "@/lib/recording/segments";
+
 export type UploadState = "waiting" | "uploading" | "failed";
 
 export interface QueuedRecording {
@@ -24,6 +27,24 @@ export interface QueuedRecording {
   failedAt?: string;
   /** Upload this one on cellular even though the setting is Wi-Fi only. */
   allowCellular?: boolean;
+  /**
+   * The pieces of the match, in order, when a call or a lock split the
+   * recording. `uri` is the first. Older entries have none: one file.
+   */
+  segments?: RecordedSegment[];
+  /** The match's league, or null for a Quick match. */
+  leagueId?: number | null;
+  /** True once a score was saved for this match from the phone. */
+  scoreEntered?: boolean;
+  /** When the recorder confirmed an opponent not on Ball Boi agreed to be filmed (B10). */
+  opponentAgreedAt?: string;
+  /** Where the court is in the video, from the phone's court check or the court-line fix. */
+  courtCalibration?: CourtCalibration | null;
+  /**
+   * The court-line fix is on screen: hold the upload until it's answered, so
+   * the corners go with the match. Saved first, so a match is never lost.
+   */
+  courtLinesPending?: boolean;
 }
 
 const KEY = "ballboi.recording.queue.v1";
@@ -46,14 +67,21 @@ async function persist() {
 
 /**
  * Reads the saved list once per launch. Anything that was mid-upload when
- * the app closed goes back to waiting and starts over with a fresh address.
+ * the app closed goes back to waiting, and picks up from the parts storage
+ * doesn't have yet.
  */
 export async function loadQueue(): Promise<QueuedRecording[]> {
   if (loaded) return items;
   try {
     const raw = await AsyncStorage.getItem(KEY);
     const saved = raw ? (JSON.parse(raw) as QueuedRecording[]) : [];
-    items = saved.map((r) => (r.state === "uploading" ? { ...r, state: "waiting" as const } : r));
+    // The court-line fix can't still be open after the app closed: upload
+    // without it, and the server finds the court itself.
+    items = saved.map((r) => ({
+      ...r,
+      state: r.state === "uploading" ? ("waiting" as const) : r.state,
+      courtLinesPending: false,
+    }));
   } catch {
     items = [];
   }
@@ -85,6 +113,21 @@ export async function removeQueued(id: string) {
   await persist();
 }
 
+/** Empties the list (sign-out and Delete account). Returns what was in it. */
+export async function clearQueue(): Promise<QueuedRecording[]> {
+  await loadQueue();
+  const removed = items;
+  items = [];
+  emit();
+  await persist();
+  return removed;
+}
+
+/** True once the saved list has been read this launch. */
+export function queueLoaded(): boolean {
+  return loaded;
+}
+
 function subscribe(l: () => void) {
   listeners.add(l);
   return () => {
@@ -101,4 +144,9 @@ export function useQueue(): QueuedRecording[] {
 export function useQueuedRecording(id: string | null): QueuedRecording | undefined {
   const all = useQueue();
   return id ? all.find((r) => r.id === id) : undefined;
+}
+
+/** True once the saved list has been read, so "not on this phone" can be trusted. */
+export function useQueueLoaded(): boolean {
+  return useSyncExternalStore(subscribe, queueLoaded, queueLoaded);
 }

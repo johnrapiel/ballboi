@@ -1,86 +1,153 @@
 import { useRouter } from "expo-router";
-import React, { useEffect } from "react";
+import React from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useGetMyLeagueWeek, type LeagueWeekItem, type LeagueWeekResult } from "@workspace/api-client-react";
-
 import { EmptyState } from "@/components/EmptyState";
-import { ROUND_SINGULAR } from "@/components/league/Bracket";
-import { ListRow } from "@/components/league/ListRow";
 import { MatchCard } from "@/components/MatchCard";
+import { NextMatchCard, type NextMatchAction } from "@/components/NextMatchCard";
+import { NotificationsOffBanner } from "@/components/NotificationsOffBanner";
+import { DoublesNote } from "@/components/record/DoublesMatchCard";
+import { SectionHead } from "@/components/SectionHead";
 import { TabScreen } from "@/components/TabHeader";
-import { Button, Card, Text } from "@/components/ui";
+import { Card, Text } from "@/components/ui";
+import { UpcomingRows } from "@/components/UpcomingRows";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { takePendingJoinCode } from "@/lib/leagueInvite";
-import { dateRange, shortDate } from "@/lib/leagueSchedule";
+import { useProfile } from "@/hooks/useProfile";
+import { upcomingHint, useOpenUpcoming, useUpcomingMatches } from "@/hooks/useUpcomingMatches";
+import { dateRange, pairingTime, shortDate } from "@/lib/leagueSchedule";
+import { openRecorder } from "@/lib/recording/start";
+import { cardWhen, isMatchDay, type UpcomingItem } from "@/lib/upcoming";
 
-// Home (spec: Navigation > Home: upcoming matches, this week's pairings,
-// recent results). Pending match requests join this tab with Discover.
-
-function weekDetail(i: LeagueWeekItem): string {
-  if (i.phase === "upcoming") return `Starts ${shortDate(i.startDate)}. Play by ${shortDate(i.deadline)}.`;
-  if (i.phase === "grace") return `Grace week until ${shortDate(i.graceEnd)}.`;
-  return `Play by ${shortDate(i.deadline)}.`;
-}
-
-function ResultRow({ r, last, onPress }: { r: LeagueWeekResult; last: boolean; onPress: () => void }) {
-  const outcome = r.won ? "Won" : "Lost";
-  const sub = [`vs. ${r.opponentName}`, r.leagueName, r.playoff ? "Playoffs" : null, r.inGrace ? "Grace week, not in standings" : null]
-    .filter(Boolean)
-    .join(" · ");
-  return (
-    <ListRow
-      title={`${outcome} ${r.score}`}
-      subtitle={sub}
-      symbol={r.won ? "checkmark.circle" : "xmark.circle"}
-      onPress={onPress}
-      accessibilityHint="Opens the league"
-      last={last}
-    />
-  );
-}
+// Home answers one question: what's next for me (spec decision 137, John,
+// Nov 8; canvas W2_HomeUpcoming). The header is the roundel with the glass
+// Messages button. Then the Notifications off line (decision 125), anything
+// waiting on you (pairings to review, a bye), and every match still to play,
+// league, playoff and Discover, in date order under "Upcoming matches".
+//
+// The first match is the D2 card (NextMatchCard). On match day (a set time
+// today) singles leads with Record with Ball Boi, then Message and Details;
+// any other day it's Message and Details. Doubles shows Record dimmed with
+// the reason. Later matches are plain rows that open Match detail.
+//
+// Season stats, standings and results don't live here any more: standings
+// are on the league page and results on Profile. See all opens Profile's
+// Upcoming matches tab.
+// Home refreshes on pull and each time you come back to it (C4).
 
 export default function HomeScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const weekQ = useGetMyLeagueWeek();
-  const week = weekQ.data;
-
-  // A league invite link opened before signing in opens now (C1).
-  useEffect(() => {
-    takePendingJoinCode().then((code) => {
-      if (code) router.push({ pathname: "/join/[code]", params: { code } });
-    });
-  }, [router]);
+  const { items, week, isLoading, isError, isRefetching, refetch } = useUpcomingMatches();
+  const openUpcoming = useOpenUpcoming();
+  const { profile } = useProfile();
+  const myName = profile?.displayName ?? "You";
 
   const openLeague = (leagueId: number) => router.push(`/league/${leagueId}`);
-  const enterScore = (leagueId: number, matchId: number) => router.push(`/league/${leagueId}/score/${matchId}`);
+  // See all opens your matches on Profile, scrolled to Upcoming matches (decision 138).
+  const seeAll = () => router.navigate({ pathname: "/(tabs)/profile", params: { tab: "upcoming", at: String(Date.now()) } });
 
-  const nothing =
-    !!week && week.thisWeek.length === 0 && week.playoffs.length === 0 && week.drafts.length === 0 && week.recent.length === 0;
+  const firstCard = (m: UpcomingItem) => {
+    const opponent = m.opponentName ?? "your opponent";
+    const when = cardWhen(m);
+    // Record leads only on match day, for a singles match that can be played.
+    const canRecord = isMatchDay(m) && m.matchId != null && !m.notStarted;
+    const record: NextMatchAction | null =
+      canRecord && m.singles
+        ? {
+            label: "Record with Ball Boi",
+            onPress: () => openRecorder(router, { matchId: m.matchId!, opponentName: opponent, leagueId: m.leagueId }),
+            hint: `Records your match against ${opponent}`,
+          }
+        : null;
+    const chatWith =
+      m.kind === "discover"
+        ? m.otherUserId
+          ? { id: "new", userId: String(m.otherUserId), name: opponent }
+          : null
+        : m.opponentPlayerId
+          ? { id: "new", playerId: String(m.opponentPlayerId), name: opponent }
+          : null;
+    const message: NextMatchAction | null = chatWith
+      ? {
+          label: "Message",
+          accessibilityLabel: `Message ${opponent}`,
+          hint: "Opens a direct chat",
+          onPress: () => router.push({ pathname: "/conversation/[id]", params: chatWith }),
+        }
+      : null;
+    // Match detail covers league matches; a Discover match's card lives in the chat.
+    const details: NextMatchAction | null =
+      m.kind === "discover"
+        ? null
+        : {
+            label: "Details",
+            accessibilityLabel: "Details for this match",
+            hint: "Opens the match, where you can enter the score",
+            onPress: () => (m.matchId ? router.push(`/match/${m.matchId}`) : m.leagueId ? openLeague(m.leagueId) : undefined),
+          };
+    const note = m.grace ? "Grace week: a score now counts for Ball Boi stats, not standings." : null;
+    return (
+      <NextMatchCard
+        key={m.key}
+        dateLabel={when.dateLabel}
+        time={when.time}
+        myName={myName}
+        myPhoto={profile?.avatarUrl}
+        opponentName={opponent}
+        location={m.location}
+        league={m.context}
+        note={note}
+        record={record}
+        message={message}
+        details={details}
+        footer={canRecord && !m.singles && m.kind !== "discover" ? <DoublesNote matchId={m.matchId!} /> : null}
+      />
+    );
+  };
+
+  // Anything waiting on you: an admin's pairings to review, and a bye.
+  const drafts = week?.drafts ?? [];
+  const byes = (week?.thisWeek ?? []).filter((i) => i.bye);
+  const waiting = drafts.length + byes.length;
+  // An open match has no one face to show, so it's always a row.
+  const first = items[0] && items[0].kind !== "open" ? items[0] : null;
+  const rest = first ? items.slice(1) : items;
+  const nothing = !isLoading && !!week && items.length === 0 && waiting === 0;
 
   return (
-    <TabScreen title="Home" roundel>
-      {weekQ.isLoading ? (
+    <TabScreen title="Home" roundel={!nothing} bare={nothing}>
+      {isLoading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <ActivityIndicator color={c.ink} accessibilityLabel="Loading" />
         </View>
       ) : nothing ? (
-        <View style={{ flex: 1, paddingBottom: insets.bottom }}>
-          <EmptyState symbol="tennisball" title="No league matches yet" message="Start or join a league, and your matches show up here each week." />
-          <View style={{ paddingHorizontal: spacing.space4, paddingBottom: spacing.space8 }}>
-            <Button label="Go to Leagues" variant="secondary" onPress={() => router.push("/(tabs)/leagues")} />
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom }}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={c.ink} />}
+        >
+          <View style={{ padding: spacing.space4, gap: spacing.space3 }}>
+            {/* Notifications off: one line to iOS Settings (decision 125). */}
+            <NotificationsOffBanner />
           </View>
-        </View>
+          <EmptyState
+            roundel
+            title="No upcoming matches"
+            message={
+              week && week.leagues.length > 0
+                ? "Your next league match shows up here once its pairings go out. You can also find a match in Discover."
+                : "Join a league in Leagues or find a match in Discover, and your next match shows up here."
+            }
+          />
+        </ScrollView>
       ) : (
         <ScrollView
           contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space3 }}
-          refreshControl={<RefreshControl refreshing={weekQ.isRefetching} onRefresh={() => void weekQ.refetch()} tintColor={c.ink} />}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={c.ink} />}
         >
-          {weekQ.isError ? (
+          {isError ? (
             <Card style={{ gap: spacing.space2 }}>
               <Text variant="bodyStrong">Couldn't load your matches</Text>
               <Text variant="small" tone="inkMuted">
@@ -89,71 +156,33 @@ export default function HomeScreen() {
             </Card>
           ) : null}
 
-          {week?.drafts.map((d) => (
+          {/* Notifications off: one line to iOS Settings (decision 125). */}
+          <NotificationsOffBanner />
+
+          {drafts.map((d) => (
             <MatchCard
               key={`draft-${d.roundId}`}
               eyebrow={`${d.leagueName} · Admin`}
               title={`Round ${d.roundNumber} pairings are ready to review`}
-              detail={`They go out to players ${shortDate(d.startDate)} at 7am.`}
+              detail={`They go out to players ${shortDate(d.startDate)} at ${pairingTime(d.timeZone)}.`}
               primary={{ label: "Review pairings", onPress: () => router.push(`/league/${d.leagueId}/round/${d.roundId}`) }}
             />
           ))}
 
-          {week && (week.playoffs.length > 0 || week.thisWeek.length > 0) ? (
-            <Text variant="label" tone="inkMuted" accessibilityRole="header" style={{ marginTop: spacing.space2 }}>
-              This week
-            </Text>
-          ) : null}
-
-          {week?.playoffs.map((p) => (
+          {byes.map((i) => (
             <MatchCard
-              key={`po-${p.matchId}`}
-              eyebrow={`${p.leagueName} · Playoffs · ${ROUND_SINGULAR[p.round as keyof typeof ROUND_SINGULAR] ?? "Playoff"}`}
-              title={`You vs. ${p.opponentName}`}
-              onOpen={() => openLeague(p.leagueId)}
-              primary={{ label: "Enter score", onPress: () => enterScore(p.leagueId, p.matchId), hint: `For your match against ${p.opponentName}` }}
+              key={`bye-${i.roundId}`}
+              eyebrow={`${i.leagueName} · Round ${i.roundNumber} · ${dateRange(i.startDate, i.deadline)}`}
+              title="You have a bye this week"
+              onOpen={() => openLeague(i.leagueId)}
             />
           ))}
 
-          {week?.thisWeek.map((i) =>
-            i.bye ? (
-              <MatchCard
-                key={`bye-${i.roundId}`}
-                eyebrow={`${i.leagueName} · Round ${i.roundNumber} · ${dateRange(i.startDate, i.deadline)}`}
-                title="You have a bye this week"
-                onOpen={() => openLeague(i.leagueId)}
-              />
-            ) : (
-              <MatchCard
-                key={`m-${i.matchId}`}
-                eyebrow={`${i.leagueName} · Round ${i.roundNumber}`}
-                title={`You vs. ${i.opponentName ?? "your opponent"}`}
-                detail={weekDetail(i)}
-                note={i.phase === "grace" ? "A score now counts for Ball Boi stats, not standings." : null}
-                onOpen={() => openLeague(i.leagueId)}
-                primary={
-                  i.phase !== "upcoming" && i.matchId != null
-                    ? {
-                        label: "Enter score",
-                        onPress: () => enterScore(i.leagueId, i.matchId!),
-                        hint: `For your match against ${i.opponentName ?? "your opponent"}`,
-                      }
-                    : null
-                }
-              />
-            ),
-          )}
-
-          {week && week.recent.length > 0 ? (
+          {items.length > 0 ? (
             <>
-              <Text variant="label" tone="inkMuted" accessibilityRole="header" style={{ marginTop: spacing.space2 }}>
-                Recent results
-              </Text>
-              <Card style={{ padding: 0, overflow: "hidden" }}>
-                {week.recent.map((r, n) => (
-                  <ResultRow key={r.matchId} r={r} last={n === week.recent.length - 1} onPress={() => openLeague(r.leagueId)} />
-                ))}
-              </Card>
+              <SectionHead title="Upcoming matches" onSeeAll={seeAll} seeAllLabel="See all upcoming matches" />
+              {first ? firstCard(first) : null}
+              <UpcomingRows items={rest} onOpen={openUpcoming} hint={upcomingHint} />
             </>
           ) : null}
         </ScrollView>

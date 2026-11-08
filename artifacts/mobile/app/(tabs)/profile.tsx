@@ -1,400 +1,161 @@
-import { useAuth, useUser } from "@clerk/expo";
-import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
-import * as Notifications from "expo-notifications";
-import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { BlockedPlayersRow } from "@/components/safety/BlockedPlayersRow";
+import { useGetMyPlayerCard } from "@workspace/api-client-react";
+
+import { EmptyTab, MatchTabs } from "@/components/card/MatchTabs";
+import { PlayerCard } from "@/components/card/PlayerCard";
+import { SeasonRow } from "@/components/card/SeasonRow";
+import { CornerButton } from "@/components/CornerButton";
+import { ResultRow } from "@/components/ResultRow";
+import { SectionHead } from "@/components/SectionHead";
 import { TabScreen } from "@/components/TabHeader";
-import { EditProfileRow } from "@/components/profile/EditProfileRow";
-import { Toggle } from "@/components/Toggle";
+import { Button, Card, Text } from "@/components/ui";
+import { UpcomingRows } from "@/components/UpcomingRows";
+import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { upcomingHint, useOpenUpcoming, useUpcomingMatches } from "@/hooks/useUpcomingMatches";
+import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
+import { recordedLine, recordedThisSeason, tabFromParam, type MatchTab } from "@/lib/playerCard";
+import { useServerRecordings } from "@/lib/recording/api";
 
-const API_BASE = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
-
-async function fetchWithAuth(
-  path: string,
-  options: RequestInit = {},
-  getToken: () => Promise<string | null>
-): Promise<Response> {
-  const token = await getToken();
-  return fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers as Record<string, string> ?? {}),
-    },
-  });
-}
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// Profile is your player card with your matches below it (spec decisions 138
+// to 140, John, Nov 8; canvas W2_ProfileCard, W2_ProfileResults):
+// 1. The title "Profile", with the glass Settings and Messages buttons.
+// 2. The card (design D). Its pencil opens Edit profile; Free times opens
+//    the week's hour grid.
+// 3. This season: Record, Played, Streak, No-shows.
+// 4. Ball Boi this season, with See all opening this season's recordings on
+//    the Ball Boi tab. No shot stat has an all-season source that passes its
+//    accuracy bar yet (G1), so it shows how many matches you recorded. Hidden
+//    with no recordings this season.
+// 5. Your matches: Upcoming matches and Results tabs, with no heading. Home's
+//    See all and /matches open these, scrolled to the right tab.
+// Sign out lives in Settings.
 
 export default function ProfileScreen() {
-  const colors = useColors();
+  const c = useColors();
   const insets = useSafeAreaInsets();
-  const { signOut, getToken } = useAuth();
-  const { user } = useUser();
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: string; at?: string }>();
+  const cardQ = useGetMyPlayerCard();
+  const card = cardQ.data;
+  const upcoming = useUpcomingMatches();
+  const openUpcoming = useOpenUpcoming();
+  const recordings = useServerRecordings();
+  const [tab, setTab] = useState<MatchTab>(tabFromParam(params.tab) ?? "upcoming");
 
-  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
-
-  const [pushEnabled, setPushEnabled] = useState(false);
-  const [pushLoading, setPushLoading] = useState(false);
-  const [pushToken, setPushToken] = useState<string | null>(null);
-
-  const loadPushStatus = useCallback(async () => {
-    if (Platform.OS === "web") return;
-    try {
-      const res = await fetchWithAuth("/api/notifications/expo-token/status", {}, getToken);
-      if (res.ok) {
-        const data = (await res.json()) as { registered: boolean };
-        setPushEnabled(data.registered);
+  const refetchCard = cardQ.refetch;
+  const firstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      // Back from Edit profile or Free times: show what was just saved.
+      if (firstFocus.current) {
+        firstFocus.current = false;
+        return;
       }
-    } catch {
-    }
-  }, [getToken]);
+      void refetchCard();
+    }, [refetchCard]),
+  );
 
+  // Home's See all and /matches land on the tabs, scrolled to them.
+  const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const [tabsY, setTabsY] = useState<number | null>(null);
+  const wanted = tabFromParam(params.tab);
   useEffect(() => {
-    loadPushStatus();
-  }, [loadPushStatus]);
+    if (!wanted) return;
+    setTab(wanted);
+    if (tabsY != null) scroll.current?.scrollTo({ y: Math.max(0, tabsY - spacing.space4), animated: true });
+  }, [wanted, params.at, tabsY]);
 
-  const registerPushToken = useCallback(async (): Promise<string | null> => {
-    if (Platform.OS === "web") return null;
-
-    // expo-notifications v56 PermissionResponse type may not resolve correctly in this TS config
-    const existing = (await Notifications.getPermissionsAsync()) as { granted: boolean };
-    let granted = existing.granted;
-
-    if (!granted) {
-      const result = (await Notifications.requestPermissionsAsync()) as { granted: boolean };
-      granted = result.granted;
-    }
-
-    if (!granted) {
-      Alert.alert(
-        "Notifications Disabled",
-        "Enable notifications in Settings to receive match day reminders.",
-        [{ text: "OK" }]
-      );
-      return null;
-    }
-
-    try {
-      const tokenData = await Notifications.getExpoPushTokenAsync();
-      return tokenData.data;
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const handlePushToggle = useCallback(async (enabled: boolean) => {
-    if (Platform.OS === "web") return;
-    setPushLoading(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    try {
-      if (enabled) {
-        const token = await registerPushToken();
-        if (!token) {
-          setPushLoading(false);
-          return;
-        }
-
-        const res = await fetchWithAuth(
-          "/api/notifications/expo-token",
-          {
-            method: "POST",
-            body: JSON.stringify({ token }),
-          },
-          getToken
-        );
-
-        if (res.ok) {
-          setPushToken(token);
-          setPushEnabled(true);
-        }
-      } else {
-        const tokenToRemove = pushToken ?? (await (async () => {
-          try {
-            const d = await Notifications.getExpoPushTokenAsync();
-            return d.data;
-          } catch {
-            return null;
-          }
-        })());
-
-        if (tokenToRemove) {
-          await fetchWithAuth(
-            "/api/notifications/expo-token",
-            {
-              method: "DELETE",
-              body: JSON.stringify({ token: tokenToRemove }),
-            },
-            getToken
-          );
-        }
-
-        setPushToken(null);
-        setPushEnabled(false);
-      }
-    } catch {
-      Alert.alert("Error", "Could not update notification settings. Please try again.");
-    } finally {
-      setPushLoading(false);
-    }
-  }, [getToken, pushToken, registerPushToken]);
-
-  const handleSignOut = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await signOut();
-    router.replace("/(auth)/welcome");
+  const refresh = () => {
+    void cardQ.refetch();
+    upcoming.refetch();
+    void recordings.refetch();
   };
 
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    scroll: {
-      flex: 1,
-    },
-    scrollContent: {
-      paddingHorizontal: 20,
-      paddingTop: 8,
-      paddingBottom: bottomPad + 96,
-    },
-    avatarRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 16,
-      marginBottom: 32,
-    },
-    avatar: {
-      width: 72,
-      height: 72,
-      borderRadius: 36,
-      backgroundColor: colors.primary,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    avatarText: {
-      fontSize: 28,
-      fontWeight: "700" as const,
-      color: colors.primaryForeground,
-      fontFamily: "DMSans_700Bold",
-    },
-    userInfo: {
-      flex: 1,
-    },
-    userName: {
-      fontSize: 18,
-      fontWeight: "700" as const,
-      color: colors.foreground,
-      fontFamily: "DMSans_700Bold",
-    },
-    userEmail: {
-      fontSize: 14,
-      color: colors.mutedForeground,
-      marginTop: 4,
-      fontFamily: "DMSans_400Regular",
-    },
-    section: {
-      marginBottom: 24,
-    },
-    sectionLabel: {
-      fontSize: 13,
-      fontWeight: "600" as const,
-      color: colors.mutedForeground,
-      letterSpacing: 0.8,
-      textTransform: "uppercase",
-      marginBottom: 12,
-      fontFamily: "DMSans_600SemiBold",
-    },
-    card: {
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: colors.radius + 2,
-      overflow: "hidden",
-    },
-    row: {
-      flexDirection: "row",
-      alignItems: "center",
-      padding: 16,
-      gap: 14,
-    },
-    rowBorder: {
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    rowIconWrap: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    rowText: {
-      flex: 1,
-      fontSize: 15,
-      color: colors.foreground,
-      fontFamily: "DMSans_500Medium",
-    },
-    rowSubtext: {
-      fontSize: 13,
-      color: colors.mutedForeground,
-      fontFamily: "DMSans_400Regular",
-    },
-    signOutBtn: {
-      backgroundColor: colors.destructive + "22",
-      borderWidth: 1,
-      borderColor: colors.destructive + "44",
-      borderRadius: colors.radius + 2,
-      padding: 16,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 10,
-      marginTop: 8,
-    },
-    deleteRow: {
-      minHeight: 44,
-      alignItems: "center",
-      justifyContent: "center",
-      marginTop: 12,
-    },
-    deleteText: {
-      fontSize: 15,
-      color: colors.destructive,
-      fontFamily: "DMSans_500Medium",
-    },
-    signOutText: {
-      fontSize: 15,
-      fontWeight: "600" as const,
-      color: colors.destructive,
-      fontFamily: "DMSans_600SemiBold",
-    },
-  });
-
-  const initials = user?.firstName
-    ? `${user.firstName[0]}${user.lastName ? user.lastName[0] : ""}`.toUpperCase()
-    : user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ?? "?";
-
-  const fullName = user?.firstName
-    ? [user.firstName, user.lastName].filter(Boolean).join(" ")
-    : "Player";
+  const results = upcoming.week?.results ?? [];
+  const seasonRecordings = card ? recordedThisSeason(recordings.data ?? [], card.season) : [];
 
   return (
-    <TabScreen title="Profile">
+    <TabScreen
+      title="Profile"
+      action={
+        <CornerButton
+          symbol="gearshape"
+          label="Settings"
+          hint="Notifications, Ball Boi recording settings, Discover, Sign out and Delete account"
+          onPress={() => router.push("/settings")}
+        />
+      }
+    >
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        ref={scroll}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space2, paddingBottom: insets.bottom + 96, gap: spacing.space6 }}
+        refreshControl={<RefreshControl refreshing={cardQ.isRefetching || upcoming.isRefetching} onRefresh={refresh} tintColor={c.ink} />}
       >
-        <View style={styles.avatarRow}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>{fullName}</Text>
-            <Text style={styles.userEmail}>
-              {user?.emailAddresses?.[0]?.emailAddress ?? ""}
+        {cardQ.isLoading ? (
+          <View accessible accessibilityLabel="Loading your player card" style={{ height: 320, borderRadius: radius.radiusCard, backgroundColor: c.sand }} />
+        ) : !card ? (
+          <Card style={{ gap: spacing.space3 }}>
+            <Text variant="bodyStrong" accessibilityRole="alert">
+              {isOfflineError(cardQ.error) ? OFFLINE_MESSAGE : "Couldn't load your player card"}
             </Text>
-          </View>
-        </View>
-
-        {Platform.OS !== "web" && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Notifications</Text>
-            <View style={styles.card}>
-              <View style={styles.row}>
-                <View style={[styles.rowIconWrap, { backgroundColor: colors.primary + "22" }]}>
-                  <Ionicons name="notifications" size={18} color={colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rowText}>Match day reminders</Text>
-                  <Text style={styles.rowSubtext}>
-                    Push notification the day before your match
+            <Button label="Try again" variant="secondary" loading={cardQ.isRefetching} onPress={() => void cardQ.refetch()} />
+          </Card>
+        ) : (
+          <>
+            <PlayerCard card={card} onEdit={() => router.push("/profile/edit")} onFreeTimes={() => router.push("/free-times")} />
+            <SeasonRow season={card.season} />
+            {seasonRecordings.length > 0 ? (
+              <View style={{ gap: spacing.space2 }}>
+                <SectionHead
+                  title="Ball Boi this season"
+                  onSeeAll={() => router.navigate({ pathname: "/(tabs)/ballboi", params: { from: card.season.from, to: card.season.to } })}
+                  seeAllLabel="See all your Ball Boi recordings this season"
+                />
+                <Card accessible accessibilityLabel={`Ball Boi this season: ${recordedLine(seasonRecordings.length)}`} style={{ gap: 2 }}>
+                  <Text variant="title" style={{ fontVariant: ["lining-nums", "tabular-nums"] }}>
+                    {seasonRecordings.length}
                   </Text>
-                </View>
-                {pushLoading ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <Toggle
-                    value={pushEnabled}
-                    onValueChange={handlePushToggle}
-                    accessibilityLabel="Match day reminders"
-                  />
-                )}
+                  <Text variant="small" tone="inkMuted">
+                    {seasonRecordings.length === 1 ? "Match recorded" : "Matches recorded"}
+                  </Text>
+                </Card>
               </View>
-            </View>
-          </View>
+            ) : null}
+          </>
         )}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>About</Text>
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <View style={[styles.rowIconWrap, { backgroundColor: colors.primary + "22" }]}>
-                <Ionicons name="tennisball" size={18} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowText}>Ball Boi Mobile</Text>
-                <Text style={styles.rowSubtext}>Match replay companion</Text>
-              </View>
-            </View>
-            <View style={[styles.row, styles.rowBorder]}>
-              <View style={[styles.rowIconWrap, { backgroundColor: colors.muted }]}>
-                <Ionicons name="information-circle" size={18} color={colors.mutedForeground} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowText}>Version</Text>
-                <Text style={styles.rowSubtext}>1.0.0</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Account</Text>
-          <EditProfileRow />
-          <BlockedPlayersRow />
-          <Pressable
-            style={({ pressed }) => [styles.signOutBtn, { opacity: pressed ? 0.7 : 1 }]}
-            onPress={handleSignOut}
-          >
-            <Ionicons name="log-out-outline" size={20} color={colors.destructive} />
-            <Text style={styles.signOutText}>Sign out</Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.deleteRow, { opacity: pressed ? 0.7 : 1 }]}
-            onPress={() => router.push("/delete-account")}
-            accessibilityRole="button"
-            accessibilityLabel="Delete account"
-          >
-            <Text style={styles.deleteText}>Delete account</Text>
-          </Pressable>
+        <View onLayout={(e) => setTabsY(e.nativeEvent.layout.y)} style={{ gap: spacing.space2 }}>
+          <MatchTabs tab={tab} onChange={setTab} counts={{ upcoming: upcoming.items.length, results: results.length }} />
+          {upcoming.isLoading ? (
+            <ActivityIndicator color={c.ink} accessibilityLabel="Loading your matches" style={{ marginTop: spacing.space4 }} />
+          ) : upcoming.isError && !upcoming.week ? (
+            <Card style={{ gap: spacing.space2 }}>
+              <Text variant="bodyStrong">Couldn't load your matches</Text>
+              <Text variant="small" tone="inkMuted">
+                Pull down to try again.
+              </Text>
+            </Card>
+          ) : tab === "upcoming" ? (
+            upcoming.items.length === 0 ? (
+              <EmptyTab title="No upcoming matches" message="Your next league match or a match you set up in Discover shows up here." />
+            ) : (
+              <UpcomingRows items={upcoming.items} onOpen={openUpcoming} hint={upcomingHint} />
+            )
+          ) : results.length === 0 ? (
+            <EmptyTab title="No results yet" message="Once you or your opponent enters a score, the result shows up here." />
+          ) : (
+            <Card style={{ padding: 0, overflow: "hidden" }}>
+              {results.map((r, n) => (
+                <ResultRow key={r.matchId} r={r} last={n === results.length - 1} onPress={() => router.push(`/match/${r.matchId}`)} />
+              ))}
+            </Card>
+          )}
         </View>
       </ScrollView>
     </TabScreen>

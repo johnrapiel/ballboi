@@ -9,6 +9,7 @@
     },
     "development": {
       "extends": "base",
+      "environment": "development",
       "developmentClient": true,
       "distribution": "internal"
     },
@@ -27,6 +28,22 @@
       "autoIncrement": true,
       "ios": {
         "image": "latest"
+      }
+    },
+    "staging": {
+      "extends": "base",
+      "environment": "preview",
+      "channel": "staging",
+      "autoIncrement": true,
+      "ios": {
+        "image": "latest"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6831844206"
       }
     }
   }

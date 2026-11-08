@@ -2,7 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from "express"
 import { db, leagueRoundsTable, leaguesTable } from "@workspace/db";
 import { asc, eq } from "drizzle-orm";
 import { devToolsAllowed, targetRound, TIME_ACTIONS, type TimeAction } from "../lib/devTime.js";
-import { leagueToday } from "../lib/leagueCalendar.js";
+import { todayFor } from "../lib/leagueCalendar.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
 import { applyTimeAction, pairNow } from "../services/devLeagueTime.js";
 import { usesWeeklyRounds } from "../services/leagueRounds.js";
@@ -26,7 +26,7 @@ router.get("/dev/leagues/:leagueId/tools", devOnly, requireLeagueAdmin, async (_
   const leagueId = res.locals.leagueId as number;
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
-  const today = leagueToday();
+  const today = todayFor(league);
   const rounds = await db.select().from(leagueRoundsTable).where(eq(leagueRoundsTable.leagueId, leagueId)).orderBy(asc(leagueRoundsTable.roundNumber));
   const target = targetRound(
     rounds.map((r) => ({ roundNumber: r.roundNumber, startDate: r.startDate, endDate: r.endDate, published: !!r.publishedAt })),

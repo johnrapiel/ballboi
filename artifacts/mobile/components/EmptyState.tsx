@@ -1,4 +1,4 @@
-import { SymbolView, type SFSymbol } from "expo-symbols";
+import { Icon, type IconName } from "@/components/Icon";
 import React from "react";
 import { View } from "react-native";
 
@@ -9,14 +9,15 @@ import { useColors } from "@/hooks/useColors";
 
 export type EmptyStateProps = (
   | {
-      /** SF Symbol shown above the title. Decorative. */
-      symbol: SFSymbol;
+      /** Brush icon shown above the title. Decorative. */
+      symbol: IconName;
       roundel?: never;
     }
   | {
       /**
        * The roundel in place of a symbol, for player-facing empty states on
-       * the main tabs. Decorative. Not on Home, which has it in its header.
+       * the main tabs. Decorative. On Home only while it has nothing to show;
+       * its header then has no roundel (finding 27, Nov 6).
        */
       roundel: true;
       symbol?: never;
@@ -47,7 +48,7 @@ export function EmptyState({ symbol, roundel, title, message }: EmptyStateProps)
           <Roundel size={120} />
         </View>
       ) : (
-        <SymbolView name={symbol} size={40} tintColor={c.inkMuted} style={{ marginBottom: spacing.space2 }} />
+        <Icon name={symbol} size={40} tintColor={c.inkMuted} style={{ marginBottom: spacing.space2 }} />
       )}
       <Text variant="title" style={{ textAlign: "center" }}>
         {title}

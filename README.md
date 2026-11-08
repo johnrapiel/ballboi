@@ -55,6 +55,8 @@ After that, `pnpm dev:mobile` and open Ball Boi on the phone. JavaScript changes
 
 For the iOS Simulator instead of a phone: `eas build --profile development-simulator --platform ios`.
 
+Once set up, every merge to `main` that touches the app also sends a staging build or update to TestFlight automatically. Setup and limits: [docs/testflight-builds.md](docs/testflight-builds.md).
+
 ## Tests
 
 ```sh

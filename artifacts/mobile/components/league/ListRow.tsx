@@ -1,8 +1,8 @@
-import { SymbolView, type SFSymbol } from "expo-symbols";
+import { Icon, type IconName } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
-import { Text } from "@/components/ui";
+import { Pill, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 
@@ -20,37 +20,48 @@ export function ListRow({
   accessibilityHint,
   last,
   destructive,
+  content,
+  tag,
 }: {
   title: string;
   subtitle?: string | null;
   trailing?: string | null;
-  symbol?: SFSymbol;
+  symbol?: IconName;
   onPress?: () => void;
   accessibilityHint?: string;
   last?: boolean;
   destructive?: boolean;
+  /** Drawn in place of the title and subtitle (which VoiceOver still reads), like a match's names with the winner marked. */
+  content?: React.ReactNode;
+  /** A role or status tag ("Creator", "Co-admin"), shown as an outline pill. */
+  tag?: string | null;
 }) {
   const c = useColors();
-  const label = [title, subtitle, trailing].filter(Boolean).join(". ");
+  const label = [title, tag, subtitle, trailing].filter(Boolean).join(". ");
   const body = (
     <>
-      {symbol ? <SymbolView name={symbol} size={18} tintColor={destructive ? c.danger : c.ink} /> : null}
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text variant="bodyStrong" tone={destructive ? "danger" : "ink"}>
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text variant="small" tone="inkMuted">
-            {subtitle}
+      {symbol ? <Icon name={symbol} size={18} tintColor={destructive ? c.danger : c.ink} /> : null}
+      {content ? (
+        <View style={{ flex: 1 }}>{content}</View>
+      ) : (
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text variant="bodyStrong" tone={destructive ? "danger" : "ink"}>
+            {title}
           </Text>
-        ) : null}
-      </View>
+          {subtitle ? (
+            <Text variant="small" tone="inkMuted">
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+      )}
+      {tag ? <Pill label={tag} importantForAccessibility="no" accessibilityElementsHidden /> : null}
       {trailing ? (
-        <Text variant="label" tone="inkMuted">
+        <Text variant="small" tone="inkMuted">
           {trailing}
         </Text>
       ) : null}
-      {onPress ? <SymbolView name="chevron.right" size={13} tintColor={c.inkMuted} /> : null}
+      {onPress ? <Icon name="chevron.right" size={13} tintColor={c.inkMuted} /> : null}
     </>
   );
   const style = {
@@ -83,10 +94,10 @@ export function ListRow({
   );
 }
 
-/** Section heading above a grouped list. */
+/** Section heading above a grouped list: sentence case, like every section label. */
 export function SectionLabel({ children }: { children: string }) {
   return (
-    <Text variant="label" tone="inkMuted" accessibilityRole="header" style={{ marginTop: spacing.space2 }}>
+    <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ marginTop: spacing.space2 }}>
       {children}
     </Text>
   );

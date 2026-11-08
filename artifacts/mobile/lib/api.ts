@@ -2,20 +2,55 @@
 // Prefer the generated React Query hooks from @workspace/api-client-react once an
 // endpoint is in lib/api-spec/openapi.yaml.
 
+import { isAccountBlockedError, reportAccountBlocked } from "@/lib/accountBlocked";
+
 const API_BASE = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
 
 export type TokenGetter = () => Promise<string | null>;
 
+/** Shown when a call fails because the phone has no connection (Wave 1 review D21). */
+export const OFFLINE_MESSAGE = "You're offline. Check your connection and try again.";
+
+/** The request never reached Ball Boi: the phone is offline or the connection dropped. */
+export class OfflineError extends Error {
+  constructor() {
+    super(OFFLINE_MESSAGE);
+    this.name = "OfflineError";
+  }
+}
+
+export function isOfflineError(e: unknown): e is OfflineError {
+  return e instanceof OfflineError;
+}
+
 export async function apiFetch(path: string, getToken: TokenGetter, init: RequestInit = {}): Promise<Response> {
   const token = await getToken();
-  return fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...((init.headers as Record<string, string> | undefined) ?? {}),
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...((init.headers as Record<string, string> | undefined) ?? {}),
+      },
+    });
+  } catch (e) {
+    // A cancelled request stays what it is; anything else never got an answer.
+    if (e instanceof Error && e.name === "AbortError") throw e;
+    throw new OfflineError();
+  }
+  // A ban or suspension that started mid-session: recheck the account (A7).
+  if (res.status === 403) {
+    res
+      .clone()
+      .json()
+      .then((body: unknown) => {
+        if (isAccountBlockedError(res.status, body)) reportAccountBlocked();
+      })
+      .catch(() => {});
+  }
+  return res;
 }
 
 /** Reads `{ error }` from a failed response, or falls back to a plain message. */

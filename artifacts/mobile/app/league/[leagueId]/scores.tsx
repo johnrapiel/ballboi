@@ -9,15 +9,18 @@ import { ROUND_SINGULAR } from "@/components/league/Bracket";
 
 import { ListRow, SectionLabel } from "@/components/league/ListRow";
 import { Card, Text } from "@/components/ui";
+import { WinnerNames } from "@/components/WinnerNames";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { correctionLine, dateRange, resultLine } from "@/lib/leagueSchedule";
+import { sideOf, winnerMark } from "@/lib/winnerMark";
 
 // Correct a score (Oct 31 review, C5). Manage > Correct a score lists every
 // played match by round, newest first. Tap one to enter the corrected sets
 // and confirm; standings recompute and both players see "Corrected by
 // {admin} on {date}". A playoff score can be corrected until the match it
-// feeds has been played; the corrected winner takes that spot.
+// feeds has been played; the corrected winner takes that spot. Once the
+// league ends, scores are final and nothing here can change (Q9).
 
 export default function CorrectScoresScreen() {
   const c = useColors();
@@ -25,6 +28,7 @@ export default function CorrectScoresScreen() {
   const { leagueId: raw } = useLocalSearchParams<{ leagueId: string }>();
   const leagueId = Number(raw);
   const leagueQ = useGetLeague(leagueId);
+  const ended = !!leagueQ.data?.endedAt || leagueQ.data?.status === "completed";
   const scheduleQ = useGetLeagueSchedule(leagueId);
   const bracketQ = useGetLeagueBracket(leagueId);
   const playoffRounds = (bracketQ.data?.rounds ?? [])
@@ -44,16 +48,18 @@ export default function CorrectScoresScreen() {
       refreshControl={<RefreshControl refreshing={scheduleQ.isRefetching} onRefresh={() => void scheduleQ.refetch()} tintColor={c.ink} />}
     >
       <View style={{ gap: spacing.space1, marginBottom: spacing.space2 }}>
-        <Text variant="label" tone="inkMuted">
-          {leagueQ.data?.name ?? ""}
-        </Text>
-        <Text variant="displayL" accessibilityRole="header">
+        <Text variant="headingM" accessibilityRole="header">
           Correct a score
         </Text>
+        {leagueQ.data?.name ? <Text tone="inkMuted">{leagueQ.data.name}</Text> : null}
         <Text tone="inkMuted">Pick a played match to fix its score. Standings update, and both players see that you corrected it.</Text>
       </View>
 
-      {scheduleQ.isLoading ? (
+      {ended ? (
+        <Card style={{ gap: spacing.space2 }}>
+          <Text variant="bodyStrong">This league has ended, so its scores are final.</Text>
+        </Card>
+      ) : scheduleQ.isLoading ? (
         <ActivityIndicator color={c.ink} accessibilityLabel="Loading matches" style={{ marginTop: spacing.space6 }} />
       ) : scheduleQ.isError ? (
         <Card style={{ gap: spacing.space2 }}>
@@ -76,12 +82,15 @@ export default function CorrectScoresScreen() {
               <SectionLabel>{`Playoffs · ${ROUND_SINGULAR[round]}`}</SectionLabel>
               <Card style={{ padding: 0, overflow: "hidden" }}>
                 {played.map((s, i) => {
-                  const winner = s.winnerId === s.player1?.playerId ? s.player1?.playerName : s.player2?.playerName;
+                  const p1 = s.player1?.playerName ?? "Player 1";
+                  const p2 = s.player2?.playerName ?? "Player 2";
+                  const mark = winnerMark({ player1Name: p1, player2Name: p2, score: s.score, winner: sideOf(s.winnerId, s.player1?.playerId, s.player2?.playerId) });
                   return (
                     <ListRow
                       key={s.matchId}
-                      title={`${s.player1?.playerName ?? "Player 1"} vs. ${s.player2?.playerName ?? "Player 2"}`}
-                      subtitle={`${winner ?? "Winner"} won ${s.score}`}
+                      title={`${p1} versus ${p2}`}
+                      subtitle={mark.spoken}
+                      content={<WinnerNames player1Name={p1} player2Name={p2} mark={mark} />}
                       trailing="Correct"
                       onPress={() =>
                         router.push({
@@ -101,11 +110,30 @@ export default function CorrectScoresScreen() {
           <View key={round.roundId} style={{ gap: spacing.space2 }}>
             <SectionLabel>{`Round ${round.roundNumber} · ${dateRange(round.startDate, round.deadline)}`}</SectionLabel>
             <Card style={{ padding: 0, overflow: "hidden" }}>
-              {played.map((m, i) => (
+              {played.map((m, i) => {
+                const mark = winnerMark({
+                  player1Name: m.player1Name,
+                  player2Name: m.player2Name,
+                  score: m.score,
+                  winner: sideOf(m.winnerId, m.player1Id, m.player2Id),
+                  status: resultLine(m),
+                });
+                const corrected = correctionLine(m);
+                return (
                 <ListRow
                   key={m.matchId}
-                  title={`${m.player1Name} vs. ${m.player2Name}`}
-                  subtitle={[resultLine(m), correctionLine(m)].filter(Boolean).join(". ")}
+                  title={`${m.player1Name} versus ${m.player2Name}`}
+                  subtitle={[mark.spoken, corrected].filter(Boolean).join(". ")}
+                  content={
+                    <View style={{ gap: 2 }}>
+                      <WinnerNames player1Name={m.player1Name} player2Name={m.player2Name} mark={mark} />
+                      {corrected ? (
+                        <Text variant="small" tone="inkMuted">
+                          {corrected}
+                        </Text>
+                      ) : null}
+                    </View>
+                  }
                   trailing="Correct"
                   onPress={() =>
                     router.push({
@@ -116,7 +144,8 @@ export default function CorrectScoresScreen() {
                   accessibilityHint="Opens the score to correct it"
                   last={i === played.length - 1}
                 />
-              ))}
+                );
+              })}
             </Card>
           </View>
           ))}

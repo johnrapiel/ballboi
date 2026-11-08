@@ -7,7 +7,7 @@
 // log outcome in the reports view".
 //
 // Only moderators create sanctions (routes/moderation.ts, behind requireAdmin).
-// The Claude agent and auto-restrict can't: they only restrict messaging.
+// The Claude agent can't: it only restricts messaging.
 
 import type { AccountSanction, AppealOutcome, SanctionAppeal, SanctionKind } from "@workspace/db";
 
@@ -82,6 +82,11 @@ export function normalizeEmails(emails: (string | null | undefined)[]): string[]
 
 export function appealReference(sanctionId: number): string {
   return `BB-${String(sanctionId).padStart(5, "0")}`;
+}
+
+/** The appeal's line in the reports queue. Plain words only: John reads it on the Moderation screen. */
+export function appealDetails(sanction: Pick<AccountSanction, "id" | "kind">): string {
+  return `Appeal ${appealReference(sanction.id)} against a ${sanction.kind === "suspend" ? "suspension" : "ban"}. Decide it in Appeals.`;
 }
 
 /** Bans outrank suspensions; between suspensions, the one that ends last. */

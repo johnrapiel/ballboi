@@ -2,12 +2,15 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { getAuth } from "@clerk/express";
 import { db, leagueJoinRequestsTable, leagueRoundByesTable, leaguesTable, matchesTable, playersTable } from "@workspace/db";
 import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
-import { leagueToday } from "../lib/leagueCalendar.js";
-import { getLeagueRole, leagueAdminCount } from "../lib/leagueAccess.js";
-import { approveOutcome, joinOutcome, matchesToVoid } from "../lib/leagueJoining.js";
-import { leaveCheck } from "../lib/leagueLifecycle.js";
+import { todayFor } from "../lib/leagueCalendar.js";
+import { getLeagueRole } from "../lib/leagueAccess.js";
+import { approveOutcome, joinOutcome } from "../lib/leagueJoining.js";
+import { ENDED_MESSAGE, leagueHasEnded, removeCheck } from "../lib/leagueLifecycle.js";
+import { planDropout } from "../lib/playoffs.js";
+import { walkover } from "../services/leaguePlayoffs.js";
 import { SKILL_LEVELS } from "../lib/leagueSetup.js";
 import { logger } from "../lib/logger.js";
+import { loadProfiles, playerDisplayName, playerLevelText, playerProfileLevel, profileNameFor, type ProfileMap } from "../lib/playerProfile.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
 import { sendPushToUsers } from "./notifications.js";
 
@@ -35,14 +38,21 @@ async function activePlayerCount(leagueId: number): Promise<number> {
   return rows.length;
 }
 
-function requestJson(r: typeof leagueJoinRequestsTable.$inferSelect) {
+/**
+ * A request as the admin sees it: the asker's current profile name and level
+ * (A1, S6), falling back to what was saved with the request.
+ */
+function requestJson(r: typeof leagueJoinRequestsTable.$inferSelect, profiles: ProfileMap = new Map()) {
+  const asker = { clerkUserId: r.clerkUserId, name: r.playerName, skillLevel: r.skillLevel };
   return {
     id: r.id,
     leagueId: r.leagueId,
-    playerName: r.playerName,
-    skillLevel: r.skillLevel,
+    playerName: playerDisplayName(asker, profiles),
+    skillLevel: playerLevelText(asker, profiles),
+    rating: playerProfileLevel(asker, profiles),
     kind: r.kind,
     status: r.status,
+    note: r.note ?? null,
     createdAt: r.createdAt.toISOString(),
   };
 }
@@ -102,12 +112,18 @@ router.post("/leagues/:leagueId/join-requests", requireAuth, async (req, res) =>
   const { userId } = getAuth(req);
   const leagueId = parseLeagueId(req);
   if (leagueId === null) { res.status(400).json({ error: "Invalid league ID" }); return; }
-  const playerName = typeof req.body?.playerName === "string" ? req.body.playerName.trim() : "";
+  const sentName = typeof req.body?.playerName === "string" ? req.body.playerName.trim() : "";
+  const profiles = await loadProfiles([userId]);
+  // The profile's name and level win over anything the app sends (A1).
+  const playerName = profiles.get(userId!)?.displayName?.trim() || sentName;
   if (!playerName) { res.status(400).json({ error: "Your name is required" }); return; }
-  const skillLevel = (SKILL_LEVELS as readonly string[]).includes(req.body?.skillLevel) ? String(req.body.skillLevel) : "3.0";
+  const sentLevel = (SKILL_LEVELS as readonly string[]).includes(req.body?.skillLevel) ? String(req.body.skillLevel) : "3.0";
+  const skillLevel = playerLevelText({ clerkUserId: userId, skillLevel: sentLevel }, profiles);
 
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
+  // Q8: nothing to ask for once a league has ended.
+  if (leagueHasEnded(league)) { res.status(410).json({ error: ENDED_MESSAGE, code: "league_ended" }); return; }
 
   const [member] = await db
     .select({ id: playersTable.id })
@@ -123,27 +139,29 @@ router.post("/leagues/:leagueId/join-requests", requireAuth, async (req, res) =>
       eq(leagueJoinRequestsTable.clerkUserId, userId!),
       eq(leagueJoinRequestsTable.status, "pending"),
     ));
-  if (pending) { res.status(200).json(requestJson(pending)); return; }
+  if (pending) { res.status(200).json(requestJson(pending, profiles)); return; }
 
   const outcome = joinOutcome({
     league,
     activePlayerCount: await activePlayerCount(leagueId),
-    today: leagueToday(),
+    today: todayFor(league),
     via: "request",
     skillLevel,
   });
   if (outcome.kind === "refuse") { res.status(outcome.status).json({ error: outcome.error }); return; }
 
   const kind = outcome.kind === "waitlist" ? "waitlist" : "request";
+  // An optional note to the organizer, from Discover's "Request a spot".
+  const note = typeof req.body?.note === "string" ? req.body.note.trim().slice(0, 300) || null : null;
   const [created] = await db
     .insert(leagueJoinRequestsTable)
-    .values({ leagueId, clerkUserId: userId!, playerName, skillLevel, kind })
+    .values({ leagueId, clerkUserId: userId!, playerName, skillLevel, kind, note })
     .onConflictDoNothing()
     .returning();
   if (!created) { res.status(409).json({ error: "You already asked to join this league" }); return; }
 
   res.status(kind === "waitlist" ? 202 : 201).json({
-    ...requestJson(created),
+    ...requestJson(created, profiles),
     message: outcome.kind === "waitlist" ? outcome.reason : "Request sent. The league's admin will approve it.",
   });
 });
@@ -188,7 +206,8 @@ router.get("/leagues/:leagueId/join-requests", requireLeagueAdmin, async (_req, 
     .from(leagueJoinRequestsTable)
     .where(and(eq(leagueJoinRequestsTable.leagueId, leagueId), eq(leagueJoinRequestsTable.status, "pending")))
     .orderBy(leagueJoinRequestsTable.createdAt);
-  res.json(rows.map(requestJson));
+  const profiles = await loadProfiles(rows.map((r) => r.clerkUserId));
+  res.json(rows.map((r) => requestJson(r, profiles)));
 });
 
 async function loadPendingRequest(leagueId: number, requestId: number) {
@@ -213,7 +232,7 @@ router.post("/leagues/:leagueId/join-requests/:requestId/approve", requireLeague
   const outcome = approveOutcome({
     league,
     activePlayerCount: await activePlayerCount(leagueId),
-    today: leagueToday(),
+    today: todayFor(league),
     request,
   });
   if (!outcome.ok) {
@@ -224,6 +243,7 @@ router.post("/leagues/:leagueId/join-requests/:requestId/approve", requireLeague
     return;
   }
 
+  const playerName = await profileNameFor(request.clerkUserId, request.playerName);
   const player = await db.transaction(async (tx) => {
     const [decided] = await tx
       .update(leagueJoinRequestsTable)
@@ -238,7 +258,7 @@ router.post("/leagues/:leagueId/join-requests/:requestId/approve", requireLeague
     if (existing) {
       const [back] = await tx
         .update(playersTable)
-        .set({ leftAt: null, name: request.playerName })
+        .set({ leftAt: null, name: playerName })
         .where(eq(playersTable.id, existing.id))
         .returning();
       return back;
@@ -246,7 +266,7 @@ router.post("/leagues/:leagueId/join-requests/:requestId/approve", requireLeague
     const [created] = await tx
       .insert(playersTable)
       .values({
-        name: request.playerName,
+        name: playerName,
         clerkUserId: request.clerkUserId,
         leagueId,
         skillLevel: request.skillLevel,
@@ -283,31 +303,57 @@ router.post("/leagues/:leagueId/join-requests/:requestId/decline", requireLeague
 
 /**
  * Take a player out of the league (decision 27): their played matches stay,
- * their remaining matches and byes are voided, and they leave standings and
- * pairings. Returns how many matches were voided.
+ * their remaining weekly matches and byes are voided, and they leave
+ * standings and pairings. A playoff match still to play goes to the opponent
+ * on a walkover (Q5), so the bracket keeps moving. Returns how many matches
+ * were voided.
  */
 async function dropOut(leagueId: number, playerId: number, playerName: string): Promise<number> {
-  const voided = await db.transaction(async (tx) => {
-    const theirs = await tx
-      .select({ id: matchesTable.id, status: matchesTable.status, voidedAt: matchesTable.voidedAt })
-      .from(matchesTable)
-      .where(and(
-        eq(matchesTable.leagueId, leagueId),
-        or(
-          eq(matchesTable.player1Id, playerId),
-          eq(matchesTable.player2Id, playerId),
-          eq(matchesTable.player3Id, playerId),
-          eq(matchesTable.player4Id, playerId),
-        ),
-      ));
-    const ids = matchesToVoid(theirs);
-    if (ids.length) {
-      await tx.update(matchesTable).set({ voidedAt: new Date(), status: "voided" }).where(inArray(matchesTable.id, ids));
+  const plan = await db.transaction(async (tx) => {
+    const [theirs, active] = await Promise.all([
+      tx
+        .select()
+        .from(matchesTable)
+        .where(and(
+          eq(matchesTable.leagueId, leagueId),
+          or(
+            eq(matchesTable.player1Id, playerId),
+            eq(matchesTable.player2Id, playerId),
+            eq(matchesTable.player3Id, playerId),
+            eq(matchesTable.player4Id, playerId),
+          ),
+        )),
+      tx
+        .select({ id: playersTable.id })
+        .from(playersTable)
+        .where(and(eq(playersTable.leagueId, leagueId), isNull(playersTable.leftAt))),
+    ]);
+    const stillIn = new Set(active.map((p) => p.id).filter((id) => id !== playerId));
+    const out = planDropout(theirs, playerId, (id) => stillIn.has(id));
+    if (out.voidIds.length) {
+      await tx.update(matchesTable).set({ voidedAt: new Date(), status: "voided" }).where(inArray(matchesTable.id, out.voidIds));
     }
     await tx.delete(leagueRoundByesTable).where(eq(leagueRoundByesTable.playerId, playerId));
     await tx.update(playersTable).set({ leftAt: sql`now()` }).where(eq(playersTable.id, playerId));
-    return ids;
+    return { ...out, matches: theirs };
   });
+  const voided = plan.voidIds;
+
+  // Q5: the opponent moves on in the bracket, shown as W/O.
+  for (const w of plan.walkovers) {
+    const match = plan.matches.find((m) => m.id === w.matchId)!;
+    try {
+      if (await walkover(match, w.winnerId)) {
+        const [winner] = await db.select({ clerkUserId: playersTable.clerkUserId }).from(playersTable).where(eq(playersTable.id, w.winnerId));
+        if (winner?.clerkUserId) {
+          sendPushToUsers([winner.clerkUserId], "Walkover", `${playerName} left the league, so you win your playoff match on a walkover.`, `/league/${leagueId}`)
+            .catch(() => {});
+        }
+      }
+    } catch (err) {
+      logger.error({ err, leagueId, matchId: w.matchId }, "Couldn't give a playoff walkover");
+    }
+  }
 
   // Tell the opponents whose matches were cancelled.
   if (voided.length) {
@@ -337,12 +383,11 @@ router.post("/leagues/:leagueId/leave", requireAuth, async (req, res) => {
     .from(playersTable)
     .where(and(eq(playersTable.leagueId, leagueId), eq(playersTable.clerkUserId, userId!), isNull(playersTable.leftAt)));
   if (!player) { res.status(404).json({ error: "You're not playing in this league" }); return; }
-  // C8: the only admin hands the league on first.
-  const [role, adminCount] = await Promise.all([getLeagueRole(leagueId, userId!), leagueAdminCount(leagueId)]);
-  const check = leaveCheck({ isAdmin: role !== null, adminCount });
-  if (!check.ok) { res.status(check.status).json({ error: check.error, code: check.code }); return; }
+  // Q4: an admin who leaves stops playing but still runs the league, so even
+  // the only admin can leave. Their admin role isn't touched.
   const voidedMatches = await dropOut(leagueId, player.id, player.name);
-  res.json({ left: true, voidedMatches });
+  const stillAdmin = (await getLeagueRole(leagueId, userId!)) !== null;
+  res.json({ left: true, voidedMatches, stillAdmin });
 });
 
 /** Admins: remove a player. Same rules as leaving. */
@@ -355,6 +400,9 @@ router.post("/leagues/:leagueId/players/:playerId/remove", requireLeagueAdmin, a
     .from(playersTable)
     .where(and(eq(playersTable.id, playerId), eq(playersTable.leagueId, leagueId), isNull(playersTable.leftAt)));
   if (!player) { res.status(404).json({ error: "That player isn't in this league" }); return; }
+  // C26: taking yourself out goes through Leave, with its own rules and alert.
+  const self = removeCheck({ playerClerkUserId: player.clerkUserId, callerClerkUserId: getAuth(req).userId ?? null });
+  if (!self.ok) { res.status(self.status).json({ error: self.error }); return; }
   const voidedMatches = await dropOut(leagueId, player.id, player.name);
   if (player.clerkUserId) {
     const [league] = await db.select({ name: leaguesTable.name }).from(leaguesTable).where(eq(leaguesTable.id, leagueId));

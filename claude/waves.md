@@ -2,9 +2,9 @@
 
 Owned by the coordinator session ("Train Conductor"), which also merges PRs and keeps the Feature Tracker current. Feature sessions read this file; only the coordinator edits it.
 
-**Current wave: Wave 1 review** (all Wave 1 code merged; reviews and walkthrough in progress)
+**Current wave: Wave 2** (Wave 1 closed Nov 7: walkthrough, screen review and fix review done, fix PRs #122 to #134 merged. Next: the Wave 2 coordinator's flow review with John)
 
-_Created 2026-10-29 against `main` at `59fbb10`. Updated 2026-10-31._
+_Created 2026-10-29 against `main` at `59fbb10`. Updated 2026-11-07._
 
 ## Where the source docs live
 
@@ -130,10 +130,10 @@ Native owner: **Session D**. Needs a new development build after D's first nativ
 
 **Scope**
 - Stream Chat, headless, behind Ball Boi's own messaging interface (server token minting, one module wraps Stream)
-- Messages screen: direct chats, Message Requests, match threads; bubbles read sender, text and time in one swipe; new messages announced; failed sends say "Not sent. Tap to retry"
+- Messages screen: direct chats, Message Requests, match threads (Oct 31: a direct chat with your opponent for now, full match threads with Discover); bubbles read sender, text and time in one swipe; new messages announced; failed sends say "Not sent. Tap to retry"
 - Guardrails: request inbox (sender can't send twice until a reply), no read receipts on requests, first-message filter (links, phone numbers, slurs), 5 new conversations a day for the first week, block stops DMs both ways
 - Report a message (long-press plus VoiceOver custom action, server snapshot); Stream moderation events into `/api/admin/reports`
-- Auto-restrict; moderator remove and suspend; agent decision log with confirm and undo; Claude moderation agent (6-hour fallback, hide / restrict / dismiss / escalate only); bans on Apple user ID and email; appeal logged
+- Auto-restrict (removed Nov 4 by #104, spec decision 48: nothing happens to an account until John or the Claude moderator acts); moderator remove and suspend; agent decision log with confirm and undo; Claude moderation agent (6-hour fallback, hide / restrict / dismiss / escalate only); bans on Apple user ID and email; appeal logged
 - Unread count wired into the Messages button
 - Account deletion cleanup for messages, including in Stream
 
@@ -155,7 +155,7 @@ Native owner: **Session D**. Needs a new development build after D's first nativ
 
 **Owns:** `app/league/**`, `app/(tabs)/leagues.tsx`, `app/(tabs)/index.tsx`, `app/match/**`, `components/MatchCard.tsx`, `routes/{leagues,seasons,invites,rounds,playoffs,matches,scheduling}.ts`, `services/{roundPairing,matchGeneration,scheduler,playoffBracket,seasonService}.ts`, `lib/db/src/schema/{leagues,seasons,leagueRounds,leagueInvites,matches,playoffBrackets,scheduleGenerationLogs}.ts`
 
-**John decides:** dropping the `leagues.unplayed_rule` column is destructive. Recommended: stop reading and writing it now, drop it in a later wave.
+**Done (Nov 8):** John approved dropping `leagues.unplayed_rule` (and the old `open_match_messages` table); `20261108_z_drop_unused_leftovers.sql` drops both.
 
 ### D. Ball Boi recording (native owner)
 
@@ -167,8 +167,8 @@ Native owner: **Session D**. Needs a new development build after D's first nativ
 - Background upload, Wi-Fi by default, survives app close, video kept until the server confirms
 - First-recording consent screen and the training toggle setting (stored server-side; both-players rule; placeholders never trained on)
 - Analysis-only audio capture
-- Post-stop flow: score prompt (posts through Session C's score endpoint), processing card, court-line fix on a still frame only on low confidence
-- Ball Boi tab: "Record a match" lists today's matches, then Quick match
+- Post-stop flow: score prompt (posts through Session C's score endpoint), processing card. The court-line corner fix moved to Wave 2, Session G, with on-device court detection (John, Nov 4)
+- Ball Boi tab: "Record a match" lists today's matches, then Quick match (since #106: every unplayed match this week, today's set times first)
 
 **Owns:** `app/record/**`, `app/(tabs)/ballboi.tsx`, `components/record/**`, `routes/{quickMatch,recording,trainingConsent}.ts`, `lib/db/src/schema/{placeholders,recordingConsent}.ts`, plus all native config: `artifacts/mobile/app.json`, `eas.json`, native packages
 
@@ -197,27 +197,62 @@ Every Wave 1 PR is merged as of 2026-10-31. Before Wave 2 starts, Wave 1 gets th
 2. **Feature review with John: done Oct 31.** Seventeen questions, eight producing work. Decisions 30 and 31 and the rest are logged in `claude/walkthroughs/wave-1.md`. The Bug PRs are requested with acceptance criteria: Session A (#49 note: sign-in failures, step reasons, Edit profile), Session B (#72 note: Blocked players list), Session C (#66 note: invite links, Private join requests, late joiners, score undo and correction, "Not played", Message opponent, last-admin guard, End and Delete league), Session D (#79 note: keep-or-discard short recordings, Discard on the processing card). Impeccable critiques of the shipped screens run once the build exists.
 3. **Walkthrough:** once the Bug PRs and tooling merge, John runs `claude/walkthroughs/wave-1.md` on a fresh development build, and the coordinator runs an Impeccable `audit` across every Wave 1 screen into the same log. Section 6 (analysis stats) waits for the labeled test set.
 4. **Bugs** are fixed by their owning session, one small PR each, through the normal merge flow. **Spec gaps** feed Wave 2's flow review. **Polish** goes to the tracker.
+5. **Nov 4 review with John: done.** Impeccable critique, audit and harden of every Wave 1 screen plus a flow trace, then 24 grilling questions. His decisions are spec decisions 48 to 76 in `docs/product-spec.md`. Eight fix PRs came out of it. Merged Nov 4: #103 (sign-in on score, league, stats and photo routes), #104 (messaging and bare-minimum moderation), #105 (sign-in, gating and account), #106 (league match times and Record from Home), #107 (profile as the one source of name, photo and self-rated level). In progress: PR 3 (native Apple and Google sign-in, needs a new development build), PR 5 (league rules and screens), PR 6 (recording, upload and analysis) and PR 8 (API cleanup and contract, after PR 5).
 
 Done when every Bug is merged and John has signed off the walkthrough. Then Wave 2's coordinator starts.
+
+6. **Nov 6 walkthrough, screen review and fix review: done.** John ran the build, then a screen-by-screen pass of all 23 Wave 1 screens. 31 findings, all in `claude/walkthroughs/wave-1.md` with his decisions. Fixed and merged:
+   - #122 splash on ivory and Light by default (findings 2, 3)
+   - #123 sign-up and profile fixes: photo upload, the `/api/users/me` loop, a clear sign-up error, no "Your level" line (1, 22, 23, 24). The Clerk Development setting behind 22 was fixed in the dashboard.
+   - #124 one player search for Quick match and New message (15, 18)
+   - #125 the new Day and Night palette: ivory and white by day, warm charcoal at night, roundel traces (25)
+   - #127 design refresh part 2: League detail, Enter score, Create league, Schedule review, Profile, Join league and Messages restyled; one rule for every bottom sheet; 6-6 tiebreak; past days greyed out; copy icon; Ball Boi tab icon; no Message Requests; block lives inside Report; Delete account in Settings (5, 8 to 13, 17, 19 to 21), plus the follow-up fixes for blank sheets, chats and the score grid
+   - #133 Match detail, My matches, Home season stats, 24-hour score edit, Home empty state roundel (6, 7, 14, 27)
+   - #132 polish: Welcome centred, invite and pairings in Manage, settings cog, level 5.0, new app icon (26, 28 to 31)
+   - #134 richer demo data and the "Seed staging data" workflow, run Nov 7
+   John now reviews on TestFlight against the staging API (merges to main build or update it automatically).
+
+**Wave 1 is closed (Nov 7).** Carried into Wave 2: finding 4 (Light/Dark toggle, Session H), finding 16 (does a stranger picked in Quick match get the recording notice or accept first, Session G), the spec decision log entries for findings 7, 17 and 20, and the Wave 2 notes below.
 
 ## Wave 2
 
 Native owner: **Session G**. Run by a Wave 2 coordinator session (prompt: `claude/wave-2-coordinator-prompt.md` in the Project), which writes these prompts after the flow review with John.
 
+**Flow review (Nov 7):** John's decisions are logged in `claude/wave-2-flow-review.md` in the Project (F1 to F14 for Discover, G1 so far for Session G). Each session's full brief lives in `claude/wave-2-briefs/` on the reference branch `docs/wave-2-briefs` (never merged) and in the Project.
+
+| Session | Brief | State |
+|---|---|---|
+| F | `claude/wave-2-briefs/session-f.md` | Approved by John Nov 7; session started |
+| G | | Flow review next |
+| H | | Flow review to come |
+| I | | Flow review to come |
+
+The Ball Boi iOS canvas now has three pages (Nov 7): **On TestFlight** (what's built), **Wave 2 designs** (what Wave 2 builds from) and **Graveyard** (old, ignore).
+
 | Session | Scope |
 |---|---|
-| F. Discover | Players near you (radius 5 / 10 / 15 / 30, rating range, availability), Open leagues list and join requests, Open matches, Need 1 / Need 2, match requests (accept, counter, decline, day-before confirm, 2-hour reminder), reliability on cards, travel mode, hidden profile, court directory |
-| G. Push, Live Activity and voice coach (native owner) | APNs with provisional authorization, contextual prompt and Settings banner; message push with preview hiding; opponent "Ball Boi is recording your match" push; Live Activity on both phones with push-to-start and App Intents; on-device court detection and voice positioning coach with captions; DeviceCheck device bans; installs RevenueCat's native SDK for Session I |
-| H. Replay, profile, player card and league chat | Simulated replay rebuild (replaces #78's placeholder; no video, ever), close-call labels, scrubber markers, filters, trends with text summaries and data tables; Profile rebuild, player card as one VoiceOver element, career stats, head-to-head, recap, Edit your level (rating is a level players set, Oct 29), Settings > Privacy training toggle; player screen with report and block; league chat with pins on Session B's interface; milestone animations with Reduce Motion fades |
-| I. Ball Boi Pro | RevenueCat (free tier) and IAP ($5/month, $40/year, one group, no intro offer), 3 free months from first recording tracked server-side, paywall at setup with disclosures, Restore Purchases, "Not now" records with 30-day expiry, lapsed state |
+| F. Discover | Players near you (radius 5 / 10 / 15 / 30 and Custom, level range, Monday to Sunday availability grid, "Free when I'm free"), player card with Report, hidden profile, Open leagues with join requests and waitlist, court directory and home court, setting up a match in chat (match cards, day-before check, 2-hour reminder, "Did it happen?", no-shows with a 48-hour dispute), reliability on cards, Open matches with Need 1 / Need 2 and group chat. **No travel mode** (dropped Nov 7). Brief: `claude/wave-2-briefs/session-f.md` |
+| G. Push, Live Activity and voice coach (native owner) | APNs with provisional authorization, contextual prompt and Settings banner; message push with preview hiding; opponent "Ball Boi is recording your match" push; Live Activity on both phones with push-to-start and App Intents; on-device court detection and voice positioning coach with captions; court-line corner fix on a still frame, alongside court detection (moved from Wave 1, Nov 4); Match day reminders, on by default but still behind iOS's permission prompt, which shows when a player joins a league or sends a match request (Nov 4); Apple's age range check before the birthday screen (moved from Wave 1, Nov 4; can ride with Wave 1's native sign-in PR if John wants it sooner); DeviceCheck device bans |
+| H. Replay, profile, player card and league chat | Simulated replay rebuild (replaces #78's placeholder; no video, ever), close-call labels, scrubber markers, filters, trends with text summaries and data tables; Profile tab rebuild (Wave 1 only fixes what Profile shows, Nov 4), player card as one VoiceOver element, career stats, head-to-head, recap, Edit your level (rating is a level players set, Oct 29), Settings > Privacy training toggle (Wave 1's PR 6 adds the switch now, spec decision 64); player screen with report and block; league chat with pins on Session B's interface; milestone animations with Reduce Motion fades |
+| ~~I. Ball Boi Pro~~ | Parked Nov 7 (spec decision 82): no paywall, subscription or IAP at launch, and Ball Boi analysis, replay, trends and career stats are free for everyone. The original scope is saved in `docs/backlog/ball-boi-pro.md`. Playing stays free; the Organizer plan waits until after launch |
+
+**From the Wave 1 close (Nov 7), for every Wave 2 session:**
+- The open Wave 2 drafts (#113, #114, #115, #117, #118, #119) predate the restyle (#127), the palette (#125), player search (#124) and Match detail (#133). Each merges main and resolves before review; expect conflicts in League detail, Profile, Messages, Create league and Discover.
+- Block lives inside Report only (finding 20): one "Also block [name]" checkbox, no Block action or Blocked players screen, Unblock in a blocked chat. Session H's player screen and #117 follow this. There are no Message Requests (finding 17).
+- Every bottom sheet uses `components/Sheet.tsx` (hugs its content, no Cancel, brush title, confirm before discarding). Avoid a horizontal ScrollView directly inside a hugging sheet; see `ScoreGrid.tsx`.
+- When #117 merges: set `RESPECT_HIDDEN_PROFILE = true` (api-server `lib/playerSearch.ts`) and `MESSAGE_BY_USER_ID = true` (mobile `lib/playerSearch.ts`).
+- Light is forced in app.json (`userInterfaceStyle: light`). Session H's Appearance toggle (finding 4) uses `setAppAppearance`; a "Match iPhone" option needs "automatic" back in app.json and a new build.
+- John reviews on TestFlight (staging). Native changes trigger a TestFlight build (free plan: 15 iOS builds a month), so batch native work.
+
+**Also Wave 2 (Nov 4):** doubles pairing for leagues (fixed and rotating partners), after a partner flow review with John. Doubles stays hidden in Start a league until it ships. The Wave 2 flow review assigns the session.
 
 ## Wave 3
 
 | Session | Scope |
 |---|---|
 | J. Accessibility audit | Every screen at the largest accessibility text size, VoiceOver pass, Reduce Motion, contrast, tap targets, non-color signals; fixes land as small PRs per screen |
-| K. Reviewer demo account | Password sign-in for that account only; seeded league with standings, two Ball Boi matches with replay and stats, a message thread, a Message Request, an open match, a linked-rating example; free period marked expired so the paywall is live |
-| L. App Store Connect setup | App record, privacy labels, age rating (18+), subscription metadata, review notes, screenshots and description; in-app links to Privacy, Terms and support |
+| K. Reviewer demo account | Password sign-in for that account only; seeded league with standings, two Ball Boi matches with replay and stats, a message thread, a Message Request, an open match, a linked-rating example |
+| L. App Store Connect setup | App record, privacy labels, age rating (18+), review notes, screenshots and description; in-app links to Privacy, Terms and support |
 
 ## Wave 4 onward
 

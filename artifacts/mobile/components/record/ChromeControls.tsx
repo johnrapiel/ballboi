@@ -1,7 +1,6 @@
 // Controls for the dark camera screen, styled with the Night palette in
 // lib/recording/chrome.ts. Same sizes and roles as the shared components.
 
-import { SymbolView } from "expo-symbols";
 import React from "react";
 import { Pressable, View } from "react-native";
 
@@ -14,17 +13,25 @@ export function ChromeButton({
   onPress,
   variant = "primary",
   accessibilityLabel,
+  accessibilityHint,
+  disabled = false,
 }: {
   label: string;
   onPress: () => void;
   variant?: "primary" | "secondary";
   accessibilityLabel?: string;
+  accessibilityHint?: string;
+  /** Off: dimmed, and VoiceOver says "dimmed". */
+  disabled?: boolean;
 }) {
   const primary = variant === "primary";
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => ({
         minHeight: MIN_TAP,
@@ -36,17 +43,18 @@ export function ChromeButton({
         alignItems: "center",
         justifyContent: "center",
         paddingHorizontal: spacing.space6,
-        opacity: pressed ? 0.85 : 1,
+        paddingVertical: spacing.space3,
+        opacity: disabled ? 0.5 : pressed ? 0.85 : 1,
       })}
     >
-      <Text variant="button" style={{ color: primary ? chrome.onButton : chrome.text }}>
+      <Text variant="button" style={{ color: primary ? chrome.onButton : chrome.text, textAlign: "center" }}>
         {label}
       </Text>
     </Pressable>
   );
 }
 
-/** Pick one option, like a segmented control. Selected is filled and checked. */
+/** Pick one option, like a segmented control. Selected is filled, with no icon (John, Nov 7); VoiceOver reads "selected". */
 export function ChromeChoice<T extends string | number>({
   label,
   options,
@@ -60,11 +68,10 @@ export function ChromeChoice<T extends string | number>({
 }) {
   return (
     <View style={{ gap: spacing.space2, alignItems: "center" }}>
-      <Text variant="label" style={{ color: chrome.text }} importantForAccessibility="no" accessibilityElementsHidden>
+      <Text variant="section" style={{ color: chrome.text }} importantForAccessibility="no" accessibilityElementsHidden>
         {label}
       </Text>
       <View
-        accessibilityRole="radiogroup"
         accessibilityLabel={label}
         style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: spacing.space2 }}
       >
@@ -73,9 +80,9 @@ export function ChromeChoice<T extends string | number>({
           return (
             <Pressable
               key={String(o.value)}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: on }}
-              accessibilityLabel={`${label} ${o.label}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={`${label}, ${o.label}`}
               onPress={() => onChange(o.value)}
               style={({ pressed }) => ({
                 minHeight: MIN_TAP,
@@ -92,7 +99,6 @@ export function ChromeChoice<T extends string | number>({
                 opacity: pressed ? 0.85 : 1,
               })}
             >
-              {on ? <SymbolView name="checkmark" size={12} tintColor={chrome.onButton} /> : null}
               <Text variant="bodyStrong" style={{ color: on ? chrome.onButton : chrome.text }}>
                 {o.label}
               </Text>
@@ -101,5 +107,38 @@ export function ChromeChoice<T extends string | number>({
         })}
       </View>
     </View>
+  );
+}
+
+/** A quiet underlined link on the camera, like "Setup tips". 44pt target. */
+export function ChromeLink({
+  label,
+  onPress,
+  accessibilityHint,
+}: {
+  label: string;
+  onPress: () => void;
+  accessibilityHint?: string;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
+      onPress={onPress}
+      hitSlop={spacing.space1}
+      style={({ pressed }) => ({
+        minHeight: MIN_TAP,
+        minWidth: MIN_TAP,
+        paddingHorizontal: spacing.space2,
+        alignItems: "center",
+        justifyContent: "center",
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <Text variant="bodyStrong" style={{ color: chrome.text, textDecorationLine: "underline", textAlign: "center" }}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }

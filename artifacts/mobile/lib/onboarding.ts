@@ -1,7 +1,10 @@
 // Onboarding steps 3 to 6 (spec: Roles and onboarding) and Ball Boi Rating
 // helpers. Step 1 is sign-in and step 2 is the age check (app/age-check.tsx).
 
+import { File, UploadType } from "expo-file-system";
+
 import { apiErrorMessage, apiFetch, type TokenGetter } from "@/lib/api";
+import { photoContentType } from "@/lib/photos";
 
 // ─── Progress ────────────────────────────────────────────────────────────────
 
@@ -73,6 +76,12 @@ export const QUIZ_LEVELS: { rating: number; title: string; description: string }
     title: "Advanced",
     description: "I play tournaments, vary pace and spin on purpose, and my serve wins points outright.",
   },
+  {
+    rating: 5.0,
+    title: "Expert",
+    description:
+      "I've played college or open-level tournaments, and I can hit any shot with pace and control under pressure.",
+  },
 ];
 
 /** "3.5". Ratings are levels in half steps. */
@@ -81,6 +90,37 @@ export function formatRating(n: number): string {
 }
 
 export type RatingSource = "self" | "verified";
+
+// ─── Level labels (Wave 1 review S9) ─────────────────────────────────────────
+// The number is the player's "self-rated level": only they change it, in Edit
+// profile, and match results never move it. Levels show as a plain number pill,
+// "3.5", with no "Self-rated" label until a verified source (NTRP or USTA)
+// exists (John, Nov 4). A verified level adds its word back.
+
+/** "Self-rated" or "Verified", for the badge. */
+export function levelSourceWord(source: RatingSource): string {
+  return source === "verified" ? "Verified" : "Self-rated";
+}
+
+/** "Level 3.5" ("Level 3.5, verified" for a verified level): Manage rows and what VoiceOver reads for the pill. */
+export function levelSpoken(rating: number, source: RatingSource): string {
+  return source === "verified" ? `Level ${formatRating(rating)}, verified` : `Level ${formatRating(rating)}`;
+}
+
+/**
+ * A league player's level for Manage and pairing rows. A signed-up player's
+ * profile level, "Level 3.5"; a placeholder's admin-set level,
+ * "Level 3.0"; "Level not set" for a signed-up player who hasn't picked one.
+ */
+export function leagueLevelLabel(p: {
+  rating?: { rating: number; source: RatingSource } | null;
+  skillLevel: string;
+  hasAccount?: boolean;
+}): string {
+  if (p.rating) return levelSpoken(p.rating.rating, p.rating.source);
+  if (p.hasAccount === false) return `Level ${p.skillLevel}`;
+  return "Level not set";
+}
 
 // ─── Intent ──────────────────────────────────────────────────────────────────
 // Options for "What do you want to do on Ball Boi?". Research only: the
@@ -142,24 +182,47 @@ export async function saveNameAndPhoto(
   }
 }
 
-/** Uploads a picked photo and returns its storage path for `avatarUrl`. */
+const PHOTO_UPLOAD_TIMEOUT_MS = 60_000;
+
+/**
+ * Uploads a picked photo and returns its storage path for `avatarUrl`.
+ *
+ * The file goes up from disk with expo-file-system (finding #23). The old way,
+ * `fetch(photo.uri).blob()`, failed on the phone before anything was sent:
+ * Expo's fetch doesn't read local `file://` photos, so no upload request ever
+ * reached the API. The recording upload already sends files this way.
+ */
 export async function uploadPhoto(
   getToken: TokenGetter,
   photo: { uri: string; mimeType?: string | null; fileSize?: number | null },
 ): Promise<string> {
-  const file = await fetch(photo.uri);
-  const blob = await file.blob();
-  const contentType = photo.mimeType ?? blob.type ?? "image/jpeg";
+  const file = new File(photo.uri);
+  const size = file.exists ? file.size : 0;
+  if (!size) throw new Error("We couldn't read that photo. Try another one.");
+  const contentType = photoContentType(photo.mimeType, photo.uri);
   const res = await send(
     "/api/storage/uploads/request-url",
     getToken,
     "POST",
-    { name: "profile-photo", size: photo.fileSize ?? blob.size, contentType },
+    { name: "profile-photo", size, contentType },
     "We couldn't upload your photo.",
   );
   const { uploadURL, objectPath } = (await res.json()) as { uploadURL: string; objectPath: string };
-  const put = await fetch(uploadURL, { method: "PUT", body: blob, headers: { "Content-Type": contentType } });
-  if (!put.ok) throw new Error("We couldn't upload your photo.");
+  // A stalled upload gives up after a minute, so Continue never spins forever.
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), PHOTO_UPLOAD_TIMEOUT_MS);
+  let put;
+  try {
+    put = await file.upload(uploadURL, {
+      httpMethod: "PUT",
+      uploadType: UploadType.BINARY_CONTENT,
+      headers: { "Content-Type": contentType },
+      signal: abort.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+  if (put.status < 200 || put.status >= 300) throw new Error("We couldn't upload your photo.");
   return objectPath;
 }
 
@@ -173,7 +236,7 @@ export async function saveHomeArea(
 
 /** Step 5. Returns the saved rating, labeled Self-rated. */
 export async function saveSelfRating(getToken: TokenGetter, rating: number) {
-  const res = await send("/api/users/me/rating/self", getToken, "POST", { rating }, "We couldn't save your rating. Try again.");
+  const res = await send("/api/users/me/rating/self", getToken, "POST", { rating }, "We couldn't save your level. Try again.");
   return (await res.json()) as { rating: number; source: RatingSource };
 }
 

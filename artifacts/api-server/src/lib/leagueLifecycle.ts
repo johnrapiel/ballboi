@@ -1,8 +1,9 @@
 // Leaving, ending, and deleting a league (Oct 31 review, C8 to C10;
 // decision 31). Pure rules, so they're easy to test.
 //
-// - The league's only admin can't leave: "Make someone a co-admin first".
-//   With two or more admins, leaving works as before.
+// - Leaving stops your play. An admin who leaves stays an admin and keeps
+//   managing the league, so even the only admin can leave (Q4, Nov 4).
+// - An admin can't remove themselves from Manage; they use Leave (C26).
 // - Ending freezes standings, cancels unpublished rounds, and moves the league
 //   to Past. All history stays.
 // - Deleting needs the league's name typed. It removes the league, its rounds
@@ -10,12 +11,23 @@
 //   to the players, so matches with a recording are kept, detached from the
 //   league, with their stats.
 
-export const ONLY_ADMIN_MESSAGE = "Make someone a co-admin first";
 export const ENDED_MESSAGE = "This league has ended";
 
-export function leaveCheck(input: { isAdmin: boolean; adminCount: number }): { ok: true } | { ok: false; status: number; code: string; error: string } {
-  if (input.isAdmin && input.adminCount <= 1) {
-    return { ok: false, status: 409, code: "only_admin", error: `${ONLY_ADMIN_MESSAGE}. You're this league's only admin.` };
+/**
+ * A league has ended when an admin tapped End, or on its own once the season
+ * and any playoffs are done. Its scores are final (Q9) and its invite codes
+ * stop working (Q8).
+ */
+export function leagueHasEnded(league: { endedAt?: Date | null; status?: string | null } | null | undefined): boolean {
+  return !!league && (!!league.endedAt || league.status === "completed");
+}
+
+export const REMOVE_SELF_MESSAGE = "To stop playing, use Leave league on the league's page.";
+
+/** C26: removing a player from Manage can't be used on yourself. */
+export function removeCheck(input: { playerClerkUserId: string | null; callerClerkUserId: string | null }): { ok: true } | { ok: false; status: number; error: string } {
+  if (input.playerClerkUserId && input.playerClerkUserId === input.callerClerkUserId) {
+    return { ok: false, status: 409, error: REMOVE_SELF_MESSAGE };
   }
   return { ok: true };
 }

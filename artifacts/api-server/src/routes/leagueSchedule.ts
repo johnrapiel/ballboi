@@ -2,9 +2,11 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { getAuth } from "@clerk/express";
 import { db, leagueRoundByesTable, leagueRoundsTable, leaguesTable, matchesTable, playersTable, usersTable, type League, type LeagueRound } from "@workspace/db";
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { getLeagueRole } from "../lib/leagueAccess.js";
-import { graceEndFor, leagueToday, roundPhase, roundWindow, LEAGUE_TIME_ZONE } from "../lib/leagueCalendar.js";
-import { undoDeadline } from "../lib/leagueScoreChanges.js";
+import { canViewLeague, getLeagueRole, PRIVATE_LEAGUE } from "../lib/leagueAccess.js";
+import { graceEndFor, leagueZone, roundPhase, roundWindow, todayFor } from "../lib/leagueCalendar.js";
+import { editDeadline } from "../lib/leagueScoreChanges.js";
+import { matchParticipantIds } from "../lib/leagueScoring.js";
+import { leagueHasEnded } from "../lib/leagueLifecycle.js";
 import { planBye, planLock, planSwap, unpairedPlayers } from "../lib/roundEdits.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
 import { draftNextRound, loadDraftRound, publishRound, repairRound, usesWeeklyRounds } from "../services/leagueRounds.js";
@@ -28,18 +30,28 @@ async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDe
     db.select().from(matchesTable).where(inArray(matchesTable.roundId, ids)),
     db.select().from(leagueRoundByesTable).where(inArray(leagueRoundByesTable.roundId, ids)),
     db
-      .select({ id: playersTable.id, name: playersTable.name, leftAt: playersTable.leftAt, clerkUserId: playersTable.clerkUserId, rating: usersTable.rating, ratingSource: usersTable.ratingSource })
+      .select({ id: playersTable.id, name: playersTable.name, leftAt: playersTable.leftAt, clerkUserId: playersTable.clerkUserId, displayName: usersTable.displayName, rating: usersTable.rating, ratingSource: usersTable.ratingSource })
       .from(playersTable)
       .leftJoin(usersTable, eq(usersTable.clerkUserId, playersTable.clerkUserId))
       .where(eq(playersTable.leagueId, league.id)),
   ]);
-  const name = (id: number) => players.find((p) => p.id === id)?.name ?? "Player";
-  // C7: the Ball Boi Rating badge next to the opponent's name.
+  // A1: a signed-up player's profile name; a placeholder's name from the row.
+  const name = (id: number) => {
+    const p = players.find((x) => x.id === id);
+    return (p?.clerkUserId ? p.displayName?.trim() : null) || p?.name || "Player";
+  };
+  // C7: the level badge (self-rated level) next to the opponent's name.
   const rating = (id: number) => {
     const p = players.find((x) => x.id === id);
     return p?.rating != null ? { rating: Number(p.rating), source: p.ratingSource === "verified" ? "verified" : "self" } : null;
   };
   const activeIds = players.filter((p) => !p.leftAt).map((p) => p.id);
+  const ended = leagueHasEnded(league);
+  // The Ball Boi accounts playing in a match, for who may edit its score.
+  const accounts = (m: (typeof matches)[number]) =>
+    matchParticipantIds(m)
+      .map((id) => players.find((p) => p.id === id)?.clerkUserId)
+      .filter((id): id is string => !!id);
 
   return rounds.map((r) => {
     const roundMatches = matches.filter((m) => m.roundId === r.id);
@@ -82,8 +94,10 @@ async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDe
           locked: m.locked,
           scheduledAt: m.scheduledAt ?? null,
           location: m.location ?? null,
-          // C4: set only for the player who entered the score, while they can undo it.
-          undoUntil: undoDeadline(m, userId, now),
+          // Finding 7: set for either player while they can still edit the
+          // score. Never once the league has ended: its scores are final (Q9).
+          editUntil: ended ? null : editDeadline(m, userId, accounts(m), now),
+          editedBy: m.status === "completed" && m.scoreEditedAt ? (m.scoreEditedByName ?? "A player") : null,
           // C5: shown to both players and in Manage.
           correctedBy: m.correctedAt ? (m.correctedByName ?? "League admin") : null,
           correctedAt: m.correctedAt ? m.correctedAt.toISOString() : null,
@@ -105,9 +119,10 @@ router.get("/leagues/:leagueId/schedule", requireAuth, async (req, res) => {
   if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid league ID" }); return; }
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
+  if (!(await canViewLeague(league, userId!))) { res.status(403).json({ error: PRIVATE_LEAGUE }); return; }
 
   const isAdmin = (await getLeagueRole(leagueId, userId!)) !== null;
-  const today = leagueToday();
+  const today = todayFor(league);
   const all = await db.select().from(leagueRoundsTable).where(eq(leagueRoundsTable.leagueId, leagueId)).orderBy(asc(leagueRoundsTable.roundNumber));
   const visible = all.filter((r) => isAdmin || r.publishedAt);
   const rounds = await buildRounds(league, visible, isAdmin, today, userId ?? null);
@@ -123,7 +138,7 @@ router.get("/leagues/:leagueId/schedule", requireAuth, async (req, res) => {
   res.json({
     leagueId,
     today,
-    timeZone: LEAGUE_TIME_ZONE,
+    timeZone: leagueZone(league),
     weeklyRounds: weekly,
     isAdmin,
     rounds,
@@ -137,6 +152,7 @@ router.get("/leagues/:leagueId/bracket", requireAuth, async (req, res) => {
   if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid league ID" }); return; }
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
+  if (!(await canViewLeague(league, getAuth(req).userId!))) { res.status(403).json({ error: PRIVATE_LEAGUE }); return; }
   res.json(await bracketFor(league));
 });
 
@@ -160,7 +176,7 @@ async function adminRound(req: Request, res: Response): Promise<{ league: League
 
 async function respondWithRound(res: Response, league: League, roundId: number) {
   const [round] = await db.select().from(leagueRoundsTable).where(eq(leagueRoundsTable.id, roundId));
-  const [built] = await buildRounds(league, [round], true, leagueToday(), getAuth(res.req).userId ?? null);
+  const [built] = await buildRounds(league, [round], true, todayFor(league), getAuth(res.req).userId ?? null);
   res.json(built);
 }
 

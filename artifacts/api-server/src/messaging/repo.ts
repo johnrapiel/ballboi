@@ -27,10 +27,62 @@ export interface PersonSummary {
   name: string;
   /** A player record for this account, used by report and block. Null if they have none. */
   playerId: number | null;
+  /** Their account's user id (users.id), for report and block when they have no player record yet (a Discover player). */
+  userId?: number | null;
+}
+
+/** A group chat (F15): an open match's chat once its last spot fills. */
+export interface GroupRecord {
+  id: number;
+  channelId: string;
+  openMatchId: number | null;
+  title: string;
+  /** Members can send. */
+  open: boolean;
+  /** Why the composer is off, in plain words. */
+  closedReason: string | null;
+  lastMessageAt: Date | null;
+  lastMessageText: string | null;
+  /** Null for a line from Ball Boi. */
+  lastSender: string | null;
+  createdAt: Date;
+}
+
+export interface GroupMember {
+  groupId: number;
+  userId: string;
+  unread: number;
+  /** Their first message in this chat, for the first-message filter. */
+  firstSentAt: Date | null;
+  joinedAt: Date;
+}
+
+export type NewGroup = Pick<GroupRecord, "channelId" | "openMatchId" | "title">;
+export type GroupPatch = Partial<Pick<GroupRecord, "title" | "open" | "closedReason" | "lastMessageAt" | "lastMessageText" | "lastSender">>;
+
+/** Group chat storage (F15). Part of MessagingRepo. */
+export interface GroupRepo {
+  findGroup(id: number): Promise<GroupRecord | null>;
+  findGroupByChannel(channelId: string): Promise<GroupRecord | null>;
+  findGroupByOpenMatch(openMatchId: number): Promise<GroupRecord | null>;
+  /** Creates the group, or returns the existing one for this channel. */
+  createGroup(input: NewGroup): Promise<GroupRecord>;
+  updateGroup(id: number, patch: GroupPatch): Promise<GroupRecord>;
+  groupMembers(id: number): Promise<GroupMember[]>;
+  addGroupMembers(id: number, userIds: string[], at: Date): Promise<void>;
+  removeGroupMembers(id: number, userIds: string[]): Promise<void>;
+  /**
+   * Records the latest message, adds one to each recipient's unread count, and
+   * notes the sender's first message (a person, not Ball Boi).
+   */
+  recordGroupMessage(id: number, input: { sender: string | null; text: string; at: Date; recipients: string[] }): Promise<GroupRecord>;
+  markGroupRead(id: number, userId: string): Promise<void>;
+  /** Groups this person is in, with their own member row. */
+  groupsFor(userId: string): Promise<{ group: GroupRecord; member: GroupMember }[]>;
 }
 
 /** Everything MessagingService reads or writes outside the provider. */
-export interface MessagingRepo {
+export interface MessagingRepo extends GroupRepo {
   findByPair(pairKey: string): Promise<ConversationRecord | null>;
   findById(id: number): Promise<ConversationRecord | null>;
   findByChannel(channelId: string): Promise<ConversationRecord | null>;
@@ -44,14 +96,22 @@ export interface MessagingRepo {
   countStartedSince(userId: string, since: Date): Promise<number>;
   /** When the account was created, or null if unknown (treated as new). */
   accountCreatedAt(userId: string): Promise<Date | null>;
-  /** League mates or players with a match together message freely. */
-  areConnected(a: string, b: string): Promise<boolean>;
+  /**
+   * League mates or players with a match together message freely. Group chats
+   * pass `beyondOpenMatches`: a match an open match put on the schedule only
+   * counts once it has a score, so the chat's own match never lifts the filter.
+   */
+  areConnected(a: string, b: string, opts?: { beyondOpenMatches?: boolean }): Promise<boolean>;
   /** Accounts hidden from this person, whichever side blocked. */
   blockedSetFor(userId: string): Promise<Set<string>>;
-  /** Accounts that can't start new conversations right now (auto-restrict). */
+  /** Accounts this person blocked (their chats stay, with Unblock). */
+  blockedByMe(userId: string): Promise<Set<string>>;
+  /** Accounts that can't start new conversations right now (restricted by a moderator or the agent, banned or suspended). */
   restrictedSet(userIds: string[]): Promise<Set<string>>;
   people(userIds: string[]): Promise<Map<string, PersonSummary>>;
   accountForPlayer(playerId: number): Promise<string | null>;
+  /** The account behind a user id (users.id): messaging a Discover player who isn't in a league. */
+  accountForUser(userId: number): Promise<string | null>;
   /** People this person can message freely (league mates), for New message. */
   contactsFor(userId: string): Promise<{ userId: string; name: string; playerId: number | null }[]>;
   /** Account deletion: removes every conversation record they're in. */

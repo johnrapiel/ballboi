@@ -24,8 +24,9 @@ The mobile app's current screens came over from the original Replit build. They'
   - One name per thing, everywhere: a screen's title matches its tab label, and buttons, notifications, and empty states use the same word. Never mix synonyms (Messages, not Inbox or Chat).
   - Plain, familiar words over branded ones: Sign in, Settings, Profile, Record, Score. "Ball Boi" is the feature name; "Replay" is its output.
   - Same action, same place: the primary action sits in the same spot on every screen; destructive actions are red and confirmed.
-- Colors, type, spacing, and radii come from the design system tokens only: `paper`, `linen`, `sand`, `ink`, `ink-muted`, `on-ink`, `court`, `danger`. Navy (`ink`) does almost everything; `court` green is the only accent and appears rarely. Nanum Brush Script (`brushL`) for tab headers and big screen titles, Cormorant Garamond for display and scores, DM Sans for everything else. Increase Contrast (`-hc` tokens) and Bold Text are handled in `useColors` and `Text`; charts and the replay use the `heat-1` to `heat-5` ramp and the shape rules in the design system's Charts and replay section. Use `Text` and `TextLink`, never a raw React Native `Text`.
-- Retired, don't add new uses: `pool`, `clay`, `sun` and the cabana awning (October 2026 palette refresh), the old palette (Ink Navy, Court Cream, Teal Ace), the generic cyan palette in `constants/colors.ts`, and the Inter, Playfair Display, and DM Mono fonts.
+- Colors, type, spacing, and radii come from the design system tokens only: `paper`, `linen`, `sand`, `ink`, `ink-muted`, `on-ink`, `court`, `danger`. Day: `paper` is warm ivory (#FAF9F5, no paper grain), cards and the tab bar are white `linen`, wells are light stone `sand`, and navy (`ink`) does almost everything. Night: warm charcoal grounds with ivory ink (navy is Day only), so primary buttons are ivory with charcoal text. `court` green is the only accent and appears rarely. The roundel in the app is the transparent trace (`Roundel`): ink by day, white with no fill at night; `roundel.png` is for the splash only. Cormorant Garamond in ink at 50% (`headingL`, `headingM`; `Text` applies the 50%) for tab headers, screen titles and sheet titles, Cormorant Garamond at full ink for display and scores, DM Sans for everything else. Increase Contrast (`-hc` tokens) and Bold Text are handled in `useColors` and `Text`; charts and the replay use the `heat-1` to `heat-5` ramp and the shape rules in the design system's Charts and replay section. Use `Text` and `TextLink`, never a raw React Native `Text`.
+- Retired, don't add new uses: `pool`, `clay`, `sun` and the cabana awning (October 2026 palette refresh), the old palette (Ink Navy, Court Cream, Teal Ace), the beige paper, paper grain and harbor-navy Night (Nov 6 palette), the generic cyan palette in `constants/colors.ts`, Nanum Brush Script titles (Nov 7: page and sheet titles are Cormorant at 50% ink), and the Inter, Playfair Display, and DM Mono fonts.
+- Every icon is hand-drawn from the brush set (John, Nov 7): `<Icon name="..." />` from `components/Icon.tsx`. Never SF Symbols (`expo-symbols`), Lucide or any icon library; draw new icons in `scripts/design/brush-icons.py`. The tab bar keeps its own brush PNGs (`scripts/design/tab-icons.py`).
 - Every text pair clears 4.5:1 (3:1 for 24px+ text, focus rings, and control borders) in both Day and Night themes.
 - Color is never the only signal: pair it with an icon or text.
 - Touch targets are at least 44×44pt. Dynamic Type stays on. Respect Reduce Motion. Every interactive element has an `accessibilityLabel`.
@@ -55,7 +56,7 @@ pnpm dev                    # API on :8080 (scripts/dev.sh; loads .env)
 pnpm dev:mobile             # Expo app in Expo Go on a phone (run alongside pnpm dev)
 pnpm dev:ml                 # optional FastAPI ML server on :8000
 
-pnpm test                   # api-server vitest suite
+pnpm test                   # contrast check, mobile helper tests, api-server vitest suite
 pnpm typecheck              # tsc --build for lib/*, then per-package typecheck
 pnpm build                  # typecheck + build all packages
 ```
@@ -69,7 +70,7 @@ cd artifacts/ml-server && .venv/bin/python -m pytest tests/test_court_detection.
 
 `pnpm typecheck` passes everywhere, including `artifacts/api-server`, and CI fails on any type error. The ML server needs Python 3.10+ and OpenCV below 5.
 
-API tests live in `src/__tests__/`, run in the node environment, and mock `@clerk/express`, the logger, object storage, and `@workspace/db` with `vi.mock`, then exercise routers through `supertest`. No live database is needed.
+Mobile unit tests cover pure helpers only (`artifacts/mobile/lib/__tests__/`, vitest in Node, so no React Native imports). API tests live in `src/__tests__/`, run in the node environment, and mock `@clerk/express`, the logger, object storage, and `@workspace/db` with `vi.mock`, then exercise routers through `supertest`. No live database is needed.
 
 `scripts/with-env.sh <cmd>` runs any command with `.env` loaded.
 

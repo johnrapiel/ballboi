@@ -1,11 +1,15 @@
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
-import { db, matchesTable, playersTable, scheduleGenerationLogsTable, leaguesTable } from "@workspace/db";
+import { db, matchesTable, playersTable, scheduleGenerationLogsTable } from "@workspace/db";
 import { eq, and, or, desc } from "drizzle-orm";
 import { generateWeeklyMatches, saveGeneratedMatches } from "../services/matchGeneration";
 import { sendPushToUsers } from "./notifications";
 import { requireAdmin } from "../middlewares/requireAdmin";
 import { getPlayerNameMap } from "../lib/lookups.js";
+import { requireLeagueViewer } from "../middlewares/requireLeagueViewer.js";
+import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
+import { getLeagueRole } from "../lib/leagueAccess.js";
+import { withoutDraftMatches } from "../lib/draftRounds.js";
 
 const router = Router();
 
@@ -14,12 +18,6 @@ function isScheduleStatus() {
     eq(scheduleGenerationLogsTable.status, "pending_review"),
     eq(scheduleGenerationLogsTable.status, "confirmed")
   );
-}
-
-function requireAuth(req: any, res: any, next: any) {
-  const { userId } = getAuth(req);
-  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
-  next();
 }
 
 function getWeekOf(dateStr?: string): string {
@@ -70,23 +68,10 @@ router.post("/scheduling/:leagueId/generate", requireAdmin, async (req, res) => 
 });
 
 // GET /scheduling/:leagueId/suggestions — matchup suggestions ranked by time since last played
-router.get("/scheduling/:leagueId/suggestions", requireAuth, async (req, res) => {
+// Players and admins of the league (Open leagues: anyone signed in).
+router.get("/scheduling/:leagueId/suggestions", requireLeagueViewer, async (req, res) => {
   try {
-    const leagueId = parseInt(String(req.params.leagueId));
-    if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid league" }); return; }
-
-    const { userId } = getAuth(req);
-
-    // Require league creator or league member
-    const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
-    if (!league) { res.status(404).json({ error: "League not found" }); return; }
-
-    const isCreator = league.createdByClerkUserId === userId;
-    if (!isCreator) {
-      const memberRows = await db.select().from(playersTable)
-        .where(and(eq(playersTable.leagueId, leagueId), eq(playersTable.clerkUserId, userId!)));
-      if (!memberRows.length) { res.status(403).json({ error: "Forbidden" }); return; }
-    }
+    const leagueId = res.locals.leagueId as number;
 
     const players = await db.select().from(playersTable).where(eq(playersTable.leagueId, leagueId));
     if (players.length < 2) { res.json([]); return; }
@@ -139,9 +124,10 @@ router.get("/scheduling/:leagueId/suggestions", requireAuth, async (req, res) =>
 });
 
 // GET /scheduling/:leagueId/log — get generation log history (must stay before :weekOf)
-router.get("/scheduling/:leagueId/log", requireAuth, async (req, res) => {
+// The generation log is an admin tool: league admins only.
+router.get("/scheduling/:leagueId/log", requireLeagueAdmin, async (req, res) => {
   try {
-    const leagueId = parseInt(String(req.params.leagueId));
+    const leagueId = res.locals.leagueId as number;
     const logs = await db
       .select()
       .from(scheduleGenerationLogsTable)
@@ -153,20 +139,26 @@ router.get("/scheduling/:leagueId/log", requireAuth, async (req, res) => {
 });
 
 // GET /scheduling/:leagueId/:weekOf — view proposed schedule
-router.get("/scheduling/:leagueId/:weekOf", requireAuth, async (req, res) => {
+router.get("/scheduling/:leagueId/:weekOf", requireLeagueViewer, async (req, res) => {
   try {
-    const leagueId = parseInt(String(req.params.leagueId));
-    const weekOf = req.params.weekOf;
+    const leagueId = res.locals.leagueId as number;
+    const weekOf = String(req.params.weekOf);
 
     const log = await db
       .select()
       .from(scheduleGenerationLogsTable)
       .where(and(eq(scheduleGenerationLogsTable.leagueId, leagueId), eq(scheduleGenerationLogsTable.weekOf, weekOf), isScheduleStatus()));
 
-    const matchRows = await db
-      .select()
-      .from(matchesTable)
-      .where(and(eq(matchesTable.leagueId, leagueId), eq(matchesTable.weekOf, weekOf)));
+    // A round's pairings that haven't gone out show only to the league's admins.
+    const { userId } = getAuth(req);
+    const isAdmin = !!userId && (await getLeagueRole(leagueId, userId)) !== null;
+    const matchRows = await withoutDraftMatches(
+      await db
+        .select()
+        .from(matchesTable)
+        .where(and(eq(matchesTable.leagueId, leagueId), eq(matchesTable.weekOf, weekOf))),
+      isAdmin ? [leagueId] : [],
+    );
 
     const matchesWithDetails = await buildMatchResponses(matchRows);
 

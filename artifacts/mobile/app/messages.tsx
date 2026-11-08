@@ -3,37 +3,41 @@ import React, { useState } from "react";
 import { ActivityIndicator, Alert, FlatList, RefreshControl, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { IconButton } from "@/components/Choice";
+import { HeaderIconButton } from "@/components/Choice";
 import { EmptyState } from "@/components/EmptyState";
-import { BoxSwitch, ConversationRow } from "@/components/messages/ConversationRow";
+import { ConversationRow, GroupRow } from "@/components/messages/ConversationRow";
 import { ModerationRow } from "@/components/moderation/ModerationRow";
 import { Button, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { useConversations, useMessagesActions } from "@/hooks/useMessages";
+import { useConversations, useMessagesActions, type Conversation, type GroupConversation } from "@/hooks/useMessages";
 
-// Messages (spec: Messaging and moderation; opens from the Messages button in
-// the top corner of every tab). Direct chats, and Message Requests: first
-// messages from players outside your leagues. New message (top right) lists
-// league mates; anyone else is messaged from their player card.
+// Messages (spec: Messaging and moderation; approved canvas: Messages, opened
+// from the Messages button in the top corner of every tab). A brush title and
+// one list: every message goes straight here, with no Message Requests (John,
+// Nov 6, finding 17). New message stays at the top right and lists league
+// mates; anyone else is messaged from their player card. The Moderation row
+// shows for the admin only. Open match group chats (F15) sit in the same
+// list, newest first, named for the match.
+
+type Item = { kind: "conversation"; item: Conversation } | { kind: "group"; item: GroupConversation };
+const lastAt = (i: Item) => i.item.lastMessage?.at ?? "";
 
 export default function MessagesScreen() {
   const c = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [box, setBox] = useState<"messages" | "requests">("messages");
-  const query = useConversations(box);
+  const query = useConversations();
   const actions = useMessagesActions();
   const [addingSamples, setAddingSamples] = useState(false);
 
-  const conversations = query.data?.conversations ?? [];
-  const requests = query.data?.requests ?? 0;
+  const items: Item[] = [
+    ...(query.data?.conversations ?? []).map((item) => ({ kind: "conversation" as const, item })),
+    ...(query.data?.groups ?? []).map((item) => ({ kind: "group" as const, item })),
+  ].sort((a, b) => lastAt(b).localeCompare(lastAt(a)));
 
   const open = (id: number) => router.push({ pathname: "/conversation/[id]", params: { id: String(id) } });
-
-  const onRefresh = () => {
-    void query.refetch();
-  };
+  const openGroup = (id: number) => router.push({ pathname: "/conversation/group/[id]", params: { id: String(id) } });
 
   const addSamples = () => {
     setAddingSamples(true);
@@ -44,58 +48,58 @@ export default function MessagesScreen() {
       .finally(() => setAddingSamples(false));
   };
 
+  const header = (
+    <View>
+      <Text variant="headingM" accessibilityRole="header" style={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space2, paddingBottom: spacing.space3 }}>
+        Messages
+      </Text>
+      <ModerationRow />
+    </View>
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: c.paper }}>
       <Stack.Screen
         options={{
-          headerRight: () => <IconButton symbol="square.and.pencil" label="New message" onPress={() => router.push("/new-message")} />,
+          title: "",
+          headerRight: () => <HeaderIconButton symbol="square.and.pencil" label="New message" onPress={() => router.push("/new-message")} />,
         }}
       />
-      <View style={{ paddingTop: spacing.space3 }}>
-        <ModerationRow />
-        <BoxSwitch value={box} onChange={setBox} requests={requests} />
-      </View>
 
       {query.isPending ? (
-        <ActivityIndicator style={{ marginTop: spacing.space12 }} color={c.ink} accessibilityLabel="Loading messages" />
+        <>
+          {header}
+          <ActivityIndicator style={{ marginTop: spacing.space12 }} color={c.ink} accessibilityLabel="Loading messages" />
+        </>
       ) : query.isError && !query.data ? (
-        <View style={{ padding: spacing.space6, gap: spacing.space4, alignItems: "center" }}>
-          <Text tone="inkMuted" style={{ textAlign: "center" }} accessibilityLiveRegion="polite">
-            Messages didn't load. {query.error.message}
-          </Text>
-          <Button label="Try again" variant="secondary" onPress={() => query.refetch()} />
-        </View>
+        <>
+          {header}
+          <View style={{ padding: spacing.space6, gap: spacing.space4, alignItems: "center" }}>
+            <Text tone="inkMuted" style={{ textAlign: "center" }} accessibilityLiveRegion="polite">
+              Messages didn't load. {query.error.message}
+            </Text>
+            <Button label="Try again" variant="secondary" onPress={() => query.refetch()} />
+          </View>
+        </>
       ) : (
         <FlatList
-          data={conversations}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => <ConversationRow conversation={item} onPress={() => open(item.id)} />}
-          refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={onRefresh} tintColor={c.ink} />}
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + spacing.space6 }}
-          ListHeaderComponent={
-            box === "requests" && conversations.length ? (
-              <Text variant="small" tone="inkMuted" style={{ paddingHorizontal: spacing.space4, paddingBottom: spacing.space3 }}>
-                First messages from players outside your leagues. They can't send more until you reply, and they don't see if
-                you've read them.
-              </Text>
-            ) : undefined
+          data={items}
+          keyExtractor={(i) => `${i.kind}-${i.item.id}`}
+          renderItem={({ item: i }) =>
+            i.kind === "group" ? (
+              <GroupRow group={i.item} onPress={() => openGroup(i.item.id)} />
+            ) : (
+              <ConversationRow conversation={i.item} onPress={() => open(i.item.id)} />
+            )
           }
+          refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={c.ink} />}
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + spacing.space6 }}
+          ListHeaderComponent={header}
           ListEmptyComponent={
             <View style={{ flex: 1, minHeight: 360 }}>
-              {box === "messages" ? (
-                <EmptyState
-                  symbol="message"
-                  title="No messages yet"
-                  message="Message your league mates with New message, or players you find in Discover."
-                />
-              ) : (
-                <EmptyState
-                  symbol="tray"
-                  title="No Message Requests"
-                  message="First messages from players outside your leagues show up here."
-                />
-              )}
-              {__DEV__ && box === "messages" ? (
+              {/* Names only what works today. Add Discover back once it can message players (Wave 2). */}
+              <EmptyState symbol="message" title="No messages yet" message="Message your league mates with New message." />
+              {__DEV__ ? (
                 // Development builds only: sample chats to try every screen with one phone.
                 <View style={{ alignItems: "center", paddingBottom: spacing.space8 }}>
                   <Button label="Add sample conversations" variant="secondary" loading={addingSamples} onPress={addSamples} />

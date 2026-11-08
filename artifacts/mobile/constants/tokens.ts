@@ -6,13 +6,13 @@ import type { TextStyle } from "react-native";
 
 export const color = {
   "light": {
-    "paper": "#ECDFC8",
-    "linen": "#F7F0E3",
-    "sand": "#E1CDAF",
+    "paper": "#FAF9F5",
+    "linen": "#FFFFFF",
+    "sand": "#F0EEE6",
     "ink": "#0A2447",
     "inkMuted": "#4A5670",
     "onInk": "#FFFFFF",
-    "hairline": "rgba(10, 36, 71, 0.16)",
+    "hairline": "rgba(10, 36, 71, 0.10)",
     "hairlineStrong": "rgba(10, 36, 71, 0.52)",
     "inkMutedHc": "#34405A",
     "hairlineHc": "rgba(10, 36, 71, 0.34)",
@@ -22,30 +22,30 @@ export const color = {
     "focus": "#0A2447",
     "heat1": "rgba(10, 36, 71, 0.10)",
     "heat2": "rgba(10, 36, 71, 0.26)",
-    "heat3": "rgba(10, 36, 71, 0.55)",
+    "heat3": "rgba(10, 36, 71, 0.60)",
     "heat4": "rgba(10, 36, 71, 0.75)",
     "heat5": "#0A2447"
   },
   "dark": {
-    "paper": "#071A33",
-    "linen": "#0F2646",
-    "sand": "#1B3458",
-    "ink": "#F1E6D2",
-    "inkMuted": "#B8AD9B",
-    "onInk": "#071A33",
-    "hairline": "rgba(241, 230, 210, 0.16)",
-    "hairlineStrong": "rgba(241, 230, 210, 0.42)",
-    "inkMutedHc": "#D6CCBA",
-    "hairlineHc": "rgba(241, 230, 210, 0.30)",
-    "hairlineStrongHc": "rgba(241, 230, 210, 0.66)",
+    "paper": "#1F1E1D",
+    "linen": "#2A2927",
+    "sand": "#383733",
+    "ink": "#F5F4EF",
+    "inkMuted": "#B5B2A9",
+    "onInk": "#1F1E1D",
+    "hairline": "rgba(245, 244, 239, 0.10)",
+    "hairlineStrong": "rgba(245, 244, 239, 0.40)",
+    "inkMutedHc": "#D9D6CE",
+    "hairlineHc": "rgba(245, 244, 239, 0.30)",
+    "hairlineStrongHc": "rgba(245, 244, 239, 0.66)",
     "court": "#9DBFA3",
     "danger": "#EF8B7D",
-    "focus": "#F1E6D2",
-    "heat1": "rgba(241, 230, 210, 0.10)",
-    "heat2": "rgba(241, 230, 210, 0.26)",
-    "heat3": "rgba(241, 230, 210, 0.55)",
-    "heat4": "rgba(241, 230, 210, 0.75)",
-    "heat5": "#F1E6D2"
+    "focus": "#F5F4EF",
+    "heat1": "rgba(245, 244, 239, 0.10)",
+    "heat2": "rgba(245, 244, 239, 0.26)",
+    "heat3": "rgba(245, 244, 239, 0.55)",
+    "heat4": "rgba(245, 244, 239, 0.75)",
+    "heat5": "#F5F4EF"
   }
 } as const;
 
@@ -65,15 +65,22 @@ export const spacing = {
 export const radius = {
   "radiusSm": 4,
   "radiusMd": 10,
+  "radiusCard": 16,
   "radiusLg": 18,
   "radiusPill": 999
 } as const;
 
 export const type = {
-  "brushL": {
-    "fontFamily": "NanumBrushScript_400Regular",
-    "fontSize": 48,
-    "lineHeight": 52
+  "headingL": {
+    "fontFamily": "CormorantGaramond_500Medium",
+    "fontSize": 30,
+    "lineHeight": 34,
+    "letterSpacing": -0.15
+  },
+  "headingM": {
+    "fontFamily": "CormorantGaramond_500Medium",
+    "fontSize": 24,
+    "lineHeight": 28
   },
   "displayXl": {
     "fontFamily": "CormorantGaramond_500Medium",
@@ -88,8 +95,8 @@ export const type = {
   },
   "title": {
     "fontFamily": "CormorantGaramond_600SemiBold",
-    "fontSize": 28,
-    "lineHeight": 32
+    "fontSize": 26,
+    "lineHeight": 30
   },
   "titleItalic": {
     "fontFamily": "CormorantGaramond_500Medium_Italic",
@@ -100,6 +107,15 @@ export const type = {
     "fontFamily": "CormorantGaramond_600SemiBold",
     "fontSize": 44,
     "lineHeight": 44,
+    "fontVariant": [
+      "lining-nums",
+      "tabular-nums"
+    ]
+  },
+  "scoreRow": {
+    "fontFamily": "CormorantGaramond_600SemiBold",
+    "fontSize": 30,
+    "lineHeight": 34,
     "fontVariant": [
       "lining-nums",
       "tabular-nums"
@@ -120,6 +136,11 @@ export const type = {
     "fontSize": 15,
     "lineHeight": 20
   },
+  "section": {
+    "fontFamily": "DMSans_600SemiBold",
+    "fontSize": 13,
+    "lineHeight": 18
+  },
   "label": {
     "fontFamily": "DMSans_600SemiBold",
     "fontSize": 11,
@@ -139,6 +160,16 @@ export const type = {
     "fontSize": 16,
     "lineHeight": 22,
     "letterSpacing": 0.32
+  },
+  "pill": {
+    "fontFamily": "DMSans_500Medium",
+    "fontSize": 13,
+    "lineHeight": 17
+  },
+  "segment": {
+    "fontFamily": "DMSans_600SemiBold",
+    "fontSize": 13,
+    "lineHeight": 16
   }
 } satisfies Record<string, TextStyle>;
 
@@ -146,12 +177,14 @@ export type TypeStyle = keyof typeof type;
 
 /** Largest Dynamic Type multiplier per style. Styles not listed scale fully. */
 export const maxScale: Partial<Record<TypeStyle, number>> = {
-  "brushL": 1.5,
+  "headingL": 1.5,
+  "headingM": 1.5,
   "displayXl": 1.5,
   "displayL": 1.5,
   "title": 1.5,
   "titleItalic": 1.5,
-  "score": 1.5
+  "score": 1.5,
+  "scoreRow": 1.5
 };
 
 /** The face one step heavier than each loaded face (Bold Text, Night display). */

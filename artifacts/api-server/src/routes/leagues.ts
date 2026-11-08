@@ -6,12 +6,15 @@ import { CreateLeagueBody, UpdateLeagueBody } from "@workspace/api-zod";
 import { and, eq, count, isNull } from "drizzle-orm";
 import { autoLinkPlayer } from "../lib/autoLinkPlayer.js";
 import { requireAdmin } from "../middlewares/requireAdmin.js";
-import { isLeagueAdmin } from "../lib/leagueAccess.js";
+import { adminLeagueIds, canViewLeague, isLeagueAdmin, memberLeagueIds, PRIVATE_LEAGUE } from "../lib/leagueAccess.js";
 import { runLeagueDay } from "../services/leagueRounds.js";
 import { logger } from "../lib/logger.js";
 import { getPastSeasonNames } from "../services/seasonService.js";
 import { computeStandings } from "../lib/leagueStandings.js";
-import { SKILL_LEVELS, seasonDates, validateLeagueSetup } from "../lib/leagueSetup.js";
+import { SKILL_LEVELS, checkStartDate, seasonDates, validateLeagueSetup } from "../lib/leagueSetup.js";
+import { loadProfiles, playerLevelText } from "../lib/playerProfile.js";
+import { DEFAULT_LEAGUE_TIME_ZONE, isTimeZone } from "../lib/leagueCalendar.js";
+import { checkLeagueMatchTime } from "../lib/matchTimes.js";
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   const { userId } = getAuth(req);
@@ -21,28 +24,31 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
 
 const router = Router();
 
-router.get("/leagues", async (req, res) => {
-  const clerkUserId = req.query.clerkUserId as string | undefined;
-  let leagues = await db.select().from(leaguesTable).orderBy(leaguesTable.createdAt);
-
-  if (clerkUserId) {
-    const [memberPlayers, adminRows] = await Promise.all([
-      db
-        .select({ leagueId: playersTable.leagueId })
-        .from(playersTable)
-        .where(eq(playersTable.clerkUserId, clerkUserId)),
-      db
-        .select({ leagueId: leagueAdminsTable.leagueId })
-        .from(leagueAdminsTable)
-        .where(eq(leagueAdminsTable.clerkUserId, clerkUserId)),
-    ]);
-    const memberLeagueIds = [...memberPlayers, ...adminRows]
-      .map((p) => p.leagueId)
-      .filter((id): id is number => id !== null);
-    leagues = leagues.filter(
-      (l) => l.createdByClerkUserId === clerkUserId || memberLeagueIds.includes(l.id)
-    );
+// Signed in only. Lists the caller's own leagues (started, admin of, or a
+// player in). Without `clerkUserId`, Open leagues are listed too; Private
+// leagues never show to people outside them.
+router.get("/leagues", requireAuth, async (req, res) => {
+  const { userId } = getAuth(req);
+  const asked = req.query.clerkUserId;
+  if (asked !== undefined && asked !== userId) {
+    res.status(403).json({ error: "You can only list your own leagues." });
+    return;
   }
+  const mineOnly = asked !== undefined;
+  const [all, mine, myRows, adminOf] = await Promise.all([
+    db.select().from(leaguesTable).orderBy(leaguesTable.createdAt),
+    memberLeagueIds(userId!),
+    db.select({ leagueId: playersTable.leagueId, leftAt: playersTable.leftAt }).from(playersTable).where(eq(playersTable.clerkUserId, userId!)),
+    adminLeagueIds(userId!),
+  ]);
+  // C5: a player who left (and doesn't run it) sees the league under Past.
+  const youLeft = (leagueId: number) => {
+    const rows = myRows.filter((r) => r.leagueId === leagueId);
+    return rows.length > 0 && rows.every((r) => r.leftAt) && !adminOf.includes(leagueId);
+  };
+  const leagues = all.filter(
+    (l) => mine.includes(l.id) || l.createdByClerkUserId === userId || (!mineOnly && l.visibility === "open"),
+  );
 
   const [playerCounts, matchCounts] = await Promise.all([
     db
@@ -79,6 +85,7 @@ router.get("/leagues", async (req, res) => {
       createdAt: l.createdAt.toISOString(),
       updatedAt: l.updatedAt.toISOString(),
       endedAt: l.endedAt ? l.endedAt.toISOString() : null,
+      youLeft: youLeft(l.id),
     }))
   ); return; }
 });
@@ -94,12 +101,23 @@ router.post("/leagues", requireAuth, async (req, res) => {
   const body = parsed.data;
   const problem = validateLeagueSetup(body);
   if (problem) { res.status(400).json({ error: problem }); return; }
+  // A weekly match day and time for clubs, or neither so players pick (PR 4).
+  const matchTime = checkLeagueMatchTime(body);
+  if (!matchTime.ok) { res.status(400).json({ error: matchTime.error }); return; }
+  // The league runs on its creator's time zone, sent by their phone.
+  const timeZone = isTimeZone(body.timeZone) ? body.timeZone : DEFAULT_LEAGUE_TIME_ZONE;
+  const tooSoon = checkStartDate(body.startDate, timeZone);
+  if (tooSoon) { res.status(400).json({ error: tooSoon }); return; }
 
   const playing = body.playing !== false;
   const { endDate, status } = seasonDates(body.startDate, body.seasonWeeks);
   const doubles = body.leagueType === "doubles";
   const open = body.visibility === "open";
-  const skillLevel = (SKILL_LEVELS as readonly string[]).includes(body.skillLevel ?? "") ? body.skillLevel! : "3.0";
+  const sentLevel = (SKILL_LEVELS as readonly string[]).includes(body.skillLevel ?? "") ? body.skillLevel! : "3.0";
+  // A1: the creator's league row starts from their profile name and level.
+  const profiles = playing ? await loadProfiles([userId]) : new Map();
+  const playerName = profiles.get(userId!)?.displayName?.trim() || body.playerName?.trim() || "";
+  const skillLevel = playerLevelText({ clerkUserId: userId, skillLevel: sentLevel }, profiles);
 
   const { league, playerCount } = await db.transaction(async (tx) => {
     const [league] = await tx
@@ -122,6 +140,9 @@ router.post("/leagues", requireAuth, async (req, res) => {
         // Unplayed matches follow the fixed 1-week grace period (decision 25); the
         // old per-league rule is no longer set.
         location: body.location?.trim() || undefined,
+        timeZone,
+        matchDay: matchTime.matchDay,
+        matchTime: matchTime.matchTime,
         createdByClerkUserId: userId!,
       })
       .returning();
@@ -131,7 +152,7 @@ router.post("/leagues", requireAuth, async (req, res) => {
 
     if (playing) {
       await tx.insert(playersTable).values({
-        name: body.playerName!.trim(),
+        name: playerName,
         clerkUserId: userId!,
         leagueId: league.id,
         skillLevel,
@@ -142,7 +163,7 @@ router.post("/leagues", requireAuth, async (req, res) => {
     return { league, playerCount: playing ? 1 : 0 };
   });
 
-  // A season starting today or tomorrow gets its first round right away.
+  // A season starting tomorrow gets its first round drafted right away.
   runLeagueDay(league).catch((err) => logger.error({ err, leagueId: league.id }, "First league day failed"));
 
   { res.status(201).json({
@@ -161,11 +182,12 @@ router.post("/leagues", requireAuth, async (req, res) => {
   }); return; }
 });
 
-router.get("/leagues/:leagueId", async (req, res) => {
+router.get("/leagues/:leagueId", requireAuth, async (req, res) => {
   const leagueId = parseInt(String(req.params.leagueId));
   if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid id" }); return; }
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
+  if (!(await canViewLeague(league, getAuth(req).userId!))) { res.status(403).json({ error: PRIVATE_LEAGUE }); return; }
 
   const [pc] = await db.select({ count: count() }).from(playersTable).where(and(eq(playersTable.leagueId, leagueId), isNull(playersTable.leftAt)));
   const [mc] = await db.select({ count: count() }).from(matchesTable).where(eq(matchesTable.leagueId, leagueId));
@@ -243,9 +265,15 @@ router.post("/leagues/:leagueId/reset", requireAdmin, async (req, res) => {
 
 // Standings rank on wins only; grace-week, voided, and playoff matches don't
 // count; players who left are removed (spec: Leagues > Scores and standings).
-router.get("/leagues/:leagueId/standings", async (req, res) => {
+router.get("/leagues/:leagueId/standings", requireAuth, async (req, res) => {
   const leagueId = parseInt(String(req.params.leagueId));
   if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const [league] = await db
+    .select({ id: leaguesTable.id, visibility: leaguesTable.visibility, createdByClerkUserId: leaguesTable.createdByClerkUserId })
+    .from(leaguesTable)
+    .where(eq(leaguesTable.id, leagueId));
+  if (!league) { res.status(404).json({ error: "League not found" }); return; }
+  if (!(await canViewLeague(league, getAuth(req).userId!))) { res.status(403).json({ error: PRIVATE_LEAGUE }); return; }
 
   const seasonFilter = typeof req.query.season === "string" ? req.query.season : undefined;
   const pastSeasonNames = seasonFilter ? [] : await getPastSeasonNames(leagueId);

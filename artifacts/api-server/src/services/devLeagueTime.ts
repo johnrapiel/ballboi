@@ -7,7 +7,7 @@
 import { db, leagueRoundsTable, leaguesTable, matchesTable, seasonsTable, type League } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { earlier, earlierTime, planShift, type TimeAction } from "../lib/devTime.js";
-import { leagueToday } from "../lib/leagueCalendar.js";
+import { todayFor } from "../lib/leagueCalendar.js";
 import { draftNextRound, syncLeagueStatus, syncRoundStatuses, usesWeeklyRounds } from "./leagueRounds.js";
 
 export interface TimeResult {
@@ -57,9 +57,10 @@ export async function shiftLeagueEarlier(league: League, days: number): Promise<
 }
 
 /** Applies a time jump, then brings round and league statuses in line with the new dates. */
-export async function applyTimeAction(leagueId: number, action: TimeAction, today: string = leagueToday()): Promise<TimeResult> {
+export async function applyTimeAction(leagueId: number, action: TimeAction, todayOverride?: string): Promise<TimeResult> {
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
   if (!league) return { ok: false, message: "League not found.", days: 0 };
+  const today = todayOverride ?? todayFor(league);
   if (!usesWeeklyRounds(league)) return { ok: false, message: "Time controls work on singles Flex and Round robin leagues.", days: 0 };
 
   const rounds = await db.select().from(leagueRoundsTable).where(eq(leagueRoundsTable.leagueId, leagueId));

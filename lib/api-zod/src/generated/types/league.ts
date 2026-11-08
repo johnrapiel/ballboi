@@ -9,7 +9,6 @@ import type { LeagueFormat } from "./leagueFormat";
 import type { LeaguePartnerMode } from "./leaguePartnerMode";
 import type { LeaguePlayoffSize } from "./leaguePlayoffSize";
 import type { LeagueStatus } from "./leagueStatus";
-import type { LeagueUnplayedRule } from "./leagueUnplayedRule";
 import type { LeagueVisibility } from "./leagueVisibility";
 
 export interface League {
@@ -41,7 +40,6 @@ export interface League {
   /** @nullable */
   seasonWeeks?: number | null;
   playoffSize: LeaguePlayoffSize;
-  unplayedRule: LeagueUnplayedRule;
   playerCount: number;
   matchCount: number;
   createdAt: string;
@@ -51,4 +49,20 @@ export interface League {
    * @nullable
    */
   endedAt?: string | null;
+  /** In the signed-in player's own list, they left this league and don't run it, so it shows under Past. */
+  youLeft?: boolean;
+  /** The league's time zone (IANA name). Pairing at 7am, week starts and ends, and deadlines follow it. */
+  timeZone: string;
+  /**
+   * A club's weekly match day, 0 Sunday to 6 Saturday. Null when players pick their own time.
+   * @minimum 0
+   * @maximum 6
+   * @nullable
+   */
+  matchDay?: number | null;
+  /**
+   * A club's weekly match time, 24-hour HH:MM in the league's time zone. Null when players pick.
+   * @nullable
+   */
+  matchTime?: string | null;
 }

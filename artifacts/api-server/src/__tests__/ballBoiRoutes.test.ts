@@ -81,6 +81,7 @@ vi.mock("drizzle-orm", () => {
     shouldInlineParams: false,
   });
   return {
+    and: (...parts: unknown[]) => ({ parts }),
     desc: (x: unknown) => x,
     eq: (a: unknown, b: unknown) => ({ a, b }),
     inArray: (a: unknown, b: unknown) => ({ a, b }),

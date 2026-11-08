@@ -1,7 +1,7 @@
 import { useAuth } from "@clerk/expo";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
-import { AccessibilityInfo, ActionSheetIOS, ActivityIndicator, Alert, RefreshControl, ScrollView, Share, View } from "react-native";
+import { AccessibilityInfo, ActionSheetIOS, ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -9,10 +9,7 @@ import {
   getGetLeagueAdminsQueryKey,
   getGetLeagueInvitesQueryKey,
   getGetLeagueJoinRequestsQueryKey,
-  getGetLeagueQueryKey,
   getGetLeagueRosterQueryKey,
-  getGetLeagueScheduleQueryKey,
-  getGetLeagueStandingsQueryKey,
   getGetLeaguesQueryKey,
   useApproveLeagueJoinRequest,
   useCreateLeagueInvite,
@@ -34,17 +31,21 @@ import {
   type RosterPlayer,
 } from "@workspace/api-client-react";
 
+import { InviteCard } from "@/components/league/InviteCard";
 import { ListRow, SectionLabel } from "@/components/league/ListRow";
 import { TestingTools } from "@/components/league/TestingTools";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { inviteMessage } from "@/lib/leagueInvite";
-import { shortDate } from "@/lib/leagueSchedule";
+import { shortDate, weeklyMatchTime } from "@/lib/leagueSchedule";
+import { refreshLeague } from "@/lib/leagueRefresh";
+import { leagueLevelLabel } from "@/lib/onboarding";
 
 // Manage (spec: Roles: "Admin tools appear in context only: a Manage entry
-// inside leagues you run"). Pairings for review, requests and the waitlist,
-// players, admins, and the invite code.
+// inside leagues you run"). The invite card (code, copy, share) at the top
+// (finding 29), then pairings, requests and the waitlist, players and admins.
+// Reviewing a drafted round happens from the card on League detail, so
+// Manage has no Review pairings entry (finding 29).
 
 function errorText(e: unknown, fallback: string): string {
   return (e as { data?: { error?: string } | null }).data?.error ?? fallback;
@@ -92,18 +93,39 @@ export default function ManageLeagueScreen() {
   const seasonOver = !!league && league.status === "completed";
   const ended = !!league?.endedAt;
 
+  const myPlayerId = membershipQ.data?.playerId ?? null;
+
+  // Joining locks once the season starts or the league is full (decision 30).
+  const started = !!league?.startDate && !!schedule && schedule.today >= league.startDate;
+  const full = !!league && league.rosterCap != null && league.playerCount >= league.rosterCap;
+  const inviteNote =
+    !started && !full
+      ? league?.startDate
+        ? `Players join with this code or link until the season starts ${shortDate(league.startDate)}.`
+        : "Players join with this code or link until the season starts."
+      : "Late joiners ask to join, and you approve them below.";
+
+  // C4: Manage's own lists, plus everything that shows the league (Home included).
   const refreshAll = () =>
-    Promise.all(
-      [
-        getGetLeagueQueryKey(leagueId),
-        getGetLeagueScheduleQueryKey(leagueId),
+    Promise.all([
+      ...[
         getGetLeagueRosterQueryKey(leagueId),
         getGetLeagueAdminsQueryKey(leagueId),
         getGetLeagueJoinRequestsQueryKey(leagueId),
-        getGetLeagueStandingsQueryKey(leagueId),
         getGetLeagueInvitesQueryKey(leagueId),
       ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
-    );
+      refreshLeague(queryClient, leagueId),
+    ]);
+
+  // C19: a decline that didn't go through says so, and the request stays.
+  const declineRequest = (r: JoinRequest) =>
+    decline
+      .mutateAsync({ leagueId, requestId: r.id })
+      .then(refreshAll)
+      .catch(async () => {
+        Alert.alert("Couldn't decline", "Try again.");
+        await refreshAll().catch(() => undefined);
+      });
 
   // Decision 31: end the league. Standings freeze; history stays.
   function confirmEnd() {
@@ -120,7 +142,7 @@ export default function ManageLeagueScreen() {
             endLeague
               .mutateAsync({ leagueId })
               .then(async () => {
-                await Promise.all([refreshAll(), queryClient.invalidateQueries({ queryKey: getGetLeaguesQueryKey().slice(0, 1) })]);
+                await refreshAll();
                 AccessibilityInfo.announceForAccessibility(`${league.name} has ended`);
               })
               .catch((e) => Alert.alert("Couldn't end the league", errorText(e, "Try again in a moment."))),
@@ -176,9 +198,13 @@ export default function ManageLeagueScreen() {
 
   function playerMenu(p: RosterPlayer) {
     const canPromote = p.hasAccount && !p.role;
-    const options = [...(canPromote ? ["Make co-admin"] : []), "Remove from league", "Cancel"];
+    // C26: you leave from the league's page, so your own row has no Remove.
+    const isMe = myPlayerId != null && p.playerId === myPlayerId;
+    const options = [...(canPromote ? ["Make co-admin"] : []), ...(isMe ? [] : ["Remove from league"]), "Cancel"];
+    if (options.length === 1) return;
+    const destructive = options.indexOf("Remove from league");
     ActionSheetIOS.showActionSheetWithOptions(
-      { title: p.name, options, destructiveButtonIndex: options.indexOf("Remove from league"), cancelButtonIndex: options.length - 1 },
+      { title: p.name, options, destructiveButtonIndex: destructive >= 0 ? destructive : undefined, cancelButtonIndex: options.length - 1 },
       (i) => {
         if (options[i] === "Make co-admin") {
           promote
@@ -237,14 +263,14 @@ export default function ManageLeagueScreen() {
         {
           text: "Remove",
           style: "destructive",
-          onPress: () => decline.mutateAsync({ leagueId, requestId: r.id }).then(refreshAll).catch(() => {}),
+          onPress: () => void declineRequest(r),
         },
       ]);
       return;
     }
     const options = ["Approve", "Decline", "Cancel"];
     ActionSheetIOS.showActionSheetWithOptions(
-      { title: `${r.playerName} · ${r.skillLevel}`, options, destructiveButtonIndex: 1, cancelButtonIndex: 2 },
+      { title: `${r.playerName} · ${leagueLevelLabel(r)}`, options, destructiveButtonIndex: 1, cancelButtonIndex: 2 },
       (i) => {
         if (i === 0) {
           approve
@@ -255,20 +281,19 @@ export default function ManageLeagueScreen() {
               Alert.alert("Couldn't approve", errorText(e, "Try again in a moment."));
             });
         }
-        if (i === 1) decline.mutateAsync({ leagueId, requestId: r.id }).then(refreshAll).catch(() => {});
+        if (i === 1) void declineRequest(r);
       },
     );
   }
 
-  async function shareInvite() {
+  // Leagues made before codes were automatic may have none: make one here.
+  async function makeInvite() {
     try {
-      const code = invite?.code ?? (await createInvite.mutateAsync({ leagueId, data: {} })).code;
-      if (!invite) await refreshAll();
-      await Share.share({
-        message: inviteMessage(league?.name ?? "my league", code),
-      });
+      await createInvite.mutateAsync({ leagueId, data: {} });
+      await refreshAll();
+      AccessibilityInfo.announceForAccessibility("Invite code created");
     } catch (e) {
-      Alert.alert("Couldn't share the invite", errorText(e, "Try again in a moment."));
+      Alert.alert("Couldn't create an invite code", errorText(e, "Try again in a moment."));
     }
   }
 
@@ -290,7 +315,7 @@ export default function ManageLeagueScreen() {
     );
   }
 
-  const refreshing = rosterQ.isRefetching || scheduleQ.isRefetching || requestsQ.isRefetching;
+  const refreshing = rosterQ.isRefetching || scheduleQ.isRefetching || requestsQ.isRefetching || invitesQ.isRefetching;
 
   return (
     <ScrollView
@@ -299,45 +324,75 @@ export default function ManageLeagueScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refreshAll()} tintColor={c.ink} />}
     >
       <View style={{ gap: spacing.space1, marginBottom: spacing.space2 }}>
-        <Text variant="label" tone="inkMuted">
-          {league?.name ?? ""}
-        </Text>
-        <Text variant="displayL" accessibilityRole="header">
+        {/* Page title in the heading style (Cormorant at 50% ink), the league under it. */}
+        <Text variant="headingM" accessibilityRole="header">
           Manage
         </Text>
+        {league?.name ? <Text tone="inkMuted">{league.name}</Text> : null}
       </View>
 
-      <SectionLabel>Pairings</SectionLabel>
-      <Card style={{ padding: 0, overflow: "hidden" }}>
-        {!schedule?.weeklyRounds ? (
-          <ListRow title="Weekly pairing isn't available for this league yet" subtitle="Doubles pairing is coming." last />
-        ) : draft ? (
-          <ListRow
-            title={`Review Round ${draft.roundNumber} pairings`}
-            subtitle={`Goes out to players ${shortDate(draft.startDate)} at 7am, or send it sooner.`}
-            symbol="person.2"
-            onPress={() => router.push(`/league/${leagueId}/round/${draft.roundId}`)}
-            last
+      {/* Finding 29: the invite lives here, at the top, not on League detail. */}
+      {!ended && !seasonOver ? (
+        <View style={{ marginBottom: spacing.space2 }}>
+          <InviteCard
+            leagueName={league?.name ?? "my league"}
+            code={invite?.code ?? null}
+            loading={invitesQ.isLoading}
+            onRetry={() => void invitesQ.refetch()}
+            onCreate={invitesQ.isSuccess && !invite ? () => void makeInvite() : undefined}
+            creating={createInvite.isPending}
+            note={inviteNote}
           />
-        ) : seasonOver ? (
-          <ListRow title="This season's rounds are done" last />
-        ) : (
-          <View style={{ padding: spacing.space4, gap: spacing.space3 }}>
-            <Text tone="inkMuted">
-              Pairings are drafted the day before each round, and you get a notification to review them. Prepare them now to review early.
-            </Text>
-            <Button label="Prepare next round" variant="secondary" loading={draftNext.isPending} onPress={() => void prepareNext()} />
-          </View>
-        )}
-      </Card>
+        </View>
+      ) : null}
 
-      {schedule?.weeklyRounds ? (
+      {/* A drafted round is reviewed from the card on League detail (finding 29),
+          so Pairings only shows when there's nothing waiting for review. */}
+      {draft ? null : (
+        <>
+          <SectionLabel>Pairings</SectionLabel>
+          <Card style={{ padding: 0, overflow: "hidden" }}>
+            {!schedule?.weeklyRounds ? (
+              <ListRow title="Weekly pairing isn't available for this league yet" subtitle="Doubles pairing is coming." last />
+            ) : seasonOver ? (
+              <ListRow title="This season's rounds are done" last />
+            ) : (
+              <View style={{ padding: spacing.space4, gap: spacing.space3 }}>
+                <Text tone="inkMuted">
+                  Pairings are drafted the day before each round, and you get a notification to review them. Prepare them now to review early.
+                </Text>
+                <Button label="Prepare next round" variant="secondary" loading={draftNext.isPending} onPress={() => void prepareNext()} />
+              </View>
+            )}
+          </Card>
+        </>
+      )}
+
+      {/* PR 4: a club's weekly match day and time, or players pick. */}
+      {schedule?.weeklyRounds && !league?.endedAt ? (
+        <>
+          <SectionLabel>Match time</SectionLabel>
+          <Card style={{ padding: 0, overflow: "hidden" }}>
+            <ListRow
+              title="Weekly match time"
+              subtitle={weeklyMatchTime(league?.matchDay, league?.matchTime, league?.timeZone) ?? "Players pick a time for each match."}
+              symbol="calendar"
+              onPress={() => router.push(`/league/${leagueId}/match-time`)}
+              accessibilityHint="Set one day and time for every match, or let players pick"
+              last
+            />
+          </Card>
+        </>
+      ) : null}
+
+      {/* Q9: after End, scores are final, so there's nothing to correct. */}
+      {schedule?.weeklyRounds && !ended && !seasonOver ? (
         <>
           <SectionLabel>Scores</SectionLabel>
           <Card style={{ padding: 0, overflow: "hidden" }}>
             <ListRow
               title="Correct a score"
-              subtitle="Fix a played match. Players can't change scores."
+              subtitle="Fix a played match. Players can edit their own score for 24 hours after it's entered."
               symbol="pencil"
               onPress={() => router.push(`/league/${leagueId}/scores`)}
               last
@@ -354,7 +409,7 @@ export default function ManageLeagueScreen() {
               <ListRow
                 key={r.id}
                 title={r.playerName}
-                subtitle={`Rating ${r.skillLevel}`}
+                subtitle={leagueLevelLabel(r)}
                 trailing="Review"
                 onPress={() => requestMenu(r)}
                 accessibilityHint="Approve or decline"
@@ -373,7 +428,7 @@ export default function ManageLeagueScreen() {
               <ListRow
                 key={r.id}
                 title={r.playerName}
-                subtitle={`Rating ${r.skillLevel} · Asked ${shortDate(r.createdAt.slice(0, 10))}`}
+                subtitle={`${leagueLevelLabel(r)} · Asked ${shortDate(r.createdAt.slice(0, 10))}`}
                 onPress={() => requestMenu(r)}
                 accessibilityHint="Remove from the waitlist"
                 last={i === waitlist.length - 1}
@@ -386,19 +441,23 @@ export default function ManageLeagueScreen() {
       <SectionLabel>{`Players (${roster.length})`}</SectionLabel>
       <Card style={{ padding: 0, overflow: "hidden" }}>
         {roster.length === 0 ? (
-          <ListRow title="No players yet" subtitle="Share the invite code below." last />
+          <ListRow title="No players yet" subtitle="Share the invite code above." last />
         ) : (
-          roster.map((p, i) => (
-            <ListRow
-              key={p.playerId}
-              title={p.name}
-              subtitle={`Rating ${p.skillLevel}`}
-              trailing={roleLabel(p.role)}
-              onPress={() => playerMenu(p)}
-              accessibilityHint={p.hasAccount && !p.role ? "Make co-admin or remove from league" : "Remove from league"}
-              last={i === roster.length - 1}
-            />
-          ))
+          roster.map((p, i) => {
+            const isMe = myPlayerId != null && p.playerId === myPlayerId;
+            const canPromote = p.hasAccount && !p.role;
+            return (
+              <ListRow
+                key={p.playerId}
+                title={isMe ? `${p.name} (you)` : p.name}
+                subtitle={leagueLevelLabel(p)}
+                tag={roleLabel(p.role)}
+                onPress={isMe && !canPromote ? undefined : () => playerMenu(p)}
+                accessibilityHint={isMe ? undefined : canPromote ? "Make co-admin or remove from league" : "Remove from league"}
+                last={i === roster.length - 1}
+              />
+            );
+          })
         )}
       </Card>
 
@@ -411,7 +470,7 @@ export default function ManageLeagueScreen() {
             <ListRow
               key={a.clerkUserId}
               title={`${a.name}${isMe ? " (you)" : ""}`}
-              trailing={roleLabel(a.role)}
+              tag={roleLabel(a.role)}
               onPress={actionable ? () => adminMenu(a) : undefined}
               accessibilityHint={actionable ? (isMe ? "Step down as co-admin" : "Remove as co-admin") : undefined}
               last={i === admins.length - 1}
@@ -422,19 +481,6 @@ export default function ManageLeagueScreen() {
       <Text variant="small" tone="inkMuted">
         To add a co-admin, tap a player above.
       </Text>
-
-      <SectionLabel>Invite players</SectionLabel>
-      <Card style={{ padding: 0, overflow: "hidden" }}>
-        <ListRow
-          title={invite ? `Share invite code ${invite.code}` : "Create and share an invite code"}
-          subtitle={
-            league?.startDate ? `New players can join until the season starts ${shortDate(league.startDate)}.` : null
-          }
-          symbol="square.and.arrow.up"
-          onPress={() => void shareInvite()}
-          last
-        />
-      </Card>
 
       <SectionLabel>League</SectionLabel>
       <Card style={{ padding: 0, overflow: "hidden" }}>

@@ -1,6 +1,8 @@
 // Delayed start (spec: Ball Boi > Recording, Start): "Start in Now / 5 / 10 /
-// 15 min with spoken countdown cues". Every spoken cue is also shown as a
-// caption, since voice cues always need a text alternative.
+// 15 min with spoken countdown cues". The cues are the voice coach's recorded
+// lines 14 to 19 (lib/court/coach.ts picks them, lib/coachLines.ts has their
+// words). The start is picked before mounting and the countdown runs once the
+// court locks (lib/recording/armedStart.ts, John, Nov 8).
 
 export const START_DELAYS = [
   { minutes: 0, label: "Now" },
@@ -10,22 +12,6 @@ export const START_DELAYS = [
 ] as const;
 
 export type StartDelayMinutes = (typeof START_DELAYS)[number]["minutes"];
-
-/**
- * The cue to speak when this many seconds are left, or null for silence.
- * Every whole minute, then 30 and 10 seconds, then 5 down to 1.
- */
-export function cueAt(secondsLeft: number, totalSeconds: number): string | null {
-  if (secondsLeft <= 0) return "Recording";
-  if (secondsLeft === totalSeconds || secondsLeft % 60 === 0) {
-    const m = secondsLeft / 60;
-    if (Number.isInteger(m)) return `Recording starts in ${m} ${m === 1 ? "minute" : "minutes"}`;
-  }
-  if (secondsLeft === 30) return "Recording starts in 30 seconds";
-  if (secondsLeft === 10) return "Recording starts in 10 seconds";
-  if (secondsLeft <= 5) return String(secondsLeft);
-  return null;
-}
 
 /** "4:59" style for the countdown clock. */
 export function countdownClock(secondsLeft: number): string {

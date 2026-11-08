@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { playoffBracketsTable, leagueRoundsTable, leaguesTable } from "@workspace/db";
 import { eq, and, count } from "drizzle-orm";
 import { requireAdmin } from "../middlewares/requireAdmin";
 import { generatePlayoffBracket, buildBracketResponse, MIN_COMPLETED_ROUNDS_FOR_PLAYOFFS } from "../services/playoffBracket";
 import { logger } from "../lib/logger";
+import { requireLeagueViewer } from "../middlewares/requireLeagueViewer.js";
 
 const router = Router();
 
@@ -31,10 +31,7 @@ router.post("/leagues/:leagueId/playoffs/generate", requireAdmin, async (req, re
   }
 });
 
-router.get("/leagues/:leagueId/playoffs", async (req, res) => {
-  const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: "Unauthorized" });
-
+router.get("/leagues/:leagueId/playoffs", requireLeagueViewer, async (req, res) => {
   const leagueId = parseInt(req.params.leagueId as string);
   if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid league ID" });
 

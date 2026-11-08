@@ -12,5 +12,22 @@ export interface LeagueWeekPlayoff {
   matchId: number;
   round: string;
   opponentName: string;
+  /**
+   * The singles opponent's player id, for Message on the Home card; null for doubles
+   * @nullable
+   */
+  opponentPlayerId: number | null;
   singles: boolean;
+  timeZone: string;
+  /**
+   * Last day to play this playoff round (two weeks per round)
+   * @nullable
+   */
+  playBy: string | null;
+  /** The play-by date has passed, so the league admin enters the result */
+  pastPlayBy: boolean;
+  /** @nullable */
+  scheduledAt: string | null;
+  /** @nullable */
+  location: string | null;
 }

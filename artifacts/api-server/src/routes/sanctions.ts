@@ -12,7 +12,7 @@ import { logger } from "../lib/logger";
 // Person-facing (work even while banned; see messaging/enforceSanctions.ts):
 //   GET  /api/account/status   what the app shows right after sign-in
 //   POST /api/account/appeal   the one appeal; the app then opens an email to support
-// Moderator-only (requireAdmin; the agent and auto-restrict can't reach these):
+// Moderator-only (requireAdmin; the agent can't reach these):
 //   POST /api/admin/accounts/:clerkUserId/ban       { reason, reportId? }
 //   POST /api/admin/accounts/:clerkUserId/suspend   { reason, days (1-90), reportId? }
 //   POST /api/admin/sanctions/:id/lift

@@ -4,9 +4,9 @@ import { Pressable, View } from "react-native";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 
-// A league match on Home and elsewhere (spec: Navigation > Home; Ball Boi >
-// Recording: "Record with Ball Boi" is the primary action on a singles match
-// card on match day, and Enter score takes over once it's played).
+// A plain centred card on Home for things that aren't a match to play: a bye
+// week and an admin's pairings to review. Every match uses the approved D2
+// card instead (NextMatchCard, design audit, Nov 7).
 // The card's text reads as one VoiceOver element; its buttons follow it.
 
 export interface MatchCardAction {
@@ -24,6 +24,7 @@ export function MatchCard({
   secondary,
   onOpen,
   openHint,
+  footer,
 }: {
   /** League and round, e.g. "Tuesday Flex · Round 3". */
   eyebrow: string;
@@ -38,28 +39,28 @@ export function MatchCard({
   /** Opens the match's league. */
   onOpen?: () => void;
   openHint?: string;
+  /** Shown under the buttons, e.g. the doubles "Record with Ball Boi" state. */
+  footer?: React.ReactNode;
 }) {
   const summary = [eyebrow, title, detail, note].filter(Boolean).join(". ");
   const body = (
-    <View style={{ gap: spacing.space1 }}>
-      <Text variant="label" tone="inkMuted">
+    <View style={{ gap: spacing.space1, alignItems: "center" }}>
+      <Text variant="section" tone="inkMuted" style={{ textAlign: "center" }}>
         {eyebrow}
       </Text>
-      <Text variant="title">{title}</Text>
-      {detail ? (
-        <Text variant="small" tone="inkMuted">
-          {detail}
-        </Text>
-      ) : null}
+      <Text variant="title" style={{ textAlign: "center" }}>
+        {title}
+      </Text>
+      {detail ? <Text style={{ textAlign: "center" }}>{detail}</Text> : null}
       {note ? (
-        <Text variant="small" tone="inkMuted">
+        <Text variant="small" tone="inkMuted" style={{ textAlign: "center" }}>
           {note}
         </Text>
       ) : null}
     </View>
   );
   return (
-    <Card style={{ gap: spacing.space3 }}>
+    <Card style={{ gap: spacing.space4, paddingVertical: spacing.space6 }}>
       {onOpen ? (
         <Pressable
           onPress={onOpen}
@@ -83,6 +84,7 @@ export function MatchCard({
           ) : null}
         </View>
       ) : null}
+      {footer}
     </Card>
   );
 }

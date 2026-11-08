@@ -1,26 +1,110 @@
 import { Stack, useRouter } from "expo-router";
-import React from "react";
-import { ActivityIndicator, FlatList, Pressable, View } from "react-native";
+import React, { useState } from "react";
+import { ActivityIndicator, Pressable, SectionList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Avatar } from "@/components/Avatar";
 import { EmptyState } from "@/components/EmptyState";
-import { Avatar } from "@/components/messages/ConversationRow";
+import { SearchField } from "@/components/players/SearchField";
 import { Button, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { useContacts } from "@/hooks/useMessages";
+import { useMessagesActions } from "@/hooks/useMessages";
+import { usePlayerSearch } from "@/hooks/usePlayerSearch";
+import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
+import { canMessage, newMessageSections, noResultsMessage, personKey, type PlayerSearchResult } from "@/lib/playerSearch";
 
-// New message: pick a league mate.
-// Players outside your leagues are messaged from their player card.
+// New message (finding #18, John Nov 6): a search bar at the top, then two
+// sections, "In your leagues" and "All Ball Boi players". Search filters both.
+// "All Ball Boi players" is anyone who hasn't hidden their profile, never
+// blocked players (the server's player search). Picking someone you already
+// chat with opens that chat.
+
+type Section = { key: "leagues" | "everyone"; title: string; empty: string; data: PlayerSearchResult[] };
+
+function PlayerRow({ player, busy, onPress }: { player: PlayerSearchResult; busy: boolean; onPress: () => void }) {
+  const c = useColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={busy}
+      accessibilityRole="button"
+      accessibilityLabel={`Message ${player.name}`}
+      accessibilityState={{ busy }}
+      style={({ pressed }) => ({
+        minHeight: 60,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.space3,
+        paddingHorizontal: spacing.space4,
+        paddingVertical: spacing.space2,
+        borderBottomWidth: 1,
+        borderBottomColor: c.hairline,
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <Avatar name={player.name} uri={player.avatarUrl} size={36} />
+      <Text variant="bodyStrong" style={{ flex: 1 }}>
+        {player.name}
+      </Text>
+      {busy ? <ActivityIndicator color={c.ink} /> : null}
+    </Pressable>
+  );
+}
 
 export default function NewMessageScreen() {
   const c = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const contacts = useContacts();
+  const actions = useMessagesActions();
+  const [query, setQuery] = useState("");
+  const search = usePlayerSearch(query);
+  const [opening, setOpening] = useState<string | null>(null);
 
-  const pick = (playerId: number, name: string) =>
-    router.replace({ pathname: "/conversation/[id]", params: { id: "new", playerId: String(playerId), name } });
+  // Opens your existing chat with them if there is one, else a new one.
+  async function pick(player: PlayerSearchResult) {
+    if (!canMessage(player) || opening) return;
+    const key = personKey(player);
+    setOpening(key);
+    let existing: number | null = null;
+    // By league player when they have one, else by account (a Discover player).
+    const who = player.playerId != null ? { playerId: String(player.playerId) } : { userId: String(player.userId) };
+    try {
+      existing = (
+        player.playerId != null
+          ? await actions.conversationWithPlayer(player.playerId)
+          : await actions.conversationWithUser(player.userId!)
+      ).conversationId;
+    } catch {
+      // The conversation screen looks again, so a failed lookup still can't make a duplicate.
+    }
+    setOpening(null);
+    router.replace(
+      existing
+        ? { pathname: "/conversation/[id]", params: { id: String(existing) } }
+        : { pathname: "/conversation/[id]", params: { id: "new", ...who, name: player.name } },
+    );
+  }
+
+  const data = search.data;
+  const { leagues, everyone } = newMessageSections(data?.players ?? []);
+  const typed = search.query.length > 0;
+  const sections: Section[] = [
+    {
+      key: "leagues",
+      title: "In your leagues",
+      empty: typed ? "No one in your leagues by that name." : "Join or start a league to see your league mates here.",
+      data: leagues,
+    },
+    {
+      key: "everyone",
+      title: "All Ball Boi players",
+      empty: "No other players by that name.",
+      data: everyone,
+    },
+  ];
+  const nothing = leagues.length === 0 && everyone.length === 0;
+  const none = noResultsMessage(search.query, "newMessage");
 
   return (
     <View style={{ flex: 1, backgroundColor: c.paper }}>
@@ -35,55 +119,65 @@ export default function NewMessageScreen() {
           headerTitleStyle: { fontFamily: "DMSans_600SemiBold", color: c.ink },
         }}
       />
-      {contacts.isPending ? (
-        <ActivityIndicator style={{ marginTop: spacing.space12 }} color={c.ink} accessibilityLabel="Loading league mates" />
-      ) : contacts.isError ? (
+      <View style={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space2, paddingBottom: spacing.space3 }}>
+        <SearchField value={query} onChangeText={setQuery} busy={search.searching && !!data} />
+      </View>
+
+      {search.isPending ? (
+        <ActivityIndicator style={{ marginTop: spacing.space12 }} color={c.ink} accessibilityLabel="Loading players" />
+      ) : search.isError && !data ? (
         <View style={{ padding: spacing.space6, gap: spacing.space4, alignItems: "center" }}>
-          <Text tone="inkMuted" style={{ textAlign: "center" }}>
-            League mates didn't load. {contacts.error.message}
+          <Text tone="inkMuted" accessibilityRole="alert" style={{ textAlign: "center" }}>
+            {isOfflineError(search.error) ? OFFLINE_MESSAGE : "Players didn't load. Try again."}
           </Text>
-          <Button label="Try again" variant="secondary" onPress={() => contacts.refetch()} />
+          <Button label="Try again" variant="secondary" loading={search.isRefetching} onPress={() => search.refetch()} />
         </View>
+      ) : nothing && typed ? (
+        <EmptyState symbol="magnifyingglass" title={none.title} message={none.message} />
       ) : (
-        <FlatList
-          data={contacts.data.contacts}
-          keyExtractor={(p) => String(p.playerId)}
+        <SectionList
+          sections={sections}
+          keyExtractor={personKey}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          stickySectionHeadersEnabled={false}
           contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + spacing.space6 }}
-          ListHeaderComponent={
-            contacts.data.contacts.length ? (
-              <Text variant="label" tone="inkMuted" accessibilityRole="header" style={{ padding: spacing.space4, paddingBottom: spacing.space2 }}>
-                League mates
+          renderSectionHeader={({ section }) => (
+            <Text
+              variant="label"
+              tone="inkMuted"
+              accessibilityRole="header"
+              style={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space4, paddingBottom: spacing.space2 }}
+            >
+              {section.title}
+            </Text>
+          )}
+          renderSectionFooter={({ section }) =>
+            section.data.length === 0 ? (
+              <Text tone="inkMuted" style={{ paddingHorizontal: spacing.space4, paddingBottom: spacing.space2 }}>
+                {(section as Section).empty}
               </Text>
-            ) : undefined
+            ) : null
           }
           renderItem={({ item }) => (
-            <Pressable
-              onPress={() => pick(item.playerId, item.name)}
-              accessibilityRole="button"
-              accessibilityLabel={`Message ${item.name}`}
-              style={({ pressed }) => ({
-                minHeight: 60,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: spacing.space3,
-                paddingHorizontal: spacing.space4,
-                borderBottomWidth: 1,
-                borderBottomColor: c.hairline,
-                opacity: pressed ? 0.7 : 1,
-              })}
-            >
-              <Avatar name={item.name} size={36} />
-              <Text variant="bodyStrong" style={{ flex: 1 }}>
-                {item.name}
-              </Text>
-            </Pressable>
+            <PlayerRow player={item} busy={opening === personKey(item)} onPress={() => pick(item)} />
           )}
-          ListEmptyComponent={
-            <EmptyState
-              symbol="person.2"
-              title="No league mates yet"
-              message="Join or start a league to message the players in it."
-            />
+          ListHeaderComponent={
+            search.isError ? (
+              <View style={{ paddingHorizontal: spacing.space4, gap: spacing.space2, alignItems: "flex-start" }}>
+                <Text tone="danger" accessibilityRole="alert">
+                  {isOfflineError(search.error) ? OFFLINE_MESSAGE : "That search didn't finish. These results are from before."}
+                </Text>
+                <Button label="Try again" variant="secondary" loading={search.isRefetching} onPress={() => search.refetch()} />
+              </View>
+            ) : undefined
+          }
+          ListFooterComponent={
+            data?.more ? (
+              <Text tone="inkMuted" style={{ padding: spacing.space4 }}>
+                Showing the first {everyone.length} players. Type more of a name to find someone else.
+              </Text>
+            ) : undefined
           }
         />
       )}

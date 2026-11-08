@@ -20,19 +20,20 @@ import {
   type LeagueRound,
 } from "@workspace/db";
 import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
-import { addDays, leagueToday, roundWindow, shortDate } from "../lib/leagueCalendar.js";
+import { addDays, leagueZone, localHour, roundMatchTime, roundWindow, shortDate, todayFor } from "../lib/leagueCalendar.js";
 import {
   FLEX_WEIGHTS,
   ROUND_ROBIN_WEIGHTS,
   pairKey,
   pairRound,
-  ratingValue,
   slotKeys,
   type PairingPlayer,
 } from "../lib/pairing.js";
 import { unpairedPlayers, type DraftRound } from "../lib/roundEdits.js";
+import { blockedPlayerPairs } from "../lib/blocks.js";
 import { logger } from "../lib/logger.js";
 import { sendPushToUsers } from "../routes/notifications.js";
+import { loadProfiles, playerLevelValue } from "../lib/playerProfile.js";
 import { getAutoSeason } from "./seasonService.js";
 import { startPlayoffs } from "./leaguePlayoffs.js";
 
@@ -113,20 +114,29 @@ async function pairOpenPlayers(league: League, round: LeagueRound, playerIds: nu
   // Pairings already in this round count as history too, so nobody is paired twice.
   for (const m of keep.matches) history.set(pairKey(m.player1Id, m.player2Id), (history.get(pairKey(m.player1Id, m.player2Id)) ?? 0) + 1);
 
+  // Flex pairs on each player's current profile level (self-rated), never a
+  // copy on the league row; placeholders use the level their admin set.
+  const profiles = await loadProfiles(players.map((p) => p.clerkUserId));
   const pairingPlayers: PairingPlayer[] = players.map((p) => ({
     id: p.id,
-    rating: ratingValue(p.skillLevel),
+    rating: playerLevelValue(p, profiles),
     slots: slotKeys(availability.find((a) => a.playerId === p.id)?.slots),
     byes: byeCounts.get(p.id) ?? 0,
   }));
+  // B10: two players where either blocked the other are never paired.
+  const blocked = await blockedPlayerPairs(players.map((p) => p.id));
   const { pairs, byes } = pairRound({
     players: pairingPlayers,
     history,
     weights: league.format === "round_robin" ? ROUND_ROBIN_WEIGHTS : FLEX_WEIGHTS,
     roundNumber: round.roundNumber,
+    blocked,
   });
 
   const season = await getAutoSeason(league.id);
+  // A club's weekly match day and time, when the admin set one (PR 4).
+  // Otherwise players pick a time for their match within the week.
+  const scheduledAt = roundMatchTime(league, round);
   if (pairs.length) {
     await db.insert(matchesTable).values(
       pairs.map(([a, b]) => ({
@@ -137,6 +147,7 @@ async function pairOpenPlayers(league: League, round: LeagueRound, playerIds: nu
         generatedFrom: "round",
         weekOf: round.startDate,
         roundId: round.id,
+        ...(scheduledAt ? { scheduledAt } : {}),
         ...(season ? { season } : {}),
       })),
     );
@@ -188,7 +199,7 @@ export async function publishRound(league: League, round: LeagueRound): Promise<
 
   const [published] = await db
     .update(leagueRoundsTable)
-    .set({ publishedAt: new Date(), status: round.startDate <= leagueToday() ? "active" : "upcoming" })
+    .set({ publishedAt: new Date(), status: round.startDate <= todayFor(league) ? "active" : "upcoming" })
     .where(and(eq(leagueRoundsTable.id, round.id), isNull(leagueRoundsTable.publishedAt)))
     .returning();
   if (!published) return; // Someone else published it first.
@@ -284,7 +295,7 @@ export async function syncLeagueStatus(league: League, today: string): Promise<b
  */
 export async function draftNextRound(
   league: League,
-  today: string = leagueToday(),
+  today: string = todayFor(league),
 ): Promise<{ round: LeagueRound } | { error: string }> {
   if (!usesWeeklyRounds(league)) return { error: "This league's rounds can't be drafted here." };
   const rounds = await db.select().from(leagueRoundsTable).where(eq(leagueRoundsTable.leagueId, league.id));
@@ -304,7 +315,7 @@ export async function draftNextRound(
  * for admin review, sends out any round that starts today or earlier, and
  * keeps round and league statuses in step with the calendar.
  */
-export async function runLeagueDay(league: League, today: string = leagueToday()): Promise<void> {
+export async function runLeagueDay(league: League, today: string = todayFor(league)): Promise<void> {
   if (!usesWeeklyRounds(league) || league.endedAt) return;
   const weeks = league.seasonWeeks!;
   const start = league.startDate!;
@@ -339,16 +350,42 @@ export async function runLeagueDay(league: League, today: string = leagueToday()
   }
 }
 
-/** Runs the weekly loop for every league that uses it. */
-export async function runAllLeagueDays(): Promise<void> {
+/** The league day starts at 7am on the league's own clock: pairings go out then. */
+export const LEAGUE_DAY_HOUR = 7;
+
+/**
+ * Runs the weekly loop for every league that uses it, once each league's own
+ * clock has reached 7am (PR 4: leagues run on their creator's time zone). The
+ * scheduler calls this every hour; the loop is safe to run more than once a
+ * day, since drafts, sends and playoffs each happen only once.
+ */
+export async function runAllLeagueDays(now: Date = new Date()): Promise<void> {
   const leagues = await db.select().from(leaguesTable).where(isNotNull(leaguesTable.seasonWeeks));
-  const today = leagueToday();
   for (const league of leagues) {
+    if (localHour(now, leagueZone(league)) < LEAGUE_DAY_HOUR) continue;
     try {
-      await runLeagueDay(league, today);
+      await runLeagueDay(league, todayFor(league, now));
     } catch (err) {
       logger.error({ err, leagueId: league.id }, "League day failed");
     }
   }
 }
 
+
+/**
+ * After an admin changes the weekly match day and time, rounds that haven't
+ * gone out yet pick it up. Rounds already out keep the times they have, so a
+ * time players agreed on isn't moved under them.
+ */
+export async function applyMatchTimeToDrafts(league: League): Promise<void> {
+  const drafts = await db
+    .select()
+    .from(leagueRoundsTable)
+    .where(and(eq(leagueRoundsTable.leagueId, league.id), isNull(leagueRoundsTable.publishedAt)));
+  for (const round of drafts) {
+    await db
+      .update(matchesTable)
+      .set({ scheduledAt: roundMatchTime(league, round) })
+      .where(and(eq(matchesTable.roundId, round.id), isNull(matchesTable.voidedAt)));
+  }
+}

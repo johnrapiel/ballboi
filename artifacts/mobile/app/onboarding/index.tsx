@@ -1,20 +1,24 @@
 // Onboarding step 3: name and photo (spec: Roles and onboarding).
 // Name is required; the photo is optional and falls back to initials.
 // Also Profile > Edit profile > Name and photo (mode="edit").
+// The first step has no back, so a quiet Sign out sits under Continue for
+// anyone who signed in with the wrong account (Wave 1 review S3).
 
 import { useAuth, useUser } from "@clerk/expo";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 
 import { Avatar } from "@/components/Avatar";
 import { OnboardingStep, StepError } from "@/components/OnboardingStep";
 import { EditLoading } from "@/components/profile/EditLoading";
-import { Button, Field, Text } from "@/components/ui";
+import { Button, Field, Text, TextButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
+import { useStableGetToken } from "@/hooks/useStableGetToken";
 import { NAME_MAX, fetchProfile, saveNameAndPhoto, uploadPhoto, type FormMode } from "@/lib/onboarding";
 import { photoUrl } from "@/lib/photos";
+import { confirmSignOut } from "@/lib/confirmSignOut";
 
 type Photo =
   | { kind: "none" }
@@ -26,7 +30,8 @@ type Photo =
 export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
   const editing = mode === "edit";
   const router = useRouter();
-  const { getToken } = useAuth();
+  const { signOut } = useAuth();
+  const getToken = useStableGetToken();
   const { user } = useUser();
 
   const [name, setName] = useState(user?.fullName?.trim() ?? "");
@@ -38,15 +43,18 @@ export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // Start from what's saved: after closing the app mid-onboarding, or always
-  // in edit mode, where Save waits until this has loaded.
+  // in edit mode, where Save waits until this has loaded. A slow load never
+  // replaces a name or photo the person already changed (A14).
+  const nameTouched = useRef(false);
+  const photoTouched = useRef(false);
   const load = useCallback(() => {
     setLoadError(null);
     fetchProfile(getToken)
       .then((p) => {
         if (p) {
           setProfileExists(true);
-          if (p.displayName) setName(p.displayName);
-          setPhoto(p.avatarUrl ? { kind: "saved", path: p.avatarUrl } : { kind: "none" });
+          if (p.displayName && !nameTouched.current) setName(p.displayName);
+          if (!photoTouched.current) setPhoto(p.avatarUrl ? { kind: "saved", path: p.avatarUrl } : { kind: "none" });
         } else if (editing) {
           return setLoadError("We couldn't find your profile.");
         }
@@ -70,8 +78,14 @@ export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
+      // iPhone camera photos are HEIC. Ask iOS for a JPEG copy, which every
+      // part of the app and the API reads (finding #23).
+      preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
     });
-    if (!result.canceled && result.assets[0]) setPhoto({ kind: "picked", asset: result.assets[0] });
+    if (!result.canceled && result.assets[0]) {
+      photoTouched.current = true;
+      setPhoto({ kind: "picked", asset: result.assets[0] });
+    }
   }
 
   async function next() {
@@ -111,12 +125,22 @@ export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
       step={editing ? undefined : "name"}
       title="What should we call you?"
       subtitle="Your name and photo show on your player card."
-      footer={<Button label={editing ? "Save" : "Continue"} onPress={next} loading={busy} disabled={!trimmed} />}
+      footer={
+        <>
+          <Button label={editing ? "Save" : "Continue"} onPress={next} loading={busy} disabled={!trimmed} />
+          {editing ? null : (
+            <TextButton label="Sign out" disabled={busy} onPress={() => void confirmSignOut(signOut).catch(() => undefined)} />
+          )}
+        </>
+      }
     >
       <Field
         label="Name"
         value={name}
-        onChangeText={setName}
+        onChangeText={(v) => {
+          nameTouched.current = true;
+          setName(v);
+        }}
         maxLength={NAME_MAX}
         autoComplete="name"
         textContentType="name"
@@ -139,7 +163,16 @@ export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
               onPress={pickPhoto}
             />
             {photo.kind !== "none" ? (
-              <Button label="Remove photo" variant="secondary" onPress={() => setPhoto({ kind: "none" })} />
+              <Button
+                label="Remove photo"
+                variant="secondary"
+                onPress={() => {
+                  photoTouched.current = true;
+                  // Clears "Your photo didn't upload": Continue now uses initials.
+                  setError(null);
+                  setPhoto({ kind: "none" });
+                }}
+              />
             ) : null}
           </View>
         </View>

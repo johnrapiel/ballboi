@@ -17,86 +17,208 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AbandonQuickMatch200,
+  AccountDeletionInput,
+  AccountDeletionResult,
+  AccountStatus,
   ActivityItem,
+  AddedCourt,
+  AgentDecision,
+  AppealDecisionInput,
+  AppealListItem,
+  AppealReceipt,
   ApprovedPlayer,
   AvailabilityParticipationResponse,
   AvailabilityReminderCooldownResponse,
   AvailabilityReminderResponse,
   BallBoiLiveShotBody,
+  BallBoiMultipartComplete,
+  BallBoiMultipartCompleteBody,
+  BallBoiMultipartStartBody,
+  BallBoiMultipartUpload,
   BallBoiNarrative,
+  BallBoiPartUrl,
+  BallBoiPartUrlBody,
   BallBoiReplay,
   BallBoiReplayMetadata,
   BallBoiSession,
   BallBoiStatus,
   BallBoiUploadUrl,
+  BlockResult,
+  BlockedPlayer,
+  ClaimRecordingInvite200,
   CompleteBallBoiSessionBody,
   ConfirmLeagueName,
+  ConsentChoice,
+  ContentReport,
+  ContentReportRow,
+  ConversationList,
+  ConversationThread,
   CorrectedScore,
+  CourtList,
   CreateLeagueBody,
   CreateLeagueInviteBody,
   CreateMatchBody,
+  CreateSampleMessages201,
   CreateSeasonBody,
   DashboardStats,
+  DecideAppeal200,
   DevLeagueTools,
   DevPairResult,
   DevTimeBody,
   DevTimeResult,
+  DiscardRecordingBody,
+  DiscardResult,
+  DiscoverAreaInput,
+  DiscoverAvailabilityInput,
+  DiscoverLeague,
+  DiscoverLeagues,
+  DiscoverMe,
+  DiscoverPlayerCard,
+  DiscoverPlayers,
+  DiscoverReportInput,
+  DiscoverReportResult,
+  DiscoverSettingsInput,
   DropoutResult,
+  EditedScore,
   EndMatchBallBoiBody,
   EndedLeague,
   EnterScoreBody,
   ErrorResponse,
+  ExpoPushTokenInput,
+  FeedbackReport,
   GenerateLeagueRoundBody,
+  GetAdminMe200,
+  GetAdminReportsParams,
+  GetAgentDecisionsParams,
+  GetAppealsParams,
+  GetConversationParams,
+  GetConversationWithPlayer200,
+  GetConversationWithUser200,
+  GetGroupThreadParams,
   GetHeadToHeadParams,
   GetLeagueStandingsParams,
   GetLeaguesParams,
   GetMatchBallBoiReplayMetadata200,
   GetMatchNarrative200,
   GetMatchesParams,
+  GetMessageContacts200,
   GetPlayersParams,
   GetRecentActivityParams,
+  GetTodaysRecordableMatchesParams,
   GetTopPlayersParams,
+  GroupThread,
   HeadToHeadStats,
   HealthStatus,
+  HiddenMessageResult,
+  HideMessageBody,
+  HomeAreaInput,
+  HomeCourt,
+  HomeCourtInput,
+  IntentsInput,
   JoinLeagueBody,
   JoinLeagueResponse,
   JoinRequest,
   League,
   LeagueAdmin,
   LeagueBracket,
+  LeagueHandoff,
   LeagueInvite,
+  LeagueMatchTime,
+  LeagueMatchTimeBody,
   LeagueMembership,
   LeagueNotice,
   LeagueRoundWithMatchups,
   LeagueSchedule,
   LeagueWeek,
+  ListCourtsParams,
+  ListDiscoverLeaguesParams,
+  ListDiscoverPlayersParams,
+  ListOpenMatchesParams,
   LockMatchBody,
+  LogDoublesViewBody,
   Match,
   MatchBallBoiShotCallbackBody,
+  MatchDetail,
+  MatchFilming,
+  MatchPlan,
+  MatchPlanShiftInput,
+  MatchPlansWithUser,
+  MatchRemindersRunInput,
   MatchShot,
   MatchStatistics,
+  MatchTime,
+  MessageReportInput,
+  MessagesSummary,
+  ModeratorReasonInput,
   MyJoinRequest,
   MyMatchesResponse,
+  MyOpenMatches,
   MyScheduleResponse,
+  NewConversationInput,
+  NewCourtInput,
+  NewMatchPlanInput,
+  NewMessageInput,
+  NewOpenMatchInput,
+  NewReport,
+  NotificationSettings,
+  NotificationSettingsUpdate,
+  OpenMatchActionInput,
+  OpenMatchDetail,
+  OpenMatchList,
+  PhotoUploadRequest,
+  PhotoUploadTicket,
   Player,
+  PlayerCard,
   PlayerIdBody,
+  PlayerMatches,
+  PlayerSearchResponse,
   PlayerStats,
   PlayoffBracketResponse,
   PlayoffsStatusResponse,
+  PushRegistrationStatus,
+  QuickMatchCreated,
+  QuickMatchInput,
+  RecordableMatch,
+  RecordingConsent,
+  RecordingInvite,
+  RecordingListItem,
+  RecordingOpponent,
+  RecordingRemoved,
+  ReportReceipt,
+  ReportStatusInput,
   ResetLeagueRecords200,
+  RestrictAccount201,
   RosterPlayer,
+  RunMatchRemindersDev200,
+  SanctionInput,
+  SanctionResult,
   ScheduleRound,
+  ScoreQuickMatch200,
+  ScoreQuickMatchBody,
   ScoreResult,
+  SearchPlayersParams,
   Season,
+  SelfRatingInput,
+  SelfRatingResult,
+  SendFeedback201,
+  SendOpponentNotice200,
+  SentGroupMessage,
+  SentMessage,
+  SetMatchTimeBody,
+  SettleMatchBody,
   Standing,
   StartBallBoiSessionBody,
+  SuccessResult,
   SwapPlayersBody,
   TopPlayer,
-  UndoneScore,
+  TrainingChoice,
+  UpcomingMatchPlans,
   UpdateLeagueBody,
   UpdateMatchBody,
   UpdatePlayerBody,
   UpdateSeasonBody,
+  UploadConflict,
   UpsertUserProfileBody,
   UserProfile,
 } from "./api.schemas";
@@ -109,6 +231,2167 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+/**
+ * @summary The court directory, nearest first, searchable
+ */
+export const getListCourtsUrl = (params?: ListCourtsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/courts?${stringifiedParams}`
+    : `/api/courts`;
+};
+
+export const listCourts = async (
+  params?: ListCourtsParams,
+  options?: RequestInit,
+): Promise<CourtList> => {
+  return customFetch<CourtList>(getListCourtsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListCourtsQueryKey = (params?: ListCourtsParams) => {
+  return [`/api/courts`, ...(params ? [params] : [])] as const;
+};
+
+export const getListCourtsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listCourts>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: ListCourtsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listCourts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListCourtsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listCourts>>> = ({
+    signal,
+  }) => listCourts(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listCourts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListCourtsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCourts>>
+>;
+export type ListCourtsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary The court directory, nearest first, searchable
+ */
+
+export function useListCourts<
+  TData = Awaited<ReturnType<typeof listCourts>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: ListCourtsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listCourts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListCourtsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Add a missing court with a name and an address (the address needs its ZIP). The same name in the same ZIP returns the court that's there.
+ */
+export const getAddCourtUrl = () => {
+  return `/api/courts`;
+};
+
+export const addCourt = async (
+  newCourtInput: NewCourtInput,
+  options?: RequestInit,
+): Promise<AddedCourt> => {
+  return customFetch<AddedCourt>(getAddCourtUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(newCourtInput),
+  });
+};
+
+export const getAddCourtMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addCourt>>,
+    TError,
+    { data: BodyType<NewCourtInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof addCourt>>,
+  TError,
+  { data: BodyType<NewCourtInput> },
+  TContext
+> => {
+  const mutationKey = ["addCourt"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof addCourt>>,
+    { data: BodyType<NewCourtInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return addCourt(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AddCourtMutationResult = NonNullable<
+  Awaited<ReturnType<typeof addCourt>>
+>;
+export type AddCourtMutationBody = BodyType<NewCourtInput>;
+export type AddCourtMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Add a missing court with a name and an address (the address needs its ZIP). The same name in the same ZIP returns the court that's there.
+ */
+export const useAddCourt = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addCourt>>,
+    TError,
+    { data: BodyType<NewCourtInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof addCourt>>,
+  TError,
+  { data: BodyType<NewCourtInput> },
+  TContext
+> => {
+  return useMutation(getAddCourtMutationOptions(options));
+};
+
+/**
+ * @summary Your home court
+ */
+export const getGetHomeCourtUrl = () => {
+  return `/api/courts/home`;
+};
+
+export const getHomeCourt = async (
+  options?: RequestInit,
+): Promise<HomeCourt> => {
+  return customFetch<HomeCourt>(getGetHomeCourtUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetHomeCourtQueryKey = () => {
+  return [`/api/courts/home`] as const;
+};
+
+export const getGetHomeCourtQueryOptions = <
+  TData = Awaited<ReturnType<typeof getHomeCourt>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getHomeCourt>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetHomeCourtQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getHomeCourt>>> = ({
+    signal,
+  }) => getHomeCourt({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getHomeCourt>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetHomeCourtQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getHomeCourt>>
+>;
+export type GetHomeCourtQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Your home court
+ */
+
+export function useGetHomeCourt<
+  TData = Awaited<ReturnType<typeof getHomeCourt>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getHomeCourt>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetHomeCourtQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Set or clear your home court
+ */
+export const getSetHomeCourtUrl = () => {
+  return `/api/courts/home`;
+};
+
+export const setHomeCourt = async (
+  homeCourtInput: HomeCourtInput,
+  options?: RequestInit,
+): Promise<HomeCourt> => {
+  return customFetch<HomeCourt>(getSetHomeCourtUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(homeCourtInput),
+  });
+};
+
+export const getSetHomeCourtMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setHomeCourt>>,
+    TError,
+    { data: BodyType<HomeCourtInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setHomeCourt>>,
+  TError,
+  { data: BodyType<HomeCourtInput> },
+  TContext
+> => {
+  const mutationKey = ["setHomeCourt"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setHomeCourt>>,
+    { data: BodyType<HomeCourtInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return setHomeCourt(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetHomeCourtMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setHomeCourt>>
+>;
+export type SetHomeCourtMutationBody = BodyType<HomeCourtInput>;
+export type SetHomeCourtMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Set or clear your home court
+ */
+export const useSetHomeCourt = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setHomeCourt>>,
+    TError,
+    { data: BodyType<HomeCourtInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setHomeCourt>>,
+  TError,
+  { data: BodyType<HomeCourtInput> },
+  TContext
+> => {
+  return useMutation(getSetHomeCourtMutationOptions(options));
+};
+
+/**
+ * @summary Dev only, move a match card's times earlier by some hours to try the day-before and after-match steps now
+ */
+export const getShiftMatchPlanUrl = (id: number) => {
+  return `/api/dev/match-plans/${id}/shift`;
+};
+
+export const shiftMatchPlan = async (
+  id: number,
+  matchPlanShiftInput: MatchPlanShiftInput,
+  options?: RequestInit,
+): Promise<MatchPlan> => {
+  return customFetch<MatchPlan>(getShiftMatchPlanUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(matchPlanShiftInput),
+  });
+};
+
+export const getShiftMatchPlanMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof shiftMatchPlan>>,
+    TError,
+    { id: number; data: BodyType<MatchPlanShiftInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof shiftMatchPlan>>,
+  TError,
+  { id: number; data: BodyType<MatchPlanShiftInput> },
+  TContext
+> => {
+  const mutationKey = ["shiftMatchPlan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof shiftMatchPlan>>,
+    { id: number; data: BodyType<MatchPlanShiftInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return shiftMatchPlan(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ShiftMatchPlanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof shiftMatchPlan>>
+>;
+export type ShiftMatchPlanMutationBody = BodyType<MatchPlanShiftInput>;
+export type ShiftMatchPlanMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Dev only, move a match card's times earlier by some hours to try the day-before and after-match steps now
+ */
+export const useShiftMatchPlan = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof shiftMatchPlan>>,
+    TError,
+    { id: number; data: BodyType<MatchPlanShiftInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof shiftMatchPlan>>,
+  TError,
+  { id: number; data: BodyType<MatchPlanShiftInput> },
+  TContext
+> => {
+  return useMutation(getShiftMatchPlanMutationOptions(options));
+};
+
+/**
+ * @summary Send a match card in a chat (a newer card replaces an older one still waiting)
+ */
+export const getSendMatchPlanUrl = () => {
+  return `/api/match-plans`;
+};
+
+export const sendMatchPlan = async (
+  newMatchPlanInput: NewMatchPlanInput,
+  options?: RequestInit,
+): Promise<MatchPlan> => {
+  return customFetch<MatchPlan>(getSendMatchPlanUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(newMatchPlanInput),
+  });
+};
+
+export const getSendMatchPlanMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendMatchPlan>>,
+    TError,
+    { data: BodyType<NewMatchPlanInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendMatchPlan>>,
+  TError,
+  { data: BodyType<NewMatchPlanInput> },
+  TContext
+> => {
+  const mutationKey = ["sendMatchPlan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendMatchPlan>>,
+    { data: BodyType<NewMatchPlanInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return sendMatchPlan(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendMatchPlanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendMatchPlan>>
+>;
+export type SendMatchPlanMutationBody = BodyType<NewMatchPlanInput>;
+export type SendMatchPlanMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Send a match card in a chat (a newer card replaces an older one still waiting)
+ */
+export const useSendMatchPlan = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendMatchPlan>>,
+    TError,
+    { data: BodyType<NewMatchPlanInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendMatchPlan>>,
+  TError,
+  { data: BodyType<NewMatchPlanInput> },
+  TContext
+> => {
+  return useMutation(getSendMatchPlanMutationOptions(options));
+};
+
+/**
+ * @summary Your added Discover matches still to play, for Home and My matches
+ */
+export const getListUpcomingMatchPlansUrl = () => {
+  return `/api/match-plans/upcoming`;
+};
+
+export const listUpcomingMatchPlans = async (
+  options?: RequestInit,
+): Promise<UpcomingMatchPlans> => {
+  return customFetch<UpcomingMatchPlans>(getListUpcomingMatchPlansUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListUpcomingMatchPlansQueryKey = () => {
+  return [`/api/match-plans/upcoming`] as const;
+};
+
+export const getListUpcomingMatchPlansQueryOptions = <
+  TData = Awaited<ReturnType<typeof listUpcomingMatchPlans>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listUpcomingMatchPlans>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListUpcomingMatchPlansQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listUpcomingMatchPlans>>
+  > = ({ signal }) => listUpcomingMatchPlans({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listUpcomingMatchPlans>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListUpcomingMatchPlansQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listUpcomingMatchPlans>>
+>;
+export type ListUpcomingMatchPlansQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Your added Discover matches still to play, for Home and My matches
+ */
+
+export function useListUpcomingMatchPlans<
+  TData = Awaited<ReturnType<typeof listUpcomingMatchPlans>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listUpcomingMatchPlans>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListUpcomingMatchPlansQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary The match cards in your chat with a player, and what you can do with each
+ */
+export const getGetMatchPlansWithUserUrl = (userId: number) => {
+  return `/api/match-plans/with/${userId}`;
+};
+
+export const getMatchPlansWithUser = async (
+  userId: number,
+  options?: RequestInit,
+): Promise<MatchPlansWithUser> => {
+  return customFetch<MatchPlansWithUser>(getGetMatchPlansWithUserUrl(userId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMatchPlansWithUserQueryKey = (userId: number) => {
+  return [`/api/match-plans/with/${userId}`] as const;
+};
+
+export const getGetMatchPlansWithUserQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMatchPlansWithUser>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMatchPlansWithUser>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetMatchPlansWithUserQueryKey(userId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMatchPlansWithUser>>
+  > = ({ signal }) =>
+    getMatchPlansWithUser(userId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMatchPlansWithUser>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMatchPlansWithUserQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMatchPlansWithUser>>
+>;
+export type GetMatchPlansWithUserQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary The match cards in your chat with a player, and what you can do with each
+ */
+
+export function useGetMatchPlansWithUser<
+  TData = Awaited<ReturnType<typeof getMatchPlansWithUser>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMatchPlansWithUser>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMatchPlansWithUserQueryOptions(userId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Answer a match card: accept, decline, undo, still-on, cancel, not-played, no-show, dispute or admit
+ */
+export const getActOnMatchPlanUrl = (id: number, command: string) => {
+  return `/api/match-plans/${id}/${command}`;
+};
+
+export const actOnMatchPlan = async (
+  id: number,
+  command: string,
+  options?: RequestInit,
+): Promise<MatchPlan> => {
+  return customFetch<MatchPlan>(getActOnMatchPlanUrl(id, command), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getActOnMatchPlanMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof actOnMatchPlan>>,
+    TError,
+    { id: number; command: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof actOnMatchPlan>>,
+  TError,
+  { id: number; command: string },
+  TContext
+> => {
+  const mutationKey = ["actOnMatchPlan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof actOnMatchPlan>>,
+    { id: number; command: string }
+  > = (props) => {
+    const { id, command } = props ?? {};
+
+    return actOnMatchPlan(id, command, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ActOnMatchPlanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof actOnMatchPlan>>
+>;
+
+export type ActOnMatchPlanMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Answer a match card: accept, decline, undo, still-on, cancel, not-played, no-show, dispute or admit
+ */
+export const useActOnMatchPlan = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof actOnMatchPlan>>,
+    TError,
+    { id: number; command: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof actOnMatchPlan>>,
+  TError,
+  { id: number; command: string },
+  TContext
+> => {
+  return useMutation(getActOnMatchPlanMutationOptions(options));
+};
+
+/**
+ * @summary Open matches near you, soonest first, with a count per distance chip
+ */
+export const getListOpenMatchesUrl = (params?: ListOpenMatchesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/open-matches?${stringifiedParams}`
+    : `/api/open-matches`;
+};
+
+export const listOpenMatches = async (
+  params?: ListOpenMatchesParams,
+  options?: RequestInit,
+): Promise<OpenMatchList> => {
+  return customFetch<OpenMatchList>(getListOpenMatchesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListOpenMatchesQueryKey = (params?: ListOpenMatchesParams) => {
+  return [`/api/open-matches`, ...(params ? [params] : [])] as const;
+};
+
+export const getListOpenMatchesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listOpenMatches>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListOpenMatchesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listOpenMatches>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListOpenMatchesQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listOpenMatches>>> = ({
+    signal,
+  }) => listOpenMatches(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listOpenMatches>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListOpenMatchesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listOpenMatches>>
+>;
+export type ListOpenMatchesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Open matches near you, soonest first, with a count per distance chip
+ */
+
+export function useListOpenMatches<
+  TData = Awaited<ReturnType<typeof listOpenMatches>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListOpenMatchesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listOpenMatches>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListOpenMatchesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Post an open match
+ */
+export const getPostOpenMatchUrl = () => {
+  return `/api/open-matches`;
+};
+
+export const postOpenMatch = async (
+  newOpenMatchInput: NewOpenMatchInput,
+  options?: RequestInit,
+): Promise<OpenMatchDetail> => {
+  return customFetch<OpenMatchDetail>(getPostOpenMatchUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(newOpenMatchInput),
+  });
+};
+
+export const getPostOpenMatchMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof postOpenMatch>>,
+    TError,
+    { data: BodyType<NewOpenMatchInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof postOpenMatch>>,
+  TError,
+  { data: BodyType<NewOpenMatchInput> },
+  TContext
+> => {
+  const mutationKey = ["postOpenMatch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof postOpenMatch>>,
+    { data: BodyType<NewOpenMatchInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return postOpenMatch(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PostOpenMatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof postOpenMatch>>
+>;
+export type PostOpenMatchMutationBody = BodyType<NewOpenMatchInput>;
+export type PostOpenMatchMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Post an open match
+ */
+export const usePostOpenMatch = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof postOpenMatch>>,
+    TError,
+    { data: BodyType<NewOpenMatchInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof postOpenMatch>>,
+  TError,
+  { data: BodyType<NewOpenMatchInput> },
+  TContext
+> => {
+  return useMutation(getPostOpenMatchMutationOptions(options));
+};
+
+/**
+ * @summary Open matches you posted or hold a spot in, still to play, for Home
+ */
+export const getListMyOpenMatchesUrl = () => {
+  return `/api/open-matches/mine`;
+};
+
+export const listMyOpenMatches = async (
+  options?: RequestInit,
+): Promise<MyOpenMatches> => {
+  return customFetch<MyOpenMatches>(getListMyOpenMatchesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListMyOpenMatchesQueryKey = () => {
+  return [`/api/open-matches/mine`] as const;
+};
+
+export const getListMyOpenMatchesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMyOpenMatches>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMyOpenMatches>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListMyOpenMatchesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listMyOpenMatches>>
+  > = ({ signal }) => listMyOpenMatches({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMyOpenMatches>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListMyOpenMatchesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listMyOpenMatches>>
+>;
+export type ListMyOpenMatchesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Open matches you posted or hold a spot in, still to play, for Home
+ */
+
+export function useListMyOpenMatches<
+  TData = Awaited<ReturnType<typeof listMyOpenMatches>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMyOpenMatches>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListMyOpenMatchesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary One open match, who's in, and what you can do
+ */
+export const getGetOpenMatchUrl = (id: number) => {
+  return `/api/open-matches/${id}`;
+};
+
+export const getOpenMatch = async (
+  id: number,
+  options?: RequestInit,
+): Promise<OpenMatchDetail> => {
+  return customFetch<OpenMatchDetail>(getGetOpenMatchUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetOpenMatchQueryKey = (id: number) => {
+  return [`/api/open-matches/${id}`] as const;
+};
+
+export const getGetOpenMatchQueryOptions = <
+  TData = Awaited<ReturnType<typeof getOpenMatch>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getOpenMatch>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetOpenMatchQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getOpenMatch>>> = ({
+    signal,
+  }) => getOpenMatch(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getOpenMatch>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetOpenMatchQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getOpenMatch>>
+>;
+export type GetOpenMatchQueryError = ErrorType<unknown>;
+
+/**
+ * @summary One open match, who's in, and what you can do
+ */
+
+export function useGetOpenMatch<
+  TData = Awaited<ReturnType<typeof getOpenMatch>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getOpenMatch>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetOpenMatchQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary join, drop, remove (poster; body userId), or cancel (poster). The group chat is on /messages/groups (F15).
+ */
+export const getActOnOpenMatchUrl = (id: number, action: string) => {
+  return `/api/open-matches/${id}/${action}`;
+};
+
+export const actOnOpenMatch = async (
+  id: number,
+  action: string,
+  openMatchActionInput?: OpenMatchActionInput,
+  options?: RequestInit,
+): Promise<OpenMatchDetail> => {
+  return customFetch<OpenMatchDetail>(getActOnOpenMatchUrl(id, action), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(openMatchActionInput),
+  });
+};
+
+export const getActOnOpenMatchMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof actOnOpenMatch>>,
+    TError,
+    { id: number; action: string; data: BodyType<OpenMatchActionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof actOnOpenMatch>>,
+  TError,
+  { id: number; action: string; data: BodyType<OpenMatchActionInput> },
+  TContext
+> => {
+  const mutationKey = ["actOnOpenMatch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof actOnOpenMatch>>,
+    { id: number; action: string; data: BodyType<OpenMatchActionInput> }
+  > = (props) => {
+    const { id, action, data } = props ?? {};
+
+    return actOnOpenMatch(id, action, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ActOnOpenMatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof actOnOpenMatch>>
+>;
+export type ActOnOpenMatchMutationBody = BodyType<OpenMatchActionInput>;
+export type ActOnOpenMatchMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary join, drop, remove (poster; body userId), or cancel (poster). The group chat is on /messages/groups (F15).
+ */
+export const useActOnOpenMatch = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof actOnOpenMatch>>,
+    TError,
+    { id: number; action: string; data: BodyType<OpenMatchActionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof actOnOpenMatch>>,
+  TError,
+  { id: number; action: string; data: BodyType<OpenMatchActionInput> },
+  TContext
+> => {
+  return useMutation(getActOnOpenMatchMutationOptions(options));
+};
+
+/**
+ * @summary Change your home ZIP from Discover. Also updates your profile's home area.
+ */
+export const getSetDiscoverAreaUrl = () => {
+  return `/api/discover/area`;
+};
+
+export const setDiscoverArea = async (
+  discoverAreaInput: DiscoverAreaInput,
+  options?: RequestInit,
+): Promise<DiscoverMe> => {
+  return customFetch<DiscoverMe>(getSetDiscoverAreaUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(discoverAreaInput),
+  });
+};
+
+export const getSetDiscoverAreaMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setDiscoverArea>>,
+    TError,
+    { data: BodyType<DiscoverAreaInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setDiscoverArea>>,
+  TError,
+  { data: BodyType<DiscoverAreaInput> },
+  TContext
+> => {
+  const mutationKey = ["setDiscoverArea"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setDiscoverArea>>,
+    { data: BodyType<DiscoverAreaInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return setDiscoverArea(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetDiscoverAreaMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setDiscoverArea>>
+>;
+export type SetDiscoverAreaMutationBody = BodyType<DiscoverAreaInput>;
+export type SetDiscoverAreaMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Change your home ZIP from Discover. Also updates your profile's home area.
+ */
+export const useSetDiscoverArea = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setDiscoverArea>>,
+    TError,
+    { data: BodyType<DiscoverAreaInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setDiscoverArea>>,
+  TError,
+  { data: BodyType<DiscoverAreaInput> },
+  TContext
+> => {
+  return useMutation(getSetDiscoverAreaMutationOptions(options));
+};
+
+/**
+ * @summary Save the "When you can play" grid (a Monday to Sunday week of hours)
+ */
+export const getSaveDiscoverAvailabilityUrl = () => {
+  return `/api/discover/availability`;
+};
+
+export const saveDiscoverAvailability = async (
+  discoverAvailabilityInput: DiscoverAvailabilityInput,
+  options?: RequestInit,
+): Promise<DiscoverMe> => {
+  return customFetch<DiscoverMe>(getSaveDiscoverAvailabilityUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(discoverAvailabilityInput),
+  });
+};
+
+export const getSaveDiscoverAvailabilityMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveDiscoverAvailability>>,
+    TError,
+    { data: BodyType<DiscoverAvailabilityInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveDiscoverAvailability>>,
+  TError,
+  { data: BodyType<DiscoverAvailabilityInput> },
+  TContext
+> => {
+  const mutationKey = ["saveDiscoverAvailability"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveDiscoverAvailability>>,
+    { data: BodyType<DiscoverAvailabilityInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return saveDiscoverAvailability(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveDiscoverAvailabilityMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveDiscoverAvailability>>
+>;
+export type SaveDiscoverAvailabilityMutationBody =
+  BodyType<DiscoverAvailabilityInput>;
+export type SaveDiscoverAvailabilityMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Save the "When you can play" grid (a Monday to Sunday week of hours)
+ */
+export const useSaveDiscoverAvailability = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveDiscoverAvailability>>,
+    TError,
+    { data: BodyType<DiscoverAvailabilityInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveDiscoverAvailability>>,
+  TError,
+  { data: BodyType<DiscoverAvailabilityInput> },
+  TContext
+> => {
+  return useMutation(getSaveDiscoverAvailabilityMutationOptions(options));
+};
+
+/**
+ * @summary Open leagues near you, nearest first, with a count for each distance chip
+ */
+export const getListDiscoverLeaguesUrl = (
+  params?: ListDiscoverLeaguesParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/discover/leagues?${stringifiedParams}`
+    : `/api/discover/leagues`;
+};
+
+export const listDiscoverLeagues = async (
+  params?: ListDiscoverLeaguesParams,
+  options?: RequestInit,
+): Promise<DiscoverLeagues> => {
+  return customFetch<DiscoverLeagues>(getListDiscoverLeaguesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDiscoverLeaguesQueryKey = (
+  params?: ListDiscoverLeaguesParams,
+) => {
+  return [`/api/discover/leagues`, ...(params ? [params] : [])] as const;
+};
+
+export const getListDiscoverLeaguesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDiscoverLeagues>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: ListDiscoverLeaguesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDiscoverLeagues>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListDiscoverLeaguesQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listDiscoverLeagues>>
+  > = ({ signal }) =>
+    listDiscoverLeagues(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDiscoverLeagues>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDiscoverLeaguesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDiscoverLeagues>>
+>;
+export type ListDiscoverLeaguesQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Open leagues near you, nearest first, with a count for each distance chip
+ */
+
+export function useListDiscoverLeagues<
+  TData = Awaited<ReturnType<typeof listDiscoverLeagues>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: ListDiscoverLeaguesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDiscoverLeagues>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDiscoverLeaguesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary An Open league's Discover page, and where you stand with it
+ */
+export const getGetDiscoverLeagueUrl = (leagueId: number) => {
+  return `/api/discover/leagues/${leagueId}`;
+};
+
+export const getDiscoverLeague = async (
+  leagueId: number,
+  options?: RequestInit,
+): Promise<DiscoverLeague> => {
+  return customFetch<DiscoverLeague>(getGetDiscoverLeagueUrl(leagueId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDiscoverLeagueQueryKey = (leagueId: number) => {
+  return [`/api/discover/leagues/${leagueId}`] as const;
+};
+
+export const getGetDiscoverLeagueQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDiscoverLeague>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDiscoverLeague>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetDiscoverLeagueQueryKey(leagueId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getDiscoverLeague>>
+  > = ({ signal }) =>
+    getDiscoverLeague(leagueId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!leagueId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDiscoverLeague>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDiscoverLeagueQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDiscoverLeague>>
+>;
+export type GetDiscoverLeagueQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary An Open league's Discover page, and where you stand with it
+ */
+
+export function useGetDiscoverLeague<
+  TData = Awaited<ReturnType<typeof getDiscoverLeague>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDiscoverLeague>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDiscoverLeagueQueryOptions(leagueId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Your area, hidden profile, plays, last distance and hours, for Discover
+ */
+export const getGetDiscoverMeUrl = () => {
+  return `/api/discover/me`;
+};
+
+export const getDiscoverMe = async (
+  options?: RequestInit,
+): Promise<DiscoverMe> => {
+  return customFetch<DiscoverMe>(getGetDiscoverMeUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDiscoverMeQueryKey = () => {
+  return [`/api/discover/me`] as const;
+};
+
+export const getGetDiscoverMeQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDiscoverMe>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDiscoverMe>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetDiscoverMeQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getDiscoverMe>>> = ({
+    signal,
+  }) => getDiscoverMe({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDiscoverMe>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDiscoverMeQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDiscoverMe>>
+>;
+export type GetDiscoverMeQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Your area, hidden profile, plays, last distance and hours, for Discover
+ */
+
+export function useGetDiscoverMe<
+  TData = Awaited<ReturnType<typeof getDiscoverMe>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDiscoverMe>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDiscoverMeQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Never you, hidden players, anyone blocked either way, or banned and suspended accounts. Distances are approximate whole miles between home ZIP centers. The app saves a distance you pick with PUT /discover/settings.
+ * @summary Players near you, nearest first, with a count for each distance chip
+ */
+export const getListDiscoverPlayersUrl = (
+  params?: ListDiscoverPlayersParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/discover/players?${stringifiedParams}`
+    : `/api/discover/players`;
+};
+
+export const listDiscoverPlayers = async (
+  params?: ListDiscoverPlayersParams,
+  options?: RequestInit,
+): Promise<DiscoverPlayers> => {
+  return customFetch<DiscoverPlayers>(getListDiscoverPlayersUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDiscoverPlayersQueryKey = (
+  params?: ListDiscoverPlayersParams,
+) => {
+  return [`/api/discover/players`, ...(params ? [params] : [])] as const;
+};
+
+export const getListDiscoverPlayersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDiscoverPlayers>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: ListDiscoverPlayersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDiscoverPlayers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListDiscoverPlayersQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listDiscoverPlayers>>
+  > = ({ signal }) =>
+    listDiscoverPlayers(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDiscoverPlayers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDiscoverPlayersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDiscoverPlayers>>
+>;
+export type ListDiscoverPlayersQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Players near you, nearest first, with a count for each distance chip
+ */
+
+export function useListDiscoverPlayers<
+  TData = Awaited<ReturnType<typeof listDiscoverPlayers>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: ListDiscoverPlayersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDiscoverPlayers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDiscoverPlayersQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary A player card from Discover
+ */
+export const getGetDiscoverPlayerUrl = (userId: number) => {
+  return `/api/discover/players/${userId}`;
+};
+
+export const getDiscoverPlayer = async (
+  userId: number,
+  options?: RequestInit,
+): Promise<DiscoverPlayerCard> => {
+  return customFetch<DiscoverPlayerCard>(getGetDiscoverPlayerUrl(userId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDiscoverPlayerQueryKey = (userId: number) => {
+  return [`/api/discover/players/${userId}`] as const;
+};
+
+export const getGetDiscoverPlayerQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDiscoverPlayer>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDiscoverPlayer>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetDiscoverPlayerQueryKey(userId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getDiscoverPlayer>>
+  > = ({ signal }) => getDiscoverPlayer(userId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDiscoverPlayer>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDiscoverPlayerQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDiscoverPlayer>>
+>;
+export type GetDiscoverPlayerQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary A player card from Discover
+ */
+
+export function useGetDiscoverPlayer<
+  TData = Awaited<ReturnType<typeof getDiscoverPlayer>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDiscoverPlayer>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDiscoverPlayerQueryOptions(userId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Block a player by user id ("Also block" on a message report from a player with no league player record)
+ */
+export const getBlockDiscoverPlayerUrl = (userId: number) => {
+  return `/api/discover/players/${userId}/block`;
+};
+
+export const blockDiscoverPlayer = async (
+  userId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getBlockDiscoverPlayerUrl(userId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getBlockDiscoverPlayerMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof blockDiscoverPlayer>>,
+    TError,
+    { userId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof blockDiscoverPlayer>>,
+  TError,
+  { userId: number },
+  TContext
+> => {
+  const mutationKey = ["blockDiscoverPlayer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof blockDiscoverPlayer>>,
+    { userId: number }
+  > = (props) => {
+    const { userId } = props ?? {};
+
+    return blockDiscoverPlayer(userId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BlockDiscoverPlayerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof blockDiscoverPlayer>>
+>;
+
+export type BlockDiscoverPlayerMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Block a player by user id ("Also block" on a message report from a player with no league player record)
+ */
+export const useBlockDiscoverPlayer = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof blockDiscoverPlayer>>,
+    TError,
+    { userId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof blockDiscoverPlayer>>,
+  TError,
+  { userId: number },
+  TContext
+> => {
+  return useMutation(getBlockDiscoverPlayerMutationOptions(options));
+};
+
+/**
+ * @summary Unblock a player by user id, from a blocked chat
+ */
+export const getUnblockDiscoverPlayerUrl = (userId: number) => {
+  return `/api/discover/players/${userId}/block`;
+};
+
+export const unblockDiscoverPlayer = async (
+  userId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getUnblockDiscoverPlayerUrl(userId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getUnblockDiscoverPlayerMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unblockDiscoverPlayer>>,
+    TError,
+    { userId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unblockDiscoverPlayer>>,
+  TError,
+  { userId: number },
+  TContext
+> => {
+  const mutationKey = ["unblockDiscoverPlayer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unblockDiscoverPlayer>>,
+    { userId: number }
+  > = (props) => {
+    const { userId } = props ?? {};
+
+    return unblockDiscoverPlayer(userId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UnblockDiscoverPlayerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof unblockDiscoverPlayer>>
+>;
+
+export type UnblockDiscoverPlayerMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Unblock a player by user id, from a blocked chat
+ */
+export const useUnblockDiscoverPlayer = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unblockDiscoverPlayer>>,
+    TError,
+    { userId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof unblockDiscoverPlayer>>,
+  TError,
+  { userId: number },
+  TContext
+> => {
+  return useMutation(getUnblockDiscoverPlayerMutationOptions(options));
+};
+
+/**
+ * @summary Report a player by user id, and optionally block them in the same step (F3, F9)
+ */
+export const getReportDiscoverPlayerUrl = (userId: number) => {
+  return `/api/discover/players/${userId}/report`;
+};
+
+export const reportDiscoverPlayer = async (
+  userId: number,
+  discoverReportInput: DiscoverReportInput,
+  options?: RequestInit,
+): Promise<DiscoverReportResult> => {
+  return customFetch<DiscoverReportResult>(getReportDiscoverPlayerUrl(userId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(discoverReportInput),
+  });
+};
+
+export const getReportDiscoverPlayerMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reportDiscoverPlayer>>,
+    TError,
+    { userId: number; data: BodyType<DiscoverReportInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reportDiscoverPlayer>>,
+  TError,
+  { userId: number; data: BodyType<DiscoverReportInput> },
+  TContext
+> => {
+  const mutationKey = ["reportDiscoverPlayer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reportDiscoverPlayer>>,
+    { userId: number; data: BodyType<DiscoverReportInput> }
+  > = (props) => {
+    const { userId, data } = props ?? {};
+
+    return reportDiscoverPlayer(userId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReportDiscoverPlayerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reportDiscoverPlayer>>
+>;
+export type ReportDiscoverPlayerMutationBody = BodyType<DiscoverReportInput>;
+export type ReportDiscoverPlayerMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Report a player by user id, and optionally block them in the same step (F3, F9)
+ */
+export const useReportDiscoverPlayer = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reportDiscoverPlayer>>,
+    TError,
+    { userId: number; data: BodyType<DiscoverReportInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof reportDiscoverPlayer>>,
+  TError,
+  { userId: number; data: BodyType<DiscoverReportInput> },
+  TContext
+> => {
+  return useMutation(getReportDiscoverPlayerMutationOptions(options));
+};
+
+/**
+ * @summary Show me in Discover, what you play, and your last distance
+ */
+export const getSaveDiscoverSettingsUrl = () => {
+  return `/api/discover/settings`;
+};
+
+export const saveDiscoverSettings = async (
+  discoverSettingsInput: DiscoverSettingsInput,
+  options?: RequestInit,
+): Promise<DiscoverMe> => {
+  return customFetch<DiscoverMe>(getSaveDiscoverSettingsUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(discoverSettingsInput),
+  });
+};
+
+export const getSaveDiscoverSettingsMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveDiscoverSettings>>,
+    TError,
+    { data: BodyType<DiscoverSettingsInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveDiscoverSettings>>,
+  TError,
+  { data: BodyType<DiscoverSettingsInput> },
+  TContext
+> => {
+  const mutationKey = ["saveDiscoverSettings"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveDiscoverSettings>>,
+    { data: BodyType<DiscoverSettingsInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return saveDiscoverSettings(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveDiscoverSettingsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveDiscoverSettings>>
+>;
+export type SaveDiscoverSettingsMutationBody = BodyType<DiscoverSettingsInput>;
+export type SaveDiscoverSettingsMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Show me in Discover, what you play, and your last distance
+ */
+export const useSaveDiscoverSettings = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveDiscoverSettings>>,
+    TError,
+    { data: BodyType<DiscoverSettingsInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveDiscoverSettings>>,
+  TError,
+  { data: BodyType<DiscoverSettingsInput> },
+  TContext
+> => {
+  return useMutation(getSaveDiscoverSettingsMutationOptions(options));
+};
 
 /**
  * @summary Health check
@@ -220,7 +2503,7 @@ export const getGetLeaguesQueryKey = (params?: GetLeaguesParams) => {
 
 export const getGetLeaguesQueryOptions = <
   TData = Awaited<ReturnType<typeof getLeagues>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   params?: GetLeaguesParams,
   options?: {
@@ -250,7 +2533,7 @@ export const getGetLeaguesQueryOptions = <
 export type GetLeaguesQueryResult = NonNullable<
   Awaited<ReturnType<typeof getLeagues>>
 >;
-export type GetLeaguesQueryError = ErrorType<unknown>;
+export type GetLeaguesQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary List all leagues
@@ -258,7 +2541,7 @@ export type GetLeaguesQueryError = ErrorType<unknown>;
 
 export function useGetLeagues<
   TData = Awaited<ReturnType<typeof getLeagues>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   params?: GetLeaguesParams,
   options?: {
@@ -299,7 +2582,7 @@ export const createLeague = async (
 };
 
 export const getCreateLeagueMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -340,13 +2623,13 @@ export type CreateLeagueMutationResult = NonNullable<
   Awaited<ReturnType<typeof createLeague>>
 >;
 export type CreateLeagueMutationBody = BodyType<CreateLeagueBody>;
-export type CreateLeagueMutationError = ErrorType<unknown>;
+export type CreateLeagueMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Create a new league
  */
 export const useCreateLeague = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -471,7 +2754,7 @@ export const updateLeague = async (
 };
 
 export const getUpdateLeagueMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -512,13 +2795,13 @@ export type UpdateLeagueMutationResult = NonNullable<
   Awaited<ReturnType<typeof updateLeague>>
 >;
 export type UpdateLeagueMutationBody = BodyType<UpdateLeagueBody>;
-export type UpdateLeagueMutationError = ErrorType<unknown>;
+export type UpdateLeagueMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Update league
  */
 export const useUpdateLeague = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -558,7 +2841,7 @@ export const deleteLeague = async (
 };
 
 export const getDeleteLeagueMutationOptions = <
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -599,13 +2882,13 @@ export type DeleteLeagueMutationResult = NonNullable<
   Awaited<ReturnType<typeof deleteLeague>>
 >;
 export type DeleteLeagueMutationBody = BodyType<ConfirmLeagueName>;
-export type DeleteLeagueMutationError = ErrorType<void>;
+export type DeleteLeagueMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary League admins delete the league, with its name typed. Members get a note; Ball Boi recordings stay with the players.
  */
 export const useDeleteLeague = <
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -824,7 +3107,7 @@ export const getGetLeaguePlayoffsQueryKey = (leagueId: number) => {
 
 export const getGetLeaguePlayoffsQueryOptions = <
   TData = Awaited<ReturnType<typeof getLeaguePlayoffs>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -861,7 +3144,7 @@ export const getGetLeaguePlayoffsQueryOptions = <
 export type GetLeaguePlayoffsQueryResult = NonNullable<
   Awaited<ReturnType<typeof getLeaguePlayoffs>>
 >;
-export type GetLeaguePlayoffsQueryError = ErrorType<unknown>;
+export type GetLeaguePlayoffsQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Get the playoff bracket and eligibility status for a league
@@ -869,7 +3152,7 @@ export type GetLeaguePlayoffsQueryError = ErrorType<unknown>;
 
 export function useGetLeaguePlayoffs<
   TData = Awaited<ReturnType<typeof getLeaguePlayoffs>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -1006,7 +3289,7 @@ export const getGetCurrentLeagueRoundQueryKey = (leagueId: number) => {
 
 export const getGetCurrentLeagueRoundQueryOptions = <
   TData = Awaited<ReturnType<typeof getCurrentLeagueRound>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -1043,7 +3326,7 @@ export const getGetCurrentLeagueRoundQueryOptions = <
 export type GetCurrentLeagueRoundQueryResult = NonNullable<
   Awaited<ReturnType<typeof getCurrentLeagueRound>>
 >;
-export type GetCurrentLeagueRoundQueryError = ErrorType<unknown>;
+export type GetCurrentLeagueRoundQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Get the current active round for a league
@@ -1051,7 +3334,7 @@ export type GetCurrentLeagueRoundQueryError = ErrorType<unknown>;
 
 export function useGetCurrentLeagueRound<
   TData = Awaited<ReturnType<typeof getCurrentLeagueRound>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -1098,7 +3381,7 @@ export const getGetLeagueRoundsQueryKey = (leagueId: number) => {
 
 export const getGetLeagueRoundsQueryOptions = <
   TData = Awaited<ReturnType<typeof getLeagueRounds>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -1134,7 +3417,7 @@ export const getGetLeagueRoundsQueryOptions = <
 export type GetLeagueRoundsQueryResult = NonNullable<
   Awaited<ReturnType<typeof getLeagueRounds>>
 >;
-export type GetLeagueRoundsQueryError = ErrorType<unknown>;
+export type GetLeagueRoundsQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary List all rounds for a league
@@ -1142,7 +3425,7 @@ export type GetLeagueRoundsQueryError = ErrorType<unknown>;
 
 export function useGetLeagueRounds<
   TData = Awaited<ReturnType<typeof getLeagueRounds>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -1186,7 +3469,7 @@ export const getGetLeagueSeasonsQueryKey = (leagueId: number) => {
 
 export const getGetLeagueSeasonsQueryOptions = <
   TData = Awaited<ReturnType<typeof getLeagueSeasons>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -1222,7 +3505,7 @@ export const getGetLeagueSeasonsQueryOptions = <
 export type GetLeagueSeasonsQueryResult = NonNullable<
   Awaited<ReturnType<typeof getLeagueSeasons>>
 >;
-export type GetLeagueSeasonsQueryError = ErrorType<unknown>;
+export type GetLeagueSeasonsQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary List seasons visible to a league (own + global)
@@ -1230,7 +3513,7 @@ export type GetLeagueSeasonsQueryError = ErrorType<unknown>;
 
 export function useGetLeagueSeasons<
   TData = Awaited<ReturnType<typeof getLeagueSeasons>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -1361,7 +3644,7 @@ export const getGetActiveLeagueSeasonQueryKey = (leagueId: number) => {
 
 export const getGetActiveLeagueSeasonQueryOptions = <
   TData = Awaited<ReturnType<typeof getActiveLeagueSeason>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -1398,7 +3681,7 @@ export const getGetActiveLeagueSeasonQueryOptions = <
 export type GetActiveLeagueSeasonQueryResult = NonNullable<
   Awaited<ReturnType<typeof getActiveLeagueSeason>>
 >;
-export type GetActiveLeagueSeasonQueryError = ErrorType<unknown>;
+export type GetActiveLeagueSeasonQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Get the currently active season for a league
@@ -1406,7 +3689,7 @@ export type GetActiveLeagueSeasonQueryError = ErrorType<unknown>;
 
 export function useGetActiveLeagueSeason<
   TData = Awaited<ReturnType<typeof getActiveLeagueSeason>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -1532,7 +3815,7 @@ export const deleteSeason = async (
 };
 
 export const getDeleteSeasonMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1573,13 +3856,13 @@ export type DeleteSeasonMutationResult = NonNullable<
   Awaited<ReturnType<typeof deleteSeason>>
 >;
 
-export type DeleteSeasonMutationError = ErrorType<unknown>;
+export type DeleteSeasonMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Delete a season (admin only)
  */
 export const useDeleteSeason = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1643,7 +3926,7 @@ export const getGetLeagueStandingsQueryKey = (
 
 export const getGetLeagueStandingsQueryOptions = <
   TData = Awaited<ReturnType<typeof getLeagueStandings>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   params?: GetLeagueStandingsParams,
@@ -1681,7 +3964,7 @@ export const getGetLeagueStandingsQueryOptions = <
 export type GetLeagueStandingsQueryResult = NonNullable<
   Awaited<ReturnType<typeof getLeagueStandings>>
 >;
-export type GetLeagueStandingsQueryError = ErrorType<unknown>;
+export type GetLeagueStandingsQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Get standings for a league
@@ -1689,7 +3972,7 @@ export type GetLeagueStandingsQueryError = ErrorType<unknown>;
 
 export function useGetLeagueStandings<
   TData = Awaited<ReturnType<typeof getLeagueStandings>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   params?: GetLeagueStandingsParams,
@@ -1750,7 +4033,7 @@ export const getGetPlayersQueryKey = (params?: GetPlayersParams) => {
 
 export const getGetPlayersQueryOptions = <
   TData = Awaited<ReturnType<typeof getPlayers>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   params?: GetPlayersParams,
   options?: {
@@ -1780,7 +4063,7 @@ export const getGetPlayersQueryOptions = <
 export type GetPlayersQueryResult = NonNullable<
   Awaited<ReturnType<typeof getPlayers>>
 >;
-export type GetPlayersQueryError = ErrorType<unknown>;
+export type GetPlayersQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary List all players
@@ -1788,7 +4071,7 @@ export type GetPlayersQueryError = ErrorType<unknown>;
 
 export function useGetPlayers<
   TData = Awaited<ReturnType<typeof getPlayers>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   params?: GetPlayersParams,
   options?: {
@@ -1801,6 +4084,256 @@ export function useGetPlayers<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetPlayersQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Your player card and This season, for Profile (decisions 138 to 140)
+ */
+export const getGetMyPlayerCardUrl = () => {
+  return `/api/player-cards/me`;
+};
+
+export const getMyPlayerCard = async (
+  options?: RequestInit,
+): Promise<PlayerCard> => {
+  return customFetch<PlayerCard>(getGetMyPlayerCardUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyPlayerCardQueryKey = () => {
+  return [`/api/player-cards/me`] as const;
+};
+
+export const getGetMyPlayerCardQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyPlayerCard>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyPlayerCard>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyPlayerCardQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyPlayerCard>>> = ({
+    signal,
+  }) => getMyPlayerCard({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyPlayerCard>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyPlayerCardQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyPlayerCard>>
+>;
+export type GetMyPlayerCardQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Your player card and This season, for Profile (decisions 138 to 140)
+ */
+
+export function useGetMyPlayerCard<
+  TData = Awaited<ReturnType<typeof getMyPlayerCard>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyPlayerCard>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyPlayerCardQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Another player's card and This season, from Discover (decision 139)
+ */
+export const getGetPlayerCardUrl = (userId: number) => {
+  return `/api/player-cards/${userId}`;
+};
+
+export const getPlayerCard = async (
+  userId: number,
+  options?: RequestInit,
+): Promise<PlayerCard> => {
+  return customFetch<PlayerCard>(getGetPlayerCardUrl(userId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPlayerCardQueryKey = (userId: number) => {
+  return [`/api/player-cards/${userId}`] as const;
+};
+
+export const getGetPlayerCardQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPlayerCard>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPlayerCard>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetPlayerCardQueryKey(userId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlayerCard>>> = ({
+    signal,
+  }) => getPlayerCard(userId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPlayerCard>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPlayerCardQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPlayerCard>>
+>;
+export type GetPlayerCardQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Another player's card and This season, from Discover (decision 139)
+ */
+
+export function useGetPlayerCard<
+  TData = Awaited<ReturnType<typeof getPlayerCard>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPlayerCard>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPlayerCardQueryOptions(userId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Another player's Upcoming matches and Results, and your head-to-head (decision 143)
+ */
+export const getGetPlayerMatchesUrl = (userId: number) => {
+  return `/api/player-cards/${userId}/matches`;
+};
+
+export const getPlayerMatches = async (
+  userId: number,
+  options?: RequestInit,
+): Promise<PlayerMatches> => {
+  return customFetch<PlayerMatches>(getGetPlayerMatchesUrl(userId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPlayerMatchesQueryKey = (userId: number) => {
+  return [`/api/player-cards/${userId}/matches`] as const;
+};
+
+export const getGetPlayerMatchesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPlayerMatches>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPlayerMatches>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPlayerMatchesQueryKey(userId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPlayerMatches>>
+  > = ({ signal }) => getPlayerMatches(userId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPlayerMatches>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPlayerMatchesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPlayerMatches>>
+>;
+export type GetPlayerMatchesQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Another player's Upcoming matches and Results, and your head-to-head (decision 143)
+ */
+
+export function useGetPlayerMatches<
+  TData = Awaited<ReturnType<typeof getPlayerMatches>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPlayerMatches>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPlayerMatchesQueryOptions(userId, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -1876,6 +4409,101 @@ export function useGetMyPlayers<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetMyPlayersQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Never returns you or anyone blocked either way. "Everyone else" is people who finished onboarding, aren't banned or suspended, and (once Discover's hidden profile ships) haven't hidden their profile, capped at 25 per search.
+ * @summary Player search for Quick match and New message: league mates and past opponents first, then anyone findable on Ball Boi
+ */
+export const getSearchPlayersUrl = (params?: SearchPlayersParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/players/search?${stringifiedParams}`
+    : `/api/players/search`;
+};
+
+export const searchPlayers = async (
+  params?: SearchPlayersParams,
+  options?: RequestInit,
+): Promise<PlayerSearchResponse> => {
+  return customFetch<PlayerSearchResponse>(getSearchPlayersUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getSearchPlayersQueryKey = (params?: SearchPlayersParams) => {
+  return [`/api/players/search`, ...(params ? [params] : [])] as const;
+};
+
+export const getSearchPlayersQueryOptions = <
+  TData = Awaited<ReturnType<typeof searchPlayers>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: SearchPlayersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof searchPlayers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getSearchPlayersQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof searchPlayers>>> = ({
+    signal,
+  }) => searchPlayers(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof searchPlayers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type SearchPlayersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof searchPlayers>>
+>;
+export type SearchPlayersQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Player search for Quick match and New message: league mates and past opponents first, then anyone findable on Ball Boi
+ */
+
+export function useSearchPlayers<
+  TData = Awaited<ReturnType<typeof searchPlayers>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: SearchPlayersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof searchPlayers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getSearchPlayersQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -1990,7 +4618,7 @@ export const updatePlayer = async (
 };
 
 export const getUpdatePlayerMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -2031,13 +4659,13 @@ export type UpdatePlayerMutationResult = NonNullable<
   Awaited<ReturnType<typeof updatePlayer>>
 >;
 export type UpdatePlayerMutationBody = BodyType<UpdatePlayerBody>;
-export type UpdatePlayerMutationError = ErrorType<unknown>;
+export type UpdatePlayerMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Update player
  */
 export const useUpdatePlayer = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -2074,7 +4702,7 @@ export const deletePlayer = async (
 };
 
 export const getDeletePlayerMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -2115,13 +4743,13 @@ export type DeletePlayerMutationResult = NonNullable<
   Awaited<ReturnType<typeof deletePlayer>>
 >;
 
-export type DeletePlayerMutationError = ErrorType<unknown>;
+export type DeletePlayerMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Delete player
  */
 export const useDeletePlayer = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -2163,7 +4791,7 @@ export const getGetPlayerStatsQueryKey = (playerId: number) => {
 
 export const getGetPlayerStatsQueryOptions = <
   TData = Awaited<ReturnType<typeof getPlayerStats>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   playerId: number,
   options?: {
@@ -2199,7 +4827,7 @@ export const getGetPlayerStatsQueryOptions = <
 export type GetPlayerStatsQueryResult = NonNullable<
   Awaited<ReturnType<typeof getPlayerStats>>
 >;
-export type GetPlayerStatsQueryError = ErrorType<unknown>;
+export type GetPlayerStatsQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Get detailed stats for a player
@@ -2207,7 +4835,7 @@ export type GetPlayerStatsQueryError = ErrorType<unknown>;
 
 export function useGetPlayerStats<
   TData = Awaited<ReturnType<typeof getPlayerStats>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   playerId: number,
   options?: {
@@ -2251,7 +4879,7 @@ export const getGetLeagueMembershipQueryKey = (leagueId: number) => {
 
 export const getGetLeagueMembershipQueryOptions = <
   TData = Awaited<ReturnType<typeof getLeagueMembership>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -2288,7 +4916,7 @@ export const getGetLeagueMembershipQueryOptions = <
 export type GetLeagueMembershipQueryResult = NonNullable<
   Awaited<ReturnType<typeof getLeagueMembership>>
 >;
-export type GetLeagueMembershipQueryError = ErrorType<unknown>;
+export type GetLeagueMembershipQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary The signed-in user's admin role and player row in a league
@@ -2296,7 +4924,7 @@ export type GetLeagueMembershipQueryError = ErrorType<unknown>;
 
 export function useGetLeagueMembership<
   TData = Awaited<ReturnType<typeof getLeagueMembership>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -2340,7 +4968,7 @@ export const getGetLeagueAdminsQueryKey = (leagueId: number) => {
 
 export const getGetLeagueAdminsQueryOptions = <
   TData = Awaited<ReturnType<typeof getLeagueAdmins>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -2376,7 +5004,7 @@ export const getGetLeagueAdminsQueryOptions = <
 export type GetLeagueAdminsQueryResult = NonNullable<
   Awaited<ReturnType<typeof getLeagueAdmins>>
 >;
-export type GetLeagueAdminsQueryError = ErrorType<unknown>;
+export type GetLeagueAdminsQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary The league's owner and co-admins
@@ -2384,7 +5012,7 @@ export type GetLeagueAdminsQueryError = ErrorType<unknown>;
 
 export function useGetLeagueAdmins<
   TData = Awaited<ReturnType<typeof getLeagueAdmins>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -2426,7 +5054,7 @@ export const promoteLeagueAdmin = async (
 };
 
 export const getPromoteLeagueAdminMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -2467,13 +5095,13 @@ export type PromoteLeagueAdminMutationResult = NonNullable<
   Awaited<ReturnType<typeof promoteLeagueAdmin>>
 >;
 export type PromoteLeagueAdminMutationBody = BodyType<PlayerIdBody>;
-export type PromoteLeagueAdminMutationError = ErrorType<unknown>;
+export type PromoteLeagueAdminMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Promote a league member to co-admin (admins only)
  */
 export const usePromoteLeagueAdmin = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -2515,7 +5143,7 @@ export const getGetLeagueRosterQueryKey = (leagueId: number) => {
 
 export const getGetLeagueRosterQueryOptions = <
   TData = Awaited<ReturnType<typeof getLeagueRoster>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -2551,7 +5179,7 @@ export const getGetLeagueRosterQueryOptions = <
 export type GetLeagueRosterQueryResult = NonNullable<
   Awaited<ReturnType<typeof getLeagueRoster>>
 >;
-export type GetLeagueRosterQueryError = ErrorType<unknown>;
+export type GetLeagueRosterQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Everyone playing this season, with their admin role (admins only)
@@ -2559,7 +5187,7 @@ export type GetLeagueRosterQueryError = ErrorType<unknown>;
 
 export function useGetLeagueRoster<
   TData = Awaited<ReturnType<typeof getLeagueRoster>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -2602,7 +5230,7 @@ export const removeLeagueAdmin = async (
 };
 
 export const getRemoveLeagueAdminMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -2643,13 +5271,13 @@ export type RemoveLeagueAdminMutationResult = NonNullable<
   Awaited<ReturnType<typeof removeLeagueAdmin>>
 >;
 
-export type RemoveLeagueAdminMutationError = ErrorType<unknown>;
+export type RemoveLeagueAdminMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Remove a co-admin (the owner), or step down (a co-admin)
  */
 export const useRemoveLeagueAdmin = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -2691,7 +5319,7 @@ export const getGetLeagueScheduleQueryKey = (leagueId: number) => {
 
 export const getGetLeagueScheduleQueryOptions = <
   TData = Awaited<ReturnType<typeof getLeagueSchedule>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -2728,7 +5356,7 @@ export const getGetLeagueScheduleQueryOptions = <
 export type GetLeagueScheduleQueryResult = NonNullable<
   Awaited<ReturnType<typeof getLeagueSchedule>>
 >;
-export type GetLeagueScheduleQueryError = ErrorType<unknown>;
+export type GetLeagueScheduleQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Every round of the season, plus weeks still to come
@@ -2736,7 +5364,7 @@ export type GetLeagueScheduleQueryError = ErrorType<unknown>;
 
 export function useGetLeagueSchedule<
   TData = Awaited<ReturnType<typeof getLeagueSchedule>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -2780,7 +5408,7 @@ export const getGetLeagueBracketQueryKey = (leagueId: number) => {
 
 export const getGetLeagueBracketQueryOptions = <
   TData = Awaited<ReturnType<typeof getLeagueBracket>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -2816,7 +5444,7 @@ export const getGetLeagueBracketQueryOptions = <
 export type GetLeagueBracketQueryResult = NonNullable<
   Awaited<ReturnType<typeof getLeagueBracket>>
 >;
-export type GetLeagueBracketQueryError = ErrorType<unknown>;
+export type GetLeagueBracketQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary The playoff bracket, or null before playoffs start
@@ -2824,7 +5452,7 @@ export type GetLeagueBracketQueryError = ErrorType<unknown>;
 
 export function useGetLeagueBracket<
   TData = Awaited<ReturnType<typeof getLeagueBracket>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -2938,7 +5566,7 @@ export const dismissMyJoinRequest = async (
 };
 
 export const getDismissMyJoinRequestMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -2979,13 +5607,13 @@ export type DismissMyJoinRequestMutationResult = NonNullable<
   Awaited<ReturnType<typeof dismissMyJoinRequest>>
 >;
 
-export type DismissMyJoinRequestMutationError = ErrorType<unknown>;
+export type DismissMyJoinRequestMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Dismiss the note for a declined request
  */
 export const useDismissMyJoinRequest = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -3080,6 +5708,93 @@ export function useGetMyLeagueWeek<
 }
 
 /**
+ * @summary Match detail for one of your league matches - details, the score from your side, who entered or changed it, and the Ball Boi Replay once it exists
+ */
+export const getGetMyMatchUrl = (matchId: number) => {
+  return `/api/me/matches/${matchId}`;
+};
+
+export const getMyMatch = async (
+  matchId: number,
+  options?: RequestInit,
+): Promise<MatchDetail> => {
+  return customFetch<MatchDetail>(getGetMyMatchUrl(matchId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyMatchQueryKey = (matchId: number) => {
+  return [`/api/me/matches/${matchId}`] as const;
+};
+
+export const getGetMyMatchQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyMatch>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  matchId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMyMatch>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyMatchQueryKey(matchId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyMatch>>> = ({
+    signal,
+  }) => getMyMatch(matchId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!matchId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyMatch>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyMatchQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyMatch>>
+>;
+export type GetMyMatchQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Match detail for one of your league matches - details, the score from your side, who entered or changed it, and the Ball Boi Replay once it exists
+ */
+
+export function useGetMyMatch<
+  TData = Awaited<ReturnType<typeof getMyMatch>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  matchId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMyMatch>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyMatchQueryOptions(matchId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Development only. What the Testing tools section in Manage shows. 404 in production.
  */
 export const getGetDevLeagueToolsUrl = (leagueId: number) => {
@@ -3102,7 +5817,7 @@ export const getGetDevLeagueToolsQueryKey = (leagueId: number) => {
 
 export const getGetDevLeagueToolsQueryOptions = <
   TData = Awaited<ReturnType<typeof getDevLeagueTools>>,
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse | void>,
 >(
   leagueId: number,
   options?: {
@@ -3139,7 +5854,7 @@ export const getGetDevLeagueToolsQueryOptions = <
 export type GetDevLeagueToolsQueryResult = NonNullable<
   Awaited<ReturnType<typeof getDevLeagueTools>>
 >;
-export type GetDevLeagueToolsQueryError = ErrorType<void>;
+export type GetDevLeagueToolsQueryError = ErrorType<ErrorResponse | void>;
 
 /**
  * @summary Development only. What the Testing tools section in Manage shows. 404 in production.
@@ -3147,7 +5862,7 @@ export type GetDevLeagueToolsQueryError = ErrorType<void>;
 
 export function useGetDevLeagueTools<
   TData = Awaited<ReturnType<typeof getDevLeagueTools>>,
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse | void>,
 >(
   leagueId: number,
   options?: {
@@ -3189,7 +5904,7 @@ export const moveDevLeagueTime = async (
 };
 
 export const getMoveDevLeagueTimeMutationOptions = <
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse | DevTimeResult>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -3230,13 +5945,15 @@ export type MoveDevLeagueTimeMutationResult = NonNullable<
   Awaited<ReturnType<typeof moveDevLeagueTime>>
 >;
 export type MoveDevLeagueTimeMutationBody = BodyType<DevTimeBody>;
-export type MoveDevLeagueTimeMutationError = ErrorType<void>;
+export type MoveDevLeagueTimeMutationError = ErrorType<
+  ErrorResponse | DevTimeResult
+>;
 
 /**
  * @summary Development only. Moves the league's dates earlier, as if time passed. League admins only.
  */
 export const useMoveDevLeagueTime = <
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse | DevTimeResult>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -3273,7 +5990,7 @@ export const devPairLeagueNow = async (
 };
 
 export const getDevPairLeagueNowMutationOptions = <
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse | DevPairResult>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -3314,13 +6031,15 @@ export type DevPairLeagueNowMutationResult = NonNullable<
   Awaited<ReturnType<typeof devPairLeagueNow>>
 >;
 
-export type DevPairLeagueNowMutationError = ErrorType<void>;
+export type DevPairLeagueNowMutationError = ErrorType<
+  ErrorResponse | DevPairResult
+>;
 
 /**
  * @summary Development only. Drafts the next round now, for review. League admins only.
  */
 export const useDevPairLeagueNow = <
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse | DevPairResult>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -3340,7 +6059,7 @@ export const useDevPairLeagueNow = <
 };
 
 /**
- * @summary Enter a league match score from your own side. The first score entered stands.
+ * @summary Enter a league match score from your own side. Either player can edit it for 24 hours after.
  */
 export const getEnterLeagueScoreUrl = (leagueId: number, matchId: number) => {
   return `/api/leagues/${leagueId}/matches/${matchId}/score`;
@@ -3361,7 +6080,7 @@ export const enterLeagueScore = async (
 };
 
 export const getEnterLeagueScoreMutationOptions = <
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -3402,13 +6121,13 @@ export type EnterLeagueScoreMutationResult = NonNullable<
   Awaited<ReturnType<typeof enterLeagueScore>>
 >;
 export type EnterLeagueScoreMutationBody = BodyType<EnterScoreBody>;
-export type EnterLeagueScoreMutationError = ErrorType<void>;
+export type EnterLeagueScoreMutationError = ErrorType<ErrorResponse>;
 
 /**
- * @summary Enter a league match score from your own side. The first score entered stands.
+ * @summary Enter a league match score from your own side. Either player can edit it for 24 hours after.
  */
 export const useEnterLeagueScore = <
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -3452,7 +6171,7 @@ export const correctLeagueScore = async (
 };
 
 export const getCorrectLeagueScoreMutationOptions = <
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -3493,13 +6212,13 @@ export type CorrectLeagueScoreMutationResult = NonNullable<
   Awaited<ReturnType<typeof correctLeagueScore>>
 >;
 export type CorrectLeagueScoreMutationBody = BodyType<EnterScoreBody>;
-export type CorrectLeagueScoreMutationError = ErrorType<void>;
+export type CorrectLeagueScoreMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary League admins correct a completed match's score, from player 1's side. Standings recompute.
  */
 export const useCorrectLeagueScore = <
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -3519,41 +6238,44 @@ export const useCorrectLeagueScore = <
 };
 
 /**
- * @summary The player who entered a score undoes it within 10 minutes. Standings recompute.
+ * @summary League admins settle an unplayed playoff match after its round's play-by date: a score from player 1's side, or a walkover. The winner moves on.
  */
-export const getUndoLeagueScoreUrl = (leagueId: number, matchId: number) => {
-  return `/api/leagues/${leagueId}/matches/${matchId}/score/undo`;
+export const getSettlePlayoffMatchUrl = (leagueId: number, matchId: number) => {
+  return `/api/leagues/${leagueId}/matches/${matchId}/result`;
 };
 
-export const undoLeagueScore = async (
+export const settlePlayoffMatch = async (
   leagueId: number,
   matchId: number,
+  settleMatchBody: SettleMatchBody,
   options?: RequestInit,
-): Promise<UndoneScore> => {
-  return customFetch<UndoneScore>(getUndoLeagueScoreUrl(leagueId, matchId), {
+): Promise<ScoreResult> => {
+  return customFetch<ScoreResult>(getSettlePlayoffMatchUrl(leagueId, matchId), {
     ...options,
     method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(settleMatchBody),
   });
 };
 
-export const getUndoLeagueScoreMutationOptions = <
-  TError = ErrorType<void>,
+export const getSettlePlayoffMatchMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof undoLeagueScore>>,
+    Awaited<ReturnType<typeof settlePlayoffMatch>>,
     TError,
-    { leagueId: number; matchId: number },
+    { leagueId: number; matchId: number; data: BodyType<SettleMatchBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof undoLeagueScore>>,
+  Awaited<ReturnType<typeof settlePlayoffMatch>>,
   TError,
-  { leagueId: number; matchId: number },
+  { leagueId: number; matchId: number; data: BodyType<SettleMatchBody> },
   TContext
 > => {
-  const mutationKey = ["undoLeagueScore"];
+  const mutationKey = ["settlePlayoffMatch"];
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation &&
       "mutationKey" in options.mutation &&
@@ -3563,44 +6285,311 @@ export const getUndoLeagueScoreMutationOptions = <
     : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof undoLeagueScore>>,
-    { leagueId: number; matchId: number }
+    Awaited<ReturnType<typeof settlePlayoffMatch>>,
+    { leagueId: number; matchId: number; data: BodyType<SettleMatchBody> }
   > = (props) => {
-    const { leagueId, matchId } = props ?? {};
+    const { leagueId, matchId, data } = props ?? {};
 
-    return undoLeagueScore(leagueId, matchId, requestOptions);
+    return settlePlayoffMatch(leagueId, matchId, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type UndoLeagueScoreMutationResult = NonNullable<
-  Awaited<ReturnType<typeof undoLeagueScore>>
+export type SettlePlayoffMatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof settlePlayoffMatch>>
 >;
-
-export type UndoLeagueScoreMutationError = ErrorType<void>;
+export type SettlePlayoffMatchMutationBody = BodyType<SettleMatchBody>;
+export type SettlePlayoffMatchMutationError = ErrorType<ErrorResponse>;
 
 /**
- * @summary The player who entered a score undoes it within 10 minutes. Standings recompute.
+ * @summary League admins settle an unplayed playoff match after its round's play-by date: a score from player 1's side, or a walkover. The winner moves on.
  */
-export const useUndoLeagueScore = <
-  TError = ErrorType<void>,
+export const useSettlePlayoffMatch = <
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof undoLeagueScore>>,
+    Awaited<ReturnType<typeof settlePlayoffMatch>>,
     TError,
-    { leagueId: number; matchId: number },
+    { leagueId: number; matchId: number; data: BodyType<SettleMatchBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
-  Awaited<ReturnType<typeof undoLeagueScore>>,
+  Awaited<ReturnType<typeof settlePlayoffMatch>>,
   TError,
-  { leagueId: number; matchId: number },
+  { leagueId: number; matchId: number; data: BodyType<SettleMatchBody> },
   TContext
 > => {
-  return useMutation(getUndoLeagueScoreMutationOptions(options));
+  return useMutation(getSettlePlayoffMatchMutationOptions(options));
+};
+
+/**
+ * @summary Either player in the match, or a league admin, sets its date and time inside the match's week. In a league with a weekly match time, only admins can change it.
+ */
+export const getSetLeagueMatchTimeUrl = (leagueId: number, matchId: number) => {
+  return `/api/leagues/${leagueId}/matches/${matchId}/time`;
+};
+
+export const setLeagueMatchTime = async (
+  leagueId: number,
+  matchId: number,
+  setMatchTimeBody: SetMatchTimeBody,
+  options?: RequestInit,
+): Promise<MatchTime> => {
+  return customFetch<MatchTime>(getSetLeagueMatchTimeUrl(leagueId, matchId), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(setMatchTimeBody),
+  });
+};
+
+export const getSetLeagueMatchTimeMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setLeagueMatchTime>>,
+    TError,
+    { leagueId: number; matchId: number; data: BodyType<SetMatchTimeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setLeagueMatchTime>>,
+  TError,
+  { leagueId: number; matchId: number; data: BodyType<SetMatchTimeBody> },
+  TContext
+> => {
+  const mutationKey = ["setLeagueMatchTime"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setLeagueMatchTime>>,
+    { leagueId: number; matchId: number; data: BodyType<SetMatchTimeBody> }
+  > = (props) => {
+    const { leagueId, matchId, data } = props ?? {};
+
+    return setLeagueMatchTime(leagueId, matchId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetLeagueMatchTimeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setLeagueMatchTime>>
+>;
+export type SetLeagueMatchTimeMutationBody = BodyType<SetMatchTimeBody>;
+export type SetLeagueMatchTimeMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Either player in the match, or a league admin, sets its date and time inside the match's week. In a league with a weekly match time, only admins can change it.
+ */
+export const useSetLeagueMatchTime = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setLeagueMatchTime>>,
+    TError,
+    { leagueId: number; matchId: number; data: BodyType<SetMatchTimeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setLeagueMatchTime>>,
+  TError,
+  { leagueId: number; matchId: number; data: BodyType<SetMatchTimeBody> },
+  TContext
+> => {
+  return useMutation(getSetLeagueMatchTimeMutationOptions(options));
+};
+
+/**
+ * @summary League admins set the weekly match day and time, or clear it so players pick.
+ */
+export const getSetLeagueWeeklyMatchTimeUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/match-time`;
+};
+
+export const setLeagueWeeklyMatchTime = async (
+  leagueId: number,
+  leagueMatchTimeBody: LeagueMatchTimeBody,
+  options?: RequestInit,
+): Promise<LeagueMatchTime> => {
+  return customFetch<LeagueMatchTime>(
+    getSetLeagueWeeklyMatchTimeUrl(leagueId),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(leagueMatchTimeBody),
+    },
+  );
+};
+
+export const getSetLeagueWeeklyMatchTimeMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setLeagueWeeklyMatchTime>>,
+    TError,
+    { leagueId: number; data: BodyType<LeagueMatchTimeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setLeagueWeeklyMatchTime>>,
+  TError,
+  { leagueId: number; data: BodyType<LeagueMatchTimeBody> },
+  TContext
+> => {
+  const mutationKey = ["setLeagueWeeklyMatchTime"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setLeagueWeeklyMatchTime>>,
+    { leagueId: number; data: BodyType<LeagueMatchTimeBody> }
+  > = (props) => {
+    const { leagueId, data } = props ?? {};
+
+    return setLeagueWeeklyMatchTime(leagueId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetLeagueWeeklyMatchTimeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setLeagueWeeklyMatchTime>>
+>;
+export type SetLeagueWeeklyMatchTimeMutationBody =
+  BodyType<LeagueMatchTimeBody>;
+export type SetLeagueWeeklyMatchTimeMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary League admins set the weekly match day and time, or clear it so players pick.
+ */
+export const useSetLeagueWeeklyMatchTime = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setLeagueWeeklyMatchTime>>,
+    TError,
+    { leagueId: number; data: BodyType<LeagueMatchTimeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setLeagueWeeklyMatchTime>>,
+  TError,
+  { leagueId: number; data: BodyType<LeagueMatchTimeBody> },
+  TContext
+> => {
+  return useMutation(getSetLeagueWeeklyMatchTimeMutationOptions(options));
+};
+
+/**
+ * @summary Either player edits the score from their own side, for 24 hours after it was entered. The latest edit stands and standings recompute.
+ */
+export const getEditLeagueScoreUrl = (leagueId: number, matchId: number) => {
+  return `/api/leagues/${leagueId}/matches/${matchId}/score/edit`;
+};
+
+export const editLeagueScore = async (
+  leagueId: number,
+  matchId: number,
+  enterScoreBody: EnterScoreBody,
+  options?: RequestInit,
+): Promise<EditedScore> => {
+  return customFetch<EditedScore>(getEditLeagueScoreUrl(leagueId, matchId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(enterScoreBody),
+  });
+};
+
+export const getEditLeagueScoreMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof editLeagueScore>>,
+    TError,
+    { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof editLeagueScore>>,
+  TError,
+  { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
+  TContext
+> => {
+  const mutationKey = ["editLeagueScore"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof editLeagueScore>>,
+    { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> }
+  > = (props) => {
+    const { leagueId, matchId, data } = props ?? {};
+
+    return editLeagueScore(leagueId, matchId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EditLeagueScoreMutationResult = NonNullable<
+  Awaited<ReturnType<typeof editLeagueScore>>
+>;
+export type EditLeagueScoreMutationBody = BodyType<EnterScoreBody>;
+export type EditLeagueScoreMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Either player edits the score from their own side, for 24 hours after it was entered. The latest edit stands and standings recompute.
+ */
+export const useEditLeagueScore = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof editLeagueScore>>,
+    TError,
+    { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof editLeagueScore>>,
+  TError,
+  { leagueId: number; matchId: number; data: BodyType<EnterScoreBody> },
+  TContext
+> => {
+  return useMutation(getEditLeagueScoreMutationOptions(options));
 };
 
 /**
@@ -3621,7 +6610,7 @@ export const endLeague = async (
 };
 
 export const getEndLeagueMutationOptions = <
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -3662,13 +6651,13 @@ export type EndLeagueMutationResult = NonNullable<
   Awaited<ReturnType<typeof endLeague>>
 >;
 
-export type EndLeagueMutationError = ErrorType<void>;
+export type EndLeagueMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary League admins end the league. Standings freeze, unpublished rounds are cancelled, history stays.
  */
 export const useEndLeague = <
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -3780,7 +6769,7 @@ export const dismissMyLeagueNotice = async (
 };
 
 export const getDismissMyLeagueNoticeMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -3821,13 +6810,13 @@ export type DismissMyLeagueNoticeMutationResult = NonNullable<
   Awaited<ReturnType<typeof dismissMyLeagueNotice>>
 >;
 
-export type DismissMyLeagueNoticeMutationError = ErrorType<unknown>;
+export type DismissMyLeagueNoticeMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Clear a league note
  */
 export const useDismissMyLeagueNotice = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -3869,7 +6858,7 @@ export const getGetLeagueJoinRequestsQueryKey = (leagueId: number) => {
 
 export const getGetLeagueJoinRequestsQueryOptions = <
   TData = Awaited<ReturnType<typeof getLeagueJoinRequests>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -3906,7 +6895,7 @@ export const getGetLeagueJoinRequestsQueryOptions = <
 export type GetLeagueJoinRequestsQueryResult = NonNullable<
   Awaited<ReturnType<typeof getLeagueJoinRequests>>
 >;
-export type GetLeagueJoinRequestsQueryError = ErrorType<unknown>;
+export type GetLeagueJoinRequestsQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Pending requests and the waitlist (admins only)
@@ -3914,7 +6903,7 @@ export type GetLeagueJoinRequestsQueryError = ErrorType<unknown>;
 
 export function useGetLeagueJoinRequests<
   TData = Awaited<ReturnType<typeof getLeagueJoinRequests>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -3956,7 +6945,7 @@ export const requestToJoinLeague = async (
 };
 
 export const getRequestToJoinLeagueMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -3997,13 +6986,13 @@ export type RequestToJoinLeagueMutationResult = NonNullable<
   Awaited<ReturnType<typeof requestToJoinLeague>>
 >;
 export type RequestToJoinLeagueMutationBody = BodyType<JoinLeagueBody>;
-export type RequestToJoinLeagueMutationError = ErrorType<unknown>;
+export type RequestToJoinLeagueMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Ask to join an Open league. Goes to the waitlist once the season has started or the league is full.
  */
 export const useRequestToJoinLeague = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4048,7 +7037,7 @@ export const getGetMyLeagueJoinRequestQueryKey = (leagueId: number) => {
 
 export const getGetMyLeagueJoinRequestQueryOptions = <
   TData = Awaited<ReturnType<typeof getMyLeagueJoinRequest>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -4085,7 +7074,7 @@ export const getGetMyLeagueJoinRequestQueryOptions = <
 export type GetMyLeagueJoinRequestQueryResult = NonNullable<
   Awaited<ReturnType<typeof getMyLeagueJoinRequest>>
 >;
-export type GetMyLeagueJoinRequestQueryError = ErrorType<unknown>;
+export type GetMyLeagueJoinRequestQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Your own pending request or waitlist spot
@@ -4093,7 +7082,7 @@ export type GetMyLeagueJoinRequestQueryError = ErrorType<unknown>;
 
 export function useGetMyLeagueJoinRequest<
   TData = Awaited<ReturnType<typeof getMyLeagueJoinRequest>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -4132,7 +7121,7 @@ export const withdrawLeagueJoinRequest = async (
 };
 
 export const getWithdrawLeagueJoinRequestMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4173,13 +7162,13 @@ export type WithdrawLeagueJoinRequestMutationResult = NonNullable<
   Awaited<ReturnType<typeof withdrawLeagueJoinRequest>>
 >;
 
-export type WithdrawLeagueJoinRequestMutationError = ErrorType<unknown>;
+export type WithdrawLeagueJoinRequestMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Withdraw your request or leave the waitlist
  */
 export const useWithdrawLeagueJoinRequest = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4223,7 +7212,7 @@ export const approveLeagueJoinRequest = async (
 };
 
 export const getApproveLeagueJoinRequestMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4264,13 +7253,13 @@ export type ApproveLeagueJoinRequestMutationResult = NonNullable<
   Awaited<ReturnType<typeof approveLeagueJoinRequest>>
 >;
 
-export type ApproveLeagueJoinRequestMutationError = ErrorType<unknown>;
+export type ApproveLeagueJoinRequestMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Approve a request before the season starts (admins only)
  */
 export const useApproveLeagueJoinRequest = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4314,7 +7303,7 @@ export const declineLeagueJoinRequest = async (
 };
 
 export const getDeclineLeagueJoinRequestMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4355,13 +7344,13 @@ export type DeclineLeagueJoinRequestMutationResult = NonNullable<
   Awaited<ReturnType<typeof declineLeagueJoinRequest>>
 >;
 
-export type DeclineLeagueJoinRequestMutationError = ErrorType<unknown>;
+export type DeclineLeagueJoinRequestMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Decline a request or remove someone from the waitlist (admins only)
  */
 export const useDeclineLeagueJoinRequest = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4381,7 +7370,7 @@ export const useDeclineLeagueJoinRequest = <
 };
 
 /**
- * @summary Leave a league. Played matches stay; remaining matches are voided.
+ * @summary Leave a league. Played matches stay; remaining weekly matches are voided, and a playoff match still to play goes to the opponent on a walkover. An admin who leaves stays an admin.
  */
 export const getLeaveLeagueUrl = (leagueId: number) => {
   return `/api/leagues/${leagueId}/leave`;
@@ -4398,7 +7387,7 @@ export const leaveLeague = async (
 };
 
 export const getLeaveLeagueMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4439,13 +7428,13 @@ export type LeaveLeagueMutationResult = NonNullable<
   Awaited<ReturnType<typeof leaveLeague>>
 >;
 
-export type LeaveLeagueMutationError = ErrorType<unknown>;
+export type LeaveLeagueMutationError = ErrorType<ErrorResponse>;
 
 /**
- * @summary Leave a league. Played matches stay; remaining matches are voided.
+ * @summary Leave a league. Played matches stay; remaining weekly matches are voided, and a playoff match still to play goes to the opponent on a walkover. An admin who leaves stays an admin.
  */
 export const useLeaveLeague = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4465,7 +7454,7 @@ export const useLeaveLeague = <
 };
 
 /**
- * @summary Remove a player (admins only). Same rules as leaving.
+ * @summary Remove a player (admins only). Same rules as leaving. Admins can't remove themselves; they leave instead.
  */
 export const getRemoveLeaguePlayerUrl = (
   leagueId: number,
@@ -4489,7 +7478,7 @@ export const removeLeaguePlayer = async (
 };
 
 export const getRemoveLeaguePlayerMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4530,13 +7519,13 @@ export type RemoveLeaguePlayerMutationResult = NonNullable<
   Awaited<ReturnType<typeof removeLeaguePlayer>>
 >;
 
-export type RemoveLeaguePlayerMutationError = ErrorType<unknown>;
+export type RemoveLeaguePlayerMutationError = ErrorType<ErrorResponse>;
 
 /**
- * @summary Remove a player (admins only). Same rules as leaving.
+ * @summary Remove a player (admins only). Same rules as leaving. Admins can't remove themselves; they leave instead.
  */
 export const useRemoveLeaguePlayer = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4573,7 +7562,7 @@ export const draftNextLeagueRound = async (
 };
 
 export const getDraftNextLeagueRoundMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4614,13 +7603,13 @@ export type DraftNextLeagueRoundMutationResult = NonNullable<
   Awaited<ReturnType<typeof draftNextLeagueRound>>
 >;
 
-export type DraftNextLeagueRoundMutationError = ErrorType<unknown>;
+export type DraftNextLeagueRoundMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Draft the next round's pairings now (admins only)
  */
 export const useDraftNextLeagueRound = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4661,7 +7650,7 @@ export const repairLeagueRound = async (
 };
 
 export const getRepairLeagueRoundMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4702,13 +7691,13 @@ export type RepairLeagueRoundMutationResult = NonNullable<
   Awaited<ReturnType<typeof repairLeagueRound>>
 >;
 
-export type RepairLeagueRoundMutationError = ErrorType<unknown>;
+export type RepairLeagueRoundMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Re-pair a draft, keeping locked matches and admin byes (admins only)
  */
 export const useRepairLeagueRound = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4749,7 +7738,7 @@ export const publishLeagueRound = async (
 };
 
 export const getPublishLeagueRoundMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4790,13 +7779,13 @@ export type PublishLeagueRoundMutationResult = NonNullable<
   Awaited<ReturnType<typeof publishLeagueRound>>
 >;
 
-export type PublishLeagueRoundMutationError = ErrorType<unknown>;
+export type PublishLeagueRoundMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Send a draft out to players now (admins only)
  */
 export const usePublishLeagueRound = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4843,7 +7832,7 @@ export const swapLeagueRoundPlayers = async (
 };
 
 export const getSwapLeagueRoundPlayersMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4884,13 +7873,13 @@ export type SwapLeagueRoundPlayersMutationResult = NonNullable<
   Awaited<ReturnType<typeof swapLeagueRoundPlayers>>
 >;
 export type SwapLeagueRoundPlayersMutationBody = BodyType<SwapPlayersBody>;
-export type SwapLeagueRoundPlayersMutationError = ErrorType<unknown>;
+export type SwapLeagueRoundPlayersMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Swap two players' places in a draft (admins only)
  */
 export const useSwapLeagueRoundPlayers = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4934,7 +7923,7 @@ export const addLeagueRoundBye = async (
 };
 
 export const getAddLeagueRoundByeMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4975,13 +7964,13 @@ export type AddLeagueRoundByeMutationResult = NonNullable<
   Awaited<ReturnType<typeof addLeagueRoundBye>>
 >;
 export type AddLeagueRoundByeMutationBody = BodyType<PlayerIdBody>;
-export type AddLeagueRoundByeMutationError = ErrorType<unknown>;
+export type AddLeagueRoundByeMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Give a player a bye in a draft (admins only)
  */
 export const useAddLeagueRoundBye = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -5027,7 +8016,7 @@ export const removeLeagueRoundBye = async (
 };
 
 export const getRemoveLeagueRoundByeMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -5068,13 +8057,13 @@ export type RemoveLeagueRoundByeMutationResult = NonNullable<
   Awaited<ReturnType<typeof removeLeagueRoundBye>>
 >;
 
-export type RemoveLeagueRoundByeMutationError = ErrorType<unknown>;
+export type RemoveLeagueRoundByeMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Take a bye away in a draft (admins only)
  */
 export const useRemoveLeagueRoundBye = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -5123,7 +8112,7 @@ export const lockLeagueRoundMatch = async (
 };
 
 export const getLockLeagueRoundMatchMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -5185,13 +8174,13 @@ export type LockLeagueRoundMatchMutationResult = NonNullable<
   Awaited<ReturnType<typeof lockLeagueRoundMatch>>
 >;
 export type LockLeagueRoundMatchMutationBody = BodyType<LockMatchBody>;
-export type LockLeagueRoundMatchMutationError = ErrorType<unknown>;
+export type LockLeagueRoundMatchMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Lock or unlock a pairing in a draft (admins only)
  */
 export const useLockLeagueRoundMatch = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -5334,7 +8323,7 @@ export const createMatch = async (
 };
 
 export const getCreateMatchMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -5375,13 +8364,13 @@ export type CreateMatchMutationResult = NonNullable<
   Awaited<ReturnType<typeof createMatch>>
 >;
 export type CreateMatchMutationBody = BodyType<CreateMatchBody>;
-export type CreateMatchMutationError = ErrorType<unknown>;
+export type CreateMatchMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Schedule a new match
  */
 export const useCreateMatch = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -5506,7 +8495,7 @@ export const updateMatch = async (
 };
 
 export const getUpdateMatchMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -5547,13 +8536,13 @@ export type UpdateMatchMutationResult = NonNullable<
   Awaited<ReturnType<typeof updateMatch>>
 >;
 export type UpdateMatchMutationBody = BodyType<UpdateMatchBody>;
-export type UpdateMatchMutationError = ErrorType<unknown>;
+export type UpdateMatchMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Update match (including recording score)
  */
 export const useUpdateMatch = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -5590,7 +8579,7 @@ export const deleteMatch = async (
 };
 
 export const getDeleteMatchMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -5631,13 +8620,13 @@ export type DeleteMatchMutationResult = NonNullable<
   Awaited<ReturnType<typeof deleteMatch>>
 >;
 
-export type DeleteMatchMutationError = ErrorType<unknown>;
+export type DeleteMatchMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Delete match
  */
 export const useDeleteMatch = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -5678,7 +8667,7 @@ export const getGetMyProfileQueryKey = () => {
 
 export const getGetMyProfileQueryOptions = <
   TData = Awaited<ReturnType<typeof getMyProfile>>,
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse>,
 >(options?: {
   query?: UseQueryOptions<
     Awaited<ReturnType<typeof getMyProfile>>,
@@ -5705,7 +8694,7 @@ export const getGetMyProfileQueryOptions = <
 export type GetMyProfileQueryResult = NonNullable<
   Awaited<ReturnType<typeof getMyProfile>>
 >;
-export type GetMyProfileQueryError = ErrorType<void>;
+export type GetMyProfileQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Get current user profile
@@ -5713,7 +8702,7 @@ export type GetMyProfileQueryError = ErrorType<void>;
 
 export function useGetMyProfile<
   TData = Awaited<ReturnType<typeof getMyProfile>>,
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse>,
 >(options?: {
   query?: UseQueryOptions<
     Awaited<ReturnType<typeof getMyProfile>>,
@@ -5751,7 +8740,7 @@ export const upsertMyProfile = async (
 };
 
 export const getUpsertMyProfileMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -5792,13 +8781,13 @@ export type UpsertMyProfileMutationResult = NonNullable<
   Awaited<ReturnType<typeof upsertMyProfile>>
 >;
 export type UpsertMyProfileMutationBody = BodyType<UpsertUserProfileBody>;
-export type UpsertMyProfileMutationError = ErrorType<unknown>;
+export type UpsertMyProfileMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Create or update current user profile
  */
 export const useUpsertMyProfile = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -5837,7 +8826,7 @@ export const updateMyProfile = async (
 };
 
 export const getUpdateMyProfileMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -5878,13 +8867,13 @@ export type UpdateMyProfileMutationResult = NonNullable<
   Awaited<ReturnType<typeof updateMyProfile>>
 >;
 export type UpdateMyProfileMutationBody = BodyType<UpsertUserProfileBody>;
-export type UpdateMyProfileMutationError = ErrorType<unknown>;
+export type UpdateMyProfileMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Update current user profile fields
  */
 export const useUpdateMyProfile = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -5901,6 +8890,93 @@ export const useUpdateMyProfile = <
   TContext
 > => {
   return useMutation(getUpdateMyProfileMutationOptions(options));
+};
+
+/**
+ * newAdmins names who takes over each league the person runs alone; leagues left out go to the longest-standing member.
+ * @summary Delete the signed-in person's account and personal data. Works while banned.
+ */
+export const getDeleteMyAccountUrl = () => {
+  return `/api/users/me`;
+};
+
+export const deleteMyAccount = async (
+  accountDeletionInput: AccountDeletionInput,
+  options?: RequestInit,
+): Promise<AccountDeletionResult> => {
+  return customFetch<AccountDeletionResult>(getDeleteMyAccountUrl(), {
+    ...options,
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(accountDeletionInput),
+  });
+};
+
+export const getDeleteMyAccountMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteMyAccount>>,
+    TError,
+    { data: BodyType<AccountDeletionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteMyAccount>>,
+  TError,
+  { data: BodyType<AccountDeletionInput> },
+  TContext
+> => {
+  const mutationKey = ["deleteMyAccount"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteMyAccount>>,
+    { data: BodyType<AccountDeletionInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return deleteMyAccount(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteMyAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteMyAccount>>
+>;
+export type DeleteMyAccountMutationBody = BodyType<AccountDeletionInput>;
+export type DeleteMyAccountMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete the signed-in person's account and personal data. Works while banned.
+ */
+export const useDeleteMyAccount = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteMyAccount>>,
+    TError,
+    { data: BodyType<AccountDeletionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteMyAccount>>,
+  TError,
+  { data: BodyType<AccountDeletionInput> },
+  TContext
+> => {
+  return useMutation(getDeleteMyAccountMutationOptions(options));
 };
 
 /**
@@ -6130,7 +9206,7 @@ export const getGetLeagueInvitesQueryKey = (leagueId: number) => {
 
 export const getGetLeagueInvitesQueryOptions = <
   TData = Awaited<ReturnType<typeof getLeagueInvites>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -6166,7 +9242,7 @@ export const getGetLeagueInvitesQueryOptions = <
 export type GetLeagueInvitesQueryResult = NonNullable<
   Awaited<ReturnType<typeof getLeagueInvites>>
 >;
-export type GetLeagueInvitesQueryError = ErrorType<unknown>;
+export type GetLeagueInvitesQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Get active invites for a league
@@ -6174,7 +9250,7 @@ export type GetLeagueInvitesQueryError = ErrorType<unknown>;
 
 export function useGetLeagueInvites<
   TData = Awaited<ReturnType<typeof getLeagueInvites>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   leagueId: number,
   options?: {
@@ -6216,7 +9292,7 @@ export const createLeagueInvite = async (
 };
 
 export const getCreateLeagueInviteMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -6257,13 +9333,13 @@ export type CreateLeagueInviteMutationResult = NonNullable<
   Awaited<ReturnType<typeof createLeagueInvite>>
 >;
 export type CreateLeagueInviteMutationBody = BodyType<CreateLeagueInviteBody>;
-export type CreateLeagueInviteMutationError = ErrorType<unknown>;
+export type CreateLeagueInviteMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Create an invite link for a league
  */
 export const useCreateLeagueInvite = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -6305,7 +9381,7 @@ export const getGetInviteQueryKey = (code: string) => {
 
 export const getGetInviteQueryOptions = <
   TData = Awaited<ReturnType<typeof getInvite>>,
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse>,
 >(
   code: string,
   options?: {
@@ -6338,7 +9414,7 @@ export const getGetInviteQueryOptions = <
 export type GetInviteQueryResult = NonNullable<
   Awaited<ReturnType<typeof getInvite>>
 >;
-export type GetInviteQueryError = ErrorType<void>;
+export type GetInviteQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Get invite info by code
@@ -6346,7 +9422,7 @@ export type GetInviteQueryError = ErrorType<void>;
 
 export function useGetInvite<
   TData = Awaited<ReturnType<typeof getInvite>>,
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse>,
 >(
   code: string,
   options?: {
@@ -6385,7 +9461,7 @@ export const deactivateInvite = async (
 };
 
 export const getDeactivateInviteMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -6426,13 +9502,13 @@ export type DeactivateInviteMutationResult = NonNullable<
   Awaited<ReturnType<typeof deactivateInvite>>
 >;
 
-export type DeactivateInviteMutationError = ErrorType<unknown>;
+export type DeactivateInviteMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Deactivate an invite
  */
 export const useDeactivateInvite = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -6472,7 +9548,7 @@ export const joinLeagueViaInvite = async (
 };
 
 export const getJoinLeagueViaInviteMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -6513,13 +9589,13 @@ export type JoinLeagueViaInviteMutationResult = NonNullable<
   Awaited<ReturnType<typeof joinLeagueViaInvite>>
 >;
 export type JoinLeagueViaInviteMutationBody = BodyType<JoinLeagueBody>;
-export type JoinLeagueViaInviteMutationError = ErrorType<unknown>;
+export type JoinLeagueViaInviteMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Join a league using an invite code
  */
 export const useJoinLeagueViaInvite = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -6560,7 +9636,7 @@ export const getGetDashboardStatsQueryKey = () => {
 
 export const getGetDashboardStatsQueryOptions = <
   TData = Awaited<ReturnType<typeof getDashboardStats>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(options?: {
   query?: UseQueryOptions<
     Awaited<ReturnType<typeof getDashboardStats>>,
@@ -6587,7 +9663,7 @@ export const getGetDashboardStatsQueryOptions = <
 export type GetDashboardStatsQueryResult = NonNullable<
   Awaited<ReturnType<typeof getDashboardStats>>
 >;
-export type GetDashboardStatsQueryError = ErrorType<unknown>;
+export type GetDashboardStatsQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Get dashboard overview stats
@@ -6595,7 +9671,7 @@ export type GetDashboardStatsQueryError = ErrorType<unknown>;
 
 export function useGetDashboardStats<
   TData = Awaited<ReturnType<typeof getDashboardStats>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(options?: {
   query?: UseQueryOptions<
     Awaited<ReturnType<typeof getDashboardStats>>,
@@ -6648,7 +9724,7 @@ export const getGetTopPlayersQueryKey = (params?: GetTopPlayersParams) => {
 
 export const getGetTopPlayersQueryOptions = <
   TData = Awaited<ReturnType<typeof getTopPlayers>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   params?: GetTopPlayersParams,
   options?: {
@@ -6678,7 +9754,7 @@ export const getGetTopPlayersQueryOptions = <
 export type GetTopPlayersQueryResult = NonNullable<
   Awaited<ReturnType<typeof getTopPlayers>>
 >;
-export type GetTopPlayersQueryError = ErrorType<unknown>;
+export type GetTopPlayersQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Get top performing players
@@ -6686,7 +9762,7 @@ export type GetTopPlayersQueryError = ErrorType<unknown>;
 
 export function useGetTopPlayers<
   TData = Awaited<ReturnType<typeof getTopPlayers>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   params?: GetTopPlayersParams,
   options?: {
@@ -6989,7 +10065,7 @@ export const getGetHeadToHeadQueryKey = (params?: GetHeadToHeadParams) => {
 
 export const getGetHeadToHeadQueryOptions = <
   TData = Awaited<ReturnType<typeof getHeadToHead>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   params: GetHeadToHeadParams,
   options?: {
@@ -7019,7 +10095,7 @@ export const getGetHeadToHeadQueryOptions = <
 export type GetHeadToHeadQueryResult = NonNullable<
   Awaited<ReturnType<typeof getHeadToHead>>
 >;
-export type GetHeadToHeadQueryError = ErrorType<unknown>;
+export type GetHeadToHeadQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Get head-to-head record between two players
@@ -7027,7 +10103,7 @@ export type GetHeadToHeadQueryError = ErrorType<unknown>;
 
 export function useGetHeadToHead<
   TData = Awaited<ReturnType<typeof getHeadToHead>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   params: GetHeadToHeadParams,
   options?: {
@@ -7069,7 +10145,7 @@ export const startBallBoiSession = async (
 };
 
 export const getStartBallBoiSessionMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7110,13 +10186,13 @@ export type StartBallBoiSessionMutationResult = NonNullable<
   Awaited<ReturnType<typeof startBallBoiSession>>
 >;
 export type StartBallBoiSessionMutationBody = BodyType<StartBallBoiSessionBody>;
-export type StartBallBoiSessionMutationError = ErrorType<unknown>;
+export type StartBallBoiSessionMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Start a Ball Boi match recording session
  */
 export const useStartBallBoiSession = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7159,7 +10235,7 @@ export const startMatchScopedBallBoiSession = async (
 };
 
 export const getStartMatchScopedBallBoiSessionMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7201,13 +10277,14 @@ export type StartMatchScopedBallBoiSessionMutationResult = NonNullable<
 >;
 export type StartMatchScopedBallBoiSessionMutationBody =
   BodyType<StartBallBoiSessionBody>;
-export type StartMatchScopedBallBoiSessionMutationError = ErrorType<unknown>;
+export type StartMatchScopedBallBoiSessionMutationError =
+  ErrorType<ErrorResponse>;
 
 /**
  * @summary Start a Ball Boi match recording session
  */
 export const useStartMatchScopedBallBoiSession = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7247,7 +10324,7 @@ export const requestBallBoiUploadUrl = async (
 };
 
 export const getRequestBallBoiUploadUrlMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7288,13 +10365,13 @@ export type RequestBallBoiUploadUrlMutationResult = NonNullable<
   Awaited<ReturnType<typeof requestBallBoiUploadUrl>>
 >;
 
-export type RequestBallBoiUploadUrlMutationError = ErrorType<unknown>;
+export type RequestBallBoiUploadUrlMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Request a presigned video upload URL
  */
 export const useRequestBallBoiUploadUrl = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7311,6 +10388,287 @@ export const useRequestBallBoiUploadUrl = <
   TContext
 > => {
   return useMutation(getRequestBallBoiUploadUrlMutationOptions(options));
+};
+
+/**
+ * Recordings over 5 GB can't go up in one PUT, so every piece of a recording is sent as a multipart upload. Calling this again for the same piece and size resumes it: the answer lists the parts storage already has.
+
+ * @summary Start or resume sending one piece of a recording in parts
+ */
+export const getStartBallBoiMultipartUploadUrl = (sessionId: number) => {
+  return `/api/ball-boi/sessions/${sessionId}/multipart`;
+};
+
+export const startBallBoiMultipartUpload = async (
+  sessionId: number,
+  ballBoiMultipartStartBody: BallBoiMultipartStartBody,
+  options?: RequestInit,
+): Promise<BallBoiMultipartUpload> => {
+  return customFetch<BallBoiMultipartUpload>(
+    getStartBallBoiMultipartUploadUrl(sessionId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(ballBoiMultipartStartBody),
+    },
+  );
+};
+
+export const getStartBallBoiMultipartUploadMutationOptions = <
+  TError = ErrorType<ErrorResponse | UploadConflict>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof startBallBoiMultipartUpload>>,
+    TError,
+    { sessionId: number; data: BodyType<BallBoiMultipartStartBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof startBallBoiMultipartUpload>>,
+  TError,
+  { sessionId: number; data: BodyType<BallBoiMultipartStartBody> },
+  TContext
+> => {
+  const mutationKey = ["startBallBoiMultipartUpload"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof startBallBoiMultipartUpload>>,
+    { sessionId: number; data: BodyType<BallBoiMultipartStartBody> }
+  > = (props) => {
+    const { sessionId, data } = props ?? {};
+
+    return startBallBoiMultipartUpload(sessionId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type StartBallBoiMultipartUploadMutationResult = NonNullable<
+  Awaited<ReturnType<typeof startBallBoiMultipartUpload>>
+>;
+export type StartBallBoiMultipartUploadMutationBody =
+  BodyType<BallBoiMultipartStartBody>;
+export type StartBallBoiMultipartUploadMutationError = ErrorType<
+  ErrorResponse | UploadConflict
+>;
+
+/**
+ * @summary Start or resume sending one piece of a recording in parts
+ */
+export const useStartBallBoiMultipartUpload = <
+  TError = ErrorType<ErrorResponse | UploadConflict>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof startBallBoiMultipartUpload>>,
+    TError,
+    { sessionId: number; data: BodyType<BallBoiMultipartStartBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof startBallBoiMultipartUpload>>,
+  TError,
+  { sessionId: number; data: BodyType<BallBoiMultipartStartBody> },
+  TContext
+> => {
+  return useMutation(getStartBallBoiMultipartUploadMutationOptions(options));
+};
+
+/**
+ * @summary Request a presigned upload URL for one part
+ */
+export const getRequestBallBoiUploadPartUrlUrl = (sessionId: number) => {
+  return `/api/ball-boi/sessions/${sessionId}/multipart/part-url`;
+};
+
+export const requestBallBoiUploadPartUrl = async (
+  sessionId: number,
+  ballBoiPartUrlBody: BallBoiPartUrlBody,
+  options?: RequestInit,
+): Promise<BallBoiPartUrl> => {
+  return customFetch<BallBoiPartUrl>(
+    getRequestBallBoiUploadPartUrlUrl(sessionId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(ballBoiPartUrlBody),
+    },
+  );
+};
+
+export const getRequestBallBoiUploadPartUrlMutationOptions = <
+  TError = ErrorType<ErrorResponse | UploadConflict>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestBallBoiUploadPartUrl>>,
+    TError,
+    { sessionId: number; data: BodyType<BallBoiPartUrlBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestBallBoiUploadPartUrl>>,
+  TError,
+  { sessionId: number; data: BodyType<BallBoiPartUrlBody> },
+  TContext
+> => {
+  const mutationKey = ["requestBallBoiUploadPartUrl"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestBallBoiUploadPartUrl>>,
+    { sessionId: number; data: BodyType<BallBoiPartUrlBody> }
+  > = (props) => {
+    const { sessionId, data } = props ?? {};
+
+    return requestBallBoiUploadPartUrl(sessionId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestBallBoiUploadPartUrlMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestBallBoiUploadPartUrl>>
+>;
+export type RequestBallBoiUploadPartUrlMutationBody =
+  BodyType<BallBoiPartUrlBody>;
+export type RequestBallBoiUploadPartUrlMutationError = ErrorType<
+  ErrorResponse | UploadConflict
+>;
+
+/**
+ * @summary Request a presigned upload URL for one part
+ */
+export const useRequestBallBoiUploadPartUrl = <
+  TError = ErrorType<ErrorResponse | UploadConflict>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestBallBoiUploadPartUrl>>,
+    TError,
+    { sessionId: number; data: BodyType<BallBoiPartUrlBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestBallBoiUploadPartUrl>>,
+  TError,
+  { sessionId: number; data: BodyType<BallBoiPartUrlBody> },
+  TContext
+> => {
+  return useMutation(getRequestBallBoiUploadPartUrlMutationOptions(options));
+};
+
+/**
+ * @summary Join a piece's parts into one stored video
+ */
+export const getCompleteBallBoiMultipartUploadUrl = (sessionId: number) => {
+  return `/api/ball-boi/sessions/${sessionId}/multipart/complete`;
+};
+
+export const completeBallBoiMultipartUpload = async (
+  sessionId: number,
+  ballBoiMultipartCompleteBody: BallBoiMultipartCompleteBody,
+  options?: RequestInit,
+): Promise<BallBoiMultipartComplete> => {
+  return customFetch<BallBoiMultipartComplete>(
+    getCompleteBallBoiMultipartUploadUrl(sessionId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(ballBoiMultipartCompleteBody),
+    },
+  );
+};
+
+export const getCompleteBallBoiMultipartUploadMutationOptions = <
+  TError = ErrorType<ErrorResponse | UploadConflict>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeBallBoiMultipartUpload>>,
+    TError,
+    { sessionId: number; data: BodyType<BallBoiMultipartCompleteBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof completeBallBoiMultipartUpload>>,
+  TError,
+  { sessionId: number; data: BodyType<BallBoiMultipartCompleteBody> },
+  TContext
+> => {
+  const mutationKey = ["completeBallBoiMultipartUpload"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof completeBallBoiMultipartUpload>>,
+    { sessionId: number; data: BodyType<BallBoiMultipartCompleteBody> }
+  > = (props) => {
+    const { sessionId, data } = props ?? {};
+
+    return completeBallBoiMultipartUpload(sessionId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CompleteBallBoiMultipartUploadMutationResult = NonNullable<
+  Awaited<ReturnType<typeof completeBallBoiMultipartUpload>>
+>;
+export type CompleteBallBoiMultipartUploadMutationBody =
+  BodyType<BallBoiMultipartCompleteBody>;
+export type CompleteBallBoiMultipartUploadMutationError = ErrorType<
+  ErrorResponse | UploadConflict
+>;
+
+/**
+ * @summary Join a piece's parts into one stored video
+ */
+export const useCompleteBallBoiMultipartUpload = <
+  TError = ErrorType<ErrorResponse | UploadConflict>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeBallBoiMultipartUpload>>,
+    TError,
+    { sessionId: number; data: BodyType<BallBoiMultipartCompleteBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof completeBallBoiMultipartUpload>>,
+  TError,
+  { sessionId: number; data: BodyType<BallBoiMultipartCompleteBody> },
+  TContext
+> => {
+  return useMutation(getCompleteBallBoiMultipartUploadMutationOptions(options));
 };
 
 /**
@@ -7421,7 +10779,7 @@ export const completeBallBoiSession = async (
 };
 
 export const getCompleteBallBoiSessionMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7463,13 +10821,13 @@ export type CompleteBallBoiSessionMutationResult = NonNullable<
 >;
 export type CompleteBallBoiSessionMutationBody =
   BodyType<CompleteBallBoiSessionBody>;
-export type CompleteBallBoiSessionMutationError = ErrorType<unknown>;
+export type CompleteBallBoiSessionMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Complete a Ball Boi session and start batch processing
  */
 export const useCompleteBallBoiSession = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7511,7 +10869,7 @@ export const getGetBallBoiReplayQueryKey = (matchId: number) => {
 
 export const getGetBallBoiReplayQueryOptions = <
   TData = Awaited<ReturnType<typeof getBallBoiReplay>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   matchId: number,
   options?: {
@@ -7547,7 +10905,7 @@ export const getGetBallBoiReplayQueryOptions = <
 export type GetBallBoiReplayQueryResult = NonNullable<
   Awaited<ReturnType<typeof getBallBoiReplay>>
 >;
-export type GetBallBoiReplayQueryError = ErrorType<unknown>;
+export type GetBallBoiReplayQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Get the latest Ball Boi replay for a match
@@ -7555,7 +10913,7 @@ export type GetBallBoiReplayQueryError = ErrorType<unknown>;
 
 export function useGetBallBoiReplay<
   TData = Awaited<ReturnType<typeof getBallBoiReplay>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   matchId: number,
   options?: {
@@ -7602,7 +10960,7 @@ export const getGetMatchScopedBallBoiReplayQueryKey = (matchId: number) => {
 
 export const getGetMatchScopedBallBoiReplayQueryOptions = <
   TData = Awaited<ReturnType<typeof getMatchScopedBallBoiReplay>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   matchId: number,
   options?: {
@@ -7639,7 +10997,7 @@ export const getGetMatchScopedBallBoiReplayQueryOptions = <
 export type GetMatchScopedBallBoiReplayQueryResult = NonNullable<
   Awaited<ReturnType<typeof getMatchScopedBallBoiReplay>>
 >;
-export type GetMatchScopedBallBoiReplayQueryError = ErrorType<unknown>;
+export type GetMatchScopedBallBoiReplayQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Get the latest Ball Boi replay for a match
@@ -7647,7 +11005,7 @@ export type GetMatchScopedBallBoiReplayQueryError = ErrorType<unknown>;
 
 export function useGetMatchScopedBallBoiReplay<
   TData = Awaited<ReturnType<typeof getMatchScopedBallBoiReplay>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   matchId: number,
   options?: {
@@ -7781,7 +11139,7 @@ export const endMatchBallBoi = async (
 };
 
 export const getEndMatchBallBoiMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7822,13 +11180,13 @@ export type EndMatchBallBoiMutationResult = NonNullable<
   Awaited<ReturnType<typeof endMatchBallBoi>>
 >;
 export type EndMatchBallBoiMutationBody = BodyType<EndMatchBallBoiBody>;
-export type EndMatchBallBoiMutationError = ErrorType<unknown>;
+export type EndMatchBallBoiMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary End latest Ball Boi recording for a match
  */
 export const useEndMatchBallBoi = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -8759,3 +12117,5236 @@ export function useGetBallBoiNarrative<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Save the home area: a 5-digit zip, with approximate coordinates when the player used their location
+ */
+export const getUpdateMyHomeAreaUrl = () => {
+  return `/api/users/me/home-area`;
+};
+
+export const updateMyHomeArea = async (
+  homeAreaInput: HomeAreaInput,
+  options?: RequestInit,
+): Promise<UserProfile> => {
+  return customFetch<UserProfile>(getUpdateMyHomeAreaUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(homeAreaInput),
+  });
+};
+
+export const getUpdateMyHomeAreaMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMyHomeArea>>,
+    TError,
+    { data: BodyType<HomeAreaInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateMyHomeArea>>,
+  TError,
+  { data: BodyType<HomeAreaInput> },
+  TContext
+> => {
+  const mutationKey = ["updateMyHomeArea"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateMyHomeArea>>,
+    { data: BodyType<HomeAreaInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateMyHomeArea(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateMyHomeAreaMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateMyHomeArea>>
+>;
+export type UpdateMyHomeAreaMutationBody = BodyType<HomeAreaInput>;
+export type UpdateMyHomeAreaMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Save the home area: a 5-digit zip, with approximate coordinates when the player used their location
+ */
+export const useUpdateMyHomeArea = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMyHomeArea>>,
+    TError,
+    { data: BodyType<HomeAreaInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateMyHomeArea>>,
+  TError,
+  { data: BodyType<HomeAreaInput> },
+  TContext
+> => {
+  return useMutation(getUpdateMyHomeAreaMutationOptions(options));
+};
+
+/**
+ * @summary Save what the player wants to do on Ball Boi (zero or more picks) and finish onboarding
+ */
+export const getUpdateMyIntentsUrl = () => {
+  return `/api/users/me/intents`;
+};
+
+export const updateMyIntents = async (
+  intentsInput: IntentsInput,
+  options?: RequestInit,
+): Promise<UserProfile> => {
+  return customFetch<UserProfile>(getUpdateMyIntentsUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(intentsInput),
+  });
+};
+
+export const getUpdateMyIntentsMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMyIntents>>,
+    TError,
+    { data: BodyType<IntentsInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateMyIntents>>,
+  TError,
+  { data: BodyType<IntentsInput> },
+  TContext
+> => {
+  const mutationKey = ["updateMyIntents"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateMyIntents>>,
+    { data: BodyType<IntentsInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateMyIntents(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateMyIntentsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateMyIntents>>
+>;
+export type UpdateMyIntentsMutationBody = BodyType<IntentsInput>;
+export type UpdateMyIntentsMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Save what the player wants to do on Ball Boi (zero or more picks) and finish onboarding
+ */
+export const useUpdateMyIntents = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMyIntents>>,
+    TError,
+    { data: BodyType<IntentsInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateMyIntents>>,
+  TError,
+  { data: BodyType<IntentsInput> },
+  TContext
+> => {
+  return useMutation(getUpdateMyIntentsMutationOptions(options));
+};
+
+/**
+ * @summary Set the player's level from the onboarding quiz, labeled Self-rated
+ */
+export const getSetMySelfRatingUrl = () => {
+  return `/api/users/me/rating/self`;
+};
+
+export const setMySelfRating = async (
+  selfRatingInput: SelfRatingInput,
+  options?: RequestInit,
+): Promise<SelfRatingResult> => {
+  return customFetch<SelfRatingResult>(getSetMySelfRatingUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(selfRatingInput),
+  });
+};
+
+export const getSetMySelfRatingMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setMySelfRating>>,
+    TError,
+    { data: BodyType<SelfRatingInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setMySelfRating>>,
+  TError,
+  { data: BodyType<SelfRatingInput> },
+  TContext
+> => {
+  const mutationKey = ["setMySelfRating"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setMySelfRating>>,
+    { data: BodyType<SelfRatingInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return setMySelfRating(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetMySelfRatingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setMySelfRating>>
+>;
+export type SetMySelfRatingMutationBody = BodyType<SelfRatingInput>;
+export type SetMySelfRatingMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Set the player's level from the onboarding quiz, labeled Self-rated
+ */
+export const useSetMySelfRating = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setMySelfRating>>,
+    TError,
+    { data: BodyType<SelfRatingInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setMySelfRating>>,
+  TError,
+  { data: BodyType<SelfRatingInput> },
+  TContext
+> => {
+  return useMutation(getSetMySelfRatingMutationOptions(options));
+};
+
+/**
+ * @summary Leagues the person runs alone, with the members who could take over (Delete account screen)
+ */
+export const getGetMyLeagueHandoffUrl = () => {
+  return `/api/users/me/league-handoff`;
+};
+
+export const getMyLeagueHandoff = async (
+  options?: RequestInit,
+): Promise<LeagueHandoff> => {
+  return customFetch<LeagueHandoff>(getGetMyLeagueHandoffUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyLeagueHandoffQueryKey = () => {
+  return [`/api/users/me/league-handoff`] as const;
+};
+
+export const getGetMyLeagueHandoffQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyLeagueHandoff>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyLeagueHandoff>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyLeagueHandoffQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMyLeagueHandoff>>
+  > = ({ signal }) => getMyLeagueHandoff({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyLeagueHandoff>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyLeagueHandoffQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyLeagueHandoff>>
+>;
+export type GetMyLeagueHandoffQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Leagues the person runs alone, with the members who could take over (Delete account screen)
+ */
+
+export function useGetMyLeagueHandoff<
+  TData = Awaited<ReturnType<typeof getMyLeagueHandoff>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyLeagueHandoff>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyLeagueHandoffQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Register this phone's Expo push token for the signed-in person
+ */
+export const getRegisterExpoPushTokenUrl = () => {
+  return `/api/notifications/expo-token`;
+};
+
+export const registerExpoPushToken = async (
+  expoPushTokenInput: ExpoPushTokenInput,
+  options?: RequestInit,
+): Promise<SuccessResult> => {
+  return customFetch<SuccessResult>(getRegisterExpoPushTokenUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(expoPushTokenInput),
+  });
+};
+
+export const getRegisterExpoPushTokenMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerExpoPushToken>>,
+    TError,
+    { data: BodyType<ExpoPushTokenInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof registerExpoPushToken>>,
+  TError,
+  { data: BodyType<ExpoPushTokenInput> },
+  TContext
+> => {
+  const mutationKey = ["registerExpoPushToken"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof registerExpoPushToken>>,
+    { data: BodyType<ExpoPushTokenInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return registerExpoPushToken(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RegisterExpoPushTokenMutationResult = NonNullable<
+  Awaited<ReturnType<typeof registerExpoPushToken>>
+>;
+export type RegisterExpoPushTokenMutationBody = BodyType<ExpoPushTokenInput>;
+export type RegisterExpoPushTokenMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Register this phone's Expo push token for the signed-in person
+ */
+export const useRegisterExpoPushToken = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerExpoPushToken>>,
+    TError,
+    { data: BodyType<ExpoPushTokenInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof registerExpoPushToken>>,
+  TError,
+  { data: BodyType<ExpoPushTokenInput> },
+  TContext
+> => {
+  return useMutation(getRegisterExpoPushTokenMutationOptions(options));
+};
+
+/**
+ * @summary Stop sending pushes to this phone's Expo token
+ */
+export const getUnregisterExpoPushTokenUrl = () => {
+  return `/api/notifications/expo-token`;
+};
+
+export const unregisterExpoPushToken = async (
+  expoPushTokenInput: ExpoPushTokenInput,
+  options?: RequestInit,
+): Promise<SuccessResult> => {
+  return customFetch<SuccessResult>(getUnregisterExpoPushTokenUrl(), {
+    ...options,
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(expoPushTokenInput),
+  });
+};
+
+export const getUnregisterExpoPushTokenMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unregisterExpoPushToken>>,
+    TError,
+    { data: BodyType<ExpoPushTokenInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unregisterExpoPushToken>>,
+  TError,
+  { data: BodyType<ExpoPushTokenInput> },
+  TContext
+> => {
+  const mutationKey = ["unregisterExpoPushToken"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unregisterExpoPushToken>>,
+    { data: BodyType<ExpoPushTokenInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return unregisterExpoPushToken(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UnregisterExpoPushTokenMutationResult = NonNullable<
+  Awaited<ReturnType<typeof unregisterExpoPushToken>>
+>;
+export type UnregisterExpoPushTokenMutationBody = BodyType<ExpoPushTokenInput>;
+export type UnregisterExpoPushTokenMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Stop sending pushes to this phone's Expo token
+ */
+export const useUnregisterExpoPushToken = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unregisterExpoPushToken>>,
+    TError,
+    { data: BodyType<ExpoPushTokenInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof unregisterExpoPushToken>>,
+  TError,
+  { data: BodyType<ExpoPushTokenInput> },
+  TContext
+> => {
+  return useMutation(getUnregisterExpoPushTokenMutationOptions(options));
+};
+
+/**
+ * @summary Whether the person has a phone registered for pushes
+ */
+export const getGetExpoPushTokenStatusUrl = () => {
+  return `/api/notifications/expo-token/status`;
+};
+
+export const getExpoPushTokenStatus = async (
+  options?: RequestInit,
+): Promise<PushRegistrationStatus> => {
+  return customFetch<PushRegistrationStatus>(getGetExpoPushTokenStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetExpoPushTokenStatusQueryKey = () => {
+  return [`/api/notifications/expo-token/status`] as const;
+};
+
+export const getGetExpoPushTokenStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getExpoPushTokenStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getExpoPushTokenStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetExpoPushTokenStatusQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getExpoPushTokenStatus>>
+  > = ({ signal }) => getExpoPushTokenStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getExpoPushTokenStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetExpoPushTokenStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getExpoPushTokenStatus>>
+>;
+export type GetExpoPushTokenStatusQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Whether the person has a phone registered for pushes
+ */
+
+export function useGetExpoPushTokenStatus<
+  TData = Awaited<ReturnType<typeof getExpoPushTokenStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getExpoPushTokenStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetExpoPushTokenStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Dev servers only. Runs the match day reminder job as if it were `at` (default now)
+ */
+export const getRunMatchRemindersDevUrl = () => {
+  return `/api/dev/match-reminders/run`;
+};
+
+export const runMatchRemindersDev = async (
+  matchRemindersRunInput?: MatchRemindersRunInput,
+  options?: RequestInit,
+): Promise<RunMatchRemindersDev200> => {
+  return customFetch<RunMatchRemindersDev200>(getRunMatchRemindersDevUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(matchRemindersRunInput),
+  });
+};
+
+export const getRunMatchRemindersDevMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runMatchRemindersDev>>,
+    TError,
+    { data: BodyType<MatchRemindersRunInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof runMatchRemindersDev>>,
+  TError,
+  { data: BodyType<MatchRemindersRunInput> },
+  TContext
+> => {
+  const mutationKey = ["runMatchRemindersDev"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof runMatchRemindersDev>>,
+    { data: BodyType<MatchRemindersRunInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return runMatchRemindersDev(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RunMatchRemindersDevMutationResult = NonNullable<
+  Awaited<ReturnType<typeof runMatchRemindersDev>>
+>;
+export type RunMatchRemindersDevMutationBody = BodyType<MatchRemindersRunInput>;
+export type RunMatchRemindersDevMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Dev servers only. Runs the match day reminder job as if it were `at` (default now)
+ */
+export const useRunMatchRemindersDev = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runMatchRemindersDev>>,
+    TError,
+    { data: BodyType<MatchRemindersRunInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof runMatchRemindersDev>>,
+  TError,
+  { data: BodyType<MatchRemindersRunInput> },
+  TContext
+> => {
+  return useMutation(getRunMatchRemindersDevMutationOptions(options));
+};
+
+/**
+ * @summary Settings › Notifications switches for the signed-in person
+ */
+export const getGetNotificationSettingsUrl = () => {
+  return `/api/notifications/settings`;
+};
+
+export const getNotificationSettings = async (
+  options?: RequestInit,
+): Promise<NotificationSettings> => {
+  return customFetch<NotificationSettings>(getGetNotificationSettingsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetNotificationSettingsQueryKey = () => {
+  return [`/api/notifications/settings`] as const;
+};
+
+export const getGetNotificationSettingsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getNotificationSettings>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getNotificationSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetNotificationSettingsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getNotificationSettings>>
+  > = ({ signal }) => getNotificationSettings({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getNotificationSettings>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetNotificationSettingsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getNotificationSettings>>
+>;
+export type GetNotificationSettingsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Settings › Notifications switches for the signed-in person
+ */
+
+export function useGetNotificationSettings<
+  TData = Awaited<ReturnType<typeof getNotificationSettings>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getNotificationSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetNotificationSettingsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Change a Settings › Notifications switch
+ */
+export const getUpdateNotificationSettingsUrl = () => {
+  return `/api/notifications/settings`;
+};
+
+export const updateNotificationSettings = async (
+  notificationSettingsUpdate: NotificationSettingsUpdate,
+  options?: RequestInit,
+): Promise<NotificationSettings> => {
+  return customFetch<NotificationSettings>(getUpdateNotificationSettingsUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(notificationSettingsUpdate),
+  });
+};
+
+export const getUpdateNotificationSettingsMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateNotificationSettings>>,
+    TError,
+    { data: BodyType<NotificationSettingsUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateNotificationSettings>>,
+  TError,
+  { data: BodyType<NotificationSettingsUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateNotificationSettings"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateNotificationSettings>>,
+    { data: BodyType<NotificationSettingsUpdate> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateNotificationSettings(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateNotificationSettingsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateNotificationSettings>>
+>;
+export type UpdateNotificationSettingsMutationBody =
+  BodyType<NotificationSettingsUpdate>;
+export type UpdateNotificationSettingsMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Change a Settings › Notifications switch
+ */
+export const useUpdateNotificationSettings = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateNotificationSettings>>,
+    TError,
+    { data: BodyType<NotificationSettingsUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateNotificationSettings>>,
+  TError,
+  { data: BodyType<NotificationSettingsUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateNotificationSettingsMutationOptions(options));
+};
+
+/**
+ * @summary Get a one-time address to upload a profile photo to (images up to 10 MB)
+ */
+export const getRequestProfilePhotoUploadUrlUrl = () => {
+  return `/api/storage/uploads/request-url`;
+};
+
+export const requestProfilePhotoUploadUrl = async (
+  photoUploadRequest: PhotoUploadRequest,
+  options?: RequestInit,
+): Promise<PhotoUploadTicket> => {
+  return customFetch<PhotoUploadTicket>(getRequestProfilePhotoUploadUrlUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(photoUploadRequest),
+  });
+};
+
+export const getRequestProfilePhotoUploadUrlMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestProfilePhotoUploadUrl>>,
+    TError,
+    { data: BodyType<PhotoUploadRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestProfilePhotoUploadUrl>>,
+  TError,
+  { data: BodyType<PhotoUploadRequest> },
+  TContext
+> => {
+  const mutationKey = ["requestProfilePhotoUploadUrl"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestProfilePhotoUploadUrl>>,
+    { data: BodyType<PhotoUploadRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return requestProfilePhotoUploadUrl(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestProfilePhotoUploadUrlMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestProfilePhotoUploadUrl>>
+>;
+export type RequestProfilePhotoUploadUrlMutationBody =
+  BodyType<PhotoUploadRequest>;
+export type RequestProfilePhotoUploadUrlMutationError =
+  ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a one-time address to upload a profile photo to (images up to 10 MB)
+ */
+export const useRequestProfilePhotoUploadUrl = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestProfilePhotoUploadUrl>>,
+    TError,
+    { data: BodyType<PhotoUploadRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestProfilePhotoUploadUrl>>,
+  TError,
+  { data: BodyType<PhotoUploadRequest> },
+  TContext
+> => {
+  return useMutation(getRequestProfilePhotoUploadUrlMutationOptions(options));
+};
+
+/**
+ * @summary Load an uploaded file, such as a profile photo. Needs sign-in (A17); the app sends its sign-in header with photo loads.
+ */
+export const getGetStorageObjectUrl = (objectPath: string) => {
+  return `/api/storage/objects/${objectPath}`;
+};
+
+export const getStorageObject = async (
+  objectPath: string,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getGetStorageObjectUrl(objectPath), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetStorageObjectQueryKey = (objectPath: string) => {
+  return [`/api/storage/objects/${objectPath}`] as const;
+};
+
+export const getGetStorageObjectQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStorageObject>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  objectPath: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStorageObject>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetStorageObjectQueryKey(objectPath);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getStorageObject>>
+  > = ({ signal }) =>
+    getStorageObject(objectPath, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!objectPath,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStorageObject>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStorageObjectQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStorageObject>>
+>;
+export type GetStorageObjectQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Load an uploaded file, such as a profile photo. Needs sign-in (A17); the app sends its sign-in header with photo loads.
+ */
+
+export function useGetStorageObject<
+  TData = Awaited<ReturnType<typeof getStorageObject>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  objectPath: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStorageObject>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStorageObjectQueryOptions(objectPath, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Players the person has blocked, newest first
+ */
+export const getGetMyBlocksUrl = () => {
+  return `/api/blocks`;
+};
+
+export const getMyBlocks = async (
+  options?: RequestInit,
+): Promise<BlockedPlayer[]> => {
+  return customFetch<BlockedPlayer[]>(getGetMyBlocksUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyBlocksQueryKey = () => {
+  return [`/api/blocks`] as const;
+};
+
+export const getGetMyBlocksQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyBlocks>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyBlocks>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyBlocksQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyBlocks>>> = ({
+    signal,
+  }) => getMyBlocks({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyBlocks>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyBlocksQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyBlocks>>
+>;
+export type GetMyBlocksQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Players the person has blocked, newest first
+ */
+
+export function useGetMyBlocks<
+  TData = Awaited<ReturnType<typeof getMyBlocks>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyBlocks>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyBlocksQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Block a player's account
+ */
+export const getBlockPlayerUrl = (playerId: number) => {
+  return `/api/players/${playerId}/block`;
+};
+
+export const blockPlayer = async (
+  playerId: number,
+  options?: RequestInit,
+): Promise<BlockResult> => {
+  return customFetch<BlockResult>(getBlockPlayerUrl(playerId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getBlockPlayerMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof blockPlayer>>,
+    TError,
+    { playerId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof blockPlayer>>,
+  TError,
+  { playerId: number },
+  TContext
+> => {
+  const mutationKey = ["blockPlayer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof blockPlayer>>,
+    { playerId: number }
+  > = (props) => {
+    const { playerId } = props ?? {};
+
+    return blockPlayer(playerId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BlockPlayerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof blockPlayer>>
+>;
+
+export type BlockPlayerMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Block a player's account
+ */
+export const useBlockPlayer = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof blockPlayer>>,
+    TError,
+    { playerId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof blockPlayer>>,
+  TError,
+  { playerId: number },
+  TContext
+> => {
+  return useMutation(getBlockPlayerMutationOptions(options));
+};
+
+/**
+ * @summary Unblock a player
+ */
+export const getUnblockPlayerUrl = (playerId: number) => {
+  return `/api/players/${playerId}/block`;
+};
+
+export const unblockPlayer = async (
+  playerId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getUnblockPlayerUrl(playerId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getUnblockPlayerMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unblockPlayer>>,
+    TError,
+    { playerId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unblockPlayer>>,
+  TError,
+  { playerId: number },
+  TContext
+> => {
+  const mutationKey = ["unblockPlayer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unblockPlayer>>,
+    { playerId: number }
+  > = (props) => {
+    const { playerId } = props ?? {};
+
+    return unblockPlayer(playerId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UnblockPlayerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof unblockPlayer>>
+>;
+
+export type UnblockPlayerMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Unblock a player
+ */
+export const useUnblockPlayer = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unblockPlayer>>,
+    TError,
+    { playerId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof unblockPlayer>>,
+  TError,
+  { playerId: number },
+  TContext
+> => {
+  return useMutation(getUnblockPlayerMutationOptions(options));
+};
+
+/**
+ * @summary Report a player, league, recording or match. Messages are reported from the conversation.
+ */
+export const getCreateReportUrl = () => {
+  return `/api/reports`;
+};
+
+export const createReport = async (
+  newReport: NewReport,
+  options?: RequestInit,
+): Promise<ReportReceipt> => {
+  return customFetch<ReportReceipt>(getCreateReportUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(newReport),
+  });
+};
+
+export const getCreateReportMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createReport>>,
+    TError,
+    { data: BodyType<NewReport> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createReport>>,
+  TError,
+  { data: BodyType<NewReport> },
+  TContext
+> => {
+  const mutationKey = ["createReport"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createReport>>,
+    { data: BodyType<NewReport> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createReport(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateReportMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createReport>>
+>;
+export type CreateReportMutationBody = BodyType<NewReport>;
+export type CreateReportMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Report a player, league, recording or match. Messages are reported from the conversation.
+ */
+export const useCreateReport = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createReport>>,
+    TError,
+    { data: BodyType<NewReport> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createReport>>,
+  TError,
+  { data: BodyType<NewReport> },
+  TContext
+> => {
+  return useMutation(getCreateReportMutationOptions(options));
+};
+
+/**
+ * @summary The reports queue: open reports oldest first, closed ones newest first
+ */
+export const getGetAdminReportsUrl = (params?: GetAdminReportsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/admin/reports?${stringifiedParams}`
+    : `/api/admin/reports`;
+};
+
+export const getAdminReports = async (
+  params?: GetAdminReportsParams,
+  options?: RequestInit,
+): Promise<ContentReport[]> => {
+  return customFetch<ContentReport[]>(getGetAdminReportsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAdminReportsQueryKey = (params?: GetAdminReportsParams) => {
+  return [`/api/admin/reports`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetAdminReportsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAdminReports>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: GetAdminReportsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAdminReports>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAdminReportsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminReports>>> = ({
+    signal,
+  }) => getAdminReports(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminReports>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAdminReportsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAdminReports>>
+>;
+export type GetAdminReportsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary The reports queue: open reports oldest first, closed ones newest first
+ */
+
+export function useGetAdminReports<
+  TData = Awaited<ReturnType<typeof getAdminReports>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: GetAdminReportsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAdminReports>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAdminReportsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary One report, with the conversation snapshot for a message report
+ */
+export const getGetAdminReportUrl = (id: number) => {
+  return `/api/admin/reports/${id}`;
+};
+
+export const getAdminReport = async (
+  id: number,
+  options?: RequestInit,
+): Promise<ContentReport> => {
+  return customFetch<ContentReport>(getGetAdminReportUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAdminReportQueryKey = (id: number) => {
+  return [`/api/admin/reports/${id}`] as const;
+};
+
+export const getGetAdminReportQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAdminReport>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAdminReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAdminReportQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminReport>>> = ({
+    signal,
+  }) => getAdminReport(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminReport>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAdminReportQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAdminReport>>
+>;
+export type GetAdminReportQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary One report, with the conversation snapshot for a message report
+ */
+
+export function useGetAdminReport<
+  TData = Awaited<ReturnType<typeof getAdminReport>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAdminReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAdminReportQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Set a report's status
+ */
+export const getUpdateAdminReportUrl = (id: number) => {
+  return `/api/admin/reports/${id}`;
+};
+
+export const updateAdminReport = async (
+  id: number,
+  reportStatusInput: ReportStatusInput,
+  options?: RequestInit,
+): Promise<ContentReportRow> => {
+  return customFetch<ContentReportRow>(getUpdateAdminReportUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(reportStatusInput),
+  });
+};
+
+export const getUpdateAdminReportMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAdminReport>>,
+    TError,
+    { id: number; data: BodyType<ReportStatusInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateAdminReport>>,
+  TError,
+  { id: number; data: BodyType<ReportStatusInput> },
+  TContext
+> => {
+  const mutationKey = ["updateAdminReport"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateAdminReport>>,
+    { id: number; data: BodyType<ReportStatusInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateAdminReport(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateAdminReportMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateAdminReport>>
+>;
+export type UpdateAdminReportMutationBody = BodyType<ReportStatusInput>;
+export type UpdateAdminReportMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Set a report's status
+ */
+export const useUpdateAdminReport = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAdminReport>>,
+    TError,
+    { id: number; data: BodyType<ReportStatusInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateAdminReport>>,
+  TError,
+  { id: number; data: BodyType<ReportStatusInput> },
+  TContext
+> => {
+  return useMutation(getUpdateAdminReportMutationOptions(options));
+};
+
+/**
+ * @summary What the moderation agent did, for the moderator to confirm or undo
+ */
+export const getGetAgentDecisionsUrl = (params?: GetAgentDecisionsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/admin/agent-decisions?${stringifiedParams}`
+    : `/api/admin/agent-decisions`;
+};
+
+export const getAgentDecisions = async (
+  params?: GetAgentDecisionsParams,
+  options?: RequestInit,
+): Promise<AgentDecision[]> => {
+  return customFetch<AgentDecision[]>(getGetAgentDecisionsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAgentDecisionsQueryKey = (
+  params?: GetAgentDecisionsParams,
+) => {
+  return [`/api/admin/agent-decisions`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetAgentDecisionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAgentDecisions>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: GetAgentDecisionsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAgentDecisions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetAgentDecisionsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAgentDecisions>>
+  > = ({ signal }) => getAgentDecisions(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAgentDecisions>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAgentDecisionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAgentDecisions>>
+>;
+export type GetAgentDecisionsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary What the moderation agent did, for the moderator to confirm or undo
+ */
+
+export function useGetAgentDecisions<
+  TData = Awaited<ReturnType<typeof getAgentDecisions>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: GetAgentDecisionsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAgentDecisions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAgentDecisionsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Confirm or undo one of the agent's decisions
+ */
+export const getReviewAgentDecisionUrl = (
+  id: number,
+  verb: "confirm" | "undo",
+) => {
+  return `/api/admin/agent-decisions/${id}/${verb}`;
+};
+
+export const reviewAgentDecision = async (
+  id: number,
+  verb: "confirm" | "undo",
+  options?: RequestInit,
+): Promise<AgentDecision> => {
+  return customFetch<AgentDecision>(getReviewAgentDecisionUrl(id, verb), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getReviewAgentDecisionMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reviewAgentDecision>>,
+    TError,
+    { id: number; verb: "confirm" | "undo" },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reviewAgentDecision>>,
+  TError,
+  { id: number; verb: "confirm" | "undo" },
+  TContext
+> => {
+  const mutationKey = ["reviewAgentDecision"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reviewAgentDecision>>,
+    { id: number; verb: "confirm" | "undo" }
+  > = (props) => {
+    const { id, verb } = props ?? {};
+
+    return reviewAgentDecision(id, verb, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReviewAgentDecisionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reviewAgentDecision>>
+>;
+
+export type ReviewAgentDecisionMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Confirm or undo one of the agent's decisions
+ */
+export const useReviewAgentDecision = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reviewAgentDecision>>,
+    TError,
+    { id: number; verb: "confirm" | "undo" },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof reviewAgentDecision>>,
+  TError,
+  { id: number; verb: "confirm" | "undo" },
+  TContext
+> => {
+  return useMutation(getReviewAgentDecisionMutationOptions(options));
+};
+
+/**
+ * @summary Hide a message from both people, or show it again with hidden false
+ */
+export const getHideMessageUrl = (messageId: string) => {
+  return `/api/admin/messages/${messageId}/hide`;
+};
+
+export const hideMessage = async (
+  messageId: string,
+  hideMessageBody?: HideMessageBody,
+  options?: RequestInit,
+): Promise<HiddenMessageResult> => {
+  return customFetch<HiddenMessageResult>(getHideMessageUrl(messageId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(hideMessageBody),
+  });
+};
+
+export const getHideMessageMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof hideMessage>>,
+    TError,
+    { messageId: string; data: BodyType<HideMessageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof hideMessage>>,
+  TError,
+  { messageId: string; data: BodyType<HideMessageBody> },
+  TContext
+> => {
+  const mutationKey = ["hideMessage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof hideMessage>>,
+    { messageId: string; data: BodyType<HideMessageBody> }
+  > = (props) => {
+    const { messageId, data } = props ?? {};
+
+    return hideMessage(messageId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type HideMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof hideMessage>>
+>;
+export type HideMessageMutationBody = BodyType<HideMessageBody>;
+export type HideMessageMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Hide a message from both people, or show it again with hidden false
+ */
+export const useHideMessage = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof hideMessage>>,
+    TError,
+    { messageId: string; data: BodyType<HideMessageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof hideMessage>>,
+  TError,
+  { messageId: string; data: BodyType<HideMessageBody> },
+  TContext
+> => {
+  return useMutation(getHideMessageMutationOptions(options));
+};
+
+/**
+ * @summary Stop an account from starting new conversations while it's reviewed
+ */
+export const getRestrictAccountUrl = (clerkUserId: string) => {
+  return `/api/admin/accounts/${clerkUserId}/restrict`;
+};
+
+export const restrictAccount = async (
+  clerkUserId: string,
+  moderatorReasonInput?: ModeratorReasonInput,
+  options?: RequestInit,
+): Promise<RestrictAccount201> => {
+  return customFetch<RestrictAccount201>(getRestrictAccountUrl(clerkUserId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(moderatorReasonInput),
+  });
+};
+
+export const getRestrictAccountMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof restrictAccount>>,
+    TError,
+    { clerkUserId: string; data: BodyType<ModeratorReasonInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof restrictAccount>>,
+  TError,
+  { clerkUserId: string; data: BodyType<ModeratorReasonInput> },
+  TContext
+> => {
+  const mutationKey = ["restrictAccount"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof restrictAccount>>,
+    { clerkUserId: string; data: BodyType<ModeratorReasonInput> }
+  > = (props) => {
+    const { clerkUserId, data } = props ?? {};
+
+    return restrictAccount(clerkUserId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RestrictAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof restrictAccount>>
+>;
+export type RestrictAccountMutationBody = BodyType<ModeratorReasonInput>;
+export type RestrictAccountMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Stop an account from starting new conversations while it's reviewed
+ */
+export const useRestrictAccount = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof restrictAccount>>,
+    TError,
+    { clerkUserId: string; data: BodyType<ModeratorReasonInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof restrictAccount>>,
+  TError,
+  { clerkUserId: string; data: BodyType<ModeratorReasonInput> },
+  TContext
+> => {
+  return useMutation(getRestrictAccountMutationOptions(options));
+};
+
+/**
+ * @summary Ban an account, with its Apple ID and emails
+ */
+export const getBanAccountUrl = (clerkUserId: string) => {
+  return `/api/admin/accounts/${clerkUserId}/ban`;
+};
+
+export const banAccount = async (
+  clerkUserId: string,
+  sanctionInput: SanctionInput,
+  options?: RequestInit,
+): Promise<SanctionResult> => {
+  return customFetch<SanctionResult>(getBanAccountUrl(clerkUserId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(sanctionInput),
+  });
+};
+
+export const getBanAccountMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof banAccount>>,
+    TError,
+    { clerkUserId: string; data: BodyType<SanctionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof banAccount>>,
+  TError,
+  { clerkUserId: string; data: BodyType<SanctionInput> },
+  TContext
+> => {
+  const mutationKey = ["banAccount"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof banAccount>>,
+    { clerkUserId: string; data: BodyType<SanctionInput> }
+  > = (props) => {
+    const { clerkUserId, data } = props ?? {};
+
+    return banAccount(clerkUserId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BanAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof banAccount>>
+>;
+export type BanAccountMutationBody = BodyType<SanctionInput>;
+export type BanAccountMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Ban an account, with its Apple ID and emails
+ */
+export const useBanAccount = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof banAccount>>,
+    TError,
+    { clerkUserId: string; data: BodyType<SanctionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof banAccount>>,
+  TError,
+  { clerkUserId: string; data: BodyType<SanctionInput> },
+  TContext
+> => {
+  return useMutation(getBanAccountMutationOptions(options));
+};
+
+/**
+ * @summary Suspend an account for 1 to 90 days
+ */
+export const getSuspendAccountUrl = (clerkUserId: string) => {
+  return `/api/admin/accounts/${clerkUserId}/suspend`;
+};
+
+export const suspendAccount = async (
+  clerkUserId: string,
+  sanctionInput: SanctionInput,
+  options?: RequestInit,
+): Promise<SanctionResult> => {
+  return customFetch<SanctionResult>(getSuspendAccountUrl(clerkUserId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(sanctionInput),
+  });
+};
+
+export const getSuspendAccountMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof suspendAccount>>,
+    TError,
+    { clerkUserId: string; data: BodyType<SanctionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof suspendAccount>>,
+  TError,
+  { clerkUserId: string; data: BodyType<SanctionInput> },
+  TContext
+> => {
+  const mutationKey = ["suspendAccount"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof suspendAccount>>,
+    { clerkUserId: string; data: BodyType<SanctionInput> }
+  > = (props) => {
+    const { clerkUserId, data } = props ?? {};
+
+    return suspendAccount(clerkUserId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SuspendAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof suspendAccount>>
+>;
+export type SuspendAccountMutationBody = BodyType<SanctionInput>;
+export type SuspendAccountMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Suspend an account for 1 to 90 days
+ */
+export const useSuspendAccount = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof suspendAccount>>,
+    TError,
+    { clerkUserId: string; data: BodyType<SanctionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof suspendAccount>>,
+  TError,
+  { clerkUserId: string; data: BodyType<SanctionInput> },
+  TContext
+> => {
+  return useMutation(getSuspendAccountMutationOptions(options));
+};
+
+/**
+ * @summary Ban and suspension appeals, with the sanction and the person's name
+ */
+export const getGetAppealsUrl = (params?: GetAppealsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/admin/appeals?${stringifiedParams}`
+    : `/api/admin/appeals`;
+};
+
+export const getAppeals = async (
+  params?: GetAppealsParams,
+  options?: RequestInit,
+): Promise<AppealListItem[]> => {
+  return customFetch<AppealListItem[]>(getGetAppealsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAppealsQueryKey = (params?: GetAppealsParams) => {
+  return [`/api/admin/appeals`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetAppealsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAppeals>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: GetAppealsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAppeals>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAppealsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAppeals>>> = ({
+    signal,
+  }) => getAppeals(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAppeals>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAppealsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAppeals>>
+>;
+export type GetAppealsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Ban and suspension appeals, with the sanction and the person's name
+ */
+
+export function useGetAppeals<
+  TData = Awaited<ReturnType<typeof getAppeals>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: GetAppealsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAppeals>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAppealsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Uphold or overturn an appeal. Overturning lifts the sanction.
+ */
+export const getDecideAppealUrl = (id: number) => {
+  return `/api/admin/appeals/${id}/decide`;
+};
+
+export const decideAppeal = async (
+  id: number,
+  appealDecisionInput: AppealDecisionInput,
+  options?: RequestInit,
+): Promise<DecideAppeal200> => {
+  return customFetch<DecideAppeal200>(getDecideAppealUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(appealDecisionInput),
+  });
+};
+
+export const getDecideAppealMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof decideAppeal>>,
+    TError,
+    { id: number; data: BodyType<AppealDecisionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof decideAppeal>>,
+  TError,
+  { id: number; data: BodyType<AppealDecisionInput> },
+  TContext
+> => {
+  const mutationKey = ["decideAppeal"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof decideAppeal>>,
+    { id: number; data: BodyType<AppealDecisionInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return decideAppeal(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DecideAppealMutationResult = NonNullable<
+  Awaited<ReturnType<typeof decideAppeal>>
+>;
+export type DecideAppealMutationBody = BodyType<AppealDecisionInput>;
+export type DecideAppealMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Uphold or overturn an appeal. Overturning lifts the sanction.
+ */
+export const useDecideAppeal = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof decideAppeal>>,
+    TError,
+    { id: number; data: BodyType<AppealDecisionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof decideAppeal>>,
+  TError,
+  { id: number; data: BodyType<AppealDecisionInput> },
+  TContext
+> => {
+  return useMutation(getDecideAppealMutationOptions(options));
+};
+
+/**
+ * @summary Whether the signed-in person is the app's moderator, for showing Moderation
+ */
+export const getGetAdminMeUrl = () => {
+  return `/api/admin/me`;
+};
+
+export const getAdminMe = async (
+  options?: RequestInit,
+): Promise<GetAdminMe200> => {
+  return customFetch<GetAdminMe200>(getGetAdminMeUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAdminMeQueryKey = () => {
+  return [`/api/admin/me`] as const;
+};
+
+export const getGetAdminMeQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAdminMe>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminMe>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAdminMeQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminMe>>> = ({
+    signal,
+  }) => getAdminMe({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminMe>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAdminMeQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAdminMe>>
+>;
+export type GetAdminMeQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Whether the signed-in person is the app's moderator, for showing Moderation
+ */
+
+export function useGetAdminMe<
+  TData = Awaited<ReturnType<typeof getAdminMe>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminMe>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAdminMeQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Whether the account is banned or suspended, shown right after sign-in. Works while banned.
+ */
+export const getGetAccountStatusUrl = () => {
+  return `/api/account/status`;
+};
+
+export const getAccountStatus = async (
+  options?: RequestInit,
+): Promise<AccountStatus> => {
+  return customFetch<AccountStatus>(getGetAccountStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAccountStatusQueryKey = () => {
+  return [`/api/account/status`] as const;
+};
+
+export const getGetAccountStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAccountStatus>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAccountStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAccountStatusQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAccountStatus>>
+  > = ({ signal }) => getAccountStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAccountStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAccountStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAccountStatus>>
+>;
+export type GetAccountStatusQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Whether the account is banned or suspended, shown right after sign-in. Works while banned.
+ */
+
+export function useGetAccountStatus<
+  TData = Awaited<ReturnType<typeof getAccountStatus>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAccountStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAccountStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Appeal a ban or suspension, once. The app then opens an email to support.
+ */
+export const getAppealSanctionUrl = () => {
+  return `/api/account/appeal`;
+};
+
+export const appealSanction = async (
+  options?: RequestInit,
+): Promise<AppealReceipt> => {
+  return customFetch<AppealReceipt>(getAppealSanctionUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAppealSanctionMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof appealSanction>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof appealSanction>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["appealSanction"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof appealSanction>>,
+    void
+  > = () => {
+    return appealSanction(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AppealSanctionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof appealSanction>>
+>;
+
+export type AppealSanctionMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Appeal a ban or suspension, once. The app then opens an email to support.
+ */
+export const useAppealSanction = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof appealSanction>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof appealSanction>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getAppealSanctionMutationOptions(options));
+};
+
+/**
+ * @summary The inbox, with the unread count. There are no Message Requests (Nov 6); every message lands here.
+ */
+export const getGetConversationsUrl = () => {
+  return `/api/messages`;
+};
+
+export const getConversations = async (
+  options?: RequestInit,
+): Promise<ConversationList> => {
+  return customFetch<ConversationList>(getGetConversationsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetConversationsQueryKey = () => {
+  return [`/api/messages`] as const;
+};
+
+export const getGetConversationsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getConversations>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getConversations>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetConversationsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getConversations>>
+  > = ({ signal }) => getConversations({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getConversations>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetConversationsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getConversations>>
+>;
+export type GetConversationsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary The inbox, with the unread count. There are no Message Requests (Nov 6); every message lands here.
+ */
+
+export function useGetConversations<
+  TData = Awaited<ReturnType<typeof getConversations>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getConversations>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetConversationsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Send a first message to a player. It goes straight to their inbox; from outside your leagues it can't carry links, emails or phone numbers.
+ */
+export const getStartConversationUrl = () => {
+  return `/api/messages`;
+};
+
+export const startConversation = async (
+  newConversationInput: NewConversationInput,
+  options?: RequestInit,
+): Promise<SentMessage> => {
+  return customFetch<SentMessage>(getStartConversationUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(newConversationInput),
+  });
+};
+
+export const getStartConversationMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof startConversation>>,
+    TError,
+    { data: BodyType<NewConversationInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof startConversation>>,
+  TError,
+  { data: BodyType<NewConversationInput> },
+  TContext
+> => {
+  const mutationKey = ["startConversation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof startConversation>>,
+    { data: BodyType<NewConversationInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return startConversation(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type StartConversationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof startConversation>>
+>;
+export type StartConversationMutationBody = BodyType<NewConversationInput>;
+export type StartConversationMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Send a first message to a player. It goes straight to their inbox; from outside your leagues it can't carry links, emails or phone numbers.
+ */
+export const useStartConversation = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof startConversation>>,
+    TError,
+    { data: BodyType<NewConversationInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof startConversation>>,
+  TError,
+  { data: BodyType<NewConversationInput> },
+  TContext
+> => {
+  return useMutation(getStartConversationMutationOptions(options));
+};
+
+/**
+ * @summary Unread messages, for the badge
+ */
+export const getGetMessagesSummaryUrl = () => {
+  return `/api/messages/summary`;
+};
+
+export const getMessagesSummary = async (
+  options?: RequestInit,
+): Promise<MessagesSummary> => {
+  return customFetch<MessagesSummary>(getGetMessagesSummaryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMessagesSummaryQueryKey = () => {
+  return [`/api/messages/summary`] as const;
+};
+
+export const getGetMessagesSummaryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMessagesSummary>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMessagesSummary>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMessagesSummaryQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMessagesSummary>>
+  > = ({ signal }) => getMessagesSummary({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMessagesSummary>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMessagesSummaryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMessagesSummary>>
+>;
+export type GetMessagesSummaryQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Unread messages, for the badge
+ */
+
+export function useGetMessagesSummary<
+  TData = Awaited<ReturnType<typeof getMessagesSummary>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMessagesSummary>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMessagesSummaryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary People the person can message: league mates and past opponents, without blocked ones
+ */
+export const getGetMessageContactsUrl = () => {
+  return `/api/messages/contacts`;
+};
+
+export const getMessageContacts = async (
+  options?: RequestInit,
+): Promise<GetMessageContacts200> => {
+  return customFetch<GetMessageContacts200>(getGetMessageContactsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMessageContactsQueryKey = () => {
+  return [`/api/messages/contacts`] as const;
+};
+
+export const getGetMessageContactsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMessageContacts>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMessageContacts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMessageContactsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMessageContacts>>
+  > = ({ signal }) => getMessageContacts({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMessageContacts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMessageContactsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMessageContacts>>
+>;
+export type GetMessageContactsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary People the person can message: league mates and past opponents, without blocked ones
+ */
+
+export function useGetMessageContacts<
+  TData = Awaited<ReturnType<typeof getMessageContacts>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMessageContacts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMessageContactsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary The conversation with a Discover player (by user id), if there is one
+ */
+export const getGetConversationWithUserUrl = (userId: string) => {
+  return `/api/messages/with-user/${userId}`;
+};
+
+export const getConversationWithUser = async (
+  userId: string,
+  options?: RequestInit,
+): Promise<GetConversationWithUser200> => {
+  return customFetch<GetConversationWithUser200>(
+    getGetConversationWithUserUrl(userId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetConversationWithUserQueryKey = (userId: string) => {
+  return [`/api/messages/with-user/${userId}`] as const;
+};
+
+export const getGetConversationWithUserQueryOptions = <
+  TData = Awaited<ReturnType<typeof getConversationWithUser>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getConversationWithUser>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetConversationWithUserQueryKey(userId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getConversationWithUser>>
+  > = ({ signal }) =>
+    getConversationWithUser(userId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getConversationWithUser>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetConversationWithUserQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getConversationWithUser>>
+>;
+export type GetConversationWithUserQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary The conversation with a Discover player (by user id), if there is one
+ */
+
+export function useGetConversationWithUser<
+  TData = Awaited<ReturnType<typeof getConversationWithUser>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getConversationWithUser>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetConversationWithUserQueryOptions(userId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary The conversation with a player, if there is one
+ */
+export const getGetConversationWithPlayerUrl = (playerId: string) => {
+  return `/api/messages/with-player/${playerId}`;
+};
+
+export const getConversationWithPlayer = async (
+  playerId: string,
+  options?: RequestInit,
+): Promise<GetConversationWithPlayer200> => {
+  return customFetch<GetConversationWithPlayer200>(
+    getGetConversationWithPlayerUrl(playerId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetConversationWithPlayerQueryKey = (playerId: string) => {
+  return [`/api/messages/with-player/${playerId}`] as const;
+};
+
+export const getGetConversationWithPlayerQueryOptions = <
+  TData = Awaited<ReturnType<typeof getConversationWithPlayer>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  playerId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getConversationWithPlayer>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetConversationWithPlayerQueryKey(playerId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getConversationWithPlayer>>
+  > = ({ signal }) =>
+    getConversationWithPlayer(playerId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!playerId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getConversationWithPlayer>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetConversationWithPlayerQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getConversationWithPlayer>>
+>;
+export type GetConversationWithPlayerQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary The conversation with a player, if there is one
+ */
+
+export function useGetConversationWithPlayer<
+  TData = Awaited<ReturnType<typeof getConversationWithPlayer>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  playerId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getConversationWithPlayer>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetConversationWithPlayerQueryOptions(
+    playerId,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary A conversation's latest messages, or older ones with before. Marks it read.
+ */
+export const getGetConversationUrl = (
+  id: number,
+  params?: GetConversationParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/messages/${id}?${stringifiedParams}`
+    : `/api/messages/${id}`;
+};
+
+export const getConversation = async (
+  id: number,
+  params?: GetConversationParams,
+  options?: RequestInit,
+): Promise<ConversationThread> => {
+  return customFetch<ConversationThread>(getGetConversationUrl(id, params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetConversationQueryKey = (
+  id: number,
+  params?: GetConversationParams,
+) => {
+  return [`/api/messages/${id}`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetConversationQueryOptions = <
+  TData = Awaited<ReturnType<typeof getConversation>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  params?: GetConversationParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getConversation>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetConversationQueryKey(id, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getConversation>>> = ({
+    signal,
+  }) => getConversation(id, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getConversation>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetConversationQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getConversation>>
+>;
+export type GetConversationQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary A conversation's latest messages, or older ones with before. Marks it read.
+ */
+
+export function useGetConversation<
+  TData = Awaited<ReturnType<typeof getConversation>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  params?: GetConversationParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getConversation>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetConversationQueryOptions(id, params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Send a message in a conversation
+ */
+export const getSendMessageUrl = (id: number) => {
+  return `/api/messages/${id}/messages`;
+};
+
+export const sendMessage = async (
+  id: number,
+  newMessageInput: NewMessageInput,
+  options?: RequestInit,
+): Promise<SentMessage> => {
+  return customFetch<SentMessage>(getSendMessageUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(newMessageInput),
+  });
+};
+
+export const getSendMessageMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendMessage>>,
+    TError,
+    { id: number; data: BodyType<NewMessageInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendMessage>>,
+  TError,
+  { id: number; data: BodyType<NewMessageInput> },
+  TContext
+> => {
+  const mutationKey = ["sendMessage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendMessage>>,
+    { id: number; data: BodyType<NewMessageInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return sendMessage(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendMessage>>
+>;
+export type SendMessageMutationBody = BodyType<NewMessageInput>;
+export type SendMessageMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Send a message in a conversation
+ */
+export const useSendMessage = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendMessage>>,
+    TError,
+    { id: number; data: BodyType<NewMessageInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendMessage>>,
+  TError,
+  { id: number; data: BodyType<NewMessageInput> },
+  TContext
+> => {
+  return useMutation(getSendMessageMutationOptions(options));
+};
+
+/**
+ * @summary Report a message. A snapshot of the conversation goes with the report.
+ */
+export const getReportMessageUrl = (id: number) => {
+  return `/api/messages/${id}/report`;
+};
+
+export const reportMessage = async (
+  id: number,
+  messageReportInput: MessageReportInput,
+  options?: RequestInit,
+): Promise<ReportReceipt> => {
+  return customFetch<ReportReceipt>(getReportMessageUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(messageReportInput),
+  });
+};
+
+export const getReportMessageMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reportMessage>>,
+    TError,
+    { id: number; data: BodyType<MessageReportInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reportMessage>>,
+  TError,
+  { id: number; data: BodyType<MessageReportInput> },
+  TContext
+> => {
+  const mutationKey = ["reportMessage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reportMessage>>,
+    { id: number; data: BodyType<MessageReportInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return reportMessage(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReportMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reportMessage>>
+>;
+export type ReportMessageMutationBody = BodyType<MessageReportInput>;
+export type ReportMessageMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Report a message. A snapshot of the conversation goes with the report.
+ */
+export const useReportMessage = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reportMessage>>,
+    TError,
+    { id: number; data: BodyType<MessageReportInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof reportMessage>>,
+  TError,
+  { id: number; data: BodyType<MessageReportInput> },
+  TContext
+> => {
+  return useMutation(getReportMessageMutationOptions(options));
+};
+
+/**
+ * @summary Open a group chat you're in (an open match's chat, F15) and mark it read. Pass before to page back.
+ */
+export const getGetGroupThreadUrl = (
+  id: number,
+  params?: GetGroupThreadParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/messages/groups/${id}?${stringifiedParams}`
+    : `/api/messages/groups/${id}`;
+};
+
+export const getGroupThread = async (
+  id: number,
+  params?: GetGroupThreadParams,
+  options?: RequestInit,
+): Promise<GroupThread> => {
+  return customFetch<GroupThread>(getGetGroupThreadUrl(id, params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetGroupThreadQueryKey = (
+  id: number,
+  params?: GetGroupThreadParams,
+) => {
+  return [`/api/messages/groups/${id}`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetGroupThreadQueryOptions = <
+  TData = Awaited<ReturnType<typeof getGroupThread>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  params?: GetGroupThreadParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getGroupThread>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetGroupThreadQueryKey(id, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getGroupThread>>> = ({
+    signal,
+  }) => getGroupThread(id, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getGroupThread>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetGroupThreadQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getGroupThread>>
+>;
+export type GetGroupThreadQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Open a group chat you're in (an open match's chat, F15) and mark it read. Pass before to page back.
+ */
+
+export function useGetGroupThread<
+  TData = Awaited<ReturnType<typeof getGroupThread>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  params?: GetGroupThreadParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getGroupThread>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetGroupThreadQueryOptions(id, params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Send in a group chat. Each person's first message there can't carry links, emails or phone numbers if anyone in it is outside their leagues.
+ */
+export const getSendGroupMessageUrl = (id: number) => {
+  return `/api/messages/groups/${id}/messages`;
+};
+
+export const sendGroupMessage = async (
+  id: number,
+  newMessageInput: NewMessageInput,
+  options?: RequestInit,
+): Promise<SentGroupMessage> => {
+  return customFetch<SentGroupMessage>(getSendGroupMessageUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(newMessageInput),
+  });
+};
+
+export const getSendGroupMessageMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendGroupMessage>>,
+    TError,
+    { id: number; data: BodyType<NewMessageInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendGroupMessage>>,
+  TError,
+  { id: number; data: BodyType<NewMessageInput> },
+  TContext
+> => {
+  const mutationKey = ["sendGroupMessage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendGroupMessage>>,
+    { id: number; data: BodyType<NewMessageInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return sendGroupMessage(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendGroupMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendGroupMessage>>
+>;
+export type SendGroupMessageMutationBody = BodyType<NewMessageInput>;
+export type SendGroupMessageMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Send in a group chat. Each person's first message there can't carry links, emails or phone numbers if anyone in it is outside their leagues.
+ */
+export const useSendGroupMessage = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendGroupMessage>>,
+    TError,
+    { id: number; data: BodyType<NewMessageInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendGroupMessage>>,
+  TError,
+  { id: number; data: BodyType<NewMessageInput> },
+  TContext
+> => {
+  return useMutation(getSendGroupMessageMutationOptions(options));
+};
+
+/**
+ * @summary Report a message in a group chat. A snapshot of the chat goes with the report.
+ */
+export const getReportGroupMessageUrl = (id: number) => {
+  return `/api/messages/groups/${id}/report`;
+};
+
+export const reportGroupMessage = async (
+  id: number,
+  messageReportInput: MessageReportInput,
+  options?: RequestInit,
+): Promise<ReportReceipt> => {
+  return customFetch<ReportReceipt>(getReportGroupMessageUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(messageReportInput),
+  });
+};
+
+export const getReportGroupMessageMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reportGroupMessage>>,
+    TError,
+    { id: number; data: BodyType<MessageReportInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reportGroupMessage>>,
+  TError,
+  { id: number; data: BodyType<MessageReportInput> },
+  TContext
+> => {
+  const mutationKey = ["reportGroupMessage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reportGroupMessage>>,
+    { id: number; data: BodyType<MessageReportInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return reportGroupMessage(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReportGroupMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reportGroupMessage>>
+>;
+export type ReportGroupMessageMutationBody = BodyType<MessageReportInput>;
+export type ReportGroupMessageMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Report a message in a group chat. A snapshot of the chat goes with the report.
+ */
+export const useReportGroupMessage = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reportGroupMessage>>,
+    TError,
+    { id: number; data: BodyType<MessageReportInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof reportGroupMessage>>,
+  TError,
+  { id: number; data: BodyType<MessageReportInput> },
+  TContext
+> => {
+  return useMutation(getReportGroupMessageMutationOptions(options));
+};
+
+/**
+ * @summary Development only. Adds sample conversations for the signed-in person.
+ */
+export const getCreateSampleMessagesUrl = () => {
+  return `/api/dev/messages/samples`;
+};
+
+export const createSampleMessages = async (
+  options?: RequestInit,
+): Promise<CreateSampleMessages201> => {
+  return customFetch<CreateSampleMessages201>(getCreateSampleMessagesUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCreateSampleMessagesMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSampleMessages>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createSampleMessages>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["createSampleMessages"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createSampleMessages>>,
+    void
+  > = () => {
+    return createSampleMessages(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateSampleMessagesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createSampleMessages>>
+>;
+
+export type CreateSampleMessagesMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Development only. Adds sample conversations for the signed-in person.
+ */
+export const useCreateSampleMessages = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSampleMessages>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createSampleMessages>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getCreateSampleMessagesMutationOptions(options));
+};
+
+/**
+ * @summary Before recording, whether the opponent isn't on Ball Boi, so the recorder must confirm they agreed to be filmed
+ */
+export const getGetMatchFilmingUrl = (matchId: number) => {
+  return `/api/recording/matches/${matchId}/filming`;
+};
+
+export const getMatchFilming = async (
+  matchId: number,
+  options?: RequestInit,
+): Promise<MatchFilming> => {
+  return customFetch<MatchFilming>(getGetMatchFilmingUrl(matchId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMatchFilmingQueryKey = (matchId: number) => {
+  return [`/api/recording/matches/${matchId}/filming`] as const;
+};
+
+export const getGetMatchFilmingQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMatchFilming>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  matchId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMatchFilming>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetMatchFilmingQueryKey(matchId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMatchFilming>>> = ({
+    signal,
+  }) => getMatchFilming(matchId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!matchId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMatchFilming>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMatchFilmingQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMatchFilming>>
+>;
+export type GetMatchFilmingQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Before recording, whether the opponent isn't on Ball Boi, so the recorder must confirm they agreed to be filmed
+ */
+
+export function useGetMatchFilming<
+  TData = Awaited<ReturnType<typeof getMatchFilming>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  matchId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMatchFilming>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMatchFilmingQueryOptions(matchId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary "Something not working?" report: saved and emailed to support@ballboi.tennis
+ */
+export const getSendFeedbackUrl = () => {
+  return `/api/feedback`;
+};
+
+export const sendFeedback = async (
+  feedbackReport: FeedbackReport,
+  options?: RequestInit,
+): Promise<SendFeedback201> => {
+  return customFetch<SendFeedback201>(getSendFeedbackUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(feedbackReport),
+  });
+};
+
+export const getSendFeedbackMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendFeedback>>,
+    TError,
+    { data: BodyType<FeedbackReport> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendFeedback>>,
+  TError,
+  { data: BodyType<FeedbackReport> },
+  TContext
+> => {
+  const mutationKey = ["sendFeedback"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendFeedback>>,
+    { data: BodyType<FeedbackReport> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return sendFeedback(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendFeedbackMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendFeedback>>
+>;
+export type SendFeedbackMutationBody = BodyType<FeedbackReport>;
+export type SendFeedbackMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary "Something not working?" report: saved and emailed to support@ballboi.tennis
+ */
+export const useSendFeedback = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendFeedback>>,
+    TError,
+    { data: BodyType<FeedbackReport> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendFeedback>>,
+  TError,
+  { data: BodyType<FeedbackReport> },
+  TContext
+> => {
+  return useMutation(getSendFeedbackMutationOptions(options));
+};
+
+/**
+ * @summary Whether the person agreed to recording, and whether their video may train Ball Boi
+ */
+export const getGetRecordingConsentUrl = () => {
+  return `/api/recording/consent`;
+};
+
+export const getRecordingConsent = async (
+  options?: RequestInit,
+): Promise<RecordingConsent> => {
+  return customFetch<RecordingConsent>(getGetRecordingConsentUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRecordingConsentQueryKey = () => {
+  return [`/api/recording/consent`] as const;
+};
+
+export const getGetRecordingConsentQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRecordingConsent>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRecordingConsent>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRecordingConsentQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRecordingConsent>>
+  > = ({ signal }) => getRecordingConsent({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRecordingConsent>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRecordingConsentQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRecordingConsent>>
+>;
+export type GetRecordingConsentQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Whether the person agreed to recording, and whether their video may train Ball Boi
+ */
+
+export function useGetRecordingConsent<
+  TData = Awaited<ReturnType<typeof getRecordingConsent>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRecordingConsent>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRecordingConsentQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Agree to recording on the first-recording carousel, with the training choice and, while it's asked for, the beta release
+ */
+export const getGiveRecordingConsentUrl = () => {
+  return `/api/recording/consent`;
+};
+
+export const giveRecordingConsent = async (
+  consentChoice: ConsentChoice,
+  options?: RequestInit,
+): Promise<RecordingConsent> => {
+  return customFetch<RecordingConsent>(getGiveRecordingConsentUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(consentChoice),
+  });
+};
+
+export const getGiveRecordingConsentMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof giveRecordingConsent>>,
+    TError,
+    { data: BodyType<ConsentChoice> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof giveRecordingConsent>>,
+  TError,
+  { data: BodyType<ConsentChoice> },
+  TContext
+> => {
+  const mutationKey = ["giveRecordingConsent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof giveRecordingConsent>>,
+    { data: BodyType<ConsentChoice> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return giveRecordingConsent(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GiveRecordingConsentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof giveRecordingConsent>>
+>;
+export type GiveRecordingConsentMutationBody = BodyType<ConsentChoice>;
+export type GiveRecordingConsentMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Agree to recording on the first-recording carousel, with the training choice and, while it's asked for, the beta release
+ */
+export const useGiveRecordingConsent = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof giveRecordingConsent>>,
+    TError,
+    { data: BodyType<ConsentChoice> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof giveRecordingConsent>>,
+  TError,
+  { data: BodyType<ConsentChoice> },
+  TContext
+> => {
+  return useMutation(getGiveRecordingConsentMutationOptions(options));
+};
+
+/**
+ * @summary Change whether the person's video may train Ball Boi
+ */
+export const getSetRecordingTrainingUrl = () => {
+  return `/api/recording/training`;
+};
+
+export const setRecordingTraining = async (
+  trainingChoice: TrainingChoice,
+  options?: RequestInit,
+): Promise<RecordingConsent> => {
+  return customFetch<RecordingConsent>(getSetRecordingTrainingUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(trainingChoice),
+  });
+};
+
+export const getSetRecordingTrainingMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setRecordingTraining>>,
+    TError,
+    { data: BodyType<TrainingChoice> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setRecordingTraining>>,
+  TError,
+  { data: BodyType<TrainingChoice> },
+  TContext
+> => {
+  const mutationKey = ["setRecordingTraining"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setRecordingTraining>>,
+    { data: BodyType<TrainingChoice> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return setRecordingTraining(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetRecordingTrainingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setRecordingTraining>>
+>;
+export type SetRecordingTrainingMutationBody = BodyType<TrainingChoice>;
+export type SetRecordingTrainingMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Change whether the person's video may train Ball Boi
+ */
+export const useSetRecordingTraining = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setRecordingTraining>>,
+    TError,
+    { data: BodyType<TrainingChoice> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setRecordingTraining>>,
+  TError,
+  { data: BodyType<TrainingChoice> },
+  TContext
+> => {
+  return useMutation(getSetRecordingTrainingMutationOptions(options));
+};
+
+/**
+ * @summary Players to pick for a Quick match: league mates and past opponents
+ */
+export const getGetRecordingOpponentsUrl = () => {
+  return `/api/recording/opponents`;
+};
+
+export const getRecordingOpponents = async (
+  options?: RequestInit,
+): Promise<RecordingOpponent[]> => {
+  return customFetch<RecordingOpponent[]>(getGetRecordingOpponentsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRecordingOpponentsQueryKey = () => {
+  return [`/api/recording/opponents`] as const;
+};
+
+export const getGetRecordingOpponentsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRecordingOpponents>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRecordingOpponents>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRecordingOpponentsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRecordingOpponents>>
+  > = ({ signal }) => getRecordingOpponents({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRecordingOpponents>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRecordingOpponentsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRecordingOpponents>>
+>;
+export type GetRecordingOpponentsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Players to pick for a Quick match: league mates and past opponents
+ */
+
+export function useGetRecordingOpponents<
+  TData = Awaited<ReturnType<typeof getRecordingOpponents>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRecordingOpponents>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRecordingOpponentsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Start a Quick match against a picked player, or a typed name (which makes an invite link)
+ */
+export const getCreateQuickMatchUrl = () => {
+  return `/api/recording/quick-matches`;
+};
+
+export const createQuickMatch = async (
+  quickMatchInput: QuickMatchInput,
+  options?: RequestInit,
+): Promise<QuickMatchCreated> => {
+  return customFetch<QuickMatchCreated>(getCreateQuickMatchUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(quickMatchInput),
+  });
+};
+
+export const getCreateQuickMatchMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createQuickMatch>>,
+    TError,
+    { data: BodyType<QuickMatchInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createQuickMatch>>,
+  TError,
+  { data: BodyType<QuickMatchInput> },
+  TContext
+> => {
+  const mutationKey = ["createQuickMatch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createQuickMatch>>,
+    { data: BodyType<QuickMatchInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createQuickMatch(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateQuickMatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createQuickMatch>>
+>;
+export type CreateQuickMatchMutationBody = BodyType<QuickMatchInput>;
+export type CreateQuickMatchMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Start a Quick match against a picked player, or a typed name (which makes an invite link)
+ */
+export const useCreateQuickMatch = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createQuickMatch>>,
+    TError,
+    { data: BodyType<QuickMatchInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createQuickMatch>>,
+  TError,
+  { data: BodyType<QuickMatchInput> },
+  TContext
+> => {
+  return useMutation(getCreateQuickMatchMutationOptions(options));
+};
+
+/**
+ * @summary Enter a Quick match's score from your side. The first score entered stands.
+ */
+export const getScoreQuickMatchUrl = (matchId: number) => {
+  return `/api/recording/quick-matches/${matchId}/score`;
+};
+
+export const scoreQuickMatch = async (
+  matchId: number,
+  scoreQuickMatchBody: ScoreQuickMatchBody,
+  options?: RequestInit,
+): Promise<ScoreQuickMatch200> => {
+  return customFetch<ScoreQuickMatch200>(getScoreQuickMatchUrl(matchId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(scoreQuickMatchBody),
+  });
+};
+
+export const getScoreQuickMatchMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof scoreQuickMatch>>,
+    TError,
+    { matchId: number; data: BodyType<ScoreQuickMatchBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof scoreQuickMatch>>,
+  TError,
+  { matchId: number; data: BodyType<ScoreQuickMatchBody> },
+  TContext
+> => {
+  const mutationKey = ["scoreQuickMatch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof scoreQuickMatch>>,
+    { matchId: number; data: BodyType<ScoreQuickMatchBody> }
+  > = (props) => {
+    const { matchId, data } = props ?? {};
+
+    return scoreQuickMatch(matchId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ScoreQuickMatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof scoreQuickMatch>>
+>;
+export type ScoreQuickMatchMutationBody = BodyType<ScoreQuickMatchBody>;
+export type ScoreQuickMatchMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Enter a Quick match's score from your side. The first score entered stands.
+ */
+export const useScoreQuickMatch = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof scoreQuickMatch>>,
+    TError,
+    { matchId: number; data: BodyType<ScoreQuickMatchBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof scoreQuickMatch>>,
+  TError,
+  { matchId: number; data: BodyType<ScoreQuickMatchBody> },
+  TContext
+> => {
+  return useMutation(getScoreQuickMatchMutationOptions(options));
+};
+
+/**
+ * @summary A Quick match invite link: who recorded it and who it's for
+ */
+export const getGetRecordingInviteUrl = (code: string) => {
+  return `/api/recording/invites/${code}`;
+};
+
+export const getRecordingInvite = async (
+  code: string,
+  options?: RequestInit,
+): Promise<RecordingInvite> => {
+  return customFetch<RecordingInvite>(getGetRecordingInviteUrl(code), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRecordingInviteQueryKey = (code: string) => {
+  return [`/api/recording/invites/${code}`] as const;
+};
+
+export const getGetRecordingInviteQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRecordingInvite>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  code: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRecordingInvite>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetRecordingInviteQueryKey(code);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRecordingInvite>>
+  > = ({ signal }) => getRecordingInvite(code, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!code,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRecordingInvite>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRecordingInviteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRecordingInvite>>
+>;
+export type GetRecordingInviteQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary A Quick match invite link: who recorded it and who it's for
+ */
+
+export function useGetRecordingInvite<
+  TData = Awaited<ReturnType<typeof getRecordingInvite>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  code: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRecordingInvite>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRecordingInviteQueryOptions(code, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Answer "Was that you?" with Not me, so the match never links to you
+ */
+export const getAnswerNotMeUrl = (code: string) => {
+  return `/api/recording/invites/${code}/not-me`;
+};
+
+export const answerNotMe = async (
+  code: string,
+  options?: RequestInit,
+): Promise<SuccessResult> => {
+  return customFetch<SuccessResult>(getAnswerNotMeUrl(code), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAnswerNotMeMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof answerNotMe>>,
+    TError,
+    { code: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof answerNotMe>>,
+  TError,
+  { code: string },
+  TContext
+> => {
+  const mutationKey = ["answerNotMe"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof answerNotMe>>,
+    { code: string }
+  > = (props) => {
+    const { code } = props ?? {};
+
+    return answerNotMe(code, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AnswerNotMeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof answerNotMe>>
+>;
+
+export type AnswerNotMeMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Answer "Was that you?" with Not me, so the match never links to you
+ */
+export const useAnswerNotMe = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof answerNotMe>>,
+    TError,
+    { code: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof answerNotMe>>,
+  TError,
+  { code: string },
+  TContext
+> => {
+  return useMutation(getAnswerNotMeMutationOptions(options));
+};
+
+/**
+ * @summary The mounted phone started capturing; tell the other players (each at most once)
+ */
+export const getSendOpponentNoticeUrl = (matchId: number) => {
+  return `/api/recording/matches/${matchId}/opponent-notice`;
+};
+
+export const sendOpponentNotice = async (
+  matchId: number,
+  options?: RequestInit,
+): Promise<SendOpponentNotice200> => {
+  return customFetch<SendOpponentNotice200>(getSendOpponentNoticeUrl(matchId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSendOpponentNoticeMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendOpponentNotice>>,
+    TError,
+    { matchId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendOpponentNotice>>,
+  TError,
+  { matchId: number },
+  TContext
+> => {
+  const mutationKey = ["sendOpponentNotice"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendOpponentNotice>>,
+    { matchId: number }
+  > = (props) => {
+    const { matchId } = props ?? {};
+
+    return sendOpponentNotice(matchId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendOpponentNoticeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendOpponentNotice>>
+>;
+
+export type SendOpponentNoticeMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary The mounted phone started capturing; tell the other players (each at most once)
+ */
+export const useSendOpponentNotice = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendOpponentNotice>>,
+    TError,
+    { matchId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendOpponentNotice>>,
+  TError,
+  { matchId: number },
+  TContext
+> => {
+  return useMutation(getSendOpponentNoticeMutationOptions(options));
+};
+
+/**
+ * @summary Add a Quick match from an invite link to your account
+ */
+export const getClaimRecordingInviteUrl = (code: string) => {
+  return `/api/recording/invites/${code}/claim`;
+};
+
+export const claimRecordingInvite = async (
+  code: string,
+  trainingChoice: TrainingChoice,
+  options?: RequestInit,
+): Promise<ClaimRecordingInvite200> => {
+  return customFetch<ClaimRecordingInvite200>(
+    getClaimRecordingInviteUrl(code),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(trainingChoice),
+    },
+  );
+};
+
+export const getClaimRecordingInviteMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof claimRecordingInvite>>,
+    TError,
+    { code: string; data: BodyType<TrainingChoice> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof claimRecordingInvite>>,
+  TError,
+  { code: string; data: BodyType<TrainingChoice> },
+  TContext
+> => {
+  const mutationKey = ["claimRecordingInvite"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof claimRecordingInvite>>,
+    { code: string; data: BodyType<TrainingChoice> }
+  > = (props) => {
+    const { code, data } = props ?? {};
+
+    return claimRecordingInvite(code, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ClaimRecordingInviteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof claimRecordingInvite>>
+>;
+export type ClaimRecordingInviteMutationBody = BodyType<TrainingChoice>;
+export type ClaimRecordingInviteMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Add a Quick match from an invite link to your account
+ */
+export const useClaimRecordingInvite = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof claimRecordingInvite>>,
+    TError,
+    { code: string; data: BodyType<TrainingChoice> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof claimRecordingInvite>>,
+  TError,
+  { code: string; data: BodyType<TrainingChoice> },
+  TContext
+> => {
+  return useMutation(getClaimRecordingInviteMutationOptions(options));
+};
+
+/**
+ * @summary Matches the person can record in the window (the phone's local day), most fitting first
+ */
+export const getGetTodaysRecordableMatchesUrl = (
+  params: GetTodaysRecordableMatchesParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/recording/todays-matches?${stringifiedParams}`
+    : `/api/recording/todays-matches`;
+};
+
+export const getTodaysRecordableMatches = async (
+  params: GetTodaysRecordableMatchesParams,
+  options?: RequestInit,
+): Promise<RecordableMatch[]> => {
+  return customFetch<RecordableMatch[]>(
+    getGetTodaysRecordableMatchesUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetTodaysRecordableMatchesQueryKey = (
+  params?: GetTodaysRecordableMatchesParams,
+) => {
+  return [
+    `/api/recording/todays-matches`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetTodaysRecordableMatchesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTodaysRecordableMatches>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params: GetTodaysRecordableMatchesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTodaysRecordableMatches>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetTodaysRecordableMatchesQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getTodaysRecordableMatches>>
+  > = ({ signal }) =>
+    getTodaysRecordableMatches(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTodaysRecordableMatches>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetTodaysRecordableMatchesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTodaysRecordableMatches>>
+>;
+export type GetTodaysRecordableMatchesQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Matches the person can record in the window (the phone's local day), most fitting first
+ */
+
+export function useGetTodaysRecordableMatches<
+  TData = Awaited<ReturnType<typeof getTodaysRecordableMatches>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params: GetTodaysRecordableMatchesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTodaysRecordableMatches>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetTodaysRecordableMatchesQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Recent recordings of the person's matches, newest first, whoever recorded them. Both players see a match's card.
+ */
+export const getGetMyRecordingsUrl = () => {
+  return `/api/recording/sessions`;
+};
+
+export const getMyRecordings = async (
+  options?: RequestInit,
+): Promise<RecordingListItem[]> => {
+  return customFetch<RecordingListItem[]>(getGetMyRecordingsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyRecordingsQueryKey = () => {
+  return [`/api/recording/sessions`] as const;
+};
+
+export const getGetMyRecordingsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyRecordings>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyRecordings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyRecordingsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyRecordings>>> = ({
+    signal,
+  }) => getMyRecordings({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyRecordings>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyRecordingsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyRecordings>>
+>;
+export type GetMyRecordingsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Recent recordings of the person's matches, newest first, whoever recorded them. Both players see a match's card.
+ */
+
+export function useGetMyRecordings<
+  TData = Awaited<ReturnType<typeof getMyRecordings>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyRecordings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyRecordingsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Count that someone saw the doubles-is-coming note on a doubles match, once per match
+ */
+export const getLogDoublesViewUrl = () => {
+  return `/api/recording/doubles-views`;
+};
+
+export const logDoublesView = async (
+  logDoublesViewBody: LogDoublesViewBody,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getLogDoublesViewUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(logDoublesViewBody),
+  });
+};
+
+export const getLogDoublesViewMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logDoublesView>>,
+    TError,
+    { data: BodyType<LogDoublesViewBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof logDoublesView>>,
+  TError,
+  { data: BodyType<LogDoublesViewBody> },
+  TContext
+> => {
+  const mutationKey = ["logDoublesView"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof logDoublesView>>,
+    { data: BodyType<LogDoublesViewBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return logDoublesView(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LogDoublesViewMutationResult = NonNullable<
+  Awaited<ReturnType<typeof logDoublesView>>
+>;
+export type LogDoublesViewMutationBody = BodyType<LogDoublesViewBody>;
+export type LogDoublesViewMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Count that someone saw the doubles-is-coming note on a doubles match, once per match
+ */
+export const useLogDoublesView = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logDoublesView>>,
+    TError,
+    { data: BodyType<LogDoublesViewBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof logDoublesView>>,
+  TError,
+  { data: BodyType<LogDoublesViewBody> },
+  TContext
+> => {
+  return useMutation(getLogDoublesViewMutationOptions(options));
+};
+
+/**
+ * @summary Discard a recording that never uploaded, and a Quick match with nothing else in it
+ */
+export const getDiscardRecordingUrl = () => {
+  return `/api/recording/discard`;
+};
+
+export const discardRecording = async (
+  discardRecordingBody: DiscardRecordingBody,
+  options?: RequestInit,
+): Promise<DiscardResult> => {
+  return customFetch<DiscardResult>(getDiscardRecordingUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(discardRecordingBody),
+  });
+};
+
+export const getDiscardRecordingMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof discardRecording>>,
+    TError,
+    { data: BodyType<DiscardRecordingBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof discardRecording>>,
+  TError,
+  { data: BodyType<DiscardRecordingBody> },
+  TContext
+> => {
+  const mutationKey = ["discardRecording"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof discardRecording>>,
+    { data: BodyType<DiscardRecordingBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return discardRecording(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DiscardRecordingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof discardRecording>>
+>;
+export type DiscardRecordingMutationBody = BodyType<DiscardRecordingBody>;
+export type DiscardRecordingMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Discard a recording that never uploaded, and a Quick match with nothing else in it
+ */
+export const useDiscardRecording = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof discardRecording>>,
+    TError,
+    { data: BodyType<DiscardRecordingBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof discardRecording>>,
+  TError,
+  { data: BodyType<DiscardRecordingBody> },
+  TContext
+> => {
+  return useMutation(getDiscardRecordingMutationOptions(options));
+};
+
+/**
+ * @summary Remove a recording whose analysis failed or whose upload never finished. The recorder deletes it for both players; the other player takes it off their own list.
+ */
+export const getRemoveRecordingUrl = (sessionId: number) => {
+  return `/api/recording/sessions/${sessionId}/remove`;
+};
+
+export const removeRecording = async (
+  sessionId: number,
+  options?: RequestInit,
+): Promise<RecordingRemoved> => {
+  return customFetch<RecordingRemoved>(getRemoveRecordingUrl(sessionId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRemoveRecordingMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeRecording>>,
+    TError,
+    { sessionId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof removeRecording>>,
+  TError,
+  { sessionId: number },
+  TContext
+> => {
+  const mutationKey = ["removeRecording"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof removeRecording>>,
+    { sessionId: number }
+  > = (props) => {
+    const { sessionId } = props ?? {};
+
+    return removeRecording(sessionId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RemoveRecordingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof removeRecording>>
+>;
+
+export type RemoveRecordingMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Remove a recording whose analysis failed or whose upload never finished. The recorder deletes it for both players; the other player takes it off their own list.
+ */
+export const useRemoveRecording = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeRecording>>,
+    TError,
+    { sessionId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof removeRecording>>,
+  TError,
+  { sessionId: number },
+  TContext
+> => {
+  return useMutation(getRemoveRecordingMutationOptions(options));
+};
+
+/**
+ * @summary Remove a Quick match left before recording it, with its placeholder opponent and invite
+ */
+export const getAbandonQuickMatchUrl = (matchId: number) => {
+  return `/api/recording/quick-matches/${matchId}/abandon`;
+};
+
+export const abandonQuickMatch = async (
+  matchId: number,
+  options?: RequestInit,
+): Promise<AbandonQuickMatch200> => {
+  return customFetch<AbandonQuickMatch200>(getAbandonQuickMatchUrl(matchId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAbandonQuickMatchMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof abandonQuickMatch>>,
+    TError,
+    { matchId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof abandonQuickMatch>>,
+  TError,
+  { matchId: number },
+  TContext
+> => {
+  const mutationKey = ["abandonQuickMatch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof abandonQuickMatch>>,
+    { matchId: number }
+  > = (props) => {
+    const { matchId } = props ?? {};
+
+    return abandonQuickMatch(matchId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AbandonQuickMatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof abandonQuickMatch>>
+>;
+
+export type AbandonQuickMatchMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Remove a Quick match left before recording it, with its placeholder opponent and invite
+ */
+export const useAbandonQuickMatch = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof abandonQuickMatch>>,
+    TError,
+    { matchId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof abandonQuickMatch>>,
+  TError,
+  { matchId: number },
+  TContext
+> => {
+  return useMutation(getAbandonQuickMatchMutationOptions(options));
+};

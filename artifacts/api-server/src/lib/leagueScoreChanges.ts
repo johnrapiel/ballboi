@@ -1,16 +1,23 @@
-// Changing a league score after it's in (Oct 31 review, C4 and C5).
+// Changing a league score after it's in (finding 7, John, Nov 6; C5).
 //
-// - The player who entered a score can undo it for 10 minutes. Undo clears
-//   the score; standings recompute. After that, the first score stands.
-// - A league admin can correct any completed match from Manage. The match
-//   shows "Corrected by {admin} on {date}". Players still can't dispute or edit.
-// - Playoff scores move the winner on to the next round, so they can't be
-//   undone. An admin can correct one while the match it feeds is unplayed;
-//   the corrected winner takes that spot.
+// - Either player can edit the score for 24 hours after it's first entered.
+//   The latest edit stands, the other player sees "Score edited by {name}",
+//   and standings recompute. There's no countdown and no Undo.
+// - After 24 hours it locks. Only a league admin's logged correction in Manage
+//   can change it then. The match shows "Corrected by {admin} on {date}", and
+//   a corrected score can't be edited by players again.
+// - A playoff score moves the winner on, so an edit is allowed only while the
+//   match it feeds is unplayed; the edited winner takes that spot.
+// - A result the admin entered (a playoff past its play-by date, a walkover)
+//   isn't the players' to edit.
+// - Once a league ends, its scores are final: no edits and no corrections (Q9).
+//   A league ends when an admin taps End, or on its own once the season and
+//   any playoffs are done.
 //
+// Replaces "the first score stands" and the 10-minute Undo (Oct 31 review, C4).
 // Pure functions, so they're easy to test.
 
-export const UNDO_WINDOW_MS = 10 * 60 * 1000;
+export const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export interface ChangeableMatch {
   status: string;
@@ -25,25 +32,42 @@ export interface ChangeableMatch {
 
 export type ChangeCheck = { ok: true } | { ok: false; status: number; error: string };
 
-/** When the caller's undo runs out, as an ISO time, or null if they can't undo. */
-export function undoDeadline(match: ChangeableMatch, userId: string | null, now: Date): string | null {
-  if (!userId || match.status !== "completed" || match.voidedAt || match.playoffBracketId || match.correctedAt) return null;
-  if (match.recordedByClerkUserId !== userId || !match.recordedAt) return null;
-  const until = Date.parse(match.recordedAt) + UNDO_WINDOW_MS;
+export const FINAL_SCORES_MESSAGE = "This league has ended, so its scores are final.";
+export const EDIT_LOCKED_MESSAGE = "It's been more than 24 hours, so this score is locked. Your league admin can correct it in Manage.";
+
+/**
+ * When the players' 24-hour edit runs out, as an ISO time, or null when the
+ * score can't be edited. `players` are the Clerk ids of everyone in the match;
+ * the caller and whoever entered the score must both be one of them.
+ */
+export function editDeadline(match: ChangeableMatch, userId: string | null, players: string[], now: Date): string | null {
+  if (!userId || !players.includes(userId)) return null;
+  if (match.status !== "completed" || !match.score || match.voidedAt || match.correctedAt) return null;
+  if (!match.recordedAt || !match.recordedByClerkUserId || !players.includes(match.recordedByClerkUserId)) return null;
+  const until = Date.parse(match.recordedAt) + EDIT_WINDOW_MS;
   if (isNaN(until) || until <= now.getTime()) return null;
   return new Date(until).toISOString();
 }
 
-export function checkUndo(match: ChangeableMatch, userId: string, now: Date): ChangeCheck {
-  if (match.status !== "completed" || !match.score) return { ok: false, status: 409, error: "There's no score to undo." };
-  if (match.playoffBracketId) return { ok: false, status: 409, error: "Playoff scores can't be undone." };
-  if (match.correctedAt) return { ok: false, status: 409, error: "An admin corrected this score, so it can't be undone." };
-  if (match.recordedByClerkUserId !== userId) {
-    return { ok: false, status: 403, error: "Only the player who entered this score can undo it." };
+export function checkEdit(
+  match: ChangeableMatch,
+  userId: string,
+  players: string[],
+  now: Date,
+  opts: { leagueEnded?: boolean; next?: { status: string } | null } = {},
+): ChangeCheck {
+  if (opts.leagueEnded) return { ok: false, status: 409, error: FINAL_SCORES_MESSAGE };
+  if (!players.includes(userId)) return { ok: false, status: 403, error: "Only the players in this match can edit its score." };
+  if (match.voidedAt) return { ok: false, status: 409, error: "This match was cancelled when a player left the league." };
+  if (match.status !== "completed" || !match.score) return { ok: false, status: 409, error: "There's no score to edit yet." };
+  if (match.correctedAt) return { ok: false, status: 409, error: "Your league admin corrected this score, so it can't be edited." };
+  if (!match.recordedByClerkUserId || !players.includes(match.recordedByClerkUserId)) {
+    return { ok: false, status: 409, error: "Your league admin entered this result. They can correct it in Manage." };
   }
-  if (!undoDeadline(match, userId, now)) {
-    return { ok: false, status: 409, error: "It's been more than 10 minutes, so this score stands." };
+  if (match.playoffBracketId && opts.next?.status === "completed") {
+    return { ok: false, status: 409, error: "The next playoff round has been played, so this score stands." };
   }
+  if (!editDeadline(match, userId, players, now)) return { ok: false, status: 409, error: EDIT_LOCKED_MESSAGE };
   return { ok: true };
 }
 
@@ -51,7 +75,8 @@ export function checkUndo(match: ChangeableMatch, userId: string, now: Date): Ch
  * `next` is the playoff match this one feeds: null when there isn't one yet
  * (or this is the final). Once that match is played, the score stands.
  */
-export function checkCorrection(match: ChangeableMatch, next: { status: string } | null = null): ChangeCheck {
+export function checkCorrection(match: ChangeableMatch, next: { status: string } | null = null, leagueEnded = false): ChangeCheck {
+  if (leagueEnded) return { ok: false, status: 409, error: FINAL_SCORES_MESSAGE };
   if (match.voidedAt) return { ok: false, status: 409, error: "This match was cancelled when a player left the league." };
   if (match.status !== "completed" || !match.score) {
     return { ok: false, status: 409, error: "Only played matches can be corrected." };

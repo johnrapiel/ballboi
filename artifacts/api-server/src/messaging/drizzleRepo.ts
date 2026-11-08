@@ -1,12 +1,36 @@
 import { clerkClient } from "@clerk/express";
-import { db, dmConversationsTable, playersTable, usersTable, type DmConversation, type DmStatus } from "@workspace/db";
-import { and, eq, gte, inArray, or, sql } from "drizzle-orm";
-import { blockedAccountsFor } from "../lib/blocks";
+import {
+  db,
+  dmConversationsTable,
+  messageGroupMembersTable,
+  messageGroupsTable,
+  playersTable,
+  usersTable,
+  type DmConversation,
+  type DmStatus,
+  type MessageGroupMember,
+} from "@workspace/db";
+import { and, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
+import { accountsBlockedBy, blockedAccountsFor } from "../lib/blocks";
 import { moderationRepo } from "./drizzleModeration";
-import type { ConversationPatch, ConversationRecord, MessagingRepo, NewConversation, PersonSummary } from "./repo";
+import type {
+  ConversationPatch,
+  ConversationRecord,
+  GroupMember,
+  GroupPatch,
+  GroupRecord,
+  MessagingRepo,
+  NewConversation,
+  NewGroup,
+  PersonSummary,
+} from "./repo";
 
 function toRecord(row: DmConversation): ConversationRecord {
   return { ...row, status: row.status as DmStatus };
+}
+
+function toMember(row: MessageGroupMember): GroupMember {
+  return { groupId: row.groupId, userId: row.clerkUserId, unread: row.unread, firstSentAt: row.firstSentAt, joinedAt: row.joinedAt };
 }
 
 /** MessagingRepo on Postgres. */
@@ -90,7 +114,7 @@ export class DrizzleMessagingRepo implements MessagingRepo {
     return created;
   }
 
-  async areConnected(a: string, b: string) {
+  async areConnected(a: string, b: string, opts: { beyondOpenMatches?: boolean } = {}) {
     const league = await db.execute(sql`
       SELECT 1 FROM players p1
       JOIN players p2 ON p1.league_id = p2.league_id
@@ -102,12 +126,17 @@ export class DrizzleMessagingRepo implements MessagingRepo {
       JOIN players pa ON pa.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id)
       JOIN players pb ON pb.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id)
       WHERE pa.clerk_user_id = ${a} AND pb.clerk_user_id = ${b}
+        ${opts.beyondOpenMatches ? sql`AND NOT (m.generated_from = 'discover_open_match' AND m.score IS NULL)` : sql``}
       LIMIT 1`);
     return match.rows.length > 0;
   }
 
   blockedSetFor(userId: string) {
     return blockedAccountsFor(userId);
+  }
+
+  blockedByMe(userId: string) {
+    return accountsBlockedBy(userId);
   }
 
   restrictedSet(userIds: string[]) {
@@ -124,7 +153,7 @@ export class DrizzleMessagingRepo implements MessagingRepo {
     if (!userIds.length) return out;
     const [users, players] = await Promise.all([
       db
-        .select({ id: usersTable.clerkUserId, name: usersTable.displayName })
+        .select({ id: usersTable.clerkUserId, userId: usersTable.id, name: usersTable.displayName })
         .from(usersTable)
         .where(inArray(usersTable.clerkUserId, userIds)),
       db
@@ -134,10 +163,16 @@ export class DrizzleMessagingRepo implements MessagingRepo {
     ]);
     for (const id of userIds) {
       const player = players.find((p) => p.clerkUserId === id);
-      const name = users.find((u) => u.id === id)?.name || player?.name || "Player";
-      out.set(id, { name, playerId: player?.id ?? null });
+      const user = users.find((u) => u.id === id);
+      const name = user?.name || player?.name || "Player";
+      out.set(id, { name, playerId: player?.id ?? null, userId: user?.userId ?? null });
     }
     return out;
+  }
+
+  async accountForUser(userId: number) {
+    const [row] = await db.select({ clerkUserId: usersTable.clerkUserId }).from(usersTable).where(eq(usersTable.id, userId));
+    return row?.clerkUserId ?? null;
   }
 
   async accountForPlayer(playerId: number) {
@@ -163,5 +198,98 @@ export class DrizzleMessagingRepo implements MessagingRepo {
     await db
       .delete(dmConversationsTable)
       .where(or(eq(dmConversationsTable.userA, userId), eq(dmConversationsTable.userB, userId)));
+  }
+
+  // ─── Group chats (F15) ────────────────────────────────────────────────────
+
+  async findGroup(id: number): Promise<GroupRecord | null> {
+    const [row] = await db.select().from(messageGroupsTable).where(eq(messageGroupsTable.id, id));
+    return row ?? null;
+  }
+
+  async findGroupByChannel(channelId: string): Promise<GroupRecord | null> {
+    const [row] = await db.select().from(messageGroupsTable).where(eq(messageGroupsTable.channelId, channelId));
+    return row ?? null;
+  }
+
+  async findGroupByOpenMatch(openMatchId: number): Promise<GroupRecord | null> {
+    const [row] = await db.select().from(messageGroupsTable).where(eq(messageGroupsTable.openMatchId, openMatchId));
+    return row ?? null;
+  }
+
+  async createGroup(input: NewGroup): Promise<GroupRecord> {
+    const [row] = await db.insert(messageGroupsTable).values(input).onConflictDoNothing().returning();
+    if (row) return row;
+    const existing = await this.findGroupByChannel(input.channelId);
+    if (!existing) throw new Error("Group insert failed");
+    return existing;
+  }
+
+  async updateGroup(id: number, patch: GroupPatch): Promise<GroupRecord> {
+    const [row] = await db.update(messageGroupsTable).set(patch).where(eq(messageGroupsTable.id, id)).returning();
+    if (!row) throw new Error(`No group ${id}`);
+    return row;
+  }
+
+  async groupMembers(id: number) {
+    const rows = await db.select().from(messageGroupMembersTable).where(eq(messageGroupMembersTable.groupId, id));
+    return rows.map(toMember);
+  }
+
+  async addGroupMembers(id: number, userIds: string[], at: Date) {
+    if (!userIds.length) return;
+    await db
+      .insert(messageGroupMembersTable)
+      .values(userIds.map((clerkUserId) => ({ groupId: id, clerkUserId, joinedAt: at })))
+      .onConflictDoNothing();
+  }
+
+  async removeGroupMembers(id: number, userIds: string[]) {
+    if (!userIds.length) return;
+    await db
+      .delete(messageGroupMembersTable)
+      .where(and(eq(messageGroupMembersTable.groupId, id), inArray(messageGroupMembersTable.clerkUserId, userIds)));
+  }
+
+  async recordGroupMessage(id: number, input: { sender: string | null; text: string; at: Date; recipients: string[] }) {
+    return db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(messageGroupsTable)
+        .set({ lastMessageAt: input.at, lastMessageText: input.text, lastSender: input.sender })
+        .where(eq(messageGroupsTable.id, id))
+        .returning();
+      if (!row) throw new Error(`No group ${id}`);
+      const m = messageGroupMembersTable;
+      if (input.recipients.length) {
+        await tx
+          .update(m)
+          .set({ unread: sql`${m.unread} + 1` })
+          .where(and(eq(m.groupId, id), inArray(m.clerkUserId, input.recipients)));
+      }
+      if (input.sender) {
+        await tx
+          .update(m)
+          .set({ firstSentAt: input.at })
+          .where(and(eq(m.groupId, id), eq(m.clerkUserId, input.sender), isNull(m.firstSentAt)));
+      }
+      return row;
+    });
+  }
+
+  async markGroupRead(id: number, userId: string) {
+    const m = messageGroupMembersTable;
+    await db
+      .update(m)
+      .set({ unread: 0 })
+      .where(and(eq(m.groupId, id), eq(m.clerkUserId, userId)));
+  }
+
+  async groupsFor(userId: string) {
+    const rows = await db
+      .select({ group: messageGroupsTable, member: messageGroupMembersTable })
+      .from(messageGroupMembersTable)
+      .innerJoin(messageGroupsTable, eq(messageGroupsTable.id, messageGroupMembersTable.groupId))
+      .where(eq(messageGroupMembersTable.clerkUserId, userId));
+    return rows.map((r) => ({ group: r.group, member: toMember(r.member) }));
   }
 }

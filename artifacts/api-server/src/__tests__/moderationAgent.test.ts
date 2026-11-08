@@ -80,6 +80,32 @@ describe("when the agent runs", () => {
     expect(await agent.runOnce()).toEqual([]);
   });
 
+  it("never touches an appeal, however long it waits", async () => {
+    const appeal = report({
+      id: 5,
+      targetType: "account",
+      targetId: "bad",
+      reason: "other",
+      details: "Appeal BB-00005 against a ban. Decide it in Appeals.",
+      source: "appeal",
+      reporter: "bad",
+      snapshot: null,
+    });
+    repo.reports.push(appeal);
+    nextDecision = { tool: "escalate", input: { reason: "unsure" } };
+    expect(await agent.runOnce()).toEqual([]);
+    expect(prompts).toHaveLength(0);
+    expect(repo.decisions).toHaveLength(0);
+    expect(appeal.status).toBe("open");
+    expect(mod.restrictions).toHaveLength(0);
+
+    // Even if a repo hands one over, the agent skips it.
+    repo.dueReports = async () => [appeal];
+    expect(await agent.runOnce()).toEqual([]);
+    expect(repo.decisions).toHaveLength(0);
+    expect(mod.restrictions).toHaveLength(0);
+  });
+
   it("keeps going when the model fails on one report", async () => {
     repo.reports.push(report({ id: 1 }), report({ id: 2 }));
     let calls = 0;

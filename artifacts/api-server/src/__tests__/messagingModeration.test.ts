@@ -5,7 +5,7 @@ vi.mock("@clerk/express", () => ({ clerkClient: { users: { getUser: vi.fn() } },
 import { FirstMessageFilter } from "../messaging/filter";
 import { MemoryMessagingProvider } from "../messaging/memoryProvider";
 import { MemoryMessagingRepo } from "../messaging/memoryRepo";
-import { AutoRestrict, MemoryModerationRepo, RESTRICT_RULES } from "../messaging/moderation";
+import { MemoryModerationRepo } from "../messaging/moderation";
 import { MessagingError, MessagingService, SNAPSHOT_CONTEXT } from "../messaging/service";
 
 const HOUR = 3_600_000;
@@ -37,8 +37,6 @@ beforeEach(() => {
   n = 0;
   repo = new MemoryMessagingRepo({ now: () => now });
   mod = new MemoryModerationRepo(() => now);
-  mod.startedFrom = () =>
-    repo.conversations.map((c) => ({ requester: c.requester!, openingHash: c.openingHash!, status: c.status, createdAt: c.createdAt }));
   // The messaging repo reads restrictions from the moderation repo, like production.
   repo.restrictedSet = (ids: string[]) => mod.restrictedSet(ids);
   provider = new MemoryMessagingProvider({ now: () => now });
@@ -47,86 +45,61 @@ beforeEach(() => {
     provider,
     filter: new FirstMessageFilter(),
     now: () => now,
-    moderation: { auto: new AutoRestrict(mod, () => now), repo: mod },
+    moderation: { repo: mod },
   });
   person("spammer", 1, "Sam Spam");
   for (let i = 0; i < 10; i++) person(`p${i}`, 10 + i, `Player ${i}`);
 });
 
-describe("auto-restrict: copy-paste openers", () => {
-  it(`restricts on the ${RESTRICT_RULES.sameOpener}rd identical first message in a day`, async () => {
-    await svc.start("spammer", { playerId: 10, text: "Hey cutie, hit?", clientMessageId: mid() });
-    await svc.start("spammer", { playerId: 11, text: "hey  CUTIE, hit?", clientMessageId: mid() });
-    expect(await errorCode(svc.start("spammer", { playerId: 12, text: "Hey cutie, hit?", clientMessageId: mid() }))).toBe("restricted");
-
-    expect(mod.restrictions).toHaveLength(1);
-    expect(mod.restrictions[0]).toMatchObject({ clerkUserId: "spammer", source: "auto" });
-    expect(mod.reports[0]).toMatchObject({ targetType: "account", targetId: "spammer", source: "auto", reporter: null });
-    // Pending requests disappear for recipients.
-    expect(await svc.list("p0", "requests")).toEqual([]);
-  });
-
-  it("doesn't count different openers", async () => {
-    for (let i = 0; i < 3; i++) await svc.start("spammer", { playerId: 10 + i, text: `Hi player ${i}`, clientMessageId: mid() });
+// John's decision (Nov 4 2026): nothing restricts an account automatically.
+// Reports and flags wait for a moderator (John, or the agent after 6 hours).
+describe("no automatic restriction", () => {
+  it("lets the same opener go to many people", async () => {
+    for (let i = 0; i < 5; i++) {
+      await expect(svc.start("spammer", { playerId: 10 + i, text: "Hey, hit?", clientMessageId: mid() })).resolves.toBeTruthy();
+    }
     expect(mod.restrictions).toHaveLength(0);
+    expect(mod.reports).toHaveLength(0);
   });
-});
 
-describe("auto-restrict: unanswered first messages", () => {
-  it(`restricts after ${RESTRICT_RULES.unansweredRequests} requests with no reply`, async () => {
-    for (let i = 0; i < RESTRICT_RULES.unansweredRequests; i++) {
+  it("doesn't restrict after many first messages with no reply", async () => {
+    for (let i = 0; i < 6; i++) {
       await svc.start("spammer", { playerId: 10 + i, text: `Hi ${i}`, clientMessageId: mid() });
       now = new Date(now.getTime() + DAY);
     }
-    now = new Date(now.getTime() + 2 * DAY);
-    expect(await errorCode(svc.start("spammer", { playerId: 19, text: "Hi again", clientMessageId: mid() }))).toBe("restricted");
-  });
-
-  it("doesn't count replied-to requests", async () => {
-    for (let i = 0; i < RESTRICT_RULES.unansweredRequests; i++) {
-      const { conversationId } = await svc.start("spammer", { playerId: 10 + i, text: `Hi ${i}`, clientMessageId: mid() });
-      await svc.send(`p${i}`, conversationId, { text: "Hi back", clientMessageId: mid() });
-    }
     now = new Date(now.getTime() + 3 * DAY);
     await expect(svc.start("spammer", { playerId: 19, text: "Hi again", clientMessageId: mid() })).resolves.toBeTruthy();
-  });
-});
-
-describe("auto-restrict: reports and blocks", () => {
-  it("restricts once 2 different people report, not when one person reports twice", async () => {
-    const auto = new AutoRestrict(mod, () => now);
-    const report = (reporter: string) =>
-      mod.createReport({ reporter, targetType: "player", targetId: "1", reason: "harassment", source: "user", subject: "spammer" });
-    await report("p0");
-    await report("p0");
-    expect(await auto.evaluate("spammer", { kind: "report" })).toBe(false);
-    await report("p1");
-    expect(await auto.evaluate("spammer", { kind: "report" })).toBe(true);
-    expect(mod.restrictions[0].reason).toBe("Reported by 2 different people");
+    expect(mod.restrictions).toHaveLength(0);
   });
 
-  it("ignores dismissed reports", async () => {
-    const auto = new AutoRestrict(mod, () => now);
-    for (const r of ["p0", "p1"]) {
-      await mod.createReport({ reporter: r, targetType: "player", targetId: "1", reason: "spam", source: "user", subject: "spammer" });
+  it("two different people report the same player and nothing happens to the account", async () => {
+    for (const p of ["p0", "p1"]) {
+      const { conversationId, message } = await svc.start("spammer", { playerId: p === "p0" ? 10 : 11, text: `Hi ${p}`, clientMessageId: mid() });
+      await svc.reportMessage(p, conversationId, { messageId: message.id, reason: "harassment", details: null });
     }
-    mod.reports.forEach((r) => (r.status = "dismissed"));
-    expect(await auto.evaluate("spammer", { kind: "report" })).toBe(false);
+    // Both reports wait in the queue.
+    expect(mod.reports.map((r) => [r.reporter, r.status])).toEqual([
+      ["p0", "open"],
+      ["p1", "open"],
+    ]);
+    expect(mod.restrictions).toHaveLength(0);
+    expect(await mod.restrictedSet(["spammer"])).toEqual(new Set());
+    // They can still start conversations, and their messages still show.
+    await expect(svc.start("spammer", { playerId: 12, text: "Hi p2", clientMessageId: mid() })).resolves.toBeTruthy();
+    expect(await svc.list("p2")).toHaveLength(1);
   });
 
-  it(`restricts after ${RESTRICT_RULES.blockers} blocks within ${RESTRICT_RULES.blockWindowDays} days`, async () => {
-    const auto = new AutoRestrict(mod, () => now);
-    mod.blocks.push({ blocker: "p0", blocked: "spammer", at: new Date(now.getTime() - 40 * DAY) });
-    mod.blocks.push({ blocker: "p1", blocked: "spammer", at: now }, { blocker: "p2", blocked: "spammer", at: now });
-    expect(await auto.evaluate("spammer", { kind: "block" })).toBe(false);
-    mod.blocks.push({ blocker: "p3", blocked: "spammer", at: now });
-    expect(await auto.evaluate("spammer", { kind: "block" })).toBe(true);
+  it("a Stream flag files a report and leaves the account alone", async () => {
+    const { message } = await svc.start("spammer", { playerId: 10, text: "Hi", clientMessageId: mid() });
+    const reportId = await svc.recordProviderFlag({ messageId: message.id, details: "Flagged · HARASSMENT", reason: "harassment" });
+    expect(reportId).toBeTruthy();
+    expect(mod.reports[0]).toMatchObject({ source: "stream", subject: "spammer", status: "open" });
+    expect(mod.restrictions).toHaveLength(0);
+    expect(await svc.list("p0")).toHaveLength(1);
   });
 
-  it("restricts at once on a moderation flag, and lifting restores sending", async () => {
-    const auto = new AutoRestrict(mod, () => now);
-    expect(await auto.evaluate("spammer", { kind: "flag", details: "harassment", reason: "harassment" })).toBe(true);
-    expect(mod.restrictions[0].source).toBe("stream");
+  it("a moderator's restriction still works, and lifting it restores sending", async () => {
+    await mod.restrict({ subject: "spammer", reason: "Harassment (report 1)", source: "admin", reportId: 1 });
     expect(await errorCode(svc.start("spammer", { playerId: 10, text: "Hi", clientMessageId: mid() }))).toBe("restricted");
     await mod.lift("spammer");
     await expect(svc.start("spammer", { playerId: 10, text: "Hi", clientMessageId: mid() })).resolves.toBeTruthy();
@@ -161,16 +134,6 @@ describe("reporting a message", () => {
     expect(await errorCode(svc.reportMessage("p0", a.conversationId, { messageId: a.message.id, reason: "meh", details: null }))).toBe("invalid_reason");
     expect(await errorCode(svc.reportMessage("p5", a.conversationId, { messageId: a.message.id, reason: "spam", details: null }))).toBe("not_found");
   });
-
-  it("restricts the sender after two people report their messages", async () => {
-    repo.connect("spammer", "p0");
-    repo.connect("spammer", "p1");
-    for (const p of ["p0", "p1"]) {
-      const { conversationId, message } = await svc.start("spammer", { playerId: p === "p0" ? 10 : 11, text: `Hi ${p}`, clientMessageId: mid() });
-      await svc.reportMessage(p, conversationId, { messageId: message.id, reason: "harassment", details: null });
-    }
-    expect(await mod.restrictedSet(["spammer"])).toEqual(new Set(["spammer"]));
-  });
 });
 
 describe("hiding a message", () => {
@@ -180,9 +143,9 @@ describe("hiding a message", () => {
     const bad = await svc.send("spammer", first.conversationId, { text: "something nasty", clientMessageId: mid() });
     expect(await svc.setMessageHidden(bad.message.id, true)).toBe(true);
     expect((await svc.thread("p0", first.conversationId)).messages.map((m) => m.text)).toEqual(["Hi"]);
-    expect((await svc.list("p0", "messages"))[0].lastMessage?.text).toBe("Hi");
+    expect((await svc.list("p0"))[0].lastMessage?.text).toBe("Hi");
     await svc.setMessageHidden(bad.message.id, false);
-    expect((await svc.list("p0", "messages"))[0].lastMessage?.text).toBe("something nasty");
+    expect((await svc.list("p0"))[0].lastMessage?.text).toBe("something nasty");
     expect(await svc.setMessageHidden("nope", true)).toBe(false);
   });
 });

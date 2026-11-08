@@ -16,6 +16,18 @@ describe("first-message filter: links", () => {
   });
 });
 
+describe("first-message filter: email addresses (finding 17)", () => {
+  it.each(["write me at sam@example.com", "sam.lee+tennis@mail.co.uk", "sam (at) example (dot) com", "sam at example dot com"])("blocks %s", (text) => {
+    expect(filter.check(text)).toEqual({ ok: false, reason: "email" });
+  });
+
+  it("lets ordinary sentences with 'at' through", () => {
+    for (const text of ["See you at Beacon Courts", "Meet at court 3 at 9?"]) {
+      expect(filter.check(text)).toEqual({ ok: true });
+    }
+  });
+});
+
 describe("first-message filter: phone numbers", () => {
   it.each(["call 555-123-4567", "(555) 123 4567", "text me 555.123.4567", "+1 555 123 4567", "+44 20 7946 0958", "5551234567", "123-4567"])(
     "blocks %s",
@@ -27,6 +39,18 @@ describe("first-message filter: phone numbers", () => {
   it("lets tennis scores, times and courts through", () => {
     for (const text of ["Won 6-3 6-4 7-6(4)", "Court 12 at 9:30?", "We played 6-3, 2-6, 10-8", "I'm a 3.5, you?"]) {
       expect(filter.check(text)).toEqual({ ok: true });
+    }
+  });
+
+  it("lets time ranges written without colons through", () => {
+    for (const text of ["Free Sat 930-1100?", "Free Sat 930-1100 or 1200-1330?", "Court 3, 845-1015", "Sun 700 1000 works", "945-0115 tomorrow"]) {
+      expect(filter.check(text)).toEqual({ ok: true });
+    }
+  });
+
+  it("still catches 7-digit numbers, including ones that look like times when calling or texting comes up", () => {
+    for (const text of ["call 555-1234", "555-1234", "my cell 930-1100", "text 845-1015", "555 1000", "930-1100 or 555-1234"]) {
+      expect(filter.check(text)).toEqual({ ok: false, reason: "phone" });
     }
   });
 });

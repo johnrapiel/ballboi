@@ -5,6 +5,777 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+export interface CourtCard {
+  courtId: number;
+  name: string;
+  address: string;
+  /**
+   * "~3 mi", or null with no home area
+   * @nullable
+   */
+  distance: string | null;
+}
+
+export type AddedCourt = CourtCard & {
+  /** The court was already in the directory */
+  existing: boolean;
+};
+
+export interface CourtList {
+  courts: CourtCard[];
+  /** @nullable */
+  homeCourtId: number | null;
+}
+
+/**
+ * Your home ZIP and its town. Others only ever see the town and an approximate distance.
+ */
+export interface DiscoverArea {
+  zip: string;
+  town: string;
+  state: string;
+}
+
+export interface DiscoverAreaInput {
+  /** Five digits */
+  zip: string;
+}
+
+export interface DiscoverAvailabilityInput {
+  /** Free hours, each day * 24 + hour. Monday is day 0; hours 6 (6 AM) to 21 (9 PM). */
+  slots: number[];
+}
+
+export type DiscoverLeagueJoining =
+  (typeof DiscoverLeagueJoining)[keyof typeof DiscoverLeagueJoining];
+
+export const DiscoverLeagueJoining = {
+  request: "request",
+  waitlist: "waitlist",
+} as const;
+
+export type DiscoverLeagueRequest = {
+  kind: "request" | "waitlist";
+  status: "pending" | "declined";
+} | null;
+
+export interface DiscoverLeague {
+  leagueId: number;
+  name: string;
+  organizerName: string;
+  /** @nullable */
+  location: string | null;
+  /** @nullable */
+  distance: string | null;
+  format: string;
+  type: string;
+  levelText: string;
+  outsideLevel: boolean;
+  /** @nullable */
+  myRating: number | null;
+  /** @nullable */
+  startDate: string | null;
+  /** @nullable */
+  startLabel: string | null;
+  /** @nullable */
+  seasonWeeks: number | null;
+  started: boolean;
+  full: boolean;
+  /** @nullable */
+  rosterCap: number | null;
+  spotsTaken: number;
+  /** @nullable */
+  spotsLeft: number | null;
+  joining: DiscoverLeagueJoining;
+  myRequest: DiscoverLeagueRequest;
+  member: boolean;
+}
+
+export type DiscoverLeagueCardTagsItem =
+  (typeof DiscoverLeagueCardTagsItem)[keyof typeof DiscoverLeagueCardTagsItem];
+
+export const DiscoverLeagueCardTagsItem = {
+  outside_level: "outside_level",
+  full: "full",
+  started: "started",
+} as const;
+
+export type DiscoverLeagueCardJoining =
+  (typeof DiscoverLeagueCardJoining)[keyof typeof DiscoverLeagueCardJoining];
+
+export const DiscoverLeagueCardJoining = {
+  request: "request",
+  waitlist: "waitlist",
+} as const;
+
+export interface DiscoverLeagueCard {
+  leagueId: number;
+  name: string;
+  detail: string;
+  status: string;
+  tags: DiscoverLeagueCardTagsItem[];
+  joining: DiscoverLeagueCardJoining;
+  myRequest: DiscoverLeagueRequest;
+  spoken: string;
+}
+
+export type DiscoverLeaguesCountsItem = {
+  radius: number;
+  count: number;
+};
+
+export interface DiscoverLeagues {
+  leagues: DiscoverLeagueCard[];
+  counts: DiscoverLeaguesCountsItem[];
+  radius: number;
+  total: number;
+  needsArea: boolean;
+}
+
+/**
+ * @nullable
+ */
+export type DiscoverMePlays =
+  | (typeof DiscoverMePlays)[keyof typeof DiscoverMePlays]
+  | null;
+
+export const DiscoverMePlays = {
+  singles: "singles",
+  doubles: "doubles",
+  both: "both",
+} as const;
+
+export interface DiscoverMe {
+  area: DiscoverArea | null;
+  /** @nullable */
+  homeZip: string | null;
+  /** Show me in Discover is off */
+  hidden: boolean;
+  /** @nullable */
+  plays: DiscoverMePlays;
+  /** Last distance picked, 1 to 30 miles */
+  radius: number;
+  /** @nullable */
+  rating: number | null;
+  slots: number[];
+  hoursFree: number;
+  /**
+   * "Weekday evenings, weekend mornings", or null with no hours set
+   * @nullable
+   */
+  freeSummary: string | null;
+  /** Alerts for new open matches near you, up to 2 a day */
+  matchAlerts: boolean;
+}
+
+/**
+ * @nullable
+ */
+export type DiscoverPlayerCardPlays =
+  | (typeof DiscoverPlayerCardPlays)[keyof typeof DiscoverPlayerCardPlays]
+  | null;
+
+export const DiscoverPlayerCardPlays = {
+  singles: "singles",
+  doubles: "doubles",
+  both: "both",
+} as const;
+
+export interface DiscoverPlayerCard {
+  userId: number;
+  name: string;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** @nullable */
+  rating: number | null;
+  /** @nullable */
+  ratingSource: string | null;
+  /** @nullable */
+  town: string | null;
+  /**
+   * "~4 mi away"
+   * @nullable
+   */
+  distance: string | null;
+  /** @nullable */
+  plays: DiscoverPlayerCardPlays;
+  /** @nullable */
+  freeSummary: string | null;
+  /** @nullable */
+  homeCourt: string | null;
+  played: number;
+  noShows: number;
+  wins: number;
+  losses: number;
+}
+
+/**
+ * @nullable
+ */
+export type DiscoverPlayerRowPlays =
+  | (typeof DiscoverPlayerRowPlays)[keyof typeof DiscoverPlayerRowPlays]
+  | null;
+
+export const DiscoverPlayerRowPlays = {
+  singles: "singles",
+  doubles: "doubles",
+  both: "both",
+} as const;
+
+export interface DiscoverPlayerRow {
+  userId: number;
+  name: string;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** @nullable */
+  rating: number | null;
+  /** @nullable */
+  ratingSource: string | null;
+  /** "~4 mi" */
+  distance: string;
+  /** @nullable */
+  plays: DiscoverPlayerRowPlays;
+  played: number;
+  noShows: number;
+  /** "Played 14 · 1 no-show" or "New to Ball Boi" */
+  reliability: string;
+  /** The whole row in one line for VoiceOver */
+  spoken: string;
+}
+
+export type DiscoverPlayersCountsItem = {
+  radius: number;
+  count: number;
+};
+
+export interface DiscoverPlayers {
+  players: DiscoverPlayerRow[];
+  /** Players at each distance chip (5, 10, 15, 30 and a custom distance), with the other filters as they are */
+  counts: DiscoverPlayersCountsItem[];
+  radius: number;
+  total: number;
+  /** You have no home ZIP Discover can place yet */
+  needsArea: boolean;
+}
+
+export type DiscoverReportInputReason =
+  (typeof DiscoverReportInputReason)[keyof typeof DiscoverReportInputReason];
+
+export const DiscoverReportInputReason = {
+  harassment: "harassment",
+  inappropriate_content: "inappropriate_content",
+  spam: "spam",
+  cheating: "cheating",
+  unsafe: "unsafe",
+  other: "other",
+} as const;
+
+export interface DiscoverReportInput {
+  reason: DiscoverReportInputReason;
+  /**
+   * Required for other ("Tell us what happened")
+   * @nullable
+   */
+  details?: string | null;
+  /** Also block them */
+  block?: boolean;
+}
+
+export interface DiscoverReportResult {
+  id: number;
+  status: string;
+  blocked: boolean;
+}
+
+/**
+ * @nullable
+ */
+export type DiscoverSettingsInputPlays =
+  | (typeof DiscoverSettingsInputPlays)[keyof typeof DiscoverSettingsInputPlays]
+  | null;
+
+export const DiscoverSettingsInputPlays = {
+  singles: "singles",
+  doubles: "doubles",
+  both: "both",
+} as const;
+
+export interface DiscoverSettingsInput {
+  hidden?: boolean;
+  /** @nullable */
+  plays?: DiscoverSettingsInputPlays;
+  /**
+   * @minimum 1
+   * @maximum 30
+   */
+  radius?: number;
+  matchAlerts?: boolean;
+}
+
+export interface HomeCourt {
+  court: CourtCard | null;
+}
+
+export interface HomeCourtInput {
+  /** @nullable */
+  courtId: number | null;
+}
+
+export type MatchPlanKind = (typeof MatchPlanKind)[keyof typeof MatchPlanKind];
+
+export const MatchPlanKind = {
+  singles: "singles",
+  practice: "practice",
+} as const;
+
+export type MatchPlanEventType =
+  (typeof MatchPlanEventType)[keyof typeof MatchPlanEventType];
+
+export const MatchPlanEventType = {
+  proposed: "proposed",
+  added: "added",
+  undone: "undone",
+  declined: "declined",
+  day_before: "day_before",
+  canceled: "canceled",
+  did_it_happen: "did_it_happen",
+  not_played: "not_played",
+  no_show_reported: "no_show_reported",
+  no_show_disputed: "no_show_disputed",
+  no_show_confirmed: "no_show_confirmed",
+  scored: "scored",
+} as const;
+
+/**
+ * @nullable
+ */
+export type MatchPlanEventBy =
+  | (typeof MatchPlanEventBy)[keyof typeof MatchPlanEventBy]
+  | null;
+
+export const MatchPlanEventBy = {
+  me: "me",
+  them: "them",
+} as const;
+
+export type MatchPlanEventActionsItem =
+  (typeof MatchPlanEventActionsItem)[keyof typeof MatchPlanEventActionsItem];
+
+export const MatchPlanEventActionsItem = {
+  accept: "accept",
+  decline: "decline",
+  undo: "undo",
+  still_on: "still_on",
+  cancel: "cancel",
+  score: "score",
+  no_show: "no_show",
+  not_played: "not_played",
+  dispute: "dispute",
+  admit: "admit",
+} as const;
+
+export type MatchPlanEventAbout =
+  (typeof MatchPlanEventAbout)[keyof typeof MatchPlanEventAbout];
+
+export const MatchPlanEventAbout = {
+  me: "me",
+  them: "them",
+} as const;
+
+export interface MatchPlanEvent {
+  key: string;
+  type: MatchPlanEventType;
+  at: string;
+  /** @nullable */
+  by: MatchPlanEventBy;
+  actions: MatchPlanEventActionsItem[];
+  state?: string;
+  meIn?: boolean;
+  themIn?: boolean;
+  about?: MatchPlanEventAbout;
+  deadline?: string;
+}
+
+export interface MatchPlan {
+  id: number;
+  startsAt: string;
+  timeZone: string;
+  /** @nullable */
+  courtName: string | null;
+  kind: MatchPlanKind;
+  /** @nullable */
+  matchId: number | null;
+  /** @nullable */
+  score: string | null;
+  /** You sent this card */
+  mine: boolean;
+  events: MatchPlanEvent[];
+}
+
+export interface MatchPlanShiftInput {
+  hours: number;
+}
+
+export interface MatchPlansWithUser {
+  otherName: string;
+  blocked: boolean;
+  devTools: boolean;
+  plans: MatchPlan[];
+}
+
+export type NewMatchPlanInputKind =
+  (typeof NewMatchPlanInputKind)[keyof typeof NewMatchPlanInputKind];
+
+export const NewMatchPlanInputKind = {
+  singles: "singles",
+  practice: "practice",
+} as const;
+
+export interface NewMatchPlanInput {
+  userId: number;
+  /** ISO 8601, in the future, within 60 days */
+  startsAt: string;
+  timeZone?: string;
+  /** @nullable */
+  courtId?: number | null;
+  kind?: NewMatchPlanInputKind;
+}
+
+export type UpcomingMatchPlansMatchesItem = MatchPlan & {
+  otherName: string;
+  /** @nullable */
+  otherUserId: number | null;
+};
+
+export interface UpcomingMatchPlans {
+  matches: UpcomingMatchPlansMatchesItem[];
+}
+
+/**
+ * @nullable
+ */
+export type PlayerCardSeasonStreak = {
+  won: boolean;
+  count: number;
+} | null;
+
+/**
+ * This season by F13's rules (decision 121), in the global season running today, else the calendar year
+ */
+export interface PlayerCardSeason {
+  name: string;
+  /** YYYY-MM-DD, inclusive */
+  from: string;
+  /** YYYY-MM-DD, inclusive */
+  to: string;
+  wins: number;
+  losses: number;
+  played: number;
+  /** @nullable */
+  streak: PlayerCardSeasonStreak;
+  noShows: number;
+}
+
+/**
+ * @nullable
+ */
+export type PlayerCardPlays =
+  | (typeof PlayerCardPlays)[keyof typeof PlayerCardPlays]
+  | null;
+
+export const PlayerCardPlays = {
+  singles: "singles",
+  doubles: "doubles",
+  both: "both",
+} as const;
+
+/**
+ * The player card (design D). Holds only what the player entered.
+ */
+export interface PlayerCard {
+  userId: number;
+  you: boolean;
+  name: string;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** @nullable */
+  rating: number | null;
+  /** @nullable */
+  ratingSource: string | null;
+  /** @nullable */
+  plays: PlayerCardPlays;
+  /** @nullable */
+  town: string | null;
+  /**
+   * "~4 mi away" on another player's card; null on yours
+   * @nullable
+   */
+  distance: string | null;
+  /** @nullable */
+  homeCourt: string | null;
+  /** Free hours, day * 24 + hour, Monday is 0 */
+  slots: number[];
+  /** @nullable */
+  freeSummary: string | null;
+  season: PlayerCardSeason;
+}
+
+export type PlayerMatchesUpcomingItemKind =
+  (typeof PlayerMatchesUpcomingItemKind)[keyof typeof PlayerMatchesUpcomingItemKind];
+
+export const PlayerMatchesUpcomingItemKind = {
+  league: "league",
+  playoff: "playoff",
+  discover: "discover",
+} as const;
+
+export type PlayerMatchesUpcomingItem = {
+  key: string;
+  kind: PlayerMatchesUpcomingItemKind;
+  /** @nullable */
+  matchId: number | null;
+  /** @nullable */
+  scheduledAt: string | null;
+  /**
+   * Last day to play (YYYY-MM-DD) when no time is set
+   * @nullable
+   */
+  playBy: string | null;
+  opponentName: string;
+  /**
+   * Null for a placeholder opponent, who shows by name with no link
+   * @nullable
+   */
+  opponentUserId: number | null;
+  context: string;
+  /**
+   * Only for a league match in a league you're in
+   * @nullable
+   */
+  location: string | null;
+  mine: boolean;
+};
+
+/**
+ * @nullable
+ */
+export type PlayerMatchesResultsItemWinner =
+  | (typeof PlayerMatchesResultsItemWinner)[keyof typeof PlayerMatchesResultsItemWinner]
+  | null;
+
+export const PlayerMatchesResultsItemWinner = {
+  NUMBER_1: 1,
+  NUMBER_2: 2,
+} as const;
+
+export type PlayerMatchesResultsItem = {
+  matchId: number;
+  player1Name: string;
+  player2Name: string;
+  /** @nullable */
+  player1UserId: number | null;
+  /** @nullable */
+  player2UserId: number | null;
+  /** As stored, from player 1's side */
+  score: string;
+  /** @nullable */
+  winner: PlayerMatchesResultsItemWinner;
+  context: string;
+  /** @nullable */
+  completedAt: string | null;
+  mine: boolean;
+};
+
+/**
+ * Your wins and theirs against each other, or null when you haven't played
+ * @nullable
+ */
+export type PlayerMatchesHeadToHead = {
+  you: number;
+  them: number;
+} | null;
+
+export interface PlayerMatches {
+  upcoming: PlayerMatchesUpcomingItem[];
+  results: PlayerMatchesResultsItem[];
+  /**
+   * Your wins and theirs against each other, or null when you haven't played
+   * @nullable
+   */
+  headToHead: PlayerMatchesHeadToHead;
+}
+
+export type MyOpenMatchesMatchesItemFormat =
+  (typeof MyOpenMatchesMatchesItemFormat)[keyof typeof MyOpenMatchesMatchesItemFormat];
+
+export const MyOpenMatchesMatchesItemFormat = {
+  singles: "singles",
+  doubles: "doubles",
+} as const;
+
+export type MyOpenMatchesMatchesItem = {
+  id: number;
+  when: string;
+  /** When it starts (ISO 8601), for sorting with your other upcoming matches */
+  startsAt: string;
+  format: MyOpenMatchesMatchesItemFormat;
+  /** @nullable */
+  courtName: string | null;
+  status: string;
+  spotsLeft: number;
+  total: number;
+  chatTitle: string;
+};
+
+export interface MyOpenMatches {
+  matches: MyOpenMatchesMatchesItem[];
+}
+
+export type NewOpenMatchInputFormat =
+  (typeof NewOpenMatchInputFormat)[keyof typeof NewOpenMatchInputFormat];
+
+export const NewOpenMatchInputFormat = {
+  singles: "singles",
+  doubles: "doubles",
+} as const;
+
+export type NewOpenMatchInputLevel =
+  (typeof NewOpenMatchInputLevel)[keyof typeof NewOpenMatchInputLevel];
+
+export const NewOpenMatchInputLevel = {
+  close: "close",
+  wider: "wider",
+  any: "any",
+} as const;
+
+export interface NewOpenMatchInput {
+  startsAt: string;
+  endsAt: string;
+  timeZone?: string;
+  format: NewOpenMatchInputFormat;
+  /**
+   * @minimum 1
+   * @maximum 3
+   */
+  spots?: number;
+  level?: NewOpenMatchInputLevel;
+  /** @nullable */
+  courtId?: number | null;
+  /** @nullable */
+  note?: string | null;
+}
+
+export interface OpenMatchActionInput {
+  userId?: number;
+  text?: string;
+}
+
+export type OpenMatchCardTagsItem =
+  (typeof OpenMatchCardTagsItem)[keyof typeof OpenMatchCardTagsItem];
+
+export const OpenMatchCardTagsItem = {
+  your_post: "your_post",
+  youre_in: "youre_in",
+  need: "need",
+} as const;
+
+export interface OpenMatchCard {
+  id: number;
+  when: string;
+  detail: string;
+  where: string;
+  tags: OpenMatchCardTagsItem[];
+  /** @nullable */
+  need: number | null;
+  spoken: string;
+}
+
+export type OpenMatchDetailFormat =
+  (typeof OpenMatchDetailFormat)[keyof typeof OpenMatchDetailFormat];
+
+export const OpenMatchDetailFormat = {
+  singles: "singles",
+  doubles: "doubles",
+} as const;
+
+export type OpenMatchDetailPlayersItem = {
+  userId: number;
+  name: string;
+  /** @nullable */
+  rating: number | null;
+  poster: boolean;
+  me: boolean;
+};
+
+export type OpenMatchDetailRole =
+  (typeof OpenMatchDetailRole)[keyof typeof OpenMatchDetailRole];
+
+export const OpenMatchDetailRole = {
+  poster: "poster",
+  in: "in",
+  none: "none",
+} as const;
+
+export interface OpenMatchDetail {
+  id: number;
+  when: string;
+  startsAt: string;
+  endsAt: string;
+  format: OpenMatchDetailFormat;
+  levelText: string;
+  /** @nullable */
+  courtName: string | null;
+  /** @nullable */
+  distance: string | null;
+  /** @nullable */
+  note: string | null;
+  status: string;
+  spots: number;
+  spotsLeft: number;
+  total: number;
+  players: OpenMatchDetailPlayersItem[];
+  role: OpenMatchDetailRole;
+  started: boolean;
+  chatTitle: string;
+  /**
+   * The group chat in Messages (/messages/groups/{id}), once the match has filled
+   * @nullable
+   */
+  chatId: number | null;
+  /** @nullable */
+  matchId: number | null;
+}
+
+export type OpenMatchListCountsItem = {
+  radius: number;
+  count: number;
+};
+
+export type OpenMatchListNoticesItem = {
+  id: number;
+  when: string;
+  /** @nullable */
+  courtName: string | null;
+  format: string;
+};
+
+export interface OpenMatchList {
+  matches: OpenMatchCard[];
+  counts: OpenMatchListCountsItem[];
+  radius: number;
+  total: number;
+  needsArea: boolean;
+  matchAlerts: boolean;
+  /** "This match filled up" for posts you were taken off */
+  notices: OpenMatchListNoticesItem[];
+}
+
+export interface NewCourtInput {
+  name: string;
+  /** Street, town and the 5-digit ZIP */
+  address: string;
+}
+
 /**
  * @nullable
  */
@@ -26,7 +797,7 @@ export interface LeagueMembership {
   playerId: number | null;
   isPlaying: boolean;
   hasLeft: boolean;
-  /** The caller is this league's only admin, so they can't leave until someone else is a co-admin */
+  /** The caller is this league's only admin. They can still leave; they stay admin and keep managing it */
   onlyAdmin: boolean;
   /**
    * For a player who joined after week 1, the week they joined ("You joined in week 3 of 8")
@@ -83,10 +854,30 @@ export const RosterPlayerRole = {
   co_admin: "co_admin",
 } as const;
 
+export type MatchPlayerRatingSource =
+  (typeof MatchPlayerRatingSource)[keyof typeof MatchPlayerRatingSource];
+
+export const MatchPlayerRatingSource = {
+  self: "self",
+  verified: "verified",
+} as const;
+
+/**
+ * A player's level and where it came from, for the level badge. "self" is their self-rated level from Edit profile; "verified" is for a future linked rating source
+ */
+export interface MatchPlayerRating {
+  rating: number;
+  source: MatchPlayerRatingSource;
+}
+
 export interface RosterPlayer {
   playerId: number;
+  /** The player's profile name if they're on Ball Boi, else the name the admin typed */
   name: string;
+  /** The level pairing uses, like "3.5". A signed-up player's profile level; a placeholder's admin-set level */
   skillLevel: string;
+  /** A signed-up player's profile level and its source, for the level badge. Null for placeholders and players who haven't set one */
+  rating: MatchPlayerRating | null;
   /** False for players an admin added by name; they can't be co-admins */
   hasAccount: boolean;
   /** @nullable */
@@ -107,8 +898,23 @@ export interface LockMatchBody {
 }
 
 export interface EnterScoreBody {
-  /** Sets from your own side, like "6-3, 4-6, 10-7". Your games first. */
+  /** Sets from your own side, like "6-3, 4-6, 10-7". Your games first. Best of three; a set ends 6-0 to 6-4, 7-5 or 7-6, and a third set can be a match tiebreak (10-7). */
   score: string;
+  /** The opponent retired. The score is the sets so far (the last can be unfinished), it counts as the caller's win, and it's stored with RET at the end, like "6-3, 2-1 RET". Admin corrections ignore it. */
+  retired?: boolean;
+}
+
+/**
+ * Either a score from player 1's side, or a walkover to one of the two players.
+ */
+export interface SettleMatchBody {
+  /** Sets from player 1's side, like "6-3, 6-4" */
+  score?: string;
+  /**
+   * The player who wins on a walkover (W/O)
+   * @nullable
+   */
+  walkoverWinnerId?: number | null;
 }
 
 export interface ScoreResult {
@@ -177,11 +983,20 @@ export interface LeagueWeekItem {
   myPlayerId: number;
   /** @nullable */
   opponentName: string | null;
+  /**
+   * The singles opponent's player id, for Message on the Home card; null for doubles and byes
+   * @nullable
+   */
+  opponentPlayerId: number | null;
   singles: boolean;
   /** @nullable */
   scheduledAt: string | null;
   /** @nullable */
   location: string | null;
+  /** A score is in, so there's nothing left to enter or record */
+  played: boolean;
+  /** The league's time zone, for its deadlines */
+  timeZone: string;
 }
 
 export interface LeagueWeekPlayoff {
@@ -190,7 +1005,24 @@ export interface LeagueWeekPlayoff {
   matchId: number;
   round: string;
   opponentName: string;
+  /**
+   * The singles opponent's player id, for Message on the Home card; null for doubles
+   * @nullable
+   */
+  opponentPlayerId: number | null;
   singles: boolean;
+  timeZone: string;
+  /**
+   * Last day to play this playoff round (two weeks per round)
+   * @nullable
+   */
+  playBy: string | null;
+  /** The play-by date has passed, so the league admin enters the result */
+  pastPlayBy: boolean;
+  /** @nullable */
+  scheduledAt: string | null;
+  /** @nullable */
+  location: string | null;
 }
 
 export interface LeagueWeekDraft {
@@ -199,6 +1031,48 @@ export interface LeagueWeekDraft {
   roundId: number;
   roundNumber: number;
   startDate: string;
+  /** The league's time zone. The round goes out at 7am there. */
+  timeZone: string;
+}
+
+export interface SetMatchTimeBody {
+  /**
+   * ISO date and time inside the match's week (league time zone), or null to clear it
+   * @nullable
+   */
+  scheduledAt: string | null;
+}
+
+export interface MatchTime {
+  matchId: number;
+  /** @nullable */
+  scheduledAt: string | null;
+  timeZone: string;
+}
+
+/**
+ * Both set for a weekly match day and time, or both null so players pick.
+ */
+export interface LeagueMatchTimeBody {
+  /**
+   * @minimum 0
+   * @maximum 6
+   * @nullable
+   */
+  matchDay: number | null;
+  /**
+   * 24-hour HH:MM in the league's time zone
+   * @nullable
+   */
+  matchTime: string | null;
+}
+
+export interface LeagueMatchTime {
+  /** @nullable */
+  matchDay: number | null;
+  /** @nullable */
+  matchTime: string | null;
+  timeZone: string;
 }
 
 export interface LeagueWeekResult {
@@ -215,12 +1089,59 @@ export interface LeagueWeekResult {
   completedAt: string | null;
 }
 
+export interface LeagueWeekStreak {
+  won: boolean;
+  count: number;
+}
+
+/**
+ * Your results across leagues still running
+ */
+export interface LeagueWeekSeason {
+  wins: number;
+  losses: number;
+  played: number;
+  streak: LeagueWeekStreak | null;
+}
+
+export interface LeagueWeekStandingRow {
+  rank: number;
+  playerId: number;
+  playerName: string;
+  wins: number;
+  losses: number;
+  you: boolean;
+}
+
+export interface LeagueWeekLeague {
+  leagueId: number;
+  leagueName: string;
+  /** @nullable */
+  location: string | null;
+  /**
+   * Your rank, or null if you're not in the standings
+   * @nullable
+   */
+  rank: number | null;
+  playerCount: number;
+  wins: number;
+  losses: number;
+  /** The top three, plus your row if you're further down */
+  rows: LeagueWeekStandingRow[];
+}
+
 export interface LeagueWeek {
   today: string;
   thisWeek: LeagueWeekItem[];
   playoffs: LeagueWeekPlayoff[];
   drafts: LeagueWeekDraft[];
+  /** Your last five results */
   recent: LeagueWeekResult[];
+  /** Every result, newest first, for My matches */
+  results: LeagueWeekResult[];
+  season: LeagueWeekSeason;
+  /** Leagues you play in that are still running, with where you stand */
+  leagues: LeagueWeekLeague[];
 }
 
 export type DevLeagueToolsTargetRound = {
@@ -312,6 +1233,13 @@ export const BracketRoundRound = {
 export interface BracketRound {
   round: BracketRoundRound;
   slots: BracketSlot[];
+  /**
+   * Last day to play this round (YYYY-MM-DD, league time zone): two weeks, a play week plus a grace week. Null for leagues without the weekly calendar.
+   * @nullable
+   */
+  playBy: string | null;
+  /** The play-by date has passed. Players can't enter a score; an admin settles the match. */
+  pastPlayBy: boolean;
 }
 
 export type LeagueBracketStatus =
@@ -350,13 +1278,87 @@ export interface ScheduleBye {
   setByAdmin: boolean;
 }
 
-export interface UndoneScore {
+export interface EditedScore {
   matchId: number;
-  status: string;
+  /** From player 1's side */
+  score: string;
   /** @nullable */
-  score: null;
+  winnerId: number | null;
+  editedAt: string;
+  editedBy: string;
+}
+
+export interface MatchDetailPlayer {
+  playerId: number;
+  name: string;
+  you: boolean;
+  hasAccount: boolean;
+}
+
+export interface MatchDetailSide {
+  players: MatchDetailPlayer[];
+  won: boolean;
+}
+
+export interface MatchDetailReplay {
   /** @nullable */
-  winnerId: null;
+  durationSeconds: number | null;
+  shotCount: number;
+}
+
+export interface MatchDetail {
+  matchId: number;
+  leagueId: number;
+  leagueName: string;
+  singles: boolean;
+  /** @nullable */
+  timeZone: string | null;
+  /** @nullable */
+  roundNumber: number | null;
+  /** @nullable */
+  playoffRound: string | null;
+  /** @nullable */
+  scheduledAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  /** @nullable */
+  location: string | null;
+  played: boolean;
+  voided: boolean;
+  inGrace: boolean;
+  /**
+   * From your side, your games first
+   * @nullable
+   */
+  score: string | null;
+  you: MatchDetailSide;
+  opponents: MatchDetailSide;
+  /**
+   * The player who first entered the score; null when the league admin did
+   * @nullable
+   */
+  enteredBy: string | null;
+  /** @nullable */
+  enteredAt: string | null;
+  /**
+   * When your 24 hours to edit the score run out (ISO time); null when you can't edit it
+   * @nullable
+   */
+  editUntil: string | null;
+  /**
+   * The player who last edited the score, for "Score edited by {name}"
+   * @nullable
+   */
+  editedBy: string | null;
+  /** @nullable */
+  editedAt: string | null;
+  /** @nullable */
+  correctedBy: string | null;
+  /** @nullable */
+  correctedAt: string | null;
+  leagueEnded: boolean;
+  /** Set once a Ball Boi analysis of this match has finished */
+  replay: MatchDetailReplay | null;
 }
 
 export interface CorrectedScore {
@@ -366,22 +1368,6 @@ export interface CorrectedScore {
   winnerId: number | null;
   correctedAt: string;
   correctedBy: string;
-}
-
-export type MatchPlayerRatingSource =
-  (typeof MatchPlayerRatingSource)[keyof typeof MatchPlayerRatingSource];
-
-export const MatchPlayerRatingSource = {
-  self: "self",
-  verified: "verified",
-} as const;
-
-/**
- * A player's Ball Boi Rating and where it came from, for the rating badge
- */
-export interface MatchPlayerRating {
-  rating: number;
-  source: MatchPlayerRatingSource;
 }
 
 export interface ScheduleMatch {
@@ -410,10 +1396,15 @@ export interface ScheduleMatch {
   /** @nullable */
   location: string | null;
   /**
-   * When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.
+   * When the caller's 24 hours to edit the score run out (ISO time). Set for either player while they can still edit it.
    * @nullable
    */
-  undoUntil: string | null;
+  editUntil: string | null;
+  /**
+   * The player who last edited the score, for "Score edited by {name}"
+   * @nullable
+   */
+  editedBy: string | null;
   /**
    * The admin who corrected the score, for "Corrected by {admin} on {date}"
    * @nullable
@@ -422,7 +1413,7 @@ export interface ScheduleMatch {
   /** @nullable */
   correctedAt: string | null;
   /**
-   * The player who undid the score, shown to the opponent until a new score is in
+   * Older matches only, from before Undo was replaced by the 24-hour edit. The player who undid the score, shown until a new score is in
    * @nullable
    */
   scoreClearedBy: string | null;
@@ -494,10 +1485,19 @@ export const JoinRequestStatus = {
 export interface JoinRequest {
   id: number;
   leagueId: number;
+  /** The asker's current profile name */
   playerName: string;
+  /** The asker's current profile level, like "3.5" */
   skillLevel: string;
+  /** The asker's profile level and its source, for the level badge. Null if they haven't set one */
+  rating?: MatchPlayerRating | null;
   kind: JoinRequestKind;
   status: JoinRequestStatus;
+  /**
+   * The asker's optional note to the organizer
+   * @nullable
+   */
+  note?: string | null;
   createdAt: string;
   message?: string;
 }
@@ -512,6 +1512,8 @@ export interface DropoutResult {
   left?: boolean;
   removed?: boolean;
   voidedMatches: number;
+  /** After leaving, the caller still runs the league as an admin */
+  stillAdmin?: boolean;
 }
 
 export interface Season {
@@ -548,8 +1550,14 @@ export interface HealthStatus {
   status: string;
 }
 
+/**
+ * Every error answers with this: a message to show, and on some routes a code to branch on. Routes need a signed-in Clerk session unless they say otherwise, and answer 401 without one. A banned or suspended account gets 403 with code account_banned or account_suspended on every route except GET /account/status, POST /account/appeal, DELETE /users/me, GET /users/me/league-handoff and /healthz. 401, that 403 and 500 are not listed per route.
+ */
 export interface ErrorResponse {
+  /** A message to show the person */
   error: string;
+  /** Present on some errors, such as league_ended, blocked or already_appealed */
+  code?: string;
 }
 
 export interface AvailabilityReminder {
@@ -633,14 +1641,6 @@ export const LeaguePlayoffSize = {
   NUMBER_8: 8,
 } as const;
 
-export type LeagueUnplayedRule =
-  (typeof LeagueUnplayedRule)[keyof typeof LeagueUnplayedRule];
-
-export const LeagueUnplayedRule = {
-  forfeit: "forfeit",
-  no_result: "no_result",
-} as const;
-
 export interface League {
   id: number;
   name: string;
@@ -670,7 +1670,6 @@ export interface League {
   /** @nullable */
   seasonWeeks?: number | null;
   playoffSize: LeaguePlayoffSize;
-  unplayedRule: LeagueUnplayedRule;
   playerCount: number;
   matchCount: number;
   createdAt: string;
@@ -680,6 +1679,22 @@ export interface League {
    * @nullable
    */
   endedAt?: string | null;
+  /** In the signed-in player's own list, they left this league and don't run it, so it shows under Past. */
+  youLeft?: boolean;
+  /** The league's time zone (IANA name). Pairing at 7am, week starts and ends, and deadlines follow it. */
+  timeZone: string;
+  /**
+   * A club's weekly match day, 0 Sunday to 6 Saturday. Null when players pick their own time.
+   * @minimum 0
+   * @maximum 6
+   * @nullable
+   */
+  matchDay?: number | null;
+  /**
+   * A club's weekly match time, 24-hour HH:MM in the league's time zone. Null when players pick.
+   * @nullable
+   */
+  matchTime?: string | null;
 }
 
 export type CreateLeagueBodyFormat =
@@ -801,6 +1816,23 @@ export interface CreateLeagueBody {
   playerName?: string | null;
   /** @nullable */
   skillLevel?: string | null;
+  /**
+   * The creator's phone time zone (IANA name). The league runs on it. Eastern when missing.
+   * @nullable
+   */
+  timeZone?: string | null;
+  /**
+   * Weekly match day, 0 Sunday to 6 Saturday. Send with matchTime, or leave both out so players pick.
+   * @minimum 0
+   * @maximum 6
+   * @nullable
+   */
+  matchDay?: number | null;
+  /**
+   * Weekly match time, 24-hour HH:MM in the league's time zone.
+   * @nullable
+   */
+  matchTime?: string | null;
 }
 
 /**
@@ -955,6 +1987,7 @@ export const MatchStatus = {
   in_progress: "in_progress",
   completed: "completed",
   cancelled: "cancelled",
+  voided: "voided",
 } as const;
 
 export interface Match {
@@ -1010,7 +2043,8 @@ export interface Match {
   playoffSlot?: number | null;
   /** @nullable */
   season?: string | null;
-  hasBallBoi: boolean;
+  /** Only in the GET /matches list */
+  hasBallBoi?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -1091,6 +2125,14 @@ export interface UpdateMatchBody {
   recordedAt?: string | null;
 }
 
+/**
+ * Only the keys the phone set when it started the session. The server's own keys (callback token, uploads, stat gates, retries) are never sent.
+ * @nullable
+ */
+export type BallBoiSessionMetadata = {
+  source?: string;
+} | null;
+
 export interface BallBoiSession {
   id: number;
   matchId: number;
@@ -1112,14 +2154,72 @@ export interface BallBoiSession {
   processingError?: string | null;
   /** @nullable */
   aiNarrative?: string | null;
+  /**
+   * Only the keys the phone set when it started the session. The server's own keys (callback token, uploads, stat gates, retries) are never sent.
+   * @nullable
+   */
+  metadata?: BallBoiSessionMetadata;
   createdAt: string;
   updatedAt: string;
 }
 
-export type StartBallBoiSessionBodyMetadata = { [key: string]: unknown };
+/**
+ * Only source and opponentAgreedAt are kept. Any other key is ignored.
+ */
+export type StartBallBoiSessionBodyMetadata = {
+  /** @maxLength 20 */
+  source?: string;
+  /** When the recorder confirmed that an opponent who isn't on Ball Boi agreed to be filmed. Kept only if it's within the last 7 days. */
+  opponentAgreedAt?: string;
+  [key: string]: unknown;
+};
 
 export interface StartBallBoiSessionBody {
+  /** Only source and opponentAgreedAt are kept. Any other key is ignored. */
   metadata?: StartBallBoiSessionBodyMetadata;
+  /** When the match was recorded. The session is created when the upload starts, which can be days later. */
+  recordedAt?: string;
+}
+
+export interface BallBoiMultipartStartBody {
+  /** Which piece of the recording, from 0. A call can split a match into pieces. */
+  segment: number;
+  sizeBytes: number;
+}
+
+export interface BallBoiMultipartUpload {
+  objectPath: string;
+  sizeBytes: number;
+  partSize: number;
+  partCount: number;
+  uploadedParts: number[];
+  missingParts: number[];
+  completed: boolean;
+}
+
+export interface BallBoiPartUrlBody {
+  segment: number;
+  partNumber: number;
+}
+
+export interface BallBoiPartUrl {
+  url: string;
+  partNumber: number;
+}
+
+export interface BallBoiMultipartCompleteBody {
+  segment: number;
+}
+
+export interface BallBoiMultipartComplete {
+  objectPath: string;
+  sizeBytes: number;
+}
+
+export interface BallBoiSessionSegment {
+  objectPath: string;
+  sizeBytes: number;
+  durationSeconds: number;
 }
 
 export interface BallBoiUploadUrl {
@@ -1138,6 +2238,8 @@ export interface CompleteBallBoiSessionBody {
   contentType: string;
   sizeBytes: number;
   durationSeconds: number;
+  /** Every piece of the recording in order, when it was sent in parts. objectPath is the first. */
+  segments?: BallBoiSessionSegment[];
 }
 
 /**
@@ -1352,26 +2454,108 @@ export interface BallBoiNarrative {
   narrative: string | null;
 }
 
+export type MatchRecordStatus =
+  (typeof MatchRecordStatus)[keyof typeof MatchRecordStatus];
+
+export const MatchRecordStatus = {
+  scheduled: "scheduled",
+  in_progress: "in_progress",
+  completed: "completed",
+  cancelled: "cancelled",
+  voided: "voided",
+} as const;
+
+/**
+ * The match as stored, without player names (the Ball Boi replay sends this).
+ */
+export interface MatchRecord {
+  id: number;
+  /** @nullable */
+  leagueId: number | null;
+  player1Id: number;
+  player2Id: number;
+  /** @nullable */
+  player3Id: number | null;
+  /** @nullable */
+  player4Id: number | null;
+  /** @nullable */
+  winnerId: number | null;
+  status: MatchRecordStatus;
+  /** @nullable */
+  scheduledAt: string | null;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  /** @nullable */
+  location: string | null;
+  /** @nullable */
+  score: string | null;
+  /** @nullable */
+  notes: string | null;
+  /** @nullable */
+  durationMinutes: number | null;
+  /** @nullable */
+  recordedByClerkUserId: string | null;
+  /** @nullable */
+  recordedAt: string | null;
+  /** @nullable */
+  courtId: number | null;
+  /** @nullable */
+  weekOf: string | null;
+  /** @nullable */
+  generatedFrom: string | null;
+  /** @nullable */
+  estimatedDistanceP1: number | null;
+  /** @nullable */
+  estimatedDistanceP2: number | null;
+  /** @nullable */
+  roundId: number | null;
+  /** @nullable */
+  playoffBracketId: number | null;
+  /** @nullable */
+  playoffRound: string | null;
+  /** @nullable */
+  playoffSlot: number | null;
+  /** @nullable */
+  season: string | null;
+  locked: boolean;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  voidedAt: string | null;
+  inGrace: boolean;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  correctedAt: string | null;
+  /** @nullable */
+  correctedByClerkUserId: string | null;
+  /** @nullable */
+  correctedByName: string | null;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  scoreClearedAt: string | null;
+  /** @nullable */
+  scoreClearedByName: string | null;
+  /** ISO 8601 date and time */
+  createdAt: string;
+  /** ISO 8601 date and time */
+  updatedAt: string;
+}
+
 export interface BallBoiReplay {
-  match: Match;
+  match: MatchRecord;
   session: BallBoiSession | null;
   shots: MatchShot[];
   statistics: MatchStatistics | null;
   /** Stats below their accuracy bar (or not yet measured). Their fields are empty; the app leaves them out rather than showing them with a disclaimer. */
-  hiddenStats?: GatedStat[];
+  hiddenStats: GatedStat[];
 }
-
-export type UserProfileSkillLevel =
-  (typeof UserProfileSkillLevel)[keyof typeof UserProfileSkillLevel];
-
-export const UserProfileSkillLevel = {
-  "25": "2.5",
-  "30": "3.0",
-  "35": "3.5",
-  "40": "4.0",
-  "45": "4.5",
-  "50": "5.0",
-} as const;
 
 export type UserProfileDominantHand =
   (typeof UserProfileDominantHand)[keyof typeof UserProfileDominantHand];
@@ -1379,6 +2563,28 @@ export type UserProfileDominantHand =
 export const UserProfileDominantHand = {
   left: "left",
   right: "right",
+} as const;
+
+/**
+ * @nullable
+ */
+export type UserProfileRatingSource =
+  | (typeof UserProfileRatingSource)[keyof typeof UserProfileRatingSource]
+  | null;
+
+export const UserProfileRatingSource = {
+  self: "self",
+  verified: "verified",
+} as const;
+
+export type UserProfileIntentsItem =
+  (typeof UserProfileIntentsItem)[keyof typeof UserProfileIntentsItem];
+
+export const UserProfileIntentsItem = {
+  run_league: "run_league",
+  join_league: "join_league",
+  find_matches: "find_matches",
+  record: "record",
 } as const;
 
 export interface UserProfile {
@@ -1391,13 +2597,37 @@ export interface UserProfile {
   phone?: string | null;
   /** @nullable */
   avatarUrl?: string | null;
-  skillLevel: UserProfileSkillLevel;
+  /** Legacy. New profiles get "intermediate"; the player's level is rating. */
+  skillLevel: string;
   dominantHand: UserProfileDominantHand;
   /** @nullable */
   bio?: string | null;
   onboardingComplete: boolean;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Ball Boi Rating (NTRP scale). Null until the quiz or a UTR link sets it.
+   * @nullable
+   */
+  rating?: number | null;
+  /** @nullable */
+  ratingSource?: UserProfileRatingSource;
+  /** @nullable */
+  homeZip?: string | null;
+  /**
+   * Approximate (two decimals), only from Use my location
+   * @nullable
+   */
+  homeLatitude?: number | null;
+  /** @nullable */
+  homeLongitude?: number | null;
+  /**
+   * Legacy single onboarding answer
+   * @nullable
+   */
+  intent?: string | null;
+  /** @nullable */
+  intents?: UserProfileIntentsItem[] | null;
 }
 
 export type UpsertUserProfileBodySkillLevel =
@@ -1499,6 +2729,11 @@ export interface JoinLeagueBody {
   playerName: string;
   /** @nullable */
   skillLevel?: string | null;
+  /**
+   * Optional note to the organizer with a request from Discover, up to 300 characters
+   * @nullable
+   */
+  note?: string | null;
 }
 
 export type JoinLeagueResponseLeague = {
@@ -1587,7 +2822,7 @@ export interface MyScheduleMatch {
   score?: string | null;
   /** @nullable */
   winnerId?: number | null;
-  hasBallBoiReplay: boolean;
+  hasBallBoiReplay?: boolean;
   /** @nullable */
   ballBoiProcessingStatus?: string | null;
   /** @nullable */
@@ -1604,6 +2839,7 @@ export const MyMatchItemStatus = {
   in_progress: "in_progress",
   completed: "completed",
   cancelled: "cancelled",
+  voided: "voided",
 } as const;
 
 export interface MyMatchItem {
@@ -1764,6 +3000,1005 @@ export interface PlayoffsStatusResponse {
   completedRoundCount: number;
 }
 
+/**
+ * Send both coordinates or neither.
+ */
+export interface HomeAreaInput {
+  /** @pattern ^\d{5}$ */
+  zip: string;
+  /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
+}
+
+export type IntentsInputIntentsItem =
+  (typeof IntentsInputIntentsItem)[keyof typeof IntentsInputIntentsItem];
+
+export const IntentsInputIntentsItem = {
+  run_league: "run_league",
+  join_league: "join_league",
+  find_matches: "find_matches",
+  record: "record",
+} as const;
+
+export interface IntentsInput {
+  intents: IntentsInputIntentsItem[];
+}
+
+export type SelfRatingInputRating =
+  (typeof SelfRatingInputRating)[keyof typeof SelfRatingInputRating];
+
+export const SelfRatingInputRating = {
+  "25": 2.5,
+  NUMBER_3: 3,
+  "35": 3.5,
+  NUMBER_4: 4,
+  "45": 4.5,
+  NUMBER_5: 5,
+} as const;
+
+export interface SelfRatingInput {
+  rating: SelfRatingInputRating;
+}
+
+/**
+ * @nullable
+ */
+export type SelfRatingResultSource =
+  | (typeof SelfRatingResultSource)[keyof typeof SelfRatingResultSource]
+  | null;
+
+export const SelfRatingResultSource = {
+  self: "self",
+  verified: "verified",
+} as const;
+
+export interface SelfRatingResult {
+  /** @nullable */
+  rating: number | null;
+  /** @nullable */
+  source: SelfRatingResultSource;
+}
+
+export type LeagueHandoffLeaguesItemMembersItem = {
+  playerId: number;
+  name: string;
+  /** ISO 8601 date and time */
+  joinedAt: string;
+};
+
+export type LeagueHandoffLeaguesItem = {
+  leagueId: number;
+  name: string;
+  members: LeagueHandoffLeaguesItemMembersItem[];
+};
+
+export interface LeagueHandoff {
+  leagues: LeagueHandoffLeaguesItem[];
+}
+
+export interface SuccessResult {
+  success: boolean;
+}
+
+export interface ExpoPushTokenInput {
+  token: string;
+}
+
+export interface PushRegistrationStatus {
+  registered: boolean;
+}
+
+/**
+ * Settings › Notifications. Show message previews (decision 128) and Match day reminders (decision 127) are on by default.
+ */
+export interface NotificationSettings {
+  messagePreviews: boolean;
+  matchReminders: boolean;
+  /** Dev servers only, never production; shows the reminder testing buttons */
+  devTools?: boolean;
+}
+
+export interface MatchRemindersRunInput {
+  at?: string;
+}
+
+/**
+ * Either switch, or both
+ */
+export interface NotificationSettingsUpdate {
+  messagePreviews?: boolean;
+  matchReminders?: boolean;
+}
+
+export interface PhotoUploadRequest {
+  name: string;
+  size: number;
+  contentType: string;
+}
+
+export type PhotoUploadTicketMetadata = {
+  name: string;
+  size: number;
+  contentType: string;
+};
+
+export interface PhotoUploadTicket {
+  uploadURL: string;
+  objectPath: string;
+  metadata: PhotoUploadTicketMetadata;
+}
+
+export interface BlockedPlayer {
+  /** @nullable */
+  playerId: number | null;
+  name: string;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** ISO 8601 date and time */
+  blockedAt: string;
+}
+
+export interface BlockResult {
+  blocked: boolean;
+}
+
+export type NewReportTargetType =
+  (typeof NewReportTargetType)[keyof typeof NewReportTargetType];
+
+export const NewReportTargetType = {
+  player: "player",
+  league: "league",
+  ball_boi_session: "ball_boi_session",
+  match: "match",
+} as const;
+
+export type NewReportReason =
+  (typeof NewReportReason)[keyof typeof NewReportReason];
+
+export const NewReportReason = {
+  harassment: "harassment",
+  inappropriate_content: "inappropriate_content",
+  spam: "spam",
+  cheating: "cheating",
+  unsafe: "unsafe",
+  other: "other",
+  impersonation: "impersonation",
+  no_show_dispute: "no_show_dispute",
+} as const;
+
+export interface NewReport {
+  targetType: NewReportTargetType;
+  /** @maxLength 100 */
+  targetId: string;
+  reason: NewReportReason;
+  /**
+   * Kept to 1000 characters
+   * @nullable
+   */
+  details?: string | null;
+}
+
+export type ReportReceiptStatus =
+  (typeof ReportReceiptStatus)[keyof typeof ReportReceiptStatus];
+
+export const ReportReceiptStatus = {
+  open: "open",
+} as const;
+
+export interface ReportReceipt {
+  id: number;
+  status: ReportReceiptStatus;
+}
+
+export type ContentReportRowStatus =
+  (typeof ContentReportRowStatus)[keyof typeof ContentReportRowStatus];
+
+export const ContentReportRowStatus = {
+  open: "open",
+  reviewed: "reviewed",
+  actioned: "actioned",
+  dismissed: "dismissed",
+} as const;
+
+export type ContentReportRowSource =
+  (typeof ContentReportRowSource)[keyof typeof ContentReportRowSource];
+
+export const ContentReportRowSource = {
+  user: "user",
+  auto: "auto",
+  stream: "stream",
+  appeal: "appeal",
+} as const;
+
+export interface ContentReportRow {
+  id: number;
+  /** @nullable */
+  reporterClerkUserId: string | null;
+  targetType: string;
+  targetId: string;
+  reason: string;
+  /** @nullable */
+  details: string | null;
+  status: ContentReportRowStatus;
+  source: ContentReportRowSource;
+  /** @nullable */
+  subjectClerkUserId: string | null;
+  /** ISO 8601 date and time */
+  createdAt: string;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  reviewedAt: string | null;
+}
+
+export type ContentReportSnapshot = {
+  /** @nullable */
+  conversationId: number | null;
+  messages: {
+    id: string;
+    senderClerkUserId: string;
+    senderName: string;
+    text: string;
+    at: string;
+    reported: boolean;
+  }[];
+} | null;
+
+export type ContentReport = ContentReportRow & {
+  /** @nullable */
+  subjectName: string | null;
+  snapshot: ContentReportSnapshot;
+};
+
+export type ReportStatusInputStatus =
+  (typeof ReportStatusInputStatus)[keyof typeof ReportStatusInputStatus];
+
+export const ReportStatusInputStatus = {
+  open: "open",
+  reviewed: "reviewed",
+  actioned: "actioned",
+  dismissed: "dismissed",
+} as const;
+
+export interface ReportStatusInput {
+  status: ReportStatusInputStatus;
+}
+
+export interface AgentDecision {
+  id: number;
+  reportId: number;
+  action: string;
+  reason: string;
+  /** @nullable */
+  messageId?: string | null;
+  /** @nullable */
+  subjectClerkUserId?: string | null;
+  /** @nullable */
+  restrictionId?: number | null;
+  previousStatus: string;
+  model: string;
+  /** ISO 8601 date and time */
+  createdAt: string;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  confirmedAt: string | null;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  undoneAt: string | null;
+  /** @nullable */
+  reviewedBy?: string | null;
+}
+
+export interface HiddenMessageResult {
+  messageId: string;
+  hidden: boolean;
+}
+
+export interface ModeratorReasonInput {
+  reason?: string;
+  reportId?: number;
+}
+
+export interface MessagingRestriction {
+  id: number;
+  clerkUserId: string;
+  reason: string;
+  source: string;
+  /** @nullable */
+  reportId?: number | null;
+  /** ISO 8601 date and time */
+  createdAt: string;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  liftedAt?: string | null;
+  /** @nullable */
+  liftedBy?: string | null;
+}
+
+export interface SanctionInput {
+  reason: string;
+  /**
+   * Suspensions only
+   * @minimum 1
+   * @maximum 90
+   */
+  days?: number;
+  reportId?: number;
+}
+
+export type SanctionKind = (typeof SanctionKind)[keyof typeof SanctionKind];
+
+export const SanctionKind = {
+  ban: "ban",
+  suspend: "suspend",
+} as const;
+
+export interface Sanction {
+  id: number;
+  kind: SanctionKind;
+  clerkUserId: string;
+  /** @nullable */
+  appleUserId?: string | null;
+  emails?: string[];
+  reason: string;
+  /** @nullable */
+  reportId?: number | null;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  endsAt: string | null;
+  createdBy?: string;
+  /** ISO 8601 date and time */
+  createdAt: string;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  liftedAt: string | null;
+  /** @nullable */
+  liftedBy?: string | null;
+}
+
+export interface SanctionResult {
+  sanction: Sanction;
+}
+
+/**
+ * @nullable
+ */
+export type AppealOutcome =
+  | (typeof AppealOutcome)[keyof typeof AppealOutcome]
+  | null;
+
+export const AppealOutcome = {
+  upheld: "upheld",
+  overturned: "overturned",
+} as const;
+
+export interface Appeal {
+  id: number;
+  sanctionId: number;
+  clerkUserId: string;
+  /** @nullable */
+  reportId?: number | null;
+  /** ISO 8601 date and time */
+  createdAt: string;
+  /** @nullable */
+  outcome: AppealOutcome;
+  /** @nullable */
+  note?: string | null;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  decidedAt: string | null;
+  /** @nullable */
+  decidedBy?: string | null;
+}
+
+export type AppealListItemSanction = {
+  id: number;
+  kind: "ban" | "suspend";
+  reason: string;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  endsAt: string | null;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  liftedAt: string | null;
+  /** ISO 8601 date and time */
+  createdAt: string;
+} | null;
+
+export type AppealListItem = Appeal & {
+  /** Like BB-00012, from the appeal email's subject */
+  reference: string;
+  /** @nullable */
+  name: string | null;
+  sanction: AppealListItemSanction;
+};
+
+export type AppealDecisionInputOutcome =
+  (typeof AppealDecisionInputOutcome)[keyof typeof AppealDecisionInputOutcome];
+
+export const AppealDecisionInputOutcome = {
+  upheld: "upheld",
+  overturned: "overturned",
+} as const;
+
+export interface AppealDecisionInput {
+  outcome: AppealDecisionInputOutcome;
+  note?: string;
+}
+
+export type AccountStatusStatus =
+  (typeof AccountStatusStatus)[keyof typeof AccountStatusStatus];
+
+export const AccountStatusStatus = {
+  ok: "ok",
+  banned: "banned",
+  suspended: "suspended",
+} as const;
+
+export type AccountStatusAppeal = {
+  /** ISO 8601 date and time */
+  submittedAt: string;
+  /** @nullable */
+  outcome: "upheld" | "overturned" | null;
+} | null;
+
+export interface AccountStatus {
+  status: AccountStatusStatus;
+  /**
+   * Suspensions only
+   * @nullable
+   */
+  endsAt: string | null;
+  appeal: AccountStatusAppeal;
+  canAppeal: boolean;
+  supportEmail: string;
+  /** @nullable */
+  appealReference: string | null;
+}
+
+export interface AppealReceipt {
+  reference: string;
+  supportEmail: string;
+}
+
+/**
+ * Always active. Message Requests were removed (Nov 6).
+ */
+export type ConversationViewState =
+  (typeof ConversationViewState)[keyof typeof ConversationViewState];
+
+export const ConversationViewState = {
+  active: "active",
+} as const;
+
+export type ConversationViewOther = {
+  name: string;
+  /** @nullable */
+  playerId: number | null;
+  /**
+   * Their users.id, for report and block when they have no player record (a Discover player)
+   * @nullable
+   */
+  userId?: number | null;
+};
+
+export type ConversationViewLastMessage = {
+  text: string;
+  fromMe: boolean;
+  at: string;
+} | null;
+
+export interface ConversationView {
+  id: number;
+  /** Always active. Message Requests were removed (Nov 6). */
+  state: ConversationViewState;
+  /** You blocked the other person. Read only, with Unblock in the app. */
+  blocked: boolean;
+  other: ConversationViewOther;
+  lastMessage: ConversationViewLastMessage;
+  unread: number;
+  canSend: boolean;
+  /**
+   * Why the composer is off, in plain words
+   * @nullable
+   */
+  sendBlockedReason: string | null;
+}
+
+export interface MessageView {
+  id: string;
+  text: string;
+  fromMe: boolean;
+  at: string;
+}
+
+export interface MessagesSummary {
+  unread: number;
+}
+
+export type GroupViewLastMessage = null | {
+  text: string;
+  fromMe: boolean;
+  /**
+   * Null for a line from Ball Boi
+   * @nullable
+   */
+  senderName: string | null;
+  at: string;
+};
+
+export interface GroupView {
+  id: number;
+  /** Sat 9 AM doubles · Beacon Courts */
+  title: string;
+  /** @nullable */
+  openMatchId: number | null;
+  memberCount: number;
+  lastMessage: GroupViewLastMessage;
+  unread: number;
+  canSend: boolean;
+  /** @nullable */
+  sendBlockedReason: string | null;
+}
+
+export type ConversationList = MessagesSummary & {
+  conversations: ConversationView[];
+  /** Group chats you're in (F15), newest first */
+  groups?: GroupView[];
+};
+
+export interface GroupMessageView {
+  id: string;
+  text: string;
+  fromMe: boolean;
+  at: string;
+  /**
+   * Null for a line from Ball Boi
+   * @nullable
+   */
+  senderName: string | null;
+  /** @nullable */
+  senderPlayerId: number | null;
+  /** @nullable */
+  senderUserId: number | null;
+}
+
+export interface GroupThread {
+  group: GroupView;
+  messages: GroupMessageView[];
+  /** @nullable */
+  olderCursor: string | null;
+}
+
+export interface SentGroupMessage {
+  groupId: number;
+  message: GroupMessageView;
+}
+
+export interface ConversationThread {
+  conversation: ConversationView;
+  messages: MessageView[];
+  /** @nullable */
+  olderCursor: string | null;
+}
+
+export interface SentMessage {
+  conversationId: number;
+  message: MessageView;
+}
+
+export interface MessageContact {
+  name: string;
+  playerId: number;
+}
+
+/**
+ * Send playerId (a league player) or userId (a Discover player, who may be in no league).
+ */
+export interface NewConversationInput {
+  playerId?: number;
+  userId?: number;
+  text: string;
+  clientMessageId?: string;
+}
+
+export interface NewMessageInput {
+  text: string;
+  /** Lets a retried send come back as the same message */
+  clientMessageId?: string;
+}
+
+export type MessageReportInputReason =
+  (typeof MessageReportInputReason)[keyof typeof MessageReportInputReason];
+
+export const MessageReportInputReason = {
+  harassment: "harassment",
+  inappropriate_content: "inappropriate_content",
+  spam: "spam",
+  cheating: "cheating",
+  unsafe: "unsafe",
+  other: "other",
+  impersonation: "impersonation",
+  no_show_dispute: "no_show_dispute",
+} as const;
+
+export interface MessageReportInput {
+  messageId: string;
+  reason: MessageReportInputReason;
+  /** @nullable */
+  details?: string | null;
+}
+
+/**
+ * The Ball Boi Beta Footage Release. Only asked for while the server's BETA_RELEASE_REQUIRED setting is on.
+ */
+export interface BetaReleaseStatus {
+  /** The server setting is on */
+  required: boolean;
+  /** The current release version */
+  version: number;
+  url: string;
+  /** @nullable */
+  agreedVersion: number | null;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  agreedAt: string | null;
+  /** Show the release checkbox, unchecked, before the next recording */
+  needed: boolean;
+}
+
+export interface RecordingConsent {
+  consented: boolean;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  consentedAt: string | null;
+  trainingEnabled: boolean;
+  release: BetaReleaseStatus;
+}
+
+export interface MatchFilming {
+  /** The opponent isn't on Ball Boi. The ready screen shows "[Name] agreed to be filmed." and Start stays off until it's checked. */
+  needsOpponentAgreement: boolean;
+  /** @nullable */
+  opponentName: string | null;
+}
+
+export type FeedbackReportProblem =
+  (typeof FeedbackReportProblem)[keyof typeof FeedbackReportProblem];
+
+export const FeedbackReportProblem = {
+  recording_stopped: "recording_stopped",
+  upload_stuck: "upload_stuck",
+  camera_mic: "camera_mic",
+  match_missing: "match_missing",
+  score_not_saved: "score_not_saved",
+  app_froze: "app_froze",
+  something_else: "something_else",
+} as const;
+
+export type FeedbackReportSource =
+  (typeof FeedbackReportSource)[keyof typeof FeedbackReportSource];
+
+export const FeedbackReportSource = {
+  settings: "settings",
+  ready: "ready",
+  processing: "processing",
+  replay: "replay",
+} as const;
+
+export interface FeedbackReport {
+  problem: FeedbackReportProblem;
+  /**
+   * Required for something_else
+   * @maxLength 2000
+   * @nullable
+   */
+  note?: string | null;
+  source: FeedbackReportSource;
+  /**
+   * Attached only when the sender played in the match
+   * @nullable
+   */
+  matchId?: number | null;
+  /** @nullable */
+  appVersion?: string | null;
+  /** @nullable */
+  deviceModel?: string | null;
+  /** @nullable */
+  osVersion?: string | null;
+}
+
+export interface ConsentChoice {
+  trainingEnabled: boolean;
+  /** The release version the person agreed to by checking the box. Required while the release is needed. */
+  releaseVersion?: number;
+}
+
+export interface TrainingChoice {
+  trainingEnabled: boolean;
+}
+
+export interface RecordingOpponent {
+  playerId: number;
+  name: string;
+}
+
+export interface PlayerSearchResult {
+  /**
+   * Pick them in Quick match with this. Null only for a league mate with no profile yet.
+   * @nullable
+   */
+  userId: number | null;
+  /**
+   * Message them with this. Null when they aren't in any league or match yet.
+   * @nullable
+   */
+  playerId: number | null;
+  name: string;
+  /** @nullable */
+  avatarUrl: string | null;
+  inYourLeagues: boolean;
+  playedBefore: boolean;
+}
+
+export interface PlayerSearchResponse {
+  players: PlayerSearchResult[];
+  /** More people matched than were returned. Type more of the name to narrow it. */
+  more: boolean;
+}
+
+/**
+ * Doubles is refused for now
+ */
+export type QuickMatchInputFormat =
+  (typeof QuickMatchInputFormat)[keyof typeof QuickMatchInputFormat];
+
+export const QuickMatchInputFormat = {
+  singles: "singles",
+  doubles: "doubles",
+} as const;
+
+/**
+ * Send exactly one of opponentPlayerId, opponentUserId or opponentName.
+ */
+export interface QuickMatchInput {
+  /** Doubles is refused for now */
+  format?: QuickMatchInputFormat;
+  opponentPlayerId?: number;
+  /** A userId from GET /players/search */
+  opponentUserId?: number;
+  opponentName?: string;
+}
+
+export type QuickMatchCreatedInvite = {
+  code: string;
+  url: string;
+} | null;
+
+export interface QuickMatchCreated {
+  matchId: number;
+  opponentName: string;
+  invite: QuickMatchCreatedInvite;
+}
+
+/**
+ * Set when this is a "Was that you?" request (decision 124) for the caller; null for an ordinary invite link
+ */
+export type RecordingInviteWasThatYou =
+  | (typeof RecordingInviteWasThatYou)[keyof typeof RecordingInviteWasThatYou]
+  | null;
+
+export const RecordingInviteWasThatYou = {
+  pending: "pending",
+  yes: "yes",
+  not_me: "not_me",
+} as const;
+
+export interface RecordingInvite {
+  code: string;
+  recorderName: string;
+  yourName: string;
+  recordedAt: string;
+  claimed: boolean;
+  claimedByYou: boolean;
+  isYourInvite: boolean;
+  /** Set when this is a "Was that you?" request (decision 124) for the caller; null for an ordinary invite link */
+  wasThatYou?: RecordingInviteWasThatYou;
+}
+
+export type RecordableMatchFormat =
+  (typeof RecordableMatchFormat)[keyof typeof RecordableMatchFormat];
+
+export const RecordableMatchFormat = {
+  singles: "singles",
+  doubles: "doubles",
+} as const;
+
+export interface RecordableMatch {
+  id: number;
+  /** @nullable */
+  scheduledAt: string | null;
+  /** @nullable */
+  location: string | null;
+  /** @nullable */
+  leagueId: number | null;
+  /** @nullable */
+  leagueName: string | null;
+  format: RecordableMatchFormat;
+  opponentName: string;
+  /** @nullable */
+  partnerName: string | null;
+  /**
+   * Last day to play (YYYY-MM-DD, the league's zone)
+   * @nullable
+   */
+  playBy: string | null;
+  /** @nullable */
+  timeZone: string | null;
+}
+
+export type RecordingListItemStage =
+  (typeof RecordingListItemStage)[keyof typeof RecordingListItemStage];
+
+export const RecordingListItemStage = {
+  uploading: "uploading",
+  analyzing: "analyzing",
+  ready: "ready",
+  failed: "failed",
+} as const;
+
+export interface RecordingListItem {
+  sessionId: number;
+  matchId: number;
+  /** @nullable */
+  leagueId: number | null;
+  opponentName: string;
+  /** When the match was recorded (ISO 8601), not when it uploaded (D19) */
+  recordedAt: string;
+  stage: RecordingListItemStage;
+  scoreEntered: boolean;
+  /** False on the opponent's copy of the card */
+  recordedByYou: boolean;
+  /**
+   * The short reason shown on a failed card; null unless stage is failed
+   * @nullable
+   */
+  failedReason: string | null;
+  /** Analyzing or done, but no stat has passed its accuracy bar yet, so the card reads "Uploaded" instead of "Analyzing" or "Replay is ready" */
+  stillLearning: boolean;
+}
+
+export interface DiscardResult {
+  sessionDeleted: boolean;
+  matchRemoved: boolean;
+}
+
+export type AccountDeletionInputConfirm =
+  (typeof AccountDeletionInputConfirm)[keyof typeof AccountDeletionInputConfirm];
+
+export const AccountDeletionInputConfirm = {
+  DELETE: "DELETE",
+} as const;
+
+export type AccountDeletionInputNewAdminsItem = {
+  leagueId: number;
+  playerId: number;
+};
+
+export interface AccountDeletionInput {
+  confirm: AccountDeletionInputConfirm;
+  newAdmins?: AccountDeletionInputNewAdminsItem[];
+}
+
+export interface AccountDeletionResult {
+  deleted: boolean;
+  playersAnonymized: number;
+  recordingsDeleted: number;
+  recordingsKeptForOpponents: number;
+  videosDeleted: number;
+  videoDeleteFailures: number;
+}
+
+export interface RecordingRemoved {
+  removed: boolean;
+  matchRemoved: boolean;
+}
+
+/**
+ * A 409 from the upload routes, with what to do next
+ */
+export interface UploadConflict {
+  error: string;
+  /** The recording is already uploaded */
+  uploaded?: boolean;
+  /** The parts expired in storage: start this piece again */
+  restart?: boolean;
+  /** Part numbers storage doesn't have yet */
+  missingParts?: number[];
+}
+
+export type ListCourtsParams = {
+  /**
+   * @maxLength 60
+   */
+  q?: string;
+};
+
+export type ListOpenMatchesParams = {
+  /**
+   * @minimum 1
+   * @maximum 30
+   */
+  radius?: number;
+};
+
+export type ListDiscoverLeaguesParams = {
+  /**
+   * @minimum 1
+   * @maximum 30
+   */
+  radius?: number;
+};
+
+export type ListDiscoverPlayersParams = {
+  /**
+   * Miles, 1 to 30. Defaults to your last distance.
+   * @minimum 1
+   * @maximum 30
+   */
+  radius?: number;
+  /**
+   * close (within 0.5), wider (within 1.0) or any
+   */
+  level?: ListDiscoverPlayersLevel;
+  plays?: ListDiscoverPlayersPlays;
+  /**
+   * "1" keeps players whose hours overlap yours. Ignored until you set times.
+   */
+  free?: string;
+};
+
+export type ListDiscoverPlayersLevel =
+  (typeof ListDiscoverPlayersLevel)[keyof typeof ListDiscoverPlayersLevel];
+
+export const ListDiscoverPlayersLevel = {
+  close: "close",
+  wider: "wider",
+  any: "any",
+} as const;
+
+export type ListDiscoverPlayersPlays =
+  (typeof ListDiscoverPlayersPlays)[keyof typeof ListDiscoverPlayersPlays];
+
+export const ListDiscoverPlayersPlays = {
+  singles: "singles",
+  doubles: "doubles",
+  either: "either",
+} as const;
+
 export type GetLeaguesParams = {
   /**
    * @nullable
@@ -1796,6 +4031,14 @@ export type GetPlayersParams = {
    * @nullable
    */
   leagueId?: number | null;
+};
+
+export type SearchPlayersParams = {
+  /**
+   * Name to search for. Every word must appear in the name. Empty lists everyone, up to the cap.
+   * @maxLength 60
+   */
+  q?: string;
 };
 
 export type GetMatchesParams = {
@@ -1882,4 +4125,146 @@ export type GetMatchBallBoiReplayMetadata200 = {
   match?: GetMatchBallBoiReplayMetadata200Match;
   shotMarkers?: GetMatchBallBoiReplayMetadata200ShotMarkersItem[];
   chapters?: GetMatchBallBoiReplayMetadata200ChaptersItem[];
+};
+
+export type RunMatchRemindersDev200 = {
+  at: string;
+  timed: number;
+  nudges: number;
+};
+
+export type GetAdminReportsParams = {
+  status?: GetAdminReportsStatus;
+};
+
+export type GetAdminReportsStatus =
+  (typeof GetAdminReportsStatus)[keyof typeof GetAdminReportsStatus];
+
+export const GetAdminReportsStatus = {
+  open: "open",
+  reviewed: "reviewed",
+  actioned: "actioned",
+  dismissed: "dismissed",
+} as const;
+
+export type GetAgentDecisionsParams = {
+  /**
+   * false lists every decision, not only the ones waiting
+   */
+  pending?: GetAgentDecisionsPending;
+};
+
+export type GetAgentDecisionsPending =
+  (typeof GetAgentDecisionsPending)[keyof typeof GetAgentDecisionsPending];
+
+export const GetAgentDecisionsPending = {
+  true: "true",
+  false: "false",
+} as const;
+
+export type HideMessageBody = {
+  hidden?: boolean;
+};
+
+export type RestrictAccount201 = {
+  restriction: MessagingRestriction;
+};
+
+export type GetAppealsParams = {
+  /**
+   * false lists decided appeals too
+   */
+  open?: GetAppealsOpen;
+};
+
+export type GetAppealsOpen =
+  (typeof GetAppealsOpen)[keyof typeof GetAppealsOpen];
+
+export const GetAppealsOpen = {
+  true: "true",
+  false: "false",
+} as const;
+
+export type DecideAppeal200 = {
+  appeal: Appeal;
+};
+
+export type GetAdminMe200 = {
+  admin: boolean;
+};
+
+export type GetMessageContacts200 = {
+  contacts: MessageContact[];
+};
+
+export type GetConversationWithUser200 = {
+  /** @nullable */
+  conversationId: number | null;
+};
+
+export type GetConversationWithPlayer200 = {
+  /** @nullable */
+  conversationId: number | null;
+};
+
+export type GetConversationParams = {
+  /**
+   * olderCursor from the previous page
+   */
+  before?: string;
+};
+
+export type GetGroupThreadParams = {
+  before?: string;
+};
+
+export type CreateSampleMessages201 = {
+  ok: boolean;
+};
+
+export type SendFeedback201 = {
+  id: number;
+};
+
+export type ScoreQuickMatchBody = {
+  /** Sets from your side, like 6-4, 3-6, 10-8 */
+  score: string;
+};
+
+export type ScoreQuickMatch200 = {
+  matchId: number;
+  score: string;
+};
+
+export type SendOpponentNotice200 = {
+  notified: number;
+  requested: boolean;
+};
+
+export type ClaimRecordingInvite200 = {
+  matchId: number;
+};
+
+export type GetTodaysRecordableMatchesParams = {
+  /**
+   * ISO 8601 date and time
+   */
+  from: string;
+  /**
+   * ISO 8601 date and time
+   */
+  to: string;
+};
+
+export type LogDoublesViewBody = {
+  matchId: number;
+};
+
+export type DiscardRecordingBody = {
+  matchId: number;
+  sessionId?: number;
+};
+
+export type AbandonQuickMatch200 = {
+  removed: boolean;
 };

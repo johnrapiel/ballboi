@@ -60,7 +60,8 @@ export interface Match {
   playoffSlot?: number | null;
   /** @nullable */
   season?: string | null;
-  hasBallBoi: boolean;
+  /** Only in the GET /matches list */
+  hasBallBoi?: boolean;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,19 +1,16 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { getAuth } from "@clerk/express";
 import { db, leagueRoundsTable, matchesTable, leaguesTable, playersTable } from "@workspace/db";
-import { eq, desc, and, lte, gte, asc, inArray, isNotNull } from "drizzle-orm";
+import { eq, and, asc, inArray, isNotNull } from "drizzle-orm";
 import { requireAdmin } from "../middlewares/requireAdmin";
 import { generateAllRounds, buildRoundResponse } from "../services/roundPairing";
 import { sendPushToUsers } from "./notifications";
 import { logger } from "../lib/logger";
+import { requireLeagueViewer } from "../middlewares/requireLeagueViewer.js";
+import { getLeagueRole } from "../lib/leagueAccess.js";
+import { visibleRounds } from "../lib/draftRounds.js";
 
 const router = Router();
-
-function requireAuth(req: any, res: any, next: any) {
-  const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: "Unauthorized" });
-  next();
-}
 
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
@@ -132,149 +129,58 @@ router.post("/leagues/:leagueId/rounds/generate", requireAdmin, async (req, res)
   }
 });
 
-router.get("/leagues/:leagueId/rounds/current", requireAuth, async (req, res) => {
+/** Who's asking about this league's rounds: its admins also see drafts (decision 29). */
+async function roundsFor(req: Request, leagueId: number) {
+  const { userId } = getAuth(req);
+  const isAdmin = !!userId && (await getLeagueRole(leagueId, userId)) !== null;
+  const all = await db
+    .select()
+    .from(leagueRoundsTable)
+    .where(eq(leagueRoundsTable.leagueId, leagueId))
+    .orderBy(asc(leagueRoundsTable.roundNumber));
+  return visibleRounds(all, isAdmin).sort((a, b) => a.roundNumber - b.roundNumber);
+}
+
+/**
+ * The round to show now: the active one whose window includes today, else the
+ * next upcoming one, else the latest if it still has unscheduled matches.
+ * Players never see a round that hasn't gone out.
+ */
+router.get("/leagues/:leagueId/rounds/current", requireLeagueViewer, async (req, res) => {
   try {
-    const leagueId = parseInt(String(req.params.leagueId));
-    if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid league ID" });
-
+    const leagueId = res.locals.leagueId as number;
     const today = todayStr();
+    const rounds = await roundsFor(req, leagueId);
 
-    // First: return the currently active round whose window includes today
-    const activeRounds = await db
-      .select()
-      .from(leagueRoundsTable)
-      .where(and(
-        eq(leagueRoundsTable.leagueId, leagueId),
-        eq(leagueRoundsTable.status, "active"),
-        lte(leagueRoundsTable.startDate, today),
-        gte(leagueRoundsTable.endDate, today)
-      ))
-      .orderBy(desc(leagueRoundsTable.roundNumber));
+    const active = rounds
+      .filter((r) => r.status === "active" && r.startDate <= today && r.endDate >= today)
+      .at(-1);
+    if (active) return res.json(await buildRoundResponse(active));
 
-    if (activeRounds.length > 0) {
-      return res.json(await buildRoundResponse(activeRounds[0]));
-    }
+    const upcoming = rounds.find((r) => r.status === "upcoming");
+    if (upcoming) return res.json(await buildRoundResponse(upcoming));
 
-    // No active round: check for the nearest upcoming round
-    const upcomingRounds = await db
-      .select()
-      .from(leagueRoundsTable)
-      .where(and(
-        eq(leagueRoundsTable.leagueId, leagueId),
-        eq(leagueRoundsTable.status, "upcoming")
-      ))
-      .orderBy(asc(leagueRoundsTable.roundNumber))
-      .limit(1);
-
-    if (upcomingRounds.length > 0) {
-      return res.json(await buildRoundResponse(upcomingRounds[0]));
-    }
-
-    // Fall back: most recent round if it still has unscheduled matches
-    const recentRounds = await db
-      .select()
-      .from(leagueRoundsTable)
-      .where(eq(leagueRoundsTable.leagueId, leagueId))
-      .orderBy(desc(leagueRoundsTable.roundNumber))
-      .limit(1);
-
-    if (!recentRounds.length) return res.json(null);
-
-    const roundResponse = await buildRoundResponse(recentRounds[0]);
-    const hasUnscheduled = roundResponse.matchups.some(
-      (m) => m.status !== "completed" && !m.scheduledAt
-    );
-    if (!hasUnscheduled) return res.json(null);
-
-    return res.json(roundResponse);
+    const latest = rounds.at(-1);
+    if (!latest) return res.json(null);
+    const roundResponse = await buildRoundResponse(latest);
+    const hasUnscheduled = roundResponse.matchups.some((m) => m.status !== "completed" && !m.scheduledAt);
+    return res.json(hasUnscheduled ? roundResponse : null);
   } catch (err: any) {
     logger.error({ err }, "Failed to fetch current round");
     return res.status(500).json({ error: "Failed to fetch current round" });
   }
 });
 
-router.get("/leagues/:leagueId/rounds", requireAuth, async (req, res) => {
+/**
+ * Every round of the league, in order. Reading never creates or re-pairs
+ * rounds: only the 7am league job (services/leagueRounds.ts), the legacy
+ * scheduler job, and an admin's own actions do.
+ */
+router.get("/leagues/:leagueId/rounds", requireLeagueViewer, async (req, res) => {
   try {
-    const leagueId = parseInt(String(req.params.leagueId));
-    if (isNaN(leagueId)) return res.status(400).json({ error: "Invalid league ID" });
-
-    // Auto-generate any missing rounds so all 6 exist without requiring admin action
-    const existing = await db
-      .select()
-      .from(leagueRoundsTable)
-      .where(eq(leagueRoundsTable.leagueId, leagueId));
-
-    // Leagues on the weekly loop (services/leagueRounds.ts) never get legacy rounds.
-    const [leagueRow] = await db.select({ seasonWeeks: leaguesTable.seasonWeeks }).from(leaguesTable).where(eq(leaguesTable.id, leagueId));
-    if (existing.length < 6 && !leagueRow?.seasonWeeks) {
-      try {
-        await generateAllRounds(leagueId, 6);
-      } catch (genErr) {
-        logger.warn({ genErr }, "Auto-generation of rounds failed; returning existing rounds");
-      }
-    }
-
-    const rounds = await db
-      .select()
-      .from(leagueRoundsTable)
-      .where(eq(leagueRoundsTable.leagueId, leagueId))
-      .orderBy(asc(leagueRoundsTable.roundNumber));
-
-    let results = await Promise.all(rounds.map(buildRoundResponse));
-
-    // Auto-fix duplicate pairings in upcoming rounds (legacy greedy-algorithm data).
-    // Only treat a duplicate as a problem when it falls within the rounds that can
-    // theoretically be unique (rounds 1 … numPlayers-1 with circle method). Later
-    // rounds for small leagues necessarily repeat and should be left alone.
-    const upcomingResults = results.filter((r) => r.status === "upcoming");
-    if (upcomingResults.length > 0) {
-      // Derive player count from matchup data already available
-      const allPlayerIds = new Set<number>();
-      for (const r of results) {
-        for (const m of r.matchups) {
-          allPlayerIds.add(m.player1Id);
-          allPlayerIds.add(m.player2Id);
-        }
-      }
-      const numPlayers = allPlayerIds.size;
-      // Circle method guarantees numPlayers-1 unique rounds; repeats beyond that are unavoidable
-      const maxUniqueRounds = Math.max(0, numPlayers - 1);
-
-      const seenPairs = new Set<string>();
-      let hasDuplicates = false;
-
-      for (let i = 0; i < results.length; i++) {
-        const r = results[i];
-        for (const m of r.matchups) {
-          const key = [m.player1Id, m.player2Id].sort().join("-");
-          if (r.status === "upcoming" && i < maxUniqueRounds && seenPairs.has(key)) {
-            hasDuplicates = true;
-            break;
-          }
-          seenPairs.add(key);
-        }
-        if (hasDuplicates) break;
-      }
-
-      if (hasDuplicates) {
-        logger.info({ leagueId }, "Duplicate round pairings detected — auto-regenerating upcoming rounds");
-        const upcomingIds = upcomingResults.map((r) => r.roundId);
-        await db.delete(matchesTable).where(
-          and(eq(matchesTable.leagueId, leagueId), inArray(matchesTable.roundId as any, upcomingIds))
-        );
-        await db.delete(leagueRoundsTable).where(inArray(leagueRoundsTable.id, upcomingIds));
-        await generateAllRounds(leagueId, 6);
-
-        const fixedRounds = await db
-          .select()
-          .from(leagueRoundsTable)
-          .where(eq(leagueRoundsTable.leagueId, leagueId))
-          .orderBy(asc(leagueRoundsTable.roundNumber));
-        results = await Promise.all(fixedRounds.map(buildRoundResponse));
-      }
-    }
-
-    return res.json(results);
+    const leagueId = res.locals.leagueId as number;
+    const rounds = await roundsFor(req, leagueId);
+    return res.json(await Promise.all(rounds.map(buildRoundResponse)));
   } catch (err: any) {
     logger.error({ err }, "Failed to fetch rounds");
     return res.status(500).json({ error: "Failed to fetch rounds" });

@@ -1,6 +1,7 @@
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { getAuth } from "@clerk/express";
 import {
+  ballBoiSessionsTable,
   db,
   matchesTable,
   matchInvitesTable,
@@ -11,7 +12,9 @@ import {
 import { and, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import pino from "pino";
 import { blockedAccountsFor } from "../lib/blocks";
+import { DrizzlePlayerSearchRepo } from "../lib/playerSearchRepo";
 import { flipScore, inviteUrl, newInviteCode, parseQuickMatch, parseSideScore, pickableOpponents } from "../lib/quickMatch";
+import { createStrangerQuickMatch, markRequestYes, quickMatchStranger, requestForCode } from "../services/push/opponentRequests";
 
 // Quick match: record a casual hit or a match outside a league, against a
 // league mate, a past opponent, or someone not on Ball Boi yet (a
@@ -79,6 +82,29 @@ router.get("/recording/opponents", requireAuth, async (req: Request, res: Respon
   }
 });
 
+const playerSearch = new DrizzlePlayerSearchRepo();
+
+/**
+ * Someone picked from player search (findings #15 and #18), by users.id:
+ * anyone findable, or a league mate or past opponent, never blocked either
+ * way. Uses their league-free player row, making one if they have none, so a
+ * casual match never lands on a league roster row it doesn't need.
+ */
+async function searchedOpponent(me: string, userId: number): Promise<{ playerId: number; name: string; clerkUserId: string } | null> {
+  let found = await playerSearch.findableUser(me, userId);
+  if (!found) {
+    const [connected, blocked] = await Promise.all([playerSearch.connected(me), playerSearch.blocked(me)]);
+    found = connected.find((c) => c.userId === userId && c.clerkUserId !== me && !blocked.has(c.clerkUserId)) ?? null;
+  }
+  if (!found) return null;
+  if (found.playerId != null) return { playerId: found.playerId, name: found.name, clerkUserId: found.clerkUserId };
+  const [created] = await db
+    .insert(playersTable)
+    .values({ name: found.name, clerkUserId: found.clerkUserId })
+    .returning({ id: playersTable.id });
+  return { playerId: created.id, name: found.name, clerkUserId: found.clerkUserId };
+}
+
 /** The caller's player row for a Quick match: an existing one, or a new one. */
 async function myPlayerId(userId: string): Promise<{ id: number; name: string }> {
   const rows = await db
@@ -96,7 +122,7 @@ async function myPlayerId(userId: string): Promise<{ id: number; name: string }>
 }
 
 /**
- * POST /recording/quick-matches { format, opponentPlayerId } or { format, opponentName }
+ * POST /recording/quick-matches { format, opponentPlayerId }, { format, opponentUserId } or { format, opponentName }
  * Creates a match outside any league, starting now. A typed name becomes a
  * placeholder player with an invite link. Returns the match and the link.
  */
@@ -116,6 +142,33 @@ router.post("/recording/quick-matches", requireAuth, async (req: Request, res: R
       const opponent = allowed.find((o) => o.playerId === parsed.opponentPlayerId);
       if (!opponent) {
         res.status(404).json({ error: "Pick someone from your leagues or past matches." });
+        return;
+      }
+      const [match] = await db
+        .insert(matchesTable)
+        .values({ player1Id: me.id, player2Id: opponent.playerId, scheduledAt: now, status: "scheduled", generatedFrom: "quick_match" })
+        .returning({ id: matchesTable.id });
+      res.status(201).json({ matchId: match.id, opponentName: opponent.name, invite: null });
+      return;
+    }
+
+    if (parsed.opponentUserId != null) {
+      const opponent = await searchedOpponent(userId, parsed.opponentUserId);
+      if (!opponent) {
+        res.status(404).json({ error: "This player isn't available. Search again, or add someone not on Ball Boi." });
+        return;
+      }
+      // Someone you've never played, shared a league or a match card with:
+      // "Was that you?" before the match links to them (decision 124).
+      if (await quickMatchStranger(userId, opponent.clerkUserId)) {
+        const made = await createStrangerQuickMatch({
+          recorderId: userId,
+          recorderPlayerId: me.id,
+          opponentClerkUserId: opponent.clerkUserId,
+          opponentName: opponent.name,
+          scheduledAt: now,
+        });
+        res.status(201).json({ matchId: made.matchId, opponentName: opponent.name, invite: null });
         return;
       }
       const [match] = await db
@@ -216,6 +269,61 @@ router.post("/recording/quick-matches/:matchId/score", requireAuth, async (req: 
 });
 
 /**
+ * POST /recording/quick-matches/:matchId/abandon
+ * Leaving a Quick match before recording it: closing the invite screen or
+ * the camera (John's decision Q18). The match only existed for that
+ * recording, so it goes, with its placeholder opponent and invite. Only the
+ * player who started it can, and only while nothing is recorded or scored.
+ */
+router.post("/recording/quick-matches/:matchId/abandon", requireAuth, async (req: Request, res: Response) => {
+  const userId = getAuth(req).userId!;
+  const matchId = Number(req.params.matchId);
+  if (!Number.isInteger(matchId) || matchId <= 0) {
+    res.status(400).json({ error: "Invalid match id" });
+    return;
+  }
+  try {
+    const [match] = await db.select().from(matchesTable).where(eq(matchesTable.id, matchId));
+    if (!match) {
+      res.json({ removed: true });
+      return;
+    }
+    if (match.leagueId != null || match.generatedFrom !== "quick_match") {
+      res.status(409).json({ error: "Only a Quick match can be removed this way." });
+      return;
+    }
+    const mine = await db.select({ id: playersTable.id }).from(playersTable).where(eq(playersTable.clerkUserId, userId));
+    if (!mine.some((p) => p.id === match.player1Id)) {
+      res.status(403).json({ error: "Only the player who started this match can remove it." });
+      return;
+    }
+    const [sessions, invites] = await Promise.all([
+      db.select({ id: ballBoiSessionsTable.id }).from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.matchId, matchId)),
+      db
+        .select({ placeholderPlayerId: matchInvitesTable.placeholderPlayerId })
+        .from(matchInvitesTable)
+        .where(and(eq(matchInvitesTable.matchId, matchId), isNull(matchInvitesTable.claimedByClerkUserId))),
+    ]);
+    if (match.score || match.status === "completed" || sessions.length > 0) {
+      res.status(409).json({ error: "This match has a recording or a score, so it stays." });
+      return;
+    }
+    await db.transaction(async (tx) => {
+      await tx.delete(matchesTable).where(eq(matchesTable.id, matchId));
+      const placeholder = invites[0]?.placeholderPlayerId;
+      // The placeholder existed only for this match; its invite goes with the match.
+      if (placeholder != null) {
+        await tx.delete(playersTable).where(and(eq(playersTable.id, placeholder), isNull(playersTable.clerkUserId)));
+      }
+    });
+    res.json({ removed: true });
+  } catch (err) {
+    logger.error({ err }, "Failed to remove an abandoned Quick match");
+    res.status(500).json({ error: "Couldn't remove the match." });
+  }
+});
+
+/**
  * GET /recording/invites/:code
  * What the person opening an invite link sees: who recorded the match, when,
  * and the name they were entered under.
@@ -225,6 +333,12 @@ router.get("/recording/invites/:code", requireAuth, async (req: Request, res: Re
   try {
     const [invite] = await db.select().from(matchInvitesTable).where(eq(matchInvitesTable.code, code));
     if (!invite) {
+      res.status(404).json({ error: "This invite link isn't valid." });
+      return;
+    }
+    // "Was that you?" (decision 124): only the person it was sent to can open it.
+    const request = await requestForCode(code);
+    if (request && request.opponentClerkUserId !== getAuth(req).userId) {
       res.status(404).json({ error: "This invite link isn't valid." });
       return;
     }
@@ -243,6 +357,7 @@ router.get("/recording/invites/:code", requireAuth, async (req: Request, res: Re
       claimed: invite.claimedByClerkUserId != null,
       claimedByYou: invite.claimedByClerkUserId === getAuth(req).userId,
       isYourInvite: invite.createdByClerkUserId === getAuth(req).userId,
+      wasThatYou: request ? request.status : null,
     });
   } catch (err) {
     logger.error({ err }, "Failed to read a match invite");
@@ -273,6 +388,16 @@ router.post("/recording/invites/:code/claim", requireAuth, async (req: Request, 
       res.status(400).json({ error: "This is your own invite. Send it to the player you recorded." });
       return;
     }
+    // "Was that you?": only its person can say Yes, and not after Not me.
+    const request = await requestForCode(code);
+    if (request && request.opponentClerkUserId !== userId) {
+      res.status(404).json({ error: "This invite link isn't valid." });
+      return;
+    }
+    if (request?.status === "not_me") {
+      res.status(409).json({ error: "You said this wasn't you, so it isn't on your profile." });
+      return;
+    }
     const [user] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.clerkUserId, userId));
     const claimed = await db.transaction(async (tx) => {
       // Only the first person to open the link gets the match.
@@ -290,6 +415,7 @@ router.post("/recording/invites/:code/claim", requireAuth, async (req: Request, 
         .insert(recordingConsentTable)
         .values({ clerkUserId: userId, trainingEnabled })
         .onConflictDoUpdate({ target: recordingConsentTable.clerkUserId, set: { trainingEnabled, updatedAt: new Date() } });
+      if (request) await markRequestYes(tx, code);
       return row;
     });
     if (!claimed) {

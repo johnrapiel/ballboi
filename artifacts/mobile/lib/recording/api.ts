@@ -15,6 +15,10 @@ export interface RecordableMatch {
   format: "singles" | "doubles";
   opponentName: string;
   partnerName: string | null;
+  /** Last day to play a league round match (YYYY-MM-DD, league time zone). */
+  playBy?: string | null;
+  /** The league's time zone, for playBy. */
+  timeZone?: string | null;
 }
 
 /** Start and end of the phone's local day. */
@@ -26,7 +30,11 @@ export function localDay(now = new Date()): { from: Date; to: Date } {
 
 export const todaysMatchesKey = ["recording", "todays-matches"] as const;
 
-/** The signed-in player's unplayed matches today, earliest first. */
+/**
+ * What the signed-in player can record now: every unplayed league match this
+ * week (grace week included) and today's Quick matches. A match with a set
+ * time today comes first.
+ */
 export function useTodaysMatches() {
   const { getToken } = useAuth();
   return useQuery({
@@ -41,12 +49,14 @@ export function useTodaysMatches() {
   });
 }
 
-/** "6:00 PM", or null when there's no time. */
-export function matchTime(scheduledAt: string | null): string | null {
+/** "6:00 PM" today, "Thu 6:00 PM" another day, or null when there's no time. */
+export function matchTime(scheduledAt: string | null, now: Date = new Date()): string | null {
   if (!scheduledAt) return null;
   const d = new Date(scheduledAt);
   if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  if (d.toDateString() === now.toDateString()) return time;
+  return `${d.toLocaleDateString("en-US", { weekday: "short" })} ${time}`;
 }
 
 /** Shown wherever Ball Boi is unavailable on a doubles match (spec wording). */
@@ -70,10 +80,22 @@ export type RecordingStage = "uploading" | "analyzing" | "ready" | "failed";
 export interface ServerRecording {
   sessionId: number;
   matchId: number;
+  /** The match's league, or null for a Quick match. */
+  leagueId: number | null;
   opponentName: string;
+  /** When the match was recorded (not when it uploaded). */
   recordedAt: string;
   stage: RecordingStage;
   scoreEntered: boolean;
+  /** You recorded it (the opponent and a claimed placeholder see it too). */
+  recordedByYou: boolean;
+  /** Short reason when analysis failed, like "We couldn't see the court." */
+  failedReason: string | null;
+  /**
+   * Analyzing or done, but no stat has passed its accuracy bar yet (B5): the
+   * card reads "Uploaded" with a thank-you. Older servers don't send it.
+   */
+  stillLearning?: boolean;
 }
 
 export const recordingsKey = ["recording", "sessions"] as const;
@@ -93,20 +115,50 @@ export function useServerRecordings() {
   });
 }
 
-/** "Today", "Yesterday", or "Oct 21". */
-export function recordedDay(iso: string, now = new Date()): string {
-  const d = new Date(iso);
-  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-  const diff = Math.round((day(now) - day(d)) / 86_400_000);
-  if (diff === 0) return "Today";
-  if (diff === 1) return "Yesterday";
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+export { recordedDay } from "@/lib/recording/days";
+
+export interface MatchFilming {
+  /** The opponent isn't on Ball Boi: the recorder confirms they agreed to be filmed (B10). */
+  needsOpponentAgreement: boolean;
+  opponentName: string | null;
+}
+
+/** Before the camera opens: does this match need "[Name] agreed to be filmed."? */
+export function useMatchFilming(matchId: number) {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ["recording", "filming", matchId],
+    enabled: Number.isInteger(matchId) && matchId > 0,
+    queryFn: async (): Promise<MatchFilming> => {
+      const res = await apiFetch(`/api/recording/matches/${matchId}/filming`, getToken);
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't load this match."));
+      return (await res.json()) as MatchFilming;
+    },
+  });
+}
+
+/** The opponent checkbox on the ready screen (section 3 copy). */
+export function opponentAgreedLabel(name: string | null): string {
+  return `${name?.trim() || "Your opponent"} agreed to be filmed.`;
 }
 
 export interface RecordingConsent {
   consented: boolean;
   consentedAt: string | null;
   trainingEnabled: boolean;
+  /**
+   * The Beta Footage Release (B9). Only asked for while the beta backend's
+   * setting is on; `needed` means show the checkbox, unchecked. Older servers
+   * don't send it.
+   */
+  release?: {
+    required: boolean;
+    version: number;
+    url: string;
+    agreedVersion: number | null;
+    agreedAt: string | null;
+    needed: boolean;
+  };
 }
 
 export const consentKey = ["recording", "consent"] as const;
@@ -125,14 +177,19 @@ export function useRecordingConsent() {
   });
 }
 
-/** Saves the first-recording screen's answer. */
+/**
+ * Saves the "Your choices" page. `releaseVersion` is the release version the
+ * person just agreed to by checking the box; leave it out when the release
+ * isn't asked for.
+ */
 export async function saveRecordingConsent(
   trainingEnabled: boolean,
   getToken: () => Promise<string | null>,
+  releaseVersion?: number,
 ): Promise<RecordingConsent> {
   const res = await apiFetch("/api/recording/consent", getToken, {
     method: "POST",
-    body: JSON.stringify({ trainingEnabled }),
+    body: JSON.stringify(releaseVersion != null ? { trainingEnabled, releaseVersion } : { trainingEnabled }),
   });
   if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't save your choice. Try again."));
   return (await res.json()) as RecordingConsent;
@@ -180,7 +237,7 @@ export interface QuickMatchCreated {
 }
 
 export async function createQuickMatch(
-  opponent: { opponentPlayerId: number } | { opponentName: string },
+  opponent: { opponentPlayerId: number } | { opponentUserId: number } | { opponentName: string },
   getToken: () => Promise<string | null>,
 ): Promise<QuickMatchCreated> {
   const res = await apiFetch("/api/recording/quick-matches", getToken, {
@@ -198,7 +255,19 @@ export interface MatchInvite {
   recordedAt: string;
   claimed: boolean;
   claimedByYou: boolean;
+  /** A "Was that you?" request for you (decision 124), or null for an ordinary invite link. */
+  wasThatYou?: "pending" | "yes" | "not_me" | null;
   isYourInvite: boolean;
+}
+
+/** A refused invite lookup. Only a 404 means the link itself doesn't work. */
+export class InviteError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
 }
 
 export function useMatchInvite(code: string, enabled: boolean) {
@@ -208,7 +277,7 @@ export function useMatchInvite(code: string, enabled: boolean) {
     enabled,
     queryFn: async (): Promise<MatchInvite> => {
       const res = await apiFetch(`/api/recording/invites/${encodeURIComponent(code)}`, getToken);
-      if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't load this invite."));
+      if (!res.ok) throw new InviteError(await apiErrorMessage(res, "Couldn't load this invite."), res.status);
       return (await res.json()) as MatchInvite;
     },
   });
@@ -313,4 +382,33 @@ export async function discardOnServer(
     await apiErrorMessage(res, "Couldn't discard the recording. Try again."),
     res.status === 409,
   );
+}
+
+/**
+ * Remove on a recording card (Q16 failed analysis, D18 didn't upload). The
+ * recorder's Remove deletes the recording for everyone, files included, and a
+ * Quick match against an unclaimed placeholder with it. Anyone else's Remove
+ * takes the card off their own list only.
+ */
+export async function removeRecording(
+  sessionId: number,
+  getToken: () => Promise<string | null>,
+): Promise<{ removed: boolean; matchRemoved: boolean }> {
+  const res = await apiFetch(`/api/recording/sessions/${sessionId}/remove`, getToken, { method: "POST", body: "{}" });
+  if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't remove it. Try again."));
+  const body = (await res.json().catch(() => ({}))) as { removed?: boolean; matchRemoved?: boolean };
+  return { removed: body.removed !== false, matchRemoved: !!body.matchRemoved };
+}
+
+/**
+ * A Quick match closed before anything was recorded (Q18): removes it, so it
+ * doesn't linger under Record a match. Best effort; the server refuses if the
+ * match has a recording or a score.
+ */
+export async function abandonQuickMatch(matchId: number, getToken: () => Promise<string | null>): Promise<void> {
+  try {
+    await apiFetch(`/api/recording/quick-matches/${matchId}/abandon`, getToken, { method: "POST", body: "{}" });
+  } catch {
+    // Offline: it stays listed until the player records or discards it.
+  }
 }

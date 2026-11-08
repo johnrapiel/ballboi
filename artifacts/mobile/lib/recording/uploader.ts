@@ -2,9 +2,9 @@
 //
 // - Wi-Fi by default; cellular only when the setting is on, or for one
 //   recording when someone taps "Upload now on cellular".
-// - Each file goes up in an iOS background URL session, so it keeps going
-//   when the app is put away. If the app is closed mid-upload, it starts over
-//   the next time the app opens.
+// - Each part goes up in an iOS background URL session, so it keeps going
+//   when the app is put away. If the app is closed mid-upload, it picks up
+//   from the parts storage doesn't have yet the next time the app opens.
 // - The file is deleted only after the server confirms.
 
 import { useAuth } from "@clerk/expo";
@@ -16,8 +16,14 @@ import { AppState } from "react-native";
 import { discardOnServer, DiscardError } from "@/lib/recording/api";
 import { deleteRecording, recordingExists } from "@/lib/recording/files";
 import { loadUploadOnCellular } from "@/lib/recording/prefs";
-import { getQueue, loadQueue, removeQueued, updateQueued, type QueuedRecording } from "@/lib/recording/queue";
+import { clearQueue, getQueue, loadQueue, removeQueued, updateQueued, type QueuedRecording } from "@/lib/recording/queue";
+import { recordingFiles } from "@/lib/recording/segments";
 import { ensureSession, uploadRecording } from "@/lib/recording/upload";
+
+/** Deletes every file of a recording from the phone. */
+export function deleteRecordingFiles(rec: Pick<QueuedRecording, "uri" | "segments">) {
+  for (const uri of recordingFiles(rec)) deleteRecording(uri);
+}
 
 export type Connection = "wifi" | "cellular" | "none";
 
@@ -51,7 +57,7 @@ const discarding = new Set<string>();
 
 let running = false;
 let again = false;
-let onUploaded: (() => void) | null = null;
+let onUploaded: (() => Promise<unknown>) | null = null;
 
 /** Uploads everything that can go now. Safe to call any time; overlapping calls merge. */
 export async function drainQueue(): Promise<void> {
@@ -67,12 +73,18 @@ export async function drainQueue(): Promise<void> {
       const cellularOn = await loadUploadOnCellular();
       for (const rec of getQueue()) {
         if (rec.state === "uploading" || discarding.has(rec.id)) continue;
+        // The player is still fixing the court lines for this match.
+        if (rec.courtLinesPending) continue;
+        // Cleared meanwhile (sign-out or Delete account).
+        if (!getQueue().some((r) => r.id === rec.id)) continue;
         // A failed upload tries again on the next trigger (Wi-Fi back, app reopened), not in a tight loop.
         if (rec.state === "failed" && rec.failedAt && Date.now() - new Date(rec.failedAt).getTime() < RETRY_AFTER_MS) {
           continue;
         }
-        if (!recordingExists(rec.uri)) {
-          // The file is gone (deleted outside the app); nothing left to send.
+        if (!recordingFiles(rec).every(recordingExists)) {
+          // A file is gone (deleted outside the app); the match can't be sent whole.
+          // A server session for it then shows as "Didn't upload" with Remove (D18).
+          deleteRecordingFiles(rec);
           await removeQueued(rec.id);
           continue;
         }
@@ -104,9 +116,11 @@ async function uploadWith(rec: QueuedRecording, signal: AbortSignal) {
     if (sessionId !== rec.sessionId) await updateQueued(rec.id, { sessionId });
     if (signal.aborted) return;
     await uploadRecording({ ...rec, sessionId }, signal);
+    // Refresh the server list first, so its card never shows a stale
+    // "still waiting for the video" once the phone's card goes (D18).
+    await onUploaded?.().catch(() => {});
     await removeQueued(rec.id);
-    deleteRecording(rec.uri);
-    onUploaded?.();
+    deleteRecordingFiles(rec);
   } catch (e) {
     // A discard stopped it on purpose; Discard decides what happens next.
     if (signal.aborted || discarding.has(rec.id)) return;
@@ -144,7 +158,7 @@ export async function discardQueued(
     if (!rec) return { matchRemoved: false }; // It finished uploading first; the server card takes over.
     const result = await discardOnServer(rec.matchId, rec.sessionId ?? null, getToken);
     await removeQueued(id);
-    deleteRecording(rec.uri);
+    deleteRecordingFiles(rec);
     onUploaded?.();
     return result;
   } catch (e) {
@@ -152,7 +166,7 @@ export async function discardQueued(
       // The server has it: the phone's copy is done, and the server card takes over.
       const rec = getQueue().find((r) => r.id === id);
       await removeQueued(id);
-      if (rec) deleteRecording(rec.uri);
+      if (rec) deleteRecordingFiles(rec);
       onUploaded?.();
     } else {
       await updateQueued(id, { state: "waiting", error: undefined, failedAt: undefined });
@@ -161,6 +175,17 @@ export async function discardQueued(
   } finally {
     discarding.delete(id);
   }
+}
+
+/**
+ * Sign-out and Delete account (Wave 1 review A10): stops any upload, then
+ * removes every recording waiting on this phone, files included, so nothing
+ * from that account stays on the phone or uploads later.
+ */
+export async function clearUploadQueue(): Promise<void> {
+  for (const { abort } of inFlight.values()) abort.abort();
+  const removed = await clearQueue();
+  for (const rec of removed) deleteRecordingFiles(rec);
 }
 
 /** "Upload now on cellular" for one recording. */

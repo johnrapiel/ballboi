@@ -1,9 +1,9 @@
 // Plain words for the Moderation screens.
 
-import { REPORT_REASONS } from "@/hooks/useReportBlock";
+import { REPORT_REASON_LABELS } from "@/hooks/useReportBlock";
 
 export function reasonLabel(code: string): string {
-  return REPORT_REASONS.find((r) => r.code === code)?.label ?? "Something else";
+  return REPORT_REASON_LABELS.find((r) => r.code === code)?.label ?? "Something else";
 }
 
 /** Who or what filed the report. */
@@ -14,7 +14,7 @@ export function sourceLabel(source: string): string {
     case "stream":
       return "Flagged by message screening";
     case "auto":
-      return "Flagged by auto-restrict";
+      return "Flagged automatically";
     case "appeal":
       return "Appeal";
     default:

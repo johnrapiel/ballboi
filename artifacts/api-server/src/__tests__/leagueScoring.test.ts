@@ -35,10 +35,10 @@ describe("checkScoreEntry", () => {
     if (!r.ok) expect(r.error).toMatch(/grace week .* ended/);
   });
 
-  it("keeps the first score: no second entry", () => {
+  it("refuses a second entry: the score is edited instead", () => {
     const r = checkScoreEntry({ match: { ...match, status: "completed" }, round, today: "2026-11-08", callerPlayerIds: [2] });
     expect(r).toMatchObject({ ok: false, status: 409 });
-    if (!r.ok) expect(r.error).toMatch(/first score entered stands/);
+    if (!r.ok) expect(r.error).toMatch(/edit it from the match for 24 hours/);
   });
 
   it("only lets the match's own players enter it", () => {

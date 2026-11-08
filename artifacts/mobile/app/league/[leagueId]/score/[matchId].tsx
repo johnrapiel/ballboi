@@ -1,138 +1,161 @@
 import * as Haptics from "expo-haptics";
-import { router, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { AccessibilityInfo, Alert, Pressable, ScrollView, TextInput, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AccessibilityInfo, ActivityIndicator, Alert, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
   getGetLeagueScheduleQueryKey,
-  getGetLeagueStandingsQueryKey,
-  getGetLeaguesQueryKey,
+  getGetMyMatchQueryKey,
   useCorrectLeagueScore,
+  useEditLeagueScore,
   useEnterLeagueScore,
-  getGetLeagueBracketQueryKey,
+  useGetLeague,
   useGetLeagueBracket,
   useGetLeagueMembership,
   useGetLeagueSchedule,
+  useSettlePlayoffMatch,
 } from "@workspace/api-client-react";
 
-import { Button, Text } from "@/components/ui";
-import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
+import { ScoreGrid, ScoreResult } from "@/components/league/ScoreGrid";
+import { SheetBody, useSheetClose } from "@/components/Sheet";
+import { Button, Card, Text, TextButton } from "@/components/ui";
+import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { correctionLine, opponentName, shortDate } from "@/lib/leagueSchedule";
+import { correctionLine, deadlineDate, opponentName } from "@/lib/leagueSchedule";
+import { refreshLeague } from "@/lib/leagueRefresh";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
-import { emptySet, isTiebreakSet, readScore, setsFromScore, type SetEntry } from "@/lib/scoreEntry";
+import { emptySet, readScore, setRowsToShow, setsFromScore, type SetEntry } from "@/lib/scoreEntry";
+import { scoreNote } from "@/lib/playoffView";
+import { flipScore, isRetiredScore } from "@/lib/tennisScore";
 
-// Enter score (spec: Leagues > Scores and standings; canvas: Log result).
-// Either player enters it, from their own side. The player who entered it can
-// undo it for 10 minutes (C4); after that the first score stands.
+// Enter score (spec: Leagues > Scores and standings; approved canvas: Enter
+// score, a bottom sheet with no Cancel: drag down to close, and it asks before
+// discarding typed scores). Either player enters it, from their own side.
+// Only real tennis scores save (C10): the third set opens only at one set all,
+// and a set typed 6-6 asks for its tiebreak (finding 5). "Opponent retired" saves
+// the sets so far as your win, shown as RET (Q6). Either player can edit the
+// score for 24 hours after it's entered, with no countdown or Undo banner
+// (finding 7, Nov 6); after that only the admin can correct it.
+//
+// With ?edit=1 it's that 24-hour edit, opened from the pencil on Match
+// detail: the boxes start with the score as it stands, from your side, and
+// saving updates it. The other player sees "Score edited by {name}".
 //
 // With ?correct=1 it's the admin's correction from Manage (C5): the boxes
 // start with the score as it stands, from player 1's side, and saving asks
 // to confirm. The match then shows "Corrected by {admin} on {date}".
+//
+// With ?settle=1 it's the admin entering the result of a playoff match after
+// its play-by date (Q5b), from player 1's side.
 
-function ScoreBox({
-  value,
-  onChange,
-  label,
-  size = 58,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  label: string;
-  size?: number;
-}) {
-  const c = useColors();
-  return (
-    <TextInput
-      value={value}
-      onChangeText={(t) => onChange(t.replace(/[^0-9]/g, "").slice(0, 2))}
-      keyboardType="number-pad"
-      maxLength={2}
-      accessibilityLabel={label}
-      maxFontSizeMultiplier={1.5}
-      textAlign="center"
-      style={[
-        type.score,
-        {
-          fontSize: size === 58 ? 30 : 24,
-          lineHeight: undefined,
-          minWidth: size,
-          minHeight: Math.max(MIN_TAP, size),
-          paddingHorizontal: spacing.space1,
-          borderRadius: radius.radiusSm,
-          borderWidth: 1,
-          borderColor: c.hairlineStrong,
-          backgroundColor: c.linen,
-          color: c.ink,
-        },
-      ]}
-    />
-  );
+/** Drops the third set's boxes whenever the sheet no longer shows them. */
+function keepShownSets(sets: SetEntry[]): SetEntry[] {
+  return setRowsToShow(sets) === 3 ? sets : sets.map((s, i) => (i === 2 ? emptySet() : s));
 }
+
 
 export default function EnterScoreScreen() {
   const c = useColors();
-  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const { leagueId: rawLeague, matchId: rawMatch, correct } = useLocalSearchParams<{ leagueId: string; matchId: string; correct?: string }>();
+  const { leagueId: rawLeague, matchId: rawMatch, correct, settle, edit } = useLocalSearchParams<{
+    leagueId: string;
+    matchId: string;
+    correct?: string;
+    settle?: string;
+    edit?: string;
+  }>();
   const leagueId = Number(rawLeague);
   const matchId = Number(rawMatch);
   const correcting = correct === "1";
+  const settling = settle === "1" && !correcting;
+  const editing = edit === "1" && !correcting && !settling;
+  // Admins enter corrections and results from player 1's side.
+  const asAdmin = correcting || settling;
 
+  const leagueQ = useGetLeague(leagueId);
   const scheduleQ = useGetLeagueSchedule(leagueId);
   const membershipQ = useGetLeagueMembership(leagueId);
   const myPlayerId = membershipQ.data?.playerId ?? null;
   const bracketQ = useGetLeagueBracket(leagueId);
   const round = scheduleQ.data?.rounds.find((r) => r.matches.some((m) => m.matchId === matchId));
   const weekly = round?.matches.find((m) => m.matchId === matchId);
-  const playoffSlot = bracketQ.data?.rounds.flatMap((r) => r.slots).find((s) => s.matchId === matchId);
+  const playoffRound = bracketQ.data?.rounds.find((r) => r.slots.some((s) => s.matchId === matchId));
+  const playoffSlot = playoffRound?.slots.find((s) => s.matchId === matchId);
   const playoffOpponent = playoffSlot
     ? playoffSlot.player1?.playerId === myPlayerId
       ? playoffSlot.player2?.playerName
       : playoffSlot.player1?.playerName
     : undefined;
   const match = weekly ?? (playoffSlot ? { matchId } : undefined);
-  const opponent = correcting
+  const ended = !!leagueQ.data?.endedAt || leagueQ.data?.status === "completed";
+  // Q5b: after a playoff round's play-by date, the admin enters the result.
+  const pastPlayBy = !asAdmin && !!playoffRound?.pastPlayBy;
+  const opponent = asAdmin
     ? weekly?.player2Name ?? playoffSlot?.player2?.playerName ?? "Player 2"
     : weekly && myPlayerId != null
       ? opponentName(weekly, myPlayerId)
       : playoffOpponent ?? "your opponent";
   const opponentShort = opponent.split(" ")[0];
-  // Correcting: the first row is player 1, the second player 2.
-  const firstName = correcting ? weekly?.player1Name ?? playoffSlot?.player1?.playerName ?? "Player 1" : "You";
+  // Admin: the first row is player 1, the second player 2.
+  const firstName = asAdmin ? weekly?.player1Name ?? playoffSlot?.player1?.playerName ?? "Player 1" : "You";
   const currentScore = weekly?.score ?? playoffSlot?.score ?? null;
+  // Stored from player 1's side; an edit starts from yours.
+  const onSecondSide =
+    myPlayerId != null && (weekly ? weekly.player2Id === myPlayerId : playoffSlot?.player2?.playerId === myPlayerId);
+  const myCurrentScore = currentScore && onSecondSide ? flipScore(currentScore) : currentScore;
   const firstShort = firstName.split(" ")[0];
 
   const [sets, setSets] = useState<SetEntry[]>([emptySet(), emptySet(), emptySet()]);
+  const [retired, setRetired] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
+  const [touched, setTouched] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const draft = readScore(sets);
+  const draft = readScore(sets, { retired: retired && !asAdmin });
+  const rows = setRowsToShow(sets);
   const save = useEnterLeagueScore();
   const fix = useCorrectLeagueScore();
-  const busy = save.isPending || fix.isPending;
+  const result = useSettlePlayoffMatch();
+  const change = useEditLeagueScore();
+  const busy = save.isPending || fix.isPending || result.isPending || change.isPending;
+  // The bottom sheet rule: closing asks before it discards typed scores.
+  const sheet = useSheetClose(touched && !busy);
 
-  // Correcting starts from the score as it stands.
+  // Correcting and editing start from the score as it stands.
   useEffect(() => {
     if (correcting && !prefilled && currentScore) {
-      setSets(setsFromScore(currentScore, 3));
+      setSets(keepShownSets(setsFromScore(currentScore, 3)));
       setPrefilled(true);
     }
   }, [correcting, prefilled, currentScore]);
+  useEffect(() => {
+    if (editing && !prefilled && myCurrentScore && membershipQ.data) {
+      setSets(keepShownSets(setsFromScore(myCurrentScore, 3)));
+      setRetired(isRetiredScore(myCurrentScore));
+      setPrefilled(true);
+    }
+  }, [editing, prefilled, myCurrentScore, membershipQ.data]);
 
   const update = (i: number, patch: Partial<SetEntry>) => {
     setServerError(null);
-    setSets((prev) => prev.map((s, n) => (n === i ? { ...s, ...patch } : s)));
+    setTouched(true);
+    setSets((prev) => keepShownSets(prev.map((s, n) => (n === i ? { ...s, ...patch } : s))));
   };
 
   function onSave() {
     if (!draft.ok || busy) return;
-    if (!correcting) {
+    if (!asAdmin) {
       void submit();
       return;
     }
     const winner = draft.iWon ? firstName : opponent;
+    if (settling) {
+      Alert.alert("Enter this result?", `${winner} won ${draft.score} and moves on in the playoffs. Both players are told.`, [
+        { text: "Cancel", style: "cancel" },
+        { text: "Enter result", onPress: () => void submit() },
+      ]);
+      return;
+    }
     Alert.alert(
       "Correct this score?",
       `${winner} won ${draft.score}. Standings update, and both players see that you corrected it.`,
@@ -147,16 +170,14 @@ export default function EnterScoreScreen() {
     if (!draft.ok) return;
     try {
       if (correcting) await fix.mutateAsync({ leagueId, matchId, data: { score: draft.score } });
-      else await save.mutateAsync({ leagueId, matchId, data: { score: draft.score } });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: getGetLeagueScheduleQueryKey(leagueId) }),
-        queryClient.invalidateQueries({ queryKey: getGetLeagueBracketQueryKey(leagueId) }),
-        queryClient.invalidateQueries({ queryKey: getGetLeagueStandingsQueryKey(leagueId) }),
-        queryClient.invalidateQueries({ queryKey: getGetLeaguesQueryKey().slice(0, 1) }),
-      ]);
+      else if (editing) await change.mutateAsync({ leagueId, matchId, data: { score: draft.score, ...(retired ? { retired: true } : {}) } });
+      else if (settling) await result.mutateAsync({ leagueId, matchId, data: { score: draft.score } });
+      else await save.mutateAsync({ leagueId, matchId, data: { score: draft.score, ...(retired ? { retired: true } : {}) } });
+      await refreshLeague(queryClient, leagueId);
+      void queryClient.invalidateQueries({ queryKey: getGetMyMatchQueryKey(matchId) });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      AccessibilityInfo.announceForAccessibility(correcting ? "Score corrected" : "Score saved");
-      router.back();
+      AccessibilityInfo.announceForAccessibility(correcting ? "Score corrected" : settling ? "Result entered" : editing ? "Score edited" : "Score saved");
+      sheet.finish();
     } catch (e) {
       const data = (e as { data?: { error?: string } | null }).data;
       setServerError(data?.error ?? "Couldn't save the score. Check your connection and try again.");
@@ -165,42 +186,102 @@ export default function EnterScoreScreen() {
     }
   }
 
-  const summary = draft.ok
-    ? `${draft.iWon ? (correcting ? `${firstShort} won` : "You won") : `${opponentShort} won`} ${draft.score}`
-    : draft.message ?? "Enter the games for each set you played.";
+  // Q6: the opponent stopped mid-match. A quiet link, since it's the one case
+  // the score can't decide. Not for admin corrections.
+  function matchDidntFinish() {
+    Alert.alert(
+      "Match didn't finish?",
+      "If your opponent couldn't continue, enter the games played so far. It counts as your win and shows RET.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "My opponent retired",
+          onPress: () => {
+            setServerError(null);
+            setTouched(true);
+            setRetired(true);
+            AccessibilityInfo.announceForAccessibility("Opponent retired. Enter the games played so far.");
+          },
+        },
+      ],
+    );
+  }
+
+  const title = correcting ? "Correct score" : settling ? "Enter result" : editing ? "Edit score" : "Enter score";
+  const loading = scheduleQ.isLoading || bracketQ.isLoading || leagueQ.isLoading;
+  const loadFailed = scheduleQ.isError || bracketQ.isError || leagueQ.isError;
+  // C25: offline or the request failed, and we don't have the match to show.
+  if (!match) {
+    return (
+      <SheetBody title={title} close={sheet.close}>
+        {loading ? (
+          <ActivityIndicator color={c.ink} accessibilityLabel="Loading match" />
+        ) : (
+          <Card style={{ gap: spacing.space3 }}>
+            <Text variant="bodyStrong">Couldn't load this match</Text>
+            <Text variant="small" tone="inkMuted">
+              {loadFailed ? "Check your connection and try again." : "It may have been cancelled. Try again, or go back to the league."}
+            </Text>
+            <Button
+              label="Try again"
+              variant="secondary"
+              onPress={() => {
+                void leagueQ.refetch();
+                void scheduleQ.refetch();
+                void bracketQ.refetch();
+                void membershipQ.refetch();
+              }}
+            />
+          </Card>
+        )}
+      </SheetBody>
+    );
+  }
+
+  const closedNote = ended
+    ? "This league has ended, so its scores are final."
+    : editing && weekly && !weekly.editUntil
+      ? "It's been more than 24 hours, so this score is locked. Your league admin can correct it in Manage."
+      : editing
+        ? null
+        : pastPlayBy && playoffRound?.playBy
+      ? `The play-by date for this match was ${deadlineDate(playoffRound.playBy, scheduleQ.data?.timeZone)}. Your league admin can enter the result.`
+      : null;
+  const canSave = draft.ok && !closedNote;
+  const note = scoreNote({ correcting, settling, editing, playoffRound: playoffSlot?.round ?? null });
+  const leagueName = leagueQ.data?.name;
+  const meta = [
+    leagueName,
+    round ? `Round ${round.roundNumber}` : playoffSlot ? `Playoffs · ${ROUND_SINGULAR[playoffSlot.round]}` : null,
+    !asAdmin && round && !editing
+      ? `Play by ${deadlineDate(round.deadline, scheduleQ.data?.timeZone)}`
+      : !asAdmin && playoffRound?.playBy && !playoffRound.pastPlayBy
+        ? `Play by ${deadlineDate(playoffRound.playBy, scheduleQ.data?.timeZone)}`
+        : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const winnerLine = draft.ok ? (draft.iWon ? (asAdmin ? `${firstShort} wins` : "You win") : `${opponentShort} wins`) : "";
+  const prompt = retired
+    ? "Enter the games played before your opponent retired."
+    : asAdmin
+      ? `${firstShort}'s games on top. The third set opens if they split the first two.`
+      : "Your games on top. The third set opens if you split the first two.";
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: c.linen }}
-      contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space6, gap: spacing.space4 }}
-      keyboardShouldPersistTaps="handled"
-    >
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Cancel"
-          style={({ pressed }) => ({ minHeight: MIN_TAP, minWidth: MIN_TAP, justifyContent: "center", opacity: pressed ? 0.6 : 1 })}
-        >
-          <Text variant="body">Cancel</Text>
-        </Pressable>
-        <Text variant="bodyStrong" accessibilityRole="header">
-          {correcting ? "Correct score" : "Enter score"}
-        </Text>
-        <View style={{ minWidth: MIN_TAP }} />
-      </View>
-
+    <SheetBody title={title} close={sheet.close}>
       <View style={{ gap: spacing.space1 }}>
-        {round ? (
-          <Text variant="label" tone="inkMuted">
-            {correcting ? `Round ${round.roundNumber}` : `Round ${round.roundNumber} · Play by ${shortDate(round.deadline)}`}
-          </Text>
-        ) : playoffSlot ? (
-          <Text variant="label" tone="inkMuted">
-            {`Playoffs · ${ROUND_SINGULAR[playoffSlot.round]}`}
+        <Text variant="title">{`${firstName} vs. ${opponent}`}</Text>
+        {meta ? (
+          <Text variant="small" tone="inkMuted">
+            {meta}
           </Text>
         ) : null}
-        <Text variant="title">{correcting ? `${firstName} vs. ${opponent}` : `You vs. ${opponent}`}</Text>
+        {editing && myCurrentScore ? (
+          <Text variant="small" tone="inkMuted">
+            {`Now: ${myCurrentScore}. The latest edit stands, and ${opponentShort} sees that you edited it.`}
+          </Text>
+        ) : null}
         {correcting ? (
           <Text variant="small" tone="inkMuted">
             {[
@@ -212,100 +293,64 @@ export default function EnterScoreScreen() {
               .join(". ")}
           </Text>
         ) : null}
-        {!correcting && round?.phase === "grace" ? (
+        {!asAdmin && !editing && round?.phase === "grace" ? (
           <Text variant="small" tone="inkMuted">
             This is the grace week, so this score counts for Ball Boi stats, not standings.
           </Text>
         ) : null}
       </View>
 
-      <View style={{ gap: spacing.space2 }}>
-        <Text variant="small" tone="inkMuted">
-          {correcting
-            ? `${firstShort}'s games on top. Leave set 3 empty if the match was two sets.`
-            : "Your games first. Leave set 3 empty if you won in two."}
-        </Text>
-        <View style={{ flexDirection: "row", gap: spacing.space2, alignItems: "flex-end" }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-          <View style={{ flex: 1 }} />
-          {[1, 2, 3].map((n) => (
-            <Text key={n} variant="label" tone="inkMuted" style={{ minWidth: 58, textAlign: "center" }}>
-              {`Set ${n}`}
-            </Text>
-          ))}
-        </View>
-        {(["me", "them"] as const).map((side) => (
-          <View key={side} style={{ flexDirection: "row", gap: spacing.space2, alignItems: "center" }}>
-            <Text variant="bodyStrong" style={{ flex: 1 }} numberOfLines={2}>
-              {side === "me" ? firstName : opponent}
-            </Text>
-            {sets.map((s, i) => (
-              <ScoreBox
-                key={i}
-                value={s[side]}
-                onChange={(v) => update(i, { [side]: v })}
-                label={`Set ${i + 1}, ${side === "me" ? (correcting ? `${firstName}'s games` : "your games") : `${opponent}'s games`}`}
-              />
-            ))}
-          </View>
-        ))}
-      </View>
+      {closedNote ? (
+        <Card>
+          <Text variant="bodyStrong">{closedNote}</Text>
+        </Card>
+      ) : (
+        <>
+          <ScoreGrid
+            sets={sets}
+            onChange={update}
+            firstName={asAdmin ? firstShort : "You"}
+            secondName={opponentShort}
+            activeSets={rows}
+            firstPossessive={asAdmin ? `${firstName}'s` : "your"}
+            secondPossessive={`${opponent}'s`}
+          />
 
-      {sets.map((s, i) =>
-        isTiebreakSet(s) ? (
-          <View
-            key={`tb${i}`}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: spacing.space3,
-              padding: spacing.space3,
-              borderRadius: radius.radiusMd,
-              backgroundColor: c.sand,
-            }}
-          >
-            <Text variant="label" style={{ flex: 1 }}>
-              {`Set ${i + 1} tiebreak (optional)`}
-            </Text>
-            <ScoreBox
-              size={48}
-              value={s.tbMe}
-              onChange={(v) => update(i, { tbMe: v })}
-              label={`Set ${i + 1} tiebreak, ${correcting ? `${firstName}'s` : "your"} points`}
+          <ScoreResult draft={draft} winner={winnerLine} prompt={prompt} error={serverError} />
+
+          {asAdmin ? null : retired ? (
+            <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.space2 }}>
+              <Text variant="small" tone="inkMuted" style={{ flexShrink: 1 }}>
+                Opponent retired: it counts as your win and shows RET.
+              </Text>
+              <TextButton
+                label="Undo"
+                accessibilityLabel="Undo opponent retired"
+                style={{ alignSelf: "flex-start", paddingHorizontal: 0 }}
+                onPress={() => {
+                  setServerError(null);
+                  setRetired(false);
+                }}
+              />
+            </View>
+          ) : (
+            <TextButton
+              label="Match didn't finish?"
+              accessibilityHint="For when your opponent couldn't continue"
+              style={{ alignSelf: "flex-start", paddingHorizontal: 0 }}
+              onPress={matchDidntFinish}
             />
-            <Text tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
-              –
-            </Text>
-            <ScoreBox size={48} value={s.tbThem} onChange={(v) => update(i, { tbThem: v })} label={`Set ${i + 1} tiebreak, ${opponent}'s points`} />
-          </View>
-        ) : null,
+          )}
+        </>
       )}
 
-      <View
-        accessibilityLiveRegion="polite"
-        style={{ padding: spacing.space3, borderRadius: radius.radiusMd, borderWidth: 1, borderColor: c.hairline, gap: spacing.space1 }}
-      >
-        <Text variant="bodyStrong">{summary}</Text>
-        {serverError ? (
-          <Text variant="small" tone="danger">
-            {`Not saved. ${serverError}`}
-          </Text>
-        ) : null}
-      </View>
-
-      <View style={{ gap: spacing.space2 }}>
-        <Button
-          label={correcting ? "Correct score" : "Save score"}
-          onPress={onSave}
-          disabled={!draft.ok || !match}
-          loading={busy}
-          accessibilityHint={correcting ? "Asks you to confirm, then updates standings" : "You can undo it for 10 minutes"}
-        />
-        <Text variant="small" tone="inkMuted" style={{ textAlign: "center" }}>
-          {correcting
-            ? "Players can't change a score. Only league admins can correct one."
-            : "You can undo for 10 minutes after you save. After that, the score stands."}
-        </Text>
-      </View>
-    </ScrollView>
+      <Button
+        label={correcting ? "Correct score" : settling ? "Enter result" : editing ? "Save edit" : "Save score"}
+        onPress={onSave}
+        disabled={!canSave}
+        loading={busy}
+        accessibilityHint={asAdmin ? "Asks you to confirm" : note.hint}
+      />
+    </SheetBody>
   );
 }

@@ -72,6 +72,14 @@ vi.mock("@workspace/api-zod", () => ({
 vi.mock("../services/leagueRounds.js", () => ({ runLeagueDay: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../lib/leagueAccess.js", () => ({ isLeagueAdmin: vi.fn().mockResolvedValue(false) }));
 vi.mock("../lib/autoLinkPlayer.js", () => ({ autoLinkPlayer: vi.fn() }));
+
+// The signed-in person's profile (users row), read by the route through lib/playerProfile.
+const mockProfiles = new Map<string, { displayName: string | null; avatarUrl: string | null; rating: number | null; ratingSource: string | null }>();
+vi.mock("../lib/playerProfile.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/playerProfile.js")>()),
+  loadProfiles: async () => mockProfiles,
+  profileNameFor: async (id: string, fallback: string) => mockProfiles.get(id)?.displayName || fallback,
+}));
 vi.mock("../services/seasonService.js", () => ({ getPastSeasonNames: vi.fn().mockResolvedValue([]) }));
 vi.mock("../middlewares/requireAdmin.js", () => ({
   requireAdmin: (_req: unknown, res: { status: (n: number) => { json: (b: unknown) => void } }) =>
@@ -104,6 +112,7 @@ let app: Awaited<ReturnType<typeof buildApp>>;
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  mockProfiles.clear();
   inserted = [];
   mockGetAuth = () => ({ userId: "user_starter" });
   app = await buildApp();
@@ -133,6 +142,22 @@ describe("POST /api/leagues", () => {
     expect(league?.values).not.toHaveProperty("unplayedRule");
   });
 
+  it("runs the league on the creator's phone time zone, Eastern when none is sent (PR 4)", async () => {
+    await supertest(app).post("/api/leagues").send({ ...valid, timeZone: "America/Los_Angeles" });
+    expect(inserted.find((i) => i.table === "leagues")?.values).toMatchObject({ timeZone: "America/Los_Angeles", matchDay: null, matchTime: null });
+    inserted = [];
+    await supertest(app).post("/api/leagues").send({ ...valid, timeZone: "Not/AZone" });
+    expect(inserted.find((i) => i.table === "leagues")?.values).toMatchObject({ timeZone: "America/New_York" });
+  });
+
+  it("stores a weekly match day and time, and needs both (PR 4)", async () => {
+    const res = await supertest(app).post("/api/leagues").send({ ...valid, matchDay: 2, matchTime: "18:30" });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ matchDay: 2, matchTime: "18:30" });
+    const half = await supertest(app).post("/api/leagues").send({ ...valid, matchDay: 2 });
+    expect(half.status).toBe(400);
+  });
+
   it("records the creator as the league's owner", async () => {
     await supertest(app).post("/api/leagues").send(valid);
     const admin = inserted.find((i) => i.table === "league_admins");
@@ -144,6 +169,13 @@ describe("POST /api/leagues", () => {
     expect(res.body.playerCount).toBe(1);
     const player = inserted.find((i) => i.table === "players");
     expect(player?.values).toMatchObject({ name: "John Rapiel", clerkUserId: "user_starter", leagueId: 7 });
+  });
+
+  it("uses the creator's profile name and level for their league row (A1)", async () => {
+    mockProfiles.set("user_starter", { displayName: "Alex Kim", avatarUrl: null, rating: 3.5, ratingSource: "self" });
+    await supertest(app).post("/api/leagues").send({ ...valid, playerName: "alex" });
+    const player = inserted.find((i) => i.table === "players");
+    expect(player?.values).toMatchObject({ name: "Alex Kim", skillLevel: "3.5" });
   });
 
   it("doesn't add a player when the admin opts out", async () => {

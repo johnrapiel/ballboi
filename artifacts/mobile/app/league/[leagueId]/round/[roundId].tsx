@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import { AccessibilityInfo, ActionSheetIOS, ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,16 +18,25 @@ import {
   type ScheduleRound,
 } from "@workspace/api-client-react";
 
-import { ListRow, SectionLabel } from "@/components/league/ListRow";
-import { Button, Card, Text } from "@/components/ui";
+import { ListRow } from "@/components/league/ListRow";
+import { Button, Card, Text, TextButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { dateRange, shortDate } from "@/lib/leagueSchedule";
+import { dateRange, pairingTime, shortDate } from "@/lib/leagueSchedule";
 
 // Review a round before it goes out (spec: Leagues > Weekly loop, step 2;
-// canvas: Schedule review). Tap any row for its actions: swap a player, give
-// a bye, lock the match. Action sheets, not gestures, so every action works
-// with VoiceOver and Switch Control.
+// approved canvas: Admin · Schedule review). A brush title, the matches as
+// rows, Re-pair at the top right and Send at the bottom. Tap any row for its
+// actions: swap a player, give a bye, lock the match. Action sheets, not
+// gestures, so every action works with VoiceOver and Switch Control.
+
+function Heading({ children }: { children: string }) {
+  return (
+    <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ marginTop: spacing.space2, paddingHorizontal: spacing.space1 }}>
+      {children}
+    </Text>
+  );
+}
 
 type Person = { playerId: number; name: string };
 
@@ -195,12 +204,25 @@ export default function RoundReviewScreen() {
     );
   }
 
+  // C17: offline or a failed load isn't the same as a round that went out.
+  if (!round && (scheduleQ.isError || !scheduleQ.data)) {
+    return (
+      <View style={{ flex: 1, backgroundColor: c.paper, padding: spacing.space4 }}>
+        <Card style={{ gap: spacing.space3 }}>
+          <Text variant="bodyStrong">Couldn't load</Text>
+          <Text tone="inkMuted">Check your connection and try again.</Text>
+          <Button label="Retry" variant="secondary" loading={scheduleQ.isRefetching} onPress={() => void scheduleQ.refetch()} />
+        </Card>
+      </View>
+    );
+  }
+
   if (!round || round.phase !== "draft") {
     return (
       <View style={{ flex: 1, backgroundColor: c.paper, padding: spacing.space4 }}>
         <Card style={{ gap: spacing.space2 }}>
           <Text variant="bodyStrong">This round has gone out to players</Text>
-          <Text tone="inkMuted">See it on the league's Rounds tab.</Text>
+          <Text tone="inkMuted">See it on the league's Matches tab.</Text>
         </Card>
       </View>
     );
@@ -212,83 +234,102 @@ export default function RoundReviewScreen() {
   };
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: c.paper }}
-      contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space2 }}
-      refreshControl={<RefreshControl refreshing={scheduleQ.isRefetching} onRefresh={() => void scheduleQ.refetch()} tintColor={c.ink} />}
-    >
-      <View style={{ gap: spacing.space1, marginBottom: spacing.space2 }}>
-        <Text variant="label" tone="inkMuted">
-          {`Round ${round.roundNumber} · ${dateRange(round.startDate, round.deadline)}`}
-        </Text>
-        <Text variant="displayL" accessibilityRole="header">
-          Pairings
-        </Text>
-        <Text tone="inkMuted">
-          {`Only admins can see these until they go out ${shortDate(round.startDate)} at 7am. Tap a match to swap players, give a bye, or lock it.`}
-        </Text>
-      </View>
+    <View style={{ flex: 1, backgroundColor: c.paper }}>
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <TextButton label="Re-pair" onPress={confirmRepair} disabled={busy} accessibilityHint="New pairings. Keeps locked matches and byes you set" />
+          ),
+        }}
+      />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: spacing.space4, paddingBottom: spacing.space8, gap: spacing.space2 }}
+        refreshControl={<RefreshControl refreshing={scheduleQ.isRefetching} onRefresh={() => void scheduleQ.refetch()} tintColor={c.ink} />}
+      >
+        <View style={{ gap: spacing.space1, marginBottom: spacing.space2 }}>
+          <Text variant="headingM" accessibilityRole="header">
+            {`Round ${round.roundNumber} pairings`}
+          </Text>
+          <Text variant="small" tone="inkMuted">
+            {`${dateRange(round.startDate, round.deadline)}. Only admins see these until they go out ${shortDate(round.startDate)} at ${pairingTime(scheduleQ.data?.timeZone)}. Tap a match to swap players, give a bye, or lock it.`}
+          </Text>
+        </View>
 
-      <SectionLabel>{`Matches (${round.matches.length})`}</SectionLabel>
-      <Card style={{ padding: 0, overflow: "hidden" }}>
-        {round.matches.length === 0 ? (
-          <ListRow title="No matches yet" subtitle="Re-pair to pair everyone." last />
-        ) : (
-          round.matches.map((m, i) => (
-            <ListRow
-              key={m.matchId}
-              title={`${m.player1Name} vs. ${m.player2Name}`}
-              subtitle={[label(m.player1Id, m.player1Name), label(m.player2Id, m.player2Name)].join(" · ")}
-              trailing={m.locked ? "Locked" : null}
-              symbol={m.locked ? "lock.fill" : undefined}
-              onPress={() => matchMenu(round, m)}
-              accessibilityHint={m.locked ? "Unlock this match" : "Swap a player, give a bye, or lock this match"}
-              last={i === round.matches.length - 1}
-            />
-          ))
-        )}
-      </Card>
-
-      {round.byes.length > 0 ? (
-        <>
-          <SectionLabel>Byes</SectionLabel>
-          <Card style={{ padding: 0, overflow: "hidden" }}>
-            {round.byes.map((b, i) => (
+        <Heading>{`Matches (${round.matches.length})`}</Heading>
+        <Card style={{ padding: 0, overflow: "hidden" }}>
+          {round.matches.length === 0 ? (
+            <ListRow title="No matches yet" subtitle="Re-pair to pair everyone." last />
+          ) : (
+            round.matches.map((m, i) => (
               <ListRow
-                key={b.playerId}
-                title={`Bye: ${b.playerName}`}
-                subtitle={b.setByAdmin ? "Set by an admin. Stays when you re-pair." : "Fewest byes so far this season."}
-                onPress={() => byeMenu(round, { playerId: b.playerId, name: b.playerName })}
-                accessibilityHint="Take away the bye or swap"
-                last={i === round.byes.length - 1}
+                key={m.matchId}
+                title={`${m.player1Name} vs. ${m.player2Name}`}
+                subtitle={[label(m.player1Id, m.player1Name), label(m.player2Id, m.player2Name)].join(" · ")}
+                trailing={m.locked ? "Locked" : null}
+                symbol={m.locked ? "lock.fill" : undefined}
+                onPress={() => matchMenu(round, m)}
+                accessibilityHint={m.locked ? "Unlock this match" : "Swap a player, give a bye, or lock this match"}
+                last={i === round.matches.length - 1}
               />
-            ))}
-          </Card>
-        </>
-      ) : null}
+            ))
+          )}
+        </Card>
 
-      {round.unpaired.length > 0 ? (
-        <>
-          <SectionLabel>Needs an opponent</SectionLabel>
-          <Card style={{ padding: 0, overflow: "hidden" }}>
-            {round.unpaired.map((u, i) => (
-              <ListRow
-                key={u.playerId}
-                title={u.playerName}
-                subtitle="Paired automatically when the round goes out."
-                onPress={() => unpairedMenu(round, { playerId: u.playerId, name: u.playerName })}
-                accessibilityHint="Give a bye or swap"
-                last={i === round.unpaired.length - 1}
-              />
-            ))}
-          </Card>
-        </>
-      ) : null}
+        {round.byes.length > 0 ? (
+          <>
+            <Heading>Byes</Heading>
+            <Card style={{ padding: 0, overflow: "hidden" }}>
+              {round.byes.map((b, i) => (
+                <ListRow
+                  key={b.playerId}
+                  title={`Bye: ${b.playerName}`}
+                  subtitle={b.setByAdmin ? "Set by an admin. Stays when you re-pair." : "Fewest byes so far this season."}
+                  onPress={() => byeMenu(round, { playerId: b.playerId, name: b.playerName })}
+                  accessibilityHint="Take away the bye or swap"
+                  last={i === round.byes.length - 1}
+                />
+              ))}
+            </Card>
+          </>
+        ) : null}
 
-      <View style={{ gap: spacing.space3, marginTop: spacing.space4 }}>
+        {round.unpaired.length > 0 ? (
+          <>
+            <Heading>Needs an opponent</Heading>
+            <Card style={{ padding: 0, overflow: "hidden" }}>
+              {round.unpaired.map((u, i) => (
+                <ListRow
+                  key={u.playerId}
+                  title={u.playerName}
+                  subtitle="Paired automatically when the round goes out."
+                  onPress={() => unpairedMenu(round, { playerId: u.playerId, name: u.playerName })}
+                  accessibilityHint="Give a bye or swap"
+                  last={i === round.unpaired.length - 1}
+                />
+              ))}
+            </Card>
+          </>
+        ) : null}
+      </ScrollView>
+
+      {/* The primary action, pinned at the bottom (approved canvas). */}
+      <View
+        style={{
+          paddingHorizontal: spacing.space4,
+          paddingTop: spacing.space3,
+          paddingBottom: insets.bottom + spacing.space3,
+          gap: spacing.space2,
+          borderTopWidth: 1,
+          borderTopColor: c.hairline,
+          backgroundColor: c.paper,
+        }}
+      >
         <Button label={`Send Round ${round.roundNumber} to players`} loading={busy && publish.isPending} disabled={busy} onPress={() => confirmPublish(round)} />
-        <Button label="Re-pair" variant="secondary" disabled={busy} onPress={confirmRepair} accessibilityHint="Keeps locked matches and byes you set" />
+        <Text variant="small" tone="inkMuted" style={{ textAlign: "center" }}>
+          Players get a notification with their opponent.
+        </Text>
       </View>
-    </ScrollView>
+    </View>
   );
 }

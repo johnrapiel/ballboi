@@ -12,6 +12,27 @@ Carried over from the original web app's project notes. Describes how the API, s
 - Public routes: /, /sign-in, /sign-up, /join/:code (invite acceptance)
 - Profile onboarding at /onboarding after first sign-up
 
+## API contract
+
+- `lib/api-spec/openapi.yaml` lists every route the app calls, including the ones it calls with `apiFetch` (messages, safety and moderation, bans and appeals, recording, onboarding, push tokens, photos), with the responses the server really sends. Errors are `{ error, code? }` (`ErrorResponse`). After changing the spec, run `pnpm --filter @workspace/api-spec run codegen`.
+- `artifacts/api-server/src/__tests__/apiContract.test.ts` fails when a spec route is missing from the server, when the app calls an address or method the spec doesn't list, or when the generated client wasn't regenerated. It also checks messaging and ban/appeal bodies against the generated schemas.
+
+## Access rules (Wave 1 review)
+
+- `GET /api/leagues`, `GET /api/leagues/:id`, `/standings`, `/schedule`, `/bracket`, `/seasons` and `/seasons/active` need sign-in. A Private league shows only to its players (current or past) and admins; Open leagues show to anyone signed in. `GET /api/leagues?clerkUserId=` only accepts the caller's own id. The invite join screen uses `GET /api/invites/:code`, which stays open.
+- `POST /api/matches`, `PATCH /api/matches/:id` and `DELETE /api/matches/:id` are for that league's admins only and never change a result: no score, winner or status. Scores go through the league score routes only (enter, the players' 24-hour edit, admin correction). A completed or playoff match can't be deleted.
+- `GET /api/matches` and `GET /api/matches/:id` need sign-in and return only matches the caller played in or in leagues they can see (`lib/matchAccess.ts`).
+- `GET /api/players`, `/players/:id` and `/players/:id/stats` need sign-in and show only the caller's own records and players in leagues they can see. Email and phone show only to the player and their league's admins. `PATCH /api/players/:id` is for the player themselves or an admin of their league (co-admins included); an admin changes contact details only for players who haven't signed up, reminder settings stay the player's own, and it never changes a player's league or linked account or edits a "Deleted player" record. It refuses name and level changes for a signed-up player, even from the player: both come from their profile and change only in Edit profile. Admins set a level only for placeholder players who aren't on Ball Boi.
+- A league's `/rounds`, `/rounds/current`, `/playoffs`, `/admins`, `GET /api/shot-leaderboards/:leagueId/*`, `GET /api/drills/:leagueId`, `GET /api/scheduling/:leagueId/suggestions` and `/:weekOf`, and the availability routes follow the same league rule (`middlewares/requireLeagueViewer.ts`). `GET /api/availability/:leagueId/:weekOf` shows everyone's rows to league admins and only the caller's own to players. `POST /api/availability` saves the caller's own availability; only a league admin can name another `playerId`, and only one in that league. Availability participation and reminders, and `GET /api/scheduling/:leagueId/log`, are for league admins (owner or co-admins).
+- Draft rounds (decision 29) stay with the league's admins: `/rounds`, `/rounds/current`, `/schedule`, `GET /api/matches` and `/matches/:id`, `/stats/my-matches`, `/stats/my-schedule` and `/scheduling/:leagueId/:weekOf` leave out a round that hasn't gone out, and its pairings, for everyone else (`lib/draftRounds.ts`). Reading rounds never creates or re-pairs them; the 7am league job, the legacy midnight job and an admin's own actions do. Legacy rounds (leagues with no season length) are published as they're made.
+- `GET /api/drills/:id/leaderboard` and `POST /api/drills/:id/results` follow the drill's league: same rule as the league itself.
+- The legacy `/api/shots/*` routes (shot upload, status, ML callback and `/shots/stats/me`) were removed (D30). Ball Boi recording uses `/api/ball-boi/*`.
+- `DELETE /api/players/:id` is for that league's admins and refuses (409) any player who has matches; use the remove-player flow in Manage (`POST /api/leagues/:leagueId/players/:playerId/remove`) instead.
+- `GET /api/stats/top-players`, `/recent-activity` and `/head-to-head` need sign-in and only count matches in the caller's leagues or matches they played.
+- `POST /api/storage/uploads/request-url` needs sign-in and takes JPEG, PNG, HEIC/HEIF or WebP up to 10 MB. Saving a profile re-checks the stored file. `GET /api/storage/objects/*` serves only current profile photos, to someone signed in (A17; the app's `Avatar` sends the session token with each photo request), and everything to the ML server with `X-ML-Secret`. A replaced or removed photo's file is deleted.
+- The profile (`users`) is the one source of a signed-up player's name, photo and self-rated level (`users.rating`). Rosters, join requests, pairing review names and Flex pairing read it through `lib/playerProfile.ts`; a league player row's own `skillLevel` counts only for placeholders, and its `name` is a copy the API refreshes from the profile whenever the player saves a new name. Match results never change a level.
+- Admin-added league players link to an account only by the account's verified primary email from Clerk: when the admin adds them (if the account exists) or when the person first creates their profile. Never by display name or a typed-in email, never onto a record linked to another account, a "Deleted player" record or a quick match placeholder.
+
 ## Architecture
 
 ### API Server (`artifacts/api-server`)
@@ -33,6 +54,9 @@ Carried over from the original web app's project notes. Describes how the API, s
 - Automatic schedule generation pairs players from shared availability and rematch rules only.
 - Player home location, travel radius, managed courts, distance estimates, and geocoding are not used by app code.
 - Match location remains a simple optional free-text field on the match record.
+- Leagues run on their creator's time zone (`leagues.time_zone`, IANA name, Eastern for leagues made before Nov 4, 2026). Today's date, week starts and ends, score deadlines, 7am pairing and the 8am day-before reminder all follow it (`lib/leagueCalendar.ts`; the scheduler runs hourly and acts when a league's clock reaches the hour).
+- A club league can have a weekly match day and time (`match_day` 0 to 6, `match_time` "HH:MM" in the league's zone). New rounds set every match's `scheduledAt` from it. Without one, either player (or a league admin) sets a match's time inside its week with `PUT /leagues/:id/matches/:matchId/time`.
+- A set time never gates recording: every unplayed league match in its round's week, grace week included, is recordable (`lib/recordableMatches.ts`). A set time today only sorts it first.
 
 ## API Endpoints
 
@@ -64,6 +88,8 @@ Carried over from the original web app's project notes. Describes how the API, s
 - `POST /api/users/me` — upsert user profile
 - `PUT /api/users/me` — update user profile fields
 - `GET /api/stats/dashboard`
+- `GET /api/matches` and `GET /api/matches/:id` need sign-in and return only matches the caller played in or in leagues they can see (`lib/matchAccess.ts`).
+- `GET /api/players`, `/players/:id` and `/players/:id/stats` need sign-in and show only the caller's own records and players in leagues they can see. Email and phone show only to the player and their league's admins. `PATCH /api/players/:id` is for the player themselves or an admin of their league (co-admins included); an admin changes contact details only for players who haven't signed up, reminder settings stay the player's own, and it never changes a player's league or linked account or edits a "Deleted player" record. It refuses name and level changes for a signed-up player, even from the player: both come from their profile and change only in Edit profile. Admins set a level only for placeholder players who aren't on Ball Boi.
 - `GET /api/stats/top-players`
 - `GET /api/stats/recent-activity`
 - `GET /api/stats/head-to-head`

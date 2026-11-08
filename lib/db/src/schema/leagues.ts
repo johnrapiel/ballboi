@@ -21,10 +21,18 @@ export const leaguesTable = pgTable("leagues", {
   rosterCap: integer("roster_cap"),
   seasonWeeks: integer("season_weeks"), // 1 to 24
   playoffSize: integer("playoff_size").notNull().default(0), // 0, 4, or 8
-  unplayedRule: text("unplayed_rule").notNull().default("no_result"), // forfeit | no_result
   // An admin ended the league (decision 31): standings freeze, unpublished
   // rounds are cancelled, and it moves to Past. Migration 20261101_c_league_end_and_notices.sql.
   endedAt: timestamp("ended_at", { withTimezone: true }),
+  // League match times (migration 20261104_league_match_times.sql).
+  // The league's days run on its creator's time zone: pairing at 7am, week
+  // starts and ends, and score deadlines. IANA name, e.g. America/Los_Angeles.
+  timeZone: text("time_zone").notNull().default("America/New_York"),
+  // A club's weekly match day and time, set by an admin. Both null means
+  // players pick their own time each week. matchDay: 0 Sunday to 6 Saturday;
+  // matchTime: 24-hour "HH:MM" in the league's time zone.
+  matchDay: integer("match_day"),
+  matchTime: text("match_time"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

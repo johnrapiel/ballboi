@@ -1,4 +1,5 @@
-import { SymbolView, type SFSymbol } from "expo-symbols";
+import { CornerButton } from "@/components/CornerButton";
+import { Icon, type IconName } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
@@ -9,13 +10,15 @@ import { useColors } from "@/hooks/useColors";
 export interface ChoiceOption<T extends string | number> {
   value: T;
   label: string;
+  /** What VoiceOver reads, when the label is short ("Tue" reads "Tuesday"). */
+  accessibilityLabel?: string;
 }
 
 /**
  * Pick one option from a short list, like a segmented control. Options wrap
- * onto a second line when they don't fit. The selected option is ink-filled
- * and checked, so it never relies on color alone. VoiceOver reads it as a
- * radio group.
+ * onto a second line when they don't fit. The selected option is filled with
+ * `ink` and `on-ink` text, no icon (John, Nov 7): filled against outlined is
+ * a change of shape, not just color. VoiceOver reads "selected".
  */
 export function ChoiceGroup<T extends string | number>({
   label,
@@ -34,19 +37,20 @@ export function ChoiceGroup<T extends string | number>({
   const c = useColors();
   return (
     <View style={{ gap: spacing.space2 }}>
-      <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
+      {/* Section label: sentence case, like every group label in the design system. */}
+      <Text variant="section" tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
         {label}
       </Text>
-      <View accessibilityRole="radiogroup" accessibilityLabel={label} style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.space2 }}>
+      <View accessibilityLabel={label} style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.space2 }}>
         {options.map((o) => {
           const on = o.value === value;
           return (
             <Pressable
               key={String(o.value)}
               onPress={() => onChange(o.value)}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: on }}
-              accessibilityLabel={o.label}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={`${label}, ${o.accessibilityLabel ?? o.label}`}
               style={({ pressed }) => ({
                 minHeight: MIN_TAP,
                 minWidth: MIN_TAP,
@@ -62,7 +66,6 @@ export function ChoiceGroup<T extends string | number>({
                 opacity: pressed ? 0.8 : 1,
               })}
             >
-              {on ? <SymbolView name="checkmark" size={12} tintColor={c.onInk} /> : null}
               <Text variant="bodyStrong" tone={on ? "onInk" : "ink"}>
                 {o.label}
               </Text>
@@ -79,28 +82,128 @@ export function ChoiceGroup<T extends string | number>({
   );
 }
 
-/** A 44pt round button with an SF Symbol, for a screen's main action in the header. */
-export function IconButton({ symbol, label, onPress }: { symbol: SFSymbol; label: string; onPress: () => void }) {
+/**
+ * A screen-corner button on a tab (button standard, John, Nov 8): the glass
+ * circle, for the tab's own action beside Messages (Start a league on
+ * Leagues, Settings on Profile). In the native navigation bar use
+ * HeaderIconButton; inside the page use PlainIconButton.
+ */
+export function IconButton({
+  symbol,
+  label,
+  hint,
+  onPress,
+}: {
+  symbol: IconName;
+  label: string;
+  /** What happens on tap, read by VoiceOver after the label. */
+  hint?: string;
+  onPress: () => void;
+}) {
+  return <CornerButton symbol={symbol} label={label} hint={hint} onPress={onPress} />;
+}
+
+/**
+ * An icon button inside the page (button standard, John, Nov 8): a plain
+ * brush icon in ink with no circle or border, still a 44pt tap area. A small
+ * ink dot shows when something is on (active filters); say so in the label
+ * too. Used for Filters, the chat's Add a match and Send, and small edit
+ * pencils. Anything that does the screen's job gets words (Button) instead.
+ */
+export function PlainIconButton({
+  symbol,
+  label,
+  hint,
+  onPress,
+  active,
+  disabled,
+  size = 22,
+}: {
+  symbol: IconName;
+  label: string;
+  hint?: string;
+  onPress: () => void;
+  /** Shows the small ink dot. */
+  active?: boolean;
+  disabled?: boolean;
+  size?: number;
+}) {
+  const c = useColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={hint}
+      accessibilityState={{ disabled: !!disabled }}
+      hitSlop={4}
+      style={({ pressed }) => ({
+        width: MIN_TAP,
+        height: MIN_TAP,
+        alignItems: "center",
+        justifyContent: "center",
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <Icon name={symbol} size={size} tintColor={disabled ? c.inkMuted : c.ink} />
+      {active ? (
+        <View
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: 7,
+            right: 7,
+            width: 10,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: c.ink,
+            borderWidth: 2,
+            borderColor: c.paper,
+          }}
+        />
+      ) : null}
+    </Pressable>
+  );
+}
+
+/**
+ * A plain brush icon button for the native navigation bar (headerRight and
+ * headerLeft). It draws no circle, fill or border of its own: on iOS 26 the
+ * system draws the Liquid Glass circle, so ours would show as a second one.
+ * The hit area is still at least 44x44pt.
+ */
+export function HeaderIconButton({
+  symbol,
+  label,
+  hint,
+  onPress,
+}: {
+  symbol: IconName;
+  label: string;
+  /** What happens on tap, read by VoiceOver after the label. */
+  hint?: string;
+  onPress: () => void;
+}) {
   const c = useColors();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityHint={hint}
       hitSlop={4}
       style={({ pressed }) => ({
-        width: MIN_TAP,
-        height: MIN_TAP,
-        borderRadius: radius.radiusPill,
-        backgroundColor: c.sand,
-        borderWidth: 1,
-        borderColor: c.hairline,
+        minWidth: MIN_TAP,
+        minHeight: MIN_TAP,
         alignItems: "center",
         justifyContent: "center",
-        opacity: pressed ? 0.7 : 1,
+        opacity: pressed ? 0.6 : 1,
       })}
     >
-      <SymbolView name={symbol} size={18} tintColor={c.ink} />
+      <Icon name={symbol} size={20} tintColor={c.ink} />
     </Pressable>
   );
 }

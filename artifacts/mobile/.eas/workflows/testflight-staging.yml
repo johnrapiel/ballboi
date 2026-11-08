@@ -1,0 +1,112 @@
+# Puts the latest Ball Boi on John's phone after every merge to main.
+#
+# - Native code changed (new package, app.json, permissions): build a new
+#   iOS app, upload it to TestFlight and add it to the external "Beta players"
+#   group (internal testers get it too).
+# - Only app code changed: skip the build and send an over-the-air update
+#   to the existing TestFlight build. It arrives the next time the app opens,
+#   for internal and external testers alike.
+# - Anything failed: email John (BUILD_ALERT_EMAIL). Testers keep the last
+#   good build and update.
+#
+# Every build and update points at staging (the "preview" EAS environment),
+# never production. Setup steps: docs/testflight-builds.md.
+#
+# Run it by hand any time: eas workflow:run .eas/workflows/testflight-staging.yml
+
+name: TestFlight (staging)
+
+on:
+  push:
+    branches: ['main']
+    # Only merges that touch the iOS app. API, ML and docs changes don't
+    # need a new app, and skipping them saves the free plan's monthly limits.
+    paths:
+      - 'artifacts/mobile/**'
+      - 'lib/api-client-react/**'
+      - 'pnpm-lock.yaml'
+
+# When merges land close together, the running build finishes and only the
+# newest waiting merge builds next; runs queued in between are dropped (they're
+# included in the newest one). Saves monthly builds on busy days.
+concurrency:
+  group: ${{ workflow.filename }}-${{ github.ref }}
+  cancel_in_progress: false
+  queue: single
+
+# Every job uses the repo's Node and pnpm. Without this, the native-change
+# check runs on an older image whose pnpm can't read pnpm-lock.yaml.
+defaults:
+  tools:
+    node: '22'
+    pnpm: '10.34.7'
+
+jobs:
+  fingerprint:
+    name: Check for native changes
+    type: fingerprint
+    environment: preview
+
+  get_ios_build:
+    name: Find a matching build
+    needs: [fingerprint]
+    type: get-build
+    params:
+      platform: ios
+      profile: staging
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      wait_for_in_progress: true
+
+  build_ios:
+    name: Build iOS app
+    needs: [get_ios_build]
+    if: ${{ !needs.get_ios_build.outputs.build_id }}
+    type: build
+    params:
+      platform: ios
+      profile: staging
+
+  # Uploads the build (same App Store record and API key the old submit job
+  # used: the "production" submit profile in eas.json), waits for Apple to
+  # process it, then adds it to the external "Beta players" group. Apple's
+  # beta review runs on the first build of each version; later builds of the
+  # same version usually go straight through. Setup: docs/testflight-builds.md.
+  testflight_ios:
+    name: Send to TestFlight beta players
+    needs: [build_ios]
+    type: testflight
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+      external_groups: ['Beta players']
+      submit_beta_review: true
+      changelog: |-
+        A new Ball Boi beta build. Something not working? Email support@ballboi.tennis.
+
+  update_ios:
+    name: Send app update
+    needs: [get_ios_build]
+    if: ${{ needs.get_ios_build.outputs.build_id }}
+    type: update
+    environment: preview
+    params:
+      platform: ios
+      channel: staging
+
+  # Runs only when a step above failed. Nothing reaches testers from a failed
+  # run, so they keep the last good build and update.
+  notify_failure:
+    name: Email John about the failure
+    after: [fingerprint, get_ios_build, build_ios, testflight_ios, update_ios]
+    if: ${{ failure() }}
+    type: email
+    environment: preview
+    params:
+      emails: ['${{ env.BUILD_ALERT_EMAIL }}']
+      subject: 'Ball Boi beta build failed'
+      body: |-
+        A step in the TestFlight (staging) pipeline failed, so testers did not get this change. They still have the last good build.
+
+        Change: ${{ github.commit_message }}
+        See which step failed: ${{ workflow.url }}
+
+        Open the link, then ask Claude to read the log and fix it.

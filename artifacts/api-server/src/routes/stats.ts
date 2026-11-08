@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { requireAdmin } from "../middlewares/requireAdmin";
@@ -6,8 +6,27 @@ import { shownStats } from "../lib/statGates";
 import { matchesTable, playersTable, leaguesTable, scheduleGenerationLogsTable, ballBoiSessionsTable, matchStatisticsTable, leagueRoundsTable } from "@workspace/db";
 import { eq, and, or, desc, inArray, ne, isNull } from "drizzle-orm";
 import { getPlayerNameMap, getLeagueNameMap, matchPlayerIds } from "../lib/lookups.js";
+import { readScope } from "../lib/matchAccess.js";
+import { adminLeagueIds } from "../lib/leagueAccess.js";
+import { withoutDraftMatches } from "../lib/draftRounds.js";
 
 const router = Router();
+
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const { userId } = getAuth(req);
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+  next();
+}
+
+/**
+ * What a signed-in person may see in the stats below: matches in leagues they
+ * belong to, and matches they played in themselves (D13). Open leagues they
+ * aren't in don't count here.
+ */
+async function statsScope(clerkUserId: string) {
+  const scope = await readScope(clerkUserId, { openLeagues: false });
+  return { leagueIds: scope.leagueIds, myPlayerIds: scope.myPlayerIds, visibleMatch: scope.matchFilter };
+}
 
 function getLinkedPlayerIdForMatch(
   match: Pick<typeof matchesTable.$inferSelect, "player1Id" | "player2Id" | "player3Id" | "player4Id">,
@@ -71,39 +90,33 @@ router.get("/stats/dashboard", requireAdmin, async (req, res) => {
   });
 });
 
-router.get("/stats/top-players", async (req, res) => {
+// Players in the caller's leagues only (one league with `leagueId`), ranked on
+// matches in those leagues.
+router.get("/stats/top-players", requireAuth, async (req, res) => {
   const leagueId = req.query.leagueId ? parseInt(req.query.leagueId as string) : null;
   const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
 
+  const { leagueIds } = await statsScope(getAuth(req).userId!);
   const filterByLeague = leagueId != null && !isNaN(leagueId);
+  if (filterByLeague && !leagueIds.includes(leagueId!)) {
+    return res.status(403).json({ error: "You can only see stats for leagues you're in." });
+  }
+  const inScope = filterByLeague ? [leagueId!] : leagueIds;
+  if (!inScope.length) return res.json([]);
+
   const players = await db
     .select()
     .from(playersTable)
-    .where(filterByLeague ? eq(playersTable.leagueId, leagueId!) : undefined);
+    .where(inArray(playersTable.leagueId, inScope));
 
   const leagueMap = await getLeagueNameMap(players.map((p) => p.leagueId));
 
-  const playerIds = players.map((p) => p.id);
   const notExhibition = or(isNull(matchesTable.season), ne(matchesTable.season, "Spring Exhibition"));
-  const completedMatches = playerIds.length
+  const completedMatches = players.length
     ? await db
         .select()
         .from(matchesTable)
-        .where(
-          and(
-            eq(matchesTable.status, "completed"),
-            notExhibition,
-            // Without a league filter every player is in scope, so skip the participant check.
-            filterByLeague
-              ? or(
-                  inArray(matchesTable.player1Id, playerIds),
-                  inArray(matchesTable.player2Id, playerIds),
-                  inArray(matchesTable.player3Id, playerIds),
-                  inArray(matchesTable.player4Id, playerIds),
-                )
-              : undefined,
-          ),
-        )
+        .where(and(eq(matchesTable.status, "completed"), notExhibition, inArray(matchesTable.leagueId, inScope)))
     : [];
 
   const statsMap: Record<number, { wins: number; losses: number }> = {};
@@ -142,12 +155,14 @@ router.get("/stats/top-players", async (req, res) => {
   return res.json(ranked);
 });
 
-router.get("/stats/recent-activity", async (req, res) => {
+// Completed matches in the caller's leagues, or ones they played in.
+router.get("/stats/recent-activity", requireAuth, async (req, res) => {
   const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+  const { visibleMatch } = await statsScope(getAuth(req).userId!);
   const matches = await db
     .select()
     .from(matchesTable)
-    .where(eq(matchesTable.status, "completed"))
+    .where(and(eq(matchesTable.status, "completed"), visibleMatch))
     .orderBy(desc(matchesTable.updatedAt))
     .limit(limit);
 
@@ -171,16 +186,22 @@ router.get("/stats/recent-activity", async (req, res) => {
   );
 });
 
-router.get("/stats/head-to-head", async (req, res) => {
+// Two players' record against each other, for players the caller can see
+// (in their leagues, or themselves), counting only matches they can see.
+router.get("/stats/head-to-head", requireAuth, async (req, res) => {
   const player1Id = parseInt(req.query.player1Id as string);
   const player2Id = parseInt(req.query.player2Id as string);
   if (isNaN(player1Id) || isNaN(player2Id)) return res.status(400).json({ error: "Invalid player IDs" });
 
-  const [p1, p2] = await Promise.all([
+  const [p1, p2, scope] = await Promise.all([
     db.select().from(playersTable).where(eq(playersTable.id, player1Id)).then((r) => r[0]),
     db.select().from(playersTable).where(eq(playersTable.id, player2Id)).then((r) => r[0]),
+    statsScope(getAuth(req).userId!),
   ]);
-  if (!p1 || !p2) return res.status(404).json({ error: "Player not found" });
+  const visiblePlayer = (p: typeof p1 | undefined) =>
+    !!p && (scope.myPlayerIds.includes(p.id) || (p.leagueId != null && scope.leagueIds.includes(p.leagueId)));
+  // Same answer for a player who doesn't exist and one the caller can't see.
+  if (!visiblePlayer(p1) || !visiblePlayer(p2)) return res.status(404).json({ error: "Player not found" });
 
   const matches = await db
     .select()
@@ -188,6 +209,7 @@ router.get("/stats/head-to-head", async (req, res) => {
     .where(
       and(
         eq(matchesTable.status, "completed"),
+        scope.visibleMatch,
         or(
           and(eq(matchesTable.player1Id, player1Id), eq(matchesTable.player2Id, player2Id)),
           and(eq(matchesTable.player1Id, player2Id), eq(matchesTable.player2Id, player1Id))
@@ -244,18 +266,22 @@ router.get("/stats/my-matches", async (req, res) => {
     }
 
     const playerIds = linkedPlayers.map((player) => player.id);
-    const allMatches = await db
-      .select()
-      .from(matchesTable)
-      .where(
-        or(
-          inArray(matchesTable.player1Id, playerIds),
-          inArray(matchesTable.player2Id, playerIds),
-          inArray(matchesTable.player3Id, playerIds),
-          inArray(matchesTable.player4Id, playerIds),
+    // A pairing in a round that hasn't gone out shows only to the league's admins.
+    const allMatches = await withoutDraftMatches(
+      await db
+        .select()
+        .from(matchesTable)
+        .where(
+          or(
+            inArray(matchesTable.player1Id, playerIds),
+            inArray(matchesTable.player2Id, playerIds),
+            inArray(matchesTable.player3Id, playerIds),
+            inArray(matchesTable.player4Id, playerIds),
+          )
         )
-      )
-      .orderBy(desc(matchesTable.scheduledAt));
+        .orderBy(desc(matchesTable.scheduledAt)),
+      () => adminLeagueIds(userId!),
+    );
 
     const [allLeagues, allPlayers, ballBoiSessions, ballBoiStats, allRounds] = await Promise.all([
       db.select().from(leaguesTable).where(inArray(leaguesTable.id, allMatches.flatMap((m) => (m.leagueId != null ? [m.leagueId] : [])))),
@@ -358,6 +384,8 @@ router.get("/stats/my-schedule", async (req, res) => {
 
     const playerIds = linkedPlayers.map((player) => player.id);
     const linkedPlayerIdSet = new Set(playerIds);
+    // A pairing in a round that hasn't gone out shows only to the league's admins.
+    const runs = () => adminLeagueIds(userId!);
 
     // Compute current weekOf (Monday of current week, YYYY-MM-DD)
     const today = new Date();
@@ -391,11 +419,14 @@ router.get("/stats/my-schedule", async (req, res) => {
     if (confirmedLogs.length > 0) {
       const confirmedLeagueIds = confirmedLogs.map((l) => l.leagueId);
       // Fetch all current-week matches across all confirmed leagues, ordered soonest first.
-      const weekMatches = await db
-        .select()
-        .from(matchesTable)
-        .where(eq(matchesTable.weekOf, currentWeekOf))
-        .orderBy(matchesTable.scheduledAt);
+      const weekMatches = await withoutDraftMatches(
+        await db
+          .select()
+          .from(matchesTable)
+          .where(eq(matchesTable.weekOf, currentWeekOf))
+          .orderBy(matchesTable.scheduledAt),
+        runs,
+      );
       const isPlayerMatch = (m: typeof weekMatches[0]) =>
         confirmedLeagueIds.includes(m.leagueId!) &&
         getLinkedPlayerIdForMatch(m, linkedPlayerIdSet) != null &&
@@ -412,7 +443,7 @@ router.get("/stats/my-schedule", async (req, res) => {
 
     // 2. Fallback: any scheduled or in-progress match in the current week window
     if (!upcoming) {
-      const allActiveThisWeek = await db
+      const allActiveThisWeek = await withoutDraftMatches(await db
         .select()
         .from(matchesTable)
         .where(
@@ -426,7 +457,7 @@ router.get("/stats/my-schedule", async (req, res) => {
             ),
           ),
         )
-        .orderBy(matchesTable.scheduledAt);
+        .orderBy(matchesTable.scheduledAt), runs);
 
       upcoming = allActiveThisWeek.find(
         (m) =>

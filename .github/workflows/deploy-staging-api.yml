@@ -1,0 +1,98 @@
+name: Deploy staging API
+
+# Deploys the API to Cloudflare (artifacts/api-host) when a merge to main
+# changes the API, its shared libraries or the database migrations.
+# Run it by hand from the Actions tab too. Setup: docs/staging-api.md.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'artifacts/api-server/**'
+      - 'artifacts/api-host/**'
+      - 'lib/db/**'
+      - 'lib/api-zod/**'
+      - 'scripts/migrations/**'
+      - 'scripts/run-db-migrations.mjs'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/deploy-staging-api.yml'
+  workflow_dispatch:
+    inputs:
+      create_schema:
+        description: 'First deploy only: create the tables in an EMPTY staging database'
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-staging-api
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile --filter "@workspace/api-host..." --filter "@workspace/db..."
+
+      # A brand-new database has no tables, and the SQL migrations assume the
+      # base schema exists. This creates it once. Never run it on a database
+      # that already has data.
+      - name: Create schema (first deploy only)
+        if: ${{ inputs.create_schema }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm --filter @workspace/db run push
+
+      - name: Deploy to Cloudflare
+        working-directory: artifacts/api-host
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: pnpm exec wrangler deploy
+
+      # Secrets go from GitHub to the Worker, which passes them to the API.
+      # Empty ones are skipped. Setting secrets restarts the API with them.
+      - name: Sync secrets
+        working-directory: artifacts/api-host
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          node -e '
+            const keys = ["DATABASE_URL","CLERK_SECRET_KEY","ADMIN_EMAIL",
+              "S3_ACCESS_KEY_ID","S3_SECRET_ACCESS_KEY","ANTHROPIC_API_KEY"];
+            const out = {};
+            for (const k of keys) if (process.env[k]) out[k] = process.env[k];
+            require("fs").writeFileSync("/tmp/secrets.json", JSON.stringify(out));
+            console.log("Syncing:", Object.keys(out).join(", "));
+          '
+          pnpm exec wrangler secret bulk /tmp/secrets.json
+          rm /tmp/secrets.json
+
+      - name: Check the API answers
+        env:
+          STAGING_API_URL: ${{ vars.STAGING_API_URL }}
+        run: |
+          if [ -z "$STAGING_API_URL" ]; then echo "STAGING_API_URL not set yet; skipping"; exit 0; fi
+          for i in $(seq 1 12); do
+            if curl -fsS "$STAGING_API_URL/api/healthz"; then echo; exit 0; fi
+            echo "Waiting for the API to start ($i)..."; sleep 15
+          done
+          echo "The API didn't answer. Check the Worker's logs in the Cloudflare dashboard."; exit 1

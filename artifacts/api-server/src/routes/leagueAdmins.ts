@@ -3,10 +3,12 @@ import { getAuth } from "@clerk/express";
 import { db, leagueAdminsTable, leagueJoinRequestsTable, leaguesTable, playersTable, usersTable } from "@workspace/db";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { getLeagueRole, leagueAdminCount } from "../lib/leagueAccess.js";
-import { leagueToday } from "../lib/leagueCalendar.js";
+import { leagueToday, leagueZone } from "../lib/leagueCalendar.js";
 import { joinedWeek } from "../lib/leagueJoining.js";
+import { loadProfiles, playerDisplayName, playerLevelText, playerProfileLevel } from "../lib/playerProfile.js";
 import { promoteProblem, removeAdminProblem, type LeagueRole } from "../lib/leagueRoles.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
+import { requireLeagueViewer } from "../middlewares/requireLeagueViewer.js";
 
 // Co-admins and the viewer's own role in a league (spec: Roles and onboarding).
 
@@ -25,7 +27,7 @@ router.get("/leagues/:leagueId/membership", requireAuth, async (req, res) => {
   if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid league ID" }); return; }
 
   const [league] = await db
-    .select({ id: leaguesTable.id, startDate: leaguesTable.startDate, seasonWeeks: leaguesTable.seasonWeeks })
+    .select({ id: leaguesTable.id, startDate: leaguesTable.startDate, seasonWeeks: leaguesTable.seasonWeeks, timeZone: leaguesTable.timeZone })
     .from(leaguesTable)
     .where(eq(leaguesTable.id, leagueId));
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
@@ -53,7 +55,7 @@ router.get("/leagues/:leagueId/membership", requireAuth, async (req, res) => {
   // day is when the organizer approved them, else when they joined.
   const playing = !!player && !player.leftAt;
   const joinedAt = approved?.decidedAt ?? player?.createdAt ?? null;
-  const week = playing && joinedAt ? joinedWeek(league.startDate, leagueToday(joinedAt), league.seasonWeeks) : null;
+  const week = playing && joinedAt ? joinedWeek(league.startDate, leagueToday(joinedAt, leagueZone(league)), league.seasonWeeks) : null;
 
   res.json({
     // C8: the only admin can't leave until someone else is a co-admin.
@@ -70,7 +72,7 @@ router.get("/leagues/:leagueId/membership", requireAuth, async (req, res) => {
 });
 
 /** Everyone who runs the league, owner first. */
-router.get("/leagues/:leagueId/admins", requireAuth, async (req, res) => {
+router.get("/leagues/:leagueId/admins", requireLeagueViewer, async (req, res) => {
   const leagueId = parseInt(String(req.params.leagueId));
   if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid league ID" }); return; }
 
@@ -96,7 +98,7 @@ router.get("/leagues/:leagueId/admins", requireAuth, async (req, res) => {
       clerkUserId: a.clerkUserId,
       role: a.role,
       playerId: player?.id ?? null,
-      name: player?.name ?? user?.displayName ?? "League admin",
+      name: user?.displayName?.trim() || player?.name || "League admin",
     };
   });
   rows.sort((x, y) => (x.role === y.role ? x.name.localeCompare(y.name) : x.role === "owner" ? -1 : 1));
@@ -114,15 +116,18 @@ router.get("/leagues/:leagueId/roster", requireLeagueAdmin, async (_req, res) =>
       .orderBy(asc(playersTable.name)),
     db.select().from(leagueAdminsTable).where(eq(leagueAdminsTable.leagueId, leagueId)),
   ]);
-  res.json(
-    players.map((p) => ({
-      playerId: p.id,
-      name: p.name,
-      skillLevel: p.skillLevel,
-      hasAccount: !!p.clerkUserId,
-      role: admins.find((a) => p.clerkUserId && a.clerkUserId === p.clerkUserId)?.role ?? null,
-    })),
-  );
+  // A1, S6: signed-up players show their current profile name and level.
+  const profiles = await loadProfiles(players.map((p) => p.clerkUserId));
+  const rows = players.map((p) => ({
+    playerId: p.id,
+    name: playerDisplayName(p, profiles),
+    skillLevel: playerLevelText(p, profiles),
+    rating: playerProfileLevel(p, profiles),
+    hasAccount: !!p.clerkUserId,
+    role: admins.find((a) => p.clerkUserId && a.clerkUserId === p.clerkUserId)?.role ?? null,
+  }));
+  rows.sort((x, y) => x.name.localeCompare(y.name));
+  res.json(rows);
 });
 
 /** Promote a member to co-admin. Any admin can do this. */

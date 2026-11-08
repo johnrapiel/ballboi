@@ -10,8 +10,11 @@ import {
   playersTable,
 } from "@workspace/db";
 import { eq, inArray, or } from "drizzle-orm";
-import { leagueToday } from "../lib/leagueCalendar.js";
-import { buildLeagueHome } from "../lib/leagueHome.js";
+import { todayFor } from "../lib/leagueCalendar.js";
+import { buildLeagueHome, homeLeagues, seasonFrom } from "../lib/leagueHome.js";
+import { computeStandings } from "../lib/leagueStandings.js";
+import { getPastSeasonNames } from "../services/seasonService.js";
+import { playoffPlayBy } from "../services/leaguePlayoffs.js";
 
 // Home tab's league section (spec: Navigation > Home): this week's matches
 // and byes across every league you play in, playoff matches, pairings you
@@ -30,16 +33,16 @@ router.get("/me/league-week", async (req, res) => {
   const myIds = myPlayers.map((p) => p.id);
   const adminLeagueIds = adminRows.map((a) => a.leagueId);
   const leagueIds = [...new Set([...myPlayers.map((p) => p.leagueId).filter((id): id is number => id != null), ...adminLeagueIds])];
-  const today = leagueToday();
+  const now = new Date();
   if (leagueIds.length === 0) {
-    res.json({ today, thisWeek: [], playoffs: [], drafts: [], recent: [] });
+    res.json({ today: todayFor(null, now), thisWeek: [], playoffs: [], drafts: [], recent: [], results: [], season: seasonFrom([]), leagues: [] });
     return;
   }
 
   // inArray needs at least one id; -1 matches nothing.
   const ids = myIds.length ? myIds : [-1];
   const [leagues, rounds, matches, byes] = await Promise.all([
-    db.select({ id: leaguesTable.id, name: leaguesTable.name, leagueType: leaguesTable.leagueType, endedAt: leaguesTable.endedAt }).from(leaguesTable).where(inArray(leaguesTable.id, leagueIds)),
+    db.select().from(leaguesTable).where(inArray(leaguesTable.id, leagueIds)),
     db.select().from(leagueRoundsTable).where(inArray(leagueRoundsTable.leagueId, leagueIds)),
     db
       .select()
@@ -57,9 +60,40 @@ router.get("/me/league-week", async (req, res) => {
     ? await db.select({ id: playersTable.id, name: playersTable.name }).from(playersTable).where(inArray(playersTable.id, others))
     : [];
 
-  res.json(
-    buildLeagueHome({
-      today,
+  // Q5b: each open playoff match's play-by date.
+  const playBys = new Map<number, string>();
+  for (const m of matches) {
+    if (!m.playoffBracketId || m.status === "completed" || m.voidedAt) continue;
+    const league = leagues.find((l) => l.id === m.leagueId);
+    const playBy = league ? await playoffPlayBy(league, m) : null;
+    if (playBy) playBys.set(m.id, playBy);
+  }
+
+  // Finding 14: standings for each league you play in, as the league page
+  // ranks them (past seasons left out).
+  const playingIn = [...new Set(myPlayers.filter((p) => !p.leftAt && p.leagueId != null).map((p) => p.leagueId!))];
+  const standings = new Map<number, ReturnType<typeof computeStandings>>();
+  if (playingIn.length) {
+    const [leaguePlayers, leagueMatches] = await Promise.all([
+      db.select().from(playersTable).where(inArray(playersTable.leagueId, playingIn)),
+      db.select().from(matchesTable).where(inArray(matchesTable.leagueId, playingIn)),
+    ]);
+    for (const id of playingIn) {
+      const past = await getPastSeasonNames(id);
+      standings.set(
+        id,
+        computeStandings(
+          leaguePlayers.filter((p) => p.leagueId === id),
+          leagueMatches.filter((m) => m.leagueId === id),
+          (season) => season === null || !past.includes(season),
+        ),
+      );
+    }
+  }
+
+  res.json({
+    ...buildLeagueHome({
+      now,
       myPlayers,
       leagues,
       // An ended league has no week to play (decision 31).
@@ -68,8 +102,10 @@ router.get("/me/league-week", async (req, res) => {
       byes,
       names: new Map(nameRows.map((r) => [r.id, r.name])),
       adminLeagueIds,
+      playoffPlayBy: playBys,
     }),
-  );
+    leagues: homeLeagues({ myPlayers, leagues, standings }),
+  });
 });
 
 export default router;

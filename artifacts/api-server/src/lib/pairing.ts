@@ -39,6 +39,11 @@ export interface PairingInput {
   lockedByes?: number[];
   /** Used to rotate who gets the bye among equally deserving players. */
   roundNumber: number;
+  /**
+   * B10: pairs (by pairKey) where one player blocked the other. They're never
+   * paired. If there's no other way to pair them, both sit out this round.
+   */
+  blocked?: Set<string>;
 }
 
 export interface PairingResult {
@@ -137,25 +142,48 @@ export function minCostMatching(players: PairingPlayer[], cost: (a: PairingPlaye
   return idx.map(([i, j]) => [players[i].id, players[j].id]);
 }
 
+/** Far above any real pairing cost, so a blocked pair is only chosen when nothing else works. */
+const BLOCKED_COST = 1e9;
+
 /** Pairs a round. Locked pairings and byes stay; with an odd number left, one player sits out. */
 export function pairRound(input: PairingInput): PairingResult {
   const lockedPairs = input.lockedPairs ?? [];
   const lockedByes = input.lockedByes ?? [];
+  const blocked = input.blocked ?? new Set<string>();
   const taken = new Set<number>([...lockedPairs.flat(), ...lockedByes]);
-  let open = input.players.filter((p) => !taken.has(p.id)).sort((a, b) => a.id - b.id);
+  const open = input.players.filter((p) => !taken.has(p.id)).sort((a, b) => a.id - b.id);
+  const cost = (a: PairingPlayer, b: PairingPlayer) =>
+    pairCost(a, b, input.history, input.weights) + (blocked.has(pairKey(a.id, b.id)) ? BLOCKED_COST : 0);
+  const isBlocked = ([a, b]: [number, number]) => blocked.has(pairKey(a, b));
 
-  const byes = [...lockedByes];
+  // Who might sit out: nobody with an even count. With an odd count, the
+  // fewest byes so far, rotating by round among those tied. If that sitter
+  // leaves only a blocked pairing, the next one in turn sits out instead (B10).
+  let sitters: (PairingPlayer | null)[] = [null];
   if (open.length % 2 === 1) {
-    // Fewest byes so far sits out, rotating by round among those tied.
     const fewest = Math.min(...open.map((p) => p.byes));
     const candidates = open.filter((p) => p.byes === fewest);
-    const sitter = candidates[(input.roundNumber - 1) % candidates.length];
-    byes.push(sitter.id);
-    open = open.filter((p) => p.id !== sitter.id);
+    const start = (input.roundNumber - 1) % candidates.length;
+    const rotated = [...candidates.slice(start), ...candidates.slice(0, start)];
+    sitters = blocked.size ? [...rotated, ...open.filter((p) => p.byes !== fewest)] : [rotated[0]];
   }
 
-  const pairs = minCostMatching(open, (a, b) => pairCost(a, b, input.history, input.weights));
-  return { pairs: [...lockedPairs, ...pairs], byes };
+  let best: { pairs: [number, number][]; byes: number[] } | null = null;
+  for (const sitter of sitters) {
+    const rest = sitter ? open.filter((p) => p.id !== sitter.id) : open;
+    const pairs = minCostMatching(rest, cost);
+    const out = { pairs, byes: sitter ? [sitter.id] : [] };
+    if (!best) best = out;
+    if (!pairs.some(isBlocked)) {
+      best = out;
+      break;
+    }
+  }
+
+  // Never send out a blocked pairing: those two sit out this round instead.
+  const pairs = best!.pairs.filter((p) => !isBlocked(p));
+  const satOut = best!.pairs.filter(isBlocked).flat();
+  return { pairs: [...lockedPairs, ...pairs], byes: [...lockedByes, ...best!.byes, ...satOut] };
 }
 
 /** "3.5" to 3.5; anything unreadable counts as 3.0, the default starting rating. */

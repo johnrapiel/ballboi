@@ -22,9 +22,18 @@ export interface LeagueWeekItem {
   myPlayerId: number;
   /** @nullable */
   opponentName: string | null;
+  /**
+   * The singles opponent's player id, for Message on the Home card; null for doubles and byes
+   * @nullable
+   */
+  opponentPlayerId: number | null;
   singles: boolean;
   /** @nullable */
   scheduledAt: string | null;
   /** @nullable */
   location: string | null;
+  /** A score is in, so there's nothing left to enter or record */
+  played: boolean;
+  /** The league's time zone, for its deadlines */
+  timeZone: string;
 }

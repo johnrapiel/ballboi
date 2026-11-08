@@ -1,12 +1,22 @@
+import { blockedAccountsFor } from "../lib/blocks";
+import { logger } from "../lib/logger";
+import { sendPushToUsers } from "../routes/notifications";
+import { createMessageNotifier } from "../services/push/messagePush";
+import { notificationSettingsFor } from "../services/push/settings";
 import type { NewMessageEvent } from "./service";
 
 /**
- * Push for new messages. A stub until APNs lands (checklist: APNs push, and
- * "Message push notifications with privacy toggle"). When it's built:
- * - Respect the recipient's "hide message previews" setting: no text on the lock screen.
- * - Requests push as "New Message Request", never with the message text.
- * - Skip blocked pairs and restricted senders' requests.
+ * Push for new messages (Wave 2, Session G; decision 128): sender and text,
+ * or "New message from [name]" when the recipient turned Show message
+ * previews off. Never between blocked players. Rules in services/push/messagePush.ts.
  */
-export function notifyNewMessage(_event: NewMessageEvent): void {
-  // Intentionally empty.
+const notify = createMessageNotifier({
+  blockedFor: blockedAccountsFor,
+  previewsOn: async (userId) => (await notificationSettingsFor(userId)).messagePreviews,
+  send: sendPushToUsers,
+});
+
+export function notifyNewMessage(event: NewMessageEvent): void {
+  // Sending never holds up the message itself.
+  void notify(event).catch((err) => logger.warn({ err, conversationId: event.conversationId }, "Message push failed"));
 }

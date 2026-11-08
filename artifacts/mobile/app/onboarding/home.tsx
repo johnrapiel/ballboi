@@ -4,14 +4,15 @@
 // an approximate location (the API rounds it). Denying location never blocks.
 // Also Profile > Edit profile > Home area (mode="edit"), prefilled.
 
-import { useAuth } from "@clerk/expo";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { AccessibilityInfo } from "react-native";
 
 import { OnboardingStep, StepError } from "@/components/OnboardingStep";
 import { EditLoading } from "@/components/profile/EditLoading";
 import { Button, Field, Text } from "@/components/ui";
+import { useStableGetToken } from "@/hooks/useStableGetToken";
 import { fetchProfile, isZip, saveHomeArea, type FormMode } from "@/lib/onboarding";
 
 type Coords = { latitude: number; longitude: number };
@@ -19,7 +20,7 @@ type Coords = { latitude: number; longitude: number };
 export default function HomeAreaStep({ mode = "onboarding" }: { mode?: FormMode }) {
   const editing = mode === "edit";
   const router = useRouter();
-  const { getToken } = useAuth();
+  const getToken = useStableGetToken();
 
   const [zip, setZip] = useState("");
   /** Set only while the zip is the one "Use my location" filled in. */
@@ -31,23 +32,36 @@ export default function HomeAreaStep({ mode = "onboarding" }: { mode?: FormMode 
 
   const valid = isZip(zip);
 
-  // Edit mode starts from the saved zip, and Save waits until it has loaded.
+  // Start from the saved zip (A14): always in edit mode, where Save waits until
+  // it has loaded, and when resuming onboarding. A slow load never replaces a
+  // zip the person already started typing or filled from their location.
   const [savedZip, setSavedZip] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(!editing);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const touched = useRef(false);
   const load = useCallback(() => {
-    if (!editing) return;
     setLoadError(null);
     fetchProfile(getToken)
       .then((p) => {
-        if (!p) return setLoadError("We couldn't find your profile.");
+        if (!p) {
+          if (editing) setLoadError("We couldn't find your profile.");
+          return;
+        }
         setSavedZip(p.homeZip);
-        setZip(p.homeZip ?? "");
+        if (!touched.current) setZip(p.homeZip ?? "");
         setLoaded(true);
       })
-      .catch(() => setLoadError("We couldn't load your profile. Check your connection and try again."));
+      .catch(() => {
+        if (editing) setLoadError("We couldn't load your profile. Check your connection and try again.");
+      });
   }, [getToken, editing]);
   useEffect(load, [load]);
+
+  // A11: iOS ignores live regions, so say each location note out loud, the way
+  // StepError does: "Found 12590." or why it couldn't.
+  useEffect(() => {
+    if (note) AccessibilityInfo.announceForAccessibility(note);
+  }, [note]);
 
   async function locate() {
     setNote(null);
@@ -66,6 +80,7 @@ export default function HomeAreaStep({ mode = "onboarding" }: { mode?: FormMode 
         setNote("We couldn't find a zip code here. Enter it instead.");
         return;
       }
+      touched.current = true;
       setZip(found);
       setCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
       setNote(`Found ${found}.`);
@@ -80,7 +95,7 @@ export default function HomeAreaStep({ mode = "onboarding" }: { mode?: FormMode 
     if (!valid) return;
     // Nothing changed: saving the zip alone would drop the approximate
     // location from an earlier "Use my location".
-    if (editing && !coords && zip.trim() === savedZip) return router.back();
+    if (!coords && zip.trim() === savedZip) return editing ? router.back() : router.push("/onboarding/rating");
     setError(null);
     setBusy(true);
     try {
@@ -108,6 +123,7 @@ export default function HomeAreaStep({ mode = "onboarding" }: { mode?: FormMode 
         label="Zip code"
         value={zip}
         onChangeText={(v) => {
+          touched.current = true;
           setZip(v.replace(/\D/g, "").slice(0, 5));
           setCoords(null);
           setNote(null);

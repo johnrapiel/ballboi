@@ -5,12 +5,24 @@ import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import pino from "pino";
 import { autoLinkPlayersForUser } from "../lib/autoLinkPlayer.js";
+import { deleteOldPhoto, newPhotoProblem } from "../lib/profilePhoto.js";
 import { deleteAccount } from "../lib/accountDeletion.js";
+import { leaguesRunAlone, parseNewAdmins, successorsByLeague } from "../lib/leagueAccountDeletion.js";
 import { isUserIntent, parseHomeArea, parseIntents } from "../lib/onboarding.js";
+import { syncProfileName } from "../lib/playerProfile.js";
 
 const logger = pino({ name: "users" });
 
 const router = Router();
+
+/**
+ * A1, S6: a name change shows in every league right away. Rosters, pairings
+ * and Manage read the profile; this also updates the copy on league rows that
+ * standings, scores and notifications read. A failure never fails the save.
+ */
+async function syncNameToLeagues(clerkUserId: string, displayName: string) {
+  await syncProfileName(clerkUserId, displayName).catch((err) => logger.error({ err }, "Couldn't copy the profile name to leagues"));
+}
 
 function requireAuth(req: any, res: any, next: any) {
   const { userId } = getAuth(req);
@@ -32,8 +44,13 @@ router.post("/users/me", requireAuth, async (req, res) => {
   if (!displayName) return res.status(400).json({ error: "displayName is required" });
 
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.clerkUserId, userId!));
+  if (avatarUrl !== undefined) {
+    const problem = await newPhotoProblem(avatarUrl, existing?.avatarUrl, userId!);
+    if (problem) return res.status(400).json({ error: problem });
+  }
 
   if (existing) {
+    const previousName = existing.displayName;
     const [updated] = await db
       .update(usersTable)
       .set({
@@ -48,8 +65,8 @@ router.post("/users/me", requireAuth, async (req, res) => {
       })
       .where(eq(usersTable.clerkUserId, userId!))
       .returning();
-    await autoLinkPlayersForUser({ clerkUserId: userId!, displayName, email: email ?? existing.email })
-      .catch((err) => logger.error({ err }, "Auto-link failed on user update"));
+    await deleteOldPhoto(existing.avatarUrl, updated.avatarUrl, logger);
+    if (updated.displayName !== previousName) await syncNameToLeagues(userId!, updated.displayName);
     return res.json(updated);
   }
 
@@ -67,8 +84,10 @@ router.post("/users/me", requireAuth, async (req, res) => {
       onboardingComplete: onboardingComplete ?? false,
     })
     .returning();
-  await autoLinkPlayersForUser({ clerkUserId: userId!, displayName, email })
+  // A2: runs once, when the profile is made, on the verified email from Clerk.
+  await autoLinkPlayersForUser(userId!)
     .catch((err) => logger.error({ err }, "Auto-link failed on user create"));
+  await syncNameToLeagues(userId!, created.displayName);
   return res.status(201).json(created);
 });
 
@@ -78,6 +97,10 @@ router.put("/users/me", requireAuth, async (req, res) => {
 
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.clerkUserId, userId!));
   if (!existing) return res.status(404).json({ error: "User profile not found" });
+  if (avatarUrl !== undefined) {
+    const problem = await newPhotoProblem(avatarUrl, existing.avatarUrl, userId!);
+    if (problem) return res.status(400).json({ error: problem });
+  }
 
   const updateData: Partial<typeof usersTable.$inferInsert> = {};
   if (displayName !== undefined) updateData.displayName = displayName;
@@ -89,12 +112,11 @@ router.put("/users/me", requireAuth, async (req, res) => {
   if (bio !== undefined) updateData.bio = bio;
   if (onboardingComplete !== undefined) updateData.onboardingComplete = onboardingComplete;
 
+  if (Object.keys(updateData).length === 0) return res.json(existing);
+  const previousName = existing.displayName;
   const [updated] = await db.update(usersTable).set(updateData).where(eq(usersTable.clerkUserId, userId!)).returning();
-  await autoLinkPlayersForUser({
-    clerkUserId: userId!,
-    displayName: updated.displayName,
-    email: updated.email,
-  }).catch((err) => logger.error({ err }, "Auto-link failed on user PUT update"));
+  await deleteOldPhoto(existing.avatarUrl, updated.avatarUrl, logger);
+  if (updated.displayName !== previousName) await syncNameToLeagues(userId!, updated.displayName);
   return res.json(updated);
 });
 
@@ -154,10 +176,36 @@ router.put("/users/me/intent", requireAuth, async (req, res) => {
 });
 
 /**
+ * GET /users/me/league-handoff
+ * For the Delete account screen (Wave 1 review S4): the active leagues the
+ * person runs alone, each with the members who could take over,
+ * longest-standing first. Leagues nobody can take over are left out.
+ */
+router.get("/users/me/league-handoff", requireAuth, async (req, res) => {
+  const { userId } = getAuth(req);
+  const alone = (await leaguesRunAlone(db, userId!)).filter((l) => !l.endedAt);
+  const successors = await successorsByLeague(db, alone.map((l) => l.leagueId), userId!);
+  const leagues = alone
+    .map((l) => ({
+      leagueId: l.leagueId,
+      name: l.name,
+      members: (successors.get(l.leagueId) ?? []).map((m) => ({
+        playerId: m.playerId,
+        name: m.name,
+        joinedAt: m.createdAt.toISOString(),
+      })),
+    }))
+    .filter((l) => l.members.length > 0);
+  return res.json({ leagues });
+});
+
+/**
  * DELETE /users/me
  * Permanently deletes the signed-in person's account and personal data
  * (App Store guideline 5.1.1(v)). The body must be { "confirm": "DELETE" }
- * so a stray request can't wipe an account.
+ * so a stray request can't wipe an account. Optional
+ * `newAdmins: [{ leagueId, playerId }]` names who takes over each league they
+ * run alone; leagues left out go to the longest-standing member.
  */
 router.delete("/users/me", requireAuth, async (req, res) => {
   const { userId } = getAuth(req);
@@ -165,7 +213,7 @@ router.delete("/users/me", requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Send { "confirm": "DELETE" } to delete your account.' });
   }
   try {
-    const summary = await deleteAccount(userId!, logger);
+    const summary = await deleteAccount(userId!, logger, {}, { newAdmins: parseNewAdmins(req.body?.newAdmins) });
     return res.json({ deleted: true, ...summary });
   } catch (err) {
     logger.error({ err, userId }, "Account deletion failed");

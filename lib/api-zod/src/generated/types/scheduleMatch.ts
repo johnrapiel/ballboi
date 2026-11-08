@@ -33,10 +33,15 @@ export interface ScheduleMatch {
   /** @nullable */
   location: string | null;
   /**
-   * When the caller's 10-minute undo runs out (ISO time). Set only for the player who entered the score, while they can still undo it.
+   * When the caller's 24 hours to edit the score run out (ISO time). Set for either player while they can still edit it.
    * @nullable
    */
-  undoUntil: string | null;
+  editUntil: string | null;
+  /**
+   * The player who last edited the score, for "Score edited by {name}"
+   * @nullable
+   */
+  editedBy: string | null;
   /**
    * The admin who corrected the score, for "Corrected by {admin} on {date}"
    * @nullable
@@ -45,7 +50,7 @@ export interface ScheduleMatch {
   /** @nullable */
   correctedAt: string | null;
   /**
-   * The player who undid the score, shown to the opponent until a new score is in
+   * Older matches only, from before Undo was replaced by the 24-hour edit. The player who undid the score, shown until a new score is in
    * @nullable
    */
   scoreClearedBy: string | null;

@@ -1,9 +1,11 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { getAuth } from "@clerk/express";
-import { db } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { db, leaguesTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
+import { canViewLeague, PRIVATE_LEAGUE } from "../lib/leagueAccess.js";
 import { logger } from "../lib/logger";
 import { requireAdmin } from "../middlewares/requireAdmin";
+import { requireLeagueViewer } from "../middlewares/requireLeagueViewer.js";
 
 const router = Router();
 
@@ -14,7 +16,7 @@ function requireAuth(req: any, res: any, next: any) {
 }
 
 // GET /drills/:leagueId — list drills for a league
-router.get("/drills/:leagueId", requireAuth, async (req: any, res: any) => {
+router.get("/drills/:leagueId", requireLeagueViewer, async (req: any, res: any) => {
   try {
     const leagueId = parseInt(req.params.leagueId);
     const result = await db.execute(sql`
@@ -71,6 +73,7 @@ router.post("/drills/:id/results", requireAuth, async (req: any, res: any) => {
   try {
     const { userId } = getAuth(req);
     const drillId = parseInt(req.params.id);
+    if (!(await canUseDrill(req, res, drillId))) return;
     const { leagueId, shotsAttempted, shotsSuccessful, recordingId } = req.body;
 
     if (shotsAttempted === undefined) return res.status(400).json({ error: "shotsAttempted required" });
@@ -108,27 +111,47 @@ router.post("/drills/:id/results", requireAuth, async (req: any, res: any) => {
   }
 });
 
-// GET /drills/:id/leaderboard
+/**
+ * A drill's results belong to its league: only someone who can see that league
+ * (anyone signed in for an Open league, its players and admins for a Private
+ * one) can read or add to them. Answers 400/404/403 and returns false otherwise.
+ */
+async function canUseDrill(req: Request, res: Response, drillId: number): Promise<boolean> {
+  if (isNaN(drillId)) { res.status(400).json({ error: "Invalid drill ID" }); return false; }
+  const found = await db.execute(sql`SELECT league_id FROM drills WHERE id = ${drillId}`);
+  const leagueId = (found.rows[0] as { league_id?: number | null } | undefined)?.league_id;
+  if (leagueId == null) { res.status(404).json({ error: "Drill not found" }); return false; }
+  const [league] = await db
+    .select({ id: leaguesTable.id, visibility: leaguesTable.visibility, createdByClerkUserId: leaguesTable.createdByClerkUserId })
+    .from(leaguesTable)
+    .where(eq(leaguesTable.id, leagueId));
+  if (!league) { res.status(404).json({ error: "Drill not found" }); return false; }
+  if (!(await canViewLeague(league, getAuth(req).userId!))) { res.status(403).json({ error: PRIVATE_LEAGUE }); return false; }
+  return true;
+}
+
+// GET /drills/:id/leaderboard — for people who can see the drill's league
 router.get("/drills/:id/leaderboard", requireAuth, async (req: any, res: any) => {
   try {
     const drillId = parseInt(req.params.id);
+    if (!(await canUseDrill(req, res, drillId))) return;
     const { period = "all" } = req.query;
 
     let dateFilter = "";
     if (period === "week") dateFilter = `AND dr.attempted_at >= NOW() - INTERVAL '7 days'`;
     else if (period === "month") dateFilter = `AND dr.attempted_at >= NOW() - INTERVAL '30 days'`;
 
-    const result = await db.execute(sql.raw(`
+    const result = await db.execute(sql`
       SELECT dr.user_id,
              MAX(dr.success_percentage) as best_score,
              COUNT(*) as attempts,
              MAX(dr.attempted_at) as last_attempt
       FROM drill_results dr
-      WHERE dr.drill_id = ${drillId} ${dateFilter}
+      WHERE dr.drill_id = ${drillId} ${sql.raw(dateFilter)}
       GROUP BY dr.user_id
       ORDER BY best_score DESC
       LIMIT 50
-    `));
+    `);
 
     res.json(result.rows);
   } catch (err) {

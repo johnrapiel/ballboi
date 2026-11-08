@@ -5,8 +5,13 @@ import { leagueInvitesTable, leaguesTable, playersTable, leagueJoinRequestsTable
 import { eq, and, sql, isNull } from "drizzle-orm";
 import { customAlphabet } from "nanoid";
 import { isLeagueAdmin } from "../lib/leagueAccess.js";
-import { leagueToday } from "../lib/leagueCalendar.js";
+import { todayFor } from "../lib/leagueCalendar.js";
 import { joinOutcome } from "../lib/leagueJoining.js";
+import { ENDED_MESSAGE, leagueHasEnded } from "../lib/leagueLifecycle.js";
+
+/** Q8: an ended league's code just says so. No join, and no request for the admin. */
+const LEAGUE_ENDED = { error: ENDED_MESSAGE, code: "league_ended" } as const;
+import { loadProfiles, playerLevelText } from "../lib/playerProfile.js";
 
 const router = Router();
 
@@ -86,12 +91,13 @@ router.get("/invites/:code", async (req, res) => {
   if (!invite.isActive) return res.status(410).json({ error: "Invite is no longer active" });
 
   const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, invite.leagueId));
+  if (leagueHasEnded(league)) return res.status(410).json({ ...LEAGUE_ENDED, leagueName: league!.name });
   const players = await db.select().from(playersTable).where(eq(playersTable.leagueId, invite.leagueId));
   const activeCount = players.filter((p) => !p.leftAt).length;
   // Tells the join screen up front what Join will do: join now, ask the
   // organizer (Private, started or full), or join the waitlist (Open).
   const outcome = league
-    ? joinOutcome({ league, activePlayerCount: activeCount, today: leagueToday(), via: "invite" })
+    ? joinOutcome({ league, activePlayerCount: activeCount, today: todayFor(league), via: "invite" })
     : null;
   const { userId } = getAuth(req);
   const [mine] = userId
@@ -132,11 +138,18 @@ router.get("/invites/:code", async (req, res) => {
 router.post("/invites/:code/join", requireAuth, async (req, res) => {
   const { code } = req.params;
   const { userId } = getAuth(req);
-  const { playerName, skillLevel } = req.body;
+  const { skillLevel } = req.body;
   const allowedSkillLevels = new Set(["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"]);
-  const nextSkillLevel = allowedSkillLevels.has(skillLevel) ? skillLevel : "3.0";
+  // A1: the league row starts from the profile's name and level. Leagues read
+  // the profile itself from then on; what the app sends is only a fallback.
+  const profiles = await loadProfiles([userId]);
+  const playerName: string = profiles.get(userId!)?.displayName?.trim() || String(req.body?.playerName ?? "");
+  const nextSkillLevel = playerLevelText(
+    { clerkUserId: userId, skillLevel: allowedSkillLevels.has(skillLevel) ? skillLevel : "3.0" },
+    profiles,
+  );
 
-  if (!playerName?.trim()) return res.status(400).json({ error: "playerName is required" });
+  if (!playerName.trim()) return res.status(400).json({ error: "playerName is required" });
 
   try {
     const result = await db.transaction(async (tx) => {
@@ -153,6 +166,7 @@ router.post("/invites/:code/join", requireAuth, async (req, res) => {
       }
 
       const [league] = await tx.select().from(leaguesTable).where(eq(leaguesTable.id, invite.leagueId));
+      if (leagueHasEnded(league)) return { status: 410, payload: { ...LEAGUE_ENDED, leagueName: league!.name } };
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${String(invite.leagueId)}), hashtext(${userId!}))`);
 
       const [existing] = await tx
@@ -179,7 +193,7 @@ router.post("/invites/:code/join", requireAuth, async (req, res) => {
         .select({ id: playersTable.id })
         .from(playersTable)
         .where(and(eq(playersTable.leagueId, invite.leagueId), isNull(playersTable.leftAt)));
-      const outcome = joinOutcome({ league, activePlayerCount: active.length, today: leagueToday(), via: "invite" });
+      const outcome = joinOutcome({ league, activePlayerCount: active.length, today: todayFor(league), via: "invite" });
       if (outcome.kind === "waitlist" || (outcome.kind === "request" && outcome.reason)) {
         const kind = outcome.kind === "waitlist" ? "waitlist" : "request";
         await tx

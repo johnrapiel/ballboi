@@ -1,15 +1,9 @@
 import { Router } from "express";
-import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { requireLeagueViewer } from "../middlewares/requireLeagueViewer.js";
 
 const router = Router();
-
-function requireAuth(req: any, res: any, next: any) {
-  const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: "Unauthorized" });
-  next();
-}
 
 function datePeriodFilter(period: string): string {
   if (period === "week") return `AND r.recorded_at >= NOW() - INTERVAL '7 days'`;
@@ -18,7 +12,7 @@ function datePeriodFilter(period: string): string {
 }
 
 // GET /shot-leaderboards/:leagueId/serve-accuracy
-router.get("/shot-leaderboards/:leagueId/serve-accuracy", requireAuth, async (req: any, res: any) => {
+router.get("/shot-leaderboards/:leagueId/serve-accuracy", requireLeagueViewer, async (req: any, res: any) => {
   try {
     const leagueId = parseInt(req.params.leagueId);
     const { period = "all" } = req.query;
@@ -51,7 +45,7 @@ router.get("/shot-leaderboards/:leagueId/serve-accuracy", requireAuth, async (re
 });
 
 // GET /shot-leaderboards/:leagueId/consistency
-router.get("/shot-leaderboards/:leagueId/consistency", requireAuth, async (req: any, res: any) => {
+router.get("/shot-leaderboards/:leagueId/consistency", requireLeagueViewer, async (req: any, res: any) => {
   try {
     const leagueId = parseInt(req.params.leagueId);
     const { period = "all" } = req.query;
@@ -84,7 +78,7 @@ router.get("/shot-leaderboards/:leagueId/consistency", requireAuth, async (req: 
 });
 
 // GET /shot-leaderboards/:leagueId/aces
-router.get("/shot-leaderboards/:leagueId/aces", requireAuth, async (req: any, res: any) => {
+router.get("/shot-leaderboards/:leagueId/aces", requireLeagueViewer, async (req: any, res: any) => {
   try {
     const leagueId = parseInt(req.params.leagueId);
     const { period = "all" } = req.query;
@@ -110,7 +104,7 @@ router.get("/shot-leaderboards/:leagueId/aces", requireAuth, async (req: any, re
 });
 
 // GET /shot-leaderboards/:leagueId/winners
-router.get("/shot-leaderboards/:leagueId/winners", requireAuth, async (req: any, res: any) => {
+router.get("/shot-leaderboards/:leagueId/winners", requireLeagueViewer, async (req: any, res: any) => {
   try {
     const leagueId = parseInt(req.params.leagueId);
     const { period = "all", shotType } = req.query;
@@ -141,7 +135,7 @@ router.get("/shot-leaderboards/:leagueId/winners", requireAuth, async (req: any,
 });
 
 // GET /shot-leaderboards/:leagueId/efficiency
-router.get("/shot-leaderboards/:leagueId/efficiency", requireAuth, async (req: any, res: any) => {
+router.get("/shot-leaderboards/:leagueId/efficiency", requireLeagueViewer, async (req: any, res: any) => {
   try {
     const leagueId = parseInt(req.params.leagueId);
     const { period = "all" } = req.query;

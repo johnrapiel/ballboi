@@ -6,19 +6,21 @@
 // Until the simulated replay is built (Wave 2), this screen says where the
 // match is, so the link never opens a dead screen or a video.
 
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import { ActivityIndicator, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
-import { Button } from "@/components/ui";
+import { FAILED_TITLE, UPLOADED_DETAIL, UPLOADED_TITLE } from "@/components/record/ProcessingCard";
+import { Button, TextButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useGetBallBoiReplay } from "@workspace/api-client-react";
 
 export default function ReplayScreen() {
   const c = useColors();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
   const id = Number(matchId);
@@ -46,22 +48,24 @@ export default function ReplayScreen() {
         message="Record a match with Ball Boi to get a replay."
       />
     );
-  } else if (data.session.processingStatus !== "completed") {
+  } else if (
+    data.session.status === "failed" &&
+    // While the analysis service is down an automatic retry is still coming: that's still Analyzing.
+    !(data.session.processingError ?? "").toLowerCase().includes("temporarily unavailable")
+  ) {
+    // Q16: say it plainly; never that Ball Boi keeps trying.
     body = (
       <EmptyState
-        symbol="hourglass"
-        title="Analyzing"
-        message="We'll let you know when your replay is ready."
+        symbol="exclamationmark.circle"
+        title={FAILED_TITLE}
+        message="You can remove it from Your recordings on the Ball Boi tab."
       />
     );
   } else {
-    body = (
-      <EmptyState
-        symbol="sportscourt"
-        title="Replay is coming"
-        message="Ball Boi has analyzed this match. The replay will show here in an upcoming update."
-      />
-    );
+    // Spec decision 88 (B5): no stat has passed its accuracy bar and the
+    // simulated replay isn't built, so analyzing and analyzed both say the
+    // match is saved and stats come later. Never "Analyzing".
+    body = <EmptyState symbol="checkmark.circle" title={UPLOADED_TITLE} message={UPLOADED_DETAIL} />;
   }
 
   return (
@@ -76,6 +80,19 @@ export default function ReplayScreen() {
       }}
     >
       {body}
+      {!isLoading ? (
+        <TextButton
+          label="Something not working?"
+          accessibilityHint="Tell us what went wrong. It goes to Ball Boi support."
+          onPress={() =>
+            router.push({
+              pathname: "/feedback",
+              params: { source: "replay", ...(Number.isInteger(id) && id > 0 ? { matchId: String(id) } : {}) },
+            })
+          }
+          style={{ marginTop: spacing.space4 }}
+        />
+      ) : null}
     </View>
   );
 }

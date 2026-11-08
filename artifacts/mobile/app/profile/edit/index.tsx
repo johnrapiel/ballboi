@@ -1,71 +1,102 @@
-// Profile > Edit profile (Wave 1 review A5, A6). A grouped list of the three
-// things set during onboarding, each with its current value. Each row opens
-// the matching onboarding screen in edit mode. Values reload when you come
-// back, so a Save shows up here right away.
+// Edit profile (decision 138; canvas W2_EditProfile): one screen of rows
+// behind the player card's pencil. Photo, name, level (this row keeps
+// "Self-rated", decision 140), home area, plays, free times and home court,
+// each opening the editor it always had.
 
-import { Stack, useRouter } from "expo-router";
-import React from "react";
-import { ScrollView, View } from "react-native";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback } from "react";
+import { Pressable, ScrollView, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ListRow } from "@/components/league/ListRow";
-import { EditLoading } from "@/components/profile/EditLoading";
+import { useGetMyPlayerCard } from "@workspace/api-client-react";
+
+import { Avatar } from "@/components/Avatar";
 import { useEditHeader } from "@/components/profile/editHeader";
-import { Card, Text } from "@/components/ui";
-import { spacing } from "@/constants/tokens";
+import { SettingsRow, SettingsSection } from "@/components/SettingsList";
+import { Text } from "@/components/ui";
+import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useProfile } from "@/hooks/useProfile";
-import { formatRating, type Profile } from "@/lib/onboarding";
+import { photoUrl } from "@/lib/photos";
+import { levelRow, playsPill } from "@/lib/playerCard";
 
-function levelValue(p: Profile): string {
-  if (p.rating == null) return "Not set";
-  return `${formatRating(p.rating)}, ${p.ratingSource === "verified" ? "Verified" : "Self-rated"}`;
-}
-
-export default function EditProfileList() {
+export default function EditProfileScreen() {
   const c = useColors();
   const router = useRouter();
-  const header = useEditHeader("Edit profile");
-  const { profile, error, reload } = useProfile();
+  const insets = useSafeAreaInsets();
+  const header = useEditHeader("");
+  const { profile } = useProfile();
+  const cardQ = useGetMyPlayerCard();
+  const card = cardQ.data;
+  const { refetch } = cardQ;
+  // Back from an editor: show what was just saved.
+  useFocusEffect(
+    useCallback(() => {
+      void refetch();
+    }, [refetch]),
+  );
+
+  const name = profile?.displayName ?? card?.name ?? "";
+  const editName = () => router.push("/profile/edit/name");
 
   return (
     <>
       <Stack.Screen options={header} />
-      {!profile ? (
-        <EditLoading error={error} onRetry={reload} />
-      ) : (
-        <ScrollView
-          style={{ flex: 1, backgroundColor: c.paper }}
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={{ padding: spacing.space4, gap: spacing.space3 }}
-        >
-          <Card style={{ padding: 0, overflow: "hidden" }}>
-            <ListRow
-              title="Name and photo"
-              subtitle={`${profile.displayName}${profile.avatarUrl ? "" : ", initials only"}`}
-              onPress={() => router.push("/profile/edit/name")}
-              accessibilityHint="Opens your name and photo"
-            />
-            <ListRow
-              title="Home area"
-              subtitle={profile.homeZip ?? "Not set"}
-              onPress={() => router.push("/profile/edit/home")}
-              accessibilityHint="Opens your home area"
-            />
-            <ListRow
-              title="Your level"
-              subtitle={levelValue(profile)}
-              onPress={() => router.push("/profile/edit/level")}
-              accessibilityHint="Opens your level"
-              last
-            />
-          </Card>
-          <View style={{ paddingHorizontal: spacing.space1 }}>
-            <Text variant="small" tone="inkMuted">
-              Your name, photo and level show on your player card. Your home area is never shown, only an approximate distance.
-            </Text>
-          </View>
-        </ScrollView>
-      )}
+      <ScrollView
+        style={{ flex: 1, backgroundColor: c.paper }}
+        contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: 20 }}
+      >
+        <Text variant="headingL" accessibilityRole="header">
+          Edit profile
+        </Text>
+
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space4 }}>
+          <Avatar name={name} uri={photoUrl(profile?.avatarUrl ?? card?.avatarUrl)} size={72} />
+          <Pressable
+            onPress={editName}
+            accessibilityRole="button"
+            accessibilityLabel="Change photo"
+            style={({ pressed }) => ({ minHeight: MIN_TAP, justifyContent: "center", opacity: pressed ? 0.6 : 1 })}
+          >
+            <Text style={{ textDecorationLine: "underline" }}>Change photo</Text>
+          </Pressable>
+        </View>
+
+        <SettingsSection footer="Everything here shows on your player card except your home area. Other players only see your town and an approximate distance.">
+          <SettingsRow title="Name" value={name || null} onPress={editName} accessibilityHint="Change your name and photo" />
+          <SettingsRow
+            title="Level"
+            value={profile || card ? levelRow(profile?.rating ?? card?.rating, profile?.ratingSource ?? card?.ratingSource) : null}
+            onPress={() => router.push("/profile/edit/level")}
+            accessibilityHint="Change your self-rated level"
+          />
+          <SettingsRow
+            title="Home area"
+            value={profile ? (profile.homeZip ?? "Not set") : null}
+            onPress={() => router.push("/profile/edit/home")}
+            accessibilityHint="Change your home area"
+          />
+          <SettingsRow
+            title="Plays"
+            value={card ? (playsPill(card.plays) ?? "Not set") : null}
+            onPress={() => router.push("/discover/play")}
+            accessibilityHint="Singles, doubles, or both"
+          />
+          <SettingsRow
+            title="Free times"
+            subtitle={card ? (card.freeSummary ?? "Add when you can play") : null}
+            onPress={() => router.push("/availability")}
+            accessibilityHint="The hours you're usually free"
+          />
+          <SettingsRow
+            title="Home court"
+            value={card ? (card.homeCourt ?? "Not set") : null}
+            onPress={() => router.push({ pathname: "/courts", params: { mode: "home" } })}
+            accessibilityHint="The court you usually play at"
+            last
+          />
+        </SettingsSection>
+      </ScrollView>
     </>
   );
 }

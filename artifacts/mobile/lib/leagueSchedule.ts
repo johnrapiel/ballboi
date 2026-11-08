@@ -1,5 +1,7 @@
 import type { LeagueSchedule, ScheduleMatch, ScheduleRound } from "@workspace/api-client-react";
 
+import { flipScore, WALKOVER_SCORE } from "./tennisScore";
+
 // Helpers for the league schedule (spec: Leagues > Weekly loop, Scores and
 // standings). Dates are YYYY-MM-DD in the league's time zone.
 
@@ -18,6 +20,103 @@ export function shortDate(date: string): string {
     day: "numeric",
     timeZone: "UTC",
   });
+}
+
+/** The phone's own time zone, like "America/Los_Angeles". */
+export function phoneTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Leagues run on their creator's time zone (PR 4). When that isn't the
+ * viewer's, a deadline names it: " PST", " ET". Empty when it's the same.
+ */
+export function zoneSuffix(timeZone: string | null | undefined, at: Date = new Date()): string {
+  if (!timeZone) return "";
+  const mine = phoneTimeZone();
+  if (!mine || mine === timeZone) return "";
+  const name = (tz: string) => {
+    try {
+      return (
+        new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "short" }).formatToParts(at).find((p) => p.type === "timeZoneName")
+          ?.value ?? ""
+      );
+    } catch {
+      return "";
+    }
+  };
+  const theirs = name(timeZone);
+  // Same clock under another name (New York and Toronto): nothing to say.
+  if (!theirs || theirs === name(mine)) return "";
+  return ` ${theirs}`;
+}
+
+/** "Thu, Nov 5" plus the league's time zone when it isn't the viewer's. */
+export function deadlineDate(date: string, timeZone: string | null | undefined): string {
+  return `${shortDate(date)}${zoneSuffix(timeZone)}`;
+}
+
+/** "7am" plus the league's time zone when it isn't the viewer's: when pairings go out. */
+export function pairingTime(timeZone: string | null | undefined): string {
+  return `7am${zoneSuffix(timeZone)}`;
+}
+
+/** True when an ISO time falls on the phone's today. */
+export function isToday(iso: string | null | undefined, now: Date = new Date()): boolean {
+  if (!iso) return false;
+  const d = new Date(iso);
+  return !Number.isNaN(d.getTime()) && d.toDateString() === now.toDateString();
+}
+
+/** "Today at 6:00 PM" or "Thu, Nov 5 at 6:00 PM", on the phone's clock. */
+export function matchWhen(iso: string | null | undefined, now: Date = new Date()): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  if (isToday(iso, now)) return `Today at ${time}`;
+  return `${d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} at ${time}`;
+}
+
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** "Tuesdays at 6:30 PM" for a league's weekly match day and "HH:MM" time, or null. */
+export function weeklyMatchTime(matchDay: number | null | undefined, matchTime: string | null | undefined, timeZone?: string | null): string | null {
+  if (matchDay == null || !matchTime) return null;
+  const [h, m] = matchTime.split(":").map(Number);
+  const clock = new Date(2000, 0, 1, h, m).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `${DAYS[matchDay]}s at ${clock}${zoneSuffix(timeZone)}`;
+}
+
+/** The instant when the clock in `timeZone` reads `date` (YYYY-MM-DD) at `time` (HH:MM). Mirrors the API's leagueCalendar. */
+export function zonedTime(date: string, time: string, timeZone: string): Date {
+  const [y, m, d] = date.split("-").map(Number);
+  const [hh, mm] = time.split(":").map(Number);
+  const wall = Date.UTC(y, m - 1, d, hh, mm);
+  const offsetAt = (at: number) => {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        hourCycle: "h23",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).formatToParts(new Date(at));
+      const n = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+      return Date.UTC(n("year"), n("month") - 1, n("day"), n("hour") % 24, n("minute")) - Math.floor(at / 60000) * 60000;
+    } catch {
+      return -new Date(at).getTimezoneOffset() * 60000;
+    }
+  };
+  let at = wall - offsetAt(wall);
+  at = wall - offsetAt(at);
+  return new Date(at);
 }
 
 /** "Nov 5 to 11" or "Nov 26 to Dec 2" */
@@ -55,33 +154,32 @@ export function isMine(m: ScheduleMatch, myPlayerId: number | null | undefined):
   return myPlayerId != null && (m.player1Id === myPlayerId || m.player2Id === myPlayerId);
 }
 
-/** A stored score (player 1's side) as the given player sees it: their games first. */
+/** A stored score (player 1's side) as the given player sees it: their games first. RET and W/O stay. */
 export function scoreForPlayer(score: string, m: Pick<ScheduleMatch, "player1Id">, playerId: number): string {
-  if (m.player1Id === playerId) return score;
-  return score
-    .split(",")
-    .map((set) => {
-      const x = set.trim().match(/^(\d+)-(\d+)(\(\d+\))?$/);
-      return x ? `${x[2]}-${x[1]}${x[3] ?? ""}` : set.trim();
-    })
-    .join(", ");
+  return m.player1Id === playerId ? score : flipScore(score);
+}
+
+/** "6-3, 6-4" from the winner's side, or "by W/O" for a walkover (C18, Q5). */
+export function winningScore(score: string, m: Pick<ScheduleMatch, "player1Id">, winnerId: number): string {
+  return score.trim() === WALKOVER_SCORE ? `by ${WALKOVER_SCORE}` : scoreForPlayer(score, m, winnerId);
 }
 
 /**
- * C6: an unplayed match whose grace week has passed. It shows "Not played"
- * and has no effect on standings.
+ * C6: an unplayed match whose grace week has passed, or any unplayed match
+ * once the league has ended (C24). It shows "Not played" and has no effect
+ * on standings.
  */
-export function isNotPlayed(round: Pick<ScheduleRound, "phase">, m: ScheduleMatch): boolean {
-  return round.phase === "closed" && !m.voided && m.status !== "completed";
+export function isNotPlayed(round: Pick<ScheduleRound, "phase">, m: ScheduleMatch, ended = false): boolean {
+  return (ended || round.phase === "closed") && !m.voided && m.status !== "completed";
 }
 
 /** "Alex Kim won 6-3, 6-4" from the winner's side, or a status in words. */
-export function resultLine(m: ScheduleMatch, round?: Pick<ScheduleRound, "phase">): string {
+export function resultLine(m: ScheduleMatch, round?: Pick<ScheduleRound, "phase">, ended = false): string {
   if (m.voided) return "Cancelled";
-  if (round && isNotPlayed(round, m)) return "Not played";
-  if (m.status !== "completed" || !m.score || m.winnerId == null) return "Not played yet";
+  if (round && isNotPlayed(round, m, ended)) return "Not played";
+  if (m.status !== "completed" || !m.score || m.winnerId == null) return ended ? "Not played" : "Not played yet";
   const winner = m.winnerId === m.player1Id ? m.player1Name : m.player2Name;
-  return `${winner} won ${scoreForPlayer(m.score, m, m.winnerId)}`;
+  return `${winner} won ${winningScore(m.score, m, m.winnerId)}`;
 }
 
 export interface MyWeek {
@@ -113,9 +211,33 @@ export function myWeek(schedule: LeagueSchedule | undefined, myPlayerId: number 
   return null;
 }
 
-/** Whether a match can be scored now: it's out, unplayed, not voided, and not past its grace week. */
-export function canEnterScore(round: ScheduleRound, m: ScheduleMatch): boolean {
-  return (round.phase === "open" || round.phase === "grace") && m.status !== "completed" && !m.voided;
+/** Whether a match can be scored now: it's out, unplayed, not voided, not past its grace week, and the league is still on. */
+export function canEnterScore(round: ScheduleRound, m: ScheduleMatch, ended = false): boolean {
+  return !ended && (round.phase === "open" || round.phase === "grace") && m.status !== "completed" && !m.voided;
+}
+
+/**
+ * League detail's "Record with Ball Boi" (John, Nov 8, option A). Any day of
+ * the match's week, grace week included, while the match can be scored:
+ * "record" on a singles match, "doubles" (dimmed, with the reason) on a
+ * doubles one. Null once the score is in, or the round is upcoming, closed,
+ * voided, or the league has ended: the same rules as Enter score.
+ */
+export function recordAction(
+  round: ScheduleRound,
+  m: ScheduleMatch,
+  ended: boolean,
+  doubles: boolean,
+): "record" | "doubles" | null {
+  if (!canEnterScore(round, m, ended) || !!m.score) return null;
+  return doubles ? "doubles" : "record";
+}
+
+/** C21: the playoff line under the standings, or null with no playoffs. */
+export function playoffLine(playoffSize: number | null | undefined, activePlayers: number): string | null {
+  if (!playoffSize) return null;
+  if (activePlayers < 4) return "Not enough players for playoffs this season.";
+  return `Top ${activePlayers >= 8 && playoffSize >= 8 ? 8 : 4} make the playoffs.`;
 }
 
 /** C5: "Corrected by Sam Lee on Nov 6", shown to both players and in Manage. */
@@ -125,21 +247,17 @@ export function correctionLine(m: Pick<ScheduleMatch, "correctedBy" | "corrected
   return `Corrected by ${m.correctedBy} on ${on}`;
 }
 
-/** C4: seconds left to undo a score you entered, or 0 once it stands. */
-export function undoSecondsLeft(undoUntil: string | null | undefined, now: number): number {
-  if (!undoUntil) return 0;
-  return Math.max(0, Math.ceil((Date.parse(undoUntil) - now) / 1000));
+/** Finding 7: "Score edited by Sam Lee", shown to both players once either edits it. */
+export function editedLine(m: Pick<ScheduleMatch, "editedBy">): string | null {
+  return m.editedBy ? `Score edited by ${m.editedBy}` : null;
 }
 
-/** "9:41" */
-export function countdownLabel(seconds: number): string {
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-}
-
-/** "9 minutes 41 seconds", for VoiceOver. */
-export function countdownSpoken(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  const parts = [m ? `${m} ${m === 1 ? "minute" : "minutes"}` : null, s || !m ? `${s} ${s === 1 ? "second" : "seconds"}` : null];
-  return parts.filter(Boolean).join(" ");
+/**
+ * The days a match time can be picked in (finding 10): today through the
+ * round's last day, never days already past. Dates are YYYY-MM-DD in the
+ * league's time zone. Null when the whole round is past.
+ */
+export function pickableDays(startDate: string, lastDay: string, today: string): { first: string; last: string } | null {
+  const first = today > startDate ? today : startDate;
+  return first > lastDay ? null : { first, last: lastDay };
 }
