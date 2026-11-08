@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ball Boi · Matchmaker. League commissioner. Shot analyst.</title>
+  <meta name="description" content="Matchmaker. League commissioner. Shot analyst. Find tennis players at your level, run your league and replay every shot. Coming soon to iPhone.">
+  <meta name="theme-color" content="#FFFFFF">
+  <link rel="canonical" href="https://ballboi.tennis/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Ball Boi">
+  <meta property="og:title" content="Matchmaker. League commissioner. Shot analyst.">
+  <meta property="og:description" content="Find players at your level, run your league and replay every shot. All on your phone.">
+  <meta property="og:url" content="https://ballboi.tennis/">
+  <meta property="og:image" content="https://ballboi.tennis/assets/og.jpg?v=4">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="The Ball Boi roundel with the headline Matchmaker. League commissioner. Shot analyst.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://ballboi.tennis/assets/og.jpg?v=4">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&display=swap">
+  <style>
+    :root { --bg:#FFFFFF; --ink:#0A2447; --muted:#4A5670; --ball:#E9B949; --font:"Archivo","Helvetica Neue",Arial,sans-serif; color-scheme: light; }
+    *,*::before,*::after{box-sizing:border-box} html{-webkit-text-size-adjust:100%}
+    body{margin:0;min-height:100vh;min-height:100svh;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);font:500 18px/1.4 var(--font);-webkit-font-smoothing:antialiased}
+    :focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+    h1{margin:0;display:flex;flex-direction:column;gap:.14em;font-weight:800;line-height:1;letter-spacing:-.035em}
+    h1 span{white-space:nowrap}
+    .sub{margin:18px 0 0;color:var(--muted);text-wrap:balance}
+    .roundel{display:block;height:auto}
+    .cta{display:flex;align-items:center;gap:16px;margin-top:36px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:60px;padding:0 36px;border-radius:999px;background:var(--ball);color:var(--ink);font:800 18px/1 var(--font);letter-spacing:-.01em;margin:0;cursor:default}
+    footer{display:flex;justify-content:center;align-items:center;gap:24px;flex-wrap:wrap;padding:16px 20px 28px;font-size:14px;color:var(--muted)}
+    footer a{color:var(--ink);text-underline-offset:4px;padding:12px 0}
+    #balls{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:10}
+
+    main{flex:1;position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);align-items:center;align-content:center;gap:clamp(32px,5vw,80px);max-width:1200px;width:100%;margin:0 auto;padding:48px 40px 24px}
+    .roundel{width:100%;max-width:400px;justify-self:end}
+    h1{font-size:clamp(30px,4.3vw,62px)}
+    .sub{font-size:clamp(18px,1.8vw,24px);max-width:30ch}
+    @media (max-width:760px){
+      main{grid-template-columns:1fr;align-content:center;gap:28px;padding:40px 24px 24px;text-align:center;justify-items:center}
+      .sub{margin-left:auto;margin-right:auto}
+      .roundel{max-width:240px;justify-self:center}
+      h1{align-items:center}
+      .cta{justify-content:center}
+      h1{font-size:clamp(28px,7.8vw,56px)}
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <img class="roundel" src="/assets/roundel-ink.png?v=3" width="758" height="758" alt="Ball Boi">
+    <div class="copy">
+    <h1><span>Matchmaker.</span> <span>League commissioner.</span> <span>Shot analyst.</span></h1>
+    <p class="sub">Find players at your level, run your league and replay every shot. All on your phone.</p>
+    <div class="cta">
+      <!-- At launch, swap for Apple's official "Download on the App Store" badge. -->
+      <p class="btn" id="soon">Coming soon to iPhone</p>
+    </div>
+    </div>
+  </main>
+  <footer>
+    <a href="/privacy">Privacy</a>
+    <a href="/terms">Terms</a>
+    <a href="mailto:support@ballboi.tennis">Support</a>
+    <span>© 2026 Ball Boi Tennis</span>
+  </footer>
+  <canvas id="balls" aria-hidden="true"></canvas>
+  <script src="/balls.js?v=6" defer></script>
+</body>
+</html>
