@@ -29,7 +29,8 @@ import { isRetiredScore, WALKOVER_SCORE } from "@/lib/tennisScore";
 // prefilled. After that it's locked; the footnote points to the league admin.
 //
 // Design audit (John, Nov 7: the audit overrides anything built that doesn't
-// match it): the score card is the same soft D2 card as Home's next match and
+// match it): the score card is the same D2 card as Home's next match, with the standard
+// light hairline border (Nov 7), and
 // holds only the details and the score. Notes such as "Score edited by" sit
 // below it with the footnote, not inside the card.
 
@@ -256,16 +257,10 @@ export default function MatchDetailScreen() {
 
       <Card
         style={{
-          borderWidth: 0,
           paddingTop: 22,
           paddingHorizontal: 20,
           paddingBottom: 20,
           gap: spacing.space4,
-          // The D2 soft lift, matching Home's next match card.
-          shadowColor: c.scheme === "dark" ? "#000000" : c.ink,
-          shadowOpacity: c.scheme === "dark" ? 0.5 : 0.14,
-          shadowRadius: 14,
-          shadowOffset: { width: 0, height: 6 },
         }}
       >
         <View accessible accessibilityLabel={[when, stage, d.location].filter(Boolean).join(". ")} style={{ alignItems: "center", gap: 2 }}>

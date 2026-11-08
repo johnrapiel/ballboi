@@ -66,14 +66,22 @@ export function useTypeStyle(variant: TypeStyle) {
  * Text in a design system style. Dynamic Type stays on: text styles scale
  * fully, display styles stop at 1.5x so heroes and scores never clip.
  */
+/**
+ * Page and sheet titles (`headingL`, `headingM`) sit in ink at 50%, like a
+ * watermark on the page (John, Nov 7). Increase Contrast shows them at full ink.
+ */
+const WATERMARK: readonly TypeStyle[] = ["headingL", "headingM"];
+
 export function Text({ variant = "body", tone = "ink", style, ...rest }: TextProps) {
   const c = useColors();
   const t = useTypeStyle(variant);
+  const { increaseContrast } = useAccessibilitySettings();
+  const watermark = WATERMARK.includes(variant) && !increaseContrast ? { opacity: 0.5 } : null;
   return (
     <RNText
       maxFontSizeMultiplier={t.maxFontSizeMultiplier}
       {...rest}
-      style={[t.style, { color: c[tone] }, style]}
+      style={[t.style, { color: c[tone] }, watermark, style]}
     />
   );
 }

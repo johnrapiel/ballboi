@@ -126,10 +126,10 @@ export function TabHeader({
         <View accessible accessibilityRole="header" accessibilityLabel={title} style={{ minHeight: 44, minWidth: 44 }} />
       ) : roundel ? (
         <View accessible accessibilityRole="header" accessibilityLabel={title}>
-          <Roundel size={44} />
+          <Roundel size={52} />
         </View>
       ) : (
-        <Text variant="brushL" accessibilityRole="header" style={{ flexShrink: 1 }}>
+        <Text variant="headingL" accessibilityRole="header" style={{ flexShrink: 1 }}>
           {title}
         </Text>
       )}

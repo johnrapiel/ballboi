@@ -12,7 +12,7 @@ export const color = {
     "ink": "#0A2447",
     "inkMuted": "#4A5670",
     "onInk": "#FFFFFF",
-    "hairline": "rgba(10, 36, 71, 0.16)",
+    "hairline": "rgba(10, 36, 71, 0.10)",
     "hairlineStrong": "rgba(10, 36, 71, 0.52)",
     "inkMutedHc": "#34405A",
     "hairlineHc": "rgba(10, 36, 71, 0.34)",
@@ -33,7 +33,7 @@ export const color = {
     "ink": "#F5F4EF",
     "inkMuted": "#B5B2A9",
     "onInk": "#1F1E1D",
-    "hairline": "rgba(245, 244, 239, 0.14)",
+    "hairline": "rgba(245, 244, 239, 0.10)",
     "hairlineStrong": "rgba(245, 244, 239, 0.40)",
     "inkMutedHc": "#D9D6CE",
     "hairlineHc": "rgba(245, 244, 239, 0.30)",
@@ -71,15 +71,16 @@ export const radius = {
 } as const;
 
 export const type = {
-  "brushL": {
-    "fontFamily": "NanumBrushScript_400Regular",
-    "fontSize": 48,
-    "lineHeight": 52
+  "headingL": {
+    "fontFamily": "CormorantGaramond_500Medium",
+    "fontSize": 30,
+    "lineHeight": 34,
+    "letterSpacing": -0.15
   },
-  "brushM": {
-    "fontFamily": "NanumBrushScript_400Regular",
-    "fontSize": 40,
-    "lineHeight": 44
+  "headingM": {
+    "fontFamily": "CormorantGaramond_500Medium",
+    "fontSize": 24,
+    "lineHeight": 28
   },
   "displayXl": {
     "fontFamily": "CormorantGaramond_500Medium",
@@ -176,8 +177,8 @@ export type TypeStyle = keyof typeof type;
 
 /** Largest Dynamic Type multiplier per style. Styles not listed scale fully. */
 export const maxScale: Partial<Record<TypeStyle, number>> = {
-  "brushL": 1.5,
-  "brushM": 1.5,
+  "headingL": 1.5,
+  "headingM": 1.5,
   "displayXl": 1.5,
   "displayL": 1.5,
   "title": 1.5,

@@ -124,7 +124,7 @@ function Header({ p }: { p: DiscoverPlayerCard }) {
     <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.space4 }}>
       <Avatar name={p.name} uri={photoUrl(p.avatarUrl)} size={72} />
       <View style={{ flexShrink: 1, flexGrow: 1, gap: spacing.space2 }}>
-        <Text variant="brushM" accessibilityRole="header">
+        <Text variant="headingM" accessibilityRole="header">
           {p.name}
         </Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.space2 }}>
