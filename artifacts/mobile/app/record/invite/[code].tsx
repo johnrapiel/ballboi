@@ -4,15 +4,20 @@
 //
 // Wave 1 review: the toggle starts from the player's saved training choice
 // (D7), and a lost connection says so instead of calling the link broken (D21).
+//
+// Also "Was that you?" (Session G, decision 124): a Quick match recorded
+// against someone the recorder found in player search but has never played.
+// Opened from the push. Yes adds it like an invite; Not me keeps them off it,
+// for good; no answer leaves it unlinked.
 
 import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, View } from "react-native";
 
 import { TRAINING_COPY } from "@/components/record/ConsentScreen";
-import { Button, Card, Screen, Text } from "@/components/ui";
+import { Button, Card, Screen, Text, TextButton } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { Toggle } from "@/components/Toggle";
 import { useColors } from "@/hooks/useColors";
@@ -25,6 +30,7 @@ import {
   useMatchInvite,
   useRecordingConsent,
 } from "@/lib/recording/api";
+import { sayNotMe } from "@/lib/notifications";
 import { savePendingInvite } from "@/lib/recording/pendingInvite";
 
 function longDate(iso: string): string {
@@ -51,6 +57,7 @@ export default function MatchInviteScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
+  const [notMe, setNotMe] = useState(false);
 
   // Not signed in yet: remember the link so it opens again after sign-in.
   useEffect(() => {
@@ -131,6 +138,18 @@ export default function MatchInviteScreen() {
     );
   }
 
+  if (notMe || inv.wasThatYou === "not_me") {
+    return (
+      <Screen style={{ justifyContent: "center", gap: spacing.space4 }}>
+        <Text variant="title" accessibilityRole="header">
+          Not you
+        </Text>
+        <Text tone="inkMuted">You said this wasn't you, so the match with {inv.recorderName} isn't on your profile.</Text>
+        <Button label="Done" onPress={close} />
+      </Screen>
+    );
+  }
+
   if (inv.isYourInvite || inv.claimed) {
     return (
       <Screen style={{ justifyContent: "center", gap: spacing.space4 }}>
@@ -162,13 +181,51 @@ export default function MatchInviteScreen() {
     }
   }
 
+  function confirmNotMe() {
+    Alert.alert("Not you?", `The match ${inv.recorderName} recorded won't be added to your profile. You can't undo this.`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Not me", style: "destructive", onPress: () => void answerNotMe() },
+    ]);
+  }
+
+  async function answerNotMe() {
+    setSaving(true);
+    setError(null);
+    try {
+      await sayNotMe(code);
+      queryClient.invalidateQueries({ queryKey: ["recording", "invite", code] });
+      setNotMe(true);
+      AccessibilityInfo.announceForAccessibility("Saved. The match isn't on your profile.");
+    } catch (e) {
+      setError(isOfflineError(e) ? "You're offline. Check your connection and try again." : "Couldn't save. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const asking = inv.wasThatYou === "pending";
+
   return (
     <Screen style={{ gap: spacing.space6 }}>
       <View style={{ gap: spacing.space2 }}>
-        <Text variant="title" accessibilityRole="header">
-          {inv.recorderName} recorded your match on {when}
-        </Text>
-        <Text tone="inkMuted">Add it to your matches to see your shots and stats.</Text>
+        {asking ? (
+          <>
+            <Text variant="brushL" accessibilityRole="header">
+              Was that you?
+            </Text>
+            <Text tone="inkMuted">
+              {inv.recorderName} recorded a match with you on {when}. Yes adds it to your profile, with your stats and replay once they're
+              ready. Not me keeps you off it.
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text variant="title" accessibilityRole="header">
+              {inv.recorderName} recorded your match on {when}
+            </Text>
+            <Text tone="inkMuted">Add it to your matches to see your shots and stats.</Text>
+          </>
+        )}
       </View>
 
       <Card style={{ gap: spacing.space3 }}>
@@ -193,8 +250,18 @@ export default function MatchInviteScreen() {
       ) : null}
 
       <View style={{ flex: 1 }} />
-      <Button label="Add to my matches" onPress={join} loading={saving} />
-      <Button variant="secondary" label="Not now" onPress={close} disabled={saving} />
+      {asking ? (
+        <>
+          <Button label="Yes" accessibilityLabel="Yes, that was me" onPress={join} loading={saving} />
+          <Button variant="destructiveOutline" label="Not me" onPress={confirmNotMe} disabled={saving} />
+          <TextButton label="Decide later" onPress={close} disabled={saving} accessibilityHint="The match stays off your profile until you answer" />
+        </>
+      ) : (
+        <>
+          <Button label="Add to my matches" onPress={join} loading={saving} />
+          <Button variant="secondary" label="Not now" onPress={close} disabled={saving} />
+        </>
+      )}
     </Screen>
   );
 }

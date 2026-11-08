@@ -116,6 +116,7 @@ import {
 } from "@/lib/recording/segments";
 import { VIDEO_CODEC, VIDEO_QUALITY, VIDEO_STABILIZATION } from "@/lib/recording/settings";
 import { drainQueue } from "@/lib/recording/uploader";
+import { tellOpponent } from "@/lib/notifications";
 import {
   loadVoiceMuted,
   playCue,
@@ -643,6 +644,8 @@ export default function RecordScreen() {
     const confirm = setTimeout(() => {
       if (pieceStart.current !== started || !mounted.current) return;
       setPhase("recording");
+      // The other players hear Ball Boi is recording, or "Was that you?" (Session G, decision 124).
+      tellOpponent(matchId);
       // No voice here: the camera is capturing (line 19 already said it).
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }, MIN_PIECE_MS);

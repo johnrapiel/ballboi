@@ -71,6 +71,11 @@ describe("routeForPushLink", () => {
     expect(routeForPushLink("/leagues")).toBe("/leagues");
   });
 
+  it("opens Was that you? on the match invite screen", () => {
+    expect(routeForPushLink("/record/invite/ABCD2345")).toBe("/record/invite/ABCD2345");
+    expect(routeForPushLink("/record/invite/../../x")).toBe("/");
+  });
+
   it("opens Home for anything else", () => {
     expect(routeForPushLink("/leagues/3/leave")).toBe("/");
     expect(routeForPushLink("https://example.com")).toBe("/");

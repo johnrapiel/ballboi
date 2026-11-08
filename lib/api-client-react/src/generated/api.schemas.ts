@@ -3601,6 +3601,19 @@ export interface QuickMatchCreated {
   invite: QuickMatchCreatedInvite;
 }
 
+/**
+ * Set when this is a "Was that you?" request (decision 124) for the caller; null for an ordinary invite link
+ */
+export type RecordingInviteWasThatYou =
+  | (typeof RecordingInviteWasThatYou)[keyof typeof RecordingInviteWasThatYou]
+  | null;
+
+export const RecordingInviteWasThatYou = {
+  pending: "pending",
+  yes: "yes",
+  not_me: "not_me",
+} as const;
+
 export interface RecordingInvite {
   code: string;
   recorderName: string;
@@ -3609,6 +3622,8 @@ export interface RecordingInvite {
   claimed: boolean;
   claimedByYou: boolean;
   isYourInvite: boolean;
+  /** Set when this is a "Was that you?" request (decision 124) for the caller; null for an ordinary invite link */
+  wasThatYou?: RecordingInviteWasThatYou;
 }
 
 export type RecordableMatchFormat =
@@ -4006,6 +4021,11 @@ export type ScoreQuickMatchBody = {
 export type ScoreQuickMatch200 = {
   matchId: number;
   score: string;
+};
+
+export type SendOpponentNotice200 = {
+  notified: number;
+  requested: boolean;
 };
 
 export type ClaimRecordingInvite200 = {

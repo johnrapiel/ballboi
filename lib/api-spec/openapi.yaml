@@ -6086,6 +6086,96 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /recording/invites/{code}/not-me:
+    post:
+      operationId: answerNotMe
+      tags: [recording]
+      summary: Answer "Was that you?" with Not me, so the match never links to you
+      parameters:
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResult'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not a request for you
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Already answered Yes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't save
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /recording/matches/{matchId}/opponent-notice:
+    post:
+      operationId: sendOpponentNotice
+      tags: [recording]
+      summary: The mounted phone started capturing; tell the other players (each at most once)
+      parameters:
+      - name: matchId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sent, or already sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notified:
+                    type: integer
+                  requested:
+                    type: boolean
+                required: [notified, requested]
+        '400':
+          description: Invalid match id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not your match
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't send
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /recording/invites/{code}/claim:
     post:
       operationId: claimRecordingInvite
@@ -10401,6 +10491,11 @@ components:
           type: boolean
         isYourInvite:
           type: boolean
+        wasThatYou:
+          type: string
+          nullable: true
+          enum: [pending, "yes", not_me, null]
+          description: Set when this is a "Was that you?" request (decision 124) for the caller; null for an ordinary invite link
       required: [code, recorderName, yourName, recordedAt, claimed, claimedByYou, isYourInvite]
     RecordableMatch:
       type: object

@@ -12,7 +12,7 @@
 // opens the screen it's about (a message opens that chat).
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { unregisterExpoPushToken } from "@workspace/api-client-react";
+import { answerNotMe, sendOpponentNotice, unregisterExpoPushToken } from "@workspace/api-client-react";
 import * as Notifications from "expo-notifications";
 import { router, type Href } from "expo-router";
 import { Platform } from "react-native";
@@ -150,4 +150,27 @@ export async function forgetThisPhone(): Promise<void> {
   } catch {
     // The token is reassigned when the next account signs in here.
   }
+}
+
+// ─── Opponent notice and "Was that you?" (decision 124) ─────────────────────
+
+const toldOpponent = new Set<number>();
+
+/**
+ * The mounted phone started capturing: the other players hear about it (the
+ * API decides who gets what, at most once). Once per match per app session
+ * here too. Never throws and never holds up recording; with no connection,
+ * the opponent just isn't told.
+ */
+export function tellOpponent(matchId: number): void {
+  if (!Number.isInteger(matchId) || matchId <= 0 || toldOpponent.has(matchId)) return;
+  toldOpponent.add(matchId);
+  sendOpponentNotice(matchId).catch(() => {
+    toldOpponent.delete(matchId);
+  });
+}
+
+/** "Was that you?" answered Not me. */
+export async function sayNotMe(code: string): Promise<void> {
+  await answerNotMe(code);
 }

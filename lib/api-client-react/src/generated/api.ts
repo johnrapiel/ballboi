@@ -196,6 +196,7 @@ import type {
   SelfRatingInput,
   SelfRatingResult,
   SendFeedback201,
+  SendOpponentNotice200,
   SentMessage,
   SetMatchTimeBody,
   SettleMatchBody,
@@ -16029,6 +16030,174 @@ export function useGetRecordingInvite<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Answer "Was that you?" with Not me, so the match never links to you
+ */
+export const getAnswerNotMeUrl = (code: string) => {
+  return `/api/recording/invites/${code}/not-me`;
+};
+
+export const answerNotMe = async (
+  code: string,
+  options?: RequestInit,
+): Promise<SuccessResult> => {
+  return customFetch<SuccessResult>(getAnswerNotMeUrl(code), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAnswerNotMeMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof answerNotMe>>,
+    TError,
+    { code: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof answerNotMe>>,
+  TError,
+  { code: string },
+  TContext
+> => {
+  const mutationKey = ["answerNotMe"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof answerNotMe>>,
+    { code: string }
+  > = (props) => {
+    const { code } = props ?? {};
+
+    return answerNotMe(code, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AnswerNotMeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof answerNotMe>>
+>;
+
+export type AnswerNotMeMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Answer "Was that you?" with Not me, so the match never links to you
+ */
+export const useAnswerNotMe = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof answerNotMe>>,
+    TError,
+    { code: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof answerNotMe>>,
+  TError,
+  { code: string },
+  TContext
+> => {
+  return useMutation(getAnswerNotMeMutationOptions(options));
+};
+
+/**
+ * @summary The mounted phone started capturing; tell the other players (each at most once)
+ */
+export const getSendOpponentNoticeUrl = (matchId: number) => {
+  return `/api/recording/matches/${matchId}/opponent-notice`;
+};
+
+export const sendOpponentNotice = async (
+  matchId: number,
+  options?: RequestInit,
+): Promise<SendOpponentNotice200> => {
+  return customFetch<SendOpponentNotice200>(getSendOpponentNoticeUrl(matchId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSendOpponentNoticeMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendOpponentNotice>>,
+    TError,
+    { matchId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendOpponentNotice>>,
+  TError,
+  { matchId: number },
+  TContext
+> => {
+  const mutationKey = ["sendOpponentNotice"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendOpponentNotice>>,
+    { matchId: number }
+  > = (props) => {
+    const { matchId } = props ?? {};
+
+    return sendOpponentNotice(matchId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendOpponentNoticeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendOpponentNotice>>
+>;
+
+export type SendOpponentNoticeMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary The mounted phone started capturing; tell the other players (each at most once)
+ */
+export const useSendOpponentNotice = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendOpponentNotice>>,
+    TError,
+    { matchId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendOpponentNotice>>,
+  TError,
+  { matchId: number },
+  TContext
+> => {
+  return useMutation(getSendOpponentNoticeMutationOptions(options));
+};
 
 /**
  * @summary Add a Quick match from an invite link to your account
