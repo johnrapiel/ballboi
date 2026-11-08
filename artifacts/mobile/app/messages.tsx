@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { ActivityIndicator, Alert, FlatList, RefreshControl, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { IconButton } from "@/components/Choice";
+import { HeaderIconButton } from "@/components/Choice";
 import { EmptyState } from "@/components/EmptyState";
 import { ConversationRow } from "@/components/messages/ConversationRow";
 import { ModerationRow } from "@/components/moderation/ModerationRow";
@@ -54,7 +54,7 @@ export default function MessagesScreen() {
       <Stack.Screen
         options={{
           title: "",
-          headerRight: () => <IconButton symbol="square.and.pencil" label="New message" onPress={() => router.push("/new-message")} />,
+          headerRight: () => <HeaderIconButton symbol="square.and.pencil" label="New message" onPress={() => router.push("/new-message")} />,
         }}
       />
 

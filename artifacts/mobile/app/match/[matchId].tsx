@@ -9,7 +9,7 @@ import { useGetMyMatch, type MatchDetail } from "@workspace/api-client-react";
 
 import { Avatar } from "@/components/Avatar";
 import { BrushRing } from "@/components/BrushRing";
-import { IconButton } from "@/components/Choice";
+import { HeaderIconButton } from "@/components/Choice";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
 import { Button, Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
@@ -169,7 +169,7 @@ export default function MatchDetailScreen() {
   const header = (
     <Stack.Screen
       options={{
-        headerRight: d ? () => <IconButton symbol="ellipsis" label="More options" onPress={moreOptions} /> : undefined,
+        headerRight: d ? () => <HeaderIconButton symbol="ellipsis" label="More options" onPress={moreOptions} /> : undefined,
       }}
     />
   );

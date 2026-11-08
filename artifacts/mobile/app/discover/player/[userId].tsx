@@ -11,7 +11,7 @@ import { ActionSheetIOS, Alert, Platform, ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Avatar } from "@/components/Avatar";
-import { IconButton } from "@/components/Choice";
+import { HeaderIconButton } from "@/components/Choice";
 import { DetailRow } from "@/components/discover/DetailRow";
 import { ProblemCard } from "@/components/discover/States";
 import { RatingBadge } from "@/components/RatingBadge";
@@ -61,7 +61,7 @@ export default function PlayerCardScreen() {
       <Stack.Screen
         options={{
           title: "",
-          headerRight: p ? () => <IconButton symbol="ellipsis" label={`More options for ${p.name}`} onPress={more} /> : undefined,
+          headerRight: p ? () => <HeaderIconButton symbol="ellipsis" label={`More options for ${p.name}`} onPress={more} /> : undefined,
         }}
       />
       {player.isLoading ? (

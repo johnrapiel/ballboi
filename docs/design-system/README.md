@@ -109,6 +109,7 @@ The paper grain is retired (John, Nov 6): on ivory and charcoal it reads as dirt
 - Radius: `radius-pill` (999px) for buttons, chips, pills and avatars. `radius-card` (16px) for every card. `radius-md` (10px) for wells, inputs and small panels, `radius-lg` for sheets.
 - Spacing steps: 4, 8, 12, 16, 24, 32, 48. Page gutter `space-4` on phones, `space-6` up.
 - Touch targets: 44px minimum.
+- Buttons in the native header are plain brush icons; iOS draws their background.
 
 ## Bottom sheets
 
