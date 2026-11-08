@@ -1,6 +1,6 @@
 // Ball Boi early-access digest (Cloudflare Worker, single file, no packages).
 //
-// Every morning: emails John the new sign-ups from ballboi.tennis, each with an
+// Twice a day (morning and evening): emails John the new sign-ups from ballboi.tennis, each with an
 // Approve link, plus "Approve all". Approving adds the person to the TestFlight
 // external group through the App Store Connect API, and Apple emails the invite.
 // Until the Apple key and group are set, approvals wait and go out on a later run.
@@ -13,7 +13,7 @@
 //   PUBLIC_URL       this worker's address, e.g. https://ballboi-beta.<you>.workers.dev (variable)
 //   APPROVE_SECRET   long random string that signs Approve links (secret)
 //   ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY (.p8 text), ASC_BETA_GROUP_ID (secrets, add later)
-// Cron trigger: "7 13 * * *" (13:07 UTC = 8:07 am Eastern in winter, 9:07 in summer).
+// Cron trigger: "7 13,22 * * *" (13:07 and 22:07 UTC = 8:07 am and 5:07 pm Eastern in winter, an hour later in summer).
 
 const ASC = "https://api.appstoreconnect.apple.com";
 const enc = new TextEncoder();
@@ -341,7 +341,7 @@ async function approvePost(env, request) {
     if (already.has(email)) return `<strong>${esc(email)}</strong><br><span class="muted">Already invited earlier.</span>`;
     const o = outcome[email];
     if (o?.ok) return `<strong>${esc(email)}</strong><br><span class="muted">&#10003; Invited. Apple is emailing them now.</span>`;
-    if (o && !o.ok) return `<strong>${esc(email)}</strong><br><span class="muted">&#10005; Approved, but Apple said no: ${esc(o.error)}. Tomorrow's run tries again.</span>`;
+    if (o && !o.ok) return `<strong>${esc(email)}</strong><br><span class="muted">&#10005; Approved, but Apple said no: ${esc(o.error)}. The next run tries again.</span>`;
     return `<strong>${esc(email)}</strong><br><span class="muted">&#10003; Approved. The invite goes out once TestFlight is set up.</span>`;
   };
   return page("Approved", `<h1>Done</h1><ul>${emails.map((e) => `<li>${line(e)}</li>`).join("")}</ul>`);

@@ -2,9 +2,9 @@
 
 A small Cloudflare Worker that turns ballboi.tennis sign-ups into TestFlight testers, with John approving each one.
 
-- **Every morning (13:07 UTC, about 8 am Eastern):** if anyone new signed up, John gets one email listing them, each with an **Approve** button, plus **Approve all**. No new sign-ups, no email.
+- **Twice a day (13:07 and 22:07 UTC, about 8 am and 5 pm Eastern):** if anyone new signed up, John gets one email listing them, each with an **Approve** button, plus **Approve all**. No new sign-ups, no email.
 - **Approve:** opens a confirm page, and one more tap adds them to the external TestFlight group through the App Store Connect API. Apple emails them the invite. The confirm step is there because mail apps and link scanners open links on their own, but never press buttons.
-- **Before TestFlight is ready** (no Apple key yet, or no approved build): approvals are saved and go out automatically on a later morning once the Apple settings are in. Apple errors show on the result page and retry the next morning.
+- **Before TestFlight is ready** (no Apple key yet, or no approved build): approvals are saved and go out automatically on a later run once the Apple settings are in. Apple errors show on the result page and retry on the next run.
 - **Links are signed**, so a forwarded or edited link can't approve anyone else.
 
 One file, `worker.js`, no packages. It shares the `ballboi-early-access` D1 database with the site (`artifacts/marketing-site/_worker.js` writes sign-ups) and adds its own columns on first run: `notified_at`, `approved_at`, `invited_at`, `invite_error`.
@@ -22,7 +22,7 @@ Cost: free. Workers, D1, cron triggers and Email Routing all stay inside Cloudfl
    - `PUBLIC_URL` (text): the worker's own address, e.g. `https://ballboi-beta.<subdomain>.workers.dev`.
    - `DIGEST_FROM` (text, optional): defaults to `beta@ballboi.tennis`.
    - `APPROVE_SECRET` (secret): a long random string. Changing it breaks links in older digests.
-4. **Cron** (Settings > Triggers > Cron Triggers): `7 13 * * *`.
+4. **Cron** (Settings > Triggers > Cron Triggers): `7 13,22 * * *`.
 
 ## Add Apple later (when there's a TestFlight build)
 
@@ -30,7 +30,7 @@ Cost: free. Workers, D1, cron triggers and Email Routing all stay inside Cloudfl
 2. TestFlight > External Testing > create the beta group, add the approved build. Copy the group's ID from its URL.
 3. Add these as **secrets** on the worker (never paste them in chat or commit them): `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_PRIVATE_KEY` (the whole `.p8` text), `ASC_BETA_GROUP_ID`.
 
-The next morning's run sends everyone already approved.
+The next run sends everyone already approved.
 
 ## Useful queries (D1 > ballboi-early-access > Console)
 
