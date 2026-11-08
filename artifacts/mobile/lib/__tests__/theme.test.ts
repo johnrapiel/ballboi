@@ -31,6 +31,15 @@ describe("the Day look for shareable recaps", () => {
     expect(recap.heat5).toBe(color.light.heat5);
   });
 
+  it("makes a recap in Dark Mode identical to one in Light Mode", () => {
+    for (const increaseContrast of [false, true]) {
+      const inDark = paletteFor(resolveScheme("dark", "light"), increaseContrast);
+      const inLight = paletteFor(resolveScheme("light", "light"), increaseContrast);
+      expect(inDark).toEqual(inLight);
+      expect(inDark).toEqual(paletteFor("light", increaseContrast));
+    }
+  });
+
   it("keeps Increase Contrast inside the Day look", () => {
     const recap = paletteFor(resolveScheme("dark", "light"), true);
     expect(recap.inkMuted).toBe(color.light.inkMutedHc);
