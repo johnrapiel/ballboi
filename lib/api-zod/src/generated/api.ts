@@ -485,35 +485,17 @@ export const GetOpenMatchResponse = zod.object({
   role: zod.enum(["poster", "in", "none"]),
   started: zod.boolean(),
   chatTitle: zod.string(),
+  chatId: zod
+    .number()
+    .nullable()
+    .describe(
+      "The group chat in Messages (\/messages\/groups\/{id}), once the match has filled",
+    ),
   matchId: zod.number().nullable(),
 });
 
 /**
- * @summary The group chat of a filled open match (add ?after=<id> for only newer lines)
- */
-export const GetOpenMatchMessagesParams = zod.object({
-  id: zod.coerce.number(),
-});
-
-export const GetOpenMatchMessagesResponse = zod.object({
-  open: zod.boolean(),
-  messages: zod.array(
-    zod.object({
-      id: zod.number(),
-      text: zod.string(),
-      at: zod.string(),
-      fromMe: zod.boolean(),
-      senderName: zod
-        .string()
-        .nullable()
-        .describe("Null for a line from Ball Boi"),
-      senderUserId: zod.number().nullable(),
-    }),
-  ),
-});
-
-/**
- * @summary join, drop, remove (poster; body userId), cancel (poster), or messages (send to the group chat; body text)
+ * @summary join, drop, remove (poster; body userId), or cancel (poster). The group chat is on /messages/groups (F15).
  */
 export const ActOnOpenMatchParams = zod.object({
   id: zod.coerce.number(),
@@ -551,6 +533,12 @@ export const ActOnOpenMatchResponse = zod.object({
   role: zod.enum(["poster", "in", "none"]),
   started: zod.boolean(),
   chatTitle: zod.string(),
+  chatId: zod
+    .number()
+    .nullable()
+    .describe(
+      "The group chat in Messages (\/messages\/groups\/{id}), once the match has filled",
+    ),
   matchId: zod.number().nullable(),
 });
 
@@ -5661,6 +5649,62 @@ export const GetExpoPushTokenStatusResponse = zod.object({
 });
 
 /**
+ * @summary Dev servers only. Runs the match day reminder job as if it were `at` (default now)
+ */
+export const RunMatchRemindersDevBody = zod.object({
+  at: zod.coerce.date().optional(),
+});
+
+export const RunMatchRemindersDevResponse = zod.object({
+  at: zod.string(),
+  timed: zod.number(),
+  nudges: zod.number(),
+});
+
+/**
+ * @summary Settings › Notifications switches for the signed-in person
+ */
+export const GetNotificationSettingsResponse = zod
+  .object({
+    messagePreviews: zod.boolean(),
+    matchReminders: zod.boolean(),
+    devTools: zod
+      .boolean()
+      .optional()
+      .describe(
+        "Dev servers only, never production; shows the reminder testing buttons",
+      ),
+  })
+  .describe(
+    "Settings › Notifications. Show message previews (decision 128) and Match day reminders (decision 127) are on by default.",
+  );
+
+/**
+ * @summary Change a Settings › Notifications switch
+ */
+export const UpdateNotificationSettingsBody = zod
+  .object({
+    messagePreviews: zod.boolean().optional(),
+    matchReminders: zod.boolean().optional(),
+  })
+  .describe("Either switch, or both");
+
+export const UpdateNotificationSettingsResponse = zod
+  .object({
+    messagePreviews: zod.boolean(),
+    matchReminders: zod.boolean(),
+    devTools: zod
+      .boolean()
+      .optional()
+      .describe(
+        "Dev servers only, never production; shows the reminder testing buttons",
+      ),
+  })
+  .describe(
+    "Settings › Notifications. Show message previews (decision 128) and Match day reminders (decision 127) are on by default.",
+  );
+
+/**
  * @summary Get a one-time address to upload a profile photo to (images up to 10 MB)
  */
 export const RequestProfilePhotoUploadUrlBody = zod.object({
@@ -6137,6 +6181,32 @@ export const GetConversationsResponse = zod
             .describe("Why the composer is off, in plain words"),
         }),
       ),
+      groups: zod
+        .array(
+          zod.object({
+            id: zod.number(),
+            title: zod.string().describe("Sat 9 AM doubles · Beacon Courts"),
+            openMatchId: zod.number().nullable(),
+            memberCount: zod.number(),
+            lastMessage: zod.union([
+              zod.null(),
+              zod.object({
+                text: zod.string(),
+                fromMe: zod.boolean(),
+                senderName: zod
+                  .string()
+                  .nullable()
+                  .describe("Null for a line from Ball Boi"),
+                at: zod.string(),
+              }),
+            ]),
+            unread: zod.number(),
+            canSend: zod.boolean(),
+            sendBlockedReason: zod.string().nullable(),
+          }),
+        )
+        .optional()
+        .describe("Group chats you're in (F15), newest first"),
     }),
   );
 
@@ -6279,6 +6349,93 @@ export const ReportMessageParams = zod.object({
 });
 
 export const ReportMessageBody = zod.object({
+  messageId: zod.string(),
+  reason: zod.enum([
+    "harassment",
+    "inappropriate_content",
+    "spam",
+    "cheating",
+    "unsafe",
+    "other",
+    "impersonation",
+    "no_show_dispute",
+  ]),
+  details: zod.string().nullish(),
+});
+
+/**
+ * @summary Open a group chat you're in (an open match's chat, F15) and mark it read. Pass before to page back.
+ */
+export const GetGroupThreadParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetGroupThreadQueryParams = zod.object({
+  before: zod.coerce.string().optional(),
+});
+
+export const GetGroupThreadResponse = zod.object({
+  group: zod.object({
+    id: zod.number(),
+    title: zod.string().describe("Sat 9 AM doubles · Beacon Courts"),
+    openMatchId: zod.number().nullable(),
+    memberCount: zod.number(),
+    lastMessage: zod.union([
+      zod.null(),
+      zod.object({
+        text: zod.string(),
+        fromMe: zod.boolean(),
+        senderName: zod
+          .string()
+          .nullable()
+          .describe("Null for a line from Ball Boi"),
+        at: zod.string(),
+      }),
+    ]),
+    unread: zod.number(),
+    canSend: zod.boolean(),
+    sendBlockedReason: zod.string().nullable(),
+  }),
+  messages: zod.array(
+    zod.object({
+      id: zod.string(),
+      text: zod.string(),
+      fromMe: zod.boolean(),
+      at: zod.string(),
+      senderName: zod
+        .string()
+        .nullable()
+        .describe("Null for a line from Ball Boi"),
+      senderPlayerId: zod.number().nullable(),
+      senderUserId: zod.number().nullable(),
+    }),
+  ),
+  olderCursor: zod.string().nullable(),
+});
+
+/**
+ * @summary Send in a group chat. Each person's first message there can't carry links, emails or phone numbers if anyone in it is outside their leagues.
+ */
+export const SendGroupMessageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SendGroupMessageBody = zod.object({
+  text: zod.string(),
+  clientMessageId: zod
+    .string()
+    .optional()
+    .describe("Lets a retried send come back as the same message"),
+});
+
+/**
+ * @summary Report a message in a group chat. A snapshot of the chat goes with the report.
+ */
+export const ReportGroupMessageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ReportGroupMessageBody = zod.object({
   messageId: zod.string(),
   reason: zod.enum([
     "harassment",
@@ -6492,6 +6649,40 @@ export const GetRecordingInviteResponse = zod.object({
   claimed: zod.boolean(),
   claimedByYou: zod.boolean(),
   isYourInvite: zod.boolean(),
+  wasThatYou: zod
+    .union([
+      zod.literal("pending"),
+      zod.literal("yes"),
+      zod.literal("not_me"),
+      zod.literal(null),
+    ])
+    .nullish()
+    .describe(
+      'Set when this is a \"Was that you?\" request (decision 124) for the caller; null for an ordinary invite link',
+    ),
+});
+
+/**
+ * @summary Answer "Was that you?" with Not me, so the match never links to you
+ */
+export const AnswerNotMeParams = zod.object({
+  code: zod.coerce.string(),
+});
+
+export const AnswerNotMeResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary The mounted phone started capturing; tell the other players (each at most once)
+ */
+export const SendOpponentNoticeParams = zod.object({
+  matchId: zod.coerce.number(),
+});
+
+export const SendOpponentNoticeResponse = zod.object({
+  notified: zod.number(),
+  requested: zod.boolean(),
 });
 
 /**

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, index, uniqueIndex, boolean } from "drizzle-orm/pg-core";
 
 // Direct messages between two accounts. Spec: Messaging and moderation.
 //
@@ -44,3 +44,51 @@ export const dmConversationsTable = pgTable(
 );
 
 export type DmConversation = typeof dmConversationsTable.$inferSelect;
+
+// Group chats (F15, John, Nov 8): the chat an open match opens when its last
+// spot fills runs through the same messaging service as direct messages, with
+// any number of members. Text lives in the provider, like direct messages;
+// these tables hold who's in, the latest message for the Messages list, and
+// each member's unread count. Migration 20261108_f15_message_groups.sql.
+
+export const messageGroupsTable = pgTable(
+  "message_groups",
+  {
+    id: serial("id").primaryKey(),
+    /** The provider's channel id. */
+    channelId: text("channel_id").notNull(),
+    /** The open match this chat belongs to. One chat per open match. */
+    openMatchId: integer("open_match_id"),
+    /** "Sat 9 AM doubles · Beacon Courts" */
+    title: text("title").notNull(),
+    /** Members can send. Off while a spot is open again, or after a cancel. */
+    open: boolean("open").notNull().default(true),
+    /** Why the composer is off, in plain words. */
+    closedReason: text("closed_reason"),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    lastMessageText: text("last_message_text"),
+    /** Null for a line from Ball Boi ("All 4 spots filled"). */
+    lastSender: text("last_sender"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("uq_message_groups_channel").on(table.channelId), uniqueIndex("uq_message_groups_open_match").on(table.openMatchId)],
+);
+
+export const messageGroupMembersTable = pgTable(
+  "message_group_members",
+  {
+    id: serial("id").primaryKey(),
+    groupId: integer("group_id")
+      .notNull()
+      .references(() => messageGroupsTable.id, { onDelete: "cascade" }),
+    clerkUserId: text("clerk_user_id").notNull(),
+    unread: integer("unread").notNull().default(0),
+    /** Their first message here, for the first-message filter. Null until they send. */
+    firstSentAt: timestamp("first_sent_at", { withTimezone: true }),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("uq_message_group_members").on(table.groupId, table.clerkUserId), index("idx_message_group_members_user").on(table.clerkUserId)],
+);
+
+export type MessageGroup = typeof messageGroupsTable.$inferSelect;
+export type MessageGroupMember = typeof messageGroupMembersTable.$inferSelect;

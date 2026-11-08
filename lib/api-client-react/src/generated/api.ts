@@ -95,6 +95,7 @@ import type {
   GetConversationParams,
   GetConversationWithPlayer200,
   GetConversationWithUser200,
+  GetGroupThreadParams,
   GetHeadToHeadParams,
   GetLeagueStandingsParams,
   GetLeaguesParams,
@@ -106,6 +107,7 @@ import type {
   GetRecentActivityParams,
   GetTodaysRecordableMatchesParams,
   GetTopPlayersParams,
+  GroupThread,
   HeadToHeadStats,
   HealthStatus,
   HiddenMessageResult,
@@ -142,6 +144,7 @@ import type {
   MatchPlan,
   MatchPlanShiftInput,
   MatchPlansWithUser,
+  MatchRemindersRunInput,
   MatchShot,
   MatchStatistics,
   MatchTime,
@@ -158,10 +161,11 @@ import type {
   NewMessageInput,
   NewOpenMatchInput,
   NewReport,
+  NotificationSettings,
+  NotificationSettingsUpdate,
   OpenMatchActionInput,
   OpenMatchDetail,
   OpenMatchList,
-  OpenMatchMessages,
   PhotoUploadRequest,
   PhotoUploadTicket,
   Player,
@@ -184,6 +188,7 @@ import type {
   ResetLeagueRecords200,
   RestrictAccount201,
   RosterPlayer,
+  RunMatchRemindersDev200,
   SanctionInput,
   SanctionResult,
   ScheduleRound,
@@ -195,6 +200,8 @@ import type {
   SelfRatingInput,
   SelfRatingResult,
   SendFeedback201,
+  SendOpponentNotice200,
+  SentGroupMessage,
   SentMessage,
   SetMatchTimeBody,
   SettleMatchBody,
@@ -1330,95 +1337,7 @@ export function useGetOpenMatch<
 }
 
 /**
- * @summary The group chat of a filled open match (add ?after=<id> for only newer lines)
- */
-export const getGetOpenMatchMessagesUrl = (id: number) => {
-  return `/api/open-matches/${id}/messages`;
-};
-
-export const getOpenMatchMessages = async (
-  id: number,
-  options?: RequestInit,
-): Promise<OpenMatchMessages> => {
-  return customFetch<OpenMatchMessages>(getGetOpenMatchMessagesUrl(id), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getGetOpenMatchMessagesQueryKey = (id: number) => {
-  return [`/api/open-matches/${id}/messages`] as const;
-};
-
-export const getGetOpenMatchMessagesQueryOptions = <
-  TData = Awaited<ReturnType<typeof getOpenMatchMessages>>,
-  TError = ErrorType<unknown>,
->(
-  id: number,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getOpenMatchMessages>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getGetOpenMatchMessagesQueryKey(id);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getOpenMatchMessages>>
-  > = ({ signal }) => getOpenMatchMessages(id, { signal, ...requestOptions });
-
-  return {
-    queryKey,
-    queryFn,
-    enabled: !!id,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getOpenMatchMessages>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type GetOpenMatchMessagesQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getOpenMatchMessages>>
->;
-export type GetOpenMatchMessagesQueryError = ErrorType<unknown>;
-
-/**
- * @summary The group chat of a filled open match (add ?after=<id> for only newer lines)
- */
-
-export function useGetOpenMatchMessages<
-  TData = Awaited<ReturnType<typeof getOpenMatchMessages>>,
-  TError = ErrorType<unknown>,
->(
-  id: number,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getOpenMatchMessages>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetOpenMatchMessagesQueryOptions(id, options);
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-/**
- * @summary join, drop, remove (poster; body userId), cancel (poster), or messages (send to the group chat; body text)
+ * @summary join, drop, remove (poster; body userId), or cancel (poster). The group chat is on /messages/groups (F15).
  */
 export const getActOnOpenMatchUrl = (id: number, action: string) => {
   return `/api/open-matches/${id}/${action}`;
@@ -1483,7 +1402,7 @@ export type ActOnOpenMatchMutationBody = BodyType<OpenMatchActionInput>;
 export type ActOnOpenMatchMutationError = ErrorType<ErrorResponse>;
 
 /**
- * @summary join, drop, remove (poster; body userId), cancel (poster), or messages (send to the group chat; body text)
+ * @summary join, drop, remove (poster; body userId), or cancel (poster). The group chat is on /messages/groups (F15).
  */
 export const useActOnOpenMatch = <
   TError = ErrorType<ErrorResponse>,
@@ -12529,6 +12448,255 @@ export function useGetExpoPushTokenStatus<
 }
 
 /**
+ * @summary Dev servers only. Runs the match day reminder job as if it were `at` (default now)
+ */
+export const getRunMatchRemindersDevUrl = () => {
+  return `/api/dev/match-reminders/run`;
+};
+
+export const runMatchRemindersDev = async (
+  matchRemindersRunInput?: MatchRemindersRunInput,
+  options?: RequestInit,
+): Promise<RunMatchRemindersDev200> => {
+  return customFetch<RunMatchRemindersDev200>(getRunMatchRemindersDevUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(matchRemindersRunInput),
+  });
+};
+
+export const getRunMatchRemindersDevMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runMatchRemindersDev>>,
+    TError,
+    { data: BodyType<MatchRemindersRunInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof runMatchRemindersDev>>,
+  TError,
+  { data: BodyType<MatchRemindersRunInput> },
+  TContext
+> => {
+  const mutationKey = ["runMatchRemindersDev"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof runMatchRemindersDev>>,
+    { data: BodyType<MatchRemindersRunInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return runMatchRemindersDev(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RunMatchRemindersDevMutationResult = NonNullable<
+  Awaited<ReturnType<typeof runMatchRemindersDev>>
+>;
+export type RunMatchRemindersDevMutationBody = BodyType<MatchRemindersRunInput>;
+export type RunMatchRemindersDevMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Dev servers only. Runs the match day reminder job as if it were `at` (default now)
+ */
+export const useRunMatchRemindersDev = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runMatchRemindersDev>>,
+    TError,
+    { data: BodyType<MatchRemindersRunInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof runMatchRemindersDev>>,
+  TError,
+  { data: BodyType<MatchRemindersRunInput> },
+  TContext
+> => {
+  return useMutation(getRunMatchRemindersDevMutationOptions(options));
+};
+
+/**
+ * @summary Settings › Notifications switches for the signed-in person
+ */
+export const getGetNotificationSettingsUrl = () => {
+  return `/api/notifications/settings`;
+};
+
+export const getNotificationSettings = async (
+  options?: RequestInit,
+): Promise<NotificationSettings> => {
+  return customFetch<NotificationSettings>(getGetNotificationSettingsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetNotificationSettingsQueryKey = () => {
+  return [`/api/notifications/settings`] as const;
+};
+
+export const getGetNotificationSettingsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getNotificationSettings>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getNotificationSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetNotificationSettingsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getNotificationSettings>>
+  > = ({ signal }) => getNotificationSettings({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getNotificationSettings>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetNotificationSettingsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getNotificationSettings>>
+>;
+export type GetNotificationSettingsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Settings › Notifications switches for the signed-in person
+ */
+
+export function useGetNotificationSettings<
+  TData = Awaited<ReturnType<typeof getNotificationSettings>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getNotificationSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetNotificationSettingsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Change a Settings › Notifications switch
+ */
+export const getUpdateNotificationSettingsUrl = () => {
+  return `/api/notifications/settings`;
+};
+
+export const updateNotificationSettings = async (
+  notificationSettingsUpdate: NotificationSettingsUpdate,
+  options?: RequestInit,
+): Promise<NotificationSettings> => {
+  return customFetch<NotificationSettings>(getUpdateNotificationSettingsUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(notificationSettingsUpdate),
+  });
+};
+
+export const getUpdateNotificationSettingsMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateNotificationSettings>>,
+    TError,
+    { data: BodyType<NotificationSettingsUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateNotificationSettings>>,
+  TError,
+  { data: BodyType<NotificationSettingsUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateNotificationSettings"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateNotificationSettings>>,
+    { data: BodyType<NotificationSettingsUpdate> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateNotificationSettings(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateNotificationSettingsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateNotificationSettings>>
+>;
+export type UpdateNotificationSettingsMutationBody =
+  BodyType<NotificationSettingsUpdate>;
+export type UpdateNotificationSettingsMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Change a Settings › Notifications switch
+ */
+export const useUpdateNotificationSettings = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateNotificationSettings>>,
+    TError,
+    { data: BodyType<NotificationSettingsUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateNotificationSettings>>,
+  TError,
+  { data: BodyType<NotificationSettingsUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateNotificationSettingsMutationOptions(options));
+};
+
+/**
  * @summary Get a one-time address to upload a profile photo to (images up to 10 MB)
  */
 export const getRequestProfilePhotoUploadUrlUrl = () => {
@@ -15029,6 +15197,289 @@ export const useReportMessage = <
 };
 
 /**
+ * @summary Open a group chat you're in (an open match's chat, F15) and mark it read. Pass before to page back.
+ */
+export const getGetGroupThreadUrl = (
+  id: number,
+  params?: GetGroupThreadParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/messages/groups/${id}?${stringifiedParams}`
+    : `/api/messages/groups/${id}`;
+};
+
+export const getGroupThread = async (
+  id: number,
+  params?: GetGroupThreadParams,
+  options?: RequestInit,
+): Promise<GroupThread> => {
+  return customFetch<GroupThread>(getGetGroupThreadUrl(id, params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetGroupThreadQueryKey = (
+  id: number,
+  params?: GetGroupThreadParams,
+) => {
+  return [`/api/messages/groups/${id}`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetGroupThreadQueryOptions = <
+  TData = Awaited<ReturnType<typeof getGroupThread>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  params?: GetGroupThreadParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getGroupThread>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetGroupThreadQueryKey(id, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getGroupThread>>> = ({
+    signal,
+  }) => getGroupThread(id, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getGroupThread>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetGroupThreadQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getGroupThread>>
+>;
+export type GetGroupThreadQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Open a group chat you're in (an open match's chat, F15) and mark it read. Pass before to page back.
+ */
+
+export function useGetGroupThread<
+  TData = Awaited<ReturnType<typeof getGroupThread>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  params?: GetGroupThreadParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getGroupThread>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetGroupThreadQueryOptions(id, params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Send in a group chat. Each person's first message there can't carry links, emails or phone numbers if anyone in it is outside their leagues.
+ */
+export const getSendGroupMessageUrl = (id: number) => {
+  return `/api/messages/groups/${id}/messages`;
+};
+
+export const sendGroupMessage = async (
+  id: number,
+  newMessageInput: NewMessageInput,
+  options?: RequestInit,
+): Promise<SentGroupMessage> => {
+  return customFetch<SentGroupMessage>(getSendGroupMessageUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(newMessageInput),
+  });
+};
+
+export const getSendGroupMessageMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendGroupMessage>>,
+    TError,
+    { id: number; data: BodyType<NewMessageInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendGroupMessage>>,
+  TError,
+  { id: number; data: BodyType<NewMessageInput> },
+  TContext
+> => {
+  const mutationKey = ["sendGroupMessage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendGroupMessage>>,
+    { id: number; data: BodyType<NewMessageInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return sendGroupMessage(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendGroupMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendGroupMessage>>
+>;
+export type SendGroupMessageMutationBody = BodyType<NewMessageInput>;
+export type SendGroupMessageMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Send in a group chat. Each person's first message there can't carry links, emails or phone numbers if anyone in it is outside their leagues.
+ */
+export const useSendGroupMessage = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendGroupMessage>>,
+    TError,
+    { id: number; data: BodyType<NewMessageInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendGroupMessage>>,
+  TError,
+  { id: number; data: BodyType<NewMessageInput> },
+  TContext
+> => {
+  return useMutation(getSendGroupMessageMutationOptions(options));
+};
+
+/**
+ * @summary Report a message in a group chat. A snapshot of the chat goes with the report.
+ */
+export const getReportGroupMessageUrl = (id: number) => {
+  return `/api/messages/groups/${id}/report`;
+};
+
+export const reportGroupMessage = async (
+  id: number,
+  messageReportInput: MessageReportInput,
+  options?: RequestInit,
+): Promise<ReportReceipt> => {
+  return customFetch<ReportReceipt>(getReportGroupMessageUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(messageReportInput),
+  });
+};
+
+export const getReportGroupMessageMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reportGroupMessage>>,
+    TError,
+    { id: number; data: BodyType<MessageReportInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reportGroupMessage>>,
+  TError,
+  { id: number; data: BodyType<MessageReportInput> },
+  TContext
+> => {
+  const mutationKey = ["reportGroupMessage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reportGroupMessage>>,
+    { id: number; data: BodyType<MessageReportInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return reportGroupMessage(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReportGroupMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reportGroupMessage>>
+>;
+export type ReportGroupMessageMutationBody = BodyType<MessageReportInput>;
+export type ReportGroupMessageMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Report a message in a group chat. A snapshot of the chat goes with the report.
+ */
+export const useReportGroupMessage = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reportGroupMessage>>,
+    TError,
+    { id: number; data: BodyType<MessageReportInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof reportGroupMessage>>,
+  TError,
+  { id: number; data: BodyType<MessageReportInput> },
+  TContext
+> => {
+  return useMutation(getReportGroupMessageMutationOptions(options));
+};
+
+/**
  * @summary Development only. Adds sample conversations for the signed-in person.
  */
 export const getCreateSampleMessagesUrl = () => {
@@ -15865,6 +16316,174 @@ export function useGetRecordingInvite<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Answer "Was that you?" with Not me, so the match never links to you
+ */
+export const getAnswerNotMeUrl = (code: string) => {
+  return `/api/recording/invites/${code}/not-me`;
+};
+
+export const answerNotMe = async (
+  code: string,
+  options?: RequestInit,
+): Promise<SuccessResult> => {
+  return customFetch<SuccessResult>(getAnswerNotMeUrl(code), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAnswerNotMeMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof answerNotMe>>,
+    TError,
+    { code: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof answerNotMe>>,
+  TError,
+  { code: string },
+  TContext
+> => {
+  const mutationKey = ["answerNotMe"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof answerNotMe>>,
+    { code: string }
+  > = (props) => {
+    const { code } = props ?? {};
+
+    return answerNotMe(code, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AnswerNotMeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof answerNotMe>>
+>;
+
+export type AnswerNotMeMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Answer "Was that you?" with Not me, so the match never links to you
+ */
+export const useAnswerNotMe = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof answerNotMe>>,
+    TError,
+    { code: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof answerNotMe>>,
+  TError,
+  { code: string },
+  TContext
+> => {
+  return useMutation(getAnswerNotMeMutationOptions(options));
+};
+
+/**
+ * @summary The mounted phone started capturing; tell the other players (each at most once)
+ */
+export const getSendOpponentNoticeUrl = (matchId: number) => {
+  return `/api/recording/matches/${matchId}/opponent-notice`;
+};
+
+export const sendOpponentNotice = async (
+  matchId: number,
+  options?: RequestInit,
+): Promise<SendOpponentNotice200> => {
+  return customFetch<SendOpponentNotice200>(getSendOpponentNoticeUrl(matchId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSendOpponentNoticeMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendOpponentNotice>>,
+    TError,
+    { matchId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendOpponentNotice>>,
+  TError,
+  { matchId: number },
+  TContext
+> => {
+  const mutationKey = ["sendOpponentNotice"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendOpponentNotice>>,
+    { matchId: number }
+  > = (props) => {
+    const { matchId } = props ?? {};
+
+    return sendOpponentNotice(matchId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendOpponentNoticeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendOpponentNotice>>
+>;
+
+export type SendOpponentNoticeMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary The mounted phone started capturing; tell the other players (each at most once)
+ */
+export const useSendOpponentNotice = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendOpponentNotice>>,
+    TError,
+    { matchId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendOpponentNotice>>,
+  TError,
+  { matchId: number },
+  TContext
+> => {
+  return useMutation(getSendOpponentNoticeMutationOptions(options));
+};
 
 /**
  * @summary Add a Quick match from an invite link to your account

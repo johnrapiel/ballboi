@@ -6,16 +6,18 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type OpenMatchMessagesMessagesItem = {
-  id: number;
+export interface GroupMessageView {
+  id: string;
   text: string;
-  at: string;
   fromMe: boolean;
+  at: string;
   /**
    * Null for a line from Ball Boi
    * @nullable
    */
   senderName: string | null;
   /** @nullable */
+  senderPlayerId: number | null;
+  /** @nullable */
   senderUserId: number | null;
-};
+}

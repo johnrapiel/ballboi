@@ -7,6 +7,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import { discoverKeys } from "@/hooks/useDiscover";
 import { apiErrorMessage, apiFetch } from "@/lib/api";
+import { askForNotifications } from "@/lib/notifications";
 import { leaguesPath, type DiscoverLeague, type DiscoverLeagues } from "@/lib/discover";
 
 export const leagueKeys = {
@@ -53,6 +54,8 @@ export function useAskToJoin(leagueId: number) {
         }),
         "Couldn't send your request. Try again.",
       ),
+    // Asking to join a league: the notifications prompt, the first time (decision 125).
+    onSuccess: () => void askForNotifications("joinedLeague"),
     onSettled: async () => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: discoverKeys.all }),

@@ -200,9 +200,14 @@ export function alertRecipients(
     .map((p) => p.clerkUserId);
 }
 
-/** "Sat doubles, 1 PM": the group chat's title. */
+/** "Sat 9 AM doubles": the group chat's name, on Home and in its header. */
 export function chatTitle(m: Pick<OpenMatchRow, "startsAt" | "format" | "timeZone">): string {
   const day = m.startsAt.toLocaleDateString("en-US", { weekday: "short", timeZone: m.timeZone });
   const time = m.startsAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: m.timeZone }).replace(":00", "");
-  return `${day} ${m.format}, ${time}`;
+  return `${day} ${time} ${m.format === "doubles" ? "doubles" : "singles"}`;
+}
+
+/** "Sat 9 AM doubles · Beacon Courts": the group chat in Messages and its pushes (F15). */
+export function groupChatTitle(m: Pick<OpenMatchRow, "startsAt" | "format" | "timeZone" | "courtName">): string {
+  return m.courtName ? `${chatTitle(m)} · ${m.courtName}` : chatTitle(m);
 }

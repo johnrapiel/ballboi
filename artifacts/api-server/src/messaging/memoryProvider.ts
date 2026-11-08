@@ -1,8 +1,8 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import type { MessagingProvider, ProviderMessage } from "./provider";
+import { SYSTEM_SENDER, type MessagingProvider, type ProviderMessage, type SendInput } from "./provider";
 
-type Channel = { members: [string, string]; messages: ProviderMessage[] };
+type Channel = { members: string[]; messages: ProviderMessage[] };
 
 /**
  * Keeps messages in memory. Used in development (no Stream keys needed) and in
@@ -26,7 +26,7 @@ export class MemoryMessagingProvider implements MessagingProvider {
 
   private load() {
     if (!this.file) return;
-    let saved: Record<string, { members: [string, string]; messages: (Omit<ProviderMessage, "createdAt"> & { createdAt: string })[] }>;
+    let saved: Record<string, { members: string[]; messages: (Omit<ProviderMessage, "createdAt"> & { createdAt: string })[] }>;
     try {
       saved = JSON.parse(readFileSync(this.file, "utf8"));
     } catch {
@@ -51,18 +51,38 @@ export class MemoryMessagingProvider implements MessagingProvider {
     }
   }
 
-  async ensureChannel(channelId: string, members: [string, string]): Promise<void> {
+  async ensureChannel(channelId: string, members: string[]): Promise<void> {
     if (this.channels.has(channelId)) return;
-    this.channels.set(channelId, { members, messages: [] });
+    this.channels.set(channelId, { members: [...new Set(members)], messages: [] });
     this.save();
   }
 
-  async sendMessage(input: { channelId: string; messageId: string; senderId: string; text: string }): Promise<ProviderMessage> {
+  async addMembers(channelId: string, userIds: string[]): Promise<void> {
+    const channel = this.channels.get(channelId);
+    if (!channel) throw new Error(`Unknown channel ${channelId}`);
+    channel.members = [...new Set([...channel.members, ...userIds])];
+    this.save();
+  }
+
+  async removeMembers(channelId: string, userIds: string[]): Promise<void> {
+    const channel = this.channels.get(channelId);
+    if (!channel) return;
+    channel.members = channel.members.filter((m) => !userIds.includes(m));
+    this.save();
+  }
+
+  /** For tests: who is in a channel. */
+  membersOf(channelId: string): string[] {
+    return [...(this.channels.get(channelId)?.members ?? [])];
+  }
+
+  async sendMessage(input: SendInput): Promise<ProviderMessage> {
     const existing = this.byId.get(input.messageId);
     if (existing) return existing;
     const channel = this.channels.get(input.channelId);
     if (!channel) throw new Error(`Unknown channel ${input.channelId}`);
-    if (!channel.members.includes(input.senderId)) throw new Error("Sender is not in this channel");
+    const system = input.system === true && input.senderId === SYSTEM_SENDER;
+    if (!system && !channel.members.includes(input.senderId)) throw new Error("Sender is not in this channel");
     const message: ProviderMessage = {
       id: input.messageId,
       channelId: input.channelId,
@@ -70,6 +90,7 @@ export class MemoryMessagingProvider implements MessagingProvider {
       text: input.text,
       createdAt: this.clock(),
       hidden: false,
+      ...(system ? { system: true } : {}),
     };
     channel.messages.push(message);
     this.byId.set(message.id, message);

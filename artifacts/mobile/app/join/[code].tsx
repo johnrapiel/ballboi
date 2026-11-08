@@ -19,6 +19,7 @@ import { useColors } from "@/hooks/useColors";
 import { useGate } from "@/hooks/useGate";
 import { useProfile } from "@/hooks/useProfile";
 import { cleanCode, savePendingJoinCode } from "@/lib/leagueInvite";
+import { askForNotifications } from "@/lib/notifications";
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { shortDate } from "@/lib/leagueSchedule";
 import { photoUrl } from "@/lib/photos";
@@ -148,6 +149,8 @@ export default function JoinLeagueScreen() {
           : { kind: "joined", leagueId: result.league.id ?? null, message: `You joined ${result.league.name ?? "the league"}.` };
       setDone(next);
       AccessibilityInfo.announceForAccessibility(next.message);
+      // Joining a league: the notifications prompt, the first time (decision 125).
+      void askForNotifications("joinedLeague");
     } catch (e) {
       const s = (e as { status?: number }).status;
       const code = (e as { data?: { code?: string } | null }).data?.code;

@@ -32,13 +32,15 @@ export default function ReportSheet() {
   const body = useTypeStyle("body");
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
-  const params = useLocalSearchParams<{ playerId: string; name?: string; conversationId?: string; messageId?: string }>();
+  const params = useLocalSearchParams<{ playerId: string; name?: string; conversationId?: string; groupId?: string; messageId?: string }>();
   const byUser = params.playerId?.startsWith("u") ?? false;
   const targetId = Number(byUser ? params.playerId.slice(1) : params.playerId);
   const name = params.name ?? "this player";
   const conversationId = params.conversationId ? Number(params.conversationId) : null;
+  // A message in a group chat (F15): the same report, through the group's route.
+  const groupId = params.groupId ? Number(params.groupId) : null;
   const messageId = params.messageId ?? null;
-  const aboutMessage = conversationId != null && !!messageId;
+  const aboutMessage = (conversationId != null || groupId != null) && !!messageId;
 
   const [reason, setReason] = useState<ReportReasonCode | null>(null);
   const [details, setDetails] = useState("");
@@ -66,7 +68,8 @@ export default function ReportSheet() {
     try {
       let blocked = false;
       if (aboutMessage) {
-        const res = await apiFetch(`/api/messages/${conversationId}/report`, getToken, {
+        const path = groupId != null ? `/api/messages/groups/${groupId}/report` : `/api/messages/${conversationId}/report`;
+        const res = await apiFetch(path, getToken, {
           method: "POST",
           body: JSON.stringify({ messageId, reason, details: note }),
         });
