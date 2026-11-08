@@ -138,8 +138,9 @@ export const DEMO_COURTS = [
 ];
 
 /**
- * John's second current league: Open, run by him, full, mid-season, so it
- * has a waitlist. Members are nearby players (they still show in Discover).
+ * John's second current league: Private, run by him, full, mid-season, so it
+ * has a waitlist. Members are nearby players. Private so beta testers never
+ * see it in Discover or ask to join it (John, Nov 8).
  */
 export const DEMO_SECOND_LEAGUE = {
   name: "Dutchess County Singles",
@@ -179,6 +180,25 @@ export function demoEmail(p: Pick<DemoPerson, "firstName" | "lastName">): string
 }
 
 export const DEMO_EMAIL_PREFIX = "ballboi-demo-";
+
+/**
+ * Who the demo seed makes. Without the Discover extras (staging, and
+ * `pnpm seed:demo` by default) that's only John's league mates: the 12 in
+ * Test League 1 plus the nearby players his other two leagues, their
+ * waitlist and the join request name. With them (`pnpm seed:demo --discover`)
+ * it's everyone, including the players who are only there to fill Discover.
+ */
+export function demoPeople(discover: boolean): DemoPerson[] {
+  if (discover) return [...DEMO_LEAGUE_PLAYERS, ...DEMO_NEARBY_PLAYERS];
+  const named = new Set<string>([
+    ...DEMO_SECOND_LEAGUE.members,
+    ...DEMO_SECOND_LEAGUE.waitlist,
+    DEMO_PAST_LEAGUE.organizer,
+    ...DEMO_PAST_LEAGUE.members,
+    DEMO_JOIN_REQUEST,
+  ]);
+  return [...DEMO_LEAGUE_PLAYERS, ...DEMO_NEARBY_PLAYERS.filter((p) => named.has(`${p.firstName} ${p.lastName}`))];
+}
 /** How the demo seed recognizes leagues it made when it runs again. */
 export const DEMO_LEAGUE_MARKER = "Seeded by pnpm seed:demo. Safe to delete.";
 
