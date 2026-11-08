@@ -19,6 +19,7 @@ import { advancePlayoff, playoffPlayBy, walkover } from "../services/leaguePlayo
 import { usesWeeklyRounds } from "../services/leagueRounds.js";
 import { sendPushToUsers } from "./notifications.js";
 import { logger } from "../lib/logger.js";
+import { leagueChat } from "../messaging/leagueChatEvents.js";
 
 // Enter a league score (spec: Leagues > Scores and standings). Either player
 // enters it, from their own side ("6-3, 6-4" means they won both sets).
@@ -144,6 +145,9 @@ router.post("/leagues/:leagueId/matches/:matchId/score", async (req, res) => {
       )
       .catch((err) => logger.error({ err, matchId }, "Couldn't send score notifications"));
   }
+
+  // The result in the league chat, then any standings moves (decision 145).
+  leagueChat.resultEntered(leagueId, saved.id);
 
   res.status(201).json({
     matchId: saved.id,
@@ -280,6 +284,7 @@ router.post("/leagues/:leagueId/matches/:matchId/score/edit", async (req, res) =
       ),
   ).catch((err) => logger.error({ err, matchId }, "Couldn't send score edit notifications"));
 
+  leagueChat.resultEntered(leagueId, saved.id, { edited: true });
   res.json({
     matchId: saved.id,
     score: saved.score!,
@@ -338,6 +343,7 @@ router.put("/leagues/:leagueId/matches/:matchId/score", requireLeagueAdmin, asyn
   } else if (!match.inGrace) {
     await applyRecordChanges(match, winnerSideOf(match), parsed.winnerSide);
   }
+  leagueChat.resultEntered(leagueId, saved.id, { edited: true });
   res.json({
     matchId: saved.id,
     score: saved.score,
@@ -378,6 +384,7 @@ router.post("/leagues/:leagueId/matches/:matchId/result", requireLeagueAdmin, as
       return;
     }
     if (!(await walkover(match, walkoverTo))) { res.status(409).json({ error: "This match changed. Pull down to see the latest." }); return; }
+    leagueChat.resultEntered(leagueId, matchId);
     res.status(201).json({ matchId, status: "completed", score: "W/O", winnerId: walkoverTo, inGrace: false, countsForStandings: false });
     return;
   }
@@ -394,6 +401,7 @@ router.post("/leagues/:leagueId/matches/:matchId/result", requireLeagueAdmin, as
     .returning();
   if (!saved) { res.status(409).json({ error: "A score is already in for this match. The first score entered stands." }); return; }
   await advancePlayoff(saved, winnerId).catch((err) => logger.error({ err, matchId }, "Couldn't advance playoff winner"));
+  leagueChat.resultEntered(leagueId, matchId);
   res.status(201).json({ matchId, status: saved.status, score: saved.score, winnerId, inGrace: false, countsForStandings: false });
 });
 

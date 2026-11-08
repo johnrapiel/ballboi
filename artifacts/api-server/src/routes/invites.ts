@@ -8,6 +8,7 @@ import { isLeagueAdmin } from "../lib/leagueAccess.js";
 import { todayFor } from "../lib/leagueCalendar.js";
 import { joinOutcome } from "../lib/leagueJoining.js";
 import { ENDED_MESSAGE, leagueHasEnded } from "../lib/leagueLifecycle.js";
+import { leagueChat } from "../messaging/leagueChatEvents.js";
 
 /** Q8: an ended league's code just says so. No join, and no request for the admin. */
 const LEAGUE_ENDED = { error: ENDED_MESSAGE, code: "league_ended" } as const;
@@ -257,6 +258,9 @@ router.post("/invites/:code/join", requireAuth, async (req, res) => {
       };
     });
 
+    // Joined (or back): into the league chat (decision 145).
+    const joined = (result.payload as { league?: { id?: number } }).league?.id;
+    if ((result.status === 200 || result.status === 201) && joined) leagueChat.leagueChanged(joined);
     return res.status(result.status).json(result.payload);
   } catch (err) {
     console.error("join invite error:", err);

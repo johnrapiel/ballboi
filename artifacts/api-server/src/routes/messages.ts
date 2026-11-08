@@ -1,7 +1,8 @@
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { getAuth } from "@clerk/express";
 import { db, usersTable } from "@workspace/db";
-import { getMessagingService } from "../messaging";
+import { getLeagueChats, getMessagingService } from "../messaging";
+import type { LeagueChats } from "../messaging/leagueChats";
 import { MessagingError, type MessagingService } from "../messaging/service";
 import { logger } from "../lib/logger";
 
@@ -19,7 +20,10 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
 
 type Handler = (svc: MessagingService, me: string, req: Request, res: Response) => Promise<void>;
 
-export function createMessagesRouter(getService: () => MessagingService = getMessagingService): IRouter {
+export function createMessagesRouter(
+  getService: () => MessagingService = getMessagingService,
+  getChats: () => Pick<LeagueChats, "chatFor"> = getLeagueChats,
+): IRouter {
   const router: IRouter = Router();
 
   const handle =
@@ -113,6 +117,73 @@ export function createMessagesRouter(getService: () => MessagingService = getMes
     handle(async (svc, me, req, res) => {
       const body = (req.body ?? {}) as Record<string, unknown>;
       res.status(201).json(await svc.sendToGroup(me, idParam(req), { text: body.text, clientMessageId: body.clientMessageId }));
+    }),
+  );
+
+  router.get(
+    "/messages/groups/:id/members",
+    requireAuth,
+    handle(async (svc, me, req, res) => {
+      res.json({ members: await svc.groupMembers(me, idParam(req)) });
+    }),
+  );
+
+  // ─── League chats (decisions 145 and 146): admin pins and moderation ─────
+
+  router.post(
+    "/messages/groups/:id/pins",
+    requireAuth,
+    handle(async (svc, me, req, res) => {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      res.json(await svc.pin(me, idParam(req), { messageId: body.messageId }));
+    }),
+  );
+
+  router.delete(
+    "/messages/groups/:id/pins/:messageId",
+    requireAuth,
+    handle(async (svc, me, req, res) => {
+      res.json(await svc.unpin(me, idParam(req), String(req.params.messageId)));
+    }),
+  );
+
+  router.post(
+    "/messages/groups/:id/messages/:messageId/delete",
+    requireAuth,
+    handle(async (svc, me, req, res) => {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const logged = await svc.adminDelete(me, idParam(req), String(req.params.messageId), { reason: body.reason });
+      res.json({ deleted: true, reportId: logged.id });
+    }),
+  );
+
+  router.post(
+    "/messages/groups/:id/mute",
+    requireAuth,
+    handle(async (svc, me, req, res) => {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      res.json(await svc.setMuted(me, idParam(req), { playerId: body.playerId, userId: body.userId }, true));
+    }),
+  );
+
+  router.post(
+    "/messages/groups/:id/unmute",
+    requireAuth,
+    handle(async (svc, me, req, res) => {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      res.json(await svc.setMuted(me, idParam(req), { playerId: body.playerId, userId: body.userId }, false));
+    }),
+  );
+
+  // The league page's Chat button: the league's chat (made now if it's missing) and its unread counts.
+  router.get(
+    "/leagues/:leagueId/chat",
+    requireAuth,
+    handle(async (_svc, me, req, res) => {
+      const leagueId = Number(req.params.leagueId);
+      const chat = Number.isInteger(leagueId) && leagueId > 0 ? await getChats().chatFor(leagueId, me) : null;
+      if (!chat) throw new MessagingError(404, "not_found", "This league's chat isn't available.");
+      res.json(chat);
     }),
   );
 

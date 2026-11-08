@@ -33,6 +33,7 @@ import { unpairedPlayers, type DraftRound } from "../lib/roundEdits.js";
 import { blockedPlayerPairs } from "../lib/blocks.js";
 import { logger } from "../lib/logger.js";
 import { sendPushToUsers } from "../routes/notifications.js";
+import { leagueChat } from "../messaging/leagueChatEvents.js";
 import { loadProfiles, playerLevelValue } from "../lib/playerProfile.js";
 import { getAutoSeason } from "./seasonService.js";
 import { startPlayoffs } from "./leaguePlayoffs.js";
@@ -203,6 +204,7 @@ export async function publishRound(league: League, round: LeagueRound): Promise<
     .where(and(eq(leagueRoundsTable.id, round.id), isNull(leagueRoundsTable.publishedAt)))
     .returning();
   if (!published) return; // Someone else published it first.
+  leagueChat.roundPublished(league.id, round.roundNumber);
 
   const [matches, byes, players] = await Promise.all([
     db.select().from(matchesTable).where(and(eq(matchesTable.roundId, round.id), isNull(matchesTable.voidedAt))),
@@ -285,6 +287,8 @@ export async function syncLeagueStatus(league: League, today: string): Promise<b
     .where(and(eq(playoffBracketsTable.leagueId, league.id), eq(playoffBracketsTable.status, "active")));
   if (!playoffs && league.status !== "completed") {
     await db.update(leaguesTable).set({ status: "completed" }).where(eq(leaguesTable.id, league.id));
+    // The season is over: its chat goes read only (decision 145).
+    leagueChat.leagueChanged(league.id);
   }
   return true;
 }

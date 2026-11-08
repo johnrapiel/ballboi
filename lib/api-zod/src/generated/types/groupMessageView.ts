@@ -20,4 +20,9 @@ export interface GroupMessageView {
   senderPlayerId: number | null;
   /** @nullable */
   senderUserId: number | null;
+  /** League chats, an admin post (shown with the Admin label) */
+  admin: boolean;
+  /** League chats, the names this message @mentions ("You" for you) */
+  mentions: string[];
+  mentionsMe: boolean;
 }

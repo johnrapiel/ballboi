@@ -13,4 +13,6 @@ export interface GroupThread {
   messages: GroupMessageView[];
   /** @nullable */
   olderCursor: string | null;
+  /** League chats, pinned posts you can see, oldest pin first (up to 3) */
+  pins: GroupMessageView[];
 }
