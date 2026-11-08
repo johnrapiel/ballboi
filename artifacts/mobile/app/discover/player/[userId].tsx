@@ -124,7 +124,8 @@ function Header({ p }: { p: DiscoverPlayerCard }) {
     <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.space4 }}>
       <Avatar name={p.name} uri={photoUrl(p.avatarUrl)} size={72} />
       <View style={{ flexShrink: 1, flexGrow: 1, gap: spacing.space2 }}>
-        <Text variant="headingM" accessibilityRole="header">
+        {/* A player's name is always full ink, never the 50% title style (John, Nov 8). */}
+        <Text variant="title" accessibilityRole="header">
           {p.name}
         </Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.space2 }}>
