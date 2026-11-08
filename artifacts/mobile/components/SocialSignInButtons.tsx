@@ -14,10 +14,11 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import Constants from "expo-constants";
 import { requireOptionalNativeModule } from "expo";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, Text, View, useColorScheme } from "react-native";
+import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
 import { radius } from "@/constants/tokens";
+import { useScheme } from "@/hooks/useColors";
 import { signInOptions, type SignInOptions } from "@/lib/signInOptions";
 
 /** Apple, Google and the email button share one height on Welcome. */
@@ -70,7 +71,7 @@ export function useSignInOptions(): SignInOptions | null {
 }
 
 export function AppleSignInButton({ onPress, disabled }: { onPress: () => void; disabled: boolean }) {
-  const scheme = useColorScheme();
+  const scheme = useScheme();
   return (
     <View pointerEvents={disabled ? "none" : "auto"} style={{ opacity: disabled ? 0.5 : 1 }}>
       <AppleAuthentication.AppleAuthenticationButton
@@ -127,7 +128,7 @@ export function GoogleSignInButton({
   loading: boolean;
   disabled: boolean;
 }) {
-  const g = useColorScheme() === "dark" ? GOOGLE.dark : GOOGLE.light;
+  const g = useScheme() === "dark" ? GOOGLE.dark : GOOGLE.light;
   const inactive = disabled || loading;
   return (
     <Pressable

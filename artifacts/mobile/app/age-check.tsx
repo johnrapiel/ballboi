@@ -22,13 +22,13 @@ import DateTimePicker, { type DateTimePickerEvent } from "@react-native-communit
 import { useAuth, useUser } from "@clerk/expo";
 import { Redirect, useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Modal, Pressable, View, useColorScheme } from "react-native";
+import { Modal, Pressable, View } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Button, ScrollScreen, Screen, Text, TextButton } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useScheme } from "@/hooks/useColors";
 import {
   AGE_CHECK_PASSED,
   EARLIEST_BIRTH_DATE,
@@ -161,7 +161,7 @@ function BirthdaySheet({
   onDone: (date: Date) => void;
 }) {
   const c = useColors();
-  const scheme = useColorScheme();
+  const scheme = useScheme();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const [draft, setDraft] = useState(initial);
