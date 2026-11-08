@@ -2639,6 +2639,12 @@ paths:
           required: true
           schema:
             type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RemoveLeaguePlayerInput"
       responses:
         "200":
           description: Removed
@@ -5918,6 +5924,304 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Reporting isn't available right now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages/groups/{id}/members:
+    get:
+      operationId: getGroupMembers
+      tags: [messages]
+      summary: Everyone in a group chat you're in, minus anyone you have a block with. For @mention suggestions and league admin tools.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Members
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupMemberList'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not a chat you're in. The error has a code, such as not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages/groups/{id}/pins:
+    post:
+      operationId: pinGroupMessage
+      tags: [messages]
+      summary: League chat admins pin a post (up to 3, decision 145).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PinInput'
+      responses:
+        '200':
+          description: The pinned posts' ids, oldest pin first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PinList'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not one of the league's admins (code not_admin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Chat or message not available. The error has a code, such as not_found or message_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Already 3 pins (code too_many_pins)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages/groups/{id}/pins/{messageId}:
+    delete:
+      operationId: unpinGroupMessage
+      tags: [messages]
+      summary: League chat admins unpin a post.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: messageId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The pinned posts' ids
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PinList'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not one of the league's admins (code not_admin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not a chat you're in. The error has a code, such as not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages/groups/{id}/messages/{messageId}/delete:
+    post:
+      operationId: adminDeleteGroupMessage
+      tags: [messages]
+      summary: League chat admins delete a message for everyone. It's hidden and goes to the moderation queue with a snapshot.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: messageId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminDeleteInput'
+      responses:
+        '200':
+          description: Deleted and logged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDeleteResult'
+        '400':
+          description: A post from Ball Boi (code system_message)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not one of the league's admins (code not_admin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Chat or message not available. The error has a code, such as not_found or message_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages/groups/{id}/mute:
+    post:
+      operationId: muteGroupMember
+      tags: [messages]
+      summary: League chat admins mute a member here, so they read but can't send. Logged to the moderation queue.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupMemberRef'
+      responses:
+        '200':
+          description: Muted or not
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MuteResult'
+        '400':
+          description: Yourself, or an admin (codes self, admin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not one of the league's admins (code not_admin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not in this chat (code not_member)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages/groups/{id}/unmute:
+    post:
+      operationId: unmuteGroupMember
+      tags: [messages]
+      summary: League chat admins unmute a member.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupMemberRef'
+      responses:
+        '200':
+          description: Muted or not
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MuteResult'
+        '400':
+          description: Yourself, or an admin (codes self, admin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not one of the league's admins (code not_admin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not in this chat (code not_member)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /leagues/{leagueId}/chat:
+    get:
+      operationId: getLeagueChat
+      tags: [messages]
+      summary: The league page's Chat button. The league's chat in Messages (made now if it's missing) and your unread counts in it (decisions 145 and 146).
+      parameters:
+      - name: leagueId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: The chat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeagueChat'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not a league you're in (code not_found)
           content:
             application/json:
               schema:
@@ -10632,10 +10936,16 @@ components:
       properties:
         id:
           type: integer
+        kind:
+          type: string
+          enum: [match, league]
+          description: An open match's chat, or a league's chat (decision 145)
         title:
           type: string
-          description: Sat 9 AM doubles · Beacon Courts
+          description: Sat 9 AM doubles · Beacon Courts, or the league name
         openMatchId:
+          type: [integer, 'null']
+        leagueId:
           type: [integer, 'null']
         memberCount:
           type: integer
@@ -10656,11 +10966,18 @@ components:
             required: [text, fromMe, senderName, at]
         unread:
           type: integer
+          description: Every unread message; the row shows bold with this count
+        attention:
+          type: integer
+          description: League chats, the unread ones the Messages button counts (@mentions of you and admin posts, decision 146). Equals unread for an open match's chat.
+        isAdmin:
+          type: boolean
+          description: League chats, you're one of the league's admins
         canSend:
           type: boolean
         sendBlockedReason:
           type: [string, 'null']
-      required: [id, title, openMatchId, memberCount, lastMessage, unread, canSend, sendBlockedReason]
+      required: [id, kind, title, openMatchId, leagueId, memberCount, lastMessage, unread, attention, isAdmin, canSend, sendBlockedReason]
     GroupMessageView:
       type: object
       properties:
@@ -10679,7 +10996,17 @@ components:
           type: [integer, 'null']
         senderUserId:
           type: [integer, 'null']
-      required: [id, text, fromMe, at, senderName, senderPlayerId, senderUserId]
+        admin:
+          type: boolean
+          description: League chats, an admin post (shown with the Admin label)
+        mentions:
+          type: array
+          description: League chats, the names this message @mentions ("You" for you)
+          items:
+            type: string
+        mentionsMe:
+          type: boolean
+      required: [id, text, fromMe, at, senderName, senderPlayerId, senderUserId, admin, mentions, mentionsMe]
     GroupThread:
       type: object
       properties:
@@ -10691,7 +11018,94 @@ components:
             $ref: '#/components/schemas/GroupMessageView'
         olderCursor:
           type: [string, 'null']
-      required: [group, messages, olderCursor]
+        pins:
+          type: array
+          description: League chats, pinned posts you can see, oldest pin first (up to 3)
+          items:
+            $ref: '#/components/schemas/GroupMessageView'
+      required: [group, messages, olderCursor, pins]
+    GroupMemberView:
+      type: object
+      properties:
+        name:
+          type: string
+        playerId:
+          type: [integer, 'null']
+          description: Their player in this chat's league, for Remove from league
+        userId:
+          type: [integer, 'null']
+        admin:
+          type: boolean
+        muted:
+          type: boolean
+        me:
+          type: boolean
+      required: [name, playerId, userId, admin, muted, me]
+    GroupMemberList:
+      type: object
+      properties:
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupMemberView'
+      required: [members]
+    GroupMemberRef:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        userId:
+          type: integer
+    RemoveLeaguePlayerInput:
+      type: object
+      properties:
+        fromChat:
+          type: boolean
+          description: Started from the league chat's admin tools, so the removal is also logged to the moderation queue (decision 145)
+    PinInput:
+      type: object
+      properties:
+        messageId:
+          type: string
+      required: [messageId]
+    PinList:
+      type: object
+      properties:
+        pinnedIds:
+          type: array
+          items:
+            type: string
+      required: [pinnedIds]
+    AdminDeleteInput:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: A report reason; inappropriate_content when left out
+    AdminDeleteResult:
+      type: object
+      properties:
+        deleted:
+          type: boolean
+        reportId:
+          type: [integer, 'null']
+      required: [deleted, reportId]
+    MuteResult:
+      type: object
+      properties:
+        muted:
+          type: boolean
+      required: [muted]
+    LeagueChat:
+      type: object
+      properties:
+        groupId:
+          type: integer
+        unread:
+          type: integer
+        attention:
+          type: integer
+      required: [groupId, unread, attention]
     SentGroupMessage:
       type: object
       properties:

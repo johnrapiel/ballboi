@@ -29,8 +29,12 @@ export const REPORT_REASONS = ["harassment", "inappropriate_content", "spam", "c
 // "no_show_dispute": filed by Ball Boi, not a player, when someone answers a
 // Discover no-show with "That's not right" (F12), so a pattern shows up.
 export const REPORT_STATUSES = ["open", "reviewed", "actioned", "dismissed"] as const;
-/** user: a person reported it. auto: auto-restrict fired (retired Nov 2026; older rows only). stream: Stream moderation flagged it. appeal: a banned or suspended person appealed. */
-export const REPORT_SOURCES = ["user", "auto", "stream", "appeal"] as const;
+/**
+ * user: a person reported it. auto: auto-restrict fired (retired Nov 2026; older rows only). stream: Stream moderation
+ * flagged it. appeal: a banned or suspended person appealed. league_admin: a league admin deleted a message or muted
+ * someone in their league's chat (decision 145), logged for a moderator like a report.
+ */
+export const REPORT_SOURCES = ["user", "auto", "stream", "appeal", "league_admin"] as const;
 
 export type ReportTargetType = (typeof REPORT_TARGET_TYPES)[number];
 export type ReportReason = (typeof REPORT_REASONS)[number];

@@ -22,6 +22,7 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+import { leagueChat } from "../messaging/leagueChatEvents.js";
 const router = Router();
 
 /** C9: end the league. Standings freeze, unpublished rounds are cancelled, history stays. */
@@ -47,6 +48,8 @@ router.post("/leagues/:leagueId/end", requireLeagueAdmin, async (_req, res) => {
     return draftIds.length;
   });
 
+  // Its chat stays readable but takes no new messages (decision 145).
+  leagueChat.leagueChanged(leagueId);
   res.json({ leagueId, status: "completed", endedAt: endedAt.toISOString(), cancelledRounds });
 });
 
@@ -102,6 +105,8 @@ router.delete("/leagues/:leagueId", requireLeagueAdmin, async (req, res) => {
     }
   });
 
+  // Everyone leaves its chat, so it drops out of Messages.
+  leagueChat.leagueChanged(leagueId);
   res.status(204).send();
 });
 
