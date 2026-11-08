@@ -6193,6 +6193,32 @@ export const GetConversationsResponse = zod
             .describe("Why the composer is off, in plain words"),
         }),
       ),
+      groups: zod
+        .array(
+          zod.object({
+            id: zod.number(),
+            title: zod.string().describe("Sat 9 AM doubles · Beacon Courts"),
+            openMatchId: zod.number().nullable(),
+            memberCount: zod.number(),
+            lastMessage: zod.union([
+              zod.null(),
+              zod.object({
+                text: zod.string(),
+                fromMe: zod.boolean(),
+                senderName: zod
+                  .string()
+                  .nullable()
+                  .describe("Null for a line from Ball Boi"),
+                at: zod.string(),
+              }),
+            ]),
+            unread: zod.number(),
+            canSend: zod.boolean(),
+            sendBlockedReason: zod.string().nullable(),
+          }),
+        )
+        .optional()
+        .describe("Group chats you're in (F15), newest first"),
     }),
   );
 
@@ -6335,6 +6361,93 @@ export const ReportMessageParams = zod.object({
 });
 
 export const ReportMessageBody = zod.object({
+  messageId: zod.string(),
+  reason: zod.enum([
+    "harassment",
+    "inappropriate_content",
+    "spam",
+    "cheating",
+    "unsafe",
+    "other",
+    "impersonation",
+    "no_show_dispute",
+  ]),
+  details: zod.string().nullish(),
+});
+
+/**
+ * @summary Open a group chat you're in (an open match's chat, F15) and mark it read. Pass before to page back.
+ */
+export const GetGroupThreadParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetGroupThreadQueryParams = zod.object({
+  before: zod.coerce.string().optional(),
+});
+
+export const GetGroupThreadResponse = zod.object({
+  group: zod.object({
+    id: zod.number(),
+    title: zod.string().describe("Sat 9 AM doubles · Beacon Courts"),
+    openMatchId: zod.number().nullable(),
+    memberCount: zod.number(),
+    lastMessage: zod.union([
+      zod.null(),
+      zod.object({
+        text: zod.string(),
+        fromMe: zod.boolean(),
+        senderName: zod
+          .string()
+          .nullable()
+          .describe("Null for a line from Ball Boi"),
+        at: zod.string(),
+      }),
+    ]),
+    unread: zod.number(),
+    canSend: zod.boolean(),
+    sendBlockedReason: zod.string().nullable(),
+  }),
+  messages: zod.array(
+    zod.object({
+      id: zod.string(),
+      text: zod.string(),
+      fromMe: zod.boolean(),
+      at: zod.string(),
+      senderName: zod
+        .string()
+        .nullable()
+        .describe("Null for a line from Ball Boi"),
+      senderPlayerId: zod.number().nullable(),
+      senderUserId: zod.number().nullable(),
+    }),
+  ),
+  olderCursor: zod.string().nullable(),
+});
+
+/**
+ * @summary Send in a group chat. Each person's first message there can't carry links, emails or phone numbers if anyone in it is outside their leagues.
+ */
+export const SendGroupMessageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SendGroupMessageBody = zod.object({
+  text: zod.string(),
+  clientMessageId: zod
+    .string()
+    .optional()
+    .describe("Lets a retried send come back as the same message"),
+});
+
+/**
+ * @summary Report a message in a group chat. A snapshot of the chat goes with the report.
+ */
+export const ReportGroupMessageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ReportGroupMessageBody = zod.object({
   messageId: zod.string(),
   reason: zod.enum([
     "harassment",

@@ -3402,9 +3402,64 @@ export interface MessagesSummary {
   unread: number;
 }
 
+export type GroupViewLastMessage = null | {
+  text: string;
+  fromMe: boolean;
+  /**
+   * Null for a line from Ball Boi
+   * @nullable
+   */
+  senderName: string | null;
+  at: string;
+};
+
+export interface GroupView {
+  id: number;
+  /** Sat 9 AM doubles · Beacon Courts */
+  title: string;
+  /** @nullable */
+  openMatchId: number | null;
+  memberCount: number;
+  lastMessage: GroupViewLastMessage;
+  unread: number;
+  canSend: boolean;
+  /** @nullable */
+  sendBlockedReason: string | null;
+}
+
 export type ConversationList = MessagesSummary & {
   conversations: ConversationView[];
+  /** Group chats you're in (F15), newest first */
+  groups?: GroupView[];
 };
+
+export interface GroupMessageView {
+  id: string;
+  text: string;
+  fromMe: boolean;
+  at: string;
+  /**
+   * Null for a line from Ball Boi
+   * @nullable
+   */
+  senderName: string | null;
+  /** @nullable */
+  senderPlayerId: number | null;
+  /** @nullable */
+  senderUserId: number | null;
+}
+
+export interface GroupThread {
+  group: GroupView;
+  messages: GroupMessageView[];
+  /** @nullable */
+  olderCursor: string | null;
+}
+
+export interface SentGroupMessage {
+  groupId: number;
+  message: GroupMessageView;
+}
 
 export interface ConversationThread {
   conversation: ConversationView;
@@ -4023,6 +4078,10 @@ export type GetConversationParams = {
   /**
    * olderCursor from the previous page
    */
+  before?: string;
+};
+
+export type GetGroupThreadParams = {
   before?: string;
 };
 

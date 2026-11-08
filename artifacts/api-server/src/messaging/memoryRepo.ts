@@ -1,4 +1,14 @@
-import type { ConversationPatch, ConversationRecord, MessagingRepo, NewConversation, PersonSummary } from "./repo";
+import type {
+  ConversationPatch,
+  ConversationRecord,
+  GroupMember,
+  GroupPatch,
+  GroupRecord,
+  MessagingRepo,
+  NewConversation,
+  NewGroup,
+  PersonSummary,
+} from "./repo";
 
 /**
  * In-memory MessagingRepo for tests. Fill in people, connections, blocks and
@@ -13,7 +23,12 @@ export class MemoryMessagingRepo implements MessagingRepo {
   restricted = new Set<string>();
   playerAccounts = new Map<number, string>();
   userAccounts = new Map<number, string>();
+  groups: GroupRecord[] = [];
+  members: GroupMember[] = [];
+  /** Connections from a match an open match made, not yet played: they don't count in group chats. */
+  openMatchOnly = new Set<string>();
   private nextId = 1;
+  private nextGroupId = 1;
   private clock: () => Date;
 
   constructor(opts: { now?: () => Date } = {}) {
@@ -84,8 +99,10 @@ export class MemoryMessagingRepo implements MessagingRepo {
     return this.createdAt.get(userId) ?? null;
   }
 
-  async areConnected(a: string, b: string) {
-    return this.connections.has([a, b].sort().join(":"));
+  async areConnected(a: string, b: string, opts: { beyondOpenMatches?: boolean } = {}) {
+    const key = [a, b].sort().join(":");
+    if (opts.beyondOpenMatches && this.openMatchOnly.has(key)) return false;
+    return this.connections.has(key);
   }
 
   async blockedSetFor(userId: string) {
@@ -135,5 +152,80 @@ export class MemoryMessagingRepo implements MessagingRepo {
 
   async deleteAllFor(userId: string) {
     this.conversations = this.conversations.filter((c) => c.userA !== userId && c.userB !== userId);
+  }
+
+  // ─── Group chats ──────────────────────────────────────────────────────────
+
+  async findGroup(id: number) {
+    return this.groups.find((g) => g.id === id) ?? null;
+  }
+
+  async findGroupByChannel(channelId: string) {
+    return this.groups.find((g) => g.channelId === channelId) ?? null;
+  }
+
+  async findGroupByOpenMatch(openMatchId: number) {
+    return this.groups.find((g) => g.openMatchId === openMatchId) ?? null;
+  }
+
+  async createGroup(input: NewGroup) {
+    const existing = await this.findGroupByChannel(input.channelId);
+    if (existing) return existing;
+    const g: GroupRecord = {
+      ...input,
+      id: this.nextGroupId++,
+      open: true,
+      closedReason: null,
+      lastMessageAt: null,
+      lastMessageText: null,
+      lastSender: null,
+      createdAt: this.clock(),
+    };
+    this.groups.push(g);
+    return g;
+  }
+
+  async updateGroup(id: number, patch: GroupPatch) {
+    const g = this.groups.find((x) => x.id === id);
+    if (!g) throw new Error(`No group ${id}`);
+    Object.assign(g, patch);
+    return g;
+  }
+
+  async groupMembers(id: number) {
+    return this.members.filter((m) => m.groupId === id);
+  }
+
+  async addGroupMembers(id: number, userIds: string[], at: Date) {
+    for (const userId of userIds) {
+      if (!this.members.some((m) => m.groupId === id && m.userId === userId)) {
+        this.members.push({ groupId: id, userId, unread: 0, firstSentAt: null, joinedAt: at });
+      }
+    }
+  }
+
+  async removeGroupMembers(id: number, userIds: string[]) {
+    this.members = this.members.filter((m) => m.groupId !== id || !userIds.includes(m.userId));
+  }
+
+  async recordGroupMessage(id: number, input: { sender: string | null; text: string; at: Date; recipients: string[] }) {
+    const g = await this.updateGroup(id, { lastMessageAt: input.at, lastMessageText: input.text, lastSender: input.sender });
+    for (const m of this.members) {
+      if (m.groupId !== id) continue;
+      if (input.recipients.includes(m.userId)) m.unread += 1;
+      if (input.sender && m.userId === input.sender && !m.firstSentAt) m.firstSentAt = input.at;
+    }
+    return g;
+  }
+
+  async markGroupRead(id: number, userId: string) {
+    for (const m of this.members) if (m.groupId === id && m.userId === userId) m.unread = 0;
+  }
+
+  async groupsFor(userId: string) {
+    return this.members
+      .filter((m) => m.userId === userId)
+      .map((member) => ({ group: this.groups.find((g) => g.id === member.groupId)!, member }))
+      .filter((r) => r.group);
   }
 }

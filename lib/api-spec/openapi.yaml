@@ -5737,6 +5737,143 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /messages/groups/{id}:
+    get:
+      operationId: getGroupThread
+      tags: [messages]
+      summary: Open a group chat you're in (an open match's chat, F15) and mark it read. Pass before to page back.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: before
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The chat and its latest messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupThread'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not a chat you're in. The error has a code, such as not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages/groups/{id}/messages:
+    post:
+      operationId: sendGroupMessage
+      tags: [messages]
+      summary: Send in a group chat. Each person's first message there can't carry links, emails or phone numbers if anyone in it is outside their leagues.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewMessageInput'
+      responses:
+        '201':
+          description: Sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SentGroupMessage'
+        '400':
+          description: Text missing or too long. The error has a code, such as invalid_text.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not a chat you're in. The error has a code, such as not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The chat is closed for now (a spot opened again, or the match was canceled). The error has the code closed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: The first-message filter stopped it. The error has a code, such as filtered_<reason>.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages/groups/{id}/report:
+    post:
+      operationId: reportGroupMessage
+      tags: [messages]
+      summary: Report a message in a group chat. A snapshot of the chat goes with the report.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageReportInput'
+      responses:
+        '201':
+          description: Report filed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportReceipt'
+        '400':
+          description: No reason, or your own message. The error has a code, such as own_message.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Chat or message not available. The error has a code, such as not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Reporting isn't available right now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /dev/messages/samples:
     post:
       operationId: createSampleMessages
@@ -10323,7 +10460,85 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/ConversationView'
+          groups:
+            type: array
+            description: Group chats you're in (F15), newest first
+            items:
+              $ref: '#/components/schemas/GroupView'
         required: [conversations]
+    GroupView:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+          description: Sat 9 AM doubles · Beacon Courts
+        openMatchId:
+          type: [integer, 'null']
+        memberCount:
+          type: integer
+        lastMessage:
+          oneOf:
+          - type: 'null'
+          - type: object
+            properties:
+              text:
+                type: string
+              fromMe:
+                type: boolean
+              senderName:
+                type: [string, 'null']
+                description: Null for a line from Ball Boi
+              at:
+                type: string
+            required: [text, fromMe, senderName, at]
+        unread:
+          type: integer
+        canSend:
+          type: boolean
+        sendBlockedReason:
+          type: [string, 'null']
+      required: [id, title, openMatchId, memberCount, lastMessage, unread, canSend, sendBlockedReason]
+    GroupMessageView:
+      type: object
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+        fromMe:
+          type: boolean
+        at:
+          type: string
+        senderName:
+          type: [string, 'null']
+          description: Null for a line from Ball Boi
+        senderPlayerId:
+          type: [integer, 'null']
+        senderUserId:
+          type: [integer, 'null']
+      required: [id, text, fromMe, at, senderName, senderPlayerId, senderUserId]
+    GroupThread:
+      type: object
+      properties:
+        group:
+          $ref: '#/components/schemas/GroupView'
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupMessageView'
+        olderCursor:
+          type: [string, 'null']
+      required: [group, messages, olderCursor]
+    SentGroupMessage:
+      type: object
+      properties:
+        groupId:
+          type: integer
+        message:
+          $ref: '#/components/schemas/GroupMessageView'
+      required: [groupId, message]
     ConversationThread:
       type: object
       properties:

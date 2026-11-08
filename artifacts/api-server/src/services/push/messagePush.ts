@@ -7,6 +7,9 @@
 // - iOS's own Show Previews setting still applies on top.
 // - Never between blocked players, whichever side blocked.
 // - Tapping opens that chat.
+// - Group chats (F15) use the same path and switch: "Sam Whitfield in Sat 9 AM
+//   doubles · Beacon Courts" over the text, or "New message from Sam
+//   Whitfield in Sat 9 AM doubles · Beacon Courts" with previews off.
 
 export interface MessagePushEvent {
   conversationId: number;
@@ -14,6 +17,8 @@ export interface MessagePushEvent {
   recipientId: string;
   senderName: string;
   text: string;
+  /** A group chat message: the chat's title. conversationId is then the group's id. */
+  groupTitle?: string;
 }
 
 export interface PushContent {
@@ -32,8 +37,17 @@ function clip(text: string): string {
   return `${flat.slice(0, MESSAGE_PUSH_MAX - 1).trimEnd()}…`;
 }
 
-export function messagePushContent(e: Pick<MessagePushEvent, "conversationId" | "senderName" | "text">, previews: boolean): PushContent {
+export function messagePushContent(
+  e: Pick<MessagePushEvent, "conversationId" | "senderName" | "text" | "groupTitle">,
+  previews: boolean,
+): PushContent {
   const name = e.senderName.trim() || "a player";
+  const group = e.groupTitle?.trim();
+  if (group) {
+    const link = `/conversation/group/${e.conversationId}`;
+    if (!previews) return { title: "", body: `New message from ${name} in ${group}`, link };
+    return { title: `${name} in ${group}`, body: clip(e.text) || "Sent a message", link };
+  }
   const link = `/conversation/${e.conversationId}`;
   if (!previews) return { title: "", body: `New message from ${name}`, link };
   return { title: name, body: clip(e.text) || "Sent a message", link };

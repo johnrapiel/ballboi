@@ -95,6 +95,7 @@ import type {
   GetConversationParams,
   GetConversationWithPlayer200,
   GetConversationWithUser200,
+  GetGroupThreadParams,
   GetHeadToHeadParams,
   GetLeagueStandingsParams,
   GetLeaguesParams,
@@ -106,6 +107,7 @@ import type {
   GetRecentActivityParams,
   GetTodaysRecordableMatchesParams,
   GetTopPlayersParams,
+  GroupThread,
   HeadToHeadStats,
   HealthStatus,
   HiddenMessageResult,
@@ -200,6 +202,7 @@ import type {
   SelfRatingResult,
   SendFeedback201,
   SendOpponentNotice200,
+  SentGroupMessage,
   SentMessage,
   SetMatchTimeBody,
   SettleMatchBody,
@@ -15280,6 +15283,289 @@ export const useReportMessage = <
   TContext
 > => {
   return useMutation(getReportMessageMutationOptions(options));
+};
+
+/**
+ * @summary Open a group chat you're in (an open match's chat, F15) and mark it read. Pass before to page back.
+ */
+export const getGetGroupThreadUrl = (
+  id: number,
+  params?: GetGroupThreadParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/messages/groups/${id}?${stringifiedParams}`
+    : `/api/messages/groups/${id}`;
+};
+
+export const getGroupThread = async (
+  id: number,
+  params?: GetGroupThreadParams,
+  options?: RequestInit,
+): Promise<GroupThread> => {
+  return customFetch<GroupThread>(getGetGroupThreadUrl(id, params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetGroupThreadQueryKey = (
+  id: number,
+  params?: GetGroupThreadParams,
+) => {
+  return [`/api/messages/groups/${id}`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetGroupThreadQueryOptions = <
+  TData = Awaited<ReturnType<typeof getGroupThread>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  params?: GetGroupThreadParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getGroupThread>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetGroupThreadQueryKey(id, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getGroupThread>>> = ({
+    signal,
+  }) => getGroupThread(id, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getGroupThread>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetGroupThreadQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getGroupThread>>
+>;
+export type GetGroupThreadQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Open a group chat you're in (an open match's chat, F15) and mark it read. Pass before to page back.
+ */
+
+export function useGetGroupThread<
+  TData = Awaited<ReturnType<typeof getGroupThread>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  params?: GetGroupThreadParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getGroupThread>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetGroupThreadQueryOptions(id, params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Send in a group chat. Each person's first message there can't carry links, emails or phone numbers if anyone in it is outside their leagues.
+ */
+export const getSendGroupMessageUrl = (id: number) => {
+  return `/api/messages/groups/${id}/messages`;
+};
+
+export const sendGroupMessage = async (
+  id: number,
+  newMessageInput: NewMessageInput,
+  options?: RequestInit,
+): Promise<SentGroupMessage> => {
+  return customFetch<SentGroupMessage>(getSendGroupMessageUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(newMessageInput),
+  });
+};
+
+export const getSendGroupMessageMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendGroupMessage>>,
+    TError,
+    { id: number; data: BodyType<NewMessageInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendGroupMessage>>,
+  TError,
+  { id: number; data: BodyType<NewMessageInput> },
+  TContext
+> => {
+  const mutationKey = ["sendGroupMessage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendGroupMessage>>,
+    { id: number; data: BodyType<NewMessageInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return sendGroupMessage(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendGroupMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendGroupMessage>>
+>;
+export type SendGroupMessageMutationBody = BodyType<NewMessageInput>;
+export type SendGroupMessageMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Send in a group chat. Each person's first message there can't carry links, emails or phone numbers if anyone in it is outside their leagues.
+ */
+export const useSendGroupMessage = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendGroupMessage>>,
+    TError,
+    { id: number; data: BodyType<NewMessageInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendGroupMessage>>,
+  TError,
+  { id: number; data: BodyType<NewMessageInput> },
+  TContext
+> => {
+  return useMutation(getSendGroupMessageMutationOptions(options));
+};
+
+/**
+ * @summary Report a message in a group chat. A snapshot of the chat goes with the report.
+ */
+export const getReportGroupMessageUrl = (id: number) => {
+  return `/api/messages/groups/${id}/report`;
+};
+
+export const reportGroupMessage = async (
+  id: number,
+  messageReportInput: MessageReportInput,
+  options?: RequestInit,
+): Promise<ReportReceipt> => {
+  return customFetch<ReportReceipt>(getReportGroupMessageUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(messageReportInput),
+  });
+};
+
+export const getReportGroupMessageMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reportGroupMessage>>,
+    TError,
+    { id: number; data: BodyType<MessageReportInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reportGroupMessage>>,
+  TError,
+  { id: number; data: BodyType<MessageReportInput> },
+  TContext
+> => {
+  const mutationKey = ["reportGroupMessage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reportGroupMessage>>,
+    { id: number; data: BodyType<MessageReportInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return reportGroupMessage(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReportGroupMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reportGroupMessage>>
+>;
+export type ReportGroupMessageMutationBody = BodyType<MessageReportInput>;
+export type ReportGroupMessageMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Report a message in a group chat. A snapshot of the chat goes with the report.
+ */
+export const useReportGroupMessage = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reportGroupMessage>>,
+    TError,
+    { id: number; data: BodyType<MessageReportInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof reportGroupMessage>>,
+  TError,
+  { id: number; data: BodyType<MessageReportInput> },
+  TContext
+> => {
+  return useMutation(getReportGroupMessageMutationOptions(options));
 };
 
 /**
