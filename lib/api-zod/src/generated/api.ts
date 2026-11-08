@@ -2592,6 +2592,41 @@ export const GetMyLeagueWeekResponse = zod.object({
 });
 
 /**
+ * @summary What the shareable match recap shows (decision 148). Players in the match only, once it has a score
+ */
+export const GetMatchRecapParams = zod.object({
+  matchId: zod.coerce.number(),
+});
+
+export const GetMatchRecapResponse = zod
+  .object({
+    matchId: zod.number(),
+    you: zod
+      .union([zod.literal(1), zod.literal(2)])
+      .describe("The side you're on"),
+    side1: zod.array(zod.string()).describe("Full names on side 1"),
+    side2: zod.array(zod.string()),
+    score: zod.string().describe("As stored, from side 1's side"),
+    winner: zod
+      .union([zod.literal(1), zod.literal(2), zod.literal(null)])
+      .nullable(),
+    playedAt: zod.string().nullable(),
+    court: zod.string().nullable(),
+    context: zod.string().describe("League name, Discover or Quick match"),
+    season: zod
+      .object({
+        name: zod.string(),
+        wins: zod.number(),
+        losses: zod.number(),
+      })
+      .nullable()
+      .describe("Your record for that match's season, after it"),
+  })
+  .describe(
+    "The shareable match recap's facts (decision 148). Aces and winners join once they pass their accuracy bars",
+  );
+
+/**
  * @summary Match detail for one of your league matches - details, the score from your side, who entered or changed it, and the Ball Boi Replay once it exists
  */
 export const GetMyMatchParams = zod.object({

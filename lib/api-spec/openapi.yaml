@@ -1930,6 +1930,42 @@ paths:
               schema:
                 $ref: "#/components/schemas/LeagueWeek"
 
+  /me/matches/{matchId}/recap:
+    get:
+      operationId: getMatchRecap
+      tags: [matches]
+      summary: What the shareable match recap shows (decision 148). Players in the match only, once it has a score
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: The recap
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchRecap'
+        '403':
+          description: Not your match
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No such match
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: No score yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /me/matches/{matchId}:
     get:
       operationId: getMyMatch
@@ -7667,6 +7703,50 @@ components:
         lost:
           type: integer
       required: [won, lost]
+    MatchRecap:
+      type: object
+      description: The shareable match recap's facts (decision 148). Aces and winners join once they pass their accuracy bars
+      properties:
+        matchId:
+          type: integer
+        you:
+          type: integer
+          enum: [1, 2]
+          description: The side you're on
+        side1:
+          type: array
+          items:
+            type: string
+          description: Full names on side 1
+        side2:
+          type: array
+          items:
+            type: string
+        score:
+          type: string
+          description: As stored, from side 1's side
+        winner:
+          type: [integer, 'null']
+          enum: [1, 2, null]
+        playedAt:
+          type: [string, 'null']
+        court:
+          type: [string, 'null']
+        context:
+          type: string
+          description: League name, Discover or Quick match
+        season:
+          type: ['object', 'null']
+          description: Your record for that match's season, after it
+          properties:
+            name:
+              type: string
+            wins:
+              type: integer
+            losses:
+              type: integer
+          required: [name, wins, losses]
+      required: [matchId, you, side1, side2, score, winner, playedAt, court, context, season]
     PlayerCard:
       type: object
       description: The player card (design D). Holds only what the player entered.

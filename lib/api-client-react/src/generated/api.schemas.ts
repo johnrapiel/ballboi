@@ -555,6 +555,65 @@ export interface Career {
 }
 
 /**
+ * The side you're on
+ */
+export type MatchRecapYou = (typeof MatchRecapYou)[keyof typeof MatchRecapYou];
+
+export const MatchRecapYou = {
+  NUMBER_1: 1,
+  NUMBER_2: 2,
+} as const;
+
+/**
+ * @nullable
+ */
+export type MatchRecapWinner =
+  | (typeof MatchRecapWinner)[keyof typeof MatchRecapWinner]
+  | null;
+
+export const MatchRecapWinner = {
+  NUMBER_1: 1,
+  NUMBER_2: 2,
+} as const;
+
+/**
+ * Your record for that match's season, after it
+ * @nullable
+ */
+export type MatchRecapSeason = {
+  name: string;
+  wins: number;
+  losses: number;
+} | null;
+
+/**
+ * The shareable match recap's facts (decision 148). Aces and winners join once they pass their accuracy bars
+ */
+export interface MatchRecap {
+  matchId: number;
+  /** The side you're on */
+  you: MatchRecapYou;
+  /** Full names on side 1 */
+  side1: string[];
+  side2: string[];
+  /** As stored, from side 1's side */
+  score: string;
+  /** @nullable */
+  winner: MatchRecapWinner;
+  /** @nullable */
+  playedAt: string | null;
+  /** @nullable */
+  court: string | null;
+  /** League name, Discover or Quick match */
+  context: string;
+  /**
+   * Your record for that match's season, after it
+   * @nullable
+   */
+  season: MatchRecapSeason;
+}
+
+/**
  * @nullable
  */
 export type PlayerCardPlays =

@@ -21,6 +21,7 @@ import {
 } from "@workspace/api-client-react";
 
 import { ScoreGrid, ScoreResult } from "@/components/league/ScoreGrid";
+import { RecapShareButton } from "@/components/RecapShareButton";
 import { ScoreEnteredMoment, type Record as SeasonRecord } from "@/components/ScoreEnteredMoment";
 import { SheetBody, useSheetClose } from "@/components/Sheet";
 import { Button, Card, Text, TextButton } from "@/components/ui";
@@ -240,6 +241,7 @@ export default function EnterScoreScreen() {
     return (
       <SheetBody title="Score saved" close={sheet.close}>
         <ScoreEnteredMoment score={entered.score} won={entered.won} opponent={opponent} before={entered.before} after={entered.after} />
+        <RecapShareButton matchId={matchId} />
         <Button label="Done" onPress={() => sheet.finish()} />
       </SheetBody>
     );
