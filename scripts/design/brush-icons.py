@@ -234,6 +234,15 @@ def _(p):
     p.stroke(L(3.8, 5.8, 20.2, 5.8)); p.stroke(L(4.2, 10.2, 19.8, 10.2), 0.8)
     p.stroke(L(8, 3, 8, 7), 0.9); p.stroke(L(16, 3, 16, 7), 0.9)
 
+@icon("square.grid.3x3")
+def _(p):
+    # Free times (John, Nov 8): the week's hour grid, a hand-drawn square cut
+    # into three by three, as on the canvas's player card.
+    p.stroke(L(4.6, 4.4, 19.4, 4.6)); p.stroke(L(19.5, 4.8, 19.6, 19.4))
+    p.stroke(L(19.4, 19.6, 4.6, 19.5)); p.stroke(L(4.4, 19.4, 4.5, 4.6))
+    p.stroke(L(9.6, 4.8, 9.5, 19.2), 0.8); p.stroke(L(14.5, 4.8, 14.6, 19.2), 0.8)
+    p.stroke(L(4.8, 9.5, 19.2, 9.4), 0.8); p.stroke(L(4.8, 14.5, 19.2, 14.6), 0.8)
+
 @icon("calendar.badge.clock")
 def _(p):
     calendar_small(p); p.stroke(RING(17.4, 17.4, 4.6, start=200), 0.85)

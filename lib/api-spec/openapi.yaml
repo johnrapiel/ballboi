@@ -1342,6 +1342,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /player-cards/me:
+    get:
+      operationId: getMyPlayerCard
+      tags: [players]
+      summary: Your player card and This season, for Profile (decisions 138 to 140)
+      responses:
+        '200':
+          description: Your card
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerCard'
+        '404':
+          description: No profile yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /players/me:
     get:
       operationId: getMyPlayers
@@ -7130,6 +7148,71 @@ components:
                   type: [integer, 'null']
               required: [otherName, otherUserId]
       required: [matches]
+    PlayerCardSeason:
+      type: object
+      description: This season by F13's rules (decision 121), in the global season running today, else the calendar year
+      properties:
+        name:
+          type: string
+        from:
+          type: string
+          description: YYYY-MM-DD, inclusive
+        to:
+          type: string
+          description: YYYY-MM-DD, inclusive
+        wins:
+          type: integer
+        losses:
+          type: integer
+        played:
+          type: integer
+        streak:
+          type: [object, 'null']
+          properties:
+            won:
+              type: boolean
+            count:
+              type: integer
+          required: [won, count]
+        noShows:
+          type: integer
+      required: [name, from, to, wins, losses, played, streak, noShows]
+    PlayerCard:
+      type: object
+      description: The player card (design D). Holds only what the player entered.
+      properties:
+        userId:
+          type: integer
+        you:
+          type: boolean
+        name:
+          type: string
+        avatarUrl:
+          type: [string, 'null']
+        rating:
+          type: [number, 'null']
+        ratingSource:
+          type: [string, 'null']
+        plays:
+          type: [string, 'null']
+          enum: [singles, doubles, both, null]
+        town:
+          type: [string, 'null']
+        distance:
+          type: [string, 'null']
+          description: "\"~4 mi away\" on another player's card; null on yours"
+        homeCourt:
+          type: [string, 'null']
+        slots:
+          type: array
+          description: Free hours, day * 24 + hour, Monday is 0
+          items:
+            type: integer
+        freeSummary:
+          type: [string, 'null']
+        season:
+          $ref: '#/components/schemas/PlayerCardSeason'
+      required: [userId, you, name, avatarUrl, rating, ratingSource, plays, town, distance, homeCourt, slots, freeSummary, season]
     MyOpenMatches:
       type: object
       properties:

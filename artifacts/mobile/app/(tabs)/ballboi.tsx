@@ -1,22 +1,27 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from "react-native";
 
 import { DoublesMatchCard } from "@/components/record/DoublesMatchCard";
 import { LocalProcessingCard, ServerProcessingCard } from "@/components/record/ProcessingCard";
 import { TodaysMatchCard } from "@/components/record/TodaysMatchCard";
 import { TabScreen } from "@/components/TabHeader";
 import { Button, Card, Text } from "@/components/ui";
-import { spacing } from "@/constants/tokens";
+import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { useServerRecordings, useTodaysMatches } from "@/lib/recording/api";
 import { useQueue, useQueueLoaded } from "@/lib/recording/queue";
+import { recordedThisSeason } from "@/lib/playerCard";
 import { openRecorder } from "@/lib/recording/start";
 
 // Ball Boi tab (spec: Navigation, Ball Boi > Recording).
 // "Record a match" lists your unplayed matches this week, with a match set for
 // today first, then Quick match. Every recording starts from a match.
+//
+// From Profile's "Ball Boi this season" See all (decision 138), the tab opens
+// with `from` and `to` (YYYY-MM-DD): Your recordings shows only this
+// season's, with Show all to see every one again.
 export default function BallBoiScreen() {
   const c = useColors();
   const router = useRouter();
@@ -27,9 +32,13 @@ export default function BallBoiScreen() {
   const recordedHere = new Set(queued.map((r) => r.matchId));
   const matches = (today.data ?? []).filter((m) => m.leagueId != null || !recordedHere.has(m.id));
   const server = useServerRecordings();
+  const params = useLocalSearchParams<{ from?: string; to?: string }>();
+  const season = params.from && params.to ? { from: params.from, to: params.to } : null;
   // A recording mid-upload can be in both lists; the phone's copy wins.
   const onPhone = new Set(queued.map((r) => r.sessionId).filter((id) => id != null));
-  const onServer = (server.data ?? []).filter((r) => !onPhone.has(r.sessionId));
+  const allOnServer = (server.data ?? []).filter((r) => !onPhone.has(r.sessionId));
+  const onServer = season ? recordedThisSeason(allOnServer, season) : allOnServer;
+  const shownQueued = season ? recordedThisSeason(queued, season) : queued;
   // Still waiting for its video, recorded by you, and not on this phone: it
   // can't upload any more, as after a reinstall (D18).
   const lost = (r: (typeof onServer)[number]) => queueLoaded && r.recordedByYou && r.stage === "uploading";
@@ -89,12 +98,27 @@ export default function BallBoiScreen() {
           </Card>
         </View>
 
-        {queued.length > 0 || onServer.length > 0 || server.isError ? (
+        {season || queued.length > 0 || onServer.length > 0 || server.isError ? (
           <View style={{ gap: spacing.space3 }}>
-            <Text variant="section" tone="inkMuted" accessibilityRole="header">
-              Your recordings
-            </Text>
-            {[...queued].reverse().map((r) => (
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.space3 }}>
+              <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ flexShrink: 1 }}>
+                {season ? "Your recordings this season" : "Your recordings"}
+              </Text>
+              {season ? (
+                <Pressable
+                  onPress={() => router.setParams({ from: undefined, to: undefined })}
+                  accessibilityRole="button"
+                  accessibilityLabel="Show all your recordings"
+                  style={({ pressed }) => ({ minHeight: MIN_TAP, minWidth: MIN_TAP, justifyContent: "center", alignItems: "flex-end", opacity: pressed ? 0.6 : 1 })}
+                >
+                  <Text style={{ textDecorationLine: "underline" }}>Show all</Text>
+                </Pressable>
+              ) : null}
+            </View>
+            {season && !server.isError && shownQueued.length === 0 && onServer.length === 0 ? (
+              <Text tone="inkMuted">No recordings this season yet.</Text>
+            ) : null}
+            {[...shownQueued].reverse().map((r) => (
               <LocalProcessingCard key={r.id} rec={r} />
             ))}
             {server.isError ? (

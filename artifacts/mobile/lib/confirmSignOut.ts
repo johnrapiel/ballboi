@@ -5,20 +5,21 @@ import { Alert } from "react-native";
 
 import { forgetThisPhone } from "@/lib/notifications";
 import { loadQueue } from "@/lib/recording/queue";
-import { signOutWarning } from "@/lib/signOutWarning";
+import { signOutConfirm, signOutWarning } from "@/lib/signOutWarning";
 
 /**
  * Runs signOut straight away when no recordings are waiting. Otherwise asks
- * first, and runs it only on "Sign out anyway". Resolves true when it signed out.
+ * first, and runs it only on "Sign out anyway". With `always` (Settings), it
+ * asks every time. Resolves true when it signed out.
  */
-export async function confirmSignOut(signOut: () => Promise<unknown>): Promise<boolean> {
+export async function confirmSignOut(signOut: () => Promise<unknown>, opts: { always?: boolean } = {}): Promise<boolean> {
   let waiting = 0;
   try {
     waiting = (await loadQueue()).length;
   } catch {
     waiting = 0;
   }
-  const warning = signOutWarning(waiting);
+  const warning = opts.always ? signOutConfirm(waiting) : signOutWarning(waiting);
   if (warning) {
     const go = await new Promise<boolean>((resolve) => {
       Alert.alert(

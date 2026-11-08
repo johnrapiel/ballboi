@@ -32,7 +32,8 @@ import { cardWhen, isMatchDay, type UpcomingItem } from "@/lib/upcoming";
 // the reason. Later matches are plain rows that open Match detail.
 //
 // Season stats, standings and results don't live here any more: standings
-// are on the league page and results on Profile. See all opens My matches.
+// are on the league page and results on Profile. See all opens Profile's
+// Upcoming matches tab.
 // Home refreshes on pull and each time you come back to it (C4).
 
 export default function HomeScreen() {
@@ -45,7 +46,8 @@ export default function HomeScreen() {
   const myName = profile?.displayName ?? "You";
 
   const openLeague = (leagueId: number) => router.push(`/league/${leagueId}`);
-  const seeAll = () => router.push({ pathname: "/matches", params: { tab: "upcoming" } });
+  // See all opens your matches on Profile, scrolled to Upcoming matches (decision 138).
+  const seeAll = () => router.navigate({ pathname: "/(tabs)/profile", params: { tab: "upcoming", at: String(Date.now()) } });
 
   const firstCard = (m: UpcomingItem) => {
     const opponent = m.opponentName ?? "your opponent";

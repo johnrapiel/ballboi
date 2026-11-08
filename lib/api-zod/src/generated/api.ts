@@ -1584,6 +1584,57 @@ export const GetPlayersResponseItem = zod.object({
 export const GetPlayersResponse = zod.array(GetPlayersResponseItem);
 
 /**
+ * @summary Your player card and This season, for Profile (decisions 138 to 140)
+ */
+export const GetMyPlayerCardResponse = zod
+  .object({
+    userId: zod.number(),
+    you: zod.boolean(),
+    name: zod.string(),
+    avatarUrl: zod.string().nullable(),
+    rating: zod.number().nullable(),
+    ratingSource: zod.string().nullable(),
+    plays: zod
+      .union([
+        zod.literal("singles"),
+        zod.literal("doubles"),
+        zod.literal("both"),
+        zod.literal(null),
+      ])
+      .nullable(),
+    town: zod.string().nullable(),
+    distance: zod
+      .string()
+      .nullable()
+      .describe('\"~4 mi away\" on another player\'s card; null on yours'),
+    homeCourt: zod.string().nullable(),
+    slots: zod
+      .array(zod.number())
+      .describe("Free hours, day \* 24 + hour, Monday is 0"),
+    freeSummary: zod.string().nullable(),
+    season: zod
+      .object({
+        name: zod.string(),
+        from: zod.string().describe("YYYY-MM-DD, inclusive"),
+        to: zod.string().describe("YYYY-MM-DD, inclusive"),
+        wins: zod.number(),
+        losses: zod.number(),
+        played: zod.number(),
+        streak: zod
+          .object({
+            won: zod.boolean(),
+            count: zod.number(),
+          })
+          .nullable(),
+        noShows: zod.number(),
+      })
+      .describe(
+        "This season by F13's rules (decision 121), in the global season running today, else the calendar year",
+      ),
+  })
+  .describe("The player card (design D). Holds only what the player entered.");
+
+/**
  * @summary List player records linked to the current user
  */
 export const GetMyPlayersResponseItem = zod.object({
