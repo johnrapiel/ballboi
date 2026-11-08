@@ -69,7 +69,7 @@ describe("buildLeagueHome", () => {
 
   it("shows my unscored playoff match", () => {
     const home = buildLeagueHome(input({ matches: [match(200, null, 10, 20, { playoffBracketId: 5, playoffRound: "semifinal" })] }));
-    expect(home.playoffs).toEqual([{ leagueId: 1, leagueName: "Tuesday Flex", matchId: 200, round: "semifinal", opponentName: "Alex", opponentPlayerId: 20, singles: true, timeZone: "America/New_York", playBy: null, pastPlayBy: false, scheduledAt: null, location: null }]);
+    expect(home.playoffs).toEqual([{ leagueId: 1, leagueName: "Tuesday Flex", matchId: 200, round: "semifinal", opponentName: "Alex", opponentPlayerId: 20, opponentAvatarUrl: null, singles: true, timeZone: "America/New_York", playBy: null, pastPlayBy: false, scheduledAt: null, location: null }]);
   });
 
   it("gives the singles opponent's player id for Message, and none in doubles", () => {
@@ -77,6 +77,20 @@ describe("buildLeagueHome", () => {
     expect(singles.thisWeek.find((i) => i.matchId === 101)?.opponentPlayerId).toBe(20);
     const doubles = buildLeagueHome(input({ matches: [match(101, 2, 10, 20, { player3Id: 11, player4Id: 21 })] }));
     expect(doubles.thisWeek.find((i) => i.matchId === 101)?.opponentPlayerId).toBeNull();
+  });
+
+  it("gives the singles opponent's photo for the next-match card, and none in doubles or without one", () => {
+    // `photos` holds only what the viewer may see: the route leaves out placeholders and blocks.
+    const photos = new Map([[20, "/objects/uploads/alex"]]);
+    const singles = buildLeagueHome(input({ photos, matches: [match(101, 2, 10, 20), match(200, null, 10, 20, { playoffBracketId: 5, playoffRound: "final" })] }));
+    expect(singles.thisWeek.find((i) => i.matchId === 101)?.opponentAvatarUrl).toBe("/objects/uploads/alex");
+    expect(singles.playoffs[0].opponentAvatarUrl).toBe("/objects/uploads/alex");
+    const noPhoto = buildLeagueHome(input({ photos, matches: [match(101, 2, 10, 30)] }));
+    expect(noPhoto.thisWeek.find((i) => i.matchId === 101)?.opponentAvatarUrl).toBeNull();
+    const doubles = buildLeagueHome(input({ photos, matches: [match(101, 2, 10, 20, { player3Id: 11, player4Id: 21 })] }));
+    expect(doubles.thisWeek.find((i) => i.matchId === 101)?.opponentAvatarUrl).toBeNull();
+    const bye = buildLeagueHome(input({ photos, byes: [{ roundId: 2, playerId: 10 }] }));
+    expect(bye.thisWeek.find((i) => i.bye)?.opponentAvatarUrl).toBeNull();
   });
 
   it("leaves out leagues I've left", () => {

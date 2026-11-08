@@ -198,7 +198,7 @@ export default function OpenMatchScreen() {
                   borderBottomColor: c.hairline,
                 }}
               >
-                <Avatar name={p.name} size={36} />
+                <Avatar name={p.name} uri={p.avatarUrl} size={36} />
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text variant="bodyStrong">{p.name}</Text>
                   {p.poster ? (

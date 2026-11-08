@@ -101,6 +101,8 @@ export function createOpenMatchesRouter(
       rating: people.get(id)?.rating ?? null,
       poster,
       me: id === me,
+      // Photos are public; players with a block either way are left out below.
+      avatarUrl: people.get(id)?.avatarUrl ?? null,
     });
     const role = m.posterClerkUserId === me ? "poster" : m.joined.includes(me) ? "in" : "none";
     const now = clock();

@@ -40,6 +40,26 @@ beforeEach(() => {
 });
 
 describe("messages routes", () => {
+  it("send the other person's photo in Messages, and none once you block them", async () => {
+    repo.names.set("casey", { name: "Casey Fox", playerId: 3, avatarUrl: "/objects/uploads/casey" });
+    const start = await supertest(app()).post("/api/messages").send({ playerId: 3, text: "Up for a hit?", clientMessageId: "client-0101" });
+    expect(start.status).toBe(201);
+    const inbox = await supertest(app()).get("/api/messages");
+    expect(inbox.body.conversations[0].other).toMatchObject({ name: "Casey Fox", avatarUrl: "/objects/uploads/casey" });
+    const thread = await supertest(app()).get(`/api/messages/${start.body.conversationId}`);
+    expect(thread.body.conversation.other.avatarUrl).toBe("/objects/uploads/casey");
+
+    // Alex has no photo: Casey sees initials.
+    mockUserId = "casey";
+    expect((await supertest(app()).get("/api/messages")).body.conversations[0].other.avatarUrl).toBeNull();
+
+    // Alex blocks Casey: the chat stays, read only, with no photo.
+    mockUserId = "alex";
+    repo.blocks.push(["alex", "casey"]);
+    const blocked = await supertest(app()).get("/api/messages");
+    expect(blocked.body.conversations[0]).toMatchObject({ blocked: true, other: { avatarUrl: null } });
+  });
+
   it("require sign-in", async () => {
     mockUserId = null;
     expect((await supertest(app()).get("/api/messages")).status).toBe(401);

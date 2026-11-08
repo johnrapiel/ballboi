@@ -99,7 +99,7 @@ export default function PlayersSheet() {
                   borderBottomColor: c.hairline,
                 }}
               >
-                <Avatar name={p.name} size={36} />
+                <Avatar name={p.name} uri={p.avatarUrl} size={36} />
                 <View
                   style={{ flex: 1 }}
                   accessible

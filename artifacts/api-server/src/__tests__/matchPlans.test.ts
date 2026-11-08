@@ -170,6 +170,9 @@ class MemoryPlans implements MatchPlanRepo {
   async userIdOf(id: string) {
     return id === "a" ? 1 : 2;
   }
+  async photoOf(id: string) {
+    return id === "a" ? null : "/objects/uploads/sam";
+  }
   async courtName() {
     return "Fishkill Rec Park";
   }
@@ -245,6 +248,19 @@ describe("match card routes", () => {
     expect((repo.reports as { subject: string; planId: number }[]).map((r) => r.subject).sort()).toEqual(["a", "b"]);
     expect(new Set((repo.reports as { planId: number }[]).map((r) => r.planId))).toEqual(new Set([1]));
     await as("b").post("/api/match-plans/1/admit").expect(409);
+  });
+
+  it("sends the other player's photo on your upcoming matches, but not with a block", async () => {
+    await as("a").post("/api/match-plans").send({ userId: 2, startsAt: at(48).toISOString() });
+    await as("b").post("/api/match-plans/1/accept").expect(200);
+    const forJohn = await as("a").get("/api/match-plans/upcoming").expect(200);
+    expect(forJohn.body.matches[0]).toMatchObject({ otherName: "Sam", otherAvatarUrl: "/objects/uploads/sam" });
+    // John has no photo: initials.
+    const forSam = await as("b").get("/api/match-plans/upcoming").expect(200);
+    expect(forSam.body.matches[0]).toMatchObject({ otherName: "John", otherAvatarUrl: null });
+    repo.blocked = true;
+    const blocked = await as("a").get("/api/match-plans/upcoming").expect(200);
+    expect(blocked.body.matches[0].otherAvatarUrl).toBeNull();
   });
 
   it("sends each reminder once", async () => {

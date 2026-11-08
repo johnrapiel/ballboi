@@ -4,6 +4,7 @@ import { ballBoiSessionsTable, db, leagueRoundsTable, leaguesTable, matchesTable
 import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { matchParticipantIds } from "../lib/leagueScoring.js";
 import { buildMatchDetail } from "../lib/matchDetail.js";
+import { blockedAccountsFor } from "../lib/blocks.js";
 
 // Match detail (finding 6): opened from Home's recent results and My matches.
 // Only the players in the match can open it.
@@ -20,13 +21,19 @@ router.get("/me/matches/:matchId", async (req, res) => {
   if (!match || match.leagueId == null) { res.status(404).json({ error: "Match not found" }); return; }
 
   const players = await db
-    .select({ id: playersTable.id, name: playersTable.name, clerkUserId: playersTable.clerkUserId, displayName: usersTable.displayName })
+    .select({
+      id: playersTable.id,
+      name: playersTable.name,
+      clerkUserId: playersTable.clerkUserId,
+      displayName: usersTable.displayName,
+      avatarUrl: usersTable.avatarUrl,
+    })
     .from(playersTable)
     .leftJoin(usersTable, eq(usersTable.clerkUserId, playersTable.clerkUserId))
     .where(inArray(playersTable.id, matchParticipantIds(match)));
   if (!players.some((p) => p.clerkUserId === userId)) { res.status(403).json({ error: "Only the players in this match can see it." }); return; }
 
-  const [[league], [round], [session]] = await Promise.all([
+  const [[league], [round], [session], hidden] = await Promise.all([
     db.select().from(leaguesTable).where(eq(leaguesTable.id, match.leagueId)),
     match.roundId
       ? db.select({ roundNumber: leagueRoundsTable.roundNumber }).from(leagueRoundsTable).where(eq(leagueRoundsTable.id, match.roundId))
@@ -38,6 +45,8 @@ router.get("/me/matches/:matchId", async (req, res) => {
       .where(and(eq(ballBoiSessionsTable.matchId, matchId), eq(ballBoiSessionsTable.status, "completed")))
       .orderBy(desc(ballBoiSessionsTable.createdAt))
       .limit(1),
+    // No photo for someone with a block either way.
+    blockedAccountsFor(userId),
   ]);
   if (!league) { res.status(404).json({ error: "Match not found" }); return; }
   const shots = session
@@ -49,7 +58,13 @@ router.get("/me/matches/:matchId", async (req, res) => {
       match,
       league,
       // A1: a signed-up player's profile name; a placeholder's name from the row.
-      players: players.map((p) => ({ id: p.id, name: (p.clerkUserId ? p.displayName?.trim() : null) || p.name, clerkUserId: p.clerkUserId })),
+      // A placeholder (no account) has no photo.
+      players: players.map((p) => ({
+        id: p.id,
+        name: (p.clerkUserId ? p.displayName?.trim() : null) || p.name,
+        clerkUserId: p.clerkUserId,
+        avatarUrl: p.clerkUserId && !hidden.has(p.clerkUserId) ? (p.avatarUrl ?? null) : null,
+      })),
       roundNumber: round?.roundNumber ?? null,
       userId,
       replay: session ? { durationSeconds: session.durationSeconds ?? null, shotCount: Number(shots) } : null,

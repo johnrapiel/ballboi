@@ -15,6 +15,7 @@ import { buildLeagueHome, homeLeagues, seasonFrom } from "../lib/leagueHome.js";
 import { computeStandings } from "../lib/leagueStandings.js";
 import { getPastSeasonNames } from "../services/seasonService.js";
 import { playoffPlayBy } from "../services/leaguePlayoffs.js";
+import { visiblePhotos } from "../lib/visiblePhotos.js";
 
 // Home tab's league section (spec: Navigation > Home): this week's matches
 // and byes across every league you play in, playoff matches, pairings you
@@ -57,8 +58,15 @@ router.get("/me/league-week", async (req, res) => {
   ]);
   const others = [...new Set(matches.flatMap((m) => [m.player1Id, m.player2Id, m.player3Id, m.player4Id]).filter((id): id is number => id != null))];
   const nameRows = others.length
-    ? await db.select({ id: playersTable.id, name: playersTable.name }).from(playersTable).where(inArray(playersTable.id, others))
+    ? await db.select({ id: playersTable.id, name: playersTable.name, clerkUserId: playersTable.clerkUserId }).from(playersTable).where(inArray(playersTable.id, others))
     : [];
+  // The opponent's photo for the next-match card; none with a block either way, none for a placeholder.
+  const photoByAccount = await visiblePhotos(userId, nameRows.map((r) => r.clerkUserId));
+  const photos = new Map<number, string>();
+  for (const r of nameRows) {
+    const photo = r.clerkUserId ? photoByAccount.get(r.clerkUserId) : undefined;
+    if (photo) photos.set(r.id, photo);
+  }
 
   // Q5b: each open playoff match's play-by date.
   const playBys = new Map<number, string>();
@@ -101,6 +109,7 @@ router.get("/me/league-week", async (req, res) => {
       matches: matches.filter((m) => m.leagueId != null && leagueIds.includes(m.leagueId)),
       byes,
       names: new Map(nameRows.map((r) => [r.id, r.name])),
+      photos,
       adminLeagueIds,
       playoffPlayBy: playBys,
     }),

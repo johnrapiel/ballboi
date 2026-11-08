@@ -445,6 +445,11 @@ export type UpcomingMatchPlansMatchesItem = MatchPlan & {
   otherName: string;
   /** @nullable */
   otherUserId: number | null;
+  /**
+   * Their photo ("/objects/..."); null with a block either way
+   * @nullable
+   */
+  otherAvatarUrl?: string | null;
 };
 
 export interface UpcomingMatchPlans {
@@ -705,6 +710,11 @@ export type OpenMatchDetailPlayersItem = {
   rating: number | null;
   poster: boolean;
   me: boolean;
+  /**
+   * Their photo ("/objects/..."). Players with a block either way are left out.
+   * @nullable
+   */
+  avatarUrl?: string | null;
 };
 
 export type OpenMatchDetailRole =
@@ -988,6 +998,11 @@ export interface LeagueWeekItem {
    * @nullable
    */
   opponentPlayerId: number | null;
+  /**
+   * The singles opponent's photo ("/objects/..."); null for doubles, byes, placeholders and a block either way
+   * @nullable
+   */
+  opponentAvatarUrl?: string | null;
   singles: boolean;
   /** @nullable */
   scheduledAt: string | null;
@@ -1010,6 +1025,11 @@ export interface LeagueWeekPlayoff {
    * @nullable
    */
   opponentPlayerId: number | null;
+  /**
+   * The singles opponent's photo ("/objects/..."); null for doubles, placeholders and a block either way
+   * @nullable
+   */
+  opponentAvatarUrl?: string | null;
   singles: boolean;
   timeZone: string;
   /**
@@ -1293,6 +1313,11 @@ export interface MatchDetailPlayer {
   name: string;
   you: boolean;
   hasAccount: boolean;
+  /**
+   * Their photo ("/objects/..."); null for placeholders and a block either way
+   * @nullable
+   */
+  avatarUrl?: string | null;
 }
 
 export interface MatchDetailSide {
@@ -3499,6 +3524,11 @@ export type ConversationViewOther = {
    * @nullable
    */
   userId?: number | null;
+  /**
+   * Their photo ("/objects/..."); null when you blocked them
+   * @nullable
+   */
+  avatarUrl?: string | null;
 };
 
 export type ConversationViewLastMessage = {

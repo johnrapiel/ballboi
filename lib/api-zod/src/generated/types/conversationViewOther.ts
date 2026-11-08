@@ -15,4 +15,9 @@ export type ConversationViewOther = {
    * @nullable
    */
   userId?: number | null;
+  /**
+   * Their photo ("/objects/..."); null when you blocked them
+   * @nullable
+   */
+  avatarUrl?: string | null;
 };
