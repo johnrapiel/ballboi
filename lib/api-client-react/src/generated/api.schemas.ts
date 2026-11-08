@@ -2958,10 +2958,25 @@ export interface PushRegistrationStatus {
 }
 
 /**
- * Settings › Notifications. Show message previews (decision 128) is on by default.
+ * Settings › Notifications. Show message previews (decision 128) and Match day reminders (decision 127) are on by default.
  */
 export interface NotificationSettings {
   messagePreviews: boolean;
+  matchReminders: boolean;
+  /** Dev servers only, never production; shows the reminder testing buttons */
+  devTools?: boolean;
+}
+
+export interface MatchRemindersRunInput {
+  at?: string;
+}
+
+/**
+ * Either switch, or both
+ */
+export interface NotificationSettingsUpdate {
+  messagePreviews?: boolean;
+  matchReminders?: boolean;
 }
 
 export interface PhotoUploadRequest {
@@ -3922,6 +3937,12 @@ export type GetMatchBallBoiReplayMetadata200 = {
   match?: GetMatchBallBoiReplayMetadata200Match;
   shotMarkers?: GetMatchBallBoiReplayMetadata200ShotMarkersItem[];
   chapters?: GetMatchBallBoiReplayMetadata200ChaptersItem[];
+};
+
+export type RunMatchRemindersDev200 = {
+  at: string;
+  timed: number;
+  nudges: number;
 };
 
 export type GetAdminReportsParams = {

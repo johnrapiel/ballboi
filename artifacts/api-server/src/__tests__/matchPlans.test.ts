@@ -254,7 +254,8 @@ describe("match card routes", () => {
     expect(await runMatchPlanJobs(repo, push as never, at(25))).toBe(1);
     expect(await runMatchPlanJobs(repo, push as never, at(25))).toBe(0);
     expect(push).toHaveBeenCalledWith(["a"], expect.stringMatching(/^Still on for tomorrow at/), expect.any(String), "/messages");
-    expect(await runMatchPlanJobs(repo, push as never, at(46.5))).toBe(1);
+    // The 2-hour reminder is a match day reminder now (decision 127, matchReminders.test.ts).
+    expect(await runMatchPlanJobs(repo, push as never, at(46.5))).toBe(0);
     expect(await runMatchPlanJobs(repo, push as never, at(51.5))).toBe(1);
   });
 });

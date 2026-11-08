@@ -205,7 +205,7 @@ export async function deleteAccount(
     const photoPaths = profiles.map((u) => u.avatarUrl).filter((p): p is string => !!p && p.startsWith("/objects/"));
     await deleteRecordingData(tx, clerkUserId);
     await deleteDiscoverData(tx, clerkUserId);
-    await deleteNotificationData(tx, clerkUserId);
+    await deleteNotificationData(tx, clerkUserId, playerIds);
     await tx.delete(usersTable).where(eq(usersTable.clerkUserId, clerkUserId));
 
     // Every stored file: the raw upload, its pieces, and a kept video-only
