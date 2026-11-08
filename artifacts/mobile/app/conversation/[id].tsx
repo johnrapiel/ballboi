@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { HeaderIconButton, IconButton } from "@/components/Choice";
+import { HeaderIconButton, PlainIconButton } from "@/components/Choice";
 import { MessageBubble, type BubbleStatus } from "@/components/messages/MessageBubble";
 import { Button, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
@@ -363,7 +363,7 @@ export default function ConversationScreen() {
         ) : (
           <View style={{ flexDirection: "row", alignItems: "flex-end", gap: spacing.space2 }}>
             {userId && !plans.data?.blocked ? (
-              <IconButton
+              <PlainIconButton
                 symbol="calendar.badge.plus"
                 label="Add a match"
                 hint={`Sends ${name} a match card with a day, time and court`}
@@ -398,27 +398,13 @@ export default function ConversationScreen() {
                 },
               ]}
             />
-            <Pressable
+            <PlainIconButton
+              symbol="arrow.up.circle"
+              label="Send"
               onPress={send}
               disabled={!draft.trim()}
-              accessibilityRole="button"
-              accessibilityLabel="Send"
-              accessibilityState={{ disabled: !draft.trim() }}
-              style={({ pressed }) => ({
-                minWidth: MIN_TAP,
-                minHeight: MIN_TAP,
-                paddingHorizontal: spacing.space4,
-                borderRadius: radius.radiusPill,
-                backgroundColor: c.ink,
-                alignItems: "center",
-                justifyContent: "center",
-                opacity: !draft.trim() ? 0.5 : pressed ? 0.85 : 1,
-              })}
-            >
-              <Text variant="button" tone="onInk">
-                Send
-              </Text>
-            </Pressable>
+              size={26}
+            />
           </View>
         )}
       </View>

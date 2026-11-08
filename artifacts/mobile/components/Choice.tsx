@@ -1,3 +1,4 @@
+import { CornerButton } from "@/components/CornerButton";
 import { Icon, type IconName } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
@@ -82,8 +83,10 @@ export function ChoiceGroup<T extends string | number>({
 }
 
 /**
- * A 44pt round button with a brush icon, for in-page headers (TabHeader) and
- * in-page rows. In the native navigation bar use HeaderIconButton instead.
+ * A screen-corner button on a tab (button standard, John, Nov 8): the glass
+ * circle, for the tab's own action beside Messages (Start a league on
+ * Leagues, Settings on Profile). In the native navigation bar use
+ * HeaderIconButton; inside the page use PlainIconButton.
  */
 export function IconButton({
   symbol,
@@ -97,27 +100,71 @@ export function IconButton({
   hint?: string;
   onPress: () => void;
 }) {
+  return <CornerButton symbol={symbol} label={label} hint={hint} onPress={onPress} />;
+}
+
+/**
+ * An icon button inside the page (button standard, John, Nov 8): a plain
+ * brush icon in ink with no circle or border, still a 44pt tap area. A small
+ * ink dot shows when something is on (active filters); say so in the label
+ * too. Used for Filters, the chat's Add a match and Send, and small edit
+ * pencils. Anything that does the screen's job gets words (Button) instead.
+ */
+export function PlainIconButton({
+  symbol,
+  label,
+  hint,
+  onPress,
+  active,
+  disabled,
+  size = 22,
+}: {
+  symbol: IconName;
+  label: string;
+  hint?: string;
+  onPress: () => void;
+  /** Shows the small ink dot. */
+  active?: boolean;
+  disabled?: boolean;
+  size?: number;
+}) {
   const c = useColors();
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={hint}
+      accessibilityState={{ disabled: !!disabled }}
       hitSlop={4}
       style={({ pressed }) => ({
         width: MIN_TAP,
         height: MIN_TAP,
-        borderRadius: radius.radiusPill,
-        backgroundColor: c.sand,
-        borderWidth: 1,
-        borderColor: c.hairline,
         alignItems: "center",
         justifyContent: "center",
-        opacity: pressed ? 0.7 : 1,
+        opacity: pressed ? 0.6 : 1,
       })}
     >
-      <Icon name={symbol} size={18} tintColor={c.ink} />
+      <Icon name={symbol} size={size} tintColor={disabled ? c.inkMuted : c.ink} />
+      {active ? (
+        <View
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: 7,
+            right: 7,
+            width: 10,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: c.ink,
+            borderWidth: 2,
+            borderColor: c.paper,
+          }}
+        />
+      ) : null}
     </Pressable>
   );
 }

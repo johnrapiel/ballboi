@@ -10,6 +10,7 @@ import React, { useEffect, useState } from "react";
 import { AccessibilityInfo, Alert, Pressable, ScrollView, View, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { HeaderIconButton } from "@/components/Choice";
 import { ChipRow, ChoiceChip } from "@/components/discover/Controls";
 import { SettingsRow, SettingsSection } from "@/components/SettingsList";
 import { Button, Field, Text } from "@/components/ui";
@@ -107,14 +108,8 @@ export default function PostOpenMatchScreen() {
       <Stack.Screen
         options={{
           title: "Post an open match",
-          headerLeft: () => (
-            <Button
-              label="Cancel"
-              variant="secondary"
-              onPress={() => router.back()}
-              style={{ minHeight: MIN_TAP, paddingHorizontal: spacing.space3, borderWidth: 0 }}
-            />
-          ),
+          // Full-screen flow: Close at the top left (button standard, John, Nov 8).
+          headerLeft: () => <HeaderIconButton symbol="xmark" label="Close" onPress={() => router.back()} />,
         }}
       />
       <ScrollView
