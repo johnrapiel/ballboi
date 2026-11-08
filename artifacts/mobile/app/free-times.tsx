@@ -1,13 +1,14 @@
 // Free times (decision 139; canvas W2_FreeTimesSheet): a read-only sheet of
 // the Monday to Sunday hour grid, from the player card's Free times. On your
 // own card, Edit opens the grid editor. Sheet rules: the left-aligned 50%
-// serif title, drag down to close.
+// serif title, drag down to close. With `userId`, it's another player's
+// (Discover's card, decision 139): read only, with no Edit.
 
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 
-import { useGetMyPlayerCard } from "@workspace/api-client-react";
+import { getGetMyPlayerCardQueryKey, getGetPlayerCardQueryKey, useGetMyPlayerCard, useGetPlayerCard } from "@workspace/api-client-react";
 
 import { FreeTimesGrid } from "@/components/card/FreeTimesGrid";
 import { SheetBody, useSheetClose } from "@/components/Sheet";
@@ -20,11 +21,16 @@ export default function FreeTimesSheet() {
   const c = useColors();
   const router = useRouter();
   const sheet = useSheetClose(false);
-  const q = useGetMyPlayerCard();
+  const params = useLocalSearchParams<{ userId?: string }>();
+  const userId = Number(params.userId);
+  const theirs = Number.isInteger(userId) && userId > 0;
+  const mine = useGetMyPlayerCard({ query: { enabled: !theirs, queryKey: getGetMyPlayerCardQueryKey() } });
+  const other = useGetPlayerCard(userId, { query: { enabled: theirs, queryKey: getGetPlayerCardQueryKey(userId) } });
+  const q = theirs ? other : mine;
   const card = q.data;
 
   return (
-    <SheetBody title="Free times" close={sheet.close}>
+    <SheetBody title={card && !card.you ? `${card.name.split(" ")[0]}'s free times` : "Free times"} close={sheet.close}>
       {!card ? (
         q.isError ? (
           <Text tone="inkMuted">Couldn't load free times. Close this and try again.</Text>

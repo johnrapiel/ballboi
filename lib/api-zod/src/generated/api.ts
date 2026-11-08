@@ -1635,6 +1635,121 @@ export const GetMyPlayerCardResponse = zod
   .describe("The player card (design D). Holds only what the player entered.");
 
 /**
+ * @summary Another player's card and This season, from Discover (decision 139)
+ */
+export const GetPlayerCardParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const GetPlayerCardResponse = zod
+  .object({
+    userId: zod.number(),
+    you: zod.boolean(),
+    name: zod.string(),
+    avatarUrl: zod.string().nullable(),
+    rating: zod.number().nullable(),
+    ratingSource: zod.string().nullable(),
+    plays: zod
+      .union([
+        zod.literal("singles"),
+        zod.literal("doubles"),
+        zod.literal("both"),
+        zod.literal(null),
+      ])
+      .nullable(),
+    town: zod.string().nullable(),
+    distance: zod
+      .string()
+      .nullable()
+      .describe('\"~4 mi away\" on another player\'s card; null on yours'),
+    homeCourt: zod.string().nullable(),
+    slots: zod
+      .array(zod.number())
+      .describe("Free hours, day \* 24 + hour, Monday is 0"),
+    freeSummary: zod.string().nullable(),
+    season: zod
+      .object({
+        name: zod.string(),
+        from: zod.string().describe("YYYY-MM-DD, inclusive"),
+        to: zod.string().describe("YYYY-MM-DD, inclusive"),
+        wins: zod.number(),
+        losses: zod.number(),
+        played: zod.number(),
+        streak: zod
+          .object({
+            won: zod.boolean(),
+            count: zod.number(),
+          })
+          .nullable(),
+        noShows: zod.number(),
+      })
+      .describe(
+        "This season by F13's rules (decision 121), in the global season running today, else the calendar year",
+      ),
+  })
+  .describe("The player card (design D). Holds only what the player entered.");
+
+/**
+ * @summary Another player's Upcoming matches and Results, and your head-to-head (decision 143)
+ */
+export const GetPlayerMatchesParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const GetPlayerMatchesResponse = zod.object({
+  upcoming: zod.array(
+    zod.object({
+      key: zod.string(),
+      kind: zod.enum(["league", "playoff", "discover"]),
+      matchId: zod.number().nullable(),
+      scheduledAt: zod.string().nullable(),
+      playBy: zod
+        .string()
+        .nullable()
+        .describe("Last day to play (YYYY-MM-DD) when no time is set"),
+      opponentName: zod.string(),
+      opponentUserId: zod
+        .number()
+        .nullable()
+        .describe(
+          "Null for a placeholder opponent, who shows by name with no link",
+        ),
+      context: zod.string(),
+      location: zod
+        .string()
+        .nullable()
+        .describe("Only for a league match in a league you're in"),
+      mine: zod.boolean(),
+    }),
+  ),
+  results: zod.array(
+    zod.object({
+      matchId: zod.number(),
+      player1Name: zod.string(),
+      player2Name: zod.string(),
+      player1UserId: zod.number().nullable(),
+      player2UserId: zod.number().nullable(),
+      score: zod.string().describe("As stored, from player 1's side"),
+      winner: zod
+        .union([zod.literal(1), zod.literal(2), zod.literal(null)])
+        .nullable(),
+      context: zod.string(),
+      completedAt: zod.string().nullable(),
+      mine: zod.boolean(),
+    }),
+  ),
+  headToHead: zod
+    .object({
+      you: zod.number(),
+      them: zod.number(),
+    })
+    .nullable()
+    .describe(
+      "Your wins and theirs against each other, or null when you haven't played",
+    ),
+});
+
+/**
  * @summary List player records linked to the current user
  */
 export const GetMyPlayersResponseItem = zod.object({

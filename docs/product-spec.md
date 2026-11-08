@@ -280,7 +280,9 @@ Match video is an input to analysis, never a viewable product feature in v1.
 
 The player card is a brag sheet, never a scouting report: it shows strengths and records, while error patterns and heatmaps stay private. Your own Profile tab is your player card exactly as others see it, with your matches below it (decisions 138, 139).
 
-**The player card (design D, Portrait, chosen Nov 8):** a light tennis court drawing across the top with the photo overlapping it, the name in brush script, "Level 3.5" and "Singles" pills, the town, and along the bottom the home court and a grid icon that opens the player's free times as a read-only week grid. It holds only what the player entered. On your own card a pencil opens Edit profile. The same card is used everywhere, including Discover.
+**The player card (design D, Portrait, chosen Nov 8):** a light tennis court drawing across the top with the photo overlapping it, the name in full ink Cormorant (#181: names are never the faded title style), "Level 3.5" and "Singles" pills, the town, and along the bottom the home court and a grid icon that opens the player's free times as a read-only week grid. It holds only what the player entered. On your own card a pencil opens Edit profile. The same card is used everywhere, including Discover, where the distance sits beside the town, there's no pencil, Free times has no Edit, More (•••) holds Report, and "Set up a match" is pinned at the bottom.
+
+**Other players' cards (decision 143):** under This season, the same Upcoming matches and Results tabs as your own Profile. Upcoming rows read like yours (date and time, opponent, league or Discover); a court shows only where your own list would show it, a league match in a league you're in. Results show both names with the winner mark and the score from the winner's side, with RET or W/O tags. When you've played them, one head-to-head line sits above the tabs ("You and Priya: 2-1"). A private league's name shows only to its members; others see "League".
 
 **Profile tab, top to bottom:** the player card; This season (Record, Played, Streak, No-shows); Ball Boi this season (aces, forehand winners, first serves in, with See all for this season's recordings); then Upcoming matches and Results tabs. There's no separate My matches screen: Home's See all opens these tabs. Edit profile holds name and photo, level, home area, plays, free times and home court; Sign out lives in Settings.
 
@@ -289,7 +291,9 @@ The player card is a brag sheet, never a scouting report: it shows strengths and
 | Name, photo, level, plays, town, home court, free times | Public |
 | This season: record, played, streak, no-shows (reliability) | Public |
 | Ball Boi this season (aces, forehand winners, first serve %) | Public |
+| Their matches: Upcoming matches and Results | Public, except: never a match against someone blocked with the viewer, never a Quick match until they answered Yes to "Was that you?", never cancelled or draft-round matches. Placeholder opponents show by name with no link (decision 143) |
 | Head-to-head record vs. the viewer | Visible to that viewer |
+| Whole card, matches included | Never shown to a player blocked either way, or when the profile is hidden |
 | Error patterns, heatmaps, trends | Private. Whether an opponent from the same match sees its full breakdown is pending (decision 83) |
 | Match video | Never shown; raw video deleted after analysis unless kept for training |
 
@@ -525,3 +529,4 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 140 | The level pill on player cards reads "Level 3.5" with no "Self-rated"; Edit profile's Level row keeps "Self-rated". Changes decision 74 (John, Nov 8) |
 | 141 | The legal consult cleared the Ball Boi Beta Footage Release (decision 96). Testers can sign once /beta-release is live (John, Nov 8) |
 | 142 | Start is picked before mounting: Record works before the court locks, and the countdown starts on its own once it locks, or after the Record anyway fallback. The Live Activity Start button stays as a second way to start (John, Nov 8) |
+| 143 | Other players' cards show their full match history: Upcoming matches and Results tabs like your own Profile, with the winner mark and head-to-head. Blocks, hidden profiles and unconfirmed Quick matches stay out (John, Nov 8) |
