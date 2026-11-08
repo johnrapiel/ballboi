@@ -20,6 +20,7 @@ export function ListRow({
   accessibilityHint,
   last,
   destructive,
+  content,
 }: {
   title: string;
   subtitle?: string | null;
@@ -29,22 +30,28 @@ export function ListRow({
   accessibilityHint?: string;
   last?: boolean;
   destructive?: boolean;
+  /** Drawn in place of the title and subtitle (which VoiceOver still reads), like a match's names with the winner marked. */
+  content?: React.ReactNode;
 }) {
   const c = useColors();
   const label = [title, subtitle, trailing].filter(Boolean).join(". ");
   const body = (
     <>
       {symbol ? <Icon name={symbol} size={18} tintColor={destructive ? c.danger : c.ink} /> : null}
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text variant="bodyStrong" tone={destructive ? "danger" : "ink"}>
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text variant="small" tone="inkMuted">
-            {subtitle}
+      {content ? (
+        <View style={{ flex: 1 }}>{content}</View>
+      ) : (
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text variant="bodyStrong" tone={destructive ? "danger" : "ink"}>
+            {title}
           </Text>
-        ) : null}
-      </View>
+          {subtitle ? (
+            <Text variant="small" tone="inkMuted">
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+      )}
       {trailing ? (
         <Text variant="label" tone="inkMuted">
           {trailing}

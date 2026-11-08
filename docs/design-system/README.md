@@ -98,11 +98,22 @@ The replay and stats stay inside the one-ink palette. No literal grass green, no
 
 Pick one per screen. Brush headers are type, not a motif, so a screen with a brush header can still use one of these.
 
-1. **Brush ring.** The logo's hand-drawn circle, wrapped around the single thing that matters: the match winner on a score card (instead of a Won pill), your rank in standings, Champion in the bracket.
+1. **Brush ring.** The logo's hand-drawn circle, wrapped around the single thing that matters: your rank in standings, Champion in the bracket. (Match winners now get the brush underline instead; see The winner mark.)
 2. **Painted ball.** The app icon's hand-painted ball, in `ink` on paper or `on-ink` on an ink field. One, large, in a hero, the splash or a celebration. Never as a repeating pattern. Its paint fills the selected tab's brush icon (John, Nov 5, kept as a rule Nov 6); that's the only place it appears in color, and the tab bar doesn't count toward a screen's one motif.
 3. **Roundel.** The logo itself, cropped to its circle, in the places listed under Logo. Decorative to VoiceOver.
 
 The paper grain is retired (John, Nov 6): on ivory and charcoal it reads as dirt, not paper. `.bb-grain` stays in the stylesheet as a plain `paper` ground so older screens don't break.
+
+### The winner mark
+
+One rule wherever a finished match shows both players (John, Nov 8): the league Matches list, the playoff bracket, Match detail and Correct a score.
+
+- The winner's name is bold, in `ink`, with a hand-drawn brush underline: one tapered stroke a little below the text, firm at the start and lifting off thin at the end, stretched to the name's width. It's never a straight text underline, so it never reads as a link. The stroke is drawn in `scripts/design/brush-icons.py` (`winner.underline`, on a 100 × 8 grid) and lives in the app as `BRUSH_MARKS`; the source is `icons/ui/winner.underline.svg`. In the app: `WinnerNames` and `MarkedName` (`components/WinnerNames.tsx`).
+- The loser's name is regular weight in `ink-muted`.
+- The line under the names is only the score, from the winner's side, with tags for a retirement and a walkover: "6-3, 2-1 · RET", "W/O". No "X won" on screen.
+- A match that wasn't played: both names regular in `ink-muted`, and "Not played". A cancelled match is the same, with "Cancelled". A match still to play: both names regular in `ink`.
+- VoiceOver reads "[A] versus [B]. [Winner] won [score]" ("Brianna Scott won by walkover", "Diego Alvarez won 6-3, 2-1, Jamal Wright retired"). Bold weight and the underline carry the winner together, so it's never color alone.
+- Your own Results (My matches) keep their W and L letters.
 
 ## Shape and space
 
@@ -161,5 +172,5 @@ The app icon (`assets/Logos/ball-boi-app-icon.png`) is the symbol: the hand-pain
 2. Replace `pool` with `court`, `clay` with `court` (live) and drop every use of `sun`. The focus ring becomes `ink`.
 3. Replace drop shadows on cards with the `hairline` border.
 4. Set the page body on `paper` with no grain texture. The cabana awning is retired; delete it.
-5. Mark live matches with the filled `court` chip and its dot, and winners with the brush ring.
+5. Mark live matches with the filled `court` chip and its dot, and winners with the brush underline (The winner mark).
 6. Standings rank on wins, then head to head between players level on wins, then share of sets won, then share of games won. Tables show rank, player and W–L, with no Pts column.

@@ -9,10 +9,11 @@ import { ROUND_SINGULAR } from "@/components/league/Bracket";
 
 import { ListRow, SectionLabel } from "@/components/league/ListRow";
 import { Card, Text } from "@/components/ui";
+import { WinnerNames } from "@/components/WinnerNames";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { correctionLine, dateRange, resultLine } from "@/lib/leagueSchedule";
-import { slotWinningScore } from "@/lib/playoffView";
+import { sideOf, winnerMark } from "@/lib/winnerMark";
 
 // Correct a score (Oct 31 review, C5). Manage > Correct a score lists every
 // played match by round, newest first. Tap one to enter the corrected sets
@@ -83,12 +84,15 @@ export default function CorrectScoresScreen() {
               <SectionLabel>{`Playoffs · ${ROUND_SINGULAR[round]}`}</SectionLabel>
               <Card style={{ padding: 0, overflow: "hidden" }}>
                 {played.map((s, i) => {
-                  const winner = s.winnerId === s.player1?.playerId ? s.player1?.playerName : s.player2?.playerName;
+                  const p1 = s.player1?.playerName ?? "Player 1";
+                  const p2 = s.player2?.playerName ?? "Player 2";
+                  const mark = winnerMark({ player1Name: p1, player2Name: p2, score: s.score, winner: sideOf(s.winnerId, s.player1?.playerId, s.player2?.playerId) });
                   return (
                     <ListRow
                       key={s.matchId}
-                      title={`${s.player1?.playerName ?? "Player 1"} vs. ${s.player2?.playerName ?? "Player 2"}`}
-                      subtitle={`${winner ?? "Winner"} won ${slotWinningScore(s) ?? s.score}`}
+                      title={`${p1} versus ${p2}`}
+                      subtitle={mark.spoken}
+                      content={<WinnerNames player1Name={p1} player2Name={p2} mark={mark} />}
                       trailing="Correct"
                       onPress={() =>
                         router.push({
@@ -108,11 +112,30 @@ export default function CorrectScoresScreen() {
           <View key={round.roundId} style={{ gap: spacing.space2 }}>
             <SectionLabel>{`Round ${round.roundNumber} · ${dateRange(round.startDate, round.deadline)}`}</SectionLabel>
             <Card style={{ padding: 0, overflow: "hidden" }}>
-              {played.map((m, i) => (
+              {played.map((m, i) => {
+                const mark = winnerMark({
+                  player1Name: m.player1Name,
+                  player2Name: m.player2Name,
+                  score: m.score,
+                  winner: sideOf(m.winnerId, m.player1Id, m.player2Id),
+                  status: resultLine(m),
+                });
+                const corrected = correctionLine(m);
+                return (
                 <ListRow
                   key={m.matchId}
-                  title={`${m.player1Name} vs. ${m.player2Name}`}
-                  subtitle={[resultLine(m), correctionLine(m)].filter(Boolean).join(". ")}
+                  title={`${m.player1Name} versus ${m.player2Name}`}
+                  subtitle={[mark.spoken, corrected].filter(Boolean).join(". ")}
+                  content={
+                    <View style={{ gap: 2 }}>
+                      <WinnerNames player1Name={m.player1Name} player2Name={m.player2Name} mark={mark} />
+                      {corrected ? (
+                        <Text variant="small" tone="inkMuted">
+                          {corrected}
+                        </Text>
+                      ) : null}
+                    </View>
+                  }
                   trailing="Correct"
                   onPress={() =>
                     router.push({
@@ -123,7 +146,8 @@ export default function CorrectScoresScreen() {
                   accessibilityHint="Opens the score to correct it"
                   last={i === played.length - 1}
                 />
-              ))}
+                );
+              })}
             </Card>
           </View>
           ))}

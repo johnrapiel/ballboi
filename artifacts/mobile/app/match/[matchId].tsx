@@ -8,20 +8,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useGetMyMatch, type MatchDetail } from "@workspace/api-client-react";
 
 import { Avatar } from "@/components/Avatar";
-import { BrushRing } from "@/components/BrushRing";
 import { HeaderIconButton } from "@/components/Choice";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
 import { Button, Card, Text } from "@/components/ui";
+import { MarkedName, WinnerNames } from "@/components/WinnerNames";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { correctionLine } from "@/lib/leagueSchedule";
 import { durationLabel, durationSpoken, resultSentence, scoreFootnote, setRows } from "@/lib/myMatches";
 import { isRetiredScore, WALKOVER_SCORE } from "@/lib/tennisScore";
+import { winnerMark } from "@/lib/winnerMark";
 
 // Match detail (finding 6, John, Nov 6; approved design audit, Match detail).
 // Opened from Home's recent results and My matches. Plain match details like
-// Home's card (date and time, league, court), the score alone with the brush
-// ring on the winner, and Ball Boi Replay once an analysis has finished
+// Home's card (date and time, league, court), the score alone with the
+// winner's name marked by the brush underline (John, Nov 8), and Ball Boi Replay once an analysis has finished
 // (Wave 2 fills the replay in). More options holds Share and Report only.
 //
 // Finding 7: for 24 hours after the score is entered, either player sees a
@@ -59,7 +60,7 @@ function stageLine(d: MatchDetail): string {
 
 const sideName = (s: MatchDetail["you"]) => s.players.map((p) => p.name).join(" & ") || "Player";
 
-/** One player's row: avatar, name (ringed if they won), then their games in each set. */
+/** One player's row: avatar, name (marked if they won), then their games in each set. */
 function ScoreLine({ name, won, games, other, tiebreaks, sets }: { name: string; won: boolean; games: number[]; other: number[]; tiebreaks: (number | null)[]; sets: number }) {
   const c = useColors();
   const { fontScale } = useWindowDimensions();
@@ -68,14 +69,9 @@ function ScoreLine({ name, won, games, other, tiebreaks, sets }: { name: string;
     <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2, minHeight: 52 }}>
       <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.space2 }}>
         <Avatar name={name} size={32} />
-        <View style={{ flexShrink: 1, paddingHorizontal: won ? spacing.space2 : 0, paddingVertical: won ? spacing.space1 : 0 }}>
-          {won ? (
-            <BrushRing size={0} style={{ alignItems: "flex-start" }}>
-              <Text variant="bodyStrong">{name}</Text>
-            </BrushRing>
-          ) : (
-            <Text variant="bodyStrong">{name}</Text>
-          )}
+        <View style={{ flexShrink: 1 }}>
+          {/* Winner mark (John, Nov 8): bold with the brush underline, the loser muted. */}
+          <MarkedName name={name} look={won ? "winner" : "loser"} />
         </View>
       </View>
       {Array.from({ length: sets }, (_, i) => {
@@ -231,11 +227,15 @@ export default function MatchDetailScreen() {
   const footnote = scoreFootnote(d);
   // The walkover line already shows in the card when there's no score.
   const shownNotes = notes.filter((n) => !walkover || !n.includes("walkover"));
-  const scoreSpoken = d.played
-    ? `Final score. ${sentence}.`
-    : d.voided
-      ? "Cancelled."
-      : "Not played yet.";
+  // Winner mark (John, Nov 8): "[Winner] won [score]", the score from their side.
+  const mark = winnerMark({
+    player1Name: you,
+    player2Name: them,
+    score: d.played && !d.voided ? d.score : null,
+    winner: d.played && !d.voided && d.score ? (youWon ? 1 : 2) : null,
+    status: d.voided ? "Cancelled" : "Not played yet",
+  });
+  const scoreSpoken = d.played && !d.voided ? `Final score. ${mark.spoken}.` : `${you} versus ${them}. ${mark.spoken}.`;
   const replayMeta = d.replay
     ? [durationLabel(d.replay.durationSeconds), `${d.replay.shotCount} ${d.replay.shotCount === 1 ? "shot" : "shots"}`].filter(Boolean).join(" · ")
     : null;
@@ -296,13 +296,8 @@ export default function MatchDetailScreen() {
             </View>
           </View>
         ) : (
-          <View accessible accessibilityLabel={scoreSpoken} style={{ alignItems: "center", gap: spacing.space1 }}>
-            <Text variant="bodyStrong" style={{ textAlign: "center" }}>
-              {`You vs. ${them}`}
-            </Text>
-            <Text tone="inkMuted" style={{ textAlign: "center" }}>
-              {d.voided ? "Cancelled" : walkover ? (youWon ? "You won by walkover" : `${them} won by walkover`) : "Not played yet"}
-            </Text>
+          <View accessible accessibilityLabel={scoreSpoken} style={{ alignItems: "center" }}>
+            <WinnerNames player1Name={you} player2Name={them} mark={mark} />
           </View>
         )}
 
