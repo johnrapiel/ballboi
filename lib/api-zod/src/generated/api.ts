@@ -6298,6 +6298,36 @@ export const GetMatchFilmingResponse = zod.object({
 });
 
 /**
+ * @summary "Something not working?" report: saved and emailed to support@ballboi.tennis
+ */
+export const sendFeedbackBodyNoteMax = 2000;
+
+export const SendFeedbackBody = zod.object({
+  problem: zod.enum([
+    "recording_stopped",
+    "upload_stuck",
+    "camera_mic",
+    "match_missing",
+    "score_not_saved",
+    "app_froze",
+    "something_else",
+  ]),
+  note: zod
+    .string()
+    .max(sendFeedbackBodyNoteMax)
+    .nullish()
+    .describe("Required for something_else"),
+  source: zod.enum(["settings", "ready", "processing", "replay"]),
+  matchId: zod
+    .number()
+    .nullish()
+    .describe("Attached only when the sender played in the match"),
+  appVersion: zod.string().nullish(),
+  deviceModel: zod.string().nullish(),
+  osVersion: zod.string().nullish(),
+});
+
+/**
  * @summary Whether the person agreed to recording, and whether their video may train Ball Boi
  */
 export const GetRecordingConsentResponse = zod.object({

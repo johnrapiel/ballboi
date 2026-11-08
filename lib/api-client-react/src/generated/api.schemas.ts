@@ -3466,6 +3466,51 @@ export interface MatchFilming {
   opponentName: string | null;
 }
 
+export type FeedbackReportProblem =
+  (typeof FeedbackReportProblem)[keyof typeof FeedbackReportProblem];
+
+export const FeedbackReportProblem = {
+  recording_stopped: "recording_stopped",
+  upload_stuck: "upload_stuck",
+  camera_mic: "camera_mic",
+  match_missing: "match_missing",
+  score_not_saved: "score_not_saved",
+  app_froze: "app_froze",
+  something_else: "something_else",
+} as const;
+
+export type FeedbackReportSource =
+  (typeof FeedbackReportSource)[keyof typeof FeedbackReportSource];
+
+export const FeedbackReportSource = {
+  settings: "settings",
+  ready: "ready",
+  processing: "processing",
+  replay: "replay",
+} as const;
+
+export interface FeedbackReport {
+  problem: FeedbackReportProblem;
+  /**
+   * Required for something_else
+   * @maxLength 2000
+   * @nullable
+   */
+  note?: string | null;
+  source: FeedbackReportSource;
+  /**
+   * Attached only when the sender played in the match
+   * @nullable
+   */
+  matchId?: number | null;
+  /** @nullable */
+  appVersion?: string | null;
+  /** @nullable */
+  deviceModel?: string | null;
+  /** @nullable */
+  osVersion?: string | null;
+}
+
 export interface ConsentChoice {
   trainingEnabled: boolean;
   /** The release version the person agreed to by checking the box. Required while the release is needed. */
@@ -3930,6 +3975,10 @@ export type GetConversationParams = {
 
 export type CreateSampleMessages201 = {
   ok: boolean;
+};
+
+export type SendFeedback201 = {
+  id: number;
 };
 
 export type ScoreQuickMatchBody = {

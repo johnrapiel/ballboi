@@ -22,7 +22,7 @@ import React, { useState } from "react";
 import { AccessibilityInfo, Alert, Pressable, View } from "react-native";
 
 import { DestructiveTextButton } from "@/components/record/DestructiveTextButton";
-import { Button, Card, Text } from "@/components/ui";
+import { Button, Card, Text, TextButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import {
@@ -172,6 +172,21 @@ function CardBody({
   );
 }
 
+/** "Something not working?" on a card (B3), with the match attached. */
+function ReportProblem({ matchId, opponentName }: { matchId: number; opponentName: string }) {
+  const router = useRouter();
+  return (
+    <TextButton
+      label="Something not working?"
+      accessibilityLabel={`Something not working? Match vs ${opponentName}`}
+      accessibilityHint="Tell us what went wrong. It goes to Ball Boi support."
+      onPress={() =>
+        router.push({ pathname: "/feedback", params: { source: "processing", matchId: String(matchId) } })
+      }
+    />
+  );
+}
+
 /** Opens the score prompt from a card, for a Quick match whose score is still missing (D6). */
 function useEnterScore() {
   const router = useRouter();
@@ -245,6 +260,7 @@ export function LocalProcessingCard({
         loading={discarding}
         onPress={confirm}
       />
+      <ReportProblem matchId={rec.matchId} opponentName={rec.opponentName} />
     </CardBody>
   );
 }
@@ -316,6 +332,7 @@ export function ServerProcessingCard({ rec, lost = false }: { rec: ServerRecordi
           onPress={confirm}
         />
       ) : null}
+      <ReportProblem matchId={rec.matchId} opponentName={rec.opponentName} />
     </CardBody>
   );
 }

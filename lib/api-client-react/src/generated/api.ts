@@ -86,6 +86,7 @@ import type {
   EnterScoreBody,
   ErrorResponse,
   ExpoPushTokenInput,
+  FeedbackReport,
   GenerateLeagueRoundBody,
   GetAdminMe200,
   GetAdminReportsParams,
@@ -193,6 +194,7 @@ import type {
   Season,
   SelfRatingInput,
   SelfRatingResult,
+  SendFeedback201,
   SentMessage,
   SetMatchTimeBody,
   SettleMatchBody,
@@ -15194,6 +15196,92 @@ export function useGetMatchFilming<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary "Something not working?" report: saved and emailed to support@ballboi.tennis
+ */
+export const getSendFeedbackUrl = () => {
+  return `/api/feedback`;
+};
+
+export const sendFeedback = async (
+  feedbackReport: FeedbackReport,
+  options?: RequestInit,
+): Promise<SendFeedback201> => {
+  return customFetch<SendFeedback201>(getSendFeedbackUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(feedbackReport),
+  });
+};
+
+export const getSendFeedbackMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendFeedback>>,
+    TError,
+    { data: BodyType<FeedbackReport> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendFeedback>>,
+  TError,
+  { data: BodyType<FeedbackReport> },
+  TContext
+> => {
+  const mutationKey = ["sendFeedback"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendFeedback>>,
+    { data: BodyType<FeedbackReport> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return sendFeedback(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendFeedbackMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendFeedback>>
+>;
+export type SendFeedbackMutationBody = BodyType<FeedbackReport>;
+export type SendFeedbackMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary "Something not working?" report: saved and emailed to support@ballboi.tennis
+ */
+export const useSendFeedback = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendFeedback>>,
+    TError,
+    { data: BodyType<FeedbackReport> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendFeedback>>,
+  TError,
+  { data: BodyType<FeedbackReport> },
+  TContext
+> => {
+  return useMutation(getSendFeedbackMutationOptions(options));
+};
 
 /**
  * @summary Whether the person agreed to recording, and whether their video may train Ball Boi

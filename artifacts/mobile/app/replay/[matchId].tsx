@@ -6,20 +6,21 @@
 // Until the simulated replay is built (Wave 2), this screen says where the
 // match is, so the link never opens a dead screen or a video.
 
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import { ActivityIndicator, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
 import { FAILED_TITLE, UPLOADED_DETAIL, UPLOADED_TITLE } from "@/components/record/ProcessingCard";
-import { Button } from "@/components/ui";
+import { Button, TextButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useGetBallBoiReplay } from "@workspace/api-client-react";
 
 export default function ReplayScreen() {
   const c = useColors();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
   const id = Number(matchId);
@@ -79,6 +80,19 @@ export default function ReplayScreen() {
       }}
     >
       {body}
+      {!isLoading ? (
+        <TextButton
+          label="Something not working?"
+          accessibilityHint="Tell us what went wrong. It goes to Ball Boi support."
+          onPress={() =>
+            router.push({
+              pathname: "/feedback",
+              params: { source: "replay", ...(Number.isInteger(id) && id > 0 ? { matchId: String(id) } : {}) },
+            })
+          }
+          style={{ marginTop: spacing.space4 }}
+        />
+      ) : null}
     </View>
   );
 }

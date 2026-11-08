@@ -9,6 +9,7 @@ import {
   playerLocationsTable,
   playersTable,
   pushSubscriptionsTable,
+  supportReportsTable,
   userBlocksTable,
   usersTable,
 } from "@workspace/db";
@@ -176,6 +177,11 @@ export async function deleteAccount(
       .update(contentReportsTable)
       .set({ reporterClerkUserId: null })
       .where(eq(contentReportsTable.reporterClerkUserId, clerkUserId));
+    // "Something not working?" reports stay for support, without the account.
+    await tx
+      .update(supportReportsTable)
+      .set({ clerkUserId: null })
+      .where(eq(supportReportsTable.clerkUserId, clerkUserId));
     const promotions = await deleteLeagueDataFor(tx, clerkUserId, choices.newAdmins ?? {});
     if (promotions.length) log.info({ promotions }, "Account deletion: leagues handed to a new admin");
     const profiles = await tx
