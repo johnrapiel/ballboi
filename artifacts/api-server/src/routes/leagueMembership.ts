@@ -10,6 +10,7 @@ import { planDropout } from "../lib/playoffs.js";
 import { walkover } from "../services/leaguePlayoffs.js";
 import { SKILL_LEVELS } from "../lib/leagueSetup.js";
 import { logger } from "../lib/logger.js";
+import { leagueChat } from "../messaging/leagueChatEvents.js";
 import { loadProfiles, playerDisplayName, playerLevelText, playerProfileLevel, profileNameFor, type ProfileMap } from "../lib/playerProfile.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
 import { sendPushToUsers } from "./notifications.js";
@@ -278,6 +279,7 @@ router.post("/leagues/:leagueId/join-requests/:requestId/approve", requireLeague
   });
   if (!player) { res.status(409).json({ error: "This request was already handled." }); return; }
 
+  leagueChat.leagueChanged(leagueId);
   sendPushToUsers([request.clerkUserId], "You're in", `You've joined ${league.name}.`, `/league/${leagueId}`).catch(() => {});
   res.status(201).json({ id: player.id, name: player.name, leagueId });
 });
@@ -386,6 +388,7 @@ router.post("/leagues/:leagueId/leave", requireAuth, async (req, res) => {
   // Q4: an admin who leaves stops playing but still runs the league, so even
   // the only admin can leave. Their admin role isn't touched.
   const voidedMatches = await dropOut(leagueId, player.id, player.name);
+  leagueChat.leagueChanged(leagueId);
   const stillAdmin = (await getLeagueRole(leagueId, userId!)) !== null;
   res.json({ left: true, voidedMatches, stillAdmin });
 });
@@ -404,6 +407,9 @@ router.post("/leagues/:leagueId/players/:playerId/remove", requireLeagueAdmin, a
   const self = removeCheck({ playerClerkUserId: player.clerkUserId, callerClerkUserId: getAuth(req).userId ?? null });
   if (!self.ok) { res.status(self.status).json({ error: self.error }); return; }
   const voidedMatches = await dropOut(leagueId, player.id, player.name);
+  leagueChat.leagueChanged(leagueId);
+  // Removed from the league chat's admin tools (decision 145): logged to the moderation queue.
+  if (req.body?.fromChat === true && player.clerkUserId) leagueChat.removedFromChat(leagueId, getAuth(req).userId!, player.clerkUserId);
   if (player.clerkUserId) {
     const [league] = await db.select({ name: leaguesTable.name }).from(leaguesTable).where(eq(leaguesTable.id, leagueId));
     sendPushToUsers([player.clerkUserId], "Removed from league", `An admin removed you from ${league?.name ?? "a league"}.`, "/leagues")

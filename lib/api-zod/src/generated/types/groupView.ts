@@ -5,17 +5,27 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+import type { GroupViewKind } from "./groupViewKind";
 import type { GroupViewLastMessage } from "./groupViewLastMessage";
 
 export interface GroupView {
   id: number;
-  /** Sat 9 AM doubles · Beacon Courts */
+  /** An open match's chat, or a league's chat (decision 145) */
+  kind: GroupViewKind;
+  /** Sat 9 AM doubles · Beacon Courts, or the league name */
   title: string;
   /** @nullable */
   openMatchId: number | null;
+  /** @nullable */
+  leagueId: number | null;
   memberCount: number;
   lastMessage: GroupViewLastMessage;
+  /** Every unread message; the row shows bold with this count */
   unread: number;
+  /** League chats, the unread ones the Messages button counts (@mentions of you and admin posts, decision 146). Equals unread for an open match's chat. */
+  attention: number;
+  /** League chats, you're one of the league's admins */
+  isAdmin: boolean;
   canSend: boolean;
   /** @nullable */
   sendBlockedReason: string | null;

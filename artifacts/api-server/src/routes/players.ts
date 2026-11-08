@@ -10,6 +10,7 @@ import { blockedAccountsFor } from "../lib/blocks.js";
 import { isLeagueAdmin, PRIVATE_LEAGUE } from "../lib/leagueAccess.js";
 import { canSeeContact, canSeePlayer, readScope } from "../lib/matchAccess.js";
 import { DELETED_PLAYER_NAME } from "../lib/deletedPlayer.js";
+import { leagueChat } from "../messaging/leagueChatEvents.js";
 
 const router = Router();
 
@@ -175,6 +176,7 @@ router.delete("/players/:playerId", requireAuth, async (req, res) => {
   }
 
   await db.delete(playersTable).where(eq(playersTable.id, playerId));
+  leagueChat.leagueChanged(existingPlayer.leagueId);
   { res.status(204).send(); return; }
 });
 

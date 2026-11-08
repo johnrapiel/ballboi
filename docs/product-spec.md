@@ -61,9 +61,9 @@ Five tabs, with Ball Boi in the center. Messages opens from the button in the to
 | Discover | Players near you, Open leagues, Open matches (including your own) |
 | Profile | Your player card, This season, Ball Boi this season, Upcoming matches and Results (decision 138); Settings (including training data, Sign out and account deletion) from the top corner |
 
-**Messages (top corner):** direct chats, including Message opponent from a league match and chats where Discover matches are set up, plus open match group chats (decision 136). There are no Message Requests (decision 101). A 44pt button in the top-right of every tab with an unread count VoiceOver reads ("Messages, 3 unread").
+**Messages (top corner):** direct chats, including Message opponent from a league match and chats where Discover matches are set up, plus open match group chats (decision 136) and league chats (decision 145). There are no Message Requests (decision 101). A 44pt button in the top-right of every tab with an unread count VoiceOver reads ("Messages, 3 unread").
 
-League chat lives inside each league, not in Messages, so busy leagues never bury direct conversations. Every tab has an icon plus a text label, and badge counts are read by VoiceOver.
+League chats live in Messages, mixed into the one list by latest message like open match group chats, with no separate Leagues section (decision 145). Each row shows the league name with the brush leagues icon, so it reads as a group, not a person. The league page also has a Chat button in its top-right corner (a glass corner button with the brush chat icon and the chat's unread count) that opens the same conversation. Busy leagues don't bury direct conversations because the Messages button counts only direct messages, @mentions of you and admin posts (decision 146). Every tab has an icon plus a text label, and badge counts are read by VoiceOver.
 
 ## Self-rated level
 
@@ -192,11 +192,14 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 
 **League chat**
 
-- **One chat per league,** with up to 3 admin pins in a collapsible bar
-- **Admin posts labeled** with icon and text, always pushed
-- **Member posts push on mentions only** by default
-- **System messages:** pairings, results, and standings changes post automatically
-- **Admin moderation:** delete messages, mute or remove members, all feeding the main moderation queue
+- **One chat per league,** on the same messaging service as Messages, titled with the league name, with up to 3 admin pins in a collapsible bar (decision 145). Same first-message filter, Stream screening, message-level reports and blocks as other chats
+- **Members** are the league's current players and admins. Joining adds you; leaving or being removed takes you out. An admin who stops playing still runs the league, so stays in. Deleting your account takes you out of every league chat. Doubles leagues and leagues on hold get a chat too
+- **Admin posts labeled** with icon and text ("Admin"), always pushed
+- **Member posts push on mentions only:** typing @ suggests league members, the way iOS Messages does, and VoiceOver reads mentions
+- **Unread (decision 146):** a league chat shows bold with its own unread count in Messages. The number on the Messages button counts only direct messages, @mentions of you and admin posts, and push follows the same rule. Both respect Show message previews and blocks
+- **System messages:** pairings, results (entered or edited), and standings changes post automatically, short and plain ("Round 4 pairings are out." / "Sam Patel def. John Rapiel 6-3, 6-4."). They show in the chat but never push or count on the Messages button
+- **Admin moderation:** delete messages, mute a member in this chat, or remove a member from the league, all feeding the main moderation queue
+- **An ended league's chat** stays readable but takes no new messages, and says so above the composer, matching "everything played stays"
 
 ## Ball Boi
 
@@ -533,6 +536,8 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 142 | Start is picked before mounting: Record works before the court locks, and the countdown starts on its own once it locks, or after the Record anyway fallback. The Live Activity Start button stays as a second way to start (John, Nov 8) |
 | 143 | Other players' cards show their full match history: Upcoming matches and Results tabs like your own Profile, with the winner mark and head-to-head. Blocks, hidden profiles and unconfirmed Quick matches stay out (John, Nov 8) |
 | 144 | The app follows the iPhone's Light or Dark Mode with no in-app override; shareable recaps always use the Day look (John, Nov 7 and 8). Replaces decision 103 |
+| 145 | League chats live in Messages, mixed into the one list by latest message like open match group chats, with no separate Leagues section: "the least cognitive load, just like group chats that live among your other texts." The chat's title is the league name and its row shows the brush leagues icon. The league page gets a Chat button in its top-right corner (glass corner button, button standard #178) with a brush chat icon and the chat's unread count, opening the same conversation. Replaces "League chat lives inside each league, not in Messages" (John, Nov 8, H2) |
+| 146 | A league chat shows bold with its own unread count in Messages. The number on the Messages button counts only direct messages, @mentions of you and admin posts, and push follows the same rule: member posts push only when you're @mentioned, admin posts always push. Automatic pairing, result and standings posts show in the chat but never push or count toward the button. All of this respects Show message previews (decision 128) and blocks (John, Nov 8, H3) |
 | 147 | Career stats: a Career screen from See all on Profile's This season, with all-time record and matches played, best win streak, share of sets and games won, tiebreak record, your seasons (each opening its results) and head-to-head rows opening each player's card. League, Discover and confirmed Quick matches count; never unconfirmed Quick matches, cancelled matches or walkovers' games. Ball Boi career stats join once they pass their accuracy bars (John, Nov 8, H4) |
 | 148 | The match recap: a shareable image made after a score is entered, for Instagram Stories (9:16) and texts. You in full, your opponent as first name and last initial, the score with the winner underlined, the date, court and league (or Discover / Quick match), your new season record and the roundel; always the Day look. "Share recap" on the moment after entering a score and on Match detail opens the iOS share sheet. Doubles use team names in the same pattern. Aces and winners join once those stats pass their accuracy bars (John, Nov 8, H5) |
 | 149 | Three milestone moments, not four: score entered, new career milestone, Ball Boi analysis ready. The player card reveal (flip) is cut; card D appears like any other screen. Milestones are earned on the server when the result or recording that earns them is saved, once per player, with the date; existing players are backfilled. The moment plays the next time you open the app (John, Nov 8, H6) |

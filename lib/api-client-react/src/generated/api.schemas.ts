@@ -3687,6 +3687,16 @@ export interface MessagesSummary {
   unread: number;
 }
 
+/**
+ * An open match's chat, or a league's chat (decision 145)
+ */
+export type GroupViewKind = (typeof GroupViewKind)[keyof typeof GroupViewKind];
+
+export const GroupViewKind = {
+  match: "match",
+  league: "league",
+} as const;
+
 export type GroupViewLastMessage = null | {
   text: string;
   fromMe: boolean;
@@ -3700,13 +3710,22 @@ export type GroupViewLastMessage = null | {
 
 export interface GroupView {
   id: number;
-  /** Sat 9 AM doubles · Beacon Courts */
+  /** An open match's chat, or a league's chat (decision 145) */
+  kind: GroupViewKind;
+  /** Sat 9 AM doubles · Beacon Courts, or the league name */
   title: string;
   /** @nullable */
   openMatchId: number | null;
+  /** @nullable */
+  leagueId: number | null;
   memberCount: number;
   lastMessage: GroupViewLastMessage;
+  /** Every unread message; the row shows bold with this count */
   unread: number;
+  /** League chats, the unread ones the Messages button counts (@mentions of you and admin posts, decision 146). Equals unread for an open match's chat. */
+  attention: number;
+  /** League chats, you're one of the league's admins */
+  isAdmin: boolean;
   canSend: boolean;
   /** @nullable */
   sendBlockedReason: string | null;
@@ -3732,6 +3751,11 @@ export interface GroupMessageView {
   senderPlayerId: number | null;
   /** @nullable */
   senderUserId: number | null;
+  /** League chats, an admin post (shown with the Admin label) */
+  admin: boolean;
+  /** League chats, the names this message @mentions ("You" for you) */
+  mentions: string[];
+  mentionsMe: boolean;
 }
 
 export interface GroupThread {
@@ -3739,6 +3763,65 @@ export interface GroupThread {
   messages: GroupMessageView[];
   /** @nullable */
   olderCursor: string | null;
+  /** League chats, pinned posts you can see, oldest pin first (up to 3) */
+  pins: GroupMessageView[];
+}
+
+export interface GroupMemberView {
+  name: string;
+  /**
+   * Their player in this chat's league, for Remove from league
+   * @nullable
+   */
+  playerId: number | null;
+  /** @nullable */
+  userId: number | null;
+  admin: boolean;
+  muted: boolean;
+  me: boolean;
+}
+
+export interface GroupMemberList {
+  members: GroupMemberView[];
+}
+
+export interface GroupMemberRef {
+  playerId?: number;
+  userId?: number;
+}
+
+export interface RemoveLeaguePlayerInput {
+  /** Started from the league chat's admin tools, so the removal is also logged to the moderation queue (decision 145) */
+  fromChat?: boolean;
+}
+
+export interface PinInput {
+  messageId: string;
+}
+
+export interface PinList {
+  pinnedIds: string[];
+}
+
+export interface AdminDeleteInput {
+  /** A report reason; inappropriate_content when left out */
+  reason?: string;
+}
+
+export interface AdminDeleteResult {
+  deleted: boolean;
+  /** @nullable */
+  reportId: number | null;
+}
+
+export interface MuteResult {
+  muted: boolean;
+}
+
+export interface LeagueChat {
+  groupId: number;
+  unread: number;
+  attention: number;
 }
 
 export interface SentGroupMessage {

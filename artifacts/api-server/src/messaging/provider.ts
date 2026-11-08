@@ -16,6 +16,10 @@ export interface ProviderMessage {
   hidden: boolean;
   /** A line from Ball Boi in a group chat ("All 4 spots filled"), sent by SYSTEM_SENDER. */
   system?: boolean;
+  /** League chats: sent by one of the league's admins, so it shows the Admin label (decision 145). */
+  admin?: boolean;
+  /** League chats: the accounts this message @mentions. */
+  mentions?: string[];
 }
 
 /** The sender of Ball Boi's own lines in group chats. Never a member, never a person. */
@@ -28,6 +32,10 @@ export interface SendInput {
   text: string;
   /** A line from Ball Boi (senderId is SYSTEM_SENDER). */
   system?: boolean;
+  /** League chats: an admin post. */
+  admin?: boolean;
+  /** League chats: accounts @mentioned. */
+  mentions?: string[];
 }
 
 export interface MessagingProvider {

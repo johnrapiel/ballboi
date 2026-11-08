@@ -13,6 +13,7 @@ ballboitennis.com and both `www` addresses serve or redirect to the same site.
 | `early-access.js` | Opens the email form from the pill, validates, posts, and shows "You're on the list" |
 | `balls.js` | The pill's ball animation. Desktop: hover the pill. Phones: plays once on load. Off under Reduce Motion |
 | `privacy.html`, `terms.html`, `legal.css` | Legal pages, served at `/privacy` and `/terms` |
+| `beta-release.html` | Beta Footage Release, served at `/beta-release`. Linked from the app's recording consent, not from the site |
 | `assets/roundel-ink.*` | The roundel with no paper (navy strokes, transparent), 888px from the 1024px master |
 | `assets/og.jpg` | Share image for link previews (1200x630) |
 | `assets/apple-touch-icon.png`, `assets/favicon-32.png`, `favicon.ico` | Browser and home-screen icons |

@@ -9,6 +9,7 @@ import { loadProfiles, playerDisplayName, playerLevelText, playerProfileLevel } 
 import { promoteProblem, removeAdminProblem, type LeagueRole } from "../lib/leagueRoles.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
 import { requireLeagueViewer } from "../middlewares/requireLeagueViewer.js";
+import { leagueChat } from "../messaging/leagueChatEvents.js";
 
 // Co-admins and the viewer's own role in a league (spec: Roles and onboarding).
 
@@ -148,6 +149,7 @@ router.post("/leagues/:leagueId/admins", requireLeagueAdmin, async (req, res) =>
     .insert(leagueAdminsTable)
     .values({ leagueId, clerkUserId: member!.clerkUserId!, role: "co_admin" })
     .onConflictDoNothing();
+  leagueChat.leagueChanged(leagueId);
 
   res.status(201).json({ clerkUserId: member!.clerkUserId, role: "co_admin", playerId, name: member!.name });
 });
@@ -169,6 +171,7 @@ router.delete("/leagues/:leagueId/admins/:clerkUserId", requireAuth, async (req,
   await db
     .delete(leagueAdminsTable)
     .where(and(eq(leagueAdminsTable.leagueId, leagueId), eq(leagueAdminsTable.clerkUserId, targetUserId)));
+  leagueChat.leagueChanged(leagueId);
   res.status(204).send();
 });
 

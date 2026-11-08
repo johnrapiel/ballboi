@@ -3139,6 +3139,15 @@ export const RemoveLeaguePlayerParams = zod.object({
   playerId: zod.coerce.number(),
 });
 
+export const RemoveLeaguePlayerBody = zod.object({
+  fromChat: zod
+    .boolean()
+    .optional()
+    .describe(
+      "Started from the league chat's admin tools, so the removal is also logged to the moderation queue (decision 145)",
+    ),
+});
+
 export const RemoveLeaguePlayerResponse = zod.object({
   left: zod.boolean().optional(),
   removed: zod.boolean().optional(),
@@ -6541,8 +6550,16 @@ export const GetConversationsResponse = zod
         .array(
           zod.object({
             id: zod.number(),
-            title: zod.string().describe("Sat 9 AM doubles · Beacon Courts"),
+            kind: zod
+              .enum(["match", "league"])
+              .describe(
+                "An open match's chat, or a league's chat (decision 145)",
+              ),
+            title: zod
+              .string()
+              .describe("Sat 9 AM doubles · Beacon Courts, or the league name"),
             openMatchId: zod.number().nullable(),
+            leagueId: zod.number().nullable(),
             memberCount: zod.number(),
             lastMessage: zod.union([
               zod.null(),
@@ -6556,7 +6573,19 @@ export const GetConversationsResponse = zod
                 at: zod.string(),
               }),
             ]),
-            unread: zod.number(),
+            unread: zod
+              .number()
+              .describe(
+                "Every unread message; the row shows bold with this count",
+              ),
+            attention: zod
+              .number()
+              .describe(
+                "League chats, the unread ones the Messages button counts (@mentions of you and admin posts, decision 146). Equals unread for an open match's chat.",
+              ),
+            isAdmin: zod
+              .boolean()
+              .describe("League chats, you're one of the league's admins"),
             canSend: zod.boolean(),
             sendBlockedReason: zod.string().nullable(),
           }),
@@ -6733,8 +6762,14 @@ export const GetGroupThreadQueryParams = zod.object({
 export const GetGroupThreadResponse = zod.object({
   group: zod.object({
     id: zod.number(),
-    title: zod.string().describe("Sat 9 AM doubles · Beacon Courts"),
+    kind: zod
+      .enum(["match", "league"])
+      .describe("An open match's chat, or a league's chat (decision 145)"),
+    title: zod
+      .string()
+      .describe("Sat 9 AM doubles · Beacon Courts, or the league name"),
     openMatchId: zod.number().nullable(),
+    leagueId: zod.number().nullable(),
     memberCount: zod.number(),
     lastMessage: zod.union([
       zod.null(),
@@ -6748,7 +6783,17 @@ export const GetGroupThreadResponse = zod.object({
         at: zod.string(),
       }),
     ]),
-    unread: zod.number(),
+    unread: zod
+      .number()
+      .describe("Every unread message; the row shows bold with this count"),
+    attention: zod
+      .number()
+      .describe(
+        "League chats, the unread ones the Messages button counts (@mentions of you and admin posts, decision 146). Equals unread for an open match's chat.",
+      ),
+    isAdmin: zod
+      .boolean()
+      .describe("League chats, you're one of the league's admins"),
     canSend: zod.boolean(),
     sendBlockedReason: zod.string().nullable(),
   }),
@@ -6764,9 +6809,45 @@ export const GetGroupThreadResponse = zod.object({
         .describe("Null for a line from Ball Boi"),
       senderPlayerId: zod.number().nullable(),
       senderUserId: zod.number().nullable(),
+      admin: zod
+        .boolean()
+        .describe("League chats, an admin post (shown with the Admin label)"),
+      mentions: zod
+        .array(zod.string())
+        .describe(
+          'League chats, the names this message @mentions (\"You\" for you)',
+        ),
+      mentionsMe: zod.boolean(),
     }),
   ),
   olderCursor: zod.string().nullable(),
+  pins: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        text: zod.string(),
+        fromMe: zod.boolean(),
+        at: zod.string(),
+        senderName: zod
+          .string()
+          .nullable()
+          .describe("Null for a line from Ball Boi"),
+        senderPlayerId: zod.number().nullable(),
+        senderUserId: zod.number().nullable(),
+        admin: zod
+          .boolean()
+          .describe("League chats, an admin post (shown with the Admin label)"),
+        mentions: zod
+          .array(zod.string())
+          .describe(
+            'League chats, the names this message @mentions (\"You\" for you)',
+          ),
+        mentionsMe: zod.boolean(),
+      }),
+    )
+    .describe(
+      "League chats, pinned posts you can see, oldest pin first (up to 3)",
+    ),
 });
 
 /**
@@ -6804,6 +6885,121 @@ export const ReportGroupMessageBody = zod.object({
     "no_show_dispute",
   ]),
   details: zod.string().nullish(),
+});
+
+/**
+ * @summary Everyone in a group chat you're in, minus anyone you have a block with. For @mention suggestions and league admin tools.
+ */
+export const GetGroupMembersParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetGroupMembersResponse = zod.object({
+  members: zod.array(
+    zod.object({
+      name: zod.string(),
+      playerId: zod
+        .number()
+        .nullable()
+        .describe("Their player in this chat's league, for Remove from league"),
+      userId: zod.number().nullable(),
+      admin: zod.boolean(),
+      muted: zod.boolean(),
+      me: zod.boolean(),
+    }),
+  ),
+});
+
+/**
+ * @summary League chat admins pin a post (up to 3, decision 145).
+ */
+export const PinGroupMessageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const PinGroupMessageBody = zod.object({
+  messageId: zod.string(),
+});
+
+export const PinGroupMessageResponse = zod.object({
+  pinnedIds: zod.array(zod.string()),
+});
+
+/**
+ * @summary League chat admins unpin a post.
+ */
+export const UnpinGroupMessageParams = zod.object({
+  id: zod.coerce.number(),
+  messageId: zod.coerce.string(),
+});
+
+export const UnpinGroupMessageResponse = zod.object({
+  pinnedIds: zod.array(zod.string()),
+});
+
+/**
+ * @summary League chat admins delete a message for everyone. It's hidden and goes to the moderation queue with a snapshot.
+ */
+export const AdminDeleteGroupMessageParams = zod.object({
+  id: zod.coerce.number(),
+  messageId: zod.coerce.string(),
+});
+
+export const AdminDeleteGroupMessageBody = zod.object({
+  reason: zod
+    .string()
+    .optional()
+    .describe("A report reason; inappropriate_content when left out"),
+});
+
+export const AdminDeleteGroupMessageResponse = zod.object({
+  deleted: zod.boolean(),
+  reportId: zod.number().nullable(),
+});
+
+/**
+ * @summary League chat admins mute a member here, so they read but can't send. Logged to the moderation queue.
+ */
+export const MuteGroupMemberParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const MuteGroupMemberBody = zod.object({
+  playerId: zod.number().optional(),
+  userId: zod.number().optional(),
+});
+
+export const MuteGroupMemberResponse = zod.object({
+  muted: zod.boolean(),
+});
+
+/**
+ * @summary League chat admins unmute a member.
+ */
+export const UnmuteGroupMemberParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UnmuteGroupMemberBody = zod.object({
+  playerId: zod.number().optional(),
+  userId: zod.number().optional(),
+});
+
+export const UnmuteGroupMemberResponse = zod.object({
+  muted: zod.boolean(),
+});
+
+/**
+ * @summary The league page's Chat button. The league's chat in Messages (made now if it's missing) and your unread counts in it (decisions 145 and 146).
+ */
+export const GetLeagueChatParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const GetLeagueChatResponse = zod.object({
+  groupId: zod.number(),
+  unread: zod.number(),
+  attention: zod.number(),
 });
 
 /**

@@ -31,11 +31,20 @@ export interface PersonSummary {
   userId?: number | null;
 }
 
-/** A group chat (F15): an open match's chat once its last spot fills. */
+/**
+ * A group chat: an open match's chat once its last spot fills (F15), or a
+ * league's chat (decisions 145 and 146). Exactly one of openMatchId and
+ * leagueId is set.
+ */
 export interface GroupRecord {
   id: number;
   channelId: string;
   openMatchId: number | null;
+  leagueId: number | null;
+  /** League chats: up to 3 pinned message ids, oldest pin first. */
+  pinnedIds: string[];
+  /** League chats: player id to standings rank, as of the last result. */
+  standings: Record<string, number> | null;
   title: string;
   /** Members can send. */
   open: boolean;
@@ -52,30 +61,45 @@ export interface GroupMember {
   groupId: number;
   userId: string;
   unread: number;
+  /** League chats: unread @mentions of this person and admin posts, the ones the Messages button counts. */
+  attention: number;
+  /** League chats: one of the league's admins. */
+  admin: boolean;
+  /** League chats: muted here by an admin (reads, can't send). */
+  mutedAt: Date | null;
   /** Their first message in this chat, for the first-message filter. */
   firstSentAt: Date | null;
   joinedAt: Date;
 }
 
-export type NewGroup = Pick<GroupRecord, "channelId" | "openMatchId" | "title">;
-export type GroupPatch = Partial<Pick<GroupRecord, "title" | "open" | "closedReason" | "lastMessageAt" | "lastMessageText" | "lastSender">>;
+export type NewGroup = Pick<GroupRecord, "channelId" | "openMatchId" | "title"> & { leagueId?: number | null };
+export type GroupPatch = Partial<
+  Pick<GroupRecord, "title" | "open" | "closedReason" | "lastMessageAt" | "lastMessageText" | "lastSender" | "pinnedIds" | "standings">
+>;
+export type GroupMemberPatch = Partial<Pick<GroupMember, "admin" | "mutedAt">>;
 
 /** Group chat storage (F15). Part of MessagingRepo. */
 export interface GroupRepo {
   findGroup(id: number): Promise<GroupRecord | null>;
   findGroupByChannel(channelId: string): Promise<GroupRecord | null>;
   findGroupByOpenMatch(openMatchId: number): Promise<GroupRecord | null>;
+  findGroupByLeague(leagueId: number): Promise<GroupRecord | null>;
   /** Creates the group, or returns the existing one for this channel. */
   createGroup(input: NewGroup): Promise<GroupRecord>;
   updateGroup(id: number, patch: GroupPatch): Promise<GroupRecord>;
   groupMembers(id: number): Promise<GroupMember[]>;
   addGroupMembers(id: number, userIds: string[], at: Date): Promise<void>;
   removeGroupMembers(id: number, userIds: string[]): Promise<void>;
+  updateGroupMember(id: number, userId: string, patch: GroupMemberPatch): Promise<void>;
   /**
-   * Records the latest message, adds one to each recipient's unread count, and
-   * notes the sender's first message (a person, not Ball Boi).
+   * Records the latest message, adds one to each recipient's unread count (and
+   * to `attention` for those in it, a subset of recipients), and notes the
+   * sender's first message (a person, not Ball Boi).
    */
-  recordGroupMessage(id: number, input: { sender: string | null; text: string; at: Date; recipients: string[] }): Promise<GroupRecord>;
+  recordGroupMessage(
+    id: number,
+    input: { sender: string | null; text: string; at: Date; recipients: string[]; attention?: string[] },
+  ): Promise<GroupRecord>;
   markGroupRead(id: number, userId: string): Promise<void>;
   /** Groups this person is in, with their own member row. */
   groupsFor(userId: string): Promise<{ group: GroupRecord; member: GroupMember }[]>;
