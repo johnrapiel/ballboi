@@ -102,7 +102,13 @@ def test_court_detection_without_phone_corners(match):
     assert worst_px < 8
     for point in [(0.0, 6.4), (-2.0, -8.0), (3.0, 10.0)]:
         seen = cm.court_to_image(truth, point)
-        assert np.allclose(cm.image_to_court(fit.corners, seen), point, atol=0.35)
+        # This camera is low: past the net one pixel down the frame is over half a
+        # meter of court, and the renderer rounds line ends to whole pixels, so the
+        # painted far service line sits almost 2 pixels from the camera's true
+        # projection. Allow 0.35 m, or 2 pixels' worth of court where that's more.
+        below = cm.image_to_court(truth, (seen[0], seen[1] + 2 / sm.H))
+        tol = max(0.35, float(np.hypot(below[0] - point[0], below[1] - point[1])))
+        assert np.allclose(cm.image_to_court(fit.corners, seen), point, atol=tol)
 
 
 def test_blank_video_fails_with_a_plain_message(tmp_path):

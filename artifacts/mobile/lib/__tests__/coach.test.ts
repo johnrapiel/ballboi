@@ -183,6 +183,12 @@ describe("corrections: the repeat rule (G8)", () => {
     const said = run(Array.from({ length: 5 }, (_, i) => ({ now: i * gap, step: "none" as const })));
     expect(said.filter(Boolean)).toEqual(["noLock", "noLock", "noLock"]);
   });
+
+  it("stays quiet while the frames don't agree on a step yet (null)", () => {
+    expect(run([{ step: null }, { now: 30_000, step: null }])).toEqual([null, null]);
+    // ...but Record anyway still comes when it's due.
+    expect(run([{ step: null, recordAnywayDue: true }])).toEqual(["recordAnyway"]);
+  });
 });
 
 describe("countdown lines", () => {

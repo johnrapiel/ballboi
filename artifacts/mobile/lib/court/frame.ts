@@ -15,7 +15,8 @@ import { decode } from "jpeg-js";
 
 import { base64ToBytes } from "@/lib/court/base64";
 import { detectCourt, type CourtFit } from "@/lib/court/detect";
-import { analysisSize, videoAspectCrop } from "@/lib/court/still";
+import type { PhoneOrientation } from "@/lib/court/overlay";
+import { analysisSize, uprightTurn, videoAspectCrop } from "@/lib/court/still";
 
 /** One frame: the small image, kept so it can become the court-line fix's still. */
 export interface CourtFrame {
@@ -43,18 +44,25 @@ export function releaseFrame(frame: CourtFrame | null | undefined) {
 
 /**
  * Takes one frame and finds the court in it. Null when the camera can't take
- * a photo right now (busy, not ready, or recording).
+ * a photo right now (busy, not ready, or recording). `orientation` is how
+ * the phone is held: a still that comes out on its side is turned upright
+ * first (lib/court/still.ts uprightTurn), since detection only reads an
+ * upright court.
  */
-export async function captureFrame(camera: CameraView | null): Promise<CourtFrame | null> {
+export async function captureFrame(camera: CameraView | null, orientation: PhoneOrientation = "portrait"): Promise<CourtFrame | null> {
   if (!camera) return null;
   let photo: { release(): void; width: number; height: number } | null = null;
   try {
     const ref = await camera.takePictureAsync({ pictureRef: true, shutterSound: false });
     photo = ref;
     let ctx = ImageManipulator.manipulate(ref);
-    const crop = videoAspectCrop(ref.width, ref.height);
+    const turn = uprightTurn(orientation, ref.width, ref.height);
+    if (turn) ctx = ctx.rotate(turn);
+    const width = turn ? ref.height : ref.width;
+    const height = turn ? ref.width : ref.height;
+    const crop = videoAspectCrop(width, height);
     if (crop) ctx = ctx.crop(crop);
-    ctx = ctx.resize(analysisSize(crop?.width ?? ref.width, crop?.height ?? ref.height));
+    ctx = ctx.resize(analysisSize(crop?.width ?? width, crop?.height ?? height));
     const image = await ctx.renderAsync();
     try {
       ctx.release();
