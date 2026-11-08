@@ -5,7 +5,9 @@ import { pushSubscriptionsTable, expoPushTokensTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
 import { logger } from "../lib/logger";
-import { notificationSettingsFor, saveNotificationSettings } from "../services/push/settings";
+import { notificationSettingsFor, parseSettingsUpdate, saveNotificationSettings } from "../services/push/settings";
+import { devToolsAllowed } from "../lib/devTime";
+import { runMatchReminders } from "../services/push/matchReminderJob";
 import { answerNotMe, sendOpponentNotices } from "../services/push/opponentRequests";
 
 const router = Router();
@@ -294,7 +296,7 @@ router.get("/notifications/settings", async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
   try {
-    return res.json(await notificationSettingsFor(userId));
+    return res.json({ ...(await notificationSettingsFor(userId)), ...(devToolsAllowed() ? { devTools: true } : {}) });
   } catch (err) {
     logger.error({ err }, "Couldn't load notification settings");
     return res.status(500).json({ error: "Couldn't load your notification settings. Try again." });
@@ -304,12 +306,10 @@ router.get("/notifications/settings", async (req, res) => {
 router.put("/notifications/settings", async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
-  const { messagePreviews } = (req.body ?? {}) as { messagePreviews?: unknown };
-  if (typeof messagePreviews !== "boolean") {
-    return res.status(400).json({ error: "messagePreviews must be true or false." });
-  }
+  const parsed = parseSettingsUpdate(req.body);
+  if ("error" in parsed) return res.status(400).json({ error: parsed.error });
   try {
-    return res.json(await saveNotificationSettings(userId, { messagePreviews }));
+    return res.json(await saveNotificationSettings(userId, parsed));
   } catch (err) {
     logger.error({ err }, "Couldn't save notification settings");
     return res.status(500).json({ error: "Couldn't save. Try again." });
@@ -350,6 +350,21 @@ router.post("/recording/invites/:code/not-me", async (req, res) => {
     logger.error({ err }, "Not me failed");
     return res.status(500).json({ error: "Couldn't save. Try again." });
   }
+});
+
+/**
+ * POST /dev/match-reminders/run { at? } (dev only, never in production): runs
+ * the match day reminder job as if it were `at` (default now). Run it twice to
+ * see nothing is sent twice (Session G acceptance 27).
+ */
+router.post("/dev/match-reminders/run", async (req, res) => {
+  if (!devToolsAllowed()) return res.status(404).json({ error: "Not found" });
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  const raw = (req.body ?? {}).at;
+  const at = typeof raw === "string" ? new Date(raw) : new Date();
+  if (Number.isNaN(at.getTime())) return res.status(400).json({ error: "at must be a date and time." });
+  return res.json({ at: at.toISOString(), ...(await runMatchReminders(at, sendPushToUsers)) });
 });
 
 export default router;

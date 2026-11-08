@@ -4555,6 +4555,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PushRegistrationStatus'
+  /dev/match-reminders/run:
+    post:
+      operationId: runMatchRemindersDev
+      tags: [notifications]
+      summary: Dev servers only. Runs the match day reminder job as if it were `at` (default now)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchRemindersRunInput'
+      responses:
+        '200':
+          description: Ran
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  at:
+                    type: string
+                  timed:
+                    type: integer
+                  nudges:
+                    type: integer
+                required: [at, timed, nudges]
+        '400':
+          description: Bad time
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not a dev server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /notifications/settings:
     get:
       operationId: getNotificationSettings
@@ -4588,7 +4632,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/NotificationSettings'
+              $ref: '#/components/schemas/NotificationSettingsUpdate'
       responses:
         '200':
           description: Saved
@@ -9816,11 +9860,30 @@ components:
       required: [registered]
     NotificationSettings:
       type: object
-      description: Settings › Notifications. Show message previews (decision 128) is on by default.
+      description: Settings › Notifications. Show message previews (decision 128) and Match day reminders (decision 127) are on by default.
       properties:
         messagePreviews:
           type: boolean
-      required: [messagePreviews]
+        matchReminders:
+          type: boolean
+        devTools:
+          type: boolean
+          description: Dev servers only, never production; shows the reminder testing buttons
+      required: [messagePreviews, matchReminders]
+    MatchRemindersRunInput:
+      type: object
+      properties:
+        at:
+          type: string
+          format: date-time
+    NotificationSettingsUpdate:
+      type: object
+      description: Either switch, or both
+      properties:
+        messagePreviews:
+          type: boolean
+        matchReminders:
+          type: boolean
     PhotoUploadRequest:
       type: object
       properties:

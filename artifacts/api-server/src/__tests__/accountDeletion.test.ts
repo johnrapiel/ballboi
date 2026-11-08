@@ -21,7 +21,7 @@ vi.mock("../lib/withdrawal", () => ({
 vi.mock("../services/discover/accountDeletion", () => ({ deleteDiscoverData: vi.fn().mockResolvedValue(undefined) }));
 const { notificationDeleted } = vi.hoisted(() => ({ notificationDeleted: [] as string[] }));
 vi.mock("../services/push/accountDeletion", () => ({
-  deleteNotificationData: async (_tx: unknown, id: string) => void notificationDeleted.push(id),
+  deleteNotificationData: async (_tx: unknown, id: string, playerIds: number[]) => void notificationDeleted.push(`${id}:${playerIds.join(",")}`),
 }));
 const { messagingDeleted } = vi.hoisted(() => ({ messagingDeleted: [] as string[] }));
 vi.mock("../messaging/accountDeletion", () => ({
@@ -198,8 +198,8 @@ describe("deleteAccount", () => {
     expect(deleteClerkUser).toHaveBeenCalledWith("user_delete_me");
     // Messages and conversations go too (checklist 5.1.1(v)).
     expect(messagingDeleted).toEqual(["user_delete_me"]);
-    // Notification settings go too (Session G, acceptance 41).
-    expect(notificationDeleted).toEqual(["user_delete_me"]);
+    // Notification settings, opponent notices and reminder logs go too (Session G, acceptance 41).
+    expect(notificationDeleted).toEqual(["user_delete_me:7,9"]);
     // Withdrawal (B12): every match they played, plus the recording deleted outright for the test-set email.
     expect(withdrawals).toEqual([
       { clerkUserId: "user_delete_me", playerIds: [7, 9], deletedSessions: [{ matchId: 101, sessionId: 2, recordedAt: null }] },

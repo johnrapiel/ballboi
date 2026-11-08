@@ -7,10 +7,13 @@ import { matchInvitesTable } from "./placeholders";
 // - messagePreviews (decision 128): message pushes show the sender and the
 //   text. Off, they read "New message from [name]". iOS's own Show Previews
 //   setting still applies on top.
+// - matchReminders (decision 127): every match day reminder. On by default.
 
 export const notificationSettingsTable = pgTable("notification_settings", {
   clerkUserId: text("clerk_user_id").primaryKey(),
   messagePreviews: boolean("message_previews").notNull().default(true),
+  /** Match day reminders (decision 127): the day-before, 2-hour and Sunday reminders. On by default. */
+  matchReminders: boolean("match_reminders").notNull().default(true),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

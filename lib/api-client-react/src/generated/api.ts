@@ -142,6 +142,7 @@ import type {
   MatchPlan,
   MatchPlanShiftInput,
   MatchPlansWithUser,
+  MatchRemindersRunInput,
   MatchShot,
   MatchStatistics,
   MatchTime,
@@ -159,6 +160,7 @@ import type {
   NewOpenMatchInput,
   NewReport,
   NotificationSettings,
+  NotificationSettingsUpdate,
   OpenMatchActionInput,
   OpenMatchDetail,
   OpenMatchList,
@@ -185,6 +187,7 @@ import type {
   ResetLeagueRecords200,
   RestrictAccount201,
   RosterPlayer,
+  RunMatchRemindersDev200,
   SanctionInput,
   SanctionResult,
   ScheduleRound,
@@ -12531,6 +12534,92 @@ export function useGetExpoPushTokenStatus<
 }
 
 /**
+ * @summary Dev servers only. Runs the match day reminder job as if it were `at` (default now)
+ */
+export const getRunMatchRemindersDevUrl = () => {
+  return `/api/dev/match-reminders/run`;
+};
+
+export const runMatchRemindersDev = async (
+  matchRemindersRunInput?: MatchRemindersRunInput,
+  options?: RequestInit,
+): Promise<RunMatchRemindersDev200> => {
+  return customFetch<RunMatchRemindersDev200>(getRunMatchRemindersDevUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(matchRemindersRunInput),
+  });
+};
+
+export const getRunMatchRemindersDevMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runMatchRemindersDev>>,
+    TError,
+    { data: BodyType<MatchRemindersRunInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof runMatchRemindersDev>>,
+  TError,
+  { data: BodyType<MatchRemindersRunInput> },
+  TContext
+> => {
+  const mutationKey = ["runMatchRemindersDev"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof runMatchRemindersDev>>,
+    { data: BodyType<MatchRemindersRunInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return runMatchRemindersDev(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RunMatchRemindersDevMutationResult = NonNullable<
+  Awaited<ReturnType<typeof runMatchRemindersDev>>
+>;
+export type RunMatchRemindersDevMutationBody = BodyType<MatchRemindersRunInput>;
+export type RunMatchRemindersDevMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Dev servers only. Runs the match day reminder job as if it were `at` (default now)
+ */
+export const useRunMatchRemindersDev = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runMatchRemindersDev>>,
+    TError,
+    { data: BodyType<MatchRemindersRunInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof runMatchRemindersDev>>,
+  TError,
+  { data: BodyType<MatchRemindersRunInput> },
+  TContext
+> => {
+  return useMutation(getRunMatchRemindersDevMutationOptions(options));
+};
+
+/**
  * @summary Settings › Notifications switches for the signed-in person
  */
 export const getGetNotificationSettingsUrl = () => {
@@ -12614,14 +12703,14 @@ export const getUpdateNotificationSettingsUrl = () => {
 };
 
 export const updateNotificationSettings = async (
-  notificationSettings: NotificationSettings,
+  notificationSettingsUpdate: NotificationSettingsUpdate,
   options?: RequestInit,
 ): Promise<NotificationSettings> => {
   return customFetch<NotificationSettings>(getUpdateNotificationSettingsUrl(), {
     ...options,
     method: "PUT",
     headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(notificationSettings),
+    body: JSON.stringify(notificationSettingsUpdate),
   });
 };
 
@@ -12632,14 +12721,14 @@ export const getUpdateNotificationSettingsMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof updateNotificationSettings>>,
     TError,
-    { data: BodyType<NotificationSettings> },
+    { data: BodyType<NotificationSettingsUpdate> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateNotificationSettings>>,
   TError,
-  { data: BodyType<NotificationSettings> },
+  { data: BodyType<NotificationSettingsUpdate> },
   TContext
 > => {
   const mutationKey = ["updateNotificationSettings"];
@@ -12653,7 +12742,7 @@ export const getUpdateNotificationSettingsMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateNotificationSettings>>,
-    { data: BodyType<NotificationSettings> }
+    { data: BodyType<NotificationSettingsUpdate> }
   > = (props) => {
     const { data } = props ?? {};
 
@@ -12667,7 +12756,7 @@ export type UpdateNotificationSettingsMutationResult = NonNullable<
   Awaited<ReturnType<typeof updateNotificationSettings>>
 >;
 export type UpdateNotificationSettingsMutationBody =
-  BodyType<NotificationSettings>;
+  BodyType<NotificationSettingsUpdate>;
 export type UpdateNotificationSettingsMutationError = ErrorType<ErrorResponse>;
 
 /**
@@ -12680,14 +12769,14 @@ export const useUpdateNotificationSettings = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof updateNotificationSettings>>,
     TError,
-    { data: BodyType<NotificationSettings> },
+    { data: BodyType<NotificationSettingsUpdate> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof updateNotificationSettings>>,
   TError,
-  { data: BodyType<NotificationSettings> },
+  { data: BodyType<NotificationSettingsUpdate> },
   TContext
 > => {
   return useMutation(getUpdateNotificationSettingsMutationOptions(options));

@@ -5661,14 +5661,34 @@ export const GetExpoPushTokenStatusResponse = zod.object({
 });
 
 /**
+ * @summary Dev servers only. Runs the match day reminder job as if it were `at` (default now)
+ */
+export const RunMatchRemindersDevBody = zod.object({
+  at: zod.coerce.date().optional(),
+});
+
+export const RunMatchRemindersDevResponse = zod.object({
+  at: zod.string(),
+  timed: zod.number(),
+  nudges: zod.number(),
+});
+
+/**
  * @summary Settings › Notifications switches for the signed-in person
  */
 export const GetNotificationSettingsResponse = zod
   .object({
     messagePreviews: zod.boolean(),
+    matchReminders: zod.boolean(),
+    devTools: zod
+      .boolean()
+      .optional()
+      .describe(
+        "Dev servers only, never production; shows the reminder testing buttons",
+      ),
   })
   .describe(
-    "Settings › Notifications. Show message previews (decision 128) is on by default.",
+    "Settings › Notifications. Show message previews (decision 128) and Match day reminders (decision 127) are on by default.",
   );
 
 /**
@@ -5676,18 +5696,24 @@ export const GetNotificationSettingsResponse = zod
  */
 export const UpdateNotificationSettingsBody = zod
   .object({
-    messagePreviews: zod.boolean(),
+    messagePreviews: zod.boolean().optional(),
+    matchReminders: zod.boolean().optional(),
   })
-  .describe(
-    "Settings › Notifications. Show message previews (decision 128) is on by default.",
-  );
+  .describe("Either switch, or both");
 
 export const UpdateNotificationSettingsResponse = zod
   .object({
     messagePreviews: zod.boolean(),
+    matchReminders: zod.boolean(),
+    devTools: zod
+      .boolean()
+      .optional()
+      .describe(
+        "Dev servers only, never production; shows the reminder testing buttons",
+      ),
   })
   .describe(
-    "Settings › Notifications. Show message previews (decision 128) is on by default.",
+    "Settings › Notifications. Show message previews (decision 128) and Match day reminders (decision 127) are on by default.",
   );
 
 /**
