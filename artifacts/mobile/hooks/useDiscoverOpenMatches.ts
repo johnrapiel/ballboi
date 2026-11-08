@@ -1,5 +1,5 @@
 // Open matches in Discover (F6): the list, one post, posting, joining and
-// the rest, and the group chat once a match fills.
+// the rest. The group chat once a match fills lives in Messages (F15, hooks/useMessages.ts).
 
 import { useAuth } from "@clerk/expo";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -7,13 +7,12 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { discoverKeys } from "@/hooks/useDiscover";
 import { apiErrorMessage, apiFetch } from "@/lib/api";
 import { askForNotifications } from "@/lib/notifications";
-import { openMatchesPath, type GroupMessage, type OpenMatchDetail, type OpenMatchList } from "@/lib/discover";
+import { openMatchesPath, type OpenMatchDetail, type OpenMatchList } from "@/lib/discover";
 
 export const openMatchKeys = {
   all: ["discover", "open-matches"] as const,
   list: (radius: number) => ["discover", "open-matches", "list", radius] as const,
   one: (id: number) => ["discover", "open-matches", "one", id] as const,
-  chat: (id: number) => ["discover", "open-matches", "chat", id] as const,
   mine: ["discover", "open-matches", "mine"] as const,
 };
 
@@ -121,39 +120,6 @@ export function useOpenMatchAction(id: number) {
     },
     onSettled: async () => {
       await Promise.all([qc.invalidateQueries({ queryKey: openMatchKeys.all }), qc.invalidateQueries({ queryKey: discoverKeys.me })]);
-    },
-  });
-}
-
-/** The group chat: refreshed every 5 seconds while open. */
-export function useGroupChat(id: number) {
-  const { getToken } = useAuth();
-  return useQuery({
-    queryKey: openMatchKeys.chat(id),
-    queryFn: async () =>
-      json<{ open: boolean; messages: GroupMessage[] }>(
-        await apiFetch(`/api/open-matches/${id}/messages`, getToken),
-        "Can't load the group chat.",
-      ),
-    refetchInterval: 5_000,
-    enabled: Number.isInteger(id) && id > 0,
-  });
-}
-
-export function useSendGroupMessage(id: number) {
-  const { getToken } = useAuth();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (text: string) => {
-      // Sending is the "messages" action on the post.
-      const action = "messages";
-      return json<GroupMessage>(
-        await apiFetch(`/api/open-matches/${id}/${action}`, getToken, { method: "POST", body: JSON.stringify({ text }) }),
-        "Not sent. Try again.",
-      );
-    },
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: openMatchKeys.chat(id) });
     },
   });
 }

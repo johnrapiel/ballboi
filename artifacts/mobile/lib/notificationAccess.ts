@@ -61,6 +61,9 @@ export function routeForPushLink(link: unknown): string {
   if (typeof link !== "string") return "/";
   const path = link.split(/[?#]/)[0] ?? "";
   const id = (re: RegExp) => path.match(re)?.[1];
+  // A group chat (F15): an open match's chat in Messages.
+  const group = id(/^\/conversation\/group\/(\d+)$/);
+  if (group) return `/conversation/group/${group}`;
   const conversation = id(/^\/conversation\/(\d+)$/) ?? id(/^\/messages\/(\d+)$/);
   if (conversation) return `/conversation/${conversation}`;
   const match = id(/^\/matches\/(\d+)$/) ?? id(/^\/match\/(\d+)$/);

@@ -59,7 +59,7 @@ export const openMatchPlayersTable = pgTable(
   (t) => [uniqueIndex("uq_open_match_players").on(t.openMatchId, t.clerkUserId), index("idx_open_match_players_user").on(t.clerkUserId)],
 );
 
-/** The group chat once a match fills. senderClerkUserId null is a line from Ball Boi ("All 4 spots filled"). */
+/** The old group chat (#145). Since F15 the chat runs on the messaging service (message_groups); nothing writes here. Dropping it waits for John's go-ahead. */
 export const openMatchMessagesTable = pgTable(
   "open_match_messages",
   {

@@ -155,6 +155,8 @@ function groupChannelFor(openMatchId: number): string {
 }
 
 const GROUP_NOT_FOUND = "This group chat isn't available.";
+/** A group chat closed because someone in it deleted their account. */
+export const LEFT_BALL_BOI = "A player left Ball Boi, so this chat is closed.";
 
 export class MessagingService {
   readonly repo: MessagingRepo;
@@ -663,11 +665,19 @@ export class MessagingService {
     };
   }
 
-  /** Account deletion: out of every group chat they're in. */
+  /**
+   * Account deletion: out of every group chat they're in. The match lost a
+   * player (or its poster, and with them the post), so an open chat closes
+   * with a line saying so; the rest keep it, read only.
+   */
   async leaveAllGroups(me: string) {
     for (const { group } of await this.repo.groupsFor(me)) {
       await this.provider.removeMembers(group.channelId, [me]);
       await this.repo.removeGroupMembers(group.id, [me]);
+      if (group.open) {
+        const closed = await this.repo.updateGroup(group.id, { open: false, closedReason: LEFT_BALL_BOI });
+        if ((await this.repo.groupMembers(group.id)).length) await this.postSystem(closed, "A player left Ball Boi.");
+      }
     }
   }
 

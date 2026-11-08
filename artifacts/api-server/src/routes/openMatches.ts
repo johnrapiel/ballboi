@@ -3,9 +3,12 @@ import { getAuth } from "@clerk/express";
 import { DrizzleDiscoverRepo, type DiscoverRepo } from "../lib/discoverRepo.js";
 import { distanceLabel, milesBetween, parseRadius } from "../lib/discoverArea.js";
 import { logger } from "../lib/logger.js";
+import { getMessagingService } from "../messaging/index.js";
+import type { GroupSync } from "../messaging/service.js";
 import {
   alertRecipients,
   chatTitle,
+  groupChatTitle,
   levelText,
   nearbyOpenMatches,
   parseNewOpenMatch,
@@ -22,10 +25,28 @@ import { sendPushToUsers } from "./notifications.js";
 // - GET  /open-matches/mine             yours and ones you're in, for Home
 // - GET  /open-matches/:id              one post, who's in, and what you can do
 // - POST /open-matches/:id/join|drop|cancel, /remove { userId }
-// - GET  /open-matches/:id/messages?after=, POST /open-matches/:id/messages { text }
 // Free, never Pro.
+//
+// The group chat (F15, John, Nov 8) runs on the messaging service, like
+// Messages: it opens when the last spot fills, members change on drop out,
+// removal and cancel, and sending, reports and pushes go through
+// /messages/groups. The old open_match_messages table is no longer written.
 
 export type Push = (userIds: string[], title: string, body: string, link?: string) => Promise<void>;
+
+/** What open matches need from the messaging service. */
+export interface OpenMatchChats {
+  syncGroup(input: GroupSync): Promise<{ id: number } | null>;
+  groupForOpenMatch(openMatchId: number): Promise<{ id: number } | null>;
+}
+
+const messagingChats: OpenMatchChats = {
+  syncGroup: (input) => getMessagingService().syncGroup(input),
+  groupForOpenMatch: (id) => getMessagingService().groupForOpenMatch(id),
+};
+
+/** The composer's line while a spot is open again. */
+export const SPOT_OPEN_AGAIN = "A spot opened again. The chat picks up when it's full.";
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (!getAuth(req).userId) {
@@ -44,15 +65,30 @@ export function createOpenMatchesRouter(
   discover: DiscoverRepo = new DrizzleDiscoverRepo(),
   push: Push = sendPushToUsers,
   clock: () => Date = () => new Date(),
+  chats: OpenMatchChats = messagingChats,
 ): IRouter {
   const router: IRouter = Router();
   const fail = (res: Response, err: unknown, what: string, message: string) => {
     logger.error({ err }, what);
     res.status(500).json({ error: message });
   };
-  const notify = (to: string[], title: string, body: string) => {
-    if (to.length) push(to, title, body, "/discover").catch((err) => logger.warn({ err }, "Open match push failed"));
+  const notify = (to: string[], title: string, body: string, link = "/discover") => {
+    if (to.length) push(to, title, body, link).catch((err) => logger.warn({ err }, "Open match push failed"));
   };
+
+  /**
+   * Keeps the group chat in step. A chat failure never undoes a join, drop or
+   * cancel: it's logged, and a full match without a chat gets one the next
+   * time someone opens it (detail()).
+   */
+  async function syncChat(m: OpenMatchRow, input: Omit<GroupSync, "openMatchId" | "title">): Promise<{ id: number } | null> {
+    try {
+      return await chats.syncGroup({ ...input, openMatchId: m.id, title: groupChatTitle(m) });
+    } catch (err) {
+      logger.error({ err, openMatchId: m.id }, "Open match group chat update failed");
+      return null;
+    }
+  }
 
   async function detail(m: OpenMatchRow & { matchId: number | null }, me: string) {
     const mine = await discover.me(me);
@@ -68,6 +104,9 @@ export function createOpenMatchesRouter(
     });
     const role = m.posterClerkUserId === me ? "poster" : m.joined.includes(me) ? "in" : "none";
     const now = clock();
+    // The group chat, for players in the match. A full match missing one (a failed update) gets it now.
+    let chat = role === "none" ? null : await chats.groupForOpenMatch(m.id).catch(() => null);
+    if (!chat && role !== "none" && m.status === "full") chat = await syncChat(m, { members: [m.posterClerkUserId, ...m.joined], open: true, create: true });
     return {
       id: m.id,
       when: windowLabel(m.startsAt, m.endsAt, m.timeZone),
@@ -89,6 +128,8 @@ export function createOpenMatchesRouter(
       role,
       started: now >= m.startsAt,
       chatTitle: chatTitle(m),
+      /** The group chat in Messages (F15), once the match has filled. */
+      chatId: chat?.id ?? null,
       matchId: m.matchId,
     };
   }
@@ -221,11 +262,17 @@ export function createOpenMatchesRouter(
           }
           if (result === "filled") {
             const after = (await repo.one(id))!;
-            await repo.send(id, null, `All ${after.spots + 1} spots filled. ${windowLabel(after.startsAt, after.endsAt, after.timeZone)}${after.courtName ? ` · ${after.courtName}` : ""}. It's on everyone's schedule.`);
+            const chat = await syncChat(after, {
+              members: [after.posterClerkUserId, ...after.joined],
+              open: true,
+              create: true,
+              system: `All ${after.spots + 1} spots filled. ${windowLabel(after.startsAt, after.endsAt, after.timeZone)}${after.courtName ? ` · ${after.courtName}` : ""}. It's on everyone's schedule.`,
+            });
             notify(
               [after.posterClerkUserId, ...after.joined].filter((x) => x !== me),
               `${chatTitle(after)} is full`,
-              "Your group chat is open. Say hi and settle the details.",
+              "Your group chat is open in Messages. Say hi and settle the details.",
+              chat ? `/conversation/group/${chat.id}` : "/discover",
             );
           } else if (result === "joined") {
             notify([m.posterClerkUserId], `${meName} joined your open match`, `${windowLabel(m.startsAt, m.endsAt, m.timeZone)}. ${spotsLeft(m) - 1} left.`);
@@ -239,7 +286,14 @@ export function createOpenMatchesRouter(
             return;
           }
           await repo.leave(id, me, "dropped", now);
-          if (m.status === "full") await repo.send(id, null, `${meName} dropped out. Their spot is open again in Discover.`);
+          // Out of the chat, which waits (read only) until the spot fills again.
+          await syncChat(m, {
+            members: everyone.filter((x) => x !== me),
+            open: false,
+            closedReason: SPOT_OPEN_AGAIN,
+            system: `${meName} dropped out. Their spot is open again in Discover.`,
+            systemOnlyIfRemoved: true,
+          });
           notify([m.posterClerkUserId], `${meName} dropped out`, `${windowLabel(m.startsAt, m.endsAt, m.timeZone)}. Their spot is open again.`);
           res.json(await detail((await repo.one(id))!, me));
           return;
@@ -253,7 +307,13 @@ export function createOpenMatchesRouter(
             return;
           }
           await repo.leave(id, target, "removed", now);
-          await repo.send(id, null, `${people.get(target)?.name ?? "A player"} is out. Their spot is open again in Discover.`);
+          await syncChat(m, {
+            members: everyone.filter((x) => x !== target),
+            open: false,
+            closedReason: SPOT_OPEN_AGAIN,
+            system: `${people.get(target)?.name ?? "A player"} is out. Their spot is open again in Discover.`,
+            systemOnlyIfRemoved: true,
+          });
           // They only ever hear that it filled up (brief item 43).
           notify([target], "This match filled up", `${windowLabel(m.startsAt, m.endsAt, m.timeZone)} is full. Here are other open matches near you.`);
           res.json(await detail((await repo.one(id))!, me));
@@ -265,25 +325,15 @@ export function createOpenMatchesRouter(
             return;
           }
           await repo.cancel(id, now);
-          if (m.status === "full") await repo.send(id, null, `${meName} canceled this match. It's off everyone's schedule.`);
+          // Everyone keeps the chat, read only, with the reason.
+          await syncChat(m, {
+            members: everyone,
+            open: false,
+            closedReason: "This match was canceled.",
+            system: `${meName} canceled this match. It's off everyone's schedule.`,
+          });
           notify(m.joined, `${meName} canceled an open match`, `${windowLabel(m.startsAt, m.endsAt, m.timeZone)} is off.`);
           res.json({ canceled: true });
-          return;
-        }
-        case "messages": {
-          if (!everyone.includes(me) || m.status !== "full") {
-            res.status(403).json({ error: "The group chat opens when every spot is filled." });
-            return;
-          }
-          const text = typeof (req.body ?? {}).text === "string" ? (req.body.text as string).trim().slice(0, 2000) : "";
-          if (!text) {
-            res.status(400).json({ error: "Type a message first." });
-            return;
-          }
-          const msg = await repo.send(id, me, text);
-          const blocked = await repo.blockedAmong(me, everyone);
-          notify(everyone.filter((x) => x !== me && !blocked.has(x)), chatTitle(m), `${meName}: ${text.slice(0, 120)}`);
-          res.status(201).json({ id: msg.id, text: msg.text, at: msg.createdAt.toISOString(), fromMe: true, senderName: "You", senderUserId: null });
           return;
         }
         default:
@@ -291,36 +341,6 @@ export function createOpenMatchesRouter(
       }
     } catch (err) {
       fail(res, err, "Open match action failed", "Couldn't do that. Try again.");
-    }
-  });
-
-  router.get("/open-matches/:id/messages", requireAuth, async (req, res) => {
-    const me = getAuth(req).userId!;
-    try {
-      const m = await repo.one(Number(req.params.id));
-      if (!m || ![m.posterClerkUserId, ...m.joined].includes(me)) {
-        res.status(404).json({ error: "This group chat isn't yours." });
-        return;
-      }
-      const after = Number((req.query as Record<string, unknown>).after) || 0;
-      // Messages from anyone you have a block with (either way) are left out of your view.
-      const all = await repo.messages(m.id, after);
-      const blocked = await repo.blockedAmong(me, [...new Set(all.map((r) => r.senderClerkUserId).filter((x): x is string => !!x))]);
-      const rows = all.filter((r) => !r.senderClerkUserId || !blocked.has(r.senderClerkUserId));
-      const people = await repo.people([...new Set(rows.map((r) => r.senderClerkUserId).filter((x): x is string => !!x))]);
-      res.json({
-        open: m.status === "full",
-        messages: rows.map((r) => ({
-          id: r.id,
-          text: r.text,
-          at: r.createdAt.toISOString(),
-          fromMe: r.senderClerkUserId === me,
-          senderName: r.senderClerkUserId == null ? null : r.senderClerkUserId === me ? "You" : (people.get(r.senderClerkUserId)?.name ?? "Player"),
-          senderUserId: r.senderClerkUserId ? (people.get(r.senderClerkUserId)?.userId ?? null) : null,
-        })),
-      });
-    } catch (err) {
-      fail(res, err, "Group chat failed", "Can't load the group chat right now.");
     }
   });
 

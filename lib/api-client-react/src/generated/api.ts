@@ -166,7 +166,6 @@ import type {
   OpenMatchActionInput,
   OpenMatchDetail,
   OpenMatchList,
-  OpenMatchMessages,
   PhotoUploadRequest,
   PhotoUploadTicket,
   Player,
@@ -1338,95 +1337,7 @@ export function useGetOpenMatch<
 }
 
 /**
- * @summary The group chat of a filled open match (add ?after=<id> for only newer lines)
- */
-export const getGetOpenMatchMessagesUrl = (id: number) => {
-  return `/api/open-matches/${id}/messages`;
-};
-
-export const getOpenMatchMessages = async (
-  id: number,
-  options?: RequestInit,
-): Promise<OpenMatchMessages> => {
-  return customFetch<OpenMatchMessages>(getGetOpenMatchMessagesUrl(id), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getGetOpenMatchMessagesQueryKey = (id: number) => {
-  return [`/api/open-matches/${id}/messages`] as const;
-};
-
-export const getGetOpenMatchMessagesQueryOptions = <
-  TData = Awaited<ReturnType<typeof getOpenMatchMessages>>,
-  TError = ErrorType<unknown>,
->(
-  id: number,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getOpenMatchMessages>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getGetOpenMatchMessagesQueryKey(id);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getOpenMatchMessages>>
-  > = ({ signal }) => getOpenMatchMessages(id, { signal, ...requestOptions });
-
-  return {
-    queryKey,
-    queryFn,
-    enabled: !!id,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getOpenMatchMessages>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type GetOpenMatchMessagesQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getOpenMatchMessages>>
->;
-export type GetOpenMatchMessagesQueryError = ErrorType<unknown>;
-
-/**
- * @summary The group chat of a filled open match (add ?after=<id> for only newer lines)
- */
-
-export function useGetOpenMatchMessages<
-  TData = Awaited<ReturnType<typeof getOpenMatchMessages>>,
-  TError = ErrorType<unknown>,
->(
-  id: number,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getOpenMatchMessages>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetOpenMatchMessagesQueryOptions(id, options);
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-/**
- * @summary join, drop, remove (poster; body userId), cancel (poster), or messages (send to the group chat; body text)
+ * @summary join, drop, remove (poster; body userId), or cancel (poster). The group chat is on /messages/groups (F15).
  */
 export const getActOnOpenMatchUrl = (id: number, action: string) => {
   return `/api/open-matches/${id}/${action}`;
@@ -1491,7 +1402,7 @@ export type ActOnOpenMatchMutationBody = BodyType<OpenMatchActionInput>;
 export type ActOnOpenMatchMutationError = ErrorType<ErrorResponse>;
 
 /**
- * @summary join, drop, remove (poster; body userId), cancel (poster), or messages (send to the group chat; body text)
+ * @summary join, drop, remove (poster; body userId), or cancel (poster). The group chat is on /messages/groups (F15).
  */
 export const useActOnOpenMatch = <
   TError = ErrorType<ErrorResponse>,

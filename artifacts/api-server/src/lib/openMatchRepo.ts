@@ -1,4 +1,6 @@
 // Database reads and writes for open matches. The rules live in openMatch.ts.
+// The group chat lives on the messaging service (F15); open_match_messages is
+// left in place and no longer written.
 
 import {
   db,
@@ -6,7 +8,6 @@ import {
   matchesTable,
   openMatchAlertsTable,
   openMatchesTable,
-  openMatchMessagesTable,
   openMatchPlayersTable,
   playersTable,
   usersTable,
@@ -19,13 +20,6 @@ import type { NewOpenMatch, OpenMatchRow } from "./openMatch.js";
 /** "blocked": the joiner and someone already in the match have blocked each other, either way. */
 export type JoinResult = "joined" | "filled" | "full" | "closed" | "already" | "own" | "blocked";
 
-export interface OpenMatchMessage {
-  id: number;
-  senderClerkUserId: string | null;
-  text: string;
-  createdAt: Date;
-}
-
 export interface OpenMatchRepo {
   near(viewer: string, point: Point, miles: number, now: Date): Promise<OpenMatchRow[]>;
   one(id: number): Promise<(OpenMatchRow & { matchId: number | null }) | null>;
@@ -33,8 +27,6 @@ export interface OpenMatchRepo {
   join(id: number, clerkUserId: string, now: Date): Promise<JoinResult>;
   leave(id: number, clerkUserId: string, how: "dropped" | "removed", now: Date): Promise<boolean>;
   cancel(id: number, now: Date): Promise<void>;
-  messages(id: number, afterId: number): Promise<OpenMatchMessage[]>;
-  send(id: number, sender: string | null, text: string): Promise<OpenMatchMessage>;
   /** Matches you posted or hold a spot in, still to play. */
   mine(clerkUserId: string, now: Date): Promise<OpenMatchRow[]>;
   /** "This match filled up" notices for players a poster removed; read once. */
@@ -228,25 +220,6 @@ export class DrizzleOpenMatchRepo implements OpenMatchRepo {
     const m = await this.one(id);
     await db.update(openMatchesTable).set({ status: "canceled", canceledAt: now }).where(eq(openMatchesTable.id, id));
     await voidMatch(m?.matchId ?? null, now);
-  }
-
-  async messages(id: number, afterId: number) {
-    return db
-      .select({
-        id: openMatchMessagesTable.id,
-        senderClerkUserId: openMatchMessagesTable.senderClerkUserId,
-        text: openMatchMessagesTable.text,
-        createdAt: openMatchMessagesTable.createdAt,
-      })
-      .from(openMatchMessagesTable)
-      .where(and(eq(openMatchMessagesTable.openMatchId, id), gt(openMatchMessagesTable.id, afterId)))
-      .orderBy(asc(openMatchMessagesTable.id))
-      .limit(200);
-  }
-
-  async send(id: number, sender: string | null, text: string) {
-    const [row] = await db.insert(openMatchMessagesTable).values({ openMatchId: id, senderClerkUserId: sender, text }).returning();
-    return { id: row.id, senderClerkUserId: row.senderClerkUserId, text: row.text, createdAt: row.createdAt };
   }
 
   async mine(clerkUserId: string, now: Date) {

@@ -291,8 +291,6 @@ export * from "./openMatchDetailRole";
 export * from "./openMatchList";
 export * from "./openMatchListCountsItem";
 export * from "./openMatchListNoticesItem";
-export * from "./openMatchMessages";
-export * from "./openMatchMessagesMessagesItem";
 export * from "./photoUploadRequest";
 export * from "./photoUploadTicket";
 export * from "./photoUploadTicketMetadata";

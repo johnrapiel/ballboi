@@ -583,16 +583,9 @@ export interface OpenMatchDetail {
   role: "poster" | "in" | "none";
   started: boolean;
   chatTitle: string;
+  /** The group chat in Messages (F15), once every spot has filled. */
+  chatId: number | null;
   matchId: number | null;
-}
-
-export interface GroupMessage {
-  id: number;
-  text: string;
-  at: string;
-  fromMe: boolean;
-  senderName: string | null;
-  senderUserId: number | null;
 }
 
 export const openMatchesPath = (radius: number) => `/api/open-matches?radius=${clampRadius(radius)}`;

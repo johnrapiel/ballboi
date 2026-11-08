@@ -12,6 +12,8 @@ import {
   ALERTS_PER_DAY,
   PAST_TIME,
   alertRecipients,
+  chatTitle,
+  groupChatTitle,
   levelRange,
   nearbyOpenMatches,
   openMatchCard,
@@ -20,8 +22,12 @@ import {
   type NewOpenMatch,
   type OpenMatchRow,
 } from "../lib/openMatch";
-import type { JoinResult, OpenMatchMessage, OpenMatchRepo } from "../lib/openMatchRepo";
-import { createOpenMatchesRouter, NOT_AVAILABLE, SPOT_FILLED } from "../routes/openMatches";
+import type { JoinResult, OpenMatchRepo } from "../lib/openMatchRepo";
+import { FirstMessageFilter } from "../messaging/filter";
+import { MemoryMessagingProvider } from "../messaging/memoryProvider";
+import { MemoryMessagingRepo } from "../messaging/memoryRepo";
+import { MessagingService, type NewMessageEvent } from "../messaging/service";
+import { createOpenMatchesRouter, NOT_AVAILABLE, SPOT_FILLED, SPOT_OPEN_AGAIN } from "../routes/openMatches";
 import { MemoryDiscoverRepo } from "./discoverMemoryRepo";
 
 const H = 3_600_000;
@@ -70,6 +76,13 @@ describe("posting", () => {
     expect(levelRange("any", 3.5)).toEqual({ min: null, max: null });
   });
 
+  it("names the group chat by day, time, format and court", () => {
+    const m = { startsAt: new Date("2026-11-14T14:00:00Z"), format: "doubles", timeZone: "America/New_York", courtName: "Beacon Courts" };
+    expect(chatTitle(m)).toBe("Sat 9 AM doubles");
+    expect(groupChatTitle(m)).toBe("Sat 9 AM doubles · Beacon Courts");
+    expect(groupChatTitle({ ...m, format: "singles", courtName: null, startsAt: new Date("2026-11-14T18:30:00Z") })).toBe("Sat 1:30 PM singles");
+  });
+
   it("writes the window in the post's time zone", () => {
     expect(windowLabel(new Date("2026-11-14T14:00:00Z"), new Date("2026-11-14T16:00:00Z"), "America/New_York")).toBe("Sat, Nov 14 · 9 to 11 AM");
     expect(windowLabel(new Date("2026-11-14T16:00:00Z"), new Date("2026-11-14T18:00:00Z"), "America/New_York")).toBe("Sat, Nov 14 · 11 AM to 1 PM");
@@ -109,7 +122,6 @@ describe("alerts for new posts", () => {
 class MemoryOpenMatches implements OpenMatchRepo {
   rows: (OpenMatchRow & { matchId: number | null })[] = [];
   removed = new Map<string, number[]>();
-  msgs: OpenMatchMessage[] = [];
   alerts: string[] = [];
   candidates: { clerkUserId: string; point: { latitude: number; longitude: number }; radius: number; rating: number | null; sentToday: number }[] = [];
   /** [blocker, blocked] pairs. */
@@ -157,14 +169,6 @@ class MemoryOpenMatches implements OpenMatchRepo {
   async cancel(id: number) {
     this.rows.find((x) => x.id === id)!.status = "canceled";
   }
-  async messages(_id: number, after: number) {
-    return this.msgs.filter((m) => m.id > after);
-  }
-  async send(_id: number, sender: string | null, text: string) {
-    const m = { id: this.msgs.length + 1, senderClerkUserId: sender, text, createdAt: T0 };
-    this.msgs.push(m);
-    return m;
-  }
   async mine(who: string) {
     return this.rows.filter((r) => r.posterClerkUserId === who || r.joined.includes(who));
   }
@@ -198,16 +202,40 @@ describe("open match routes", () => {
   let repo: MemoryOpenMatches;
   let discover: MemoryDiscoverRepo;
   let push: ReturnType<typeof vi.fn>;
+  // The group chat runs on the real messaging service, on in-memory parts (F15).
+  let chatRepo: MemoryMessagingRepo;
+  let chats: MessagingService;
+  let messagePushes: NewMessageEvent[];
+  let n = 0;
+  const cid = () => `client-${String(++n).padStart(4, "0")}`;
   const as = (u: string) => {
     mockUserId = u;
     const a = express();
     a.use(express.json());
-    a.use("/api", createOpenMatchesRouter(repo, discover, push as never, () => T0));
+    a.use("/api", createOpenMatchesRouter(repo, discover, push as never, () => T0, chats));
     return supertest(a);
   };
+  const block = (pairs: [string, string][]) => {
+    repo.blocks = pairs;
+    chatRepo.blocks = pairs;
+  };
+  const chat = async () => (await chats.groupForOpenMatch(1))!;
+  const texts = async (who: string) => (await chats.groupThread(who, (await chat()).id)).messages.map((m) => m.text);
 
   beforeEach(() => {
     repo = new MemoryOpenMatches();
+    chatRepo = new MemoryMessagingRepo({ now: () => T0 });
+    messagePushes = [];
+    chats = new MessagingService({
+      repo: chatRepo,
+      provider: new MemoryMessagingProvider({ now: () => T0 }),
+      filter: new FirstMessageFilter(),
+      now: () => T0,
+      onNewMessage: (e) => void messagePushes.push(e),
+    });
+    for (const [id, name] of [["a", "Dana Lindqvist"], ["b", "Theo Brandt"], ["c", "Mia Kowalski"], ["d", "Sam Whitfield"]] as const) {
+      chatRepo.names.set(id, { name, playerId: null, userId: id.charCodeAt(0) - 96 });
+    }
     discover = new MemoryDiscoverRepo();
     push = vi.fn().mockResolvedValue(undefined);
     for (const [id, n] of [["a", 1], ["b", 2], ["c", 3], ["d", 4]] as const) {
@@ -227,26 +255,42 @@ describe("open match routes", () => {
     expect(list.body.matches[0].tags).toEqual(["need"]);
   });
 
-  it("fills on the last spot, opens the group chat, and turns away a late join", async () => {
+  it("fills on the last spot, opens the group chat in Messages, and turns away a late join", async () => {
     await post();
     await as("b").post("/api/open-matches/1/join").expect(200);
+    expect(await chats.groupForOpenMatch(1)).toBeNull();
     const filled = await as("c").post("/api/open-matches/1/join").expect(200);
     expect(filled.body.status).toBe("full");
-    expect(repo.msgs[0].text).toMatch(/^All 3 spots filled/);
+    const g = await chat();
+    expect(filled.body.chatId).toBe(g.id);
+    expect(g.title).toBe("Thu 10 AM doubles");
+    expect(push).toHaveBeenLastCalledWith(["a", "b"], "Thu 10 AM doubles is full", expect.any(String), `/conversation/group/${g.id}`);
+    expect((await texts("b"))[0]).toMatch(/^All 3 spots filled/);
     await as("d").post("/api/open-matches/1/join").expect(409, { error: SPOT_FILLED, code: "filled" });
-    const chat = await as("b").get("/api/open-matches/1/messages").expect(200);
-    expect(chat.body.open).toBe(true);
-    await as("b").post("/api/open-matches/1/messages").send({ text: "See you Saturday" }).expect(201);
-    await as("d").get("/api/open-matches/1/messages").expect(404);
+    await chats.sendToGroup("b", g.id, { text: "See you Saturday", clientMessageId: cid() });
+    expect(messagePushes.map((e) => e.recipientId).sort()).toEqual(["a", "c"]);
+    expect(messagePushes[0].groupTitle).toBe(g.title);
+    await expect(chats.groupThread("d", g.id)).rejects.toMatchObject({ status: 404 });
+    expect((await chats.groups("a"))[0]).toMatchObject({ id: g.id, openMatchId: 1, memberCount: 3 });
   });
 
-  it("reopens a spot when someone drops out, and tells the poster", async () => {
+  it("takes a player who drops out out of the chat, which waits until the spot fills again", async () => {
     await post();
     await as("b").post("/api/open-matches/1/join");
     await as("c").post("/api/open-matches/1/join");
+    const g = await chat();
     const res = await as("b").post("/api/open-matches/1/drop").expect(200);
     expect(res.body).toMatchObject({ status: "open", spotsLeft: 1 });
     expect(push).toHaveBeenLastCalledWith(["a"], expect.stringMatching(/dropped out/), expect.any(String), "/discover");
+    await expect(chats.groupThread("b", g.id)).rejects.toMatchObject({ status: 404 });
+    const asA = await chats.groupThread("a", g.id);
+    expect(asA.group).toMatchObject({ canSend: false, sendBlockedReason: SPOT_OPEN_AGAIN });
+    expect(asA.messages.at(-1)?.text).toBe("Theo Brandt dropped out. Their spot is open again in Discover.");
+    // Filled again: the new player is in, and the chat opens.
+    await as("d").post("/api/open-matches/1/join").expect(200);
+    const again = await chats.groupThread("d", g.id);
+    expect(again.group.canSend).toBe(true);
+    expect((await chatRepo.groupMembers(g.id)).map((m) => m.userId).sort()).toEqual(["a", "c", "d"]);
   });
 
   it("lets the poster remove a player, who only hears it filled up", async () => {
@@ -258,6 +302,18 @@ describe("open match routes", () => {
     const list = await as("b").get("/api/open-matches").expect(200);
     expect(list.body.notices).toHaveLength(1);
     expect(JSON.stringify(list.body)).not.toMatch(/removed/i);
+    // Before it filled there's no chat to change.
+    expect(await chats.groupForOpenMatch(1)).toBeNull();
+  });
+
+  it("takes a removed player out of a full match's chat", async () => {
+    await post();
+    await as("b").post("/api/open-matches/1/join");
+    await as("c").post("/api/open-matches/1/join");
+    await as("a").post("/api/open-matches/1/remove").send({ userId: 3 }).expect(200);
+    const g = await chat();
+    await expect(chats.groupThread("c", g.id)).rejects.toMatchObject({ status: 404 });
+    expect((await texts("b")).at(-1)).toBe("Mia Kowalski is out. Their spot is open again in Discover.");
   });
 
   it("lets only the poster cancel, and tells everyone", async () => {
@@ -269,25 +325,49 @@ describe("open match routes", () => {
     await as("b").get("/api/open-matches/1").expect(404);
   });
 
+  it("keeps everyone in a canceled match's chat, read only, with the reason", async () => {
+    await post();
+    await as("b").post("/api/open-matches/1/join");
+    await as("c").post("/api/open-matches/1/join");
+    await as("a").post("/api/open-matches/1/cancel").expect(200);
+    const thread = await chats.groupThread("c", (await chat()).id);
+    expect(thread.group).toMatchObject({ canSend: false, sendBlockedReason: "This match was canceled." });
+    expect(thread.messages.at(-1)?.text).toBe("Dana Lindqvist canceled this match. It's off everyone's schedule.");
+  });
+
+  it("makes the chat on open if a full match is missing one", async () => {
+    await post();
+    await as("b").post("/api/open-matches/1/join");
+    const failing = chats.syncGroup.bind(chats);
+    chats.syncGroup = async () => {
+      throw new Error("Stream down");
+    };
+    await as("c").post("/api/open-matches/1/join").expect(200);
+    chats.syncGroup = failing;
+    expect(await chats.groupForOpenMatch(1)).toBeNull();
+    const res = await as("b").get("/api/open-matches/1").expect(200);
+    expect(res.body.chatId).toBe((await chat()).id);
+  });
+
   describe("blocked players", () => {
     it("refuses a join when the joiner and anyone already in have a block, either way", async () => {
       await post();
       await as("b").post("/api/open-matches/1/join").expect(200);
-      repo.blocks = [["c", "b"]];
+      block([["c", "b"]]);
       await as("c").post("/api/open-matches/1/join").expect(404, { error: NOT_AVAILABLE, code: "unavailable" });
-      repo.blocks = [["b", "c"]];
+      block([["b", "c"]]);
       await as("c").post("/api/open-matches/1/join").expect(404, { error: NOT_AVAILABLE, code: "unavailable" });
       expect(repo.rows[0].joined).toEqual(["b"]);
-      repo.blocks = [["a", "c"]];
+      block([["a", "c"]]);
       await as("c").post("/api/open-matches/1/join").expect(404, { error: NOT_AVAILABLE, code: "unavailable" });
-      repo.blocks = [];
+      block([]);
       await as("c").post("/api/open-matches/1/join").expect(200);
     });
 
     it("hides the post from a player with a block with anyone in it, in the list and on open", async () => {
       await post();
       await as("b").post("/api/open-matches/1/join");
-      repo.blocks = [["b", "c"]];
+      block([["b", "c"]]);
       const list = await as("c").get("/api/open-matches").expect(200);
       expect(list.body.matches).toHaveLength(0);
       await as("c").get("/api/open-matches/1").expect(404);
@@ -296,7 +376,7 @@ describe("open match routes", () => {
     });
 
     it("leaves alerts for new posts out for players with a block with the poster", async () => {
-      repo.blocks = [["d", "a"]];
+      block([["d", "a"]]);
       repo.candidates = ["c", "d"].map((clerkUserId) => ({ clerkUserId, point: wappingers.point, radius: 10, rating: 3.5, sentToday: 0 }));
       await post().expect(201);
       expect(repo.alerts).toEqual(["c"]);
@@ -307,9 +387,10 @@ describe("open match routes", () => {
       await post();
       await as("b").post("/api/open-matches/1/join");
       await as("c").post("/api/open-matches/1/join");
-      await as("b").post("/api/open-matches/1/messages").send({ text: "From Theo" }).expect(201);
-      await as("c").post("/api/open-matches/1/messages").send({ text: "From Mia" }).expect(201);
-      repo.blocks = [["c", "b"]];
+      const g = await chat();
+      await chats.sendToGroup("b", g.id, { text: "From Theo", clientMessageId: cid() });
+      await chats.sendToGroup("c", g.id, { text: "From Mia", clientMessageId: cid() });
+      block([["c", "b"]]);
 
       const asB = await as("b").get("/api/open-matches/1").expect(200);
       expect(asB.body.players.map((p: { userId: number }) => p.userId)).toEqual([1, 2]);
@@ -319,17 +400,14 @@ describe("open match routes", () => {
       const asA = await as("a").get("/api/open-matches/1").expect(200);
       expect(asA.body.players).toHaveLength(3);
 
-      const chatB = await as("b").get("/api/open-matches/1/messages").expect(200);
-      expect(chatB.body.messages.map((m: { text: string }) => m.text)).not.toContain("From Mia");
-      expect(chatB.body.messages.map((m: { text: string }) => m.text)).toContain("From Theo");
-      const chatC = await as("c").get("/api/open-matches/1/messages").expect(200);
-      expect(chatC.body.messages.map((m: { text: string }) => m.text)).not.toContain("From Theo");
-      const chatA = await as("a").get("/api/open-matches/1/messages").expect(200);
-      expect(chatA.body.messages.map((m: { text: string }) => m.text)).toEqual(expect.arrayContaining(["From Theo", "From Mia"]));
+      expect(await texts("b")).not.toContain("From Mia");
+      expect(await texts("b")).toContain("From Theo");
+      expect(await texts("c")).not.toContain("From Theo");
+      expect(await texts("a")).toEqual(expect.arrayContaining(["From Theo", "From Mia"]));
 
-      push.mockClear();
-      await as("c").post("/api/open-matches/1/messages").send({ text: "Hi all" }).expect(201);
-      expect(push).toHaveBeenCalledWith(["a"], expect.any(String), "Mia Kowalski: Hi all", "/discover");
+      messagePushes = [];
+      await chats.sendToGroup("c", g.id, { text: "Hi all", clientMessageId: cid() });
+      expect(messagePushes.map((e) => [e.recipientId, e.senderName, e.text])).toEqual([["a", "Mia Kowalski", "Hi all"]]);
     });
   });
 

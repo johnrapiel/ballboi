@@ -7,7 +7,7 @@ import { MemoryMessagingProvider } from "../messaging/memoryProvider";
 import { MemoryMessagingRepo } from "../messaging/memoryRepo";
 import { MemoryModerationRepo } from "../messaging/moderation";
 import { SYSTEM_SENDER } from "../messaging/provider";
-import { MessagingError, MessagingService, type GroupSync, type NewMessageEvent } from "../messaging/service";
+import { LEFT_BALL_BOI, MessagingError, MessagingService, type GroupSync, type NewMessageEvent } from "../messaging/service";
 import { messagePushContent } from "../services/push/messagePush";
 
 // Group chats on the messaging service (F15, John, Nov 8): an open match's
@@ -173,7 +173,10 @@ describe("member changes", () => {
     await svc.deleteUserData("theo");
     expect(provider.membersOf(g.channelId).sort()).toEqual(["dana", "mia"]);
     expect(await svc.groups("theo")).toEqual([]);
-    expect((await svc.groupThread("dana", g.id)).messages.map((m) => m.text)).not.toContain("Hi all");
+    const dana = await svc.groupThread("dana", g.id);
+    expect(dana.messages.map((m) => m.text)).not.toContain("Hi all");
+    expect(dana.messages.at(-1)?.text).toBe("A player left Ball Boi.");
+    expect(dana.group).toMatchObject({ canSend: false, sendBlockedReason: LEFT_BALL_BOI });
   });
 });
 

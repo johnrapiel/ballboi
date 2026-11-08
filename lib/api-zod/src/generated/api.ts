@@ -485,35 +485,17 @@ export const GetOpenMatchResponse = zod.object({
   role: zod.enum(["poster", "in", "none"]),
   started: zod.boolean(),
   chatTitle: zod.string(),
+  chatId: zod
+    .number()
+    .nullable()
+    .describe(
+      "The group chat in Messages (\/messages\/groups\/{id}), once the match has filled",
+    ),
   matchId: zod.number().nullable(),
 });
 
 /**
- * @summary The group chat of a filled open match (add ?after=<id> for only newer lines)
- */
-export const GetOpenMatchMessagesParams = zod.object({
-  id: zod.coerce.number(),
-});
-
-export const GetOpenMatchMessagesResponse = zod.object({
-  open: zod.boolean(),
-  messages: zod.array(
-    zod.object({
-      id: zod.number(),
-      text: zod.string(),
-      at: zod.string(),
-      fromMe: zod.boolean(),
-      senderName: zod
-        .string()
-        .nullable()
-        .describe("Null for a line from Ball Boi"),
-      senderUserId: zod.number().nullable(),
-    }),
-  ),
-});
-
-/**
- * @summary join, drop, remove (poster; body userId), cancel (poster), or messages (send to the group chat; body text)
+ * @summary join, drop, remove (poster; body userId), or cancel (poster). The group chat is on /messages/groups (F15).
  */
 export const ActOnOpenMatchParams = zod.object({
   id: zod.coerce.number(),
@@ -551,6 +533,12 @@ export const ActOnOpenMatchResponse = zod.object({
   role: zod.enum(["poster", "in", "none"]),
   started: zod.boolean(),
   chatTitle: zod.string(),
+  chatId: zod
+    .number()
+    .nullable()
+    .describe(
+      "The group chat in Messages (\/messages\/groups\/{id}), once the match has filled",
+    ),
   matchId: zod.number().nullable(),
 });
 
