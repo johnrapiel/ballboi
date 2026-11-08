@@ -78,7 +78,7 @@ function NextMatch({ m, onOpen }: { m: UpcomingMatch; onOpen: () => void }) {
     .filter(Boolean)
     .join(". ");
   return (
-    <Card style={{ borderWidth: 0, paddingVertical: spacing.space4, gap: spacing.space3 }}>
+    <Card style={{ paddingVertical: spacing.space4, gap: spacing.space3 }}>
       <View accessible accessibilityLabel={spoken} style={{ alignItems: "center", gap: spacing.space1 }}>
         <Text variant="small" tone="inkMuted" style={{ textAlign: "center" }}>
           {head}

@@ -10,7 +10,7 @@ Ball Boi is a tennis app with heritage manners. Think Wilson's navy restraint, w
 - **Color is rare.** `court` green appears only when something good or live needs saying. Most screens use none. `danger` appears only for destructive actions and errors.
 - **Clean ground, not glass.** An ivory page with white cards by day, warm charcoal at night, no grain (John, Nov 6). No gradients, no glassmorphism, no neon.
 - **Hand-made, not decorated.** The brush headers, the ring, the painted ball and the roundel carry the brushwork. Never more than one motif per screen.
-- **Hairlines over shadows.** Cards sit on a 1px `hairline` border with a 16px corner (`radius-card`). The Next match card is the one soft card: no border, more padding, everything centred. Only floating things (sheets, menus) and the selected segment of a segmented control get a shadow.
+- **Hairlines over shadows, one rule for every card.** Every card and module, the Next match card included, is a white `linen` fill on a 1px `hairline` border with a 16px corner (`radius-card`). No borderless cards and no card shadows (John, Nov 7). `hairline` is light on purpose (10% ink by day, 10% ivory at night), so a border reads without feeling heavy. The Next match card keeps more padding and centres everything. Only floating things (sheets, menus) and the selected segment of a segmented control get a shadow.
 - **Brush for the page, serif for the moment, sans for the work.** Nanum Brush Script carries page headers, echoing the roundel. Cormorant Garamond carries scores, ranks, records, section headings and card titles. DM Sans carries everything you tap or read in a list.
 - **Generous, never crowded.** Default to `space-6` between cards and `space-12` above heroes.
 
