@@ -5,19 +5,23 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HeaderIconButton } from "@/components/Choice";
 import { EmptyState } from "@/components/EmptyState";
-import { ConversationRow } from "@/components/messages/ConversationRow";
+import { ConversationRow, GroupRow } from "@/components/messages/ConversationRow";
 import { ModerationRow } from "@/components/moderation/ModerationRow";
 import { Button, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { useConversations, useMessagesActions } from "@/hooks/useMessages";
+import { useConversations, useMessagesActions, type Conversation, type GroupConversation } from "@/hooks/useMessages";
 
 // Messages (spec: Messaging and moderation; approved canvas: Messages, opened
 // from the Messages button in the top corner of every tab). A brush title and
 // one list: every message goes straight here, with no Message Requests (John,
 // Nov 6, finding 17). New message stays at the top right and lists league
 // mates; anyone else is messaged from their player card. The Moderation row
-// shows for the admin only.
+// shows for the admin only. Open match group chats (F15) sit in the same
+// list, newest first, named for the match.
+
+type Item = { kind: "conversation"; item: Conversation } | { kind: "group"; item: GroupConversation };
+const lastAt = (i: Item) => i.item.lastMessage?.at ?? "";
 
 export default function MessagesScreen() {
   const c = useColors();
@@ -27,9 +31,13 @@ export default function MessagesScreen() {
   const actions = useMessagesActions();
   const [addingSamples, setAddingSamples] = useState(false);
 
-  const conversations = query.data?.conversations ?? [];
+  const items: Item[] = [
+    ...(query.data?.conversations ?? []).map((item) => ({ kind: "conversation" as const, item })),
+    ...(query.data?.groups ?? []).map((item) => ({ kind: "group" as const, item })),
+  ].sort((a, b) => lastAt(b).localeCompare(lastAt(a)));
 
   const open = (id: number) => router.push({ pathname: "/conversation/[id]", params: { id: String(id) } });
+  const openGroup = (id: number) => router.push({ pathname: "/conversation/group/[id]", params: { id: String(id) } });
 
   const addSamples = () => {
     setAddingSamples(true);
@@ -75,9 +83,15 @@ export default function MessagesScreen() {
         </>
       ) : (
         <FlatList
-          data={conversations}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => <ConversationRow conversation={item} onPress={() => open(item.id)} />}
+          data={items}
+          keyExtractor={(i) => `${i.kind}-${i.item.id}`}
+          renderItem={({ item: i }) =>
+            i.kind === "group" ? (
+              <GroupRow group={i.item} onPress={() => openGroup(i.item.id)} />
+            ) : (
+              <ConversationRow conversation={i.item} onPress={() => open(i.item.id)} />
+            )
+          }
           refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={c.ink} />}
           contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + spacing.space6 }}
           ListHeaderComponent={header}

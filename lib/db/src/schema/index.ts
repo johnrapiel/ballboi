@@ -30,3 +30,4 @@ export * from "./matchPlans";
 export * from "./openMatches";
 export * from "./weeklyAvailability";
 export * from "./feedback";
+export * from "./notifications";

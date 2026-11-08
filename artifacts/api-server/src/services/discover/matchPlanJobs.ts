@@ -1,11 +1,13 @@
 // Match card reminders (brief item 30, 32, 33). Every 5 minutes: the
-// day-before "Still on for tomorrow?", the 2-hour reminder, "Did it
-// happen?" 3 hours after, and the end of a no-show's 48 hours. Each is sent
+// day-before "Still on for tomorrow?", "Did it happen?" 3 hours after, and
+// the end of a no-show's 48 hours. The 8 AM day-before and 2-hour reminders
+// are the match day reminders every match gets (decision 127,
+// services/push/matchReminderJob.ts), behind their Settings switch. Each is sent
 // at most once: it's claimed on the plan before the push goes out.
 
 import cron from "node-cron";
 import { logger } from "../../lib/logger";
-import { dayBeforeAt, didItHappenAt, noShowDeadline, reminderAt } from "../../lib/matchPlan";
+import { dayBeforeAt, didItHappenAt, noShowDeadline } from "../../lib/matchPlan";
 import { DrizzleMatchPlanRepo, type MatchPlanRepo } from "../../lib/matchPlanRepo";
 import { sendPushToUsers } from "../../routes/notifications";
 import { whenLabel, type Push } from "../../routes/matchPlans";
@@ -29,9 +31,6 @@ export async function runMatchPlanJobs(repo: MatchPlanRepo, push: Push, now: Dat
       const dayBefore = dayBeforeAt(plan);
       if (now >= dayBefore && plan.respondedAt && dayBefore > plan.respondedAt && (await repo.claim(plan.id, "dayBeforeSentAt", now))) {
         await send(() => `Still on for tomorrow at ${timeLabel(plan.startsAt, plan.timeZone)}?`, `${whenLabel(plan.startsAt, plan.timeZone)}${where}. No answer means you're still on.`);
-      }
-      if (now >= reminderAt(plan) && (await repo.claim(plan.id, "reminderSentAt", now))) {
-        await send((other) => `Your match with ${other} is in 2 hours`, `${whenLabel(plan.startsAt, plan.timeZone)}${where}.`);
       }
     }
     if (plan.status === "accepted" && !match.score && !plan.noShowReportedAt && now >= didItHappenAt(plan) && (await repo.claim(plan.id, "didItHappenSentAt", now))) {

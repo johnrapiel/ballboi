@@ -581,6 +581,11 @@ export interface OpenMatchDetail {
   role: OpenMatchDetailRole;
   started: boolean;
   chatTitle: string;
+  /**
+   * The group chat in Messages (/messages/groups/{id}), once the match has filled
+   * @nullable
+   */
+  chatId: number | null;
   /** @nullable */
   matchId: number | null;
 }
@@ -607,25 +612,6 @@ export interface OpenMatchList {
   matchAlerts: boolean;
   /** "This match filled up" for posts you were taken off */
   notices: OpenMatchListNoticesItem[];
-}
-
-export type OpenMatchMessagesMessagesItem = {
-  id: number;
-  text: string;
-  at: string;
-  fromMe: boolean;
-  /**
-   * Null for a line from Ball Boi
-   * @nullable
-   */
-  senderName: string | null;
-  /** @nullable */
-  senderUserId: number | null;
-};
-
-export interface OpenMatchMessages {
-  open: boolean;
-  messages: OpenMatchMessagesMessagesItem[];
 }
 
 export interface NewCourtInput {
@@ -2957,6 +2943,28 @@ export interface PushRegistrationStatus {
   registered: boolean;
 }
 
+/**
+ * Settings › Notifications. Show message previews (decision 128) and Match day reminders (decision 127) are on by default.
+ */
+export interface NotificationSettings {
+  messagePreviews: boolean;
+  matchReminders: boolean;
+  /** Dev servers only, never production; shows the reminder testing buttons */
+  devTools?: boolean;
+}
+
+export interface MatchRemindersRunInput {
+  at?: string;
+}
+
+/**
+ * Either switch, or both
+ */
+export interface NotificationSettingsUpdate {
+  messagePreviews?: boolean;
+  matchReminders?: boolean;
+}
+
 export interface PhotoUploadRequest {
   name: string;
   size: number;
@@ -3380,9 +3388,64 @@ export interface MessagesSummary {
   unread: number;
 }
 
+export type GroupViewLastMessage = null | {
+  text: string;
+  fromMe: boolean;
+  /**
+   * Null for a line from Ball Boi
+   * @nullable
+   */
+  senderName: string | null;
+  at: string;
+};
+
+export interface GroupView {
+  id: number;
+  /** Sat 9 AM doubles · Beacon Courts */
+  title: string;
+  /** @nullable */
+  openMatchId: number | null;
+  memberCount: number;
+  lastMessage: GroupViewLastMessage;
+  unread: number;
+  canSend: boolean;
+  /** @nullable */
+  sendBlockedReason: string | null;
+}
+
 export type ConversationList = MessagesSummary & {
   conversations: ConversationView[];
+  /** Group chats you're in (F15), newest first */
+  groups?: GroupView[];
 };
+
+export interface GroupMessageView {
+  id: string;
+  text: string;
+  fromMe: boolean;
+  at: string;
+  /**
+   * Null for a line from Ball Boi
+   * @nullable
+   */
+  senderName: string | null;
+  /** @nullable */
+  senderPlayerId: number | null;
+  /** @nullable */
+  senderUserId: number | null;
+}
+
+export interface GroupThread {
+  group: GroupView;
+  messages: GroupMessageView[];
+  /** @nullable */
+  olderCursor: string | null;
+}
+
+export interface SentGroupMessage {
+  groupId: number;
+  message: GroupMessageView;
+}
 
 export interface ConversationThread {
   conversation: ConversationView;
@@ -3594,6 +3657,19 @@ export interface QuickMatchCreated {
   invite: QuickMatchCreatedInvite;
 }
 
+/**
+ * Set when this is a "Was that you?" request (decision 124) for the caller; null for an ordinary invite link
+ */
+export type RecordingInviteWasThatYou =
+  | (typeof RecordingInviteWasThatYou)[keyof typeof RecordingInviteWasThatYou]
+  | null;
+
+export const RecordingInviteWasThatYou = {
+  pending: "pending",
+  yes: "yes",
+  not_me: "not_me",
+} as const;
+
 export interface RecordingInvite {
   code: string;
   recorderName: string;
@@ -3602,6 +3678,8 @@ export interface RecordingInvite {
   claimed: boolean;
   claimedByYou: boolean;
   isYourInvite: boolean;
+  /** Set when this is a "Was that you?" request (decision 124) for the caller; null for an ordinary invite link */
+  wasThatYou?: RecordingInviteWasThatYou;
 }
 
 export type RecordableMatchFormat =
@@ -3902,6 +3980,12 @@ export type GetMatchBallBoiReplayMetadata200 = {
   chapters?: GetMatchBallBoiReplayMetadata200ChaptersItem[];
 };
 
+export type RunMatchRemindersDev200 = {
+  at: string;
+  timed: number;
+  nudges: number;
+};
+
 export type GetAdminReportsParams = {
   status?: GetAdminReportsStatus;
 };
@@ -3983,6 +4067,10 @@ export type GetConversationParams = {
   before?: string;
 };
 
+export type GetGroupThreadParams = {
+  before?: string;
+};
+
 export type CreateSampleMessages201 = {
   ok: boolean;
 };
@@ -3999,6 +4087,11 @@ export type ScoreQuickMatchBody = {
 export type ScoreQuickMatch200 = {
   matchId: number;
   score: string;
+};
+
+export type SendOpponentNotice200 = {
+  notified: number;
+  requested: boolean;
 };
 
 export type ClaimRecordingInvite200 = {

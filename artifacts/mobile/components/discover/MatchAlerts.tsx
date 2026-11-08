@@ -13,6 +13,7 @@ import { Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useSaveDiscoverSettings } from "@/hooks/useDiscover";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
+import { askForNotifications } from "@/lib/notifications";
 
 export function useNotificationsDenied(): boolean {
   const [denied, setDenied] = useState(false);
@@ -31,6 +32,8 @@ export function MatchAlertsCard({ on, title = "Get alerts for new posts" }: { on
   async function change(v: boolean) {
     try {
       await save.mutateAsync({ matchAlerts: v });
+      // Turning on open match alerts: the notifications prompt, the first time (decision 125).
+      if (v) void askForNotifications("matchAlerts");
     } catch (e) {
       Alert.alert("Couldn't save", isOfflineError(e) ? OFFLINE_MESSAGE : e instanceof Error ? e.message : "Try again.");
     }

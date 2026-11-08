@@ -5,16 +5,26 @@
 // - "Upload on cellular": Wi-Fi only by default (spec: After the match,
 //   Upload). It's about this phone's data plan, so it's saved on the phone.
 // Both stick after the app closes.
+// Notifications (Session G): Match day reminders (decision 127) and Show
+// message previews (decision 128).
 // Delete account sits at the bottom, in red, and opens the delete flow with
 // its own confirm (Apple 5.1.1(v); finding 21).
 
 import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  getGetNotificationSettingsQueryKey,
+  useGetNotificationSettings,
+  runMatchRemindersDev,
+  useUpdateNotificationSettings,
+  type NotificationSettings,
+} from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, View } from "react-native";
 
 import { DiscoverSettings } from "@/components/discover/DiscoverSettings";
+import { NotificationsOffBanner } from "@/components/NotificationsOffBanner";
 import { TRAINING_COPY } from "@/components/record/ConsentScreen";
 import { SettingsRow as ListSettingsRow, SettingsSection } from "@/components/SettingsList";
 import { Toggle } from "@/components/Toggle";
@@ -131,6 +141,8 @@ export default function SettingsScreen() {
         />
       ) : null}
 
+      <NotificationSettingsSection />
+
       <View style={{ marginTop: spacing.space6 }}>
         <DiscoverSettings />
       </View>
@@ -158,5 +170,104 @@ export default function SettingsScreen() {
         </SettingsSection>
       </View>
     </ScrollView>
+  );
+}
+
+export const MATCH_REMINDERS_COPY = "At 8 AM the day before each match and 2 hours before it. A league match with no time set yet gets a heads-up on Sunday.";
+
+export const MESSAGE_PREVIEWS_COPY = "On: message notifications show who it's from and what they said. Off: just who it's from.";
+
+/**
+ * Settings › Notifications (Session G): Match day reminders (decision 127) and
+ * Show message previews (decision 128), both on by default. iOS's own Show
+ * Previews setting still applies on top.
+ */
+function NotificationSettingsSection() {
+  const c = useColors();
+  const queryClient = useQueryClient();
+  const settings = useGetNotificationSettings();
+  const update = useUpdateNotificationSettings();
+  const key = getGetNotificationSettingsQueryKey();
+
+  async function change(next: Partial<NotificationSettings>) {
+    const before = queryClient.getQueryData<NotificationSettings>(key);
+    // Shown at once; put back if the server says no.
+    if (before) queryClient.setQueryData<NotificationSettings>(key, { ...before, ...next });
+    try {
+      const saved = await update.mutateAsync({ data: next });
+      queryClient.setQueryData<NotificationSettings>(key, (now) => ({ ...now, ...saved }));
+    } catch (e) {
+      if (before) queryClient.setQueryData(key, before);
+      Alert.alert("Couldn't save", isOfflineError(e) ? OFFLINE_MESSAGE : "Check your connection and try again.");
+    }
+  }
+
+  return (
+    <View style={{ marginTop: spacing.space6, gap: spacing.space3 }}>
+      <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ paddingHorizontal: spacing.space1 }}>
+        Notifications
+      </Text>
+      {/* iOS notifications off: the same one line as Home, so the switch below isn't a dead end. */}
+      <NotificationsOffBanner />
+      {settings.isLoading ? (
+        <ActivityIndicator color={c.ink} accessibilityLabel="Loading" />
+      ) : settings.isError || !settings.data ? (
+        <Card style={{ gap: spacing.space3 }}>
+          <Text accessibilityRole="alert">Couldn't load your notification settings.</Text>
+          <Button variant="secondary" label="Try again" loading={settings.isRefetching} onPress={() => void settings.refetch()} />
+        </Card>
+      ) : (
+        <>
+          <SettingRow
+            title="Match day reminders"
+            body={MATCH_REMINDERS_COPY}
+            value={settings.data.matchReminders}
+            onChange={(v) => void change({ matchReminders: v })}
+            disabled={update.isPending}
+          />
+          <SettingRow
+            title="Show message previews"
+            body={MESSAGE_PREVIEWS_COPY}
+            value={settings.data.messagePreviews}
+            onChange={(v) => void change({ messagePreviews: v })}
+            disabled={update.isPending}
+          />
+          {settings.data.devTools ? <ReminderTestingTools /> : null}
+        </>
+      )}
+    </View>
+  );
+}
+
+/**
+ * Dev servers only (never production): run the match day reminder job now, or
+ * as if it were 8 AM today, to see the day-before reminder without waiting.
+ * Running it twice sends nothing new (Session G acceptance 27).
+ */
+function ReminderTestingTools() {
+  const [busy, setBusy] = useState(false);
+  async function run(at: Date) {
+    setBusy(true);
+    try {
+      const r = await runMatchRemindersDev({ at: at.toISOString() });
+      Alert.alert("Reminders ran", `${r.timed} match reminder${r.timed === 1 ? "" : "s"} and ${r.nudges} Sunday nudge${r.nudges === 1 ? "" : "s"} sent.`);
+    } catch {
+      Alert.alert("Couldn't run", "Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  const eightToday = () => {
+    const d = new Date();
+    d.setHours(8, 5, 0, 0);
+    return d;
+  };
+  return (
+    <Card style={{ gap: spacing.space3 }}>
+      <Text variant="bodyStrong">Testing (dev server only)</Text>
+      <Text tone="inkMuted">Runs the match day reminders. Each one still goes out once at most.</Text>
+      <Button variant="secondary" label="Run reminders now" loading={busy} onPress={() => void run(new Date())} />
+      <Button variant="secondary" label="Run as if it's 8 AM today" disabled={busy} onPress={() => void run(eightToday())} />
+    </Card>
   );
 }

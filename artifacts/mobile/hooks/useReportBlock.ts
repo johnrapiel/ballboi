@@ -56,6 +56,8 @@ export const UNBLOCK_EFFECTS =
 export interface ReportTarget {
   /** Reporting one message in a conversation; otherwise the player. */
   conversationId?: number;
+  /** Or one message in a group chat (F15). */
+  groupId?: number;
   messageId?: string;
 }
 
@@ -80,6 +82,7 @@ export function useReportBlock() {
         playerId: player.id != null ? String(player.id) : `u${player.userId}`,
         name: player.name,
         ...(target.conversationId != null ? { conversationId: String(target.conversationId) } : {}),
+        ...(target.groupId != null ? { groupId: String(target.groupId) } : {}),
         ...(target.messageId ? { messageId: target.messageId } : {}),
       },
     });

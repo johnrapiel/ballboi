@@ -107,3 +107,25 @@ describe("messages routes", () => {
     process.env.NODE_ENV = prev;
   });
 });
+
+describe("group chat routes (F15)", () => {
+  it("list group chats beside conversations, open, send and report through the same service", async () => {
+    const g = (await svc.syncGroup({ openMatchId: 4, title: "Sat 9 AM singles", members: ["alex", "casey"], open: true, create: true, system: "All 2 spots filled." }))!;
+    mockUserId = "casey";
+    const sent = await supertest(app()).post(`/api/messages/groups/${g.id}/messages`).send({ text: "Court 2?", clientMessageId: "client-0101" });
+    expect(sent.status).toBe(201);
+    mockUserId = "alex";
+    const list = await supertest(app()).get("/api/messages");
+    expect(list.body.conversations).toEqual([]);
+    expect(list.body.groups[0]).toMatchObject({ id: g.id, title: "Sat 9 AM singles", unread: 2, memberCount: 2 });
+    expect(list.body.unread).toBe(2);
+    const thread = await supertest(app()).get(`/api/messages/groups/${g.id}`);
+    expect(thread.status).toBe(200);
+    expect(thread.body.messages.map((m: { text: string }) => m.text)).toEqual(["All 2 spots filled.", "Court 2?"]);
+    // No moderation storage in this test service: the route still answers in plain words.
+    const report = await supertest(app()).post(`/api/messages/groups/${g.id}/report`).send({ messageId: sent.body.message.id, reason: "spam" });
+    expect(report.status).toBe(503);
+    mockUserId = "sam";
+    expect((await supertest(app()).get(`/api/messages/groups/${g.id}`)).status).toBe(404);
+  });
+});
