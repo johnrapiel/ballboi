@@ -5,6 +5,16 @@
 /** Lowest charge, in whole percent, to start or keep recording unplugged. */
 export const MIN_BATTERY_PERCENT = 10;
 
+/** Below this, unplugged, the recording screen warns before the 10% auto-stop (G1). */
+export const WARN_BATTERY_PERCENT = 20;
+
+/** True when the battery is low enough to warn while recording: under 20% and not plugged in. */
+export function batteryWarning(level: number, pluggedIn: boolean): boolean {
+  if (pluggedIn) return false;
+  if (!Number.isFinite(level) || level < 0 || level > 1) return false;
+  return Math.round(level * 100) < WARN_BATTERY_PERCENT;
+}
+
 export const LOW_BATTERY_START_MESSAGE = "Charge your phone to at least 10% (or plug it in) to record a match.";
 
 /**

@@ -49,7 +49,7 @@ export default function BallBoiScreen() {
         }
       >
         <View style={{ gap: spacing.space3 }}>
-          <Text variant="label" accessibilityRole="header">
+          <Text variant="section" tone="inkMuted" accessibilityRole="header">
             Record a match
           </Text>
 
@@ -91,7 +91,7 @@ export default function BallBoiScreen() {
 
         {queued.length > 0 || onServer.length > 0 || server.isError ? (
           <View style={{ gap: spacing.space3 }}>
-            <Text variant="label" accessibilityRole="header">
+            <Text variant="section" tone="inkMuted" accessibilityRole="header">
               Your recordings
             </Text>
             {[...queued].reverse().map((r) => (

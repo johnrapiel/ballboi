@@ -98,6 +98,9 @@ import {
   hasRoomToStart,
   MAX_RECORDING_SECONDS,
   MIN_START_STORAGE_GB,
+  BATTERY_WARNING,
+  STORAGE_WARNING,
+  useRecordingWarnings,
   STOP_CUES,
   STOP_MESSAGES,
   useSafetyCap,
@@ -401,6 +404,8 @@ export default function RecordScreen() {
   }, [phase, delay]);
 
   useSafetyCap(phase === "recording", (reason) => stop(reason));
+  // G1: low battery or storage show in words while recording, before the safety cap stops the match.
+  const warnings = useRecordingWarnings(phase === "recording");
 
   function coachMoment(): CoachMoment {
     const p = phaseRef.current;
@@ -1033,7 +1038,15 @@ export default function RecordScreen() {
           accessibilityLabel={status}
           style={[styles.pill, { flexShrink: 1 }]}
         >
-          {recording ? <Icon name="record.circle" size={14} tintColor={chrome.danger} /> : null}
+          {recording ? (
+            // The design system's Rec pill: filled clay, a dot and the word, so it's never color alone.
+            <View style={styles.rec}>
+              <View style={styles.recDot} />
+              <Text variant="chip" style={{ color: chrome.onRec }}>
+                Rec
+              </Text>
+            </View>
+          ) : null}
           {rejoining || interrupted ? <Icon name="pause.circle" size={14} tintColor={chrome.text} /> : null}
           {/* D26: long names wrap instead of being cut off. */}
           <Text variant="bodyStrong" style={{ color: chrome.text, flexShrink: 1, textAlign: "center" }}>
@@ -1062,10 +1075,15 @@ export default function RecordScreen() {
         )}
       </View>
 
-      {/* G1: whether the court is in frame, in words and an icon, under the top bar. */}
+      {/* G1: whether the court is in frame, and low battery or storage, in words and an icon, under the top bar. No live stats. */}
       {phase === "ready" || counting || recording || rejoining ? (
-        <View pointerEvents="none" style={{ position: "absolute", top: insets.top + spacing.space2 + MIN_TAP + spacing.space2, left: spacing.space4, right: spacing.space4 }}>
+        <View
+          pointerEvents="none"
+          style={{ position: "absolute", top: insets.top + spacing.space2 + MIN_TAP + spacing.space2, left: spacing.space4, right: spacing.space4, gap: spacing.space2 }}
+        >
           <CourtStatus status={phase === "ready" || counting ? setupStatus : recordingStatus} />
+          {recording && warnings.battery ? <WarningPill text={BATTERY_WARNING} symbol="battery.25" /> : null}
+          {recording && warnings.storage ? <WarningPill text={STORAGE_WARNING} symbol="externaldrive.badge.exclamationmark" /> : null}
         </View>
       ) : null}
 
@@ -1282,6 +1300,18 @@ export default function RecordScreen() {
   );
 }
 
+/** A warning while recording: an icon and the words, never color alone. */
+function WarningPill({ text, symbol }: { text: string; symbol: "battery.25" | "externaldrive.badge.exclamationmark" }) {
+  return (
+    <View accessible accessibilityRole="text" accessibilityLabel={text} style={[styles.pill, { alignSelf: "center" }]}>
+      <Icon name={symbol} size={16} tintColor={chrome.text} />
+      <Text variant="bodyStrong" style={{ color: chrome.text, flexShrink: 1 }}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   round: {
     width: MIN_TAP,
@@ -1301,6 +1331,16 @@ const styles = StyleSheet.create({
     borderRadius: radius.radiusPill,
     backgroundColor: chrome.scrim,
   },
+  rec: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.space1,
+    paddingHorizontal: 10,
+    paddingVertical: spacing.space1,
+    borderRadius: radius.radiusPill,
+    backgroundColor: chrome.rec,
+  },
+  recDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: chrome.onRec },
   caption: {
     maxWidth: "85%",
     paddingHorizontal: spacing.space6,

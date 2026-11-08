@@ -1,7 +1,6 @@
 // Controls for the dark camera screen, styled with the Night palette in
 // lib/recording/chrome.ts. Same sizes and roles as the shared components.
 
-import { Icon } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
@@ -55,7 +54,7 @@ export function ChromeButton({
   );
 }
 
-/** Pick one option, like a segmented control. Selected is filled and checked. */
+/** Pick one option, like a segmented control. Selected is filled, with no icon (John, Nov 7); VoiceOver reads "selected". */
 export function ChromeChoice<T extends string | number>({
   label,
   options,
@@ -69,11 +68,10 @@ export function ChromeChoice<T extends string | number>({
 }) {
   return (
     <View style={{ gap: spacing.space2, alignItems: "center" }}>
-      <Text variant="label" style={{ color: chrome.text }} importantForAccessibility="no" accessibilityElementsHidden>
+      <Text variant="section" style={{ color: chrome.text }} importantForAccessibility="no" accessibilityElementsHidden>
         {label}
       </Text>
       <View
-        accessibilityRole="radiogroup"
         accessibilityLabel={label}
         style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: spacing.space2 }}
       >
@@ -82,9 +80,9 @@ export function ChromeChoice<T extends string | number>({
           return (
             <Pressable
               key={String(o.value)}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: on }}
-              accessibilityLabel={`${label} ${o.label}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={`${label}, ${o.label}`}
               onPress={() => onChange(o.value)}
               style={({ pressed }) => ({
                 minHeight: MIN_TAP,
@@ -101,7 +99,6 @@ export function ChromeChoice<T extends string | number>({
                 opacity: pressed ? 0.85 : 1,
               })}
             >
-              {on ? <Icon name="checkmark" size={12} tintColor={chrome.onButton} /> : null}
               <Text variant="bodyStrong" style={{ color: on ? chrome.onButton : chrome.text }}>
                 {o.label}
               </Text>

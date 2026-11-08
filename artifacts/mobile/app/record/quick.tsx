@@ -203,7 +203,7 @@ export default function QuickMatchScreen() {
           </Card>
         ) : (
           <View style={{ gap: spacing.space2 }}>
-            <Text variant="label" accessibilityRole="header">
+            <Text variant="section" tone="inkMuted" accessibilityRole="header">
               Opponent
             </Text>
             <OptionRow label="Someone not on Ball Boi" selected={pick === "new"} onPress={() => setPick("new")} />

@@ -19,4 +19,10 @@ export const chrome = {
   /** Fill for the main button: light ink on the dark camera, text in Night paper. */
   button: night.ink,
   onButton: night.paper,
+  /**
+   * The Rec pill: the one place clay stays (design system README, Nov 6
+   * exception). White on #943F24 is 7.0:1. Always with the word "Rec".
+   */
+  rec: "#943F24",
+  onRec: "#FFFFFF",
 } as const;

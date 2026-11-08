@@ -15,9 +15,9 @@ export interface ChoiceOption<T extends string | number> {
 
 /**
  * Pick one option from a short list, like a segmented control. Options wrap
- * onto a second line when they don't fit. The selected option is ink-filled
- * and checked, so it never relies on color alone. VoiceOver reads it as a
- * radio group.
+ * onto a second line when they don't fit. The selected option is filled with
+ * `ink` and `on-ink` text, no icon (John, Nov 7): filled against outlined is
+ * a change of shape, not just color. VoiceOver reads "selected".
  */
 export function ChoiceGroup<T extends string | number>({
   label,
@@ -36,19 +36,20 @@ export function ChoiceGroup<T extends string | number>({
   const c = useColors();
   return (
     <View style={{ gap: spacing.space2 }}>
-      <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
+      {/* Section label: sentence case, like every group label in the design system. */}
+      <Text variant="section" tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
         {label}
       </Text>
-      <View accessibilityRole="radiogroup" accessibilityLabel={label} style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.space2 }}>
+      <View accessibilityLabel={label} style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.space2 }}>
         {options.map((o) => {
           const on = o.value === value;
           return (
             <Pressable
               key={String(o.value)}
               onPress={() => onChange(o.value)}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: on }}
-              accessibilityLabel={o.accessibilityLabel ?? o.label}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={`${label}, ${o.accessibilityLabel ?? o.label}`}
               style={({ pressed }) => ({
                 minHeight: MIN_TAP,
                 minWidth: MIN_TAP,
@@ -64,7 +65,6 @@ export function ChoiceGroup<T extends string | number>({
                 opacity: pressed ? 0.8 : 1,
               })}
             >
-              {on ? <Icon name="checkmark" size={12} tintColor={c.onInk} /> : null}
               <Text variant="bodyStrong" tone={on ? "onInk" : "ink"}>
                 {o.label}
               </Text>
