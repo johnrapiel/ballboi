@@ -3638,6 +3638,11 @@ export interface GroupMemberRef {
   userId?: number;
 }
 
+export interface RemoveLeaguePlayerInput {
+  /** Started from the league chat's admin tools, so the removal is also logged to the moderation queue (decision 145) */
+  fromChat?: boolean;
+}
+
 export interface PinInput {
   messageId: string;
 }

@@ -2639,6 +2639,12 @@ paths:
           required: true
           schema:
             type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RemoveLeaguePlayerInput"
       responses:
         "200":
           description: Removed
@@ -11050,6 +11056,12 @@ components:
           type: integer
         userId:
           type: integer
+    RemoveLeaguePlayerInput:
+      type: object
+      properties:
+        fromChat:
+          type: boolean
+          description: Started from the league chat's admin tools, so the removal is also logged to the moderation queue (decision 145)
     PinInput:
       type: object
       properties:

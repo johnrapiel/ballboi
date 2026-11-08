@@ -193,6 +193,7 @@ import type {
   RecordingListItem,
   RecordingOpponent,
   RecordingRemoved,
+  RemoveLeaguePlayerInput,
   ReportReceipt,
   ReportStatusInput,
   ResetLeagueRecords200,
@@ -7474,6 +7475,7 @@ export const getRemoveLeaguePlayerUrl = (
 export const removeLeaguePlayer = async (
   leagueId: number,
   playerId: number,
+  removeLeaguePlayerInput?: RemoveLeaguePlayerInput,
   options?: RequestInit,
 ): Promise<DropoutResult> => {
   return customFetch<DropoutResult>(
@@ -7481,6 +7483,8 @@ export const removeLeaguePlayer = async (
     {
       ...options,
       method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(removeLeaguePlayerInput),
     },
   );
 };
@@ -7492,14 +7496,22 @@ export const getRemoveLeaguePlayerMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof removeLeaguePlayer>>,
     TError,
-    { leagueId: number; playerId: number },
+    {
+      leagueId: number;
+      playerId: number;
+      data: BodyType<RemoveLeaguePlayerInput>;
+    },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof removeLeaguePlayer>>,
   TError,
-  { leagueId: number; playerId: number },
+  {
+    leagueId: number;
+    playerId: number;
+    data: BodyType<RemoveLeaguePlayerInput>;
+  },
   TContext
 > => {
   const mutationKey = ["removeLeaguePlayer"];
@@ -7513,11 +7525,15 @@ export const getRemoveLeaguePlayerMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof removeLeaguePlayer>>,
-    { leagueId: number; playerId: number }
+    {
+      leagueId: number;
+      playerId: number;
+      data: BodyType<RemoveLeaguePlayerInput>;
+    }
   > = (props) => {
-    const { leagueId, playerId } = props ?? {};
+    const { leagueId, playerId, data } = props ?? {};
 
-    return removeLeaguePlayer(leagueId, playerId, requestOptions);
+    return removeLeaguePlayer(leagueId, playerId, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -7526,7 +7542,7 @@ export const getRemoveLeaguePlayerMutationOptions = <
 export type RemoveLeaguePlayerMutationResult = NonNullable<
   Awaited<ReturnType<typeof removeLeaguePlayer>>
 >;
-
+export type RemoveLeaguePlayerMutationBody = BodyType<RemoveLeaguePlayerInput>;
 export type RemoveLeaguePlayerMutationError = ErrorType<ErrorResponse>;
 
 /**
@@ -7539,14 +7555,22 @@ export const useRemoveLeaguePlayer = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof removeLeaguePlayer>>,
     TError,
-    { leagueId: number; playerId: number },
+    {
+      leagueId: number;
+      playerId: number;
+      data: BodyType<RemoveLeaguePlayerInput>;
+    },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof removeLeaguePlayer>>,
   TError,
-  { leagueId: number; playerId: number },
+  {
+    leagueId: number;
+    playerId: number;
+    data: BodyType<RemoveLeaguePlayerInput>;
+  },
   TContext
 > => {
   return useMutation(getRemoveLeaguePlayerMutationOptions(options));

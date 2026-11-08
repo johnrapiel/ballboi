@@ -2951,6 +2951,15 @@ export const RemoveLeaguePlayerParams = zod.object({
   playerId: zod.coerce.number(),
 });
 
+export const RemoveLeaguePlayerBody = zod.object({
+  fromChat: zod
+    .boolean()
+    .optional()
+    .describe(
+      "Started from the league chat's admin tools, so the removal is also logged to the moderation queue (decision 145)",
+    ),
+});
+
 export const RemoveLeaguePlayerResponse = zod.object({
   left: zod.boolean().optional(),
   removed: zod.boolean().optional(),

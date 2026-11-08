@@ -340,6 +340,7 @@ export * from "./recordingListItem";
 export * from "./recordingListItemStage";
 export * from "./recordingOpponent";
 export * from "./recordingRemoved";
+export * from "./removeLeaguePlayerInput";
 export * from "./reportReceipt";
 export * from "./reportReceiptStatus";
 export * from "./reportStatusInput";
