@@ -6,14 +6,14 @@
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { AccessibilityInfo, View, useColorScheme } from "react-native";
+import { AccessibilityInfo, View } from "react-native";
 
 import { ChipRow, ChoiceChip } from "@/components/discover/Controls";
 import { SettingsRow, SettingsSection } from "@/components/SettingsList";
 import { SheetBody, useSheetClose } from "@/components/Sheet";
 import { Button, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useScheme } from "@/hooks/useColors";
 import { courtPick, usePickedCourt } from "@/hooks/useCourts";
 import { useSendMatchPlan } from "@/hooks/useDiscoverMatchPlans";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
@@ -21,7 +21,7 @@ import { defaultPlanStart, planWhen } from "@/lib/discover";
 
 export default function AddMatchCardSheet() {
   const c = useColors();
-  const scheme = useColorScheme();
+  const scheme = useScheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ userId: string; name?: string }>();
   const userId = Number(params.userId);
