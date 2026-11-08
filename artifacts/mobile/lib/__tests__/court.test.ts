@@ -1,7 +1,7 @@
 import { decode, encode } from "jpeg-js";
 import { describe, expect, it } from "vitest";
 
-import { analysisSize, videoAspectCrop } from "@/lib/court/still";
+import { analysisSize, uprightTurn, videoAspectCrop } from "@/lib/court/still";
 import {
   calibrationFromFit,
   CONFIDENT_FIT,
@@ -10,7 +10,7 @@ import {
   sessionMetadata,
   toCalibration,
 } from "@/lib/court/calibration";
-import { detectCourt, type Pixels } from "@/lib/court/detect";
+import { detectCourt, houghLines, whiteLevel, YELLOW_MARGIN, type Pixels } from "@/lib/court/detect";
 import {
   applyHomography,
   CALIBRATION_POINT_ORDER,
@@ -35,8 +35,28 @@ const VIEW: Corners = [
   { x: 0.37, y: 0.3 },
 ];
 
-/** Paints a court seen through `corners` on a blue-green hard court, with a sky band and two "players". */
-function renderCourt(corners: Corners, opts: { lineWidth?: number; players?: boolean } = {}): Pixels {
+type Segment = [Point, Point];
+type RGB = [number, number, number];
+
+/** Pickleball court lines painted over a tennis court, in court meters: sidelines, kitchen lines and baselines. */
+const PICKLEBALL_M: Segment[] = [
+  [{ x: -3.05, y: -6.7 }, { x: -3.05, y: 6.7 }],
+  [{ x: 3.05, y: -6.7 }, { x: 3.05, y: 6.7 }],
+  [{ x: -3.05, y: -2.13 }, { x: 3.05, y: -2.13 }],
+  [{ x: -3.05, y: 2.13 }, { x: 3.05, y: 2.13 }],
+  [{ x: -3.05, y: -6.7 }, { x: 3.05, y: -6.7 }],
+  [{ x: -3.05, y: 6.7 }, { x: 3.05, y: 6.7 }],
+];
+
+/**
+ * Paints a court seen through `corners` on a blue-green hard court, with a
+ * sky band and two "players". `extra` paints more lines (pickleball lines)
+ * in their own colour; `light` tints the whole frame (warm evening sun).
+ */
+function renderCourt(
+  corners: Corners,
+  opts: { lineWidth?: number; players?: boolean; paint?: RGB; extra?: { lines: Segment[]; color: RGB }; light?: RGB } = {},
+): Pixels {
   const data = new Uint8Array(W * H * 4);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -50,7 +70,11 @@ function renderCourt(corners: Corners, opts: { lineWidth?: number; players?: boo
   }
   const h = courtToImage(corners)!;
   const half = (opts.lineWidth ?? 2.4) / 2;
-  for (const [a, b] of SCORE_LINES_M) {
+  const painted: { seg: Segment; color: RGB }[] = [
+    ...SCORE_LINES_M.map((seg) => ({ seg, color: opts.paint ?? ([233, 228, 214] as RGB) })),
+    ...(opts.extra?.lines ?? []).map((seg) => ({ seg, color: opts.extra!.color })),
+  ];
+  for (const { seg: [a, b], color } of painted) {
     const p = applyHomography(h, a);
     const q = applyHomography(h, b);
     const p0 = { x: p.x * W, y: p.y * H };
@@ -63,9 +87,9 @@ function renderCourt(corners: Corners, opts: { lineWidth?: number; players?: boo
         const d = Math.abs((q0.y - p0.y) * x - (q0.x - p0.x) * y + q0.x * p0.y - q0.y * p0.x) / len;
         if (d > half) continue;
         const i = (y * W + x) * 4;
-        data[i] = 233;
-        data[i + 1] = 228;
-        data[i + 2] = 214;
+        data[i] = color[0];
+        data[i + 1] = color[1];
+        data[i + 2] = color[2];
       }
     }
   }
@@ -80,6 +104,14 @@ function renderCourt(corners: Corners, opts: { lineWidth?: number; players?: boo
           data[i + 2] = 60;
         }
       }
+    }
+  }
+  if (opts.light) {
+    const [r, g, b] = opts.light;
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = Math.round(data[i] * r);
+      data[i + 1] = Math.round(data[i + 1] * g);
+      data[i + 2] = Math.round(data[i + 2] * b);
     }
   }
   return { width: W, height: H, data };
@@ -163,6 +195,24 @@ describe("detectCourt", () => {
     expect(maxCornerError(fit!.corners, low)).toBeLessThan(0.04);
   });
 
+  it("ignores pale yellow pickleball lines painted over the court", () => {
+    const px = renderCourt(VIEW, { paint: [235, 235, 232], extra: { lines: PICKLEBALL_M, color: [228, 222, 160] } });
+    const fit = detectCourt(px);
+    expect(fit).not.toBeNull();
+    expect(maxCornerError(fit!.corners, VIEW)).toBeLessThan(0.02);
+    expect(fit!.confidence).toBeGreaterThanOrEqual(CONFIDENT_FIT);
+    const lines = houghLines(px);
+    const white = whiteLevel(lines);
+    expect(lines.some((l) => l.yellow > white + YELLOW_MARGIN)).toBe(true);
+  });
+
+  it("still sees white lines in warm evening light, when every line looks a little yellow", () => {
+    const fit = detectCourt(renderCourt(VIEW, { paint: [240, 240, 238], light: [1, 0.93, 0.78] }));
+    expect(fit).not.toBeNull();
+    expect(maxCornerError(fit!.corners, VIEW)).toBeLessThan(0.02);
+    expect(fit!.confidence).toBeGreaterThanOrEqual(CONFIDENT_FIT);
+  });
+
   it("returns nothing on a frame with no court", () => {
     const blank = renderCourt(VIEW);
     for (let i = 0; i < blank.data.length; i += 4) {
@@ -228,5 +278,20 @@ describe("still frame", () => {
   it("analyses at 480 on the long side", () => {
     expect(analysisSize(1280, 720)).toEqual({ width: 480, height: 270 });
     expect(analysisSize(720, 1280)).toEqual({ width: 270, height: 480 });
+  });
+
+  it("leaves a still alone when it already matches how the phone is held", () => {
+    // expo-camera captures in the way the phone is physically held, and the
+    // image manipulator bakes that into the pixels: the normal case.
+    expect(uprightTurn("landscapeLeft", 4032, 3024)).toBe(0);
+    expect(uprightTurn("landscapeRight", 1280, 720)).toBe(0);
+    expect(uprightTurn("portrait", 3024, 4032)).toBe(0);
+    expect(uprightTurn("portraitUpsideDown", 3024, 4032)).toBe(0);
+  });
+
+  it("turns a still upright when it came out portrait on a phone held sideways", () => {
+    // Top of the phone to the left: the court lies turned a quarter clockwise, so turn it back.
+    expect(uprightTurn("landscapeLeft", 3024, 4032)).toBe(-90);
+    expect(uprightTurn("landscapeRight", 3024, 4032)).toBe(90);
   });
 });

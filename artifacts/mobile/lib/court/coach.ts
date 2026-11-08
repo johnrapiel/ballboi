@@ -8,6 +8,8 @@
 //   The quiet counts from when the last of those lines finished playing.
 // - The same correction stops after 3 times in a row while the phone hasn't
 //   moved (G8). Once the phone moves the count starts over.
+// - A correction, or "I can't see the court...", only once several frames in
+//   a row agree on it (lib/court/aim.ts agreedStep). Until they do, quiet.
 // - "Hold your phone there" (09) once the frame is nearly right and steady.
 // - No court at all: "I can't see the court..." (11), under the same rules.
 //   After about 20 seconds without a lock: "You can record anyway..." (12),
@@ -58,8 +60,8 @@ export const COACH_START: CoachState = { last: null, lastAt: 0, times: 0, saidHo
 
 export interface CoachInput {
   now: number;
-  /** The latest step from court detection. */
-  step: AimStep;
+  /** The step the latest frames agree on (lib/court/aim.ts agreedStep), or null while they don't. */
+  step: AimStep | null;
   stage: LockStage;
   /** A line is playing: nothing new starts. */
   busy: boolean;
@@ -89,6 +91,9 @@ export function nextCoachCue(state: CoachState, input: CoachInput): { cue: CueId
   if (input.recordAnywayDue) {
     return { cue: "recordAnyway", state: { ...state, quietUntil: quietAfter("recordAnyway", now) } };
   }
+
+  // The frames don't agree yet: say nothing rather than guess.
+  if (input.step === null) return quiet;
 
   if (input.step === "ok") {
     if (input.stage === "holding" && !state.saidHold) {

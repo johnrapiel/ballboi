@@ -29,12 +29,21 @@ export type AimStep =
   | "lower" // mounted too high: the court looks steep
   | "ok";
 
-// First settings, from a pinhole model of a phone 1 to 4 m up and 3 to 5 m
-// behind the baseline. Tune them against the labeled test set.
+// From a pinhole model of a phone 1 to 4 m up and 3 to 7 m behind the
+// baseline, checked against John's first court test (Nov 8): a phone about
+// 2 m up on the back fence, 6.7 m behind the baseline, saw the far baseline
+// at 0.45 to 0.47 of the way down, the near baseline at 0.79 to 0.89, and a
+// depth of 0.91. That view is good, so it has to lock. Fence-mounted phones
+// (1.4 to 3 m up, 5 to 7 m back) give depths of about 0.6 to 1.7, inside
+// DEPTH_MIN to DEPTH_MAX, so "raise" and "lower" only come up for a phone
+// that can actually be moved up or down the fence.
 /** The far baseline sits at least this far below the top of the frame. */
 export const FAR_TOP_MIN = 0.12;
-/** ...and no lower than this, so the far court isn't all sky. */
-export const FAR_TOP_MAX = 0.45;
+/**
+ * ...and no lower than this, so less than half the picture is above the
+ * court. Was 0.45, which asked for "tilt down" on the court test's view.
+ */
+export const FAR_TOP_MAX = 0.5;
 /** The far baseline's middle within this of the frame's centre, side to side. */
 export const CENTRE_TOLERANCE = 0.1;
 /** Near and far baseline middles line up within this: the phone is behind the centre mark. */
@@ -71,6 +80,49 @@ export function aimStep(fit: CourtFit | null): AimStep {
 /** True when this find is good enough to lock: nothing to fix and a confident fit. */
 export function lockable(fit: CourtFit | null): boolean {
   return !!fit && fit.confidence >= CONFIDENT_FIT && aimStep(fit) === "ok";
+}
+
+// ---------------------------------------------------------------------------
+// Steady advice. One frame can be wrong (a player across the service line, a
+// blurred frame), so the coach only acts on a step that several frames in a
+// row agree on (John's court test, Nov 8: the step flipped every second and
+// the advice made no sense).
+
+/** Confident frames in a row that must show the same correction before it's said. */
+export const STEP_FRAMES = 3;
+/** Frames in a row without a confident court before "I can't see the court..." */
+export const NO_COURT_FRAMES = 3;
+
+/** The step one frame shows the coach: "none" unless the fit is confident. */
+export function frameStep(fit: CourtFit | null): AimStep {
+  if (!fit || fit.confidence < CONFIDENT_FIT) return "none";
+  return aimStep(fit);
+}
+
+export interface StepRun {
+  /** The latest frame's step, and how many frames in a row have shown it. */
+  step: AimStep | null;
+  frames: number;
+}
+
+export const STEP_RUN_START: StepRun = { step: null, frames: 0 };
+
+/** Adds one frame's step to the run. */
+export function nextStepRun(run: StepRun, step: AimStep): StepRun {
+  return { step, frames: step === run.step ? run.frames + 1 : 1 };
+}
+
+/**
+ * The step the frames agree on, or null while they don't yet. A correction
+ * needs STEP_FRAMES confident frames in a row, "none" needs NO_COURT_FRAMES.
+ * "ok" counts at once: it never starts a correction, and the lock (two
+ * lockable finds in a row) has its own check.
+ */
+export function agreedStep(run: StepRun): AimStep | null {
+  if (!run.step) return null;
+  if (run.step === "ok") return "ok";
+  const need = run.step === "none" ? NO_COURT_FRAMES : STEP_FRAMES;
+  return run.frames >= need ? run.step : null;
 }
 
 /** The screen's court status, in words as well as color (G1). */

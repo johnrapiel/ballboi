@@ -1,15 +1,24 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  agreedStep,
   aimStep,
+  FAR_TOP_MAX,
   frameStatus,
+  frameStep,
   LOCK_STREAK,
   lockable,
   lostLock,
+  NO_COURT_FRAMES,
   nextLock,
+  nextStepRun,
   RECORD_ANYWAY_MS,
   recordAnywayReady,
   startSearch,
+  STEP_FRAMES,
+  STEP_RUN_START,
+  type AimStep,
+  type StepRun,
 } from "@/lib/court/aim";
 import { base64ToBytes } from "@/lib/court/base64";
 import type { CourtFit } from "@/lib/court/detect";
@@ -39,7 +48,21 @@ describe("aimStep: one step at a time", () => {
 
   it("tilts up when the far baseline is at the top edge, and down when there's too much sky", () => {
     expect(aimStep(fit(shift(GOOD, 0, -0.22)))).toBe("tiltUp");
-    expect(aimStep(fit(shift(GOOD, 0, 0.2)))).toBe("tiltDown");
+    expect(aimStep(fit(shift(GOOD, 0, 0.25)))).toBe("tiltDown");
+  });
+
+  it("accepts the court test's view: a phone about 2 m up on the back fence (Nov 8)", () => {
+    // Hand-labeled corners from lib/__tests__/fixtures/court-frames: the far
+    // baseline 0.45 of the way down, behind the net. 0.45 used to ask for "tilt down".
+    const fence: Corners = [
+      { x: -0.064, y: 0.791 },
+      { x: 1.002, y: 0.889 },
+      { x: 0.597, y: 0.466 },
+      { x: 0.358, y: 0.443 },
+    ];
+    expect(aimStep(fit(fence))).toBe("ok");
+    // More than half the picture above the far baseline still asks for a tilt down.
+    expect(aimStep(fit(shift(fence, 0, FAR_TOP_MAX - 0.45 + 0.02)))).toBe("tiltDown");
   });
 
   it("turns toward where the court sits", () => {
@@ -83,6 +106,39 @@ describe("aimStep: one step at a time", () => {
     expect(lockable(fit(GOOD))).toBe(true);
     expect(lockable(fit(GOOD, 0.3))).toBe(false);
     expect(lockable(fit(shift(GOOD, 0.2, 0)))).toBe(false);
+  });
+});
+
+describe("steady advice: frames must agree", () => {
+  const runOf = (steps: AimStep[]): StepRun => steps.reduce(nextStepRun, STEP_RUN_START);
+
+  it("counts only confident fits as a court", () => {
+    expect(frameStep(fit(GOOD))).toBe("ok");
+    expect(frameStep(fit(GOOD, 0.3))).toBe("none");
+    expect(frameStep(fit(shift(GOOD, 0.2, 0)))).toBe("turnRight");
+    expect(frameStep(null)).toBe("none");
+  });
+
+  it("agrees on a correction only after it holds for several frames in a row", () => {
+    expect(STEP_FRAMES).toBeGreaterThanOrEqual(3);
+    const tilt = Array<AimStep>(STEP_FRAMES).fill("tiltUp");
+    expect(agreedStep(runOf(tilt.slice(1)))).toBeNull();
+    expect(agreedStep(runOf(tilt))).toBe("tiltUp");
+    // One different frame starts the count over.
+    expect(agreedStep(runOf([...tilt.slice(1), "turnLeft", "tiltUp"]))).toBeNull();
+  });
+
+  it("says it can't see the court only after several frames in a row without one", () => {
+    expect(NO_COURT_FRAMES).toBeGreaterThanOrEqual(3);
+    const none = Array<AimStep>(NO_COURT_FRAMES).fill("none");
+    expect(agreedStep(runOf(none.slice(1)))).toBeNull();
+    expect(agreedStep(runOf(none))).toBe("none");
+    expect(agreedStep(runOf(["none", "none", "ok", "none"]))).toBeNull();
+  });
+
+  it("takes ok at once: it never starts a correction, and the lock has its own check", () => {
+    expect(agreedStep(runOf(["tiltUp", "tiltUp", "ok"]))).toBe("ok");
+    expect(agreedStep(STEP_RUN_START)).toBeNull();
   });
 });
 

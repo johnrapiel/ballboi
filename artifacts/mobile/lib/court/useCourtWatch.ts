@@ -1,9 +1,10 @@
 // The court check on the mounted phone: frames from the camera while setting
 // up and counting down, the motion sensor all the way through.
 //
-// - Setting up: about one frame a second. Each find gives the next step
-//   (lib/court/aim.ts). Two good finds in a row while the phone is steady
-//   lock the court.
+// - Setting up: about one frame a second. Each find gives a step
+//   (lib/court/aim.ts), but the coach and the status only hear a step once
+//   several frames in a row agree on it, so one bad frame never changes the
+//   advice. Two good finds in a row while the phone is steady lock the court.
 // - Locked: frames stop. If the phone turns or tilts away from where it
 //   locked, the lock is lost and the search starts again (line 13 in the
 //   countdown).
@@ -17,17 +18,22 @@ import { DeviceMotion } from "expo-sensors";
 import { useEffect, useRef, useState, type RefObject } from "react";
 
 import {
-  aimStep,
+  agreedStep,
+  frameStep,
   lostLock,
   nextLock,
   recordAnywayReady,
+  nextStepRun,
   startSearch,
+  STEP_RUN_START,
   type AimStep,
   type LockState,
+  type StepRun,
 } from "@/lib/court/aim";
 import type { CourtFit } from "@/lib/court/detect";
 import { captureFrame, releaseFrame, type CourtFrame } from "@/lib/court/frame";
 import { hasMoved, isSteady, type Attitude } from "@/lib/court/motion";
+import type { PhoneOrientation } from "@/lib/court/overlay";
 
 /** Time between frames while setting up. */
 const FRAME_GAP_MS = 700;
@@ -36,7 +42,7 @@ const MOTION_INTERVAL_MS = 200;
 
 export interface CourtWatch {
   lock: LockState;
-  /** The latest step, or null before the first frame. */
+  /** The step the latest frames agree on, or null while they don't (and before the first frame). */
   step: AimStep | null;
   /** The latest find, for the overlay. */
   fit: CourtFit | null;
@@ -55,8 +61,8 @@ export interface CourtWatch {
 }
 
 export interface CourtWatchEvents {
-  /** A new frame was read. */
-  onFrame?: (step: AimStep, lock: LockState) => void;
+  /** A new frame was read. `step` is what the frames agree on so far, or null. */
+  onFrame?: (step: AimStep | null, lock: LockState) => void;
   onLocked?: (fit: CourtFit) => void;
   /** The phone moved away from where the court locked. */
   onLockLost?: () => void;
@@ -66,18 +72,21 @@ export interface CourtWatchEvents {
 /**
  * Watches the court. `framesOn` is true while frames may be taken (setting up
  * or counting down, camera ready); `sensing` while the motion sensor should
- * run (the whole time the camera screen is open).
+ * run (the whole time the camera screen is open). `orientation` is how the
+ * phone is held, from the camera's onResponsiveOrientationChanged.
  */
 export function useCourtWatch(
   camera: RefObject<CameraView | null>,
   framesOn: boolean,
   sensing: boolean,
   events: CourtWatchEvents = {},
+  orientation: PhoneOrientation = "portrait",
 ): CourtWatch {
   const [lock, setLockState] = useState<LockState>(() => startSearch(Date.now()));
   const lockRef = useRef(lock);
   const [step, setStep] = useState<AimStep | null>(null);
   const [fit, setFit] = useState<CourtFit | null>(null);
+  const stepRun = useRef<StepRun>(STEP_RUN_START);
   const [recordAnyway, setRecordAnyway] = useState(false);
   const recordAnywayRef = useRef(false);
   const [movedSinceLock, setMovedSinceLock] = useState(false);
@@ -88,8 +97,10 @@ export function useCourtWatch(
   const started = useRef(false);
   const inflight = useRef<Promise<unknown> | null>(null);
   const ev = useRef(events);
+  const held = useRef(orientation);
   useEffect(() => {
     ev.current = events;
+    held.current = orientation;
   });
 
   const setLock = (s: LockState) => {
@@ -110,6 +121,7 @@ export function useCourtWatch(
         steady.current = isSteady(m.rotationRate);
         if (lockRef.current.stage === "locked" && hasMoved(lockAttitude.current, now)) {
           lockAttitude.current = null;
+          stepRun.current = STEP_RUN_START;
           setMovedSinceLock(true);
           setLock(lostLock(lockRef.current, Date.now()));
           ev.current.onLockLost?.();
@@ -135,7 +147,7 @@ export function useCourtWatch(
       if (cancelled) return;
       const s = lockRef.current;
       if (s.stage !== "locked") {
-        const taking = captureFrame(camera.current);
+        const taking = captureFrame(camera.current, held.current);
         inflight.current = taking;
         const frame = await taking;
         inflight.current = null;
@@ -146,7 +158,8 @@ export function useCourtWatch(
         if (frame) {
           releaseFrame(latestFrame.current);
           latestFrame.current = frame;
-          const st = aimStep(frame.fit);
+          stepRun.current = nextStepRun(stepRun.current, frameStep(frame.fit));
+          const st = agreedStep(stepRun.current);
           const next = nextLock(lockRef.current, frame.fit, steady.current);
           setStep(st);
           setFit(frame.fit);

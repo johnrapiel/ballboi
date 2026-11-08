@@ -279,6 +279,7 @@ export default function RecordScreen() {
         if (courtRef.current.lock.stage !== "locked" && phaseRef.current === "ready") recordAnywayDue.current = true;
       },
     },
+    orientation,
   );
   const courtRef = useRef(court);
   courtRef.current = court;
@@ -411,7 +412,7 @@ export default function RecordScreen() {
   }
 
   /** One court frame: the next piece of guidance, one at a time with quiet between (G8). */
-  function coachFrame(step: AimStep, lock: LockState) {
+  function coachFrame(step: AimStep | null, lock: LockState) {
     const p = phaseRef.current;
     if (p !== "ready" && p !== "countdown") return;
     // Close to capture, lines 18 and 19 come first.
@@ -720,7 +721,7 @@ export default function RecordScreen() {
     if (lockedAtStart.current && !courtRef.current.movedSinceLock) {
       return { ...none, calibration: lockedAtStart.current };
     }
-    const frame = await Promise.race([captureFrame(camera.current), sleep(FRAME_TIMEOUT_MS).then(() => null)]);
+    const frame = await Promise.race([captureFrame(camera.current, orientation), sleep(FRAME_TIMEOUT_MS).then(() => null)]);
     try {
       const found = frame ? calibrationFromFit(frame.fit) : null;
       if (found) return { ...none, calibration: found };
