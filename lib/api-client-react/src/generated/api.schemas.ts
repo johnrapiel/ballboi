@@ -476,6 +476,64 @@ export interface PlayerCardSeason {
   noShows: number;
 }
 
+export type CareerSeasonsItem = {
+  key: string;
+  name: string;
+  from: string;
+  to: string;
+  wins: number;
+  losses: number;
+  played: number;
+};
+
+export type CareerResultsItem = {
+  matchId: number;
+  seasonKey: string;
+  opponentName: string;
+  won: boolean;
+  /** From your side, your games first */
+  score: string;
+  /** League name, Discover or Quick match */
+  context: string;
+  playoff: boolean;
+  /** A league match, which opens Match detail */
+  league: boolean;
+  /** @nullable */
+  completedAt: string | null;
+};
+
+export type CareerHeadToHeadItem = {
+  /** @nullable */
+  userId: number | null;
+  name: string;
+  wins: number;
+  losses: number;
+};
+
+export interface CareerWonLost {
+  won: number;
+  lost: number;
+}
+
+/**
+ * Scored matches against real Ball Boi players (league, Discover, confirmed Quick matches). Walkovers count in the record, never in sets or games
+ */
+export interface Career {
+  wins: number;
+  losses: number;
+  played: number;
+  bestWinStreak: number;
+  sets: CareerWonLost;
+  games: CareerWonLost;
+  tiebreaks: CareerWonLost;
+  /** Newest first, only seasons you played in */
+  seasons: CareerSeasonsItem[];
+  /** Newest first */
+  results: CareerResultsItem[];
+  /** Most played first; never a player blocked with you */
+  headToHead: CareerHeadToHeadItem[];
+}
+
 /**
  * @nullable
  */

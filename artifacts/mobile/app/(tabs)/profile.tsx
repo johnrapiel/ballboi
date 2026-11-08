@@ -26,7 +26,8 @@ import { useServerRecordings } from "@/lib/recording/api";
 // 1. The title "Profile", with the glass Settings and Messages buttons.
 // 2. The card (design D). Its pencil opens Edit profile; Free times opens
 //    the week's hour grid.
-// 3. This season: Record, Played, Streak, No-shows.
+// 3. This season: Record, Played, Streak, No-shows. See all opens Career
+//    (decision 147).
 // 4. Ball Boi this season, with See all opening this season's recordings on
 //    the Ball Boi tab. No shot stat has an all-season source that passes its
 //    accuracy bar yet (G1), so it shows how many matches you recorded. Hidden
@@ -109,7 +110,7 @@ export default function ProfileScreen() {
         ) : (
           <>
             <PlayerCard card={card} onEdit={() => router.push("/profile/edit")} onFreeTimes={() => router.push("/free-times")} />
-            <SeasonRow season={card.season} />
+            <SeasonRow season={card.season} onSeeAll={() => router.push("/profile/career")} />
             {seasonRecordings.length > 0 ? (
               <View style={{ gap: spacing.space2 }}>
                 <SectionHead

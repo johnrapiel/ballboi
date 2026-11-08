@@ -34,6 +34,7 @@ export function SettingsRow({
   subtitle,
   onPress,
   accessibilityHint,
+  accessibilityLabel,
   last,
   destructive,
   trailing,
@@ -43,6 +44,8 @@ export function SettingsRow({
   subtitle?: string | null;
   onPress?: () => void;
   accessibilityHint?: string;
+  /** Replaces "title, value" when the value reads badly aloud, like "2-1". */
+  accessibilityLabel?: string;
   last?: boolean;
   /** Red, for Delete account. Always confirmed by the screen it opens. */
   destructive?: boolean;
@@ -84,7 +87,7 @@ export function SettingsRow({
     return trailing ? (
       <View style={style}>{body}</View>
     ) : (
-      <View accessible accessibilityLabel={[title, value, subtitle].filter(Boolean).join(", ")} style={style}>
+      <View accessible accessibilityLabel={accessibilityLabel ?? [title, value, subtitle].filter(Boolean).join(", ")} style={style}>
         {body}
       </View>
     );
@@ -93,7 +96,7 @@ export function SettingsRow({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={[title, value].filter(Boolean).join(", ")}
+      accessibilityLabel={accessibilityLabel ?? [title, value].filter(Boolean).join(", ")}
       accessibilityHint={accessibilityHint ?? subtitle ?? undefined}
       style={({ pressed }) => [style, { opacity: pressed ? 0.7 : 1 }]}
     >
