@@ -7,7 +7,7 @@
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Stack, useNavigation, usePreventRemove, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { AccessibilityInfo, Alert, Pressable, ScrollView, View, useColorScheme } from "react-native";
+import { AccessibilityInfo, Alert, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HeaderIconButton } from "@/components/Choice";
@@ -15,7 +15,7 @@ import { ChipRow, ChoiceChip } from "@/components/discover/Controls";
 import { SettingsRow, SettingsSection } from "@/components/SettingsList";
 import { Button, Field, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useScheme } from "@/hooks/useColors";
 import { courtPick, usePickedCourt } from "@/hooks/useCourts";
 import { useDiscoverMe } from "@/hooks/useDiscover";
 import { usePostOpenMatch } from "@/hooks/useDiscoverOpenMatches";
@@ -30,7 +30,7 @@ const LEVELS: { value: LevelRange; label: string }[] = [
 
 export default function PostOpenMatchScreen() {
   const c = useColors();
-  const scheme = useColorScheme();
+  const scheme = useScheme();
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
