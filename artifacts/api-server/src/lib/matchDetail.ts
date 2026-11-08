@@ -38,6 +38,8 @@ export interface DetailPlayer {
   /** Profile name for a signed-up player, else the name on the league row. */
   name: string;
   clerkUserId: string | null;
+  /** Their photo ("/objects/..."), already null for placeholders and blocks. */
+  avatarUrl?: string | null;
 }
 
 export interface DetailInput {
@@ -70,7 +72,13 @@ export function buildMatchDetail(input: DetailInput) {
     !played && !m.voidedAt && !m.playoffBracketId && !leagueHasEnded(league) && input.round && roundPhase(input.round, todayFor(league, now)) === "grace";
   const lateUntil = late && input.round ? graceEndFor(input.round.endDate) : null;
   const side = (team: DetailPlayer[], won: boolean | null) => ({
-    players: team.map((p) => ({ playerId: p.id, name: p.name, you: p.clerkUserId === userId, hasAccount: !!p.clerkUserId })),
+    players: team.map((p) => ({
+      playerId: p.id,
+      name: p.name,
+      you: p.clerkUserId === userId,
+      hasAccount: !!p.clerkUserId,
+      avatarUrl: p.clerkUserId ? (p.avatarUrl ?? null) : null,
+    })),
     won: !!won,
   });
 

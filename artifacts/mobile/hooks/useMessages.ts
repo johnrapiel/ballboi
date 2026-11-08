@@ -17,7 +17,8 @@ export interface Conversation {
   /** You blocked the other person: read only, with Unblock. */
   blocked: boolean;
   /** userId: their account, for a Discover player with no league player record yet. */
-  other: { name: string; playerId: number | null; userId?: number | null };
+  /** `avatarUrl` is their photo ("/objects/..."); none for someone you blocked. */
+  other: { name: string; playerId: number | null; userId?: number | null; avatarUrl?: string | null };
   lastMessage: { text: string; fromMe: boolean; at: string } | null;
   unread: number;
   canSend: boolean;

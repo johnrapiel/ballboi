@@ -29,6 +29,8 @@ export interface PersonSummary {
   playerId: number | null;
   /** Their account's user id (users.id), for report and block when they have no player record yet (a Discover player). */
   userId?: number | null;
+  /** Their profile photo ("/objects/..."), if they set one. */
+  avatarUrl?: string | null;
 }
 
 /**

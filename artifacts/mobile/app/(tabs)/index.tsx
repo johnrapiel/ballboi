@@ -96,6 +96,7 @@ export default function HomeScreen() {
         time={when.time}
         myName={myName}
         myPhoto={profile?.avatarUrl}
+        opponentPhoto={m.opponentPhoto}
         opponentName={opponent}
         location={m.location}
         league={m.context}

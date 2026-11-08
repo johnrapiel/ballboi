@@ -30,7 +30,8 @@ export interface OpenMatchRepo {
   mine(clerkUserId: string, now: Date): Promise<OpenMatchRow[]>;
   /** "This match filled up" notices for players a poster removed; read once. */
   takeNotices(clerkUserId: string): Promise<OpenMatchRow[]>;
-  people(clerkUserIds: string[]): Promise<Map<string, { userId: number; name: string; rating: number | null }>>;
+  /** Name, level and photo ("/objects/...") for each account. */
+  people(clerkUserIds: string[]): Promise<Map<string, { userId: number; name: string; rating: number | null; avatarUrl?: string | null }>>;
   courtName(courtId: number): Promise<string | null>;
   isBlocked(a: string, b: string): Promise<boolean>;
   /** Which of `others` have a block with `me`, either way. */
@@ -245,13 +246,13 @@ export class DrizzleOpenMatchRepo implements OpenMatchRepo {
   }
 
   async people(clerkUserIds: string[]) {
-    const out = new Map<string, { userId: number; name: string; rating: number | null }>();
+    const out = new Map<string, { userId: number; name: string; rating: number | null; avatarUrl: string | null }>();
     if (!clerkUserIds.length) return out;
     const rows = await db
-      .select({ clerkUserId: usersTable.clerkUserId, userId: usersTable.id, name: usersTable.displayName, rating: usersTable.rating })
+      .select({ clerkUserId: usersTable.clerkUserId, userId: usersTable.id, name: usersTable.displayName, rating: usersTable.rating, avatarUrl: usersTable.avatarUrl })
       .from(usersTable)
       .where(inArray(usersTable.clerkUserId, clerkUserIds));
-    for (const r of rows) out.set(r.clerkUserId, { userId: r.userId, name: r.name?.trim() || "Player", rating: r.rating ?? null });
+    for (const r of rows) out.set(r.clerkUserId, { userId: r.userId, name: r.name?.trim() || "Player", rating: r.rating ?? null, avatarUrl: r.avatarUrl ?? null });
     return out;
   }
 

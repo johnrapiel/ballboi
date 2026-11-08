@@ -17,6 +17,8 @@ export interface PlanInput {
   score: string | null;
   otherName: string;
   otherUserId: number | null;
+  /** Their photo; older servers don't send it. */
+  otherAvatarUrl?: string | null;
 }
 
 /** An open match you posted or hold a spot in (GET /open-matches/mine). */
@@ -45,6 +47,8 @@ export interface UpcomingItem {
   opponentName: string | null;
   /** League matches: the opponent's player id, for Message. */
   opponentPlayerId: number | null;
+  /** The singles opponent's photo ("/objects/..."), for the next-match card. */
+  opponentPhoto: string | null;
   /** Discover matches: the other player's user id, for their chat. */
   otherUserId: number | null;
   leagueId: number | null;
@@ -93,6 +97,7 @@ export function upcomingList(input: {
   const stage = input.stage ?? (() => "Playoffs");
   const base = {
     opponentPlayerId: null,
+    opponentPhoto: null,
     otherUserId: null,
     leagueId: null,
     matchId: null,
@@ -122,6 +127,7 @@ export function upcomingList(input: {
         starts: i.phase === "upcoming" ? deadlineDate(i.startDate, null) : null,
         opponentName: i.opponentName ?? "your opponent",
         opponentPlayerId: i.opponentPlayerId,
+        opponentPhoto: i.opponentAvatarUrl ?? null,
         leagueId: i.leagueId,
         context: i.leagueName,
         matchId: i.matchId,
@@ -142,6 +148,7 @@ export function upcomingList(input: {
       playBy: p.playBy ? deadlineDate(p.playBy, p.timeZone) : null,
       opponentName: p.opponentName,
       opponentPlayerId: p.opponentPlayerId,
+      opponentPhoto: p.opponentAvatarUrl ?? null,
       leagueId: p.leagueId,
       context: `${p.leagueName} · ${stage(p.round)}`,
       matchId: p.matchId,
@@ -158,6 +165,7 @@ export function upcomingList(input: {
       scheduledAt: p.startsAt,
       opponentName: p.otherName,
       otherUserId: p.otherUserId,
+      opponentPhoto: p.otherAvatarUrl ?? null,
       context: "Discover",
       matchId: p.matchId,
       location: p.courtName,

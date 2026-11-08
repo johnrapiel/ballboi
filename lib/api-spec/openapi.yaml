@@ -7576,6 +7576,9 @@ components:
                   type: string
                 otherUserId:
                   type: [integer, 'null']
+                otherAvatarUrl:
+                  type: [string, 'null']
+                  description: Their photo ("/objects/..."); null with a block either way
               required: [otherName, otherUserId]
       required: [matches]
     PlayerCardSeason:
@@ -8020,6 +8023,9 @@ components:
                 type: boolean
               me:
                 type: boolean
+              avatarUrl:
+                type: [string, 'null']
+                description: Their photo ("/objects/..."). Players with a block either way are left out.
             required: [userId, name, rating, poster, me]
         role:
           type: string
@@ -8278,6 +8284,9 @@ components:
         opponentPlayerId:
           type: ["integer", "null"]
           description: The singles opponent's player id, for Message on the Home card; null for doubles and byes
+        opponentAvatarUrl:
+          type: ["string", "null"]
+          description: The singles opponent's photo ("/objects/..."); null for doubles, byes, placeholders and a block either way
         singles: { type: boolean }
         scheduledAt: { type: ["string", "null"] }
         location: { type: ["string", "null"] }
@@ -8300,6 +8309,9 @@ components:
         opponentPlayerId:
           type: ["integer", "null"]
           description: The singles opponent's player id, for Message on the Home card; null for doubles
+        opponentAvatarUrl:
+          type: ["string", "null"]
+          description: The singles opponent's photo ("/objects/..."); null for doubles, placeholders and a block either way
         singles: { type: boolean }
         timeZone: { type: string }
         playBy:
@@ -8621,6 +8633,9 @@ components:
         name: { type: string }
         you: { type: boolean }
         hasAccount: { type: boolean }
+        avatarUrl:
+          type: ["string", "null"]
+          description: Their photo ("/objects/..."); null for placeholders and a block either way
       required: [playerId, name, you, hasAccount]
 
     MatchDetailSide:
@@ -11137,6 +11152,9 @@ components:
             userId:
               type: [integer, 'null']
               description: Their users.id, for report and block when they have no player record (a Discover player)
+            avatarUrl:
+              type: [string, 'null']
+              description: Their photo ("/objects/..."); null when you blocked them
           required: [name, playerId]
         lastMessage:
           oneOf:

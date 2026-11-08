@@ -24,6 +24,8 @@ export interface MatchPlanRepo {
   name(clerkUserId: string): Promise<string>;
   /** users.id for an account, to open your chat with them. */
   userIdOf(clerkUserId: string): Promise<number | null>;
+  /** Their profile photo ("/objects/..."), if they set one. */
+  photoOf(clerkUserId: string): Promise<string | null>;
   courtName(courtId: number): Promise<string | null>;
   /** Accepted, upcoming or just played, for Home and My matches. */
   upcomingFor(clerkUserId: string, since: Date): Promise<PlanRow[]>;
@@ -162,6 +164,11 @@ export class DrizzleMatchPlanRepo implements MatchPlanRepo {
   async userIdOf(clerkUserId: string) {
     const [u] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.clerkUserId, clerkUserId));
     return u?.id ?? null;
+  }
+
+  async photoOf(clerkUserId: string) {
+    const [u] = await db.select({ avatarUrl: usersTable.avatarUrl }).from(usersTable).where(eq(usersTable.clerkUserId, clerkUserId));
+    return u?.avatarUrl ?? null;
   }
 
   async courtName(courtId: number) {

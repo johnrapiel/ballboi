@@ -7,7 +7,7 @@ import { radius } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useStableGetToken } from "@/hooks/useStableGetToken";
 import { initials } from "@/lib/onboarding";
-import { isApiPhoto, photoSource } from "@/lib/photos";
+import { avatarUri, isApiPhoto, photoSource } from "@/lib/photos";
 
 /**
  * Round player photo, or their initials on sand when there's no photo
@@ -16,8 +16,11 @@ import { isApiPhoto, photoSource } from "@/lib/photos";
  * Decorative: the name is always shown or read next to it.
  * Photos from the API need sign-in (A17), so the request carries the session
  * token; initials show until it's ready.
+ * `uri` can be the raw stored path ("/objects/..."), a full URL, or a photo
+ * just picked on the phone: `avatarUri` turns it into what to load.
  */
-export function Avatar({ name, uri, size = 96 }: { name: string; uri?: string | null; size?: number }) {
+export function Avatar({ name, uri: given, size = 96 }: { name: string; uri?: string | null; size?: number }) {
+  const uri = avatarUri(given);
   const c = useColors();
   const getToken = useStableGetToken();
   const [failed, setFailed] = useState(false);

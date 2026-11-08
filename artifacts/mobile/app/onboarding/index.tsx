@@ -5,6 +5,7 @@
 // anyone who signed in with the wrong account (Wave 1 review S3).
 
 import { useAuth, useUser } from "@clerk/expo";
+import { useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -32,6 +33,7 @@ export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
   const router = useRouter();
   const { signOut } = useAuth();
   const getToken = useStableGetToken();
+  const queryClient = useQueryClient();
   const { user } = useUser();
 
   const [name, setName] = useState(user?.fullName?.trim() ?? "");
@@ -109,6 +111,9 @@ export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
         profileExists,
       );
       setProfileExists(true);
+      // A new photo or name shows everywhere: every screen's data refetches
+      // (Home, Messages, leagues, Discover, Match detail).
+      void queryClient.invalidateQueries();
       if (editing) router.back();
       else router.push("/onboarding/home");
     } catch (e) {

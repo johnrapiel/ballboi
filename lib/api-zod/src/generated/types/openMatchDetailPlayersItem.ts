@@ -13,4 +13,9 @@ export type OpenMatchDetailPlayersItem = {
   rating: number | null;
   poster: boolean;
   me: boolean;
+  /**
+   * Their photo ("/objects/..."). Players with a block either way are left out.
+   * @nullable
+   */
+  avatarUrl?: string | null;
 };

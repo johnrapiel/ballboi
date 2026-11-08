@@ -114,7 +114,9 @@ export function createMatchPlansRouter(
       const out = [];
       for (const r of rows.filter((x) => !x.match.score)) {
         const other = r.plan.proposerClerkUserId === me ? r.plan.recipientClerkUserId : r.plan.proposerClerkUserId;
-        out.push({ ...view(r, me, now), otherName: await repo.name(other), otherUserId: await repo.userIdOf(other) });
+        // No photo with a block either way.
+        const otherAvatarUrl = (await repo.isBlocked(me, other)) ? null : await repo.photoOf(other);
+        out.push({ ...view(r, me, now), otherName: await repo.name(other), otherUserId: await repo.userIdOf(other), otherAvatarUrl });
       }
       res.json({ matches: out });
     } catch (err) {
