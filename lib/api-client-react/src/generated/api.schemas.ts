@@ -1485,14 +1485,6 @@ export const LeaguePlayoffSize = {
   NUMBER_8: 8,
 } as const;
 
-export type LeagueUnplayedRule =
-  (typeof LeagueUnplayedRule)[keyof typeof LeagueUnplayedRule];
-
-export const LeagueUnplayedRule = {
-  forfeit: "forfeit",
-  no_result: "no_result",
-} as const;
-
 export interface League {
   id: number;
   name: string;
@@ -1522,7 +1514,6 @@ export interface League {
   /** @nullable */
   seasonWeeks?: number | null;
   playoffSize: LeaguePlayoffSize;
-  unplayedRule: LeagueUnplayedRule;
   playerCount: number;
   matchCount: number;
   createdAt: string;

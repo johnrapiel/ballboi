@@ -9,7 +9,6 @@ import type { LeagueFormat } from "./leagueFormat";
 import type { LeaguePartnerMode } from "./leaguePartnerMode";
 import type { LeaguePlayoffSize } from "./leaguePlayoffSize";
 import type { LeagueStatus } from "./leagueStatus";
-import type { LeagueUnplayedRule } from "./leagueUnplayedRule";
 import type { LeagueVisibility } from "./leagueVisibility";
 
 export interface League {
@@ -41,7 +40,6 @@ export interface League {
   /** @nullable */
   seasonWeeks?: number | null;
   playoffSize: LeaguePlayoffSize;
-  unplayedRule: LeagueUnplayedRule;
   playerCount: number;
   matchCount: number;
   createdAt: string;

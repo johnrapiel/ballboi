@@ -8338,9 +8338,6 @@ components:
         playoffSize:
           type: integer
           enum: [0, 4, 8]
-        unplayedRule:
-          type: string
-          enum: ["forfeit", "no_result"]
         playerCount:
           type: integer
         matchCount:
@@ -8375,7 +8372,6 @@ components:
         - playerCount
         - visibility
         - playoffSize
-        - unplayedRule
         - matchCount
         - createdAt
         - updatedAt
