@@ -103,3 +103,36 @@ export function ChromeChoice<T extends string | number>({
     </View>
   );
 }
+
+/** A quiet underlined link on the camera, like "Setup tips". 44pt target. */
+export function ChromeLink({
+  label,
+  onPress,
+  accessibilityHint,
+}: {
+  label: string;
+  onPress: () => void;
+  accessibilityHint?: string;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
+      onPress={onPress}
+      hitSlop={spacing.space1}
+      style={({ pressed }) => ({
+        minHeight: MIN_TAP,
+        minWidth: MIN_TAP,
+        paddingHorizontal: spacing.space2,
+        alignItems: "center",
+        justifyContent: "center",
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <Text variant="bodyStrong" style={{ color: chrome.text, textDecorationLine: "underline", textAlign: "center" }}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}

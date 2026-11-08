@@ -40,13 +40,15 @@ import {
   Linking,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ChromeButton, ChromeChoice } from "@/components/record/ChromeControls";
-import { ConsentScreen } from "@/components/record/ConsentScreen";
+import { ChromeButton, ChromeChoice, ChromeLink } from "@/components/record/ChromeControls";
+import { FirstRunCarousel } from "@/components/record/FirstRunCarousel";
 import { HoldToStop } from "@/components/record/HoldToStop";
 import { Button, Screen, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
@@ -57,6 +59,8 @@ import { countdownClock, cueAt, START_DELAYS, type StartDelayMinutes } from "@/l
 import { deleteRecording, keepRecording } from "@/lib/recording/files";
 import { formatElapsed, spokenDuration } from "@/lib/recording/format";
 import { LOW_BATTERY_START_MESSAGE } from "@/lib/recording/limits";
+import { firstRunPages, type FirstRunPage } from "@/lib/recording/firstRun";
+import { loadHideSetup } from "@/lib/recording/prefs";
 import { enqueue, getQueue } from "@/lib/recording/queue";
 import {
   batteryBlocksStart,
@@ -97,6 +101,8 @@ const SHORT_RECORDING_SECONDS = 2 * 60;
 const MIN_PIECE_MS = 1500;
 /** After Resume recording, how long to keep trying while the camera comes back. */
 const RESUME_GIVE_UP_MS = 10_000;
+/** Room the ready screen keeps for the top bar, Record button and a status line, outside its scrolling panels. */
+const READY_RESERVED = 250;
 /** Within this many seconds of the 4-hour cap counts as reaching it. */
 const CAP_SLACK_SECONDS = 5;
 
@@ -133,6 +139,7 @@ interface Piece {
 export default function RecordScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   const params = useLocalSearchParams<{ matchId: string; opponent?: string; league?: string }>();
   const matchId = Number(params.matchId);
   const opponent = params.opponent ?? "your opponent";
@@ -168,6 +175,13 @@ export default function RecordScreen() {
   const askedMic = useRef(false);
   const consent = useRecordingConsent();
   const { getToken } = useAuth();
+  /** "Don't show this again" from the setup page; null until read. */
+  const [hideSetup, setHideSetupState] = useState<boolean | null>(null);
+  /** The carousel's pages, decided once when the screen opens so saving page 2 doesn't reshuffle them. */
+  const introPages = useRef<FirstRunPage[] | null>(null);
+  const [introDone, setIntroDone] = useState(false);
+  /** "Setup tips" on the ready screen: the setup page on its own. */
+  const [tipsOpen, setTipsOpen] = useState(false);
 
   const setPhase = (p: Phase) => {
     phaseRef.current = p;
@@ -176,6 +190,12 @@ export default function RecordScreen() {
 
   // The mounted phone must never auto-lock: iOS stops the camera when it does.
   useKeepAwake();
+
+  useEffect(() => {
+    loadHideSetup()
+      .then((h) => mounted.current && setHideSetupState(h))
+      .catch(() => mounted.current && setHideSetupState(false));
+  }, []);
 
   useEffect(() => {
     mounted.current = true;
@@ -285,8 +305,8 @@ export default function RecordScreen() {
     router.back();
   }
 
-  // Consent comes first: it explains the camera and microphone before iOS asks.
-  if (consent.isLoading) {
+  // The first-run carousel comes first: it explains the camera and microphone before iOS asks.
+  if (consent.isLoading || (consent.data && hideSetup === null)) {
     return (
       <Screen style={{ justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator accessibilityLabel="Loading" />
@@ -305,14 +325,41 @@ export default function RecordScreen() {
       </Screen>
     );
   }
-  if (!consent.data?.consented) {
-    // Saving the answer updates the consent query, which shows the camera.
+  if (consent.data && introPages.current === null) {
+    introPages.current = firstRunPages(consent.data, hideSetup ?? false);
+  }
+  const pages = introPages.current ?? [];
+  if (!introDone && pages.length > 0) {
     // The training switch starts from a choice made earlier, like at an invite (D7).
     return (
-      <ConsentScreen
-        onAgree={() => {}}
-        onCancel={closeWithoutRecording}
+      <FirstRunCarousel
+        pages={pages}
         initialTraining={consent.data?.trainingEnabled ?? true}
+        release={consent.data?.release}
+        onDone={() => setIntroDone(true)}
+        onCancel={closeWithoutRecording}
+      />
+    );
+  }
+  // Safety net: never open the camera without consent and a current release.
+  if (!consent.data?.consented || consent.data.release?.needed) {
+    return (
+      <Screen style={{ justifyContent: "center", gap: spacing.space4 }}>
+        <Text variant="title" accessibilityRole="header">
+          Couldn't open Ball Boi
+        </Text>
+        <Text tone="inkMuted">Close and try recording again.</Text>
+        <Button label="Close" onPress={closeWithoutRecording} />
+      </Screen>
+    );
+  }
+  if (tipsOpen) {
+    return (
+      <FirstRunCarousel
+        pages={["setup"]}
+        onDone={() => setTipsOpen(false)}
+        onCancel={() => setTipsOpen(false)}
+        cancelLabel="Back"
       />
     );
   }
@@ -699,6 +746,12 @@ export default function RecordScreen() {
       >
         {phase === "ready" ? (
           <>
+            {/* At the largest text sizes the panels scroll, so Record and Close stay on screen. */}
+            <ScrollView
+              style={{ alignSelf: "stretch", flexGrow: 0, maxHeight: Math.max(160, height - insets.top - insets.bottom - READY_RESERVED) }}
+              contentContainerStyle={{ gap: spacing.space4 }}
+              showsVerticalScrollIndicator
+            >
             <View style={[styles.panel, { backgroundColor: chrome.scrim, alignSelf: "stretch", gap: spacing.space4 }]}>
               <Text style={{ color: chrome.text, textAlign: "center" }}>
                 Mount your phone on the fence behind the baseline, turned sideways, with the whole court in view.
@@ -715,7 +768,18 @@ export default function RecordScreen() {
                 value={delay}
                 onChange={setDelay}
               />
+              <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", columnGap: spacing.space4 }}>
+                <ChromeLink
+                  label="Setup tips"
+                  accessibilityHint="Shows where to put your phone and what to check first."
+                  onPress={() => {
+                    setCameraReady(false);
+                    setTipsOpen(true);
+                  }}
+                />
+              </View>
             </View>
+            </ScrollView>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={delay === 0 ? "Record" : `Start ${delay} minute countdown`}

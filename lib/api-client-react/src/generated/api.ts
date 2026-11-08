@@ -49,6 +49,7 @@ import type {
   ClaimRecordingInvite200,
   CompleteBallBoiSessionBody,
   ConfirmLeagueName,
+  ConsentChoice,
   ContentReport,
   ContentReportRow,
   ConversationList,
@@ -15181,21 +15182,21 @@ export function useGetRecordingConsent<
 }
 
 /**
- * @summary Agree to recording on the first-recording screen, with the training choice
+ * @summary Agree to recording on the first-recording carousel, with the training choice and, while it's asked for, the beta release
  */
 export const getGiveRecordingConsentUrl = () => {
   return `/api/recording/consent`;
 };
 
 export const giveRecordingConsent = async (
-  trainingChoice: TrainingChoice,
+  consentChoice: ConsentChoice,
   options?: RequestInit,
 ): Promise<RecordingConsent> => {
   return customFetch<RecordingConsent>(getGiveRecordingConsentUrl(), {
     ...options,
     method: "POST",
     headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(trainingChoice),
+    body: JSON.stringify(consentChoice),
   });
 };
 
@@ -15206,14 +15207,14 @@ export const getGiveRecordingConsentMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof giveRecordingConsent>>,
     TError,
-    { data: BodyType<TrainingChoice> },
+    { data: BodyType<ConsentChoice> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof giveRecordingConsent>>,
   TError,
-  { data: BodyType<TrainingChoice> },
+  { data: BodyType<ConsentChoice> },
   TContext
 > => {
   const mutationKey = ["giveRecordingConsent"];
@@ -15227,7 +15228,7 @@ export const getGiveRecordingConsentMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof giveRecordingConsent>>,
-    { data: BodyType<TrainingChoice> }
+    { data: BodyType<ConsentChoice> }
   > = (props) => {
     const { data } = props ?? {};
 
@@ -15240,11 +15241,11 @@ export const getGiveRecordingConsentMutationOptions = <
 export type GiveRecordingConsentMutationResult = NonNullable<
   Awaited<ReturnType<typeof giveRecordingConsent>>
 >;
-export type GiveRecordingConsentMutationBody = BodyType<TrainingChoice>;
+export type GiveRecordingConsentMutationBody = BodyType<ConsentChoice>;
 export type GiveRecordingConsentMutationError = ErrorType<ErrorResponse>;
 
 /**
- * @summary Agree to recording on the first-recording screen, with the training choice
+ * @summary Agree to recording on the first-recording carousel, with the training choice and, while it's asked for, the beta release
  */
 export const useGiveRecordingConsent = <
   TError = ErrorType<ErrorResponse>,
@@ -15253,14 +15254,14 @@ export const useGiveRecordingConsent = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof giveRecordingConsent>>,
     TError,
-    { data: BodyType<TrainingChoice> },
+    { data: BodyType<ConsentChoice> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof giveRecordingConsent>>,
   TError,
-  { data: BodyType<TrainingChoice> },
+  { data: BodyType<ConsentChoice> },
   TContext
 > => {
   return useMutation(getGiveRecordingConsentMutationOptions(options));

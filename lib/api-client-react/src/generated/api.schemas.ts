@@ -3426,6 +3426,26 @@ export interface MessageReportInput {
   details?: string | null;
 }
 
+/**
+ * The Ball Boi Beta Footage Release. Only asked for while the server's BETA_RELEASE_REQUIRED setting is on.
+ */
+export interface BetaReleaseStatus {
+  /** The server setting is on */
+  required: boolean;
+  /** The current release version */
+  version: number;
+  url: string;
+  /** @nullable */
+  agreedVersion: number | null;
+  /**
+   * ISO 8601 date and time
+   * @nullable
+   */
+  agreedAt: string | null;
+  /** Show the release checkbox, unchecked, before the next recording */
+  needed: boolean;
+}
+
 export interface RecordingConsent {
   consented: boolean;
   /**
@@ -3434,6 +3454,13 @@ export interface RecordingConsent {
    */
   consentedAt: string | null;
   trainingEnabled: boolean;
+  release: BetaReleaseStatus;
+}
+
+export interface ConsentChoice {
+  trainingEnabled: boolean;
+  /** The release version the person agreed to by checking the box. Required while the release is needed. */
+  releaseVersion?: number;
 }
 
 export interface TrainingChoice {

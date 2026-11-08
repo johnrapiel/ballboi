@@ -5688,13 +5688,13 @@ paths:
     post:
       operationId: giveRecordingConsent
       tags: [recording]
-      summary: Agree to recording on the first-recording screen, with the training choice
+      summary: Agree to recording on the first-recording carousel, with the training choice and, while it's asked for, the beta release
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TrainingChoice'
+              $ref: '#/components/schemas/ConsentChoice'
       responses:
         '200':
           description: Consent
@@ -10070,7 +10070,39 @@ components:
           description: ISO 8601 date and time
         trainingEnabled:
           type: boolean
-      required: [consented, consentedAt, trainingEnabled]
+        release:
+          $ref: '#/components/schemas/BetaReleaseStatus'
+      required: [consented, consentedAt, trainingEnabled, release]
+    BetaReleaseStatus:
+      type: object
+      description: The Ball Boi Beta Footage Release. Only asked for while the server's BETA_RELEASE_REQUIRED setting is on.
+      properties:
+        required:
+          type: boolean
+          description: The server setting is on
+        version:
+          type: integer
+          description: The current release version
+        url:
+          type: string
+        agreedVersion:
+          type: [integer, 'null']
+        agreedAt:
+          type: [string, 'null']
+          description: ISO 8601 date and time
+        needed:
+          type: boolean
+          description: Show the release checkbox, unchecked, before the next recording
+      required: [required, version, url, agreedVersion, agreedAt, needed]
+    ConsentChoice:
+      type: object
+      properties:
+        trainingEnabled:
+          type: boolean
+        releaseVersion:
+          type: integer
+          description: The release version the person agreed to by checking the box. Required while the release is needed.
+      required: [trainingEnabled]
     TrainingChoice:
       type: object
       properties:
