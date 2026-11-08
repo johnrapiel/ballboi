@@ -40,6 +40,8 @@ The pill opens a one-field form: email only, to keep it seamless (decided Nov 7,
 2. Workers & Pages > `ballboi` > Settings > **Bindings** > Add > **D1 database**. Variable name `DB`, database `ballboi-early-access`, for Production (and Preview if you test there).
 3. Deploy. The table is created on the first sign-up.
 
+**Daily digest and TestFlight invites:** `artifacts/early-access-worker` emails John new sign-ups each morning with Approve buttons and sends approved people to TestFlight.
+
 **See the list:** D1 > `ballboi-early-access` > Console, then run
 `SELECT email, created_at FROM early_access ORDER BY created_at;`
 
