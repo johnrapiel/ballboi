@@ -6522,6 +6522,40 @@ export const GetRecordingInviteResponse = zod.object({
   claimed: zod.boolean(),
   claimedByYou: zod.boolean(),
   isYourInvite: zod.boolean(),
+  wasThatYou: zod
+    .union([
+      zod.literal("pending"),
+      zod.literal("yes"),
+      zod.literal("not_me"),
+      zod.literal(null),
+    ])
+    .nullish()
+    .describe(
+      'Set when this is a \"Was that you?\" request (decision 124) for the caller; null for an ordinary invite link',
+    ),
+});
+
+/**
+ * @summary Answer "Was that you?" with Not me, so the match never links to you
+ */
+export const AnswerNotMeParams = zod.object({
+  code: zod.coerce.string(),
+});
+
+export const AnswerNotMeResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary The mounted phone started capturing; tell the other players (each at most once)
+ */
+export const SendOpponentNoticeParams = zod.object({
+  matchId: zod.coerce.number(),
+});
+
+export const SendOpponentNoticeResponse = zod.object({
+  notified: zod.number(),
+  requested: zod.boolean(),
 });
 
 /**

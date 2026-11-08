@@ -28,6 +28,15 @@ vi.mock("../lib/playerSearchRepo", () => ({
   },
 }));
 
+// "Was that you?" (Session G): strangers get a stand-in and a request.
+const strangers = vi.hoisted(() => ({ isStranger: vi.fn(), create: vi.fn() }));
+vi.mock("../services/push/opponentRequests", () => ({
+  quickMatchStranger: strangers.isStranger,
+  createStrangerQuickMatch: strangers.create,
+  requestForCode: async () => null,
+  markRequestYes: async () => undefined,
+}));
+
 const inserts: { table: string; values: Record<string, unknown> }[] = [];
 let nextId = 50;
 
@@ -95,6 +104,8 @@ beforeEach(() => {
   search.findableUser.mockReset().mockResolvedValue(null);
   search.connected.mockReset().mockResolvedValue([]);
   search.blocked.mockReset().mockResolvedValue(new Set());
+  strangers.isStranger.mockReset().mockResolvedValue(false);
+  strangers.create.mockReset().mockResolvedValue({ matchId: 88 });
 });
 
 describe("POST /recording/quick-matches with opponentUserId", () => {
@@ -123,6 +134,19 @@ describe("POST /recording/quick-matches with opponentUserId", () => {
     search.blocked.mockResolvedValue(new Set(["cara"]));
     const res = await (await app()).post("/api/recording/quick-matches").send({ opponentUserId: 7 }).expect(404);
     expect(res.body.error).toBe("This player isn't available. Search again, or add someone not on Ball Boi.");
+    expect(inserts).toEqual([]);
+  });
+
+  it("records a stranger against a stand-in, with Was that you? (decision 124)", async () => {
+    search.findableUser.mockResolvedValue(found());
+    strangers.isStranger.mockResolvedValue(true);
+    const res = await (await app()).post("/api/recording/quick-matches").send({ opponentUserId: 7 }).expect(201);
+    expect(strangers.isStranger).toHaveBeenCalledWith("me", "cara");
+    expect(strangers.create).toHaveBeenCalledWith(
+      expect.objectContaining({ recorderId: "me", recorderPlayerId: 1, opponentClerkUserId: "cara", opponentName: "Cara Lin" }),
+    );
+    // The recorder never gets the request's code.
+    expect(res.body).toEqual({ matchId: 88, opponentName: "Cara Lin", invite: null });
     expect(inserts).toEqual([]);
   });
 });

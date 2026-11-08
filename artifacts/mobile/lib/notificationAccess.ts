@@ -67,6 +67,9 @@ export function routeForPushLink(link: unknown): string {
   if (match) return `/match/${match}`;
   const league = id(/^\/leagues?\/(\d+)$/);
   if (league) return `/league/${league}`;
+  // "Was that you?" (decision 124) opens the match invite screen.
+  const invite = path.match(/^\/record\/invite\/([A-Za-z0-9]{4,16})$/)?.[1];
+  if (invite) return `/record/invite/${invite.toUpperCase()}`;
   if (path === "/messages") return "/messages";
   if (path === "/matches") return "/matches";
   if (path === "/discover") return "/discover";

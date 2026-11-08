@@ -82,6 +82,15 @@ vi.mock("@clerk/express", () => ({
 }));
 vi.mock("pino", () => ({ default: () => ({ warn: vi.fn(), info: vi.fn(), error: vi.fn() }) }));
 vi.mock("../lib/blocks", () => ({ blockedAccountsFor: vi.fn().mockResolvedValue(new Set()) }));
+// "Was that you?" requests (Session G): none unless a test sets one.
+let mockRequest: { opponentClerkUserId: string; status: string } | null = null;
+const requestsMarkedYes: string[] = [];
+vi.mock("../services/push/opponentRequests", () => ({
+  requestForCode: async () => mockRequest,
+  markRequestYes: async (_tx: unknown, code: string) => void requestsMarkedYes.push(code),
+  quickMatchStranger: async () => false,
+  createStrangerQuickMatch: async () => ({ matchId: 0 }),
+}));
 
 const selectQueue: unknown[][] = [];
 let claimResult: unknown[] = [];
@@ -149,9 +158,36 @@ beforeEach(() => {
   selectQueue.length = 0;
   claimResult = [];
   playerUpdates.length = 0;
+  mockRequest = null;
+  requestsMarkedYes.length = 0;
 });
 
 describe("POST /recording/invites/:code/claim", () => {
+  it("Was that you? Yes: links the match and marks the request (decision 124)", async () => {
+    mockRequest = { opponentClerkUserId: "user_joiner", status: "pending" };
+    selectQueue.push([invite], [{ displayName: "Sam Lee" }]);
+    claimResult = [{ ...invite, claimedByClerkUserId: "user_joiner" }];
+    const res = await (await app()).post("/api/recording/invites/ABCD2345/claim").send({ trainingEnabled: true });
+    expect(res.status).toBe(200);
+    expect(requestsMarkedYes).toEqual(["ABCD2345"]);
+  });
+
+  it("Was that you? only its person can answer", async () => {
+    mockRequest = { opponentClerkUserId: "someone_else", status: "pending" };
+    selectQueue.push([invite]);
+    const res = await (await app()).post("/api/recording/invites/ABCD2345/claim").send({ trainingEnabled: true });
+    expect(res.status).toBe(404);
+    expect(playerUpdates).toEqual([]);
+  });
+
+  it("Was that you? after Not me, Yes doesn't link it", async () => {
+    mockRequest = { opponentClerkUserId: "user_joiner", status: "not_me" };
+    selectQueue.push([invite]);
+    const res = await (await app()).post("/api/recording/invites/ABCD2345/claim").send({ trainingEnabled: true });
+    expect(res.status).toBe(409);
+    expect(playerUpdates).toEqual([]);
+  });
+
   it("attaches the placeholder to the person who opens the link", async () => {
     selectQueue.push([invite], [{ displayName: "Sam Lee" }]);
     claimResult = [{ ...invite, claimedByClerkUserId: "user_joiner" }];

@@ -5,6 +5,7 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+import type { RecordingInviteWasThatYou } from "./recordingInviteWasThatYou";
 
 export interface RecordingInvite {
   code: string;
@@ -14,4 +15,6 @@ export interface RecordingInvite {
   claimed: boolean;
   claimedByYou: boolean;
   isYourInvite: boolean;
+  /** Set when this is a "Was that you?" request (decision 124) for the caller; null for an ordinary invite link */
+  wasThatYou?: RecordingInviteWasThatYou;
 }

@@ -6,6 +6,7 @@ import { eq, and } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
 import { logger } from "../lib/logger";
 import { notificationSettingsFor, saveNotificationSettings } from "../services/push/settings";
+import { answerNotMe, sendOpponentNotices } from "../services/push/opponentRequests";
 
 const router = Router();
 
@@ -311,6 +312,42 @@ router.put("/notifications/settings", async (req, res) => {
     return res.json(await saveNotificationSettings(userId, { messagePreviews }));
   } catch (err) {
     logger.error({ err }, "Couldn't save notification settings");
+    return res.status(500).json({ error: "Couldn't save. Try again." });
+  }
+});
+
+/**
+ * POST /recording/matches/:matchId/opponent-notice
+ * The mounted phone started capturing (Session G; decision 124). The other
+ * players get "Ball Boi is recording your match", or a stranger gets "Was
+ * that you?". Each at most once, so a retry or a second piece sends nothing.
+ */
+router.post("/recording/matches/:matchId/opponent-notice", async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  const matchId = Number(req.params.matchId);
+  if (!Number.isInteger(matchId) || matchId <= 0) return res.status(400).json({ error: "Invalid match id" });
+  try {
+    const result = await sendOpponentNotices(matchId, userId, sendPushToUsers);
+    if (!result) return res.status(404).json({ error: "Match not found" });
+    return res.json(result);
+  } catch (err) {
+    logger.error({ err, matchId }, "Opponent notice failed");
+    return res.status(500).json({ error: "Couldn't let your opponent know." });
+  }
+});
+
+/** POST /recording/invites/:code/not-me: "Was that you?" answered Not me (decision 124). */
+router.post("/recording/invites/:code/not-me", async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  const code = String(req.params.code).toUpperCase();
+  try {
+    const result = await answerNotMe(code, userId);
+    if (!result.ok) return res.status(result.status).json({ error: result.error });
+    return res.json({ success: true });
+  } catch (err) {
+    logger.error({ err }, "Not me failed");
     return res.status(500).json({ error: "Couldn't save. Try again." });
   }
 });
