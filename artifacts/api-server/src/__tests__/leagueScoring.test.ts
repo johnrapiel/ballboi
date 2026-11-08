@@ -32,7 +32,7 @@ describe("checkScoreEntry", () => {
   it("closes the match after the grace week", () => {
     const r = checkScoreEntry({ match, round, today: "2026-11-19", callerPlayerIds: [1] });
     expect(r).toMatchObject({ ok: false, status: 409 });
-    if (!r.ok) expect(r.error).toMatch(/grace week .* ended/);
+    if (!r.ok) expect(r.error).toMatch(/last day to play it was/);
   });
 
   it("refuses a second entry: the score is edited instead", () => {

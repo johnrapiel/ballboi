@@ -42,6 +42,9 @@ import {
   playoffLine,
   recordAction,
   resultLine,
+  LATE_NOTE,
+  lateTime,
+  playByLine,
   shortDate,
   weeklyMatchTime,
 } from "@/lib/leagueSchedule";
@@ -161,9 +164,10 @@ function YourWeek({
       (round.phase === "upcoming"
       ? `Starts ${shortDate(round.startDate)}. Play by ${deadlineDate(round.deadline, timeZone)}.`
       : round.phase === "grace"
-        ? `Grace week until ${deadlineDate(round.graceEnd, timeZone)}. A score now counts for Ball Boi stats, not standings.`
+        ? `${playByLine(round.graceEnd, timeZone)}. ${LATE_NOTE}`
         : `Play by ${deadlineDate(round.deadline, timeZone)}.`);
-  const matchTime = matchWhen(match.scheduledAt);
+  // A late match keeps its saved time only while that's still ahead (decision 152).
+  const matchTime = matchWhen(round.phase === "grace" ? lateTime(match.scheduledAt) : match.scheduledAt);
 
   return (
     <Card style={{ gap: spacing.space3 }}>

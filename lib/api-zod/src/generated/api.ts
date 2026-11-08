@@ -2647,6 +2647,12 @@ export const GetMyMatchResponse = zod.object({
   played: zod.boolean(),
   voided: zod.boolean(),
   inGrace: zod.boolean(),
+  lateUntil: zod
+    .string()
+    .nullable()
+    .describe(
+      "Set while an unplayed league match is late (its round's week has passed). The last day to play it, YYYY-MM-DD in the league's zone (decision 152)",
+    ),
   score: zod.string().nullable().describe("From your side, your games first"),
   you: zod.object({
     players: zod.array(

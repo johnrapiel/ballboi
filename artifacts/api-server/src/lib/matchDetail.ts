@@ -3,6 +3,7 @@
 // changed it, and the Ball Boi Replay once one exists. Pure, so it's easy to test.
 
 import { editDeadline } from "./leagueScoreChanges.js";
+import { graceEndFor, roundPhase, todayFor } from "./leagueCalendar.js";
 import { leagueHasEnded } from "./leagueLifecycle.js";
 import { flipScore } from "./tennisScore.js";
 
@@ -44,6 +45,8 @@ export interface DetailInput {
   league: { id: number; name: string; leagueType: string; timeZone?: string | null; endedAt?: Date | null; status?: string };
   players: DetailPlayer[];
   roundNumber: number | null;
+  /** The match's round, for late matches (decision 152). */
+  round?: { publishedAt: Date | null; startDate: string; endDate: string } | null;
   userId: string;
   replay: { durationSeconds: number | null; shotCount: number } | null;
   now: Date;
@@ -61,6 +64,11 @@ export function buildMatchDetail(input: DetailInput) {
   const youWon = played && m.winnerId != null ? team1Won === youOnTeam1 : null;
   const accounts = players.filter((p) => [...team1, ...team2].includes(p) && p.clerkUserId).map((p) => p.clerkUserId!);
   const enteredBy = m.recordedByClerkUserId ? players.find((p) => p.clerkUserId === m.recordedByClerkUserId) : null;
+  // Decision 152: an unplayed league match past its round's deadline, in its
+  // extra week. The last day to play it (YYYY-MM-DD, the league's zone).
+  const late =
+    !played && !m.voidedAt && !m.playoffBracketId && !leagueHasEnded(league) && input.round && roundPhase(input.round, todayFor(league, now)) === "grace";
+  const lateUntil = late && input.round ? graceEndFor(input.round.endDate) : null;
   const side = (team: DetailPlayer[], won: boolean | null) => ({
     players: team.map((p) => ({ playerId: p.id, name: p.name, you: p.clerkUserId === userId, hasAccount: !!p.clerkUserId })),
     won: !!won,
@@ -80,6 +88,7 @@ export function buildMatchDetail(input: DetailInput) {
     played,
     voided: !!m.voidedAt,
     inGrace: m.inGrace,
+    lateUntil,
     /** From your side, your games first. */
     score: played ? (youOnTeam1 ? m.score! : flipScore(m.score!)) : null,
     you: side(yours, youWon),

@@ -29,7 +29,14 @@ router.get("/me/matches/:matchId", async (req, res) => {
   const [[league], [round], [session]] = await Promise.all([
     db.select().from(leaguesTable).where(eq(leaguesTable.id, match.leagueId)),
     match.roundId
-      ? db.select({ roundNumber: leagueRoundsTable.roundNumber }).from(leagueRoundsTable).where(eq(leagueRoundsTable.id, match.roundId))
+      ? db
+          .select({
+            roundNumber: leagueRoundsTable.roundNumber,
+            publishedAt: leagueRoundsTable.publishedAt,
+            startDate: leagueRoundsTable.startDate,
+            endDate: leagueRoundsTable.endDate,
+          })
+          .from(leagueRoundsTable).where(eq(leagueRoundsTable.id, match.roundId))
       : Promise.resolve([]),
     // The Ball Boi Replay row shows only once an analysis has finished.
     db
@@ -51,6 +58,7 @@ router.get("/me/matches/:matchId", async (req, res) => {
       // A1: a signed-up player's profile name; a placeholder's name from the row.
       players: players.map((p) => ({ id: p.id, name: (p.clerkUserId ? p.displayName?.trim() : null) || p.name, clerkUserId: p.clerkUserId })),
       roundNumber: round?.roundNumber ?? null,
+      round: round ?? null,
       userId,
       replay: session ? { durationSeconds: session.durationSeconds ?? null, shotCount: Number(shots) } : null,
       now: new Date(),

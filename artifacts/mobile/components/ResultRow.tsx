@@ -7,6 +7,7 @@ import type { LeagueWeekResult } from "@workspace/api-client-react";
 import { ResultTag, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { LATE_RESULT } from "@/lib/leagueSchedule";
 
 // A result on Profile's Results and Career's seasons: W in green or L in red with the letter,
 // never color alone (John, Nov 6), then the score from your side and who it
@@ -19,7 +20,7 @@ export type ResultRowData = Pick<LeagueWeekResult, "won" | "score" | "opponentNa
 export function ResultRow({ r, last, onPress }: { r: ResultRowData; last: boolean; onPress?: () => void }) {
   const c = useColors();
   const outcome = r.won ? "Won" : "Lost";
-  const sub = [`vs. ${r.opponentName}`, r.leagueName, r.playoff ? "Playoffs" : null, r.inGrace ? "Grace week, not in standings" : null]
+  const sub = [`vs. ${r.opponentName}`, r.leagueName, r.playoff ? "Playoffs" : null, r.inGrace ? LATE_RESULT : null]
     .filter(Boolean)
     .join(" · ");
   const row = {

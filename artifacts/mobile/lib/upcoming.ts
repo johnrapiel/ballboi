@@ -1,6 +1,6 @@
 import type { LeagueWeek, LeagueWeekItem, LeagueWeekPlayoff } from "@workspace/api-client-react";
 
-import { deadlineDate, isToday } from "./leagueSchedule";
+import { deadlineDate, isToday, lateTime } from "./leagueSchedule";
 
 // Upcoming matches (spec decision 137, John, Nov 8): one list of every match
 // still to play, league, playoff and Discover, in date order. Home shows the
@@ -53,7 +53,7 @@ export interface UpcomingItem {
   matchId: number | null;
   location: string | null;
   singles: boolean;
-  /** A round in its grace week. */
+  /** A late match: its round's week has passed and it's in its extra week (decision 152). */
   grace: boolean;
   /** League round still to open. */
   notStarted: boolean;
@@ -87,7 +87,9 @@ export function upcomingList(input: {
   plans?: PlanInput[] | null;
   open?: OpenInput[] | null;
   stage?: (round: string) => string;
+  now?: Date;
 }): UpcomingItem[] {
+  const now = input.now ?? new Date();
   const stage = input.stage ?? (() => "Playoffs");
   const base = {
     opponentPlayerId: null,
@@ -106,12 +108,16 @@ export function upcomingList(input: {
   const weekly: UpcomingItem[] = (input.week?.thisWeek ?? [])
     .filter((i): i is LeagueWeekItem & { matchId: number } => !i.bye && i.matchId != null && !i.played)
     .map((i) => {
-      const playByDate = i.phase === "grace" ? i.graceEnd : i.deadline;
+      const late = i.phase === "grace";
+      const playByDate = late ? i.graceEnd : i.deadline;
+      // A late match keeps its saved time only while it's still ahead; a past
+      // time would read as upcoming, so it shows "Play by" instead (decision 152).
+      const scheduledAt = isoOk(i.scheduledAt) ? (late ? lateTime(i.scheduledAt, now) : i.scheduledAt) : null;
       return {
         ...base,
         key: `m-${i.matchId}`,
         kind: "league",
-        scheduledAt: isoOk(i.scheduledAt) ? i.scheduledAt : null,
+        scheduledAt,
         playBy: deadlineDate(playByDate, i.timeZone),
         starts: i.phase === "upcoming" ? deadlineDate(i.startDate, null) : null,
         opponentName: i.opponentName ?? "your opponent",
@@ -121,9 +127,9 @@ export function upcomingList(input: {
         matchId: i.matchId,
         location: i.location,
         singles: i.singles,
-        grace: i.phase === "grace",
+        grace: late,
         notStarted: i.phase === "upcoming",
-        sortAt: sortKey(i.scheduledAt, playByDate),
+        sortAt: sortKey(scheduledAt, playByDate),
       };
     });
   const playoffs: UpcomingItem[] = (input.week?.playoffs ?? [])
@@ -203,7 +209,7 @@ export function rowSub(m: Pick<UpcomingItem, "kind" | "opponentName" | "context"
 
 /** The row as VoiceOver reads it, with words in place of dots and short days. */
 export function rowSpoken(
-  m: Pick<UpcomingItem, "kind" | "scheduledAt" | "playBy" | "starts" | "opponentName" | "context" | "singles" | "openStatus" | "location">,
+  m: Pick<UpcomingItem, "kind" | "scheduledAt" | "playBy" | "starts" | "opponentName" | "context" | "singles" | "openStatus" | "location"> & { grace?: boolean },
   now: Date = new Date(),
 ): string {
   let when: string;
@@ -213,7 +219,7 @@ export function rowSpoken(
   } else if (m.starts) {
     when = `No time set yet, round starts ${m.starts}`;
   } else {
-    when = m.playBy ? `No time set yet, play by ${m.playBy}` : "No time set yet";
+    when = m.playBy ? `${m.grace ? "Late match" : "No time set yet"}, play by ${m.playBy}` : "No time set yet";
   }
   const who =
     m.kind === "open"
@@ -231,8 +237,11 @@ export function isMatchDay(m: Pick<UpcomingItem, "scheduledAt">, now: Date = new
   return !!m.scheduledAt && isToday(m.scheduledAt, now);
 }
 
-/** The D2 card's date line and big serif line. */
-export function cardWhen(m: Pick<UpcomingItem, "scheduledAt" | "playBy" | "starts">, now: Date = new Date()): { dateLabel: string; time: string } {
+/**
+ * The D2 card's date line and big serif line. A late match with no time
+ * ahead reads "Late match" over "Play by Fri, Nov 13" (decision 152).
+ */
+export function cardWhen(m: Pick<UpcomingItem, "scheduledAt" | "playBy" | "starts"> & { grace?: boolean }, now: Date = new Date()): { dateLabel: string; time: string } {
   if (m.scheduledAt) {
     const d = new Date(m.scheduledAt);
     return {
@@ -240,5 +249,6 @@ export function cardWhen(m: Pick<UpcomingItem, "scheduledAt" | "playBy" | "start
       time: clock(d),
     };
   }
+  if (m.grace && m.playBy) return { dateLabel: "Late match", time: `Play by ${m.playBy}` };
   return { dateLabel: m.starts ? `Starts ${m.starts}` : "No time set yet", time: m.playBy ? `By ${m.playBy}` : "Time to be set" };
 }

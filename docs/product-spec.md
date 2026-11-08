@@ -168,7 +168,7 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 - **Standings rank on wins**, then head to head between players level on wins, then share of sets won, then share of games won; players share a rank only when all four are level (decision 79). Playoff seeding uses the same order
 - **Either player can edit a score for 24 hours** from the pencil next to it on Match detail; the latest edit stands, standings recompute, and the other player sees "Score edited by [name]". After 24 hours only the admin's logged correction in Manage can change it (decision 100)
 - **Tiebreaks:** a set entered as 6-6 opens tiebreak boxes; the points are required and the set saves as 7-6(x) (decision 104)
-- **Grace period:** a match played in the week after its round's deadline updates Ball Boi stats, but not standings
+- **Late matches (grace period):** an unplayed match can still be played in the week after its round's deadline, but its result doesn't change the standings. In the app it shows "Play by" the end of that extra week and "This match's week has passed. You can still play it, but the result won't change the standings." The app never says "grace week" or "Ball Boi stats" (decision 152)
 - **Opponent retired:** enter the score so far; it counts as a win and shows RET
 - **Playoffs:** each round gets two weeks, a play week plus a grace week, then the admin enters the result or a walkover
 - **Corrections lock when a league ends:** Correct a score is hidden and final standings never change
@@ -186,7 +186,7 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 2. Admin can swap pairings, mark a bye, or lock a match before publishing
 3. Players work out a time in a direct chat with their opponent (Message opponent). In a league with no set match time, either player saves the match's date and time inside its week
 4. Either player enters the score and standings update; it can be edited for 24 hours (decision 100)
-5. Unplayed matches get a 1-week grace period after the round's deadline; matches played in it update Ball Boi stats but not standings
+5. Unplayed matches get one extra week after the round's deadline; a late result in it doesn't change the standings, and the app says so in those words (decision 152)
 
 **Reminders (decision 127):** any match with a set date and time, league or Discover, gets a reminder at 8 AM the day before (on the match's clock, at most once) and one 2 hours before. League matches with no set time get a Sunday "your match this week" nudge. There's no weekly "set your availability" reminder. All behind the Match day reminders switch, on by default
 
@@ -542,3 +542,4 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 148 | The match recap: a shareable image made after a score is entered, for Instagram Stories (9:16) and texts. You in full, your opponent as first name and last initial, the score with the winner underlined, the date, court and league (or Discover / Quick match), your new season record and the roundel; always the Day look. "Share recap" on the moment after entering a score and on Match detail opens the iOS share sheet. Doubles use team names in the same pattern. Aces and winners join once those stats pass their accuracy bars (John, Nov 8, H5) |
 | 149 | Three milestone moments, not four: score entered, new career milestone, Ball Boi analysis ready. The player card reveal (flip) is cut; card D appears like any other screen. Milestones are earned on the server when the result or recording that earns them is saved, once per player, with the date; existing players are backfilled. The moment plays the next time you open the app (John, Nov 8, H6) |
 | 150 | Milestones show on the Career screen (badge, title and date earned) and as a small row of earned badges on the player card, your own and other players', read by VoiceOver as part of the card summary. Changes decision 139's "the card holds only what the player entered" (John, Nov 8, H7) |
+| 152 | Late matches: a league match past its week shows 'Play by' the end of its extra week and 'This match's week has passed. You can still play it, but the result won't change the standings.' The words 'grace week' and 'Ball Boi stats' leave the app (John, Nov 8) |

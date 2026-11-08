@@ -27,7 +27,7 @@ import { SheetBody, useSheetClose } from "@/components/Sheet";
 import { Button, Card, Text, TextButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { correctionLine, deadlineDate, opponentName } from "@/lib/leagueSchedule";
+import { correctionLine, deadlineDate, LATE_NOTE, opponentName } from "@/lib/leagueSchedule";
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
 import { emptySet, readScore, setRowsToShow, setsFromScore, type SetEntry } from "@/lib/scoreEntry";
@@ -333,7 +333,7 @@ export default function EnterScoreScreen() {
         ) : null}
         {!asAdmin && !editing && round?.phase === "grace" ? (
           <Text variant="small" tone="inkMuted">
-            This is the grace week, so this score counts for Ball Boi stats, not standings.
+            {LATE_NOTE}
           </Text>
         ) : null}
       </View>
