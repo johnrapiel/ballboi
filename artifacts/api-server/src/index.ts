@@ -4,6 +4,7 @@ import { startScheduler } from "./services/scheduler";
 import { seedGlobalData } from "./services/seasonService";
 import { startModerationAgent } from "./messaging/agentJob";
 import { backfillMilestones } from "./lib/milestoneRepo";
+import { startLeagueChats } from "./messaging";
 
 const rawPort = process.env["PORT"];
 
@@ -40,6 +41,7 @@ async function bootstrap(): Promise<void> {
   backfillMilestones()
     .then((r) => logger.info(r, "Milestone backfill done"))
     .catch((err) => logger.error({ err }, "Milestone backfill failed"));
+  startLeagueChats();
 }
 
 bootstrap().catch((err) => {

@@ -223,7 +223,7 @@ export default function ManageLeagueScreen() {
                 style: "destructive",
                 onPress: () =>
                   removePlayer
-                    .mutateAsync({ leagueId, playerId: p.playerId })
+                    .mutateAsync({ leagueId, playerId: p.playerId, data: {} })
                     .then(refreshAll)
                     .catch((e) => Alert.alert("Couldn't remove player", errorText(e, "Try again in a moment."))),
               },

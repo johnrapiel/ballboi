@@ -5,6 +5,9 @@ import { moderationRepo } from "./drizzleModeration";
 import { DrizzleMessagingRepo } from "./drizzleRepo";
 import { FirstMessageFilter } from "./filter";
 import { MemoryMessagingProvider } from "./memoryProvider";
+import { DrizzleLeagueChatSource } from "./drizzleLeagueChats";
+import { setLeagueChatEvents } from "./leagueChatEvents";
+import { LeagueChats } from "./leagueChats";
 import { notifyNewMessage } from "./notify";
 import type { MessagingProvider } from "./provider";
 import { StreamMessagingProvider } from "./streamProvider";
@@ -40,6 +43,7 @@ export function getMessagingService(): MessagingService {
       onNewMessage: notifyNewMessage,
       devAutoReply: provider.name === "memory" && process.env.NODE_ENV !== "production",
       moderation: { repo: moderationRepo() },
+      leaguePlayers: (leagueId) => getLeagueChats().leaguePlayers(leagueId),
     });
     logger.info({ provider: provider.name, blockedTerms: filter.termCount }, "Messaging ready");
   }
@@ -49,4 +53,28 @@ export function getMessagingService(): MessagingService {
 /** Tests swap in a service built on in-memory parts. */
 export function setMessagingService(next: MessagingService | null) {
   service = next;
+}
+
+let leagueChats: LeagueChats | null = null;
+
+/** League chats (decisions 145 and 146) on the messaging service. */
+export function getLeagueChats(): LeagueChats {
+  if (!leagueChats) {
+    leagueChats = new LeagueChats({ service: getMessagingService, source: new DrizzleLeagueChatSource(), log: logger });
+  }
+  return leagueChats;
+}
+
+/**
+ * At startup: the league routes start telling league chats about joins,
+ * results and pairings, and every existing league gets its chat (idempotent,
+ * nothing deleted). Runs in the background so the API starts right away.
+ */
+export function startLeagueChats(): void {
+  const chats = getLeagueChats();
+  setLeagueChatEvents(chats.events());
+  void chats
+    .syncAll()
+    .then((r) => logger.info(r, "League chats in step"))
+    .catch((err) => logger.warn({ err }, "League chats: startup sync failed"));
 }

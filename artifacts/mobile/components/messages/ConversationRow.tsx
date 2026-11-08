@@ -6,6 +6,7 @@ import { Pill, Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import type { Conversation, GroupConversation } from "@/hooks/useMessages";
 import { useColors } from "@/hooks/useColors";
+import { badgeText, leagueRowLabel } from "@/lib/leagueChat";
 import { initials, shortTime, spokenTime } from "@/lib/messages";
 
 /** Initials in a sand circle. Decorative: the name is always next to it. */
@@ -96,31 +97,37 @@ export function ConversationRow({ conversation, onPress }: { conversation: Conve
 }
 
 /**
- * A group chat in Messages (F15): an open match's chat, named for the match
- * ("Sat 9 AM doubles · Beacon Courts"), with the sender before the latest
- * line and the same unread dot and words as a conversation.
+ * A group chat in Messages: an open match's chat (F15), named for the match
+ * ("Sat 9 AM doubles · Beacon Courts"), or a league's chat (decision 145),
+ * named for the league with the brush leagues icon (the Leagues tab's own
+ * mark), so it reads as a group, not a person. The sender comes before the
+ * latest line. Unread is an ink dot for a match chat; a league chat shows
+ * bold with its own count (decision 146), and VoiceOver hears the number.
  */
 export function GroupRow({ group, onPress }: { group: GroupConversation; onPress: () => void }) {
   const c = useColors();
   const { title, lastMessage, unread, memberCount } = group;
+  const league = group.kind === "league";
   const who = lastMessage ? (lastMessage.fromMe ? "You" : lastMessage.senderName) : null;
-  const preview = lastMessage ? `${who ? `${who}: ` : ""}${lastMessage.text}` : "";
-  const spoken = [
-    `Group chat, ${title}`,
-    `${memberCount} ${memberCount === 1 ? "player" : "players"}`,
-    unread > 0 ? `${unread} unread` : null,
-    lastMessage ? `${who ? `${who}: ` : ""}${lastMessage.text}` : null,
-    lastMessage ? spokenTime(lastMessage.at) : null,
-  ]
-    .filter(Boolean)
-    .join(". ");
+  const preview = lastMessage ? `${who ? `${who}: ` : ""}${lastMessage.text}` : league ? "No messages yet" : "";
+  const spoken = league
+    ? leagueRowLabel(group, lastMessage ? spokenTime(lastMessage.at) : null)
+    : [
+        `Group chat, ${title}`,
+        `${memberCount} ${memberCount === 1 ? "player" : "players"}`,
+        unread > 0 ? `${unread} unread` : null,
+        lastMessage ? `${who ? `${who}: ` : ""}${lastMessage.text}` : null,
+        lastMessage ? spokenTime(lastMessage.at) : null,
+      ]
+        .filter(Boolean)
+        .join(". ");
 
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={spoken}
-      accessibilityHint="Opens the group chat"
+      accessibilityHint={league ? "Opens the league chat" : "Opens the group chat"}
       style={({ pressed }) => ({
         minHeight: 72,
         flexDirection: "row",
@@ -147,7 +154,7 @@ export function GroupRow({ group, onPress }: { group: GroupConversation; onPress
           justifyContent: "center",
         }}
       >
-        <Icon name="person.2" size={22} tintColor={c.ink} />
+        <Icon name={league ? "trophy" : "person.2"} size={22} tintColor={c.ink} />
       </View>
       <View style={{ flex: 1, gap: 2 }}>
         <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", columnGap: spacing.space3, rowGap: 2 }}>
@@ -160,7 +167,25 @@ export function GroupRow({ group, onPress }: { group: GroupConversation; onPress
                 {shortTime(lastMessage.at)}
               </Text>
             ) : null}
-            {unread > 0 ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.ink }} /> : null}
+            {unread > 0 && league ? (
+              <View
+                style={{
+                  minWidth: 22,
+                  height: 22,
+                  paddingHorizontal: 6,
+                  borderRadius: radius.radiusPill,
+                  backgroundColor: c.ink,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text variant="label" tone="onInk" maxFontSizeMultiplier={1.4}>
+                  {badgeText(unread)}
+                </Text>
+              </View>
+            ) : unread > 0 ? (
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.ink }} />
+            ) : null}
           </View>
         </View>
         <Text variant={unread > 0 ? "bodyStrong" : "small"} tone={unread > 0 ? "ink" : "inkMuted"} numberOfLines={1}>

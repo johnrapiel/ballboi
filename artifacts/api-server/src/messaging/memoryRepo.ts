@@ -2,6 +2,7 @@ import type {
   ConversationPatch,
   ConversationRecord,
   GroupMember,
+  GroupMemberPatch,
   GroupPatch,
   GroupRecord,
   MessagingRepo,
@@ -168,11 +169,18 @@ export class MemoryMessagingRepo implements MessagingRepo {
     return this.groups.find((g) => g.openMatchId === openMatchId) ?? null;
   }
 
+  async findGroupByLeague(leagueId: number) {
+    return this.groups.find((g) => g.leagueId === leagueId) ?? null;
+  }
+
   async createGroup(input: NewGroup) {
     const existing = await this.findGroupByChannel(input.channelId);
     if (existing) return existing;
     const g: GroupRecord = {
       ...input,
+      leagueId: input.leagueId ?? null,
+      pinnedIds: [],
+      standings: null,
       id: this.nextGroupId++,
       open: true,
       closedReason: null,
@@ -199,7 +207,7 @@ export class MemoryMessagingRepo implements MessagingRepo {
   async addGroupMembers(id: number, userIds: string[], at: Date) {
     for (const userId of userIds) {
       if (!this.members.some((m) => m.groupId === id && m.userId === userId)) {
-        this.members.push({ groupId: id, userId, unread: 0, firstSentAt: null, joinedAt: at });
+        this.members.push({ groupId: id, userId, unread: 0, attention: 0, admin: false, mutedAt: null, firstSentAt: null, joinedAt: at });
       }
     }
   }
@@ -208,18 +216,33 @@ export class MemoryMessagingRepo implements MessagingRepo {
     this.members = this.members.filter((m) => m.groupId !== id || !userIds.includes(m.userId));
   }
 
-  async recordGroupMessage(id: number, input: { sender: string | null; text: string; at: Date; recipients: string[] }) {
+  async updateGroupMember(id: number, userId: string, patch: GroupMemberPatch) {
+    for (const m of this.members) if (m.groupId === id && m.userId === userId) Object.assign(m, patch);
+  }
+
+  async recordGroupMessage(
+    id: number,
+    input: { sender: string | null; text: string; at: Date; recipients: string[]; attention?: string[] },
+  ) {
     const g = await this.updateGroup(id, { lastMessageAt: input.at, lastMessageText: input.text, lastSender: input.sender });
     for (const m of this.members) {
       if (m.groupId !== id) continue;
-      if (input.recipients.includes(m.userId)) m.unread += 1;
+      if (input.recipients.includes(m.userId)) {
+        m.unread += 1;
+        if (input.attention?.includes(m.userId)) m.attention += 1;
+      }
       if (input.sender && m.userId === input.sender && !m.firstSentAt) m.firstSentAt = input.at;
     }
     return g;
   }
 
   async markGroupRead(id: number, userId: string) {
-    for (const m of this.members) if (m.groupId === id && m.userId === userId) m.unread = 0;
+    for (const m of this.members) {
+      if (m.groupId === id && m.userId === userId) {
+        m.unread = 0;
+        m.attention = 0;
+      }
+    }
   }
 
   async groupsFor(userId: string) {

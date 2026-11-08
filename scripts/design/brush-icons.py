@@ -355,6 +355,21 @@ def _(p):
     p.stroke(E(12, 11, 8.8, 7.2, 152, 487))
     p.stroke(L(7.1, 17, 3.8, 20.6), 0.9); p.stroke(L(3.8, 20.6, 4.6, 14.5), 0.9)
 
+@icon("pin")
+def _(p):
+    # A push pin, tilted (league chat pins, decision 145): cap, body, collar, then the point.
+    a = math.radians(35)
+    def r(x, y):
+        dx, dy = x - 12, y - 12
+        return (12 + dx * math.cos(a) - dy * math.sin(a), 12.6 + dx * math.sin(a) + dy * math.cos(a))
+    def line(x0, y0, x1, y1, w=1.0):
+        (ax, ay), (bx, by) = r(x0, y0), r(x1, y1)
+        p.stroke(L(ax, ay, bx, by), w)
+    line(9, 3.6, 15, 3.6, 0.9)
+    line(10.2, 3.8, 10.2, 10, 0.85); line(13.8, 3.8, 13.8, 10, 0.85)
+    line(7, 10.4, 17, 10.4, 0.95)
+    line(12, 10.8, 12, 20.6, 0.8)
+
 @icon("magnifyingglass")
 def _(p): p.stroke(RING(10.4, 10.4, 6.6, start=60)); p.stroke(L(15.2, 15.2, 20.6, 20.6), 1.1)
 
@@ -634,12 +649,26 @@ def underline_mark():
 
 MARKS = {"winner.underline": (underline_mark, "0 0 100 8")}
 
+# ---------- tab marks reused as icons ----------
+#
+# Some rows stand for a whole tab, like a league chat in Messages (decision
+# 145): its icon is the Leagues tab's own approved brush mark, copied from
+# docs/design-system/icons so the two always match.
+
+TAB_MARKS = {"trophy": "leagues"}
+
+def tab_mark(tab):
+    src = open(os.path.join(os.getcwd(), "docs/design-system/icons", tab + ".svg")).read()
+    return __import__("re").search(r'<path fill="currentColor" d="([^"]+)"', src).group(1)
+
 # ---------- write ----------
 
 def build():
     out = {}
     for name, (fn, _) in ICONS.items():
         p = Pen(name); fn(p); out[name] = to_path(p.shapes)
+    for name, tab in TAB_MARKS.items():
+        out[name] = tab_mark(tab)
     return out
 
 if __name__ == "__main__":

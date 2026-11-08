@@ -23,8 +23,9 @@ import { createHash } from "node:crypto";
 import { REPORT_REASONS, type ReportReason, type SnapshotMessage } from "@workspace/db";
 import type { ModerationRepo } from "./moderation";
 import { FILTER_MESSAGES, FirstMessageFilter } from "./filter";
+import { findMentions } from "./mentions";
 import { SYSTEM_SENDER, type MessagingProvider, type ProviderMessage } from "./provider";
-import { pairKeyFor, type ConversationRecord, type GroupMember, type GroupRecord, type MessagingRepo } from "./repo";
+import { pairKeyFor, type ConversationRecord, type GroupMember, type GroupRecord, type MessagingRepo, type PersonSummary } from "./repo";
 
 export const MAX_MESSAGE_LENGTH = 2000;
 export const NEW_ACCOUNT_DAYS = 7;
@@ -73,18 +74,34 @@ export interface NewMessageEvent {
   text: string;
   /** A group chat message (F15): the chat's title, "Sat 9 AM doubles · Beacon Courts". */
   groupTitle?: string;
+  /** League chats (decision 146): why this member post pushes, an @mention of the recipient. */
+  mention?: boolean;
+  /** League chats: an admin post, which always pushes. */
+  admin?: boolean;
 }
 
-/** How a group chat looks to one of its members (F15). */
+/** How a group chat looks to one of its members (F15, and league chats, decision 145). */
 export interface GroupView {
   id: number;
+  /** An open match's chat, or a league's chat (titled with the league name). */
+  kind: "match" | "league";
   title: string;
   /** The open match behind it, for Players. */
   openMatchId: number | null;
+  /** The league behind it, for the league page. */
+  leagueId: number | null;
   /** Everyone in the chat, you included. */
   memberCount: number;
   lastMessage: { text: string; fromMe: boolean; senderName: string | null; at: string } | null;
+  /** Every unread message: the row shows bold with this count. */
   unread: number;
+  /**
+   * League chats: the unread ones the Messages button counts, @mentions of you
+   * and admin posts (decision 146). Equals `unread` for an open match's chat.
+   */
+  attention: number;
+  /** League chats: you're one of the league's admins (pins and moderation). */
+  isAdmin: boolean;
   canSend: boolean;
   sendBlockedReason: string | null;
 }
@@ -99,6 +116,34 @@ export interface GroupMessageView {
   /** For Report: the sender's league player, else their account. */
   senderPlayerId: number | null;
   senderUserId: number | null;
+  /** League chats: sent by a league admin, shown with the Admin label. */
+  admin: boolean;
+  /** League chats: names this message @mentions, for highlighting and VoiceOver. */
+  mentions: string[];
+  /** League chats: it @mentions you. */
+  mentionsMe: boolean;
+}
+
+/** Someone in a group chat, for @mention suggestions and admin moderation. */
+export interface GroupMemberView {
+  name: string;
+  /** Their player in this chat's league (for Remove from league), else any player record. */
+  playerId: number | null;
+  userId: number | null;
+  admin: boolean;
+  muted: boolean;
+  me: boolean;
+}
+
+/** One change to a league's chat, from LeagueChats (decision 145). */
+export interface LeagueGroupSync {
+  leagueId: number;
+  /** The league name. */
+  title: string;
+  /** The league's current players and admins. */
+  members: { userId: string; admin: boolean }[];
+  /** An ended league's chat stays readable but takes no new messages. */
+  ended: boolean;
 }
 
 /** One change to a group chat, from whatever owns it (open matches). */
@@ -130,6 +175,8 @@ export interface MessagingServiceDeps {
   devAutoReply?: boolean;
   /** Report and restriction storage. Optional so tests can leave it out. */
   moderation?: { repo: ModerationRepo };
+  /** League chats: each account's player id in the league, for Remove from league. */
+  leaguePlayers?: (leagueId: number) => Promise<Map<string, number>>;
 }
 
 /** Messages kept in a report snapshot: the reported one and up to this many before it. */
@@ -154,7 +201,17 @@ function groupChannelFor(openMatchId: number): string {
   return `grp_${createHash("sha256").update(`open_match:${openMatchId}`).digest("hex").slice(0, 24)}`;
 }
 
+function leagueChannelFor(leagueId: number): string {
+  return `lg_${createHash("sha256").update(`league:${leagueId}`).digest("hex").slice(0, 24)}`;
+}
+
 const GROUP_NOT_FOUND = "This group chat isn't available.";
+/** An ended league's chat (decision 145, "everything played stays"). */
+export const LEAGUE_ENDED = "This league has ended. Its chat stays here to read, but it takes no new messages.";
+/** Shown above the composer to someone an admin muted in a league chat. */
+export const MUTED_REASON = "A league admin muted you in this chat. You can still read it.";
+/** Admins pin up to this many posts in a league chat. */
+export const MAX_PINS = 3;
 /** A group chat closed because someone in it deleted their account. */
 export const LEFT_BALL_BOI = "A player left Ball Boi, so this chat is closed.";
 
@@ -166,6 +223,7 @@ export class MessagingService {
   private onNewMessage?: MessagingServiceDeps["onNewMessage"];
   private devAutoReply: boolean;
   readonly moderation?: MessagingServiceDeps["moderation"];
+  private leaguePlayers?: MessagingServiceDeps["leaguePlayers"];
 
   constructor(deps: MessagingServiceDeps) {
     this.repo = deps.repo;
@@ -175,6 +233,7 @@ export class MessagingService {
     this.onNewMessage = deps.onNewMessage;
     this.devAutoReply = deps.devAutoReply ?? false;
     this.moderation = deps.moderation;
+    this.leaguePlayers = deps.leaguePlayers;
   }
 
   // ─── Reading ──────────────────────────────────────────────────────────────
@@ -234,12 +293,20 @@ export class MessagingService {
     return this.views(me, await this.visibleFor(me));
   }
 
-  /** For the Messages button badge: unread messages everywhere, group chats included. */
+  /**
+   * For the Messages button badge: unread direct messages and open match group
+   * chats, plus, from league chats, only @mentions of you and admin posts
+   * (decision 146). Automatic posts and other members' posts show bold on the
+   * league chat's row instead.
+   */
   async summary(me: string): Promise<{ unread: number }> {
     const [rows, groups] = await Promise.all([this.visibleFor(me), this.repo.groupsFor(me)]);
     let unread = 0;
     for (const { c } of rows) unread += c.userA === me ? c.aUnread : c.bUnread;
-    for (const { group, member } of groups) if (group.lastMessageAt) unread += member.unread;
+    for (const { group, member } of groups) {
+      if (!group.lastMessageAt) continue;
+      unread += group.leagueId !== null ? member.attention : member.unread;
+    }
     return { unread };
   }
 
@@ -559,15 +626,21 @@ export class MessagingService {
         last = await this.lastFrom(me, group.lastSender, group.lastMessageText, group.lastMessageAt);
       }
     }
+    const league = group.leagueId !== null;
+    const muted = league && !!member.mutedAt;
     return {
       id: group.id,
+      kind: league ? "league" : "match",
       title: group.title,
       openMatchId: group.openMatchId,
+      leagueId: group.leagueId,
       memberCount,
       lastMessage: last,
       unread: member.unread,
-      canSend: group.open,
-      sendBlockedReason: group.open ? null : (group.closedReason ?? "This chat is closed."),
+      attention: league ? member.attention : member.unread,
+      isAdmin: league && member.admin,
+      canSend: group.open && !muted,
+      sendBlockedReason: !group.open ? (group.closedReason ?? "This chat is closed.") : muted ? MUTED_REASON : null,
     };
   }
 
@@ -581,7 +654,8 @@ export class MessagingService {
     const [rows, blocked] = await Promise.all([this.repo.groupsFor(me), this.repo.blockedSetFor(me)]);
     const views = await Promise.all(
       rows
-        .filter(({ group }) => group.lastMessageAt)
+        // A league chat shows from the start, so its members can find it; an open match's opens with Ball Boi's line.
+        .filter(({ group }) => group.lastMessageAt || group.leagueId !== null)
         .map(async ({ group, member }) => this.groupView(me, group, member, (await this.repo.groupMembers(group.id)).length, blocked)),
     );
     return views.sort((a, b) => (b.lastMessage?.at ?? "").localeCompare(a.lastMessage?.at ?? ""));
@@ -592,28 +666,28 @@ export class MessagingService {
     me: string,
     id: number,
     opts: { before?: string } = {},
-  ): Promise<{ group: GroupView; messages: GroupMessageView[]; olderCursor: string | null }> {
+  ): Promise<{ group: GroupView; messages: GroupMessageView[]; olderCursor: string | null; pins: GroupMessageView[] }> {
     const { group, member, members } = await this.groupFor(me, id);
-    if (member.unread > 0) await this.repo.markGroupRead(group.id, me);
+    if (member.unread > 0 || member.attention > 0) await this.repo.markGroupRead(group.id, me);
     const blocked = await this.repo.blockedSetFor(me);
+    const visible = (m: ProviderMessage) => !m.hidden && (m.system || !blocked.has(m.senderId));
     const messages = await this.provider.listMessages(group.channelId, { limit: THREAD_PAGE, before: opts.before });
-    const shown = messages.filter((m) => !m.hidden && (m.system || !blocked.has(m.senderId)));
-    const people = await this.repo.people([...new Set(shown.filter((m) => !m.system && m.senderId !== me).map((m) => m.senderId))]);
+    const shown = messages.filter(visible);
+    // Pins (league chats): the pinned posts you can see, oldest pin first.
+    const pinned = group.pinnedIds.length
+      ? (await Promise.all(group.pinnedIds.map((pid) => this.provider.getMessage(pid)))).filter(
+          (m): m is ProviderMessage => !!m && m.channelId === group.channelId && visible(m),
+        )
+      : [];
+    const mentioned = [...shown, ...pinned].flatMap((m) => m.mentions ?? []);
+    const senders = [...shown, ...pinned].filter((m) => !m.system && m.senderId !== me).map((m) => m.senderId);
+    const people = await this.repo.people([...new Set([...senders, ...mentioned])]);
+    const view = (m: ProviderMessage) => this.groupMessageView(m, me, people);
     return {
-      group: await this.groupView(me, group, { ...member, unread: 0 }, members.length, blocked),
-      messages: shown.map((m) => {
-        const p = m.system || m.senderId === me ? null : people.get(m.senderId);
-        return {
-          id: m.id,
-          text: m.text,
-          fromMe: m.senderId === me,
-          at: m.createdAt.toISOString(),
-          senderName: m.system ? null : m.senderId === me ? "You" : (p?.name ?? "Player"),
-          senderPlayerId: p?.playerId ?? null,
-          senderUserId: p?.userId ?? null,
-        };
-      }),
+      group: await this.groupView(me, group, { ...member, unread: 0, attention: 0 }, members.length, blocked),
+      messages: shown.map(view),
       olderCursor: messages.length >= THREAD_PAGE ? messages[0].id : null,
+      pins: pinned.map(view),
     };
   }
 
@@ -624,23 +698,63 @@ export class MessagingService {
     const { group, member, members } = await this.groupFor(me, id);
     const messageId = `${group.channelId}-${clientId}`;
     const already = await this.provider.getMessage(messageId);
-    if (already) return { groupId: group.id, message: this.groupMessageView(already, me) };
+    if (already) return { groupId: group.id, message: this.groupMessageView(already, me, await this.peopleIn(already)) };
     if (!group.open) throw new MessagingError(409, "closed", group.closedReason ?? "This chat is closed.");
+    const league = group.leagueId !== null;
+    if (league && member.mutedAt) throw new MessagingError(403, "muted", MUTED_REASON);
 
     const others = members.map((m) => m.userId).filter((u) => u !== me);
     if (!member.firstSentAt) await this.checkFirstGroupMessage(me, others, text);
 
-    const message = await this.provider.sendMessage({ channelId: group.channelId, messageId, senderId: me, text });
     const blocked = await this.repo.blockedSetFor(me);
     const recipients = others.filter((u) => !blocked.has(u));
-    await this.repo.recordGroupMessage(group.id, { sender: me, text, at: message.createdAt, recipients });
-    const senderName = (await this.repo.people([me])).get(me)?.name ?? "Player";
-    for (const recipientId of recipients) {
+    // League chats (decisions 145 and 146): an admin's post is labeled and
+    // reaches everyone; a member's post reaches only the people it @mentions.
+    const admin = league && member.admin;
+    const people = await this.repo.people([me, ...recipients]);
+    const mentions = league
+      ? findMentions(
+          text,
+          recipients.map((userId) => ({ userId, name: people.get(userId)?.name ?? "" })),
+        )
+      : [];
+    const pushTo = !league || admin ? recipients : recipients.filter((u) => mentions.includes(u));
+
+    const message = await this.provider.sendMessage({
+      channelId: group.channelId,
+      messageId,
+      senderId: me,
+      text,
+      ...(admin ? { admin: true } : {}),
+      ...(mentions.length ? { mentions } : {}),
+    });
+    await this.repo.recordGroupMessage(group.id, {
+      sender: me,
+      text,
+      at: message.createdAt,
+      recipients,
+      ...(league ? { attention: pushTo } : {}),
+    });
+    const senderName = people.get(me)?.name ?? "Player";
+    for (const recipientId of pushTo) {
       await Promise.resolve(
-        this.onNewMessage?.({ conversationId: group.id, senderId: me, recipientId, senderName, text, groupTitle: group.title }),
+        this.onNewMessage?.({
+          conversationId: group.id,
+          senderId: me,
+          recipientId,
+          senderName,
+          text,
+          groupTitle: group.title,
+          ...(admin ? { admin: true } : league ? { mention: true } : {}),
+        }),
       ).catch(() => undefined);
     }
-    return { groupId: group.id, message: this.groupMessageView(message, me) };
+    return { groupId: group.id, message: this.groupMessageView(message, me, people) };
+  }
+
+  /** The names a message's view needs: its sender and anyone it mentions. */
+  private async peopleIn(m: ProviderMessage) {
+    return this.repo.people([...new Set([m.senderId, ...(m.mentions ?? [])])]);
   }
 
   /** The direct message rule, per sender: anyone in the chat outside your leagues means the filter applies. */
@@ -653,15 +767,20 @@ export class MessagingService {
     }
   }
 
-  private groupMessageView(m: ProviderMessage, me: string): GroupMessageView {
+  private groupMessageView(m: ProviderMessage, me: string, people: Map<string, PersonSummary>): GroupMessageView {
+    const p = m.system || m.senderId === me ? null : people.get(m.senderId);
+    const mentions = m.mentions ?? [];
     return {
       id: m.id,
       text: m.text,
       fromMe: m.senderId === me,
       at: m.createdAt.toISOString(),
-      senderName: m.system ? null : m.senderId === me ? "You" : "Player",
-      senderPlayerId: null,
-      senderUserId: null,
+      senderName: m.system ? null : m.senderId === me ? "You" : (p?.name ?? "Player"),
+      senderPlayerId: p?.playerId ?? null,
+      senderUserId: p?.userId ?? null,
+      admin: !m.system && m.admin === true,
+      mentions: mentions.map((u) => (u === me ? "You" : (people.get(u)?.name ?? "Player"))),
+      mentionsMe: mentions.includes(me),
     };
   }
 
@@ -674,11 +793,231 @@ export class MessagingService {
     for (const { group } of await this.repo.groupsFor(me)) {
       await this.provider.removeMembers(group.channelId, [me]);
       await this.repo.removeGroupMembers(group.id, [me]);
+      // A league chat carries on without them, like leaving the league (decision 145).
+      if (group.leagueId !== null) continue;
       if (group.open) {
         const closed = await this.repo.updateGroup(group.id, { open: false, closedReason: LEFT_BALL_BOI });
         if ((await this.repo.groupMembers(group.id)).length) await this.postSystem(closed, "A player left Ball Boi.");
       }
     }
+  }
+
+  // ─── League chats (decisions 145 and 146) ─────────────────────────────────
+  //
+  // One chat per league, listed in Messages with every other chat and titled
+  // with the league name. Same safety as group chats, plus:
+  // - Members are the league's current players and admins (LeagueChats keeps
+  //   them in step). An ended league's chat is read only.
+  // - An admin's post is labeled Admin and pushes to everyone; a member's post
+  //   pushes only to the people it @mentions. Only those count on the Messages
+  //   button. Ball Boi's automatic posts never push or count there.
+  // - Admins pin up to 3 posts, delete messages and mute members. Deletes and
+  //   mutes go to the moderation queue, like reports.
+
+  /** Makes the league's chat if needed, then brings members, admins, title and the ended state in step. */
+  async syncLeagueGroup(input: LeagueGroupSync): Promise<GroupRecord | null> {
+    const want = new Map<string, boolean>();
+    for (const m of input.members) want.set(m.userId, (want.get(m.userId) ?? false) || m.admin);
+    const ids = [...want.keys()];
+    let group = await this.repo.findGroupByLeague(input.leagueId);
+    if (!group) {
+      // Nobody to talk to yet: made once someone joins.
+      if (!ids.length) return null;
+      const channelId = leagueChannelFor(input.leagueId);
+      await this.provider.ensureChannel(channelId, ids);
+      group = await this.repo.createGroup({ channelId, openMatchId: null, leagueId: input.leagueId, title: input.title });
+    }
+    const current = await this.repo.groupMembers(group.id);
+    const have = new Set(current.map((m) => m.userId));
+    const added = ids.filter((u) => !have.has(u));
+    const removed = [...have].filter((u) => !want.has(u));
+    if (removed.length) {
+      await this.provider.removeMembers(group.channelId, removed);
+      await this.repo.removeGroupMembers(group.id, removed);
+    }
+    if (added.length) {
+      await this.provider.ensureChannel(group.channelId, ids);
+      await this.provider.addMembers(group.channelId, added);
+      await this.repo.addGroupMembers(group.id, added, this.now());
+    }
+    for (const m of await this.repo.groupMembers(group.id)) {
+      const admin = want.get(m.userId) ?? false;
+      if (m.admin !== admin) await this.repo.updateGroupMember(group.id, m.userId, { admin });
+    }
+    const open = !input.ended;
+    if (group.title !== input.title || group.open !== open || (open && group.closedReason)) {
+      group = await this.repo.updateGroup(group.id, { title: input.title, open, closedReason: open ? null : LEAGUE_ENDED });
+    }
+    return group;
+  }
+
+  /** The league's chat, if it has one. */
+  async groupForLeague(leagueId: number): Promise<GroupRecord | null> {
+    return this.repo.findGroupByLeague(leagueId);
+  }
+
+  /**
+   * An automatic post from Ball Boi ("Round 4 pairings are out."). Shows in
+   * the chat and bolds its row, but never pushes or counts on the Messages
+   * button. Posts even in an ended league's chat (a final result).
+   */
+  async postToLeague(leagueId: number, text: string): Promise<GroupRecord | null> {
+    const group = await this.repo.findGroupByLeague(leagueId);
+    if (!group) return null;
+    return this.postSystem(group, text);
+  }
+
+  /** Saves the standings a league chat last posted about. */
+  async setLeagueStandings(groupId: number, standings: Record<string, number>): Promise<void> {
+    await this.repo.updateGroup(groupId, { standings });
+  }
+
+  /** A league chat you run. */
+  private async leagueGroupAsAdmin(me: string, id: number) {
+    const found = await this.groupFor(me, id);
+    if (found.group.leagueId === null) throw new MessagingError(404, "not_found", GROUP_NOT_FOUND);
+    if (!found.member.admin) throw new MessagingError(403, "not_admin", "Only league admins can do that.");
+    return found;
+  }
+
+  /** Everyone in a group chat you're in, minus anyone you have a block with. For @ suggestions and admin tools. */
+  async groupMembers(me: string, id: number): Promise<GroupMemberView[]> {
+    const { group, members } = await this.groupFor(me, id);
+    const blocked = await this.repo.blockedSetFor(me);
+    const shown = members.filter((m) => m.userId === me || !blocked.has(m.userId));
+    const [people, leaguePlayers] = await Promise.all([
+      this.repo.people(shown.map((m) => m.userId)),
+      group.leagueId !== null && this.leaguePlayers ? this.leaguePlayers(group.leagueId) : Promise.resolve(new Map<string, number>()),
+    ]);
+    return shown
+      .map((m) => {
+        const p = people.get(m.userId);
+        return {
+          name: p?.name ?? "Player",
+          playerId: leaguePlayers.get(m.userId) ?? p?.playerId ?? null,
+          userId: p?.userId ?? null,
+          admin: m.admin,
+          muted: !!m.mutedAt,
+          me: m.userId === me,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /** Admins: pin a post, up to MAX_PINS. Pinning one already pinned does nothing. */
+  async pin(me: string, id: number, input: { messageId: unknown }): Promise<{ pinnedIds: string[] }> {
+    const { group } = await this.leagueGroupAsAdmin(me, id);
+    const message = await this.messageIn(group, input.messageId);
+    if (group.pinnedIds.includes(message.id)) return { pinnedIds: group.pinnedIds };
+    if (group.pinnedIds.length >= MAX_PINS) {
+      throw new MessagingError(409, "too_many_pins", `You can pin up to ${MAX_PINS} posts. Unpin one first.`);
+    }
+    const updated = await this.repo.updateGroup(group.id, { pinnedIds: [...group.pinnedIds, message.id] });
+    return { pinnedIds: updated.pinnedIds };
+  }
+
+  /** Admins: unpin a post. */
+  async unpin(me: string, id: number, messageId: string): Promise<{ pinnedIds: string[] }> {
+    const { group } = await this.leagueGroupAsAdmin(me, id);
+    if (!group.pinnedIds.includes(messageId)) return { pinnedIds: group.pinnedIds };
+    const updated = await this.repo.updateGroup(group.id, { pinnedIds: group.pinnedIds.filter((p) => p !== messageId) });
+    return { pinnedIds: updated.pinnedIds };
+  }
+
+  /**
+   * Admins: delete a message from the chat for everyone. It's hidden, not
+   * erased, and goes to the moderation queue with a snapshot, like a report.
+   */
+  async adminDelete(me: string, id: number, messageId: string, input: { reason?: unknown } = {}): Promise<{ id: number | null }> {
+    const { group } = await this.leagueGroupAsAdmin(me, id);
+    const message = await this.messageIn(group, messageId);
+    if (message.system) throw new MessagingError(400, "system_message", "Ball Boi's posts can't be deleted.");
+    const snapshot = await this.snapshotFor(group.channelId, message);
+    await this.setMessageHidden(message.id, true);
+    if (group.pinnedIds.includes(message.id)) {
+      await this.repo.updateGroup(group.id, { pinnedIds: group.pinnedIds.filter((p) => p !== message.id) });
+    }
+    const reason = this.adminReason(input.reason, "inappropriate_content");
+    const reportId = await this.moderation?.repo.createReport({
+      reporter: me,
+      targetType: "message",
+      targetId: message.id,
+      reason,
+      details: `A league admin deleted this message in ${group.title}.`,
+      source: "league_admin",
+      subject: message.senderId,
+      snapshot: { conversationId: null, messages: snapshot },
+    });
+    return { id: reportId ?? null };
+  }
+
+  /**
+   * Admins: mute or unmute someone in this chat. A muted member still reads
+   * it but can't send. A mute goes to the moderation queue.
+   */
+  async setMuted(me: string, id: number, input: { playerId?: unknown; userId?: unknown }, muted: boolean): Promise<{ muted: boolean }> {
+    const { group, members } = await this.leagueGroupAsAdmin(me, id);
+    const account = await this.accountFor(input);
+    const target = account ? members.find((m) => m.userId === account) : undefined;
+    if (!target) throw new MessagingError(404, "not_member", "That player isn't in this chat.");
+    if (target.userId === me) throw new MessagingError(400, "self", "You can't mute yourself.");
+    if (target.admin && muted) throw new MessagingError(400, "admin", "Admins can't be muted.");
+    if (!!target.mutedAt === muted) return { muted };
+    await this.repo.updateGroupMember(group.id, target.userId, { mutedAt: muted ? this.now() : null });
+    if (muted) {
+      await this.moderation?.repo.createReport({
+        reporter: me,
+        targetType: "account",
+        targetId: target.userId,
+        reason: "other",
+        details: `A league admin muted this player in ${group.title}.`,
+        source: "league_admin",
+        subject: target.userId,
+        snapshot: { conversationId: null, messages: await this.recentSnapshot(group.channelId, target.userId) },
+      });
+    }
+    return { muted };
+  }
+
+  /**
+   * Remove from league, started from the league chat: logged to the
+   * moderation queue like the chat's other admin actions. The removal itself
+   * runs through the league (and takes them out of the chat).
+   */
+  async logLeagueRemoval(admin: string, leagueId: number, removed: string): Promise<void> {
+    const group = await this.repo.findGroupByLeague(leagueId);
+    if (!group || !this.moderation) return;
+    await this.moderation.repo.createReport({
+      reporter: admin,
+      targetType: "account",
+      targetId: removed,
+      reason: "other",
+      details: `A league admin removed this player from ${group.title} from its chat.`,
+      source: "league_admin",
+      subject: removed,
+      snapshot: { conversationId: null, messages: await this.recentSnapshot(group.channelId, removed) },
+    });
+  }
+
+  private adminReason(raw: unknown, fallback: ReportReason): ReportReason {
+    return typeof raw === "string" && (REPORT_REASONS as readonly string[]).includes(raw) ? (raw as ReportReason) : fallback;
+  }
+
+  /** A message in this chat, or 404. */
+  private async messageIn(group: GroupRecord, raw: unknown): Promise<ProviderMessage> {
+    const messageId = typeof raw === "string" ? raw : "";
+    const message = messageId ? await this.provider.getMessage(messageId) : null;
+    if (!message || message.channelId !== group.channelId || message.hidden) {
+      throw new MessagingError(404, "message_not_found", "That message isn't available.");
+    }
+    return message;
+  }
+
+  /** The latest message from this person and what came before it, for a mute or removal in the queue. */
+  private async recentSnapshot(channelId: string, userId: string): Promise<SnapshotMessage[]> {
+    const history = await this.provider.listMessages(channelId, { limit: 200 });
+    const theirs = [...history].reverse().find((m) => m.senderId === userId);
+    return theirs ? this.snapshotFor(channelId, theirs) : [];
   }
 
   // ─── Reports and moderation ───────────────────────────────────────────────

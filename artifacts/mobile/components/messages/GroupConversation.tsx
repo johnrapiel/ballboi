@@ -4,12 +4,32 @@ import { AccessibilityInfo, ActionSheetIOS, ActivityIndicator, Alert, FlatList, 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HeaderIconButton } from "@/components/Choice";
+import { Icon } from "@/components/Icon";
 import { MessageBubble, type BubbleStatus } from "@/components/messages/MessageBubble";
 import { Button, Text, useTypeStyle } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { MessagesApiError, groupPage, useGroupThread, useMessagesActions, useOlderMessages, type GroupMessage } from "@/hooks/useMessages";
+import {
+  MessagesApiError,
+  groupPage,
+  useGroupMembers,
+  useGroupThread,
+  useMessagesActions,
+  useOlderMessages,
+  type GroupMember,
+  type GroupMessage,
+} from "@/hooks/useMessages";
 import { useReportBlock } from "@/hooks/useReportBlock";
+import {
+  insertMention,
+  leagueMessageActions,
+  mentionQuery,
+  mentionSegments,
+  pinsTitle,
+  spokenGroupMessage,
+  suggestMentions,
+  type LeagueMessageAction,
+} from "@/lib/leagueChat";
 import { newClientMessageId } from "@/lib/messages";
 
 // A group chat (F15, John, Nov 8): an open match's chat once its last spot
@@ -24,6 +44,17 @@ import { newClientMessageId } from "@/lib/messages";
 // Players in the header opens the players sheet (Remove for the poster, Drop
 // out for everyone else). While a spot is open again, or after a cancel, the
 // chat is read only with the reason in words.
+//
+// A league's chat (decisions 145 and 146) is the same screen, titled with the
+// league name, plus:
+// - Up to 3 posts admins pinned, in a collapsible bar at the top.
+// - Admin posts carry the Admin label (brush shield icon and the word).
+// - Typing @ suggests league members, the way iOS Messages does; mentions
+//   show in bold and VoiceOver reads them.
+// - Admins get Pin, Delete, Mute and Remove from league in the long-press
+//   menu, also a VoiceOver action ("More actions"). Each one lands in the
+//   moderation queue on the server.
+// - An ended league's chat is read only, with the reason above the composer.
 
 interface Pending {
   clientId: string;
@@ -71,6 +102,21 @@ export function GroupConversation({
   const openMatchId = group?.openMatchId ?? fallbackOpenMatchId ?? null;
   const subtitle = group ? `${group.memberCount} ${group.memberCount === 1 ? "player" : "players"}` : "";
 
+  // League chats (decision 145).
+  const league = group?.kind === "league";
+  const leagueId = group?.leagueId ?? null;
+  const isAdmin = league && !!group?.isAdmin;
+  const pins = thread.data?.pins ?? [];
+  const [pinsOpen, setPinsOpen] = useState(false);
+  const membersQ = useGroupMembers(league ? groupId : null);
+  const members = membersQ.data ?? [];
+  const myName = members.find((m) => m.me)?.name;
+  const [selection, setSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
+  // Set only right after picking a mention, to put the caret after the name; typing stays uncontrolled.
+  const [caretAfterMention, setCaretAfterMention] = useState<{ start: number; end: number } | undefined>(undefined);
+  const mention = league ? mentionQuery(draft, selection.start) : null;
+  const suggestions = mention ? suggestMentions(mention.query, members) : [];
+
   // Read new lines out as they arrive.
   const seen = useRef<Set<string> | null>(null);
   useEffect(() => {
@@ -85,7 +131,8 @@ export function GroupConversation({
     const incoming = fresh.filter((m) => !m.fromMe);
     if (incoming.length === 1) {
       const m = incoming[0];
-      AccessibilityInfo.announceForAccessibility(m.senderName ? `New message from ${m.senderName}: ${m.text}` : m.text);
+      const from = m.admin ? `New admin post from ${m.senderName}` : `New message from ${m.senderName}`;
+      AccessibilityInfo.announceForAccessibility(m.senderName ? `${from}: ${m.text}${m.mentionsMe ? ". Mentions you" : ""}` : m.text);
     } else if (incoming.length > 1) AccessibilityInfo.announceForAccessibility(`${incoming.length} new messages in ${title}`);
   }, [thread.data?.messages, title]);
 
@@ -163,6 +210,116 @@ export function GroupConversation({
     report.open({ id: m.senderPlayerId, userId: m.senderUserId, name: m.senderName ?? "this player" }, { groupId, messageId: m.id });
   };
 
+  const senderOf = (m: GroupMessage): GroupMember | undefined =>
+    members.find((p) => !p.me && ((m.senderUserId !== null && p.userId === m.senderUserId) || (m.senderUserId === null && m.senderPlayerId !== null && p.playerId === m.senderPlayerId)));
+
+  const done = (text: string) => {
+    AccessibilityInfo.announceForAccessibility(text);
+    void thread.refetch();
+    void membersQ.refetch();
+  };
+  const failed = (e: unknown) => Alert.alert("That didn't work", (e as Error).message);
+
+  const runLeagueAction = (m: GroupMessage, action: LeagueMessageAction) => {
+    if (!groupId) return;
+    const name = m.senderName ?? "this player";
+    const sender = senderOf(m);
+    const member = { userId: sender?.userId ?? m.senderUserId, playerId: sender?.playerId ?? m.senderPlayerId };
+    switch (action) {
+      case "pin":
+        actions.pin(groupId, m.id).then(() => done("Pinned"), failed);
+        return;
+      case "unpin":
+        actions.unpin(groupId, m.id).then(() => done("Unpinned"), failed);
+        return;
+      case "report":
+        reportMessage(m);
+        return;
+      case "delete":
+        Alert.alert("Delete this message?", "It's removed for everyone in the chat and sent to Ball Boi's moderators.", [
+          { text: "Cancel", style: "cancel" },
+          { text: "Delete", style: "destructive", onPress: () => void actions.adminDelete(groupId, m.id).then(() => done("Message deleted"), failed) },
+        ]);
+        return;
+      case "mute":
+        actions.mute(groupId, member).then(() => done(`${name} is muted in this chat`), failed);
+        return;
+      case "unmute":
+        actions.unmute(groupId, member).then(() => done(`${name} can send again`), failed);
+        return;
+      case "remove":
+        if (!leagueId || !sender?.playerId) return;
+        Alert.alert(
+          `Remove ${name} from ${title}?`,
+          "Their played matches stay. Their remaining matches are cancelled and they leave the standings and this chat. Ball Boi's moderators are told.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Remove",
+              style: "destructive",
+              onPress: () => void actions.removeFromLeague(leagueId, sender.playerId!).then(() => done(`${name} removed from the league`), failed),
+            },
+          ],
+        );
+        return;
+    }
+  };
+
+  const actionLabel = (m: GroupMessage, action: LeagueMessageAction): string => {
+    const name = m.senderName ?? "this player";
+    return {
+      pin: "Pin post",
+      unpin: "Unpin post",
+      report: "Report message",
+      delete: "Delete message",
+      mute: `Mute ${name}`,
+      unmute: `Unmute ${name}`,
+      remove: `Remove ${name} from league`,
+    }[action];
+  };
+
+  const leagueActions = (m: GroupMessage): LeagueMessageAction[] => {
+    const sender = senderOf(m);
+    return leagueMessageActions({
+      isAdmin,
+      fromMe: m.fromMe,
+      system: m.senderName === null,
+      pinned: pins.some((p) => p.id === m.id),
+      pinsFull: pins.length >= 3,
+      sender: sender ? { admin: sender.admin, muted: sender.muted, playerId: sender.playerId } : null,
+    }).filter((a) => a !== "report" || canReport(m));
+  };
+
+  // A league chat's long press: Report for everyone, plus pins and moderation for admins.
+  const leagueMenu = (m: GroupMessage) => {
+    const list = leagueActions(m);
+    if (!list.length) return;
+    const labels = list.map((a) => actionLabel(m, a));
+    const destructive = list.map((a, i) => (a === "delete" || a === "remove" ? i : -1)).filter((i) => i >= 0);
+    const title = m.senderName ?? "Ball Boi";
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { title, options: [...labels, "Cancel"], cancelButtonIndex: labels.length, destructiveButtonIndex: destructive },
+        (i) => {
+          if (i < list.length) runLeagueAction(m, list[i]);
+        },
+      );
+      return;
+    }
+    Alert.alert(title, undefined, [
+      ...list.map((a, i) => ({ text: labels[i], style: destructive.includes(i) ? ("destructive" as const) : undefined, onPress: () => runLeagueAction(m, a) })),
+      { text: "Cancel", style: "cancel" as const },
+    ]);
+  };
+
+  const pickMention = (name: string) => {
+    if (!mention) return;
+    const next = insertMention(draft, mention.start, selection.start, name);
+    setDraft(next.text);
+    setSelection({ start: next.caret, end: next.caret });
+    setCaretAfterMention({ start: next.caret, end: next.caret });
+  };
+
   // Long press: Report is the only action (finding 20).
   const messageMenu = (m: GroupMessage) => {
     const name = m.senderName ?? "Player";
@@ -206,7 +363,16 @@ export function GroupConversation({
               ) : null}
             </View>
           ),
-          headerRight: openMatchId
+          headerRight: leagueId
+            ? () => (
+                <HeaderIconButton
+                  symbol="trophy"
+                  label="League"
+                  hint="Opens the league page"
+                  onPress={() => router.push({ pathname: "/league/[leagueId]", params: { leagueId: String(leagueId) } })}
+                />
+              )
+            : openMatchId
             ? () => (
                 <HeaderIconButton
                   symbol="person.2"
@@ -218,6 +384,68 @@ export function GroupConversation({
             : undefined,
         }}
       />
+
+      {league && pins.length ? (
+        <View style={{ borderBottomWidth: 1, borderBottomColor: c.hairline, backgroundColor: c.linen }}>
+          <Pressable
+            onPress={() => setPinsOpen((o) => !o)}
+            accessibilityRole="button"
+            accessibilityLabel={pinsTitle(pins.length)}
+            accessibilityHint={pinsOpen ? "Hides the pinned posts" : "Shows the pinned posts"}
+            accessibilityState={{ expanded: pinsOpen }}
+            style={({ pressed }) => ({
+              minHeight: MIN_TAP,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: spacing.space2,
+              paddingHorizontal: spacing.space4,
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Icon name="pin" size={18} tintColor={c.ink} />
+            <Text variant="bodyStrong" style={{ flex: 1 }} numberOfLines={pinsOpen ? undefined : 1}>
+              {pinsOpen ? pinsTitle(pins.length) : `${pinsTitle(pins.length)}: ${pins[pins.length - 1].text}`}
+            </Text>
+            <Icon name="chevron.right" size={16} tintColor={c.inkMuted} style={{ transform: [{ rotate: pinsOpen ? "270deg" : "90deg" }] }} />
+          </Pressable>
+          {pinsOpen
+            ? pins.map((p) => (
+                <View
+                  key={p.id}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: spacing.space2,
+                    paddingLeft: spacing.space4 + 26,
+                    paddingRight: spacing.space2,
+                    paddingVertical: spacing.space2,
+                    borderTopWidth: 1,
+                    borderTopColor: c.hairline,
+                  }}
+                >
+                  <View accessible accessibilityRole="text" style={{ flex: 1, gap: 2 }}>
+                    <Text variant="small" tone="inkMuted">
+                      {p.senderName === null ? "Ball Boi" : p.admin ? `${p.senderName} · Admin` : p.senderName}
+                    </Text>
+                    <Text>{p.text}</Text>
+                  </View>
+                  {isAdmin ? (
+                    <Pressable
+                      onPress={() => runLeagueAction(p, "unpin")}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Unpin "${p.text.slice(0, 60)}"`}
+                      style={({ pressed }) => ({ minWidth: MIN_TAP, minHeight: MIN_TAP, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.6 : 1 })}
+                    >
+                      <Text variant="small" tone="ink" style={{ textDecorationLine: "underline" }}>
+                        Unpin
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              ))
+            : null}
+        </View>
+      ) : null}
 
       {thread.isError && !thread.data ? (
         <View style={{ flex: 1, padding: spacing.space6, gap: spacing.space4, alignItems: "center", justifyContent: "center" }}>
@@ -252,42 +480,82 @@ export function GroupConversation({
           }
           renderItem={({ item, index }) => {
             if (item.senderName === null) {
+              const m = item.message;
+              const canAct = league && !!m && leagueActions(m).length > 0;
               return (
-                <View accessible accessibilityRole="text" style={{ paddingHorizontal: spacing.space8, paddingVertical: spacing.space2 }}>
+                <Pressable
+                  accessible
+                  accessibilityRole="text"
+                  accessibilityLabel={item.text}
+                  accessibilityActions={canAct ? [{ name: "more", label: "More actions" }] : undefined}
+                  onAccessibilityAction={canAct ? () => leagueMenu(m!) : undefined}
+                  onLongPress={canAct ? () => leagueMenu(m!) : undefined}
+                  delayLongPress={350}
+                  style={{ paddingHorizontal: spacing.space8, paddingVertical: spacing.space2 }}
+                >
                   <Text variant="small" tone="inkMuted" style={{ textAlign: "center" }}>
                     {item.text}
                   </Text>
-                </View>
+                </Pressable>
               );
             }
             // The sender's name over their first message in a run (the row after is the one before in time).
             // Keyed by account, so two players with the same name still each get theirs.
             const before = rows[index + 1];
             const who = (r?: Row) => (r ? (r.fromMe ? "me" : `${r.message?.senderUserId ?? r.message?.senderPlayerId ?? ""}:${r.senderName}`) : null);
-            const showName = !item.fromMe && (!before || before.senderName === null || who(before) !== who(item));
             const m = item.message;
+            const adminPost = league && !!m?.admin;
+            // An admin post always shows its label, yours included (decision 145).
+            const showName = (!item.fromMe && (!before || before.senderName === null || who(before) !== who(item))) || adminPost;
+            const more = league && m ? leagueActions(m) : [];
+            const senderName = item.fromMe ? "You" : item.senderName;
             return (
               <View>
                 {showName ? (
-                  <Text
-                    variant="small"
-                    tone="inkMuted"
-                    style={{ paddingHorizontal: spacing.space4 + 4, marginTop: spacing.space2 }}
-                    importantForAccessibility="no"
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      alignSelf: item.fromMe ? "flex-end" : "flex-start",
+                      gap: spacing.space1,
+                      paddingHorizontal: spacing.space4 + 4,
+                      marginTop: spacing.space2,
+                    }}
+                    importantForAccessibility="no-hide-descendants"
                     accessibilityElementsHidden
                   >
-                    {item.senderName}
-                  </Text>
+                    {!item.fromMe ? (
+                      <Text variant="small" tone="inkMuted">
+                        {item.senderName}
+                      </Text>
+                    ) : null}
+                    {adminPost ? (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                        {!item.fromMe ? (
+                          <Text variant="small" tone="inkMuted">
+                            ·
+                          </Text>
+                        ) : null}
+                        <Icon name="checkmark.shield" size={14} tintColor={c.ink} />
+                        <Text variant="section" tone="ink">
+                          Admin
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
                 ) : null}
                 <MessageBubble
                   text={item.text}
                   at={item.at}
                   fromMe={item.fromMe}
-                  senderName={item.fromMe ? "You" : item.senderName}
+                  senderName={senderName}
                   status={item.status}
                   onRetry={item.clientId ? () => retry(item.clientId!) : undefined}
                   onReport={canReport(m) ? () => reportMessage(m!) : undefined}
-                  onLongPress={canReport(m) ? () => messageMenu(m!) : undefined}
+                  onLongPress={league ? (more.length ? () => leagueMenu(m!) : undefined) : canReport(m) ? () => messageMenu(m!) : undefined}
+                  onMore={league && isAdmin && more.length ? () => leagueMenu(m!) : undefined}
+                  segments={league && m?.mentions?.length ? mentionSegments(item.text, m.mentions, myName) : undefined}
+                  spoken={league && m ? spokenGroupMessage({ ...m, senderName }) : undefined}
                 />
               </View>
             );
@@ -296,7 +564,7 @@ export function GroupConversation({
             // Inverted lists flip their children; flip the empty state back.
             <View style={{ transform: [{ scaleY: -1 }], padding: spacing.space8, alignItems: "center" }}>
               <Text tone="inkMuted" style={{ textAlign: "center" }}>
-                Say hi and settle the details.
+                {league ? "Say hi to your league. Type @ to mention someone." : "Say hi and settle the details."}
               </Text>
             </View>
           }
@@ -319,6 +587,29 @@ export function GroupConversation({
             {notice}
           </Text>
         ) : null}
+        {canSend && suggestions.length ? (
+          // @ suggestions (decision 145), like iOS Messages: league members whose name starts with what you typed.
+          <View accessibilityLabel="Mention suggestions" style={{ borderRadius: radius.radiusLg, borderWidth: 1, borderColor: c.hairline, backgroundColor: c.paper, overflow: "hidden" }}>
+            {suggestions.map((p, i) => (
+              <Pressable
+                key={`${p.userId ?? p.playerId ?? p.name}-${i}`}
+                onPress={() => pickMention(p.name)}
+                accessibilityRole="button"
+                accessibilityLabel={`Mention ${p.name}`}
+                style={({ pressed }) => ({
+                  minHeight: MIN_TAP,
+                  justifyContent: "center",
+                  paddingHorizontal: spacing.space3,
+                  borderTopWidth: i ? 1 : 0,
+                  borderTopColor: c.hairline,
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <Text variant="bodyStrong">{p.name}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
         {group && !canSend ? (
           <Text tone="inkMuted" style={{ textAlign: "center", paddingVertical: spacing.space3 }}>
             {group.sendBlockedReason ?? "This chat is closed."}
@@ -331,6 +622,15 @@ export function GroupConversation({
                 setDraft(t);
                 if (notice) setNotice(null);
               }}
+              selection={caretAfterMention}
+              onSelectionChange={
+                league
+                  ? (e) => {
+                      setSelection(e.nativeEvent.selection);
+                      setCaretAfterMention(undefined);
+                    }
+                  : undefined
+              }
               editable={!!group}
               placeholder="Message"
               placeholderTextColor={c.inkMuted}

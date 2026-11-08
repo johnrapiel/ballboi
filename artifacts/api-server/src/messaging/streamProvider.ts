@@ -14,6 +14,9 @@ const BASE_URL = "https://chat.stream-io-api.com";
 const CHANNEL_TYPE = "messaging";
 /** Custom field for moderator hides. Reversible, unlike Stream's delete. */
 const HIDDEN_FIELD = "bb_hidden";
+/** League chats (decision 145): an admin post, and the accounts a message @mentions. */
+const ADMIN_FIELD = "bb_admin";
+const MENTIONS_FIELD = "bb_mentions";
 
 function base64url(input: Buffer | string): string {
   return Buffer.from(input).toString("base64").replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
@@ -44,6 +47,8 @@ interface StreamMessage {
   created_at: string;
   type?: string;
   [HIDDEN_FIELD]?: boolean;
+  [ADMIN_FIELD]?: boolean;
+  [MENTIONS_FIELD]?: unknown;
 }
 
 export class StreamApiError extends Error {
@@ -98,6 +103,8 @@ export class StreamMessagingProvider implements MessagingProvider {
       createdAt: new Date(m.created_at),
       hidden: m[HIDDEN_FIELD] === true || m.type === "deleted",
       ...(m.type === "system" ? { system: true } : {}),
+      ...(m[ADMIN_FIELD] === true ? { admin: true } : {}),
+      ...(Array.isArray(m[MENTIONS_FIELD]) ? { mentions: (m[MENTIONS_FIELD] as unknown[]).filter((u): u is string => typeof u === "string") } : {}),
     };
   }
 
@@ -139,7 +146,15 @@ export class StreamMessagingProvider implements MessagingProvider {
     // Ball Boi's lines go out as Stream system messages from one server-side user.
     if (system) await this.ensureUsers([SYSTEM_SENDER]);
     const res = await this.call<{ message: StreamMessage }>("POST", `/channels/${CHANNEL_TYPE}/${input.channelId}/message`, {
-      message: { id: input.messageId, text: input.text, user_id: input.senderId, ...(system ? { type: "system" } : {}) },
+      message: {
+        id: input.messageId,
+        text: input.text,
+        user_id: input.senderId,
+        ...(system ? { type: "system" } : {}),
+        // League chats (decision 145): custom fields Stream keeps on the message.
+        ...(!system && input.admin ? { [ADMIN_FIELD]: true } : {}),
+        ...(!system && input.mentions?.length ? { [MENTIONS_FIELD]: input.mentions } : {}),
+      },
       // Ball Boi sends its own push (messaging/notify.ts).
       skip_push: true,
     });
