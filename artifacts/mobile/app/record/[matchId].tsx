@@ -47,6 +47,7 @@ import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo
 import * as Haptics from "expo-haptics";
 import { useKeepAwake } from "expo-keep-awake";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { Icon } from "@/components/Icon";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -982,6 +983,8 @@ export default function RecordScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: chrome.ground }}>
+      {/* The camera is always dark, so the status bar is light in both modes. */}
+      <StatusBar style="light" />
       <CameraView
         ref={camera}
         style={StyleSheet.absoluteFill}

@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon-light.png",
     "scheme": "ballboi",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "runtimeVersion": {
       "policy": "fingerprint"
@@ -119,7 +119,11 @@
           "image": "./assets/images/roundel-ink@3x.png",
           "imageWidth": 160,
           "resizeMode": "contain",
-          "backgroundColor": "#FAF9F5"
+          "backgroundColor": "#FAF9F5",
+          "dark": {
+            "image": "./assets/images/roundel-white@3x.png",
+            "backgroundColor": "#1F1E1D"
+          }
         }
       ],
       "expo-web-browser",

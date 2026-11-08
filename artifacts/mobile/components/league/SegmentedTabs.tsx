@@ -59,8 +59,10 @@ export function SegmentedTabs<T extends string>({
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: on ? c.linen : "transparent",
-              shadowColor: "#0A2447",
-              shadowOpacity: on ? 0.16 : 0,
+              // A soft ink shadow lifts the chosen segment by day. At night an
+              // ivory shadow would glow, so the linen fill on sand does it alone.
+              shadowColor: c.ink,
+              shadowOpacity: on && c.scheme === "light" ? 0.16 : 0,
               shadowRadius: 4,
               shadowOffset: { width: 0, height: 1 },
               elevation: on ? 1 : 0,
