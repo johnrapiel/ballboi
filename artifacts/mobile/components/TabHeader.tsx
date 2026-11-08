@@ -129,7 +129,7 @@ export function TabHeader({
           <Roundel size={52} />
         </View>
       ) : (
-        <Text variant="brushL" accessibilityRole="header" style={{ flexShrink: 1 }}>
+        <Text variant="headingL" accessibilityRole="header" style={{ flexShrink: 1 }}>
           {title}
         </Text>
       )}

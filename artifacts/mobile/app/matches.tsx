@@ -252,7 +252,7 @@ export default function MyMatchesScreen() {
       contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
       refreshControl={<RefreshControl refreshing={weekQ.isRefetching} onRefresh={() => void refetch()} tintColor={c.ink} />}
     >
-      <Text variant="brushL" accessibilityRole="header">
+      <Text variant="headingL" accessibilityRole="header">
         My matches
       </Text>
       {weekQ.isError && week ? (

@@ -142,7 +142,7 @@ export default function OpenMatchScreen() {
       <Stack.Screen options={{ title: "" }} />
       <ScrollView contentContainerStyle={{ padding: spacing.space4, paddingBottom: 140 + insets.bottom, gap: spacing.space4 }}>
         <View style={{ gap: spacing.space2 }}>
-          <Text variant="brushL" accessibilityRole="header">
+          <Text variant="headingL" accessibilityRole="header">
             {day}
           </Text>
           <Text variant="bodyStrong">{`${window} · ${m.format === "doubles" ? "Doubles" : "Singles"}`}</Text>

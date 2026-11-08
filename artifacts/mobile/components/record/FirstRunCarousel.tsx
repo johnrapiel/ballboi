@@ -372,7 +372,7 @@ export function FirstRunCarousel({
             style={{ gap: spacing.space3 }}
           >
             {position ? <Dots index={index} count={pages.length} /> : null}
-            <Text variant="brushL">{title}</Text>
+            <Text variant="headingL">{title}</Text>
           </View>
 
           {page === "records" ? <RecordsPage /> : null}

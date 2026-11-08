@@ -287,7 +287,7 @@ export default function JoinLeagueScreen() {
           <Text variant="small" tone="inkMuted">
             You're invited to
           </Text>
-          <Text variant="brushM" accessibilityRole="header" style={{ textAlign: "center" }}>
+          <Text variant="headingM" accessibilityRole="header" style={{ textAlign: "center" }}>
             {leagueName}
           </Text>
           <Text variant="small" tone="inkMuted" style={{ textAlign: "center" }} accessibilityLabel={`Invite code ${code.split("").join(" ")}`}>

@@ -51,7 +51,7 @@ export default function InvitePlayersScreen() {
         contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space6 }}
       >
         <View style={{ gap: spacing.space1 }}>
-          <Text variant="brushM" accessibilityRole="header">
+          <Text variant="headingM" accessibilityRole="header">
             Invite players
           </Text>
           <Text tone="inkMuted">{`${name} is ready. Players join with this code or link from the Leagues tab.`}</Text>
