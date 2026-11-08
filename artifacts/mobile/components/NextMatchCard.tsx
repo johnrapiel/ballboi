@@ -7,8 +7,8 @@ import { Button, Pill, Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 
-// Next match card D2 (approved design audit, Home, John, Nov 6): one soft,
-// borderless card with no inner boxes, all centred in one flow. The date, a big
+// Next match card D2 (approved design audit, Home, John, Nov 6): one plain
+// card with the standard light hairline border (Nov 7) with no inner boxes, all centred in one flow. The date, a big
 // serif time, both faces overlapped, "You vs. Mike", the court with a pin, the
 // league as an outline pill, then the buttons.
 //
@@ -80,11 +80,9 @@ export function NextMatchCard({
         paddingHorizontal: 20,
         paddingBottom: 20,
         alignItems: "center",
-        // The D2 soft lift, in place of a hairline border.
-        shadowColor: c.scheme === "dark" ? "#000000" : c.ink,
-        shadowOpacity: c.scheme === "dark" ? 0.5 : 0.14,
-        shadowRadius: 14,
-        shadowOffset: { width: 0, height: 6 },
+        // One rule for every card (John, Nov 7): the light hairline border, no shadow.
+        borderWidth: 1,
+        borderColor: c.hairline,
       }}
     >
       <View accessible accessibilityLabel={summary} style={{ alignItems: "center", width: "100%" }}>

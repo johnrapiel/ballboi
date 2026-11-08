@@ -42,7 +42,7 @@ export default function MessagesScreen() {
 
   const header = (
     <View>
-      <Text variant="brushM" accessibilityRole="header" style={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space2, paddingBottom: spacing.space3 }}>
+      <Text variant="headingM" accessibilityRole="header" style={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space2, paddingBottom: spacing.space3 }}>
         Messages
       </Text>
       <ModerationRow />

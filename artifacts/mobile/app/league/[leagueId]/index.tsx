@@ -26,6 +26,7 @@ import { Button, Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { RatingBadge } from "@/components/RatingBadge";
+import { DoublesRecordButton } from "@/components/record/DoublesMatchCard";
 import { levelSpoken } from "@/lib/onboarding";
 import {
   canEnterScore,
@@ -38,12 +39,14 @@ import {
   opponentName,
   pairingTime,
   playoffLine,
+  recordAction,
   resultLine,
   shortDate,
   weeklyMatchTime,
 } from "@/lib/leagueSchedule";
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { formatLabel, playersLabel, playTypeLabel } from "@/lib/leagues";
+import { openRecorder } from "@/lib/recording/start";
 
 // League (spec: Leagues; approved canvas: League detail · Standings). A brush
 // title and one meta line, then your match this week, then Standings, Matches
@@ -108,6 +111,7 @@ function YourWeek({
   timeZone,
   canSetTime,
   ended,
+  doubles,
 }: {
   leagueId: number;
   week: NonNullable<ReturnType<typeof myWeek>>;
@@ -115,6 +119,8 @@ function YourWeek({
   timeZone: string | null;
   canSetTime: boolean;
   ended: boolean;
+  /** A doubles league's match: Record shows dimmed with the reason. */
+  doubles: boolean;
 }) {
   // C6: hooks before any early return, so a bye week turning into a match
   // doesn't change the hook order.
@@ -139,6 +145,8 @@ function YourWeek({
   const opponentRating = match.player1Id === myPlayerId ? match.player2Rating : match.player1Rating;
   const canMessage = match.player1Id === myPlayerId ? match.player2HasAccount : match.player1HasAccount;
   const scoreable = canEnterScore(round, match, ended);
+  const record = recordAction(round, match, ended, doubles);
+  const stack = fontScale >= 1.3;
   // C7: a direct chat with your opponent.
   const message = () =>
     router.push({ pathname: "/conversation/[id]", params: { id: "new", playerId: String(opponentId), name: opponent } });
@@ -176,27 +184,44 @@ function YourWeek({
           {when}
         </Text>
       </View>
+      {/* John, Nov 8 (option A): Record with Ball Boi is the one primary
+          action any day of the match's week, with Enter score and Message
+          under it (spec: Ball Boi > Recording, "Every recording starts from
+          a match"). Doubles shows it dimmed with the reason as visible text. */}
+      {record === "record" ? (
+        <Button
+          label="Record with Ball Boi"
+          accessibilityHint={`Records your match against ${opponent}`}
+          onPress={() => openRecorder(router, { matchId: match.matchId, opponentName: opponent, leagueId })}
+        />
+      ) : record === "doubles" ? (
+        <DoublesRecordButton matchId={match.matchId} />
+      ) : null}
       {/* Side by side; stacked at large text sizes so neither label truncates. */}
-      <View style={{ flexDirection: fontScale >= 1.3 ? "column" : "row", gap: spacing.space2 }}>
-        {scoreable ? (
-          <Button
-            label="Enter score"
-            accessibilityHint={`For your match against ${opponent}`}
-            onPress={() => router.push(`/league/${leagueId}/score/${match.matchId}`)}
-            style={fontScale >= 1.3 ? undefined : { flex: 1 }}
-          />
-        ) : null}
-        {canMessage ? (
-          <Button
-            label={`Message ${opponent.split(" ")[0]}`}
-            accessibilityLabel={`Message ${opponent}`}
-            accessibilityHint="Opens a direct chat"
-            variant="secondary"
-            onPress={message}
-            style={fontScale >= 1.3 ? undefined : { flex: 1 }}
-          />
-        ) : null}
-      </View>
+      {scoreable || canMessage ? (
+        <View style={{ flexDirection: stack ? "column" : "row", gap: spacing.space2 }}>
+          {scoreable ? (
+            <Button
+              label="Enter score"
+              accessibilityHint={`For your match against ${opponent}`}
+              // Under Record it steps back to secondary; on its own it stays primary.
+              variant={record ? "secondary" : "primary"}
+              onPress={() => router.push(`/league/${leagueId}/score/${match.matchId}`)}
+              style={stack ? undefined : { flex: 1 }}
+            />
+          ) : null}
+          {canMessage ? (
+            <Button
+              label={`Message ${opponent.split(" ")[0]}`}
+              accessibilityLabel={`Message ${opponent}`}
+              accessibilityHint="Opens a direct chat"
+              variant="secondary"
+              onPress={message}
+              style={stack ? undefined : { flex: 1 }}
+            />
+          ) : null}
+        </View>
+      ) : null}
       {!played && !match.voided && round.phase !== "closed" && !ended ? (
         <MatchTimeRow
           when={matchTime}
@@ -344,7 +369,7 @@ export default function LeagueScreen() {
       ) : (
         <>
           <View style={{ gap: spacing.space1 }}>
-            <Text variant="brushM" accessibilityRole="header">
+            <Text variant="headingM" accessibilityRole="header">
               {league.name}
             </Text>
             {meta ? (
@@ -453,6 +478,7 @@ export default function LeagueScreen() {
               timeZone={schedule?.timeZone ?? null}
               canSetTime={league?.matchDay == null || !!schedule?.isAdmin}
               ended={ended}
+              doubles={league?.leagueType === "doubles"}
             />
           ) : null}
 

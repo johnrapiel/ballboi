@@ -149,28 +149,37 @@ export function DiscoverTabs({ value, onChange }: { value: DiscoverTab; onChange
   );
 }
 
-/** "Near 12590, Wappingers Falls · Change", one 44pt button. */
+/**
+ * "Near 12590, Wappingers Falls" with the town underlined: the line itself is
+ * the link, no separate "Change" (John, Nov 5 and Nov 7). One 44pt button.
+ * With no ZIP yet, the whole line is the link.
+ */
 export function AreaRow({ area, onPress }: { area: DiscoverArea | null; onPress: () => void }) {
   const c = useColors();
-  const stacked = useLargeText();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={area ? `Your area, ${area.zip}, ${area.town}. Change` : "Add your ZIP"}
+      accessibilityLabel={area ? `Your area, ${area.zip}, ${area.town}` : "Add your ZIP to find players near you"}
+      accessibilityHint={area ? "Changes your area" : undefined}
       style={({ pressed }) => ({
         minHeight: MIN_TAP,
-        flexDirection: stacked ? "column" : "row",
-        alignItems: stacked ? "flex-start" : "center",
-        gap: stacked ? spacing.space1 : spacing.space2,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.space2,
+        alignSelf: "flex-start",
         opacity: pressed ? 0.6 : 1,
       })}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2, flexShrink: 1, flexGrow: 1 }}>
-        <Icon name="mappin.and.ellipse" size={18} tintColor={c.ink} />
-        <Text style={{ flexShrink: 1 }}>{areaLine(area)}</Text>
-      </View>
-      <Text style={{ textDecorationLine: "underline" }}>{area ? "Change" : "Add"}</Text>
+      <Icon name="mappin.and.ellipse" size={18} tintColor={c.ink} />
+      {area ? (
+        <Text style={{ flexShrink: 1 }}>
+          {`Near ${area.zip}, `}
+          <Text style={{ textDecorationLine: "underline" }}>{area.town}</Text>
+        </Text>
+      ) : (
+        <Text style={{ flexShrink: 1, textDecorationLine: "underline" }}>{areaLine(area)}</Text>
+      )}
     </Pressable>
   );
 }
@@ -254,7 +263,11 @@ export function LinkButton({
   );
 }
 
-/** The Filters button beside the count line: an outlined 44pt pill. */
+/**
+ * The Filters button beside the count line: the brush sliders icon alone, in
+ * an outlined 44pt circle (John, Nov 7). VoiceOver reads "Filters" and what's
+ * set. A small ink dot shows when filters are on.
+ */
 export function FiltersButton({
   onPress,
   accessibilityLabel,
@@ -270,20 +283,26 @@ export function FiltersButton({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      hitSlop={4}
       style={({ pressed }) => ({
-        minHeight: MIN_TAP,
-        paddingHorizontal: spacing.space4,
+        width: MIN_TAP,
+        height: MIN_TAP,
         borderRadius: radius.radiusPill,
         borderWidth: 1,
         borderColor: c.hairlineStrong,
-        flexDirection: "row",
         alignItems: "center",
-        gap: spacing.space2,
+        justifyContent: "center",
         opacity: pressed ? 0.7 : 1,
       })}
     >
-      <Icon name="line.3.horizontal.decrease" size={15} tintColor={c.ink} />
-      <Text variant="bodyStrong">{active ? "Filters on" : "Filters"}</Text>
+      <Icon name="slider.horizontal.2" size={20} tintColor={c.ink} />
+      {active ? (
+        <View
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
+          style={{ position: "absolute", top: 2, right: 2, width: 10, height: 10, borderRadius: 5, backgroundColor: c.ink, borderWidth: 2, borderColor: c.paper }}
+        />
+      ) : null}
     </Pressable>
   );
 }
