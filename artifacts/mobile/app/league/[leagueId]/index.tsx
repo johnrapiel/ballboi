@@ -17,6 +17,7 @@ import {
   type ScheduleMatch,
 } from "@workspace/api-client-react";
 
+import { LeagueChatButton } from "@/components/league/LeagueChatButton";
 import { RoundCard, UpcomingWeekRow } from "@/components/league/RoundCard";
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
 import { ListRow } from "@/components/league/ListRow";
@@ -369,9 +370,13 @@ export default function LeagueScreen() {
       ) : (
         <>
           <View style={{ gap: spacing.space1 }}>
-            <Text variant="headingM" accessibilityRole="header">
-              {league.name}
-            </Text>
+            {/* Chat in the top-right corner (decision 145): the league's chat, also in Messages. */}
+            <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.space3 }}>
+              <Text variant="headingM" accessibilityRole="header" style={{ flexShrink: 1 }}>
+                {league.name}
+              </Text>
+              <LeagueChatButton leagueId={leagueId} />
+            </View>
             {meta ? (
               <Text variant="small" tone="inkMuted">
                 {meta}

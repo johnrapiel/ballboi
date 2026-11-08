@@ -17,6 +17,8 @@ export function sourceLabel(source: string): string {
       return "Flagged automatically";
     case "appeal":
       return "Appeal";
+    case "league_admin":
+      return "League admin action";
     default:
       return "Report";
   }

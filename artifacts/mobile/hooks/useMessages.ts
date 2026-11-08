@@ -31,16 +31,27 @@ export interface Message {
   at: string;
 }
 
-/** A group chat (F15): an open match's chat once every spot fills. */
+/**
+ * A group chat: an open match's chat once every spot fills (F15), or a
+ * league's chat (decision 145), titled with the league name.
+ */
 export interface GroupConversation {
   id: number;
-  /** "Sat 9 AM doubles · Beacon Courts" */
+  /** Older servers leave it out: an open match's chat. */
+  kind?: "match" | "league";
+  /** "Sat 9 AM doubles · Beacon Courts", or the league name */
   title: string;
   openMatchId: number | null;
+  leagueId?: number | null;
   memberCount: number;
   /** senderName null: a line from Ball Boi. */
   lastMessage: { text: string; fromMe: boolean; senderName: string | null; at: string } | null;
+  /** Every unread message: the row shows bold with this count. */
   unread: number;
+  /** League chats: the unread @mentions of you and admin posts, the ones the Messages button counts (decision 146). */
+  attention?: number;
+  /** League chats: you're one of its admins (pins and moderation). */
+  isAdmin?: boolean;
   canSend: boolean;
   sendBlockedReason: string | null;
 }
@@ -54,12 +65,37 @@ export interface GroupMessage {
   senderName: string | null;
   senderPlayerId: number | null;
   senderUserId: number | null;
+  /** League chats: an admin post, shown with the Admin label. */
+  admin?: boolean;
+  /** League chats: the names it @mentions ("You" for you). */
+  mentions?: string[];
+  mentionsMe?: boolean;
 }
 
 export interface GroupThread {
   group: GroupConversation;
   messages: GroupMessage[];
   olderCursor: string | null;
+  /** League chats: pinned posts, oldest pin first (up to 3). */
+  pins?: GroupMessage[];
+}
+
+/** Someone in a group chat: for @ suggestions and league admin tools. */
+export interface GroupMember {
+  name: string;
+  /** Their player in this league, for Remove from league. */
+  playerId: number | null;
+  userId: number | null;
+  admin: boolean;
+  muted: boolean;
+  me: boolean;
+}
+
+/** The league page's Chat button (decision 145). */
+export interface LeagueChat {
+  groupId: number;
+  unread: number;
+  attention: number;
 }
 
 export interface MessagesSummary {
@@ -118,6 +154,8 @@ export const messagesKeys = {
   summary: ["messages", "summary"] as const,
   thread: (id: number) => ["messages", "thread", id] as const,
   group: (id: number) => ["messages", "group", id] as const,
+  members: (id: number) => ["messages", "group", id, "members"] as const,
+  leagueChat: (leagueId: number) => ["messages", "league", leagueId] as const,
   contacts: ["messages", "contacts"] as const,
 };
 
@@ -186,6 +224,8 @@ export function useGroupThread(id: number | null) {
       if (!before || lastBefore !== lastNow) {
         void qc.invalidateQueries({ queryKey: messagesKeys.summary });
         void qc.invalidateQueries({ queryKey: ["messages", "list"] });
+        // A league chat's count on its league page's Chat button (decision 145).
+        if (thread.group.leagueId) void qc.invalidateQueries({ queryKey: messagesKeys.leagueChat(thread.group.leagueId) });
       }
       return thread;
     },
@@ -259,6 +299,38 @@ export function useOlderMessages<M extends { id: string } = Message>(
   return { older, loadMore, loading, hasMore: before !== null, error };
 }
 
+/** Everyone in a group chat, for @ suggestions and the league admin menu. */
+export function useGroupMembers(id: number | null) {
+  const call = useApi();
+  return useQuery({
+    queryKey: messagesKeys.members(id ?? 0),
+    queryFn: async () => (await call<{ members: GroupMember[] }>(`/api/messages/groups/${id}/members`)).members,
+    enabled: id !== null,
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * The league page's Chat button: your league's chat and its unread count.
+ * Null when you're not in the league (the server says 404).
+ */
+export function useLeagueChat(leagueId: number | null) {
+  const call = useApi();
+  return useQuery({
+    queryKey: messagesKeys.leagueChat(leagueId ?? 0),
+    queryFn: async () => {
+      try {
+        return await call<LeagueChat>(`/api/leagues/${leagueId}/chat`);
+      } catch (e) {
+        if (e instanceof MessagesApiError && e.status === 404) return null;
+        throw e;
+      }
+    },
+    enabled: leagueId !== null,
+    refetchInterval: 30_000,
+  });
+}
+
 export function useContacts() {
   const call = useApi();
   return useQuery({
@@ -296,6 +368,35 @@ export function useMessagesActions() {
       call<{ groupId: number; message: GroupMessage }>(`/api/messages/groups/${groupId}/messages`, {
         method: "POST",
         body: JSON.stringify({ text, clientMessageId }),
+      }),
+    // League chats (decision 145): admin pins and moderation.
+    pin: (groupId: number, messageId: string) =>
+      call<{ pinnedIds: string[] }>(`/api/messages/groups/${groupId}/pins`, {
+        method: "POST",
+        body: JSON.stringify({ messageId }),
+      }),
+    unpin: (groupId: number, messageId: string) =>
+      call<{ pinnedIds: string[] }>(`/api/messages/groups/${groupId}/pins/${encodeURIComponent(messageId)}`, { method: "DELETE" }),
+    adminDelete: (groupId: number, messageId: string) =>
+      call<{ deleted: boolean }>(`/api/messages/groups/${groupId}/messages/${encodeURIComponent(messageId)}/delete`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      }),
+    mute: (groupId: number, member: { playerId?: number | null; userId?: number | null }) =>
+      call<{ muted: boolean }>(`/api/messages/groups/${groupId}/mute`, {
+        method: "POST",
+        body: JSON.stringify(member),
+      }),
+    unmute: (groupId: number, member: { playerId?: number | null; userId?: number | null }) =>
+      call<{ muted: boolean }>(`/api/messages/groups/${groupId}/unmute`, {
+        method: "POST",
+        body: JSON.stringify(member),
+      }),
+    /** Remove from league, from the league chat: the league's own removal, logged for moderation. */
+    removeFromLeague: (leagueId: number, playerId: number) =>
+      call<{ removed: boolean }>(`/api/leagues/${leagueId}/players/${playerId}/remove`, {
+        method: "POST",
+        body: JSON.stringify({ fromChat: true }),
       }),
     conversationWithPlayer: (playerId: number) =>
       call<{ conversationId: number | null }>(`/api/messages/with-player/${playerId}`),

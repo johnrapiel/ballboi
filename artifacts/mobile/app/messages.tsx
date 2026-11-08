@@ -17,8 +17,9 @@ import { useConversations, useMessagesActions, type Conversation, type GroupConv
 // one list: every message goes straight here, with no Message Requests (John,
 // Nov 6, finding 17). New message stays at the top right and lists league
 // mates; anyone else is messaged from their player card. The Moderation row
-// shows for the admin only. Open match group chats (F15) sit in the same
-// list, newest first, named for the match.
+// shows for the admin only. Open match group chats (F15) and league chats
+// (decision 145) sit in the same list, newest first, named for the match or
+// the league. A league chat shows from the moment you join, before anyone posts.
 
 type Item = { kind: "conversation"; item: Conversation } | { kind: "group"; item: GroupConversation };
 const lastAt = (i: Item) => i.item.lastMessage?.at ?? "";
