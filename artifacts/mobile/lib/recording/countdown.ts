@@ -1,7 +1,8 @@
 // Delayed start (spec: Ball Boi > Recording, Start): "Start in Now / 5 / 10 /
 // 15 min with spoken countdown cues". The cues are the voice coach's recorded
 // lines 14 to 19 (lib/court/coach.ts picks them, lib/coachLines.ts has their
-// words), each shown as a caption on the mounted screen.
+// words). The start is picked before mounting and the countdown runs once the
+// court locks (lib/recording/armedStart.ts, John, Nov 8).
 
 export const START_DELAYS = [
   { minutes: 0, label: "Now" },
