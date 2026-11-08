@@ -4,14 +4,10 @@ import { Pressable, View } from "react-native";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 
-// A league match on Home and elsewhere (spec: Navigation > Home; Ball Boi >
-// Recording: "Record with Ball Boi" is the primary action on a singles match
-// card on match day, and Enter score takes over once it's played).
+// A plain centred card on Home for things that aren't a match to play: a bye
+// week and an admin's pairings to review. Every match uses the approved D2
+// card instead (NextMatchCard, design audit, Nov 7).
 // The card's text reads as one VoiceOver element; its buttons follow it.
-//
-// Approved Next match card D2 (John, Nov 5): one soft, borderless card with no
-// inner boxes, every line centred in one flow, the matchup in Cormorant and
-// the when in larger body text. Used on every Home state and My matches.
 
 export interface MatchCardAction {
   label: string;

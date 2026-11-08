@@ -12,6 +12,11 @@ export interface LeagueWeekPlayoff {
   matchId: number;
   round: string;
   opponentName: string;
+  /**
+   * The singles opponent's player id, for Message on the Home card; null for doubles
+   * @nullable
+   */
+  opponentPlayerId: number | null;
   singles: boolean;
   timeZone: string;
   /**

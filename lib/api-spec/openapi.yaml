@@ -7219,6 +7219,9 @@ components:
         matchId: { type: ["integer", "null"] }
         myPlayerId: { type: integer }
         opponentName: { type: ["string", "null"] }
+        opponentPlayerId:
+          type: ["integer", "null"]
+          description: The singles opponent's player id, for Message on the Home card; null for doubles and byes
         singles: { type: boolean }
         scheduledAt: { type: ["string", "null"] }
         location: { type: ["string", "null"] }
@@ -7228,7 +7231,7 @@ components:
         timeZone:
           type: string
           description: The league's time zone, for its deadlines
-      required: [leagueId, leagueName, roundId, roundNumber, phase, startDate, deadline, graceEnd, bye, matchId, myPlayerId, opponentName, singles, scheduledAt, location, played, timeZone]
+      required: [leagueId, leagueName, roundId, roundNumber, phase, startDate, deadline, graceEnd, bye, matchId, myPlayerId, opponentName, opponentPlayerId, singles, scheduledAt, location, played, timeZone]
 
     LeagueWeekPlayoff:
       type: object
@@ -7238,6 +7241,9 @@ components:
         matchId: { type: integer }
         round: { type: string }
         opponentName: { type: string }
+        opponentPlayerId:
+          type: ["integer", "null"]
+          description: The singles opponent's player id, for Message on the Home card; null for doubles
         singles: { type: boolean }
         timeZone: { type: string }
         playBy:
@@ -7248,7 +7254,7 @@ components:
           description: The play-by date has passed, so the league admin enters the result
         scheduledAt: { type: ["string", "null"] }
         location: { type: ["string", "null"] }
-      required: [leagueId, leagueName, matchId, round, opponentName, singles, timeZone, playBy, pastPlayBy, scheduledAt, location]
+      required: [leagueId, leagueName, matchId, round, opponentName, opponentPlayerId, singles, timeZone, playBy, pastPlayBy, scheduledAt, location]
 
     LeagueWeekDraft:
       type: object

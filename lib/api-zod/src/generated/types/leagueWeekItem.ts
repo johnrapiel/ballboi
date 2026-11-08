@@ -22,6 +22,11 @@ export interface LeagueWeekItem {
   myPlayerId: number;
   /** @nullable */
   opponentName: string | null;
+  /**
+   * The singles opponent's player id, for Message on the Home card; null for doubles and byes
+   * @nullable
+   */
+  opponentPlayerId: number | null;
   singles: boolean;
   /** @nullable */
   scheduledAt: string | null;
