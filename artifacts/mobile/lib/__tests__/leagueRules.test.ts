@@ -128,6 +128,9 @@ describe("playoff results and actions", () => {
     expect(scoreNote({ correcting: false, settling: false, playoffRound: null }).text).toMatch(/edit it for 24 hours/);
     expect(scoreNote({ correcting: false, settling: false, playoffRound: null }).text).not.toMatch(/undo/i);
     expect(scoreNote({ correcting: false, settling: false, editing: true, playoffRound: null }).text).toMatch(/sees that you edited it/);
+    // Players can edit for 24 hours (decision 100): an admin's correction never says they can't.
+    expect(scoreNote({ correcting: true, settling: false, playoffRound: null }).text).not.toMatch(/can't/);
+    expect(scoreNote({ correcting: true, settling: false, playoffRound: null }).text).toMatch(/you corrected it/);
   });
 });
 

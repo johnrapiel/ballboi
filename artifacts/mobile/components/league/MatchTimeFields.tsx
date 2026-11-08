@@ -67,7 +67,7 @@ export function MatchTimeFields({
         <>
           <ChoiceGroup<number> label="Day" value={day} onChange={onDayChange} options={DAYS} />
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.space3 }}>
-            <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
+            <Text variant="section" tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
               Time
             </Text>
             <DateTimePicker

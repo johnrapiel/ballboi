@@ -324,12 +324,11 @@ export default function ManageLeagueScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refreshAll()} tintColor={c.ink} />}
     >
       <View style={{ gap: spacing.space1, marginBottom: spacing.space2 }}>
-        <Text variant="label" tone="inkMuted">
-          {league?.name ?? ""}
-        </Text>
-        <Text variant="displayL" accessibilityRole="header">
+        {/* Page title in the heading style (Cormorant at 50% ink), the league under it. */}
+        <Text variant="headingM" accessibilityRole="header">
           Manage
         </Text>
+        {league?.name ? <Text tone="inkMuted">{league.name}</Text> : null}
       </View>
 
       {/* Finding 29: the invite lives here, at the top, not on League detail. */}
@@ -393,7 +392,7 @@ export default function ManageLeagueScreen() {
           <Card style={{ padding: 0, overflow: "hidden" }}>
             <ListRow
               title="Correct a score"
-              subtitle="Fix a played match. Players can't change scores."
+              subtitle="Fix a played match. Players can edit their own score for 24 hours after it's entered."
               symbol="pencil"
               onPress={() => router.push(`/league/${leagueId}/scores`)}
               last
@@ -452,7 +451,7 @@ export default function ManageLeagueScreen() {
                 key={p.playerId}
                 title={isMe ? `${p.name} (you)` : p.name}
                 subtitle={leagueLevelLabel(p)}
-                trailing={roleLabel(p.role)}
+                tag={roleLabel(p.role)}
                 onPress={isMe && !canPromote ? undefined : () => playerMenu(p)}
                 accessibilityHint={isMe ? undefined : canPromote ? "Make co-admin or remove from league" : "Remove from league"}
                 last={i === roster.length - 1}
@@ -471,7 +470,7 @@ export default function ManageLeagueScreen() {
             <ListRow
               key={a.clerkUserId}
               title={`${a.name}${isMe ? " (you)" : ""}`}
-              trailing={roleLabel(a.role)}
+              tag={roleLabel(a.role)}
               onPress={actionable ? () => adminMenu(a) : undefined}
               accessibilityHint={actionable ? (isMe ? "Step down as co-admin" : "Remove as co-admin") : undefined}
               last={i === admins.length - 1}

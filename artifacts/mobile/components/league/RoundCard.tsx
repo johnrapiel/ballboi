@@ -137,7 +137,7 @@ export function RoundCard({
     <Card style={{ gap: spacing.space1 }}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.space2 }}>
         <View style={{ flexShrink: 1, gap: 2 }} accessible accessibilityRole="header" accessibilityLabel={`Round ${round.roundNumber}, ${dateRange(round.startDate, round.deadline)}. ${phaseLabel(round.phase)}`}>
-          <Text variant="label" tone="inkMuted">
+          <Text variant="section" tone="inkMuted">
             {`Round ${round.roundNumber}`}
           </Text>
           <Text variant="bodyStrong">{dateRange(round.startDate, round.deadline)}</Text>

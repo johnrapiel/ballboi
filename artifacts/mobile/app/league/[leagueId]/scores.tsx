@@ -48,12 +48,10 @@ export default function CorrectScoresScreen() {
       refreshControl={<RefreshControl refreshing={scheduleQ.isRefetching} onRefresh={() => void scheduleQ.refetch()} tintColor={c.ink} />}
     >
       <View style={{ gap: spacing.space1, marginBottom: spacing.space2 }}>
-        <Text variant="label" tone="inkMuted">
-          {leagueQ.data?.name ?? ""}
-        </Text>
-        <Text variant="displayL" accessibilityRole="header">
+        <Text variant="headingM" accessibilityRole="header">
           Correct a score
         </Text>
+        {leagueQ.data?.name ? <Text tone="inkMuted">{leagueQ.data.name}</Text> : null}
         <Text tone="inkMuted">Pick a played match to fix its score. Standings update, and both players see that you corrected it.</Text>
       </View>
 
