@@ -59,4 +59,27 @@ describe("buildMatchDetail", () => {
     expect(buildMatchDetail(input()).replay).toBeNull();
     expect(buildMatchDetail(input({ replay: { durationSeconds: 5520, shotCount: 412 } })).replay).toEqual({ durationSeconds: 5520, shotCount: 412 });
   });
+
+  // Decision 152: a late match carries the last day to play it.
+  describe("late matches", () => {
+    const unplayed = m({ status: "scheduled", score: null, winnerId: null, recordedAt: null, recordedByClerkUserId: null });
+    // Nov 6 in New York; the round's deadline was Nov 3, so its extra week runs to Nov 10.
+    const round = { publishedAt: new Date("2026-10-27T11:00:00Z"), startDate: "2026-10-28", endDate: "2026-11-03" };
+
+    it("gives the end of the extra week for an unplayed match past its deadline", () => {
+      expect(buildMatchDetail(input({ match: unplayed, round })).lateUntil).toBe("2026-11-10");
+    });
+
+    it("is null while the round's week is still on, once played, or with no round", () => {
+      expect(buildMatchDetail(input({ match: unplayed, round: { ...round, endDate: "2026-11-08" } })).lateUntil).toBeNull();
+      expect(buildMatchDetail(input({ round })).lateUntil).toBeNull();
+      expect(buildMatchDetail(input({ match: unplayed })).lateUntil).toBeNull();
+    });
+
+    it("is null after the extra week, for a cancelled match, or once the league has ended", () => {
+      expect(buildMatchDetail(input({ match: unplayed, round: { ...round, endDate: "2026-10-29" } })).lateUntil).toBeNull();
+      expect(buildMatchDetail(input({ match: m({ ...unplayed, voidedAt: new Date() }), round })).lateUntil).toBeNull();
+      expect(buildMatchDetail(input({ match: unplayed, round, league: { id: 1, name: "Men's 3.5", leagueType: "singles", timeZone: "America/New_York", endedAt: new Date("2026-11-05T00:00:00Z") } })).lateUntil).toBeNull();
+    });
+  });
 });

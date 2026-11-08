@@ -15,7 +15,7 @@ import { RecapShareButton } from "@/components/RecapShareButton";
 import { MarkedName, WinnerNames } from "@/components/WinnerNames";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { correctionLine } from "@/lib/leagueSchedule";
+import { correctionLine, LATE_NOTE, LATE_ROUND_RESULT, lateDateLine } from "@/lib/leagueSchedule";
 import { durationLabel, durationSpoken, resultSentence, scoreFootnote, setRows } from "@/lib/myMatches";
 import { isRetiredScore, WALKOVER_SCORE } from "@/lib/tennisScore";
 import { winnerMark } from "@/lib/winnerMark";
@@ -42,6 +42,8 @@ const BALL = {
 };
 
 function whenLine(d: MatchDetail): string | null {
+  // A late match: its saved time while still ahead, else "Play by" the end of its extra week (decision 152).
+  if (d.lateUntil) return lateDateLine(d.scheduledAt, d.lateUntil, d.timeZone);
   const iso = d.scheduledAt ?? d.completedAt;
   if (!iso) return null;
   const at = new Date(iso);
@@ -223,7 +225,7 @@ export default function MatchDetailScreen() {
     retired ? `${youWon ? them : you} retired.` : null,
     correctionLine(d),
     !d.correctedBy && d.editedBy ? `Score edited by ${d.editedBy}` : null,
-    d.inGrace ? "Grace week: counts for Ball Boi stats, not standings." : null,
+    d.lateUntil ? LATE_NOTE : d.inGrace ? LATE_ROUND_RESULT : null,
   ].filter((n): n is string => !!n);
   const footnote = scoreFootnote(d);
   // The walkover line already shows in the card when there's no score.

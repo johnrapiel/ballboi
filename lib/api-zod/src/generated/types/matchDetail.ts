@@ -29,6 +29,11 @@ export interface MatchDetail {
   voided: boolean;
   inGrace: boolean;
   /**
+   * Set while an unplayed league match is late (its round's week has passed). The last day to play it, YYYY-MM-DD in the league's zone (decision 152)
+   * @nullable
+   */
+  lateUntil: string | null;
+  /**
    * From your side, your games first
    * @nullable
    */

@@ -128,6 +128,57 @@ export function dateRange(start: string, end: string): string {
   return `${month(s)} ${s.getUTCDate()} to ${sameMonth ? "" : `${month(e)} `}${e.getUTCDate()}`;
 }
 
+// Late matches (decision 152, John, Nov 8): an unplayed match gets one extra
+// week after its round's deadline, and a result in that week doesn't change
+// the standings (spec, Leagues). These are the words for it everywhere.
+
+/** The one sentence under a late match that hasn't been played. */
+export const LATE_NOTE = "This match's week has passed. You can still play it, but the result won't change the standings.";
+/** A late match's played result on a result row. */
+export const LATE_RESULT = "Not in standings";
+/** A late match's played result in a round card. */
+export const LATE_ROUND_RESULT = "Late: not in standings";
+
+/** A late match's saved time, kept only while it's still ahead; a past time is dropped. */
+export function lateTime(scheduledAt: string | null | undefined, now: Date = new Date()): string | null {
+  if (!scheduledAt) return null;
+  const at = new Date(scheduledAt);
+  if (Number.isNaN(at.getTime())) return null;
+  return at.getTime() > now.getTime() ? scheduledAt : null;
+}
+
+/** "Play by Fri, Nov 13" (the end of the extra week, in the league's zone). */
+export function playByLine(graceEnd: string, timeZone: string | null | undefined): string {
+  return `Play by ${deadlineDate(graceEnd, timeZone)}`;
+}
+
+/**
+ * A late match's date line: its saved time while that's still ahead
+ * ("Fri, Nov 13 at 6:30 PM"), else "Play by" the end of the extra week.
+ * Never a past date as if it were upcoming.
+ */
+export function lateDateLine(
+  scheduledAt: string | null | undefined,
+  graceEnd: string,
+  timeZone: string | null | undefined,
+  now: Date = new Date(),
+): string {
+  return matchWhen(lateTime(scheduledAt, now), now) ?? playByLine(graceEnd, timeZone);
+}
+
+/** The line under a round's dates: when to play, and how long late matches have. Null once it's closed or the league has ended. */
+export function roundPlayByLine(
+  round: Pick<ScheduleRound, "phase" | "deadline" | "graceEnd">,
+  timeZone: string | null | undefined,
+  ended = false,
+): string | null {
+  if (ended) return null;
+  const late = deadlineDate(round.graceEnd, timeZone);
+  if (round.phase === "open" || round.phase === "upcoming") return `Play by ${deadlineDate(round.deadline, timeZone)}. Late matches can be played until ${late}.`;
+  if (round.phase === "grace") return `Late matches can be played until ${late}. Their results don't change the standings.`;
+  return null;
+}
+
 /** Short status for a round, always in words (never color alone). */
 export function phaseLabel(phase: ScheduleRound["phase"]): string {
   switch (phase) {
@@ -138,7 +189,7 @@ export function phaseLabel(phase: ScheduleRound["phase"]): string {
     case "open":
       return "This week";
     case "grace":
-      return "Grace week";
+      return "Late matches";
     case "closed":
       return "Done";
     default:
