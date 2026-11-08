@@ -169,6 +169,7 @@ import type {
   PhotoUploadRequest,
   PhotoUploadTicket,
   Player,
+  PlayerCard,
   PlayerIdBody,
   PlayerSearchResponse,
   PlayerStats,
@@ -4082,6 +4083,81 @@ export function useGetPlayers<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetPlayersQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Your player card and This season, for Profile (decisions 138 to 140)
+ */
+export const getGetMyPlayerCardUrl = () => {
+  return `/api/player-cards/me`;
+};
+
+export const getMyPlayerCard = async (
+  options?: RequestInit,
+): Promise<PlayerCard> => {
+  return customFetch<PlayerCard>(getGetMyPlayerCardUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyPlayerCardQueryKey = () => {
+  return [`/api/player-cards/me`] as const;
+};
+
+export const getGetMyPlayerCardQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyPlayerCard>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyPlayerCard>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyPlayerCardQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyPlayerCard>>> = ({
+    signal,
+  }) => getMyPlayerCard({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyPlayerCard>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyPlayerCardQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyPlayerCard>>
+>;
+export type GetMyPlayerCardQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Your player card and This season, for Profile (decisions 138 to 140)
+ */
+
+export function useGetMyPlayerCard<
+  TData = Awaited<ReturnType<typeof getMyPlayerCard>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyPlayerCard>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyPlayerCardQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

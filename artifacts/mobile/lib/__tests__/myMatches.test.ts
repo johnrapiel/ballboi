@@ -1,65 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import type { LeagueWeekItem, LeagueWeekPlayoff } from "@workspace/api-client-react";
-
 import { editedLine } from "@/lib/leagueSchedule";
 import {
   durationLabel,
   recordLabel,
   resultSentence,
   scoreFootnote,
-  seasonSpoken,
   setRows,
-  streakLabel,
-  upcomingMatches,
-  winRateLabel,
 } from "@/lib/myMatches";
 
-// Findings 6, 7 and 14 (John, Nov 6): Home's season stats, My matches, Match detail.
+// Findings 6, 7 and 14 (John, Nov 6): Match detail and the record line.
 
-describe("season stats", () => {
-  const season = { wins: 4, losses: 2, played: 6, streak: { won: true, count: 2 } };
-  it("reads like the approved design: 4–2, 67%, Won 2", () => {
-    expect(recordLabel(season)).toBe("4–2");
-    expect(winRateLabel(season)).toBe("67%");
-    expect(streakLabel(season)).toBe("Won 2");
-    expect(streakLabel({ streak: { won: false, count: 1 } })).toBe("Lost 1");
-  });
-  it("shows dashes before the first result, and says so to VoiceOver", () => {
-    const none = { wins: 0, losses: 0, played: 0, streak: null };
-    expect(winRateLabel(none)).toBe("–");
-    expect(streakLabel(none)).toBe("–");
-    expect(seasonSpoken(none)).toBe("Your season. No results yet.");
-    expect(seasonSpoken(season)).toBe("Your season. Record 4 and 2. Win rate 67%. Won your last 2. 6 played.");
-  });
-});
-
-const item = (over: Partial<LeagueWeekItem>): LeagueWeekItem => ({
-  leagueId: 1, leagueName: "Men's 3.5", roundId: 1, roundNumber: 3, phase: "open", startDate: "2026-11-05", deadline: "2026-11-11",
-  graceEnd: "2026-11-18", bye: false, matchId: 100, myPlayerId: 10, opponentName: "Mike Okafor", opponentPlayerId: 11, singles: true,
-  scheduledAt: null, location: null, played: false, timeZone: "America/New_York", ...over,
-});
-const playoff = (over: Partial<LeagueWeekPlayoff>): LeagueWeekPlayoff => ({
-  leagueId: 1, leagueName: "Men's 3.5", matchId: 200, round: "semifinal", opponentName: "Dana", opponentPlayerId: 12, singles: true,
-  timeZone: "America/New_York", playBy: "2026-11-20", pastPlayBy: false, scheduledAt: null, location: null, ...over,
-});
-
-describe("upcomingMatches", () => {
-  it("lists only matches still to play, soonest first, set times before play-by dates", () => {
-    const out = upcomingMatches({
-      thisWeek: [
-        item({ matchId: 100 }),
-        item({ matchId: 101, scheduledAt: "2026-11-08T22:30:00Z" }),
-        item({ matchId: 102, played: true }),
-        item({ matchId: null, bye: true }),
-      ],
-      playoffs: [playoff({}), playoff({ matchId: 201, pastPlayBy: true })],
-    });
-    expect(out.map((m) => m.matchId)).toEqual([101, 100, 200]);
-    expect(out[2].stage).toBe("Playoffs");
-  });
-  it("is empty with no data", () => {
-    expect(upcomingMatches(undefined)).toEqual([]);
+describe("record line", () => {
+  it("reads 4–2 with an en dash", () => {
+    expect(recordLabel({ wins: 4, losses: 2 })).toBe("4–2");
   });
 });
 

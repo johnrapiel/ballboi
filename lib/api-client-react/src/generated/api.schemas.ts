@@ -451,6 +451,75 @@ export interface UpcomingMatchPlans {
   matches: UpcomingMatchPlansMatchesItem[];
 }
 
+/**
+ * @nullable
+ */
+export type PlayerCardSeasonStreak = {
+  won: boolean;
+  count: number;
+} | null;
+
+/**
+ * This season by F13's rules (decision 121), in the global season running today, else the calendar year
+ */
+export interface PlayerCardSeason {
+  name: string;
+  /** YYYY-MM-DD, inclusive */
+  from: string;
+  /** YYYY-MM-DD, inclusive */
+  to: string;
+  wins: number;
+  losses: number;
+  played: number;
+  /** @nullable */
+  streak: PlayerCardSeasonStreak;
+  noShows: number;
+}
+
+/**
+ * @nullable
+ */
+export type PlayerCardPlays =
+  | (typeof PlayerCardPlays)[keyof typeof PlayerCardPlays]
+  | null;
+
+export const PlayerCardPlays = {
+  singles: "singles",
+  doubles: "doubles",
+  both: "both",
+} as const;
+
+/**
+ * The player card (design D). Holds only what the player entered.
+ */
+export interface PlayerCard {
+  userId: number;
+  you: boolean;
+  name: string;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** @nullable */
+  rating: number | null;
+  /** @nullable */
+  ratingSource: string | null;
+  /** @nullable */
+  plays: PlayerCardPlays;
+  /** @nullable */
+  town: string | null;
+  /**
+   * "~4 mi away" on another player's card; null on yours
+   * @nullable
+   */
+  distance: string | null;
+  /** @nullable */
+  homeCourt: string | null;
+  /** Free hours, day * 24 + hour, Monday is 0 */
+  slots: number[];
+  /** @nullable */
+  freeSummary: string | null;
+  season: PlayerCardSeason;
+}
+
 export type MyOpenMatchesMatchesItemFormat =
   (typeof MyOpenMatchesMatchesItemFormat)[keyof typeof MyOpenMatchesMatchesItemFormat];
 

@@ -1,140 +1,163 @@
-import { useAuth, useUser } from "@clerk/expo";
-import * as Haptics from "expo-haptics";
-import { useRouter } from "expo-router";
-import React from "react";
-import Constants from "expo-constants";
-import { Platform, ScrollView, View } from "react-native";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Avatar } from "@/components/Avatar";
-import { IconButton } from "@/components/Choice";
-import { RatingBadge } from "@/components/RatingBadge";
-import { Roundel } from "@/components/Roundel";
-import { SettingsRow, SettingsSection } from "@/components/SettingsList";
+import { useGetMyPlayerCard } from "@workspace/api-client-react";
+
+import { EmptyTab, MatchTabs } from "@/components/card/MatchTabs";
+import { PlayerCard } from "@/components/card/PlayerCard";
+import { SeasonRow } from "@/components/card/SeasonRow";
+import { CornerButton } from "@/components/CornerButton";
+import { ResultRow } from "@/components/ResultRow";
+import { SectionHead } from "@/components/SectionHead";
 import { TabScreen } from "@/components/TabHeader";
-import { Button, Text } from "@/components/ui";
-import { spacing } from "@/constants/tokens";
-import { useDiscoverMe } from "@/hooks/useDiscover";
-import { useProfile } from "@/hooks/useProfile";
-import { confirmSignOut } from "@/lib/confirmSignOut";
-import { formatRating, levelSpoken, type RatingSource } from "@/lib/onboarding";
-import { photoUrl } from "@/lib/photos";
+import { Button, Card, Text } from "@/components/ui";
+import { UpcomingRows } from "@/components/UpcomingRows";
+import { radius, spacing } from "@/constants/tokens";
+import { useColors } from "@/hooks/useColors";
+import { upcomingHint, useOpenUpcoming, useUpcomingMatches } from "@/hooks/useUpcomingMatches";
+import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
+import { recordedLine, recordedThisSeason, tabFromParam, type MatchTab } from "@/lib/playerCard";
+import { useServerRecordings } from "@/lib/recording/api";
 
-// Profile tab (approved canvas: Profile, John, Nov 6). Your player card, your
-// player details as rows that open the matching edit screen, Account (Sign out)
-// above About (finding 19). Settings is the cog in the header, beside Messages
-// (finding 30). Blocked players is gone: block lives in Report (finding 20). Delete account is at the bottom of Settings (finding 21).
-
-function levelValue(rating: number | null | undefined, source: RatingSource | null | undefined): string {
-  if (rating == null) return "Not set";
-  return source === "verified" ? `${formatRating(rating)}, Verified` : formatRating(rating);
-}
+// Profile is your player card with your matches below it (spec decisions 138
+// to 140, John, Nov 8; canvas W2_ProfileCard, W2_ProfileResults):
+// 1. The title "Profile", with the glass Settings and Messages buttons.
+// 2. The card (design D). Its pencil opens Edit profile; Free times opens
+//    the week's hour grid.
+// 3. This season: Record, Played, Streak, No-shows.
+// 4. Ball Boi this season, with See all opening this season's recordings on
+//    the Ball Boi tab. No shot stat has an all-season source that passes its
+//    accuracy bar yet (G1), so it shows how many matches you recorded. Hidden
+//    with no recordings this season.
+// 5. Your matches: Upcoming matches and Results tabs, with no heading. Home's
+//    See all and /matches open these, scrolled to the right tab.
+// Sign out lives in Settings.
 
 export default function ProfileScreen() {
+  const c = useColors();
   const insets = useSafeAreaInsets();
-  const { signOut } = useAuth();
-  const { user } = useUser();
   const router = useRouter();
-  // A1: the header shows the saved profile (name, photo, level), reloaded each
-  // time the tab comes into focus, so an Edit profile save shows right away.
-  const { profile } = useProfile();
+  const params = useLocalSearchParams<{ tab?: string; at?: string }>();
+  const cardQ = useGetMyPlayerCard();
+  const card = cardQ.data;
+  const upcoming = useUpcomingMatches();
+  const openUpcoming = useOpenUpcoming();
+  const recordings = useServerRecordings();
+  const [tab, setTab] = useState<MatchTab>(tabFromParam(params.tab) ?? "upcoming");
 
-  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+  const refetchCard = cardQ.refetch;
+  const firstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      // Back from Edit profile or Free times: show what was just saved.
+      if (firstFocus.current) {
+        firstFocus.current = false;
+        return;
+      }
+      void refetchCard();
+    }, [refetchCard]),
+  );
 
-  const handleSignOut = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (!(await confirmSignOut(signOut))) return;
-    router.replace("/(auth)/welcome");
+  // Home's See all and /matches land on the tabs, scrolled to them.
+  const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const [tabsY, setTabsY] = useState<number | null>(null);
+  const wanted = tabFromParam(params.tab);
+  useEffect(() => {
+    if (!wanted) return;
+    setTab(wanted);
+    if (tabsY != null) scroll.current?.scrollTo({ y: Math.max(0, tabsY - spacing.space4), animated: true });
+  }, [wanted, params.at, tabsY]);
+
+  const refresh = () => {
+    void cardQ.refetch();
+    upcoming.refetch();
+    void recordings.refetch();
   };
 
-  // Until the profile loads, the Clerk name (never part of the email).
-  const displayName = profile?.displayName?.trim() || user?.fullName?.trim() || "";
+  const results = upcoming.week?.results ?? [];
+  const seasonRecordings = card ? recordedThisSeason(recordings.data ?? [], card.season) : [];
 
   return (
     <TabScreen
       title="Profile"
-      action={(
-        <IconButton
+      action={
+        <CornerButton
           symbol="gearshape"
           label="Settings"
-          hint="Notifications, Ball Boi recording settings, and Delete account"
+          hint="Notifications, Ball Boi recording settings, Discover, Sign out and Delete account"
           onPress={() => router.push("/settings")}
         />
-      )}
+      }
     >
       <ScrollView
+        ref={scroll}
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space2, paddingBottom: bottomPad + 96, gap: spacing.space6 }}
-        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space2, paddingBottom: insets.bottom + 96, gap: spacing.space6 }}
+        refreshControl={<RefreshControl refreshing={cardQ.isRefetching || upcoming.isRefetching} onRefresh={refresh} tintColor={c.ink} />}
       >
-        {/* Your player card: avatar left, name and level beside it (approved canvas). */}
-        <View
-          accessible
-          accessibilityLabel={[displayName, profile?.rating != null ? levelSpoken(profile.rating, profile.ratingSource ?? "self") : null].filter(Boolean).join(", ")}
-          style={{ flexDirection: "row", alignItems: "center", gap: spacing.space4 }}
-        >
-          <Avatar name={displayName} uri={photoUrl(profile?.avatarUrl)} size={72} />
-          <View style={{ flex: 1, gap: spacing.space2 }}>
-            <Text variant="title">{displayName}</Text>
-            {profile?.rating != null ? <RatingBadge rating={profile.rating} source={profile.ratingSource ?? "self"} /> : null}
-          </View>
-        </View>
+        {cardQ.isLoading ? (
+          <View accessible accessibilityLabel="Loading your player card" style={{ height: 320, borderRadius: radius.radiusCard, backgroundColor: c.sand }} />
+        ) : !card ? (
+          <Card style={{ gap: spacing.space3 }}>
+            <Text variant="bodyStrong" accessibilityRole="alert">
+              {isOfflineError(cardQ.error) ? OFFLINE_MESSAGE : "Couldn't load your player card"}
+            </Text>
+            <Button label="Try again" variant="secondary" loading={cardQ.isRefetching} onPress={() => void cardQ.refetch()} />
+          </Card>
+        ) : (
+          <>
+            <PlayerCard card={card} onEdit={() => router.push("/profile/edit")} onFreeTimes={() => router.push("/free-times")} />
+            <SeasonRow season={card.season} />
+            {seasonRecordings.length > 0 ? (
+              <View style={{ gap: spacing.space2 }}>
+                <SectionHead
+                  title="Ball Boi this season"
+                  onSeeAll={() => router.navigate({ pathname: "/(tabs)/ballboi", params: { from: card.season.from, to: card.season.to } })}
+                  seeAllLabel="See all your Ball Boi recordings this season"
+                />
+                <Card accessible accessibilityLabel={`Ball Boi this season: ${recordedLine(seasonRecordings.length)}`} style={{ gap: 2 }}>
+                  <Text variant="title" style={{ fontVariant: ["lining-nums", "tabular-nums"] }}>
+                    {seasonRecordings.length}
+                  </Text>
+                  <Text variant="small" tone="inkMuted">
+                    {seasonRecordings.length === 1 ? "Match recorded" : "Matches recorded"}
+                  </Text>
+                </Card>
+              </View>
+            ) : null}
+          </>
+        )}
 
-        <SettingsSection title="Player details" footer="Your name, photo and level show on your player card. Your home area is never shown, only an approximate distance.">
-          <SettingsRow
-            title="Name and photo"
-            value={displayName || null}
-            onPress={() => router.push("/profile/edit/name")}
-            accessibilityHint="Change your name and photo"
-          />
-          <SettingsRow
-            title="Level"
-            value={profile ? levelValue(profile.rating, profile.ratingSource) : null}
-            onPress={() => router.push("/profile/edit/level")}
-            accessibilityHint="Change your self-rated level"
-          />
-          <SettingsRow
-            title="Home area"
-            value={profile ? profile.homeZip ?? "Not set" : null}
-            onPress={() => router.push("/profile/edit/home")}
-            accessibilityHint="Change your home area"
-          />
-          <WhenIPlayRow />
-        </SettingsSection>
-
-        {/* Account sits above About (John, Nov 6, finding 19). */}
-        <View style={{ gap: spacing.space2 }}>
-          <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ paddingHorizontal: spacing.space1 }}>
-            Account
-          </Text>
-          <Button label="Sign out" variant="destructiveOutline" onPress={handleSignOut} />
-        </View>
-
-        <View style={{ alignItems: "center", gap: spacing.space2, paddingTop: spacing.space2 }}>
-          <Text variant="section" tone="inkMuted" accessibilityRole="header">
-            About
-          </Text>
-          <Roundel size={56} />
-          <Text variant="small" tone="inkMuted">
-            {`Ball Boi ${Constants.expoConfig?.version ?? "1.0"}`}
-          </Text>
+        <View onLayout={(e) => setTabsY(e.nativeEvent.layout.y)} style={{ gap: spacing.space2 }}>
+          <MatchTabs tab={tab} onChange={setTab} counts={{ upcoming: upcoming.items.length, results: results.length }} />
+          {upcoming.isLoading ? (
+            <ActivityIndicator color={c.ink} accessibilityLabel="Loading your matches" style={{ marginTop: spacing.space4 }} />
+          ) : upcoming.isError && !upcoming.week ? (
+            <Card style={{ gap: spacing.space2 }}>
+              <Text variant="bodyStrong">Couldn't load your matches</Text>
+              <Text variant="small" tone="inkMuted">
+                Pull down to try again.
+              </Text>
+            </Card>
+          ) : tab === "upcoming" ? (
+            upcoming.items.length === 0 ? (
+              <EmptyTab title="No upcoming matches" message="Your next league match or a match you set up in Discover shows up here." />
+            ) : (
+              <UpcomingRows items={upcoming.items} onOpen={openUpcoming} hint={upcomingHint} />
+            )
+          ) : results.length === 0 ? (
+            <EmptyTab title="No results yet" message="Once you or your opponent enters a score, the result shows up here." />
+          ) : (
+            <Card style={{ padding: 0, overflow: "hidden" }}>
+              {results.map((r, n) => (
+                <ResultRow key={r.matchId} r={r} last={n === results.length - 1} onPress={() => router.push(`/match/${r.matchId}`)} />
+              ))}
+            </Card>
+          )}
         </View>
       </ScrollView>
     </TabScreen>
-  );
-}
-
-/** Profile › When I play (Discover, F7, F8): what you play and when you're free. */
-function WhenIPlayRow() {
-  const router = useRouter();
-  const me = useDiscoverMe();
-  return (
-    <SettingsRow
-      title="When I play"
-      subtitle={me.data ? me.data.freeSummary ?? "Add when you can play" : null}
-      onPress={() => router.push("/discover/play")}
-      accessibilityHint="Singles or doubles, and the hours you're usually free"
-      last
-    />
   );
 }

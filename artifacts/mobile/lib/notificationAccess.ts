@@ -74,6 +74,7 @@ export function routeForPushLink(link: unknown): string {
   const invite = path.match(/^\/record\/invite\/([A-Za-z0-9]{4,16})$/)?.[1];
   if (invite) return `/record/invite/${invite.toUpperCase()}`;
   if (path === "/messages") return "/messages";
+  // My matches lives on Profile now (decision 138); app/matches.tsx sends it there.
   if (path === "/matches") return "/matches";
   if (path === "/discover") return "/discover";
   if (path === "/leagues") return "/leagues";
