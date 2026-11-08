@@ -42,6 +42,7 @@ import {
 import { mlVideoFields } from "../lib/mlDispatch";
 import { parseRecordedAt } from "../lib/recordableMatches";
 import { phoneSessionMetadata, publicSession } from "../lib/sessionMetadata";
+import { phoneCourtCalibration } from "../lib/phoneCourtCalibration";
 
 const router = Router();
 
@@ -218,6 +219,11 @@ router.post("/ball-boi/matches/:matchId/sessions/start", requireAuth, async (req
     // Only the phone's own keys go into metadata; the server's own keys
     // (callback token, uploads, stat gates) are never taken from a request.
     const metadata = phoneSessionMetadata(req.body?.metadata);
+    // The court corners the phone found, or the player fixed (Wave 2 court
+    // detection), checked and copied clean. Only the four corners and a
+    // confidence score ever leave the phone.
+    const courtCalibration = phoneCourtCalibration(asRecord(req.body?.metadata).courtCalibration);
+    if (courtCalibration) metadata.courtCalibration = courtCalibration;
     const [session] = await db.insert(ballBoiSessionsTable).values({
       matchId,
       recordedByClerkUserId: userId,

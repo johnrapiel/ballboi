@@ -14,6 +14,7 @@
 // The video is analysis input only: nothing here, or anywhere in the app,
 // ever plays it back.
 
+import { sessionMetadata, type CourtCalibration } from "@/lib/court/calibration";
 import {
   completeBallBoiMultipartUpload,
   completeBallBoiSession,
@@ -43,13 +44,18 @@ export interface RecordingToUpload {
   segments?: RecordedSegment[];
   /** Goes on the session's metadata (B10). */
   opponentAgreedAt?: string;
+  /** The court's four corners, when the phone found them or the player fixed them. */
+  courtCalibration?: CourtCalibration | null;
 }
 
 /** Creates the server's record of this recording. Safe to call once per recording. */
 export async function ensureSession(rec: RecordingToUpload): Promise<number> {
   if (rec.sessionId) return rec.sessionId;
   // recordedAt: the card's day label is when the match was recorded, not when it uploaded (D19).
-  const metadata = rec.opponentAgreedAt ? { source: "ios", opponentAgreedAt: rec.opponentAgreedAt } : { source: "ios" };
+  const metadata = {
+    ...sessionMetadata(rec.courtCalibration),
+    ...(rec.opponentAgreedAt ? { opponentAgreedAt: rec.opponentAgreedAt } : {}),
+  };
   const session = await startBallBoiSession(rec.matchId, { metadata, recordedAt: rec.recordedAt });
   return session.id;
 }
