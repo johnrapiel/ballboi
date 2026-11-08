@@ -6,6 +6,7 @@ import { useAuth } from "@clerk/expo";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiErrorMessage, apiFetch } from "@/lib/api";
+import { askForNotifications } from "@/lib/notifications";
 import type { MatchPlan, PlanAction } from "@/lib/discover";
 
 export const planKeys = {
@@ -63,6 +64,8 @@ export function useSendMatchPlan() {
         await apiFetch("/api/match-plans", getToken, { method: "POST", body: JSON.stringify(input) }),
         "Couldn't send the match card.",
       ),
+    // A match added in chat: the notifications prompt, the first time (decision 125).
+    onSuccess: () => void askForNotifications("matchInChat"),
     onSettled: async () => {
       await qc.invalidateQueries({ queryKey: planKeys.all });
     },
@@ -93,6 +96,10 @@ export function usePlanAction() {
         await apiFetch(`/api/match-plans/${planId}/${command}`, getToken, { method: "POST" }),
         "Couldn't do that. Try again.",
       );
+    },
+    // Accepting a match card: the notifications prompt, the first time (decision 125).
+    onSuccess: (_plan, { action }) => {
+      if (action === "accept") void askForNotifications("matchInChat");
     },
     onSettled: async () => {
       await Promise.all([qc.invalidateQueries({ queryKey: planKeys.all }), qc.invalidateQueries({ queryKey: ["discover"] })]);

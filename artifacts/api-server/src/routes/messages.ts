@@ -48,8 +48,9 @@ export function createMessagesRouter(getService: () => MessagingService = getMes
     requireAuth,
     // An older app may still ask for ?box=requests; there's one inbox now.
     handle(async (svc, me, _req, res) => {
-      const [conversations, summary] = await Promise.all([svc.list(me), svc.summary(me)]);
-      res.json({ conversations, ...summary });
+      // Group chats (F15) come as their own list, so an older app that only reads conversations still works.
+      const [conversations, groups, summary] = await Promise.all([svc.list(me), svc.groups(me), svc.summary(me)]);
+      res.json({ conversations, groups, ...summary });
     }),
   );
 
@@ -92,6 +93,36 @@ export function createMessagesRouter(getService: () => MessagingService = getMes
       const body = (req.body ?? {}) as Record<string, unknown>;
       const result = await svc.start(me, { playerId: body.playerId, userId: body.userId, text: body.text, clientMessageId: body.clientMessageId });
       res.status(201).json(result);
+    }),
+  );
+
+  // ─── Group chats (F15): an open match's chat, on the same service ─────────
+
+  router.get(
+    "/messages/groups/:id",
+    requireAuth,
+    handle(async (svc, me, req, res) => {
+      const before = typeof req.query.before === "string" ? req.query.before : undefined;
+      res.json(await svc.groupThread(me, idParam(req), { before }));
+    }),
+  );
+
+  router.post(
+    "/messages/groups/:id/messages",
+    requireAuth,
+    handle(async (svc, me, req, res) => {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      res.status(201).json(await svc.sendToGroup(me, idParam(req), { text: body.text, clientMessageId: body.clientMessageId }));
+    }),
+  );
+
+  router.post(
+    "/messages/groups/:id/report",
+    requireAuth,
+    handle(async (svc, me, req, res) => {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const report = await svc.reportGroupMessage(me, idParam(req), { messageId: body.messageId, reason: body.reason, details: body.details });
+      res.status(201).json({ ...report, status: "open" });
     }),
   );
 

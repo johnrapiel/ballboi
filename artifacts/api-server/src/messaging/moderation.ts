@@ -16,7 +16,8 @@ export interface NewReport {
   details?: string;
   source: ReportSource;
   subject: string | null;
-  snapshot?: { conversationId: number; messages: SnapshotMessage[] };
+  /** conversationId is null for a group chat message (F15). */
+  snapshot?: { conversationId: number | null; messages: SnapshotMessage[] };
 }
 
 export interface Restriction {

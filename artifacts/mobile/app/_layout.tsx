@@ -236,6 +236,7 @@ function RootLayoutNav() {
         <Stack.Screen name="record/score/[matchId]" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="report/[playerId]" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="feedback" options={sheetOptions(colors.linen)} />
+        <Stack.Screen name="notifications" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="replay/[matchId]" options={{ ...pushedHeader, title: "Replay" }} />
         <Stack.Screen name="matches" options={{ ...pushedHeader, title: "" }} />
         <Stack.Screen name="match/[matchId]" options={{ ...pushedHeader, title: "" }} />

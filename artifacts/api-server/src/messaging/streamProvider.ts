@@ -8,7 +8,7 @@
 // .env locally and Cloudflare secrets in production. Never commit them.
 
 import { createHmac, timingSafeEqual } from "node:crypto";
-import type { MessagingProvider, ProviderMessage } from "./provider";
+import { SYSTEM_SENDER, type MessagingProvider, type ProviderMessage, type SendInput } from "./provider";
 
 const BASE_URL = "https://chat.stream-io-api.com";
 const CHANNEL_TYPE = "messaging";
@@ -97,6 +97,7 @@ export class StreamMessagingProvider implements MessagingProvider {
       text: m.text ?? "",
       createdAt: new Date(m.created_at),
       hidden: m[HIDDEN_FIELD] === true || m.type === "deleted",
+      ...(m.type === "system" ? { system: true } : {}),
     };
   }
 
@@ -108,7 +109,7 @@ export class StreamMessagingProvider implements MessagingProvider {
     missing.forEach((id) => this.knownUsers.add(id));
   }
 
-  async ensureChannel(channelId: string, members: [string, string]): Promise<void> {
+  async ensureChannel(channelId: string, members: string[]): Promise<void> {
     await this.ensureUsers(members);
     await this.call("POST", `/channels/${CHANNEL_TYPE}/${channelId}/query`, {
       data: { members, created_by_id: members[0] },
@@ -116,9 +117,29 @@ export class StreamMessagingProvider implements MessagingProvider {
     });
   }
 
-  async sendMessage(input: { channelId: string; messageId: string; senderId: string; text: string }): Promise<ProviderMessage> {
+  /** Group chats (F15): Stream's update channel call, with add_members. */
+  async addMembers(channelId: string, userIds: string[]): Promise<void> {
+    if (!userIds.length) return;
+    await this.ensureUsers(userIds);
+    await this.call("POST", `/channels/${CHANNEL_TYPE}/${channelId}`, { add_members: userIds.map((user_id) => ({ user_id })) });
+  }
+
+  async removeMembers(channelId: string, userIds: string[]): Promise<void> {
+    if (!userIds.length) return;
+    try {
+      await this.call("POST", `/channels/${CHANNEL_TYPE}/${channelId}`, { remove_members: userIds });
+    } catch (e) {
+      if (e instanceof StreamApiError && e.status === 404) return; // channel already gone
+      throw e;
+    }
+  }
+
+  async sendMessage(input: SendInput): Promise<ProviderMessage> {
+    const system = input.system === true && input.senderId === SYSTEM_SENDER;
+    // Ball Boi's lines go out as Stream system messages from one server-side user.
+    if (system) await this.ensureUsers([SYSTEM_SENDER]);
     const res = await this.call<{ message: StreamMessage }>("POST", `/channels/${CHANNEL_TYPE}/${input.channelId}/message`, {
-      message: { id: input.messageId, text: input.text, user_id: input.senderId },
+      message: { id: input.messageId, text: input.text, user_id: input.senderId, ...(system ? { type: "system" } : {}) },
       // Ball Boi sends its own push (messaging/notify.ts).
       skip_push: true,
     });

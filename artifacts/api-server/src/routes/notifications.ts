@@ -5,6 +5,10 @@ import { pushSubscriptionsTable, expoPushTokensTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
 import { logger } from "../lib/logger";
+import { notificationSettingsFor, parseSettingsUpdate, saveNotificationSettings } from "../services/push/settings";
+import { devToolsAllowed } from "../lib/devTime";
+import { runMatchReminders } from "../services/push/matchReminderJob";
+import { answerNotMe, sendOpponentNotices } from "../services/push/opponentRequests";
 
 const router = Router();
 
@@ -36,10 +40,11 @@ async function sendExpoPushToUsers(
 
     if (!tokens.length) continue;
 
+    // An empty title leaves it out, so iOS shows "Ball Boi" (message pushes with previews off).
     const messages = tokens.map((t) => ({
       to: t.token,
       sound: "default" as const,
-      title,
+      ...(title ? { title } : {}),
       body,
       data: { link },
     }));
@@ -284,6 +289,82 @@ router.get("/notifications/expo-token/status", async (req, res) => {
     );
 
   return res.json({ registered: tokens.length > 0 });
+});
+
+// Settings › Notifications (Wave 2, Session G): Show message previews (decision 128).
+router.get("/notifications/settings", async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    return res.json({ ...(await notificationSettingsFor(userId)), ...(devToolsAllowed() ? { devTools: true } : {}) });
+  } catch (err) {
+    logger.error({ err }, "Couldn't load notification settings");
+    return res.status(500).json({ error: "Couldn't load your notification settings. Try again." });
+  }
+});
+
+router.put("/notifications/settings", async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  const parsed = parseSettingsUpdate(req.body);
+  if ("error" in parsed) return res.status(400).json({ error: parsed.error });
+  try {
+    return res.json(await saveNotificationSettings(userId, parsed));
+  } catch (err) {
+    logger.error({ err }, "Couldn't save notification settings");
+    return res.status(500).json({ error: "Couldn't save. Try again." });
+  }
+});
+
+/**
+ * POST /recording/matches/:matchId/opponent-notice
+ * The mounted phone started capturing (Session G; decision 124). The other
+ * players get "Ball Boi is recording your match", or a stranger gets "Was
+ * that you?". Each at most once, so a retry or a second piece sends nothing.
+ */
+router.post("/recording/matches/:matchId/opponent-notice", async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  const matchId = Number(req.params.matchId);
+  if (!Number.isInteger(matchId) || matchId <= 0) return res.status(400).json({ error: "Invalid match id" });
+  try {
+    const result = await sendOpponentNotices(matchId, userId, sendPushToUsers);
+    if (!result) return res.status(404).json({ error: "Match not found" });
+    return res.json(result);
+  } catch (err) {
+    logger.error({ err, matchId }, "Opponent notice failed");
+    return res.status(500).json({ error: "Couldn't let your opponent know." });
+  }
+});
+
+/** POST /recording/invites/:code/not-me: "Was that you?" answered Not me (decision 124). */
+router.post("/recording/invites/:code/not-me", async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  const code = String(req.params.code).toUpperCase();
+  try {
+    const result = await answerNotMe(code, userId);
+    if (!result.ok) return res.status(result.status).json({ error: result.error });
+    return res.json({ success: true });
+  } catch (err) {
+    logger.error({ err }, "Not me failed");
+    return res.status(500).json({ error: "Couldn't save. Try again." });
+  }
+});
+
+/**
+ * POST /dev/match-reminders/run { at? } (dev only, never in production): runs
+ * the match day reminder job as if it were `at` (default now). Run it twice to
+ * see nothing is sent twice (Session G acceptance 27).
+ */
+router.post("/dev/match-reminders/run", async (req, res) => {
+  if (!devToolsAllowed()) return res.status(404).json({ error: "Not found" });
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  const raw = (req.body ?? {}).at;
+  const at = typeof raw === "string" ? new Date(raw) : new Date();
+  if (Number.isNaN(at.getTime())) return res.status(400).json({ error: "at must be a date and time." });
+  return res.json({ at: at.toISOString(), ...(await runMatchReminders(at, sendPushToUsers)) });
 });
 
 export default router;

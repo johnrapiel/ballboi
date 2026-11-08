@@ -1,10 +1,9 @@
 import { useAuth, useUser } from "@clerk/expo";
 import * as Haptics from "expo-haptics";
-import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React from "react";
 import Constants from "expo-constants";
-import { ActivityIndicator, Alert, Platform, ScrollView, View } from "react-native";
+import { Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Avatar } from "@/components/Avatar";
@@ -13,13 +12,10 @@ import { RatingBadge } from "@/components/RatingBadge";
 import { Roundel } from "@/components/Roundel";
 import { SettingsRow, SettingsSection } from "@/components/SettingsList";
 import { TabScreen } from "@/components/TabHeader";
-import { Toggle } from "@/components/Toggle";
 import { Button, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
-import { useColors } from "@/hooks/useColors";
 import { useDiscoverMe } from "@/hooks/useDiscover";
 import { useProfile } from "@/hooks/useProfile";
-import { useStableGetToken } from "@/hooks/useStableGetToken";
 import { confirmSignOut } from "@/lib/confirmSignOut";
 import { formatRating, levelSpoken, type RatingSource } from "@/lib/onboarding";
 import { photoUrl } from "@/lib/photos";
@@ -34,47 +30,9 @@ function levelValue(rating: number | null | undefined, source: RatingSource | nu
   return source === "verified" ? `${formatRating(rating)}, Verified` : formatRating(rating);
 }
 
-/**
- * Wave 1 review S8: the "Match day reminders" switch stays hidden until Wave 2
- * (Session G), which asks for notifications with a reason first (spec decision
- * 11). Turning it on fired the iOS notification prompt with no lead-in, and a
- * declined prompt can't be asked again. The code stays for Wave 2.
- */
-const SHOW_MATCH_DAY_REMINDERS = false;
-
-const API_BASE = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
-
-async function fetchWithAuth(
-  path: string,
-  options: RequestInit = {},
-  getToken: () => Promise<string | null>
-): Promise<Response> {
-  const token = await getToken();
-  return fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers as Record<string, string> ?? {}),
-    },
-  });
-}
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
-
 export default function ProfileScreen() {
-  const colors = useColors();
   const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
-  const getToken = useStableGetToken();
   const { user } = useUser();
   const router = useRouter();
   // A1: the header shows the saved profile (name, photo, level), reloaded each
@@ -82,112 +40,6 @@ export default function ProfileScreen() {
   const { profile } = useProfile();
 
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
-
-  const [pushEnabled, setPushEnabled] = useState(false);
-  const [pushLoading, setPushLoading] = useState(false);
-  const [pushToken, setPushToken] = useState<string | null>(null);
-
-  const loadPushStatus = useCallback(async () => {
-    if (Platform.OS === "web") return;
-    try {
-      const res = await fetchWithAuth("/api/notifications/expo-token/status", {}, getToken);
-      if (res.ok) {
-        const data = (await res.json()) as { registered: boolean };
-        setPushEnabled(data.registered);
-      }
-    } catch {
-    }
-  }, [getToken]);
-
-  useEffect(() => {
-    if (SHOW_MATCH_DAY_REMINDERS) loadPushStatus();
-  }, [loadPushStatus]);
-
-  const registerPushToken = useCallback(async (): Promise<string | null> => {
-    if (Platform.OS === "web") return null;
-
-    // expo-notifications v56 PermissionResponse type may not resolve correctly in this TS config
-    const existing = (await Notifications.getPermissionsAsync()) as { granted: boolean };
-    let granted = existing.granted;
-
-    if (!granted) {
-      const result = (await Notifications.requestPermissionsAsync()) as { granted: boolean };
-      granted = result.granted;
-    }
-
-    if (!granted) {
-      Alert.alert(
-        "Notifications Disabled",
-        "Enable notifications in Settings to receive match day reminders.",
-        [{ text: "OK" }]
-      );
-      return null;
-    }
-
-    try {
-      const tokenData = await Notifications.getExpoPushTokenAsync();
-      return tokenData.data;
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const handlePushToggle = useCallback(async (enabled: boolean) => {
-    if (Platform.OS === "web") return;
-    setPushLoading(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    try {
-      if (enabled) {
-        const token = await registerPushToken();
-        if (!token) {
-          setPushLoading(false);
-          return;
-        }
-
-        const res = await fetchWithAuth(
-          "/api/notifications/expo-token",
-          {
-            method: "POST",
-            body: JSON.stringify({ token }),
-          },
-          getToken
-        );
-
-        if (res.ok) {
-          setPushToken(token);
-          setPushEnabled(true);
-        }
-      } else {
-        const tokenToRemove = pushToken ?? (await (async () => {
-          try {
-            const d = await Notifications.getExpoPushTokenAsync();
-            return d.data;
-          } catch {
-            return null;
-          }
-        })());
-
-        if (tokenToRemove) {
-          await fetchWithAuth(
-            "/api/notifications/expo-token",
-            {
-              method: "DELETE",
-              body: JSON.stringify({ token: tokenToRemove }),
-            },
-            getToken
-          );
-        }
-
-        setPushToken(null);
-        setPushEnabled(false);
-      }
-    } catch {
-      Alert.alert("Error", "Could not update notification settings. Please try again.");
-    } finally {
-      setPushLoading(false);
-    }
-  }, [getToken, pushToken, registerPushToken]);
 
   const handleSignOut = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -205,7 +57,7 @@ export default function ProfileScreen() {
         <IconButton
           symbol="gearshape"
           label="Settings"
-          hint="Ball Boi recording settings, and Delete account"
+          hint="Notifications, Ball Boi recording settings, and Delete account"
           onPress={() => router.push("/settings")}
         />
       )}
@@ -249,23 +101,6 @@ export default function ProfileScreen() {
           />
           <WhenIPlayRow />
         </SettingsSection>
-
-        {SHOW_MATCH_DAY_REMINDERS && Platform.OS !== "web" ? (
-          <SettingsSection title="Notifications">
-            <SettingsRow
-              title="Match day reminders"
-              subtitle="A heads-up before each match"
-              trailing={
-                pushLoading ? (
-                  <ActivityIndicator size="small" color={colors.ink} />
-                ) : (
-                  <Toggle value={pushEnabled} onValueChange={handlePushToggle} accessibilityLabel="Match day reminders" />
-                )
-              }
-              last
-            />
-          </SettingsSection>
-        ) : null}
 
         {/* Account sits above About (John, Nov 6, finding 19). */}
         <View style={{ gap: spacing.space2 }}>

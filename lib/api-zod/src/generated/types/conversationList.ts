@@ -6,8 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ConversationView } from "./conversationView";
+import type { GroupView } from "./groupView";
 import type { MessagesSummary } from "./messagesSummary";
 
 export type ConversationList = MessagesSummary & {
   conversations: ConversationView[];
+  /** Group chats you're in (F15), newest first */
+  groups?: GroupView[];
 };
