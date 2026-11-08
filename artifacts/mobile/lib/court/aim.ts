@@ -76,10 +76,18 @@ export function lockable(fit: CourtFit | null): boolean {
 /** The screen's court status, in words as well as color (G1). */
 export type FrameStatus = "Court locked" | "Court in frame" | "Court not in frame" | "Finding the court";
 
-export function frameStatus(stage: LockStage, step: AimStep | null): FrameStatus {
+/**
+ * The setup chip, in step with the voice coach (John, Nov 8): "Court in
+ * frame" only when the latest find shows a court and the coach isn't still
+ * saying it can't see one. `coachCantSee` is true while the coach's last
+ * guidance was "I can't see the court..." (11): a stray find (a tennis match
+ * on a TV, say) then reads "Finding the court" until the coach agrees.
+ */
+export function frameStatus(stage: LockStage, step: AimStep | null, coachCantSee = false): FrameStatus {
   if (stage === "locked") return "Court locked";
   if (step === null) return "Finding the court";
-  return step === "none" ? "Court not in frame" : "Court in frame";
+  if (step === "none") return "Court not in frame";
+  return coachCantSee ? "Finding the court" : "Court in frame";
 }
 
 // ---------------------------------------------------------------------------

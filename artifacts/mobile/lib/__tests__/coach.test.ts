@@ -6,7 +6,6 @@ import {
   correctionFor,
   countdownCueDue,
   countdownOpening,
-  MOVED_GAP_MS,
   nextCoachCue,
   REPEAT_GAP_MS,
   REPEAT_LIMIT,
@@ -117,44 +116,71 @@ describe("corrections: the repeat rule (G8)", () => {
     expect(correctionFor("ok")).toBeNull();
   });
 
-  it("repeats no sooner than every 7 seconds while the phone hasn't moved", () => {
-    expect(run([{ now: 0 }, { now: 3000 }, { now: REPEAT_GAP_MS - 1 }, { now: REPEAT_GAP_MS }])).toEqual([
-      "tiltUp",
-      null,
-      null,
-      "tiltUp",
-    ]);
+  // The quiet counts from the end of a line: start + clip length + 10 seconds.
+  const after = (cue: CueId, at = 0) => at + COACH_LINES[cue].ms + REPEAT_GAP_MS;
+
+  it("waits at least 10 seconds of quiet after a line before the same correction again", () => {
+    expect(REPEAT_GAP_MS).toBeGreaterThanOrEqual(10_000);
+    const t = after("tiltUp");
+    expect(run([{ now: 0 }, { now: 3000 }, { now: t - 1 }, { now: t }])).toEqual(["tiltUp", null, null, "tiltUp"]);
   });
 
   it("stops after 3 times in a row", () => {
-    const times = Array.from({ length: 6 }, (_, i) => ({ now: i * REPEAT_GAP_MS }));
+    const gap = after("tiltUp");
+    const times = Array.from({ length: 6 }, (_, i) => ({ now: i * gap }));
     const said = run(times).filter(Boolean);
     expect(said).toHaveLength(REPEAT_LIMIT);
   });
 
-  it("starts the count over once the phone moves", () => {
+  it("starts the count over once the phone moves, still after the quiet", () => {
+    const gap = after("tiltUp");
     const said = run([
       { now: 0 },
-      { now: 7000 },
-      { now: 14000 },
-      { now: 21000 }, // fourth time: quiet
-      { now: 21000 + MOVED_GAP_MS, movedSinceLast: true }, // moved, still wrong: once more
+      { now: gap },
+      { now: 2 * gap },
+      { now: 2 * gap + 1000, movedSinceLast: true }, // moved, but within the quiet: quiet
+      { now: 3 * gap }, // fourth time without moving: quiet
+      { now: 3 * gap + 1, movedSinceLast: true }, // moved, still wrong: once more
     ]);
-    expect(said).toEqual(["tiltUp", "tiltUp", "tiltUp", null, "tiltUp"]);
+    expect(said).toEqual(["tiltUp", "tiltUp", "tiltUp", null, null, "tiltUp"]);
   });
 
-  it("says a new correction straight away, but never over a line that's playing", () => {
-    expect(run([{ now: 0 }, { now: 500, step: "turnLeft" }])).toEqual(["tiltUp", "left"]);
-    expect(run([{ now: 0 }, { now: 500, step: "turnLeft", busy: true }])).toEqual(["tiltUp", null]);
+  it("waits the same quiet before a different correction, and never talks over a line", () => {
+    const t = after("tiltUp");
+    expect(run([{ now: 0 }, { now: 500, step: "turnLeft" }, { now: t, step: "turnLeft" }])).toEqual(["tiltUp", null, "left"]);
+    expect(run([{ now: 0 }, { now: t, step: "turnLeft", busy: true }])).toEqual(["tiltUp", null]);
+  });
+
+  it("waits the quiet before Hold your phone there", () => {
+    const t = after("tiltUp");
+    expect(run([{ now: 0 }, { now: 2000, step: "ok", stage: "holding" }, { now: t, step: "ok", stage: "holding" }])).toEqual([
+      "tiltUp",
+      null,
+      "hold",
+    ]);
+  });
+
+  it("says Record anyway once it's due, after the quiet, and holds the next line back too", () => {
+    const t = after("noLock");
+    expect(
+      run([
+        { now: 0, step: "none" },
+        { now: 5000, step: "none", recordAnywayDue: true },
+        { now: t, step: "none", recordAnywayDue: true },
+        { now: t + 1000, step: "none" },
+        { now: after("recordAnyway", t), step: "none" },
+      ]),
+    ).toEqual(["noLock", null, "recordAnyway", null, "noLock"]);
   });
 
   it("says Hold your phone there once when nearly right and steady, then nothing until it locks", () => {
-    expect(run([{ step: "ok", stage: "holding" }, { now: 9000, step: "ok", stage: "holding" }])).toEqual(["hold", null]);
+    expect(run([{ step: "ok", stage: "holding" }, { now: 30_000, step: "ok", stage: "holding" }])).toEqual(["hold", null]);
     expect(run([{ step: "ok", stage: "locked" }])).toEqual([null]);
   });
 
   it("applies the same rule to I can't see the court", () => {
-    const said = run(Array.from({ length: 5 }, (_, i) => ({ now: i * REPEAT_GAP_MS, step: "none" as const })));
+    const gap = COACH_LINES.noLock.ms + REPEAT_GAP_MS;
+    const said = run(Array.from({ length: 5 }, (_, i) => ({ now: i * gap, step: "none" as const })));
     expect(said.filter(Boolean)).toEqual(["noLock", "noLock", "noLock"]);
   });
 });
@@ -194,17 +220,13 @@ describe("countdown lines", () => {
   });
 });
 
-describe("captions (G9)", () => {
-  it("show on the mounted screen during setup and the countdown, never once recording starts", () => {
-    expect(captionOnMountedScreen("setup")).toBe(true);
-    expect(captionOnMountedScreen("countdown")).toBe(true);
-    expect(captionOnMountedScreen("recording")).toBe(false);
-    expect(captionOnMountedScreen("after")).toBe(false);
+describe("captions (John, Nov 8)", () => {
+  it("never show on the mounted phone, during setup or recording", () => {
+    for (const m of ["setup", "countdown", "recording", "after"] as const) expect(captionOnMountedScreen(m)).toBe(false);
   });
 
-  it("always go to the Live Activity and Watch", () => {
-    expect(captionOnLiveActivity("setup")).toBe(true);
-    expect(captionOnLiveActivity("recording")).toBe(true);
+  it("always go to the Live Activity, Watch and partner phone", () => {
+    for (const m of ["setup", "countdown", "recording", "after"] as const) expect(captionOnLiveActivity(m)).toBe(true);
   });
 
   it("stay up at least 2 seconds, or as long as the line plays", () => {
@@ -212,8 +234,8 @@ describe("captions (G9)", () => {
     expect(cueCaptionMs("Three. Two. One. Recording has started.", 5047)).toBe(5047);
   });
 
-  it("are read by VoiceOver only when the line wasn't heard", () => {
+  it("are never read by VoiceOver on the mounted phone, so the audio isn't doubled", () => {
     expect(announceCaption(true)).toBe(false);
-    expect(announceCaption(false)).toBe(true);
+    expect(announceCaption(false)).toBe(false);
   });
 });

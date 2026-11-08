@@ -126,6 +126,11 @@ describe("locking", () => {
   it("says in words whether the court is in frame (G1)", () => {
     expect(frameStatus("searching", null)).toBe("Finding the court");
     expect(frameStatus("searching", "none")).toBe("Court not in frame");
+    // Agrees with the coach: while it's saying it can't see the court, a stray find isn't "in frame".
+    expect(frameStatus("searching", "tiltUp")).toBe("Court in frame");
+    expect(frameStatus("searching", "tiltUp", true)).toBe("Finding the court");
+    expect(frameStatus("searching", "none", true)).toBe("Court not in frame");
+    expect(frameStatus("locked", "ok", true)).toBe("Court locked");
     expect(frameStatus("holding", "ok")).toBe("Court in frame");
     expect(frameStatus("searching", "tiltUp")).toBe("Court in frame");
   });
