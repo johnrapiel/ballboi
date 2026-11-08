@@ -10310,7 +10310,10 @@ components:
         failedReason:
           type: [string, 'null']
           description: The short reason shown on a failed card; null unless stage is failed
-      required: [sessionId, matchId, leagueId, opponentName, recordedAt, stage, scoreEntered, recordedByYou, failedReason]
+        stillLearning:
+          type: boolean
+          description: Analyzing or done, but no stat has passed its accuracy bar yet, so the card reads "Uploaded" instead of "Analyzing" or "Replay is ready"
+      required: [sessionId, matchId, leagueId, opponentName, recordedAt, stage, scoreEntered, recordedByYou, failedReason, stillLearning]
     DiscardResult:
       type: object
       properties:

@@ -91,6 +91,11 @@ export interface ServerRecording {
   recordedByYou: boolean;
   /** Short reason when analysis failed, like "We couldn't see the court." */
   failedReason: string | null;
+  /**
+   * Analyzing or done, but no stat has passed its accuracy bar yet (B5): the
+   * card reads "Uploaded" with a thank-you. Older servers don't send it.
+   */
+  stillLearning?: boolean;
 }
 
 export const recordingsKey = ["recording", "sessions"] as const;
