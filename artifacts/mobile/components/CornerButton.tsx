@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { Icon, type IconName } from "@/components/Icon";
 import { MIN_TAP, radius } from "@/constants/tokens";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useScheme } from "@/hooks/useColors";
 
 /** Liquid Glass can be drawn: iOS 26+ with the API present (some betas lack it). */
 function glassAvailable(): boolean {
@@ -41,6 +41,7 @@ export function CornerButton({
   children?: React.ReactNode;
 }) {
   const c = useColors();
+  const scheme = useScheme();
   const glass = glassAvailable();
   return (
     <Pressable
@@ -60,6 +61,8 @@ export function CornerButton({
       {glass ? (
         <GlassView
           glassEffectStyle="regular"
+          // Light glass by day, dark glass at night, matching the ink icon on top.
+          colorScheme={scheme}
           pointerEvents="none"
           style={[StyleSheet.absoluteFill, { borderRadius: MIN_TAP / 2, overflow: "hidden" }]}
         />

@@ -1,12 +1,12 @@
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import React from "react";
-import { View, useColorScheme } from "react-native";
+import { View } from "react-native";
 
 import { ChoiceGroup } from "@/components/Choice";
 import { Toggle } from "@/components/Toggle";
 import { Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useScheme } from "@/hooks/useColors";
 
 // A league's weekly match day and time (PR 4), for clubs that play at a set
 // time. Off means players pick a time for each match within its week. Used in
@@ -51,7 +51,7 @@ export function MatchTimeFields({
   onTimeChange: (time: Date) => void;
 }) {
   const c = useColors();
-  const scheme = useColorScheme();
+  const scheme = useScheme();
   return (
     <View style={{ gap: spacing.space4 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3 }}>

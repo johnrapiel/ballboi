@@ -13,7 +13,6 @@ import {
   Text as RNText,
   TextInput,
   View,
-  useColorScheme,
   type PressableProps,
   type ScrollViewProps,
   type StyleProp,
@@ -26,7 +25,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 
 import { useAccessibilitySettings } from "@/hooks/useAccessibilitySettings";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useScheme } from "@/hooks/useColors";
 import {
   MIN_TAP,
   displayFaces,
@@ -53,7 +52,7 @@ export interface TextProps extends RNTextProps {
  * hairline strokes thin out as light text on navy.
  */
 export function useTypeStyle(variant: TypeStyle) {
-  const scheme = useColorScheme();
+  const scheme = useScheme();
   const { boldText } = useAccessibilitySettings();
   const base = type[variant];
   const isDisplay = displayFaces.includes(base.fontFamily);
@@ -361,6 +360,7 @@ export function Field({ label, hint, error = false, style, ...rest }: FieldProps
         accessibilityLabel={label}
         accessibilityHint={hint}
         placeholderTextColor={c.inkMuted}
+        keyboardAppearance={c.scheme}
         style={[
           body.style,
           {
