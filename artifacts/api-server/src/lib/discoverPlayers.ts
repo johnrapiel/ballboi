@@ -27,9 +27,23 @@ export type Plays = (typeof PLAYS)[number];
 export const PLAYS_FILTERS = ["singles", "doubles", "either"] as const;
 export type PlaysFilter = (typeof PLAYS_FILTERS)[number];
 
+/**
+ * The Level chips in Filters (John, Nov 7): every level from 2.5 to 5.0
+ * (spec decision 86), pick any number, yours selected by default.
+ */
+export const FILTER_LEVELS = [2.5, 3.0, 3.5, 4.0, 4.5, 5.0] as const;
+
+/**
+ * Which levels to show: "mine" (the default: just your own level), a list
+ * picked in Filters (empty means every level), or null for an older app that
+ * still sends the Close / Wider / Any range in `level`.
+ */
+export type LevelPick = "mine" | number[] | null;
+
 export interface PlayerFilters {
   radius: number;
   level: LevelRange;
+  levels: LevelPick;
   plays: PlaysFilter;
   free: boolean;
 }
@@ -42,9 +56,41 @@ export function parseFilters(q: Record<string, unknown>, savedRadius: number): P
   return {
     radius: parseRadius(q.radius, savedRadius),
     level: isOneOf(LEVEL_RANGES, q.level) ? q.level : "close",
+    levels: parseLevels(q.levels),
     plays: isOneOf(PLAYS_FILTERS, q.plays) ? q.plays : "either",
     free: q.free === "1" || q.free === "true" || q.free === true,
   };
+}
+
+/** `levels=mine`, `levels=3.0,3.5`, `levels=` (every level), or absent (older app). */
+export function parseLevels(v: unknown): LevelPick {
+  if (typeof v !== "string") return null;
+  if (v === "mine") return "mine";
+  return [
+    ...new Set(
+      v
+        .split(",")
+        .map((x) => Number(x))
+        .filter((x) => (FILTER_LEVELS as readonly number[]).includes(x)),
+    ),
+  ];
+}
+
+/** A rating on the chips' scale: the nearest half point, 2.5 to 5.0. */
+export function levelChip(rating: number): number {
+  return Math.min(5, Math.max(2.5, Math.round(rating * 2) / 2));
+}
+
+/**
+ * Whether a player fits the picked levels. Your level by default; with no
+ * level of your own, every level shows. Players with no level show only when
+ * every level is picked (nothing selected).
+ */
+export function fitsLevels(mine: number | null, theirs: number | null, pick: Exclude<LevelPick, null>): boolean {
+  const wanted = pick === "mine" ? (mine == null ? [] : [levelChip(mine)]) : pick;
+  if (wanted.length === 0) return true;
+  if (theirs == null) return false;
+  return wanted.includes(levelChip(theirs));
 }
 
 export function fitsLevel(mine: number | null, theirs: number | null, range: LevelRange): boolean {
@@ -127,7 +173,9 @@ export function nearbyPlayers(
   const matching = candidates
     .filter(
       (p) =>
-        fitsLevel(me.rating, p.rating, filters.level) &&
+        (filters.levels == null
+          ? fitsLevel(me.rating, p.rating, filters.level)
+          : fitsLevels(me.rating, p.rating, filters.levels)) &&
         fitsPlays(p.plays, filters.plays) &&
         (!filters.free || overlaps(me.slots, p.slots)),
     )

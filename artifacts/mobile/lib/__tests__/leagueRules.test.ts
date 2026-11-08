@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { BracketSlot, ScheduleMatch } from "@workspace/api-client-react";
 
 import { isPastLeague, pastLabel } from "@/lib/leagues";
-import { canEnterScore, pickableDays, playoffLine, resultLine, scoreForPlayer } from "@/lib/leagueSchedule";
+import { canEnterScore, pickableDays, recordAction, playoffLine, resultLine, scoreForPlayer } from "@/lib/leagueSchedule";
 import { scoreNote, slotActions, slotResult, slotWinningScore } from "@/lib/playoffView";
 import { emptySet, readScore, readWeeks, setRowsToShow, setsFromScore, showsTiebreak, sixAllPrompt, type SetEntry } from "@/lib/scoreEntry";
 
@@ -275,5 +275,45 @@ describe("pickableDays (finding 10)", () => {
   });
   it("is null once the round's last day has passed", () => {
     expect(pickableDays("2026-11-02", "2026-11-08", "2026-11-09")).toBeNull();
+  });
+});
+
+describe("Record with Ball Boi on League detail (John, Nov 8, option A)", () => {
+  const m = {
+    matchId: 1,
+    player1Id: 1,
+    player2Id: 2,
+    player1Name: "Alex",
+    player2Name: "Sam",
+    status: "scheduled",
+    score: null,
+    winnerId: null,
+    voided: false,
+  } as unknown as ScheduleMatch;
+  const r = (phase: string) => ({ phase }) as never;
+
+  it("shows Record any day of an open or grace week on an unplayed singles match", () => {
+    expect(recordAction(r("open"), m, false, false)).toBe("record");
+    expect(recordAction(r("grace"), m, false, false)).toBe("record");
+  });
+
+  it("shows the dimmed doubles state on a doubles match", () => {
+    expect(recordAction(r("open"), m, false, true)).toBe("doubles");
+    expect(recordAction(r("grace"), m, false, true)).toBe("doubles");
+  });
+
+  it("hides Record once the score is in", () => {
+    const scored = { ...m, status: "completed", score: "6-3, 6-4", winnerId: 1 } as ScheduleMatch;
+    expect(recordAction(r("open"), scored, false, false)).toBeNull();
+    expect(recordAction(r("open"), { ...m, score: "6-3, 6-4" } as ScheduleMatch, false, false)).toBeNull();
+    expect(recordAction(r("open"), scored, false, true)).toBeNull();
+  });
+
+  it("hides Record when the round is upcoming, closed or voided, or the league has ended", () => {
+    expect(recordAction(r("upcoming"), m, false, false)).toBeNull();
+    expect(recordAction(r("closed"), m, false, false)).toBeNull();
+    expect(recordAction(r("open"), { ...m, voided: true } as ScheduleMatch, false, false)).toBeNull();
+    expect(recordAction(r("open"), m, true, false)).toBeNull();
+    expect(recordAction(r("open"), m, true, true)).toBeNull();
   });
 });

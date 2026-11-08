@@ -248,7 +248,7 @@ export default function RoundReviewScreen() {
         refreshControl={<RefreshControl refreshing={scheduleQ.isRefetching} onRefresh={() => void scheduleQ.refetch()} tintColor={c.ink} />}
       >
         <View style={{ gap: spacing.space1, marginBottom: spacing.space2 }}>
-          <Text variant="brushM" accessibilityRole="header">
+          <Text variant="headingM" accessibilityRole="header">
             {`Round ${round.roundNumber} pairings`}
           </Text>
           <Text variant="small" tone="inkMuted">

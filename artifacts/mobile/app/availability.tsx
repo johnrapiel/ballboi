@@ -161,7 +161,7 @@ export default function AvailabilityScreen() {
         contentContainerStyle={{ padding: spacing.space4, paddingBottom: 120 + insets.bottom, gap: spacing.space4 }}
       >
         <View style={{ gap: spacing.space2 }}>
-          <Text variant="brushL" accessibilityRole="header">
+          <Text variant="headingL" accessibilityRole="header">
             When you can play
           </Text>
           <Text tone="inkMuted">Tap or drag the hours you're usually free in a week. Tap an hour to fill its whole row.</Text>
