@@ -1,6 +1,7 @@
 // Discover (spec: Discover; Wave 2 Session F, F1): find people and games
 // near your ZIP. Your area with Change, three tabs (Players, Open leagues,
-// Open matches), and the distance chips with a count on each. One distance
+// Open matches), and a count line with Filters on each tab. Distance lives in
+// Filters only, never as a chip row on the tab (John, Nov 7). One distance
 // for all three tabs, saved for next time. Canvas: "Wave 2 designs",
 // W2_Discover and its states.
 
@@ -9,7 +10,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { RefreshControl, ScrollView, Share, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AreaRow, DiscoverTabs, DistanceChips, FiltersButton, LinkButton } from "@/components/discover/Controls";
+import { AreaRow, DiscoverTabs, FiltersButton, LinkButton } from "@/components/discover/Controls";
 import { LeagueCard } from "@/components/discover/LeagueCard";
 import { MatchAlertsCard } from "@/components/discover/MatchAlerts";
 import { OpenMatchCard } from "@/components/discover/OpenMatchCard";
@@ -127,8 +128,6 @@ function PlayersTab() {
 
   return (
     <>
-      <DistanceChips radius={radius} counts={counts} noun="players" onPick={pickRadius} onCustom={() => router.push("/discover/radius")} />
-
       {me.data?.hidden ? (
         <NoteCard
           symbol="eye.slash"
@@ -154,7 +153,7 @@ function PlayersTab() {
               ? `Within ${radius} mi`
               : countLine(n, radius)}
         </Text>
-        <FiltersButton onPress={openFilters} accessibilityLabel={`Filters: ${filtersSpoken(filters)}`} />
+        <FiltersButton onPress={openFilters} accessibilityLabel={`Filters: ${filtersSpoken(filters, radius)}`} />
       </View>
 
       {noTimes ? (
@@ -246,20 +245,13 @@ function LeaguesTab() {
 
   return (
     <>
-      <DistanceChips
-        radius={radius}
-        counts={counts}
-        noun="Open leagues"
-        onPick={pickRadius}
-        onCustom={() => router.push("/discover/radius")}
-      />
-      <Text variant="small" tone="inkMuted" accessibilityLiveRegion="polite">
+      <CountRow radius={radius}>
         {loading || q.isFetching
           ? `Finding Open leagues within ${radius} mi…`
           : q.isError && !data
             ? `Within ${radius} mi`
             : countLine(data?.total ?? 0, radius, "Open league")}
-      </Text>
+      </CountRow>
       {loading ? (
         <SkeletonRows rows={3} />
       ) : q.isError && !data ? (
@@ -328,20 +320,13 @@ function MatchesTab() {
   return (
     <>
       <Button label="Post an open match" onPress={post} />
-      <DistanceChips
-        radius={radius}
-        counts={counts}
-        noun="open matches"
-        onPick={pickRadius}
-        onCustom={() => router.push("/discover/radius")}
-      />
-      <Text variant="small" tone="inkMuted" accessibilityLiveRegion="polite">
+      <CountRow radius={radius}>
         {loading || q.isFetching
           ? `Finding open matches within ${radius} mi…`
           : q.isError && !data
             ? `Within ${radius} mi`
             : countLine(data?.total ?? 0, radius, "open match")}
-      </Text>
+      </CountRow>
 
       {data?.notices.map((n) => (
         <NoteCard
@@ -398,5 +383,18 @@ function MatchesTab() {
         </>
       ) : null}
     </>
+  );
+}
+
+/** "3 open matches within 10 mi" with Filters beside it (canvas W2_DiscoverFiltersDistance). */
+function CountRow({ radius, children }: { radius: number; children: string }) {
+  const router = useRouter();
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: spacing.space2 }}>
+      <Text variant="small" tone="inkMuted" accessibilityLiveRegion="polite" style={{ flexShrink: 1 }}>
+        {children}
+      </Text>
+      <FiltersButton onPress={() => router.push("/discover/filters")} accessibilityLabel={`Filters: distance ${radius} miles`} />
+    </View>
   );
 }

@@ -39,13 +39,31 @@ export function useSheetClose(dirty: boolean) {
   const navigation = useNavigation();
   const [finished, setFinished] = useState(false);
   const next = useRef<(() => void) | null>(null);
+  // Discard turns the guard off first, then leaves. Dispatching while the
+  // guard was still on asked "Discard changes?" again, in a loop (John, Nov 7).
+  const [discarding, setDiscarding] = useState(false);
+  const leaveWith = useRef<Parameters<typeof navigation.dispatch>[0] | null>(null);
 
-  usePreventRemove(dirty && !finished, ({ data }) => {
+  usePreventRemove(dirty && !finished && !discarding, ({ data }) => {
     Alert.alert("Discard changes?", "What you entered in this sheet won't be saved.", [
       { text: "Keep editing", style: "cancel" },
-      { text: "Discard", style: "destructive", onPress: () => navigation.dispatch(data.action) },
+      {
+        text: "Discard",
+        style: "destructive",
+        onPress: () => {
+          leaveWith.current = data.action;
+          setDiscarding(true);
+        },
+      },
     ]);
   });
+
+  useEffect(() => {
+    if (!discarding || !leaveWith.current) return;
+    const action = leaveWith.current;
+    leaveWith.current = null;
+    navigation.dispatch(action);
+  }, [discarding, navigation]);
 
   // Once the guard is off, leave: back, or wherever `finish` was told to go.
   useEffect(() => {
