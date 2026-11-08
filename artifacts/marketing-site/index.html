@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="no-js">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -23,6 +23,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&display=swap">
+  <script>document.documentElement.className = "js";</script>
   <style>
     :root { --bg:#FFFFFF; --ink:#0A2447; --muted:#4A5670; --ball:#E9B949; --font:"Archivo","Helvetica Neue",Arial,sans-serif; color-scheme: light; }
     *,*::before,*::after{box-sizing:border-box} html{-webkit-text-size-adjust:100%}
@@ -32,8 +33,29 @@
     h1 span{white-space:nowrap}
     .sub{margin:18px 0 0;color:var(--muted);text-wrap:balance}
     .roundel{display:block;height:auto}
-    .cta{display:flex;align-items:center;gap:16px;margin-top:36px}
-    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:60px;padding:0 36px;border-radius:999px;background:var(--ball);color:var(--ink);font:800 18px/1 var(--font);letter-spacing:-.01em;margin:0;cursor:default}
+    .cta{margin-top:36px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:60px;padding:0 36px;border:0;border-radius:999px;background:var(--ball);color:var(--ink);font:800 18px/1 var(--font);letter-spacing:-.01em;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .note{margin:14px 0 0;font-size:15px;color:var(--muted)}
+    [hidden]{display:none !important}
+    html.no-js #soon{display:none !important}
+    html.no-js #ea-form{display:grid !important}
+    .ea{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px;max-width:560px;text-align:left}
+    .field{display:flex;flex-direction:column;gap:6px}
+    .field label{font-size:15px;font-weight:800}
+    .field label span{font-weight:500;color:var(--muted)}
+    .field input{min-height:56px;padding:0 16px;border:2px solid var(--ink);border-radius:14px;background:#fff;color:var(--ink);font:500 17px/1.2 var(--font);width:100%}
+    .field input:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+    .field input[aria-invalid="true"]{border-width:3px}
+    .ea .btn{min-height:56px;padding:0 28px}
+    .hp{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
+    .ea .field{grid-column:1;grid-row:1}
+    .ea .btn{grid-column:2;grid-row:1}
+    .status{grid-column:1;grid-row:2;margin:-4px 0 0;font-size:15px}
+    .status:empty{display:none}
+    .status.err::before{content:"\2715  ";font-weight:800}
+    .done{margin:0;font-size:clamp(18px,1.8vw,22px);font-weight:800}
+    .done::before{content:"\2713  "}
+    .done span{display:block;margin-top:6px;font-size:16px;font-weight:500;color:var(--muted)}
     footer{display:flex;justify-content:center;align-items:center;gap:24px;flex-wrap:wrap;padding:16px 20px 28px;font-size:14px;color:var(--muted)}
     footer a{color:var(--ink);text-underline-offset:4px;padding:12px 0}
     #balls{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:10}
@@ -47,7 +69,10 @@
       .sub{margin-left:auto;margin-right:auto}
       .roundel{max-width:240px;justify-self:center}
       h1{align-items:center}
-      .cta{justify-content:center}
+      .cta{display:flex;flex-direction:column;align-items:center;width:100%}
+      .ea{grid-template-columns:1fr;width:100%;max-width:380px}
+      .ea .btn{width:100%}
+      .ea .field,.ea .btn,.status{grid-column:1;grid-row:auto}
       h1{font-size:clamp(28px,7.8vw,56px)}
     }
   </style>
@@ -58,9 +83,20 @@
     <div class="copy">
     <h1><span>Matchmaker.</span> <span>League commissioner.</span> <span>Shot analyst.</span></h1>
     <p class="sub">Find players at your level, run your league and replay every shot. All on your phone.</p>
-    <div class="cta">
-      <!-- At launch, swap for Apple's official "Download on the App Store" badge. -->
-      <p class="btn" id="soon">Coming soon to iPhone</p>
+    <div class="cta" id="early-access">
+      <!-- At launch, swap for Apple's official "Download on the App Store" badge. Keep id="soon" on what the ball animation targets. -->
+      <button class="btn" id="soon" type="button" aria-expanded="false" aria-controls="ea-form">Get early access</button>
+      <form id="ea-form" class="ea" action="/api/early-access" method="post" novalidate hidden>
+        <div class="field">
+          <label for="ea-email">Email</label>
+          <input id="ea-email" name="email" type="email" autocomplete="email" maxlength="254" required aria-describedby="ea-status">
+        </div>
+        <div class="hp" aria-hidden="true"><label for="ea-website">Website</label><input id="ea-website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
+        <p class="status" id="ea-status" role="status"></p>
+        <button class="btn" type="submit">Join</button>
+      </form>
+      <p class="done" id="ea-done" tabindex="-1" hidden>You're on the list.<span>We'll email you when the beta opens.</span></p>
+      <p class="note" id="ea-note">Coming soon to iPhone. Join the beta and help shape it.</p>
     </div>
     </div>
   </main>
@@ -71,6 +107,7 @@
     <span>© 2026 Ball Boi Tennis</span>
   </footer>
   <canvas id="balls" aria-hidden="true"></canvas>
-  <script src="/balls.js?v=6" defer></script>
+  <script src="/balls.js?v=7" defer></script>
+  <script src="/early-access.js?v=2" defer></script>
 </body>
 </html>
