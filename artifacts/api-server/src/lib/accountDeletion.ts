@@ -20,6 +20,7 @@ import { deleteMessagingData } from "../messaging/accountDeletion";
 import { ObjectStorageService } from "./objectStorage";
 import { deleteRecordingData } from "./recordingCleanup";
 import { deleteDiscoverData } from "../services/discover/accountDeletion";
+import { deleteNotificationData } from "../services/push/accountDeletion";
 import { sessionFiles } from "./sessionFiles";
 import { withdrawFromRecordings, type WithdrawalInput, type WithdrawnMatch } from "./withdrawal";
 
@@ -204,6 +205,7 @@ export async function deleteAccount(
     const photoPaths = profiles.map((u) => u.avatarUrl).filter((p): p is string => !!p && p.startsWith("/objects/"));
     await deleteRecordingData(tx, clerkUserId);
     await deleteDiscoverData(tx, clerkUserId);
+    await deleteNotificationData(tx, clerkUserId);
     await tx.delete(usersTable).where(eq(usersTable.clerkUserId, clerkUserId));
 
     // Every stored file: the raw upload, its pieces, and a kept video-only

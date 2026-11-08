@@ -5,16 +5,24 @@
 // - "Upload on cellular": Wi-Fi only by default (spec: After the match,
 //   Upload). It's about this phone's data plan, so it's saved on the phone.
 // Both stick after the app closes.
+// Notifications (Session G): Show message previews (decision 128).
 // Delete account sits at the bottom, in red, and opens the delete flow with
 // its own confirm (Apple 5.1.1(v); finding 21).
 
 import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  getGetNotificationSettingsQueryKey,
+  useGetNotificationSettings,
+  useUpdateNotificationSettings,
+  type NotificationSettings,
+} from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, View } from "react-native";
 
 import { DiscoverSettings } from "@/components/discover/DiscoverSettings";
+import { NotificationsOffBanner } from "@/components/NotificationsOffBanner";
 import { TRAINING_COPY } from "@/components/record/ConsentScreen";
 import { SettingsRow as ListSettingsRow, SettingsSection } from "@/components/SettingsList";
 import { Toggle } from "@/components/Toggle";
@@ -131,6 +139,8 @@ export default function SettingsScreen() {
         />
       ) : null}
 
+      <NotificationSettingsSection />
+
       <View style={{ marginTop: spacing.space6 }}>
         <DiscoverSettings />
       </View>
@@ -158,5 +168,58 @@ export default function SettingsScreen() {
         </SettingsSection>
       </View>
     </ScrollView>
+  );
+}
+
+export const MESSAGE_PREVIEWS_COPY = "On: message notifications show who it's from and what they said. Off: just who it's from.";
+
+/**
+ * Settings › Notifications (Session G): Show message previews, on by default
+ * (decision 128). iOS's own Show Previews setting still applies on top.
+ */
+function NotificationSettingsSection() {
+  const c = useColors();
+  const queryClient = useQueryClient();
+  const settings = useGetNotificationSettings();
+  const update = useUpdateNotificationSettings();
+  const key = getGetNotificationSettingsQueryKey();
+
+  async function changePreviews(on: boolean) {
+    const before = queryClient.getQueryData<NotificationSettings>(key);
+    // Shown at once; put back if the server says no.
+    queryClient.setQueryData<NotificationSettings>(key, { ...(before ?? { messagePreviews: true }), messagePreviews: on });
+    try {
+      const saved = await update.mutateAsync({ data: { messagePreviews: on } });
+      queryClient.setQueryData(key, saved);
+    } catch (e) {
+      if (before) queryClient.setQueryData(key, before);
+      Alert.alert("Couldn't save", isOfflineError(e) ? OFFLINE_MESSAGE : "Check your connection and try again.");
+    }
+  }
+
+  return (
+    <View style={{ marginTop: spacing.space6, gap: spacing.space3 }}>
+      <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ paddingHorizontal: spacing.space1 }}>
+        Notifications
+      </Text>
+      {/* iOS notifications off: the same one line as Home, so the switch below isn't a dead end. */}
+      <NotificationsOffBanner />
+      {settings.isLoading ? (
+        <ActivityIndicator color={c.ink} accessibilityLabel="Loading" />
+      ) : settings.isError || !settings.data ? (
+        <Card style={{ gap: spacing.space3 }}>
+          <Text accessibilityRole="alert">Couldn't load your notification settings.</Text>
+          <Button variant="secondary" label="Try again" loading={settings.isRefetching} onPress={() => void settings.refetch()} />
+        </Card>
+      ) : (
+        <SettingRow
+          title="Show message previews"
+          body={MESSAGE_PREVIEWS_COPY}
+          value={settings.data.messagePreviews}
+          onChange={(v) => void changePreviews(v)}
+          disabled={update.isPending}
+        />
+      )}
+    </View>
   );
 }

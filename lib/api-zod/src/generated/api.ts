@@ -5661,6 +5661,36 @@ export const GetExpoPushTokenStatusResponse = zod.object({
 });
 
 /**
+ * @summary Settings › Notifications switches for the signed-in person
+ */
+export const GetNotificationSettingsResponse = zod
+  .object({
+    messagePreviews: zod.boolean(),
+  })
+  .describe(
+    "Settings › Notifications. Show message previews (decision 128) is on by default.",
+  );
+
+/**
+ * @summary Change a Settings › Notifications switch
+ */
+export const UpdateNotificationSettingsBody = zod
+  .object({
+    messagePreviews: zod.boolean(),
+  })
+  .describe(
+    "Settings › Notifications. Show message previews (decision 128) is on by default.",
+  );
+
+export const UpdateNotificationSettingsResponse = zod
+  .object({
+    messagePreviews: zod.boolean(),
+  })
+  .describe(
+    "Settings › Notifications. Show message previews (decision 128) is on by default.",
+  );
+
+/**
  * @summary Get a one-time address to upload a profile photo to (images up to 10 MB)
  */
 export const RequestProfilePhotoUploadUrlBody = zod.object({

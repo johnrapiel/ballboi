@@ -2957,6 +2957,13 @@ export interface PushRegistrationStatus {
   registered: boolean;
 }
 
+/**
+ * Settings › Notifications. Show message previews (decision 128) is on by default.
+ */
+export interface NotificationSettings {
+  messagePreviews: boolean;
+}
+
 export interface PhotoUploadRequest {
   name: string;
   size: number;

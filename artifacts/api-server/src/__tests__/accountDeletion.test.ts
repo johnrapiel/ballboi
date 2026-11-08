@@ -19,6 +19,10 @@ vi.mock("../lib/withdrawal", () => ({
   withdrawFromRecordings: async (input: unknown) => void withdrawals.push(input),
 }));
 vi.mock("../services/discover/accountDeletion", () => ({ deleteDiscoverData: vi.fn().mockResolvedValue(undefined) }));
+const { notificationDeleted } = vi.hoisted(() => ({ notificationDeleted: [] as string[] }));
+vi.mock("../services/push/accountDeletion", () => ({
+  deleteNotificationData: async (_tx: unknown, id: string) => void notificationDeleted.push(id),
+}));
 const { messagingDeleted } = vi.hoisted(() => ({ messagingDeleted: [] as string[] }));
 vi.mock("../messaging/accountDeletion", () => ({
   deleteMessagingData: async (id: string) => void messagingDeleted.push(id),
@@ -113,6 +117,7 @@ const log = { warn: vi.fn(), info: vi.fn() };
 beforeEach(() => {
   calls.length = 0;
   messagingDeleted.length = 0;
+  notificationDeleted.length = 0;
   withdrawals.length = 0;
   for (const k of Object.keys(selectResults)) delete selectResults[k];
   for (const k of Object.keys(secondSelectResults)) delete secondSelectResults[k];
@@ -193,6 +198,8 @@ describe("deleteAccount", () => {
     expect(deleteClerkUser).toHaveBeenCalledWith("user_delete_me");
     // Messages and conversations go too (checklist 5.1.1(v)).
     expect(messagingDeleted).toEqual(["user_delete_me"]);
+    // Notification settings go too (Session G, acceptance 41).
+    expect(notificationDeleted).toEqual(["user_delete_me"]);
     // Withdrawal (B12): every match they played, plus the recording deleted outright for the test-set email.
     expect(withdrawals).toEqual([
       { clerkUserId: "user_delete_me", playerIds: [7, 9], deletedSessions: [{ matchId: 101, sessionId: 2, recordedAt: null }] },

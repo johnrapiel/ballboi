@@ -5,6 +5,7 @@ import { pushSubscriptionsTable, expoPushTokensTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
 import { logger } from "../lib/logger";
+import { notificationSettingsFor, saveNotificationSettings } from "../services/push/settings";
 
 const router = Router();
 
@@ -36,10 +37,11 @@ async function sendExpoPushToUsers(
 
     if (!tokens.length) continue;
 
+    // An empty title leaves it out, so iOS shows "Ball Boi" (message pushes with previews off).
     const messages = tokens.map((t) => ({
       to: t.token,
       sound: "default" as const,
-      title,
+      ...(title ? { title } : {}),
       body,
       data: { link },
     }));
@@ -284,6 +286,33 @@ router.get("/notifications/expo-token/status", async (req, res) => {
     );
 
   return res.json({ registered: tokens.length > 0 });
+});
+
+// Settings › Notifications (Wave 2, Session G): Show message previews (decision 128).
+router.get("/notifications/settings", async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    return res.json(await notificationSettingsFor(userId));
+  } catch (err) {
+    logger.error({ err }, "Couldn't load notification settings");
+    return res.status(500).json({ error: "Couldn't load your notification settings. Try again." });
+  }
+});
+
+router.put("/notifications/settings", async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  const { messagePreviews } = (req.body ?? {}) as { messagePreviews?: unknown };
+  if (typeof messagePreviews !== "boolean") {
+    return res.status(400).json({ error: "messagePreviews must be true or false." });
+  }
+  try {
+    return res.json(await saveNotificationSettings(userId, { messagePreviews }));
+  } catch (err) {
+    logger.error({ err }, "Couldn't save notification settings");
+    return res.status(500).json({ error: "Couldn't save. Try again." });
+  }
 });
 
 export default router;

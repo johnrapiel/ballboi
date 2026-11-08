@@ -4555,6 +4555,65 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PushRegistrationStatus'
+  /notifications/settings:
+    get:
+      operationId: getNotificationSettings
+      tags: [notifications]
+      summary: Settings › Notifications switches for the signed-in person
+      responses:
+        '200':
+          description: The switches (defaults when never changed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettings'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't load
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      operationId: updateNotificationSettings
+      tags: [notifications]
+      summary: Change a Settings › Notifications switch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSettings'
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettings'
+        '400':
+          description: Not true or false
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't save
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /storage/uploads/request-url:
     post:
       operationId: requestProfilePhotoUploadUrl
@@ -9665,6 +9724,13 @@ components:
         registered:
           type: boolean
       required: [registered]
+    NotificationSettings:
+      type: object
+      description: Settings › Notifications. Show message previews (decision 128) is on by default.
+      properties:
+        messagePreviews:
+          type: boolean
+      required: [messagePreviews]
     PhotoUploadRequest:
       type: object
       properties:
