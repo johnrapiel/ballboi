@@ -137,6 +137,7 @@ import type {
   Match,
   MatchBallBoiShotCallbackBody,
   MatchDetail,
+  MatchFilming,
   MatchPlan,
   MatchPlanShiftInput,
   MatchPlansWithUser,
@@ -15105,6 +15106,94 @@ export const useCreateSampleMessages = <
 > => {
   return useMutation(getCreateSampleMessagesMutationOptions(options));
 };
+
+/**
+ * @summary Before recording, whether the opponent isn't on Ball Boi, so the recorder must confirm they agreed to be filmed
+ */
+export const getGetMatchFilmingUrl = (matchId: number) => {
+  return `/api/recording/matches/${matchId}/filming`;
+};
+
+export const getMatchFilming = async (
+  matchId: number,
+  options?: RequestInit,
+): Promise<MatchFilming> => {
+  return customFetch<MatchFilming>(getGetMatchFilmingUrl(matchId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMatchFilmingQueryKey = (matchId: number) => {
+  return [`/api/recording/matches/${matchId}/filming`] as const;
+};
+
+export const getGetMatchFilmingQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMatchFilming>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  matchId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMatchFilming>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetMatchFilmingQueryKey(matchId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMatchFilming>>> = ({
+    signal,
+  }) => getMatchFilming(matchId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!matchId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMatchFilming>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMatchFilmingQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMatchFilming>>
+>;
+export type GetMatchFilmingQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Before recording, whether the opponent isn't on Ball Boi, so the recorder must confirm they agreed to be filmed
+ */
+
+export function useGetMatchFilming<
+  TData = Awaited<ReturnType<typeof getMatchFilming>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  matchId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMatchFilming>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMatchFilmingQueryOptions(matchId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Whether the person agreed to recording, and whether their video may train Ball Boi

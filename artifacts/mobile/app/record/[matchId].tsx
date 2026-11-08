@@ -47,12 +47,19 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Checkbox } from "@/components/record/Checkbox";
 import { ChromeButton, ChromeChoice, ChromeLink } from "@/components/record/ChromeControls";
 import { FirstRunCarousel } from "@/components/record/FirstRunCarousel";
 import { HoldToStop } from "@/components/record/HoldToStop";
 import { Button, Screen, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
-import { abandonQuickMatch, discardOnServer, useRecordingConsent } from "@/lib/recording/api";
+import {
+  abandonQuickMatch,
+  discardOnServer,
+  opponentAgreedLabel,
+  useMatchFilming,
+  useRecordingConsent,
+} from "@/lib/recording/api";
 import { captionDurationMs, captionWaitMs } from "@/lib/recording/captions";
 import { chrome } from "@/lib/recording/chrome";
 import { countdownClock, cueAt, START_DELAYS, type StartDelayMinutes } from "@/lib/recording/countdown";
@@ -174,6 +181,9 @@ export default function RecordScreen() {
   const mounted = useRef(true);
   const askedMic = useRef(false);
   const consent = useRecordingConsent();
+  const filming = useMatchFilming(matchId);
+  /** When the recorder checked "[Name] agreed to be filmed." (B10). */
+  const [opponentAgreedAt, setOpponentAgreedAt] = useState<string | null>(null);
   const { getToken } = useAuth();
   /** "Don't show this again" from the setup page; null until read. */
   const [hideSetup, setHideSetupState] = useState<boolean | null>(null);
@@ -306,21 +316,29 @@ export default function RecordScreen() {
   }
 
   // The first-run carousel comes first: it explains the camera and microphone before iOS asks.
-  if (consent.isLoading || (consent.data && hideSetup === null)) {
+  if (consent.isLoading || filming.isLoading || (consent.data && hideSetup === null)) {
     return (
       <Screen style={{ justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator accessibilityLabel="Loading" />
       </Screen>
     );
   }
-  if (consent.isError) {
+  if (consent.isError || filming.isError) {
     return (
       <Screen style={{ justifyContent: "center", gap: spacing.space4 }}>
         <Text variant="title" accessibilityRole="header">
           Couldn't open Ball Boi
         </Text>
-        <Text tone="inkMuted">Check your connection and try again.</Text>
-        <Button label="Try again" onPress={() => consent.refetch()} />
+        <Text tone="inkMuted">
+          {filming.error instanceof Error && !consent.isError ? filming.error.message : "Check your connection and try again."}
+        </Text>
+        <Button
+          label="Try again"
+          onPress={() => {
+            if (consent.isError) consent.refetch();
+            if (filming.isError) filming.refetch();
+          }}
+        />
         <Button variant="secondary" label="Close" onPress={closeWithoutRecording} />
       </Screen>
     );
@@ -399,6 +417,7 @@ export default function RecordScreen() {
 
   async function pressStart() {
     if (!cameraReady || running.current) return;
+    if (filming.data?.needsOpponentAgreement && !opponentAgreedAt) return;
     // D14: under 10% and unplugged, don't start.
     if (await batteryBlocksStart()) {
       Alert.alert("Battery low", LOW_BATTERY_START_MESSAGE);
@@ -620,6 +639,7 @@ export default function RecordScreen() {
       recordedAt: joined.recordedAt,
       segments: pieces,
       leagueId,
+      ...(opponentAgreedAt ? { opponentAgreedAt } : {}),
     });
     drainQueue();
     AccessibilityInfo.announceForAccessibility("Match saved. It uploads on Wi-Fi.");
@@ -654,6 +674,10 @@ export default function RecordScreen() {
       ? `Starts in ${countdownClock(secondsLeft)}`
       : `vs ${opponent}`;
   const canClose = phase === "ready" || phase === "error";
+  // B10: an opponent who isn't on Ball Boi must have agreed before Start turns on.
+  const needsAgreement = !!filming.data?.needsOpponentAgreement;
+  const agreementMissing = needsAgreement && !opponentAgreedAt;
+  const startOff = !cameraReady || agreementMissing;
 
   return (
     <View style={{ flex: 1, backgroundColor: chrome.ground }}>
@@ -768,6 +792,15 @@ export default function RecordScreen() {
                 value={delay}
                 onChange={setDelay}
               />
+              {needsAgreement ? (
+                <Checkbox
+                  tone="chrome"
+                  label={opponentAgreedLabel(filming.data?.opponentName ?? params.opponent ?? null)}
+                  checked={!!opponentAgreedAt}
+                  onChange={(on) => setOpponentAgreedAt(on ? new Date().toISOString() : null)}
+                  accessibilityHint="They aren't on Ball Boi, so confirm you asked them first."
+                />
+              ) : null}
               <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", columnGap: spacing.space4 }}>
                 <ChromeLink
                   label="Setup tips"
@@ -780,14 +813,21 @@ export default function RecordScreen() {
               </View>
             </View>
             </ScrollView>
+            {agreementMissing ? (
+              <View style={[styles.pill]}>
+                <Text variant="small" style={{ color: chrome.text, textAlign: "center" }}>
+                  Check the box above to start.
+                </Text>
+              </View>
+            ) : null}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={delay === 0 ? "Record" : `Start ${delay} minute countdown`}
-              accessibilityHint={DND_HINT}
-              accessibilityState={{ disabled: !cameraReady }}
-              disabled={!cameraReady}
+              accessibilityHint={agreementMissing ? "Check the box above to start." : DND_HINT}
+              accessibilityState={{ disabled: startOff }}
+              disabled={startOff}
               onPress={pressStart}
-              style={({ pressed }) => [styles.shutter, { opacity: !cameraReady ? 0.5 : pressed ? 0.8 : 1 }]}
+              style={({ pressed }) => [styles.shutter, { opacity: startOff ? 0.5 : pressed ? 0.8 : 1 }]}
             >
               <View style={styles.shutterRecord} />
             </Pressable>

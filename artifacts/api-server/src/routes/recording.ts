@@ -329,6 +329,62 @@ router.post("/recording/sessions/:sessionId/remove", requireAuth, async (req: Re
   }
 });
 
+/** Does this match need "[Name] agreed to be filmed." before recording? Pure, for tests. */
+export function opponentAgreement(
+  match: { player1Id: number; player2Id: number; player3Id: number | null; player4Id: number | null },
+  myIds: Set<number>,
+  players: Map<number, { name: string; clerkUserId: string | null }>,
+): { inMatch: boolean; needsOpponentAgreement: boolean; opponentName: string | null } {
+  const ids = [match.player1Id, match.player2Id, match.player3Id, match.player4Id].filter((id): id is number => id != null);
+  const inMatch = ids.some((id) => myIds.has(id));
+  const opponents = ids.filter((id) => !myIds.has(id)).map((id) => players.get(id)).filter((p) => p != null);
+  // A placeholder is a player row nobody has claimed: they aren't on Ball Boi.
+  const placeholder = opponents.find((p) => !p.clerkUserId);
+  return {
+    inMatch,
+    needsOpponentAgreement: !!placeholder,
+    opponentName: (placeholder ?? opponents[0])?.name ?? null,
+  };
+}
+
+/**
+ * GET /recording/matches/:matchId/filming
+ * Before the camera opens: is the opponent someone who isn't on Ball Boi? If
+ * so the ready screen asks the recorder to confirm "[Name] agreed to be
+ * filmed." (spec decision 93, B10). The time they confirm goes on the
+ * session's metadata as opponentAgreedAt.
+ */
+router.get("/recording/matches/:matchId/filming", requireAuth, async (req: Request, res: Response) => {
+  const userId = getAuth(req).userId!;
+  const matchId = Number(req.params.matchId);
+  if (!Number.isInteger(matchId) || matchId <= 0) {
+    res.status(400).json({ error: "Invalid match id" });
+    return;
+  }
+  try {
+    const [match] = await db.select().from(matchesTable).where(eq(matchesTable.id, matchId));
+    if (!match) {
+      res.status(404).json({ error: "This match isn't there anymore." });
+      return;
+    }
+    const ids = [match.player1Id, match.player2Id, match.player3Id, match.player4Id].filter((id): id is number => id != null);
+    const rows = await db
+      .select({ id: playersTable.id, name: playersTable.name, clerkUserId: playersTable.clerkUserId })
+      .from(playersTable)
+      .where(inArray(playersTable.id, ids));
+    const myIds = new Set(rows.filter((p) => p.clerkUserId === userId).map((p) => p.id));
+    const result = opponentAgreement(match, myIds, new Map(rows.map((p) => [p.id, p])));
+    if (!result.inMatch) {
+      res.status(403).json({ error: "Only the players in this match can record it." });
+      return;
+    }
+    res.json({ needsOpponentAgreement: result.needsOpponentAgreement, opponentName: result.opponentName });
+  } catch (err) {
+    logger.error({ err }, "Failed to check the opponent before recording");
+    res.status(500).json({ error: "Couldn't load this match." });
+  }
+});
+
 /**
  * POST /recording/doubles-views { matchId }
  * Someone saw "Ball Boi analyzes singles for now. Doubles is coming." on a

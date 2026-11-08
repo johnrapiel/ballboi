@@ -215,6 +215,7 @@ export * from "./matchDetail";
 export * from "./matchDetailPlayer";
 export * from "./matchDetailReplay";
 export * from "./matchDetailSide";
+export * from "./matchFilming";
 export * from "./matchPlan";
 export * from "./matchPlanEvent";
 export * from "./matchPlanEventAbout";

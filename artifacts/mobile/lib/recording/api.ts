@@ -112,6 +112,31 @@ export function useServerRecordings() {
 
 export { recordedDay } from "@/lib/recording/days";
 
+export interface MatchFilming {
+  /** The opponent isn't on Ball Boi: the recorder confirms they agreed to be filmed (B10). */
+  needsOpponentAgreement: boolean;
+  opponentName: string | null;
+}
+
+/** Before the camera opens: does this match need "[Name] agreed to be filmed."? */
+export function useMatchFilming(matchId: number) {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ["recording", "filming", matchId],
+    enabled: Number.isInteger(matchId) && matchId > 0,
+    queryFn: async (): Promise<MatchFilming> => {
+      const res = await apiFetch(`/api/recording/matches/${matchId}/filming`, getToken);
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Couldn't load this match."));
+      return (await res.json()) as MatchFilming;
+    },
+  });
+}
+
+/** The opponent checkbox on the ready screen (section 3 copy). */
+export function opponentAgreedLabel(name: string | null): string {
+  return `${name?.trim() || "Your opponent"} agreed to be filmed.`;
+}
+
 export interface RecordingConsent {
   consented: boolean;
   consentedAt: string | null;

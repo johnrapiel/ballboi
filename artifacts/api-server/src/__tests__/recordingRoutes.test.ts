@@ -197,3 +197,53 @@ describe("POST /recording/doubles-views", () => {
     expect(inserted).toEqual([]);
   });
 });
+
+describe("GET /recording/matches/:matchId/filming (B10)", () => {
+  const match = { id: 9, player1Id: 1, player2Id: 2, player3Id: null, player4Id: null };
+
+  it("asks for agreement when the opponent isn't on Ball Boi", async () => {
+    selectQueue.push([match], [
+      { id: 1, name: "Me", clerkUserId: "user_me" },
+      { id: 2, name: "Sam Lee", clerkUserId: null },
+    ]);
+    const res = await (await app()).get("/api/recording/matches/9/filming");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ needsOpponentAgreement: true, opponentName: "Sam Lee" });
+  });
+
+  it("doesn't ask for a league mate on Ball Boi", async () => {
+    selectQueue.push([match], [
+      { id: 1, name: "Me", clerkUserId: "user_me" },
+      { id: 2, name: "Ana", clerkUserId: "user_ana" },
+    ]);
+    const res = await (await app()).get("/api/recording/matches/9/filming");
+    expect(res.body).toEqual({ needsOpponentAgreement: false, opponentName: "Ana" });
+  });
+
+  it("refuses someone who isn't in the match", async () => {
+    selectQueue.push([match], [
+      { id: 1, name: "A", clerkUserId: "user_a" },
+      { id: 2, name: "B", clerkUserId: null },
+    ]);
+    expect((await (await app()).get("/api/recording/matches/9/filming")).status).toBe(403);
+  });
+
+  it("says when the match is gone", async () => {
+    selectQueue.push([]);
+    expect((await (await app()).get("/api/recording/matches/9/filming")).status).toBe(404);
+  });
+});
+
+describe("phone session metadata (B10)", () => {
+  it("keeps a recent opponent confirmation and drops anything else", async () => {
+    const { phoneSessionMetadata, publicSession } = await import("../lib/sessionMetadata.js");
+    const now = new Date("2026-11-07T18:00:00Z");
+    expect(
+      phoneSessionMetadata({ source: "ios", opponentAgreedAt: "2026-11-07T17:58:00.000Z", mlCallbackToken: "x" }, now),
+    ).toEqual({ source: "ios", opponentAgreedAt: "2026-11-07T17:58:00.000Z" });
+    expect(phoneSessionMetadata({ opponentAgreedAt: "yesterday-ish" }, now)).toEqual({});
+    expect(phoneSessionMetadata({ opponentAgreedAt: "2026-10-01T00:00:00Z" }, now)).toEqual({});
+    expect(phoneSessionMetadata({ opponentAgreedAt: "2026-11-08T18:00:00Z" }, now)).toEqual({});
+    expect(publicSession({ metadata: { opponentAgreedAt: "t", statGates: {} } }).metadata).toEqual({ opponentAgreedAt: "t" });
+  });
+});
