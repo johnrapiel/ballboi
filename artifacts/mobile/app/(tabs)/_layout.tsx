@@ -7,6 +7,7 @@ import { Image, Platform, StyleSheet, useColorScheme, type ImageSourcePropType }
 
 import { useColors } from "@/hooks/useColors";
 import { useGate } from "@/hooks/useGate";
+import { usePushSetup } from "@/hooks/useNotificationAccess";
 import { takePendingJoinCode } from "@/lib/leagueInvite";
 import { takePendingInvite } from "@/lib/recording/pendingInvite";
 import { useUploadRunner } from "@/lib/recording/uploader";
@@ -159,6 +160,8 @@ export default function TabLayout() {
   // The root layout moves anyone who can't be here yet (app/_layout.tsx).
   const ready = useGate() === "app";
   useOpenPendingLinks(ready);
+  // Quiet notifications from sign-in, the push token, and taps on pushes (Session G).
+  usePushSetup(ready);
   // Ball Boi uploads: resume at launch, on foreground, and when Wi-Fi comes back.
   useUploadRunner();
 

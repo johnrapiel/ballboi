@@ -14,6 +14,7 @@ export {
   EndMatchBallBoiBody,
   GenerateLeagueRoundBody,
   GetConversationParams,
+  GetGroupThreadParams,
   GetLeagueStandingsParams,
   HideMessageBody,
   LogDoublesViewBody,

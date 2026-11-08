@@ -255,6 +255,8 @@ export interface MatchInvite {
   recordedAt: string;
   claimed: boolean;
   claimedByYou: boolean;
+  /** A "Was that you?" request for you (decision 124), or null for an ordinary invite link. */
+  wasThatYou?: "pending" | "yes" | "not_me" | null;
   isYourInvite: boolean;
 }
 

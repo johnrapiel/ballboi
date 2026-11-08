@@ -30,6 +30,11 @@ export interface OpenMatchDetail {
   role: OpenMatchDetailRole;
   started: boolean;
   chatTitle: string;
+  /**
+   * The group chat in Messages (/messages/groups/{id}), once the match has filled
+   * @nullable
+   */
+  chatId: number | null;
   /** @nullable */
   matchId: number | null;
 }

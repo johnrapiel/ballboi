@@ -31,6 +31,37 @@ export interface Message {
   at: string;
 }
 
+/** A group chat (F15): an open match's chat once every spot fills. */
+export interface GroupConversation {
+  id: number;
+  /** "Sat 9 AM doubles · Beacon Courts" */
+  title: string;
+  openMatchId: number | null;
+  memberCount: number;
+  /** senderName null: a line from Ball Boi. */
+  lastMessage: { text: string; fromMe: boolean; senderName: string | null; at: string } | null;
+  unread: number;
+  canSend: boolean;
+  sendBlockedReason: string | null;
+}
+
+export interface GroupMessage {
+  id: string;
+  text: string;
+  fromMe: boolean;
+  at: string;
+  /** Null for a line from Ball Boi ("All 4 spots filled"). */
+  senderName: string | null;
+  senderPlayerId: number | null;
+  senderUserId: number | null;
+}
+
+export interface GroupThread {
+  group: GroupConversation;
+  messages: GroupMessage[];
+  olderCursor: string | null;
+}
+
 export interface MessagesSummary {
   /** Unread messages everywhere. */
   unread: number;
@@ -86,6 +117,7 @@ export const messagesKeys = {
   list: ["messages", "list"] as const,
   summary: ["messages", "summary"] as const,
   thread: (id: number) => ["messages", "thread", id] as const,
+  group: (id: number) => ["messages", "group", id] as const,
   contacts: ["messages", "contacts"] as const,
 };
 
@@ -93,7 +125,7 @@ export function useConversations() {
   const call = useApi();
   return useQuery({
     queryKey: messagesKeys.list,
-    queryFn: () => call<{ conversations: Conversation[] } & MessagesSummary>("/api/messages"),
+    queryFn: () => call<{ conversations: Conversation[]; groups?: GroupConversation[] } & MessagesSummary>("/api/messages"),
     refetchInterval: 15_000,
   });
 }
@@ -137,14 +169,44 @@ export function useThread(id: number | null) {
   });
 }
 
+/** A group chat, refreshed every 5 seconds while open. Opening it marks it read. */
+/** The page of a group chat before a message, for useOlderMessages. */
+export const groupPage = (id: number, before: string) => `/api/messages/groups/${id}?before=${encodeURIComponent(before)}`;
+
+export function useGroupThread(id: number | null) {
+  const call = useApi();
+  const qc = useQueryClient();
+  return useQuery({
+    queryKey: messagesKeys.group(id ?? 0),
+    queryFn: async () => {
+      const before = qc.getQueryData<GroupThread>(messagesKeys.group(id ?? 0));
+      const thread = await call<GroupThread>(`/api/messages/groups/${id}`);
+      const lastBefore = before?.messages[before.messages.length - 1]?.id;
+      const lastNow = thread.messages[thread.messages.length - 1]?.id;
+      if (!before || lastBefore !== lastNow) {
+        void qc.invalidateQueries({ queryKey: messagesKeys.summary });
+        void qc.invalidateQueries({ queryKey: ["messages", "list"] });
+      }
+      return thread;
+    },
+    enabled: id !== null,
+    refetchInterval: 5_000,
+  });
+}
+
 /**
  * Earlier messages, loaded a page at a time as you scroll up past the latest
  * ones `useThread` keeps fresh. Stops once the first message has loaded.
  * Show `older` before the latest messages, skipping any id already shown.
+ * `page` gives the address of a page: a conversation by default, or a group chat's.
  */
-export function useOlderMessages(id: number | null, latest: Thread | undefined) {
+export function useOlderMessages<M extends { id: string } = Message>(
+  id: number | null,
+  latest: { messages: M[]; olderCursor: string | null } | undefined,
+  page: (id: number, before: string) => string = (id, before) => `/api/messages/${id}?before=${encodeURIComponent(before)}`,
+) {
   const call = useApi();
-  const [older, setOlder] = useState<Message[]>([]);
+  const [older, setOlder] = useState<M[]>([]);
   // undefined until the first older page loads; then that page's cursor.
   const [cursor, setCursor] = useState<string | null | undefined>(undefined);
   const [loading, setLoading] = useState(false);
@@ -177,7 +239,7 @@ export function useOlderMessages(id: number | null, latest: Thread | undefined) 
     busy.current = true;
     setLoading(true);
     setError(null);
-    call<Thread>(`/api/messages/${id}?before=${encodeURIComponent(before)}`)
+    call<{ messages: M[]; olderCursor: string | null }>(page(id, before))
       .then((page) => {
         setOlder((list) => {
           const known = new Set(list.map((m) => m.id));
@@ -190,6 +252,8 @@ export function useOlderMessages(id: number | null, latest: Thread | undefined) 
         busy.current = false;
         setLoading(false);
       });
+    // `page` is a fixed address builder per screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [call, id, before]);
 
   return { older, loadMore, loading, hasMore: before !== null, error };
@@ -224,6 +288,12 @@ export function useMessagesActions() {
       }),
     send: (conversationId: number, text: string, clientMessageId: string) =>
       call<{ conversationId: number; message: Message }>(`/api/messages/${conversationId}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ text, clientMessageId }),
+      }),
+    /** Sends in a group chat (F15). Retrying with the same client id never posts twice. */
+    sendToGroup: (groupId: number, text: string, clientMessageId: string) =>
+      call<{ groupId: number; message: GroupMessage }>(`/api/messages/groups/${groupId}/messages`, {
         method: "POST",
         body: JSON.stringify({ text, clientMessageId }),
       }),
