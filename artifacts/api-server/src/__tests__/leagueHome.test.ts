@@ -69,7 +69,14 @@ describe("buildLeagueHome", () => {
 
   it("shows my unscored playoff match", () => {
     const home = buildLeagueHome(input({ matches: [match(200, null, 10, 20, { playoffBracketId: 5, playoffRound: "semifinal" })] }));
-    expect(home.playoffs).toEqual([{ leagueId: 1, leagueName: "Tuesday Flex", matchId: 200, round: "semifinal", opponentName: "Alex", singles: true, timeZone: "America/New_York", playBy: null, pastPlayBy: false, scheduledAt: null, location: null }]);
+    expect(home.playoffs).toEqual([{ leagueId: 1, leagueName: "Tuesday Flex", matchId: 200, round: "semifinal", opponentName: "Alex", opponentPlayerId: 20, singles: true, timeZone: "America/New_York", playBy: null, pastPlayBy: false, scheduledAt: null, location: null }]);
+  });
+
+  it("gives the singles opponent's player id for Message, and none in doubles", () => {
+    const singles = buildLeagueHome(input({ matches: [match(101, 2, 10, 20)] }));
+    expect(singles.thisWeek.find((i) => i.matchId === 101)?.opponentPlayerId).toBe(20);
+    const doubles = buildLeagueHome(input({ matches: [match(101, 2, 10, 20, { player3Id: 11, player4Id: 21 })] }));
+    expect(doubles.thisWeek.find((i) => i.matchId === 101)?.opponentPlayerId).toBeNull();
   });
 
   it("leaves out leagues I've left", () => {

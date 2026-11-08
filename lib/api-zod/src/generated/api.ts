@@ -2145,6 +2145,12 @@ export const GetMyLeagueWeekResponse = zod.object({
       matchId: zod.number().nullable(),
       myPlayerId: zod.number(),
       opponentName: zod.string().nullable(),
+      opponentPlayerId: zod
+        .number()
+        .nullable()
+        .describe(
+          "The singles opponent's player id, for Message on the Home card; null for doubles and byes",
+        ),
       singles: zod.boolean(),
       scheduledAt: zod.string().nullable(),
       location: zod.string().nullable(),
@@ -2163,6 +2169,12 @@ export const GetMyLeagueWeekResponse = zod.object({
       matchId: zod.number(),
       round: zod.string(),
       opponentName: zod.string(),
+      opponentPlayerId: zod
+        .number()
+        .nullable()
+        .describe(
+          "The singles opponent's player id, for Message on the Home card; null for doubles",
+        ),
       singles: zod.boolean(),
       timeZone: zod.string(),
       playBy: zod

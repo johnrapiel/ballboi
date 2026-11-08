@@ -9,15 +9,17 @@ import { EmptyState } from "@/components/EmptyState";
 import { DiscoverMatchesSection } from "@/components/discover/DiscoverMatches";
 import { HomeLeagues, SectionHead } from "@/components/HomeLeagues";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
-import { MatchCard, type MatchCardAction } from "@/components/MatchCard";
-import { DoublesRecordButton } from "@/components/record/DoublesMatchCard";
+import { MatchCard } from "@/components/MatchCard";
+import { NextMatchCard, type NextMatchAction } from "@/components/NextMatchCard";
+import { DoublesNote } from "@/components/record/DoublesMatchCard";
 import { ResultRow } from "@/components/ResultRow";
 import { SeasonStats } from "@/components/SeasonStats";
 import { TabScreen } from "@/components/TabHeader";
 import { Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { dateRange, deadlineDate, isToday, matchWhen, pairingTime, shortDate } from "@/lib/leagueSchedule";
+import { useProfile } from "@/hooks/useProfile";
+import { dateRange, deadlineDate, isToday, pairingTime, shortDate } from "@/lib/leagueSchedule";
 import { openRecorder } from "@/lib/recording/start";
 
 // Home (spec: Navigation > Home: upcoming matches, this week's pairings,
@@ -33,6 +35,13 @@ import { openRecorder } from "@/lib/recording/start";
 // C4: Home refreshes each time you come back to it, so a score, edit, join,
 // leave or end shows straight away.
 //
+// Design audit (John, Nov 7: the audit overrides anything built that doesn't
+// match it): every match on Home is the approved D2 card (NextMatchCard): the
+// date, a big serif time, both faces, the court and the league pill. Match day
+// singles leads with Record with Ball Boi, then Message and Details; any other
+// match has Message and Details. Enter score lives on Details and the league.
+// The first section reads "Today's match" on match day, else "Next match".
+//
 // Fix 2 (findings 6, 14, 27; John, Nov 6): your season stats sit above the
 // next match, with See all opening My matches. With one league its standings
 // follow; with two or more, Your leagues. Recent results open Match detail.
@@ -41,13 +50,18 @@ import { openRecorder } from "@/lib/recording/start";
 // Leagues" button: Leagues is the next tab. Q5b: a playoff match shows its play-by
 // date; after it, the admin enters the result, so Home offers nothing.
 
-function weekDetail(i: LeagueWeekItem): string {
-  const when = matchWhen(i.scheduledAt);
-  const time = when ? `${when}. ` : "";
-  if (i.played) return "Score entered. See the result in the league.";
-  if (i.phase === "upcoming") return `Starts ${shortDate(i.startDate)}. Play by ${deadlineDate(i.deadline, i.timeZone)}.`;
-  if (i.phase === "grace") return `${time}Grace week until ${deadlineDate(i.graceEnd, i.timeZone)}.`;
-  return `${time}Play by ${deadlineDate(i.deadline, i.timeZone)}.`;
+/** The D2 card's date line and big serif line for a match. */
+function d2When(scheduledAt: string | null, fallbackDate: string | null, starts?: string | null): { dateLabel: string; time: string } {
+  if (scheduledAt) {
+    const at = new Date(scheduledAt);
+    if (!Number.isNaN(at.getTime())) {
+      return {
+        dateLabel: isToday(scheduledAt) ? "Today" : at.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" }),
+        time: at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+      };
+    }
+  }
+  return { dateLabel: starts ? `Starts ${starts}` : "No time set yet", time: fallbackDate ? `By ${fallbackDate}` : "Time to be set" };
 }
 
 /** Whether a week's match can be played (and so scored or recorded) now. */
@@ -58,6 +72,8 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const weekQ = useGetMyLeagueWeek();
+  const { profile } = useProfile();
+  const myName = profile?.displayName ?? "You";
   const week = weekQ.data;
   const { refetch } = weekQ;
   const firstFocus = useRef(true);
@@ -73,16 +89,25 @@ export default function HomeScreen() {
   );
 
   const openLeague = (leagueId: number) => router.push(`/league/${leagueId}`);
-  const enterScore = (leagueId: number, matchId: number) => router.push(`/league/${leagueId}/score/${matchId}`);
-  const record = (leagueId: number, matchId: number, opponentName: string): MatchCardAction => ({
+  const record = (leagueId: number, matchId: number, opponentName: string): NextMatchAction => ({
     label: "Record with Ball Boi",
     onPress: () => openRecorder(router, { matchId, opponentName, leagueId }),
     hint: `Records your match against ${opponentName}`,
   });
-  const scoreAction = (leagueId: number, matchId: number, opponentName: string): MatchCardAction => ({
-    label: "Enter score",
-    onPress: () => enterScore(leagueId, matchId),
-    hint: `For your match against ${opponentName}`,
+  const message = (playerId: number | null | undefined, opponentName: string): NextMatchAction | null =>
+    playerId
+      ? {
+          label: "Message",
+          accessibilityLabel: `Message ${opponentName}`,
+          hint: "Opens a direct chat",
+          onPress: () => router.push({ pathname: "/conversation/[id]", params: { id: "new", playerId: String(playerId), name: opponentName } }),
+        }
+      : null;
+  const details = (matchId: number, leagueId: number): NextMatchAction => ({
+    label: "Details",
+    accessibilityLabel: "Details for this match",
+    hint: "Opens the match, where you can enter the score",
+    onPress: () => (matchId ? router.push(`/match/${matchId}`) : openLeague(leagueId)),
   });
 
   // A match with a set time today goes first, earliest first.
@@ -104,34 +129,54 @@ export default function HomeScreen() {
     }
     const opponent = i.opponentName ?? "your opponent";
     const canPlay = playable(i);
+    const when = d2When(
+      i.scheduledAt,
+      deadlineDate(i.phase === "grace" ? i.graceEnd : i.deadline, i.timeZone),
+      i.phase === "upcoming" ? shortDate(i.startDate) : null,
+    );
+    const note = i.played
+      ? "Score entered."
+      : i.phase === "grace"
+        ? "Grace week: a score now counts for Ball Boi stats, not standings."
+        : null;
     return (
-      <MatchCard
+      <NextMatchCard
         key={`m-${i.matchId}`}
-        eyebrow={`${i.leagueName} · Round ${i.roundNumber}`}
-        title={`You vs. ${opponent}`}
-        detail={weekDetail(i)}
-        note={i.phase === "grace" && !i.played ? "A score now counts for Ball Boi stats, not standings." : null}
-        onOpen={() => openLeague(i.leagueId)}
-        primary={canPlay ? (i.singles ? record(i.leagueId, i.matchId!, opponent) : scoreAction(i.leagueId, i.matchId!, opponent)) : null}
-        secondary={canPlay && i.singles ? scoreAction(i.leagueId, i.matchId!, opponent) : null}
-        footer={canPlay && !i.singles ? <DoublesRecordButton matchId={i.matchId!} /> : null}
+        dateLabel={when.dateLabel}
+        time={when.time}
+        myName={myName}
+        myPhoto={profile?.avatarUrl}
+        opponentName={opponent}
+        location={i.location}
+        league={i.leagueName}
+        note={note}
+        record={canPlay && i.singles ? record(i.leagueId, i.matchId!, opponent) : null}
+        message={message(i.opponentPlayerId, opponent)}
+        details={details(i.matchId!, i.leagueId)}
+        footer={canPlay && !i.singles ? <DoublesNote matchId={i.matchId!} /> : null}
       />
     );
   };
 
   const playoffCard = (p: LeagueWeekPlayoff) => {
     const open = !p.pastPlayBy;
+    const when = d2When(p.scheduledAt, p.playBy ? deadlineDate(p.playBy, p.timeZone) : null);
+    const stage = ROUND_SINGULAR[p.round as keyof typeof ROUND_SINGULAR] ?? "Playoff";
     return (
-      <MatchCard
+      <NextMatchCard
         key={`po-${p.matchId}`}
-        eyebrow={`${p.leagueName} · Playoffs · ${ROUND_SINGULAR[p.round as keyof typeof ROUND_SINGULAR] ?? "Playoff"}`}
-        title={`You vs. ${p.opponentName}`}
-        detail={p.playBy ? (open ? `Play by ${deadlineDate(p.playBy, p.timeZone)}.` : `The play-by date was ${deadlineDate(p.playBy, p.timeZone)}.`) : null}
-        note={open ? null : "Your league admin can enter the result."}
-        onOpen={() => openLeague(p.leagueId)}
-        primary={open ? (p.singles ? record(p.leagueId, p.matchId, p.opponentName) : scoreAction(p.leagueId, p.matchId, p.opponentName)) : null}
-        secondary={open && p.singles ? scoreAction(p.leagueId, p.matchId, p.opponentName) : null}
-        footer={open && !p.singles ? <DoublesRecordButton matchId={p.matchId} /> : null}
+        dateLabel={when.dateLabel}
+        time={when.time}
+        myName={myName}
+        myPhoto={profile?.avatarUrl}
+        opponentName={p.opponentName}
+        location={p.location}
+        league={`${p.leagueName} · ${stage}`}
+        note={open ? null : "The play-by date has passed. Your league admin can enter the result."}
+        record={open && p.singles ? record(p.leagueId, p.matchId, p.opponentName) : null}
+        message={message(p.opponentPlayerId, p.opponentName)}
+        details={details(p.matchId, p.leagueId)}
+        footer={open && !p.singles ? <DoublesNote matchId={p.matchId} /> : null}
       />
     );
   };
@@ -188,7 +233,7 @@ export default function HomeScreen() {
 
           {todays.length > 0 ? (
             <>
-              {matchHead("Today", firstHead === "today")}
+              {matchHead("Today's match", firstHead === "today")}
               {todays.map(weekCard)}
             </>
           ) : null}
@@ -203,7 +248,7 @@ export default function HomeScreen() {
             />
           ))}
 
-          {week && (week.playoffs.length > 0 || rest.length > 0) ? matchHead("This week", firstHead === "week") : null}
+          {week && (week.playoffs.length > 0 || rest.length > 0) ? matchHead(firstHead === "week" ? "Next match" : "This week", firstHead === "week") : null}
 
           {week?.playoffs.map(playoffCard)}
 

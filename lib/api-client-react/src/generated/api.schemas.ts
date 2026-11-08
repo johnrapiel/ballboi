@@ -841,6 +841,11 @@ export interface LeagueWeekItem {
   myPlayerId: number;
   /** @nullable */
   opponentName: string | null;
+  /**
+   * The singles opponent's player id, for Message on the Home card; null for doubles and byes
+   * @nullable
+   */
+  opponentPlayerId: number | null;
   singles: boolean;
   /** @nullable */
   scheduledAt: string | null;
@@ -858,6 +863,11 @@ export interface LeagueWeekPlayoff {
   matchId: number;
   round: string;
   opponentName: string;
+  /**
+   * The singles opponent's player id, for Message on the Home card; null for doubles
+   * @nullable
+   */
+  opponentPlayerId: number | null;
   singles: boolean;
   timeZone: string;
   /**

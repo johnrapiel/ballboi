@@ -38,11 +38,11 @@ describe("season stats", () => {
 
 const item = (over: Partial<LeagueWeekItem>): LeagueWeekItem => ({
   leagueId: 1, leagueName: "Men's 3.5", roundId: 1, roundNumber: 3, phase: "open", startDate: "2026-11-05", deadline: "2026-11-11",
-  graceEnd: "2026-11-18", bye: false, matchId: 100, myPlayerId: 10, opponentName: "Mike Okafor", singles: true,
+  graceEnd: "2026-11-18", bye: false, matchId: 100, myPlayerId: 10, opponentName: "Mike Okafor", opponentPlayerId: 11, singles: true,
   scheduledAt: null, location: null, played: false, timeZone: "America/New_York", ...over,
 });
 const playoff = (over: Partial<LeagueWeekPlayoff>): LeagueWeekPlayoff => ({
-  leagueId: 1, leagueName: "Men's 3.5", matchId: 200, round: "semifinal", opponentName: "Dana", singles: true,
+  leagueId: 1, leagueName: "Men's 3.5", matchId: 200, round: "semifinal", opponentName: "Dana", opponentPlayerId: 12, singles: true,
   timeZone: "America/New_York", playBy: "2026-11-20", pastPlayBy: false, scheduledAt: null, location: null, ...over,
 });
 

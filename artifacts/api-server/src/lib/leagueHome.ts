@@ -63,6 +63,8 @@ export interface HomeWeekItem {
   matchId: number | null;
   myPlayerId: number;
   opponentName: string | null;
+  /** The singles opponent, for Message on the Home card; null for doubles and byes. */
+  opponentPlayerId: number | null;
   singles: boolean;
   scheduledAt: string | null;
   location: string | null;
@@ -78,6 +80,8 @@ export interface HomePlayoffItem {
   matchId: number;
   round: string;
   opponentName: string;
+  /** The singles opponent, for Message on the Home card; null for doubles. */
+  opponentPlayerId: number | null;
   singles: boolean;
   timeZone: string;
   /** Last day to play this round (Q5b): a play week plus a grace week. */
@@ -143,6 +147,12 @@ function sideOf(m: HomeMatch, playerId: number): 1 | 2 | null {
   return null;
 }
 
+/** The one opponent in a singles match; null in doubles. */
+function singlesOpponent(m: HomeMatch, side: 1 | 2): number | null {
+  const ids = (side === 1 ? [m.player2Id, m.player4Id] : [m.player1Id, m.player3Id]).filter((id): id is number => id != null);
+  return ids.length === 1 ? ids[0] : null;
+}
+
 function opponentOf(m: HomeMatch, side: 1 | 2, names: Map<number, string>): string {
   const ids = side === 1 ? [m.player2Id, m.player4Id] : [m.player1Id, m.player3Id];
   return ids
@@ -187,12 +197,13 @@ export function buildLeagueHome(input: HomeInput) {
           bye: false,
           matchId: match.id,
           opponentName: opponentOf(match, sideOf(match, me.id)!, input.names),
+          opponentPlayerId: singlesOpponent(match, sideOf(match, me.id)!),
           scheduledAt: match.scheduledAt,
           location: match.location,
           played: match.status === "completed" || !!match.score,
         });
       } else if (input.byes.some((b) => b.roundId === r.id && b.playerId === me.id)) {
-        thisWeek.push({ ...base, bye: true, matchId: null, opponentName: null, scheduledAt: null, location: null, played: false });
+        thisWeek.push({ ...base, bye: true, matchId: null, opponentName: null, opponentPlayerId: null, scheduledAt: null, location: null, played: false });
       }
     }
   }
@@ -229,6 +240,7 @@ export function buildLeagueHome(input: HomeInput) {
         matchId: m.id,
         round: m.playoffRound ?? "playoff",
         opponentName: opponentOf(m, mySide(m)!, input.names),
+        opponentPlayerId: singlesOpponent(m, mySide(m)!),
         singles: singles(m.leagueId!),
         timeZone: zone(m.leagueId!),
         playBy,

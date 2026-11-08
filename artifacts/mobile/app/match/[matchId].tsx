@@ -27,6 +27,11 @@ import { isRetiredScore, WALKOVER_SCORE } from "@/lib/tennisScore";
 // Finding 7: for 24 hours after the score is entered, either player sees a
 // small pencil next to the score ("Edit score", 44pt). It opens Enter score
 // prefilled. After that it's locked; the footnote points to the league admin.
+//
+// Design audit (John, Nov 7: the audit overrides anything built that doesn't
+// match it): the score card is the same soft D2 card as Home's next match and
+// holds only the details and the score. Notes such as "Score edited by" sit
+// below it with the footnote, not inside the card.
 
 const BALL = {
   day: require("@/assets/images/tabs/tab-ballboi-on.png"),
@@ -223,6 +228,8 @@ export default function MatchDetailScreen() {
     d.inGrace ? "Grace week: counts for Ball Boi stats, not standings." : null,
   ].filter((n): n is string => !!n);
   const footnote = scoreFootnote(d);
+  // The walkover line already shows in the card when there's no score.
+  const shownNotes = notes.filter((n) => !walkover || !n.includes("walkover"));
   const scoreSpoken = d.played
     ? `Final score. ${sentence}.`
     : d.voided
@@ -247,7 +254,20 @@ export default function MatchDetailScreen() {
       {/* The screen's name for VoiceOver; the nav bar title stays empty, as designed. */}
       <View accessible accessibilityRole="header" accessibilityLabel={`Match against ${them}`} style={{ position: "absolute", width: 1, height: 1 }} />
 
-      <Card style={{ borderWidth: 0, paddingVertical: spacing.space6, gap: spacing.space4 }}>
+      <Card
+        style={{
+          borderWidth: 0,
+          paddingTop: 22,
+          paddingHorizontal: 20,
+          paddingBottom: 20,
+          gap: spacing.space4,
+          // The D2 soft lift, matching Home's next match card.
+          shadowColor: c.scheme === "dark" ? "#000000" : c.ink,
+          shadowOpacity: c.scheme === "dark" ? 0.5 : 0.14,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 6 },
+        }}
+      >
         <View accessible accessibilityLabel={[when, stage, d.location].filter(Boolean).join(". ")} style={{ alignItems: "center", gap: 2 }}>
           {when ? <Text style={{ textAlign: "center", fontVariant: ["lining-nums", "tabular-nums"] }}>{when}</Text> : null}
           <Text style={{ textAlign: "center" }}>{stage}</Text>
@@ -274,14 +294,14 @@ export default function MatchDetailScreen() {
                 </Text>
               ))}
             </View>
-            <View accessible accessibilityLabel={`${scoreSpoken}${notes.length ? ` ${notes.join(". ")}.` : ""}`}>
+            <View accessible accessibilityLabel={scoreSpoken}>
             <ScoreLine name={you} won={youWon} games={youGames} other={themGames} tiebreaks={tbs} sets={sets} />
             <View style={{ height: 1, backgroundColor: c.hairline }} />
             <ScoreLine name={them} won={!youWon} games={themGames} other={youGames} tiebreaks={tbs} sets={sets} />
             </View>
           </View>
         ) : (
-          <View accessible accessibilityLabel={`${scoreSpoken}${notes.length ? ` ${notes.join(". ")}.` : ""}`} style={{ alignItems: "center", gap: spacing.space1 }}>
+          <View accessible accessibilityLabel={scoreSpoken} style={{ alignItems: "center", gap: spacing.space1 }}>
             <Text variant="bodyStrong" style={{ textAlign: "center" }}>
               {`You vs. ${them}`}
             </Text>
@@ -291,19 +311,6 @@ export default function MatchDetailScreen() {
           </View>
         )}
 
-        {notes.length ? (
-          <View style={{ gap: 2 }}>
-            <View style={{ gap: 2 }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-              {notes
-                .filter((n) => !walkover || !n.includes("walkover"))
-                .map((n) => (
-                  <Text key={n} variant="small" tone="inkMuted">
-                    {n}
-                  </Text>
-                ))}
-            </View>
-          </View>
-        ) : null}
       </Card>
 
       {d.replay ? (
@@ -329,10 +336,19 @@ export default function MatchDetailScreen() {
         </Pressable>
       ) : null}
 
-      {footnote ? (
-        <Text variant="small" tone="inkMuted" style={{ paddingHorizontal: spacing.space1 }}>
-          {footnote}
-        </Text>
+      {shownNotes.length || footnote ? (
+        <View style={{ gap: 2, paddingHorizontal: spacing.space1 }}>
+          {shownNotes.map((n) => (
+            <Text key={n} variant="small" tone="inkMuted">
+              {n}
+            </Text>
+          ))}
+          {footnote ? (
+            <Text variant="small" tone="inkMuted">
+              {footnote}
+            </Text>
+          ) : null}
+        </View>
       ) : null}
     </ScrollView>
   );
