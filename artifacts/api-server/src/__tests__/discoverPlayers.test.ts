@@ -8,7 +8,7 @@ vi.mock("../lib/logger.js", () => ({ logger: { info: vi.fn(), warn: vi.fn(), err
 
 import { availabilitySummary, overlaps, parseSlots, slotOf } from "../lib/discoverAvailability";
 import { approxMiles, areaForZip, distanceLabel, milesBetween, parseRadius, ZIP_NOT_FOUND, type Area } from "../lib/discoverArea";
-import { fitsLevel, fitsPlays, levelRangeText, nearbyPlayers, parseFilters, type DiscoverCandidate } from "../lib/discoverPlayers";
+import { fitsLevel, fitsLevels, fitsPlays, levelChip, levelRangeText, nearbyPlayers, parseFilters, parseLevels, type DiscoverCandidate } from "../lib/discoverPlayers";
 import { MemoryDiscoverRepo } from "./discoverMemoryRepo";
 import { countPlayed, EMPTY_RELIABILITY, reliabilityLine, type Reliability } from "../lib/reliability";
 import { createDiscoverRouter } from "../routes/discover";
@@ -319,5 +319,39 @@ describe("Discover routes", () => {
   it("can't report yourself", async () => {
     repo.accounts.set(1, "me");
     await app().post("/api/discover/players/1/report").send({ reason: "spam" }).expect(404);
+  });
+});
+
+describe("Level chips (John, Nov 7: every level listed, yours selected by default)", () => {
+  it("reads the levels picked in Filters", () => {
+    expect(parseLevels("mine")).toBe("mine");
+    expect(parseLevels("3.0,3.5,9")).toEqual([3, 3.5]);
+    expect(parseLevels("")).toEqual([]);
+    expect(parseLevels(undefined)).toBeNull();
+  });
+
+  it("rounds a rating onto the 2.5 to 5.0 chips", () => {
+    expect(levelChip(3.4)).toBe(3.5);
+    expect(levelChip(2.0)).toBe(2.5);
+    expect(levelChip(6.0)).toBe(5);
+  });
+
+  it("shows only your level by default", () => {
+    expect(fitsLevels(3.5, 3.5, "mine")).toBe(true);
+    expect(fitsLevels(3.5, 4.0, "mine")).toBe(false);
+    expect(fitsLevels(null, 4.0, "mine")).toBe(true);
+  });
+
+  it("shows any picked level, and every level when none is picked", () => {
+    expect(fitsLevels(3.5, 4.0, [3.5, 4.0])).toBe(true);
+    expect(fitsLevels(3.5, 4.5, [3.5, 4.0])).toBe(false);
+    expect(fitsLevels(3.5, 4.5, [])).toBe(true);
+    expect(fitsLevels(3.5, null, [3.5])).toBe(false);
+    expect(fitsLevels(3.5, null, [])).toBe(true);
+  });
+
+  it("keeps the older Close / Wider / Any filter when no levels are sent", () => {
+    expect(parseFilters({ level: "wider" }, 10).levels).toBeNull();
+    expect(parseFilters({ levels: "mine" }, 10).levels).toBe("mine");
   });
 });

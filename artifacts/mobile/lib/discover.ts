@@ -64,13 +64,51 @@ export interface DiscoverPlayerCard {
   losses: number;
 }
 
+/** Every level, as chips in Filters (spec decision 86: 2.5 to 5.0). */
+export const FILTER_LEVELS = [2.5, 3.0, 3.5, 4.0, 4.5, 5.0] as const;
+
+/**
+ * The Level filter (John, Nov 7): every level listed, pick any number, and
+ * yours selected by default. "mine" is that default; a list is what you
+ * picked, and an empty list means every level.
+ */
+export type LevelPick = "mine" | number[];
+
 export interface PlayerFilters {
-  level: LevelRange;
+  levels: LevelPick;
   plays: PlaysFilter;
   free: boolean;
 }
 
-export const DEFAULT_FILTERS: PlayerFilters = { level: "close", plays: "either", free: false };
+export const DEFAULT_FILTERS: PlayerFilters = { levels: "mine", plays: "either", free: false };
+
+/** A rating on the chips' scale: the nearest half point, 2.5 to 5.0. */
+export function levelChip(rating: number): number {
+  return Math.min(5, Math.max(2.5, Math.round(rating * 2) / 2));
+}
+
+/** The chips that show selected: your own level by default (none if you have no level). */
+export function pickedLevels(pick: LevelPick, mine: number | null): number[] {
+  if (pick !== "mine") return pick;
+  return mine == null ? [] : [levelChip(mine)];
+}
+
+/** Tapping a level chip: switch it on or off, keeping the chips in order. */
+export function toggleLevel(pick: LevelPick, mine: number | null, level: number): number[] {
+  const now = pickedLevels(pick, mine);
+  const next = now.includes(level) ? now.filter((l) => l !== level) : [...now, level];
+  return next.sort((a, b) => a - b);
+}
+
+/** The line under the chips: "Showing 3.5, your level.", "Showing 3.0, 3.5 and 4.0.", "Showing every level." */
+export function levelsText(pick: LevelPick, mine: number | null): string {
+  const picked = pickedLevels(pick, mine);
+  if (picked.length === 0) return mine == null ? "Showing every level. Add your level in Profile." : "Showing every level.";
+  const words = picked.map((l) => l.toFixed(1));
+  const list = words.length === 1 ? words[0] : `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
+  const yours = mine != null && picked.length === 1 && picked[0] === levelChip(mine) ? ", your level" : "";
+  return `Showing ${list}${yours}.`;
+}
 
 /** The distance chips (spec: 5 / 10 / 15 / 30, 10 by default, 30 at most), plus Custom. */
 export const RADIUS_STEPS = [5, 10, 15, 30] as const;
@@ -88,7 +126,8 @@ export function clampRadius(n: number): number {
 
 /** The address for Players near you. */
 export function playersPath(radius: number, f: PlayerFilters): string {
-  const q = [`radius=${clampRadius(radius)}`, `level=${f.level}`, `plays=${f.plays}`];
+  const levels = f.levels === "mine" ? "mine" : f.levels.map((l) => l.toFixed(1)).join(",");
+  const q = [`radius=${clampRadius(radius)}`, `levels=${levels}`, `plays=${f.plays}`];
   if (f.free) q.push("free=1");
   return `/api/discover/players?${q.join("&")}`;
 }
@@ -248,15 +287,18 @@ export function sameSlots(a: ReadonlySet<number>, b: readonly number[]): boolean
 
 // ─── Filters and invites ─────────────────────────────────────────────────────
 
-const LEVEL_WORDS: Record<LevelRange, string> = { close: "close to mine", wider: "wider", any: "any" };
 const PLAYS_WORDS: Record<PlaysFilter, string> = { singles: "singles", doubles: "doubles", either: "either" };
 
-/** The Filters button for VoiceOver: "level close to mine, plays either, free when I'm free off". */
-export function filtersSpoken(f: PlayerFilters): string {
-  return `level ${LEVEL_WORDS[f.level]}, plays ${PLAYS_WORDS[f.plays]}, free when I'm free ${f.free ? "on" : "off"}`;
+/** The Filters button for VoiceOver: "distance 10 miles, your level, plays either, free when I'm free off". */
+export function filtersSpoken(f: PlayerFilters, radius: number): string {
+  const level =
+    f.levels === "mine" ? "your level" : f.levels.length === 0 ? "every level" : `level ${f.levels.map((l) => l.toFixed(1)).join(", ")}`;
+  return `distance ${radius} miles, ${level}, plays ${PLAYS_WORDS[f.plays]}, free when I'm free ${f.free ? "on" : "off"}`;
 }
 
-export const sameFilters = (a: PlayerFilters, b: PlayerFilters) => a.level === b.level && a.plays === b.plays && a.free === b.free;
+const levelsKey = (p: LevelPick) => (p === "mine" ? "mine" : p.join(","));
+export const sameFilters = (a: PlayerFilters, b: PlayerFilters) =>
+  levelsKey(a.levels) === levelsKey(b.levels) && a.plays === b.plays && a.free === b.free;
 
 /** Ball Boi's home on the web; opens the app when it's installed. */
 export const INVITE_LINK = "https://ballboi.tennis";

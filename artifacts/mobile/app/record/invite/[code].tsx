@@ -210,7 +210,7 @@ export default function MatchInviteScreen() {
       <View style={{ gap: spacing.space2 }}>
         {asking ? (
           <>
-            <Text variant="brushL" accessibilityRole="header">
+            <Text variant="headingM" accessibilityRole="header">
               Was that you?
             </Text>
             <Text tone="inkMuted">
