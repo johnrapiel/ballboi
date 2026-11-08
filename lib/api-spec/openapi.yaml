@@ -337,29 +337,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OpenMatchDetail'
-  /open-matches/{id}/messages:
-    get:
-      operationId: getOpenMatchMessages
-      tags: [discover]
-      summary: The group chat of a filled open match (add ?after=<id> for only newer lines)
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OpenMatchMessages'
   /open-matches/{id}/{action}:
     post:
       operationId: actOnOpenMatch
       tags: [discover]
-      summary: "join, drop, remove (poster; body userId), cancel (poster), or messages (send to the group chat; body text)"
+      summary: "join, drop, remove (poster; body userId), or cancel (poster). The group chat is on /messages/groups (F15)."
       parameters:
       - name: id
         in: path
@@ -7280,9 +7262,12 @@ components:
           type: boolean
         chatTitle:
           type: string
+        chatId:
+          type: [integer, 'null']
+          description: The group chat in Messages (/messages/groups/{id}), once the match has filled
         matchId:
           type: [integer, 'null']
-      required: [id, when, startsAt, endsAt, format, levelText, courtName, distance, note, status, spots, spotsLeft, total, players, role, started, chatTitle, matchId]
+      required: [id, when, startsAt, endsAt, format, levelText, courtName, distance, note, status, spots, spotsLeft, total, players, role, started, chatTitle, chatId, matchId]
     OpenMatchList:
       type: object
       properties:
@@ -7324,31 +7309,6 @@ components:
                 type: string
             required: [id, when, courtName, format]
       required: [matches, counts, radius, total, needsArea, matchAlerts, notices]
-    OpenMatchMessages:
-      type: object
-      properties:
-        open:
-          type: boolean
-        messages:
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: integer
-              text:
-                type: string
-              at:
-                type: string
-              fromMe:
-                type: boolean
-              senderName:
-                type: [string, 'null']
-                description: Null for a line from Ball Boi
-              senderUserId:
-                type: [integer, 'null']
-            required: [id, text, at, fromMe, senderName, senderUserId]
-      required: [open, messages]
     NewCourtInput:
       type: object
       properties:

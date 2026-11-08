@@ -60,6 +60,8 @@ describe("routeForPushLink", () => {
   it("opens a message push in its chat", () => {
     expect(routeForPushLink("/conversation/42")).toBe("/conversation/42");
     expect(routeForPushLink("/messages/42")).toBe("/conversation/42");
+    expect(routeForPushLink("/conversation/group/7")).toBe("/conversation/group/7");
+    expect(routeForPushLink("/conversation/group/x")).toBe("/");
   });
 
   it("maps the API's links to the app's screens", () => {

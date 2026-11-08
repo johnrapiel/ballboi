@@ -581,6 +581,11 @@ export interface OpenMatchDetail {
   role: OpenMatchDetailRole;
   started: boolean;
   chatTitle: string;
+  /**
+   * The group chat in Messages (/messages/groups/{id}), once the match has filled
+   * @nullable
+   */
+  chatId: number | null;
   /** @nullable */
   matchId: number | null;
 }
@@ -607,25 +612,6 @@ export interface OpenMatchList {
   matchAlerts: boolean;
   /** "This match filled up" for posts you were taken off */
   notices: OpenMatchListNoticesItem[];
-}
-
-export type OpenMatchMessagesMessagesItem = {
-  id: number;
-  text: string;
-  at: string;
-  fromMe: boolean;
-  /**
-   * Null for a line from Ball Boi
-   * @nullable
-   */
-  senderName: string | null;
-  /** @nullable */
-  senderUserId: number | null;
-};
-
-export interface OpenMatchMessages {
-  open: boolean;
-  messages: OpenMatchMessagesMessagesItem[];
 }
 
 export interface NewCourtInput {
