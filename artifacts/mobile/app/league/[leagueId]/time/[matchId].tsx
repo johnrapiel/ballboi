@@ -2,7 +2,7 @@ import DateTimePicker, { type DateTimePickerEvent } from "@react-native-communit
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { AccessibilityInfo, View, useColorScheme } from "react-native";
+import { AccessibilityInfo, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -16,7 +16,7 @@ import {
 import { SheetBody, useSheetClose } from "@/components/Sheet";
 import { Button, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
-import { useColors } from "@/hooks/useColors";
+import { useColors, useScheme } from "@/hooks/useColors";
 import { addDays, deadlineDate, matchWhen, opponentName, pickableDays, shortDate, zonedTime } from "@/lib/leagueSchedule";
 import { todaysMatchesKey } from "@/lib/recording/api";
 
@@ -29,7 +29,7 @@ import { todaysMatchesKey } from "@/lib/recording/api";
 
 export default function MatchTimeScreen() {
   const c = useColors();
-  const scheme = useColorScheme();
+  const scheme = useScheme();
   const queryClient = useQueryClient();
   const { leagueId: rawLeague, matchId: rawMatch } = useLocalSearchParams<{ leagueId: string; matchId: string }>();
   const leagueId = Number(rawLeague);

@@ -1,4 +1,4 @@
-<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-11-02 with rev 74). Updated in the repo on 2026-11-04 with the Wave 1 review decisions (48 to 78), on 2026-11-06 with decision 79, and on 2026-11-07 with decisions 80 and 81, then 82 and 83 (Ball Boi Pro parked), then 84 to 99 (beta recording and footage release, B1 to B16). The live doc was resynced on 2026-11-07 through decision 99. The live doc wins if they differ. Refresh this file when the live doc changes. -->
+<!-- Snapshot of the live spec: https://claude.ai/code/artifact/ff76f66f-d4ec-49cb-b49a-7b9ad76fb102 (synced 2026-11-02 with rev 74). Updated in the repo on 2026-11-04 with the Wave 1 review decisions (48 to 78), on 2026-11-06 with decision 79, and on 2026-11-07 with decisions 80 and 81, then 82 and 83 (Ball Boi Pro parked), then 84 to 99 (beta recording and footage release, B1 to B16). The live doc was resynced on 2026-11-07 through decision 99. The live doc wins if they differ. Refresh this file when the live doc changes. Updated in the repo on 2026-11-08 with decision 143 (appearance follows the iPhone). -->
 
 # Ball Boi: Flows and Feature Spec
 
@@ -301,7 +301,7 @@ The player card is a brag sheet, never a scouting report: it shows strengths and
 - **VoiceOver reads the card as one summary,** e.g. "Alex Kim, Level 3.5, singles, Fishkill, home court Beacon Courts"
 - **Career stats (decision 147):** a Career screen, opened from See all on Profile's This season. It shows the all-time record and matches played, best win streak, share of sets won and share of games won, the tiebreak record, your seasons with their records (a season opens its results), and head-to-head against everyone you've played ("Sam Patel · 2-1"), each opening that player's card. League, Discover and confirmed Quick matches count; unconfirmed Quick matches (G2), cancelled matches and walkovers' games never do (a walkover still counts in the record). A player blocked with you never shows in head-to-head. Ball Boi career stats join once they pass their accuracy bars (G1)
 
-**Shareable match recap:** auto-generated after each match's score is entered with score, aces, and winners, sized for Instagram Stories and texts, carrying the Ball Boi logo.
+**Shareable match recap:** auto-generated after each match's score is entered with score, aces, and winners, sized for Instagram Stories and texts, carrying the Ball Boi logo. Always in the Day look (ivory and white, navy ink), whatever the phone is set to (decision 143).
 
 **Court directory:** a searchable list, nearest first ("Beacon Courts · ~3 mi"), with "Add a court" (name and address) when one is missing; no map. Opens from Settings > Discover > Home court and the court field in Post an open match, and feeds match cards in chat (decision 112).
 
@@ -371,6 +371,7 @@ These decisions add launch-blocking items to the submission checklist. Strangers
 - **Radius and level range controls:** 44×44pt targets, Dynamic Type safe (2.5.8, 1.4.4)
 - **Availability grid:** each cell read as "Monday 6 PM, free" or "not free"; a whole-row toggle as the non-drag alternative (2.5.7, 4.1.2)
 - **Header buttons:** plain icons inside iOS's own glass circle, 44×44pt, labeled for VoiceOver (decision 133) (2.5.8, 4.1.2)
+- **Appearance:** the app follows the iPhone's Light or Dark Mode, no in-app override: Day (ivory and white, navy ink) in Light Mode, Night (warm charcoal, ivory ink) in Dark Mode, switching live with no restart. Shareable recaps use the Day look. Every text, border, chart and replay pair passes in both, with and without Increase Contrast; native pieces (date pickers, action sheets, alerts, keyboard, status bar) follow the same mode (decision 143) (1.4.3, 1.4.11)
 - **Milestone animations:** a 200ms fade replaces motion under Reduce Motion; each moment's outcome is announced to VoiceOver in text (2.3.3, 4.1.3)
 
 ## Roadmap
@@ -489,7 +490,7 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 100 | Either player can edit a score for 24 hours after it's entered, from a small pencil next to the score on Match detail. The latest edit stands, standings recompute, and the other player sees "Score edited by [name]". After 24 hours only the admin's logged correction in Manage can change it. Replaces "first score stands" and the 10-minute Undo (John, Nov 6, finding 7) |
 | 101 | No Message Requests: every message goes straight to the inbox. A first message from someone outside your leagues still can't contain a phone number or email. Replaces the Message Requests inbox and its "can't send again until you reply" limit (John, Nov 6, finding 17) |
 | 102 | Block lives inside Report: Report is the only action on a message or player, and its sheet has one "Also block [name]" checkbox. No separate Block action and no Blocked players screen; a blocked chat shows a small Unblock link. Blocking still stops messages both ways and removes the player from search and pairing (guideline 1.2) (John, Nov 6, finding 20) |
-| 103 | Ball Boi opens in Light (Day) whatever the iPhone is set to; a Light/Dark toggle comes in Wave 2, Session H. Replaces the Nov 2 "Match iPhone" default (John, Nov 6) |
+| 103 | Ball Boi opens in Light (Day) whatever the iPhone is set to; a Light/Dark toggle comes in Wave 2, Session H. Replaces the Nov 2 "Match iPhone" default (John, Nov 6) Replaced by decision 144 |
 | 104 | A set entered as 6-6 opens tiebreak boxes; the tiebreak points are required, decide the set, and save as 7-6(x) (John, Nov 6) |
 | 105 | Quick match opponents and New message can find any Ball Boi player who hasn't hidden their profile, never a blocked one. New message lists "In your leagues" first, then "All Ball Boi players" (John, Nov 6) |
 | 106 | Levels run 2.5 to 5.0; 5.0 is "Expert" (John, Nov 6) |
@@ -530,4 +531,5 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 141 | The legal consult cleared the Ball Boi Beta Footage Release (decision 96). Testers can sign once /beta-release is live (John, Nov 8) |
 | 142 | Start is picked before mounting: Record works before the court locks, and the countdown starts on its own once it locks, or after the Record anyway fallback. The Live Activity Start button stays as a second way to start (John, Nov 8) |
 | 143 | Other players' cards show their full match history: Upcoming matches and Results tabs like your own Profile, with the winner mark and head-to-head. Blocks, hidden profiles and unconfirmed Quick matches stay out (John, Nov 8) |
+| 144 | The app follows the iPhone's Light or Dark Mode with no in-app override; shareable recaps always use the Day look (John, Nov 7 and 8). Replaces decision 103 |
 | 147 | Career stats: a Career screen from See all on Profile's This season, with all-time record and matches played, best win streak, share of sets and games won, tiebreak record, your seasons (each opening its results) and head-to-head rows opening each player's card. League, Discover and confirmed Quick matches count; never unconfirmed Quick matches, cancelled matches or walkovers' games. Ball Boi career stats join once they pass their accuracy bars (John, Nov 8, H4) |
