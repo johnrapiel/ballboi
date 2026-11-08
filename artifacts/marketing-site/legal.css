@@ -42,3 +42,5 @@ strong { font-weight: 800; }
 footer { border-top: 1px solid var(--rule); }
 footer .inner { max-width: 720px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; padding: 16px 20px 28px; font-size: 14px; color: var(--muted); }
 footer a { padding: 12px 0; }
+.lede { margin-top: 32px; }
+.contact { margin-top: 32px; }
