@@ -3,6 +3,7 @@
 // Players / Open leagues / Open matches segmented control, the area row and
 // the distance chips with counts.
 
+import { PlainIconButton } from "@/components/Choice";
 import { Icon, type IconName } from "@/components/Icon";
 import React from "react";
 import { Pressable, View, useWindowDimensions, type StyleProp, type ViewStyle } from "react-native";
@@ -264,9 +265,10 @@ export function LinkButton({
 }
 
 /**
- * The Filters button beside the count line: the brush sliders icon alone, in
- * an outlined 44pt circle (John, Nov 7). VoiceOver reads "Filters" and what's
- * set. A small ink dot shows when filters are on.
+ * The Filters button beside the count line: the brush sliders icon alone,
+ * plain in ink with no circle or border, a 44pt tap area (button standard,
+ * John, Nov 8). VoiceOver reads "Filters" and what's set. A small ink dot
+ * shows when filters are on.
  */
 export function FiltersButton({
   onPress,
@@ -277,32 +279,5 @@ export function FiltersButton({
   accessibilityLabel: string;
   active?: boolean;
 }) {
-  const c = useColors();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      hitSlop={4}
-      style={({ pressed }) => ({
-        width: MIN_TAP,
-        height: MIN_TAP,
-        borderRadius: radius.radiusPill,
-        borderWidth: 1,
-        borderColor: c.hairlineStrong,
-        alignItems: "center",
-        justifyContent: "center",
-        opacity: pressed ? 0.7 : 1,
-      })}
-    >
-      <Icon name="slider.horizontal.2" size={20} tintColor={c.ink} />
-      {active ? (
-        <View
-          importantForAccessibility="no-hide-descendants"
-          accessibilityElementsHidden
-          style={{ position: "absolute", top: 2, right: 2, width: 10, height: 10, borderRadius: 5, backgroundColor: c.ink, borderWidth: 2, borderColor: c.paper }}
-        />
-      ) : null}
-    </Pressable>
-  );
+  return <PlainIconButton symbol="slider.horizontal.2" label={accessibilityLabel} onPress={onPress} active={active} />;
 }

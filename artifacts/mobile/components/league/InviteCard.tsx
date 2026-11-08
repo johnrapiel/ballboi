@@ -1,10 +1,11 @@
 import * as Haptics from "expo-haptics";
 import { Icon, type IconName } from "@/components/Icon";
 import React, { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Pressable, Share, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Share, View } from "react-native";
 
+import { PlainIconButton } from "@/components/Choice";
 import { Button, Card, Text } from "@/components/ui";
-import { MIN_TAP, radius, spacing } from "@/constants/tokens";
+import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { copyText } from "@/lib/copy";
 import { inviteMessage, joinUrl } from "@/lib/leagueInvite";
@@ -17,27 +18,8 @@ import { inviteMessage, joinUrl } from "@/lib/leagueInvite";
 // Create invite code button instead of an error.
 
 function IconAction({ symbol, label, hint, onPress }: { symbol: IconName; label: string; hint: string; onPress: () => void }) {
-  const c = useColors();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityHint={hint}
-      style={({ pressed }) => ({
-        width: MIN_TAP,
-        height: MIN_TAP,
-        borderRadius: radius.radiusPill,
-        borderWidth: 1,
-        borderColor: c.hairlineStrong,
-        alignItems: "center",
-        justifyContent: "center",
-        opacity: pressed ? 0.6 : 1,
-      })}
-    >
-      <Icon name={symbol} size={20} tintColor={c.ink} />
-    </Pressable>
-  );
+  // In-page icon: plain brush icon, no circle (button standard, John, Nov 8).
+  return <PlainIconButton symbol={symbol} label={label} hint={hint} onPress={onPress} />;
 }
 
 export function InviteCard({

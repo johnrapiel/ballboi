@@ -1,18 +1,19 @@
 import { useRouter } from "expo-router";
-import { Icon } from "@/components/Icon";
 import React from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { CornerButton } from "@/components/CornerButton";
 import { Roundel } from "@/components/Roundel";
 import { Text } from "@/components/ui";
-import { MIN_TAP, radius, spacing } from "@/constants/tokens";
+import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { badgeCount, useMessagesSummary } from "@/hooks/useMessages";
 
 /**
- * Messages, in a 44pt circle in the top-right corner of every tab.
- * Shows an unread count when there is one, and VoiceOver reads it.
+ * Messages, always in the top-right corner of every tab (button standard,
+ * John, Nov 8): a glass corner button. Shows an unread count when there is
+ * one, and VoiceOver reads it.
  */
 export function MessagesButton({ unread = 0 }: { unread?: number }) {
   const c = useColors();
@@ -20,28 +21,12 @@ export function MessagesButton({ unread = 0 }: { unread?: number }) {
   const label = unread > 0 ? `Messages, ${unread} unread` : "Messages";
 
   return (
-    <Pressable
-      onPress={() => router.push("/messages")}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      hitSlop={4}
-      style={({ pressed }) => ({
-        width: MIN_TAP,
-        height: MIN_TAP,
-        borderRadius: radius.radiusPill,
-        backgroundColor: c.sand,
-        borderWidth: 1,
-        borderColor: c.hairline,
-        alignItems: "center",
-        justifyContent: "center",
-        opacity: pressed ? 0.7 : 1,
-      })}
-    >
-      <Icon name="message" size={20} tintColor={c.ink} />
+    <CornerButton symbol="message" label={label} onPress={() => router.push("/messages")}>
       {unread > 0 && (
         <View
           importantForAccessibility="no-hide-descendants"
           accessibilityElementsHidden
+          pointerEvents="none"
           style={{
             position: "absolute",
             top: -2,
@@ -60,7 +45,7 @@ export function MessagesButton({ unread = 0 }: { unread?: number }) {
           </Text>
         </View>
       )}
-    </Pressable>
+    </CornerButton>
   );
 }
 
@@ -92,8 +77,9 @@ export function TabScreen({
 }
 
 /**
- * Top of every tab: the tab's name as a large brush title, echoing the
- * roundel's lettering, with Messages in the top-right corner. The title
+ * Top of every tab: the tab's name as the page title (Cormorant at 50% ink),
+ * with Messages in the top-right corner and the tab's own action, if any,
+ * just left of it. The title
  * always matches the tab label. Home shows the roundel alone, left aligned,
  * with no title, date or greeting (John, Nov 5); VoiceOver still reads the
  * tab's name as the header. With nothing on Home yet, the header is bare and
