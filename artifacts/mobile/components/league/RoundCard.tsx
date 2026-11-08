@@ -5,8 +5,10 @@ import { Pressable, View } from "react-native";
 import type { ScheduleMatch, ScheduleRound, ScheduleWeek } from "@workspace/api-client-react";
 
 import { Card, Chip, Text } from "@/components/ui";
+import { WinnerNames } from "@/components/WinnerNames";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { sideOf, winnerMark } from "@/lib/winnerMark";
 import { canEnterScore, correctionLine, dateRange, deadlineDate, editedLine, isMine, isNotPlayed, phaseLabel, resultLine, shortDate } from "@/lib/leagueSchedule";
 
 // One week of a league season (spec: Leagues > Weekly loop). Every state is in
@@ -41,7 +43,16 @@ function MatchRow({
     m.status !== "completed" && m.scoreClearedBy ? `Score cleared by ${m.scoreClearedBy}` : null,
   ].filter((n): n is string => !!n);
   const scoreable = mine && canEnterScore(round, m, ended);
-  const summary = `${m.player1Name} versus ${m.player2Name}. ${result}.${notes.map((n) => ` ${n}.`).join("")}`;
+  // Winner mark (John, Nov 8): the winner bold and underlined, the score from
+  // their side; VoiceOver reads "[Winner] won [score]".
+  const mark = winnerMark({
+    player1Name: m.player1Name,
+    player2Name: m.player2Name,
+    score: m.status === "completed" && !m.voided ? m.score : null,
+    winner: m.status === "completed" && !m.voided ? sideOf(m.winnerId, m.player1Id, m.player2Id) : null,
+    status: result,
+  });
+  const summary = `${m.player1Name} versus ${m.player2Name}. ${mark.spoken}.${notes.map((n) => ` ${n}.`).join("")}`;
 
   return (
     <View
@@ -55,22 +66,26 @@ function MatchRow({
       }}
     >
       <View accessible accessibilityLabel={`${mine ? "Your match. " : ""}${summary}`} style={{ flex: 1, gap: 2 }}>
-        <Text variant="bodyStrong">
-          {m.player1Name} vs. {m.player2Name}
-        </Text>
-        {notPlayed ? (
-          // C6: in words with an icon, never color alone. No standings effect.
-          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space1 }}>
-            <Icon name="minus.circle" size={14} tintColor={c.inkMuted} />
-            <Text variant="small" tone="inkMuted">
-              {result}
-            </Text>
-          </View>
-        ) : (
-          <Text variant="small" tone="inkMuted" style={m.voided ? { textDecorationLine: "line-through" } : undefined}>
-            {result}
-          </Text>
-        )}
+        <WinnerNames
+          player1Name={m.player1Name}
+          player2Name={m.player2Name}
+          mark={mark}
+          line={
+            notPlayed ? (
+              // C6: in words with an icon, never color alone. No standings effect.
+              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space1 }}>
+                <Icon name="minus.circle" size={14} tintColor={c.inkMuted} />
+                <Text variant="small" tone="inkMuted">
+                  {mark.line}
+                </Text>
+              </View>
+            ) : m.voided ? (
+              <Text variant="small" tone="inkMuted" style={{ textDecorationLine: "line-through" }}>
+                {mark.line}
+              </Text>
+            ) : undefined
+          }
+        />
         {notes.map((n) => (
           <Text key={n} variant="small" tone="inkMuted">
             {n}

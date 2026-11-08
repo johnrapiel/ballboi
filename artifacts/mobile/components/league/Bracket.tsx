@@ -1,4 +1,3 @@
-import { Icon } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
@@ -6,17 +5,20 @@ import type { BracketRound, BracketSeed, BracketSlot, LeagueBracket } from "@wor
 
 import { BrushRing } from "@/components/BrushRing";
 import { Card, Text } from "@/components/ui";
+import { MarkedName } from "@/components/WinnerNames";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { deadlineDate } from "@/lib/leagueSchedule";
 import { slotActions, slotResult } from "@/lib/playoffView";
+import { sideOf, winnerMark, type NameStyle } from "@/lib/winnerMark";
 
 // Playoff bracket (spec: Leagues > Setup, optional playoff for top 4 or 8;
 // canvas: Playoff bracket). A list by round rather than a drawn tree, so it
 // reads top to bottom with VoiceOver and at any text size. Approved styling
 // (John, Nov 5): the original linen match boxes, italic serif seeds and sand
 // highlight on your match, sentence case labels and You, and the brush ring
-// around the italic serif Champion.
+// around the italic serif Champion. Winners are marked with the brush
+// underline, not a Won tag (John, Nov 8).
 
 export const ROUND_LABEL: Record<BracketSlot["round"], string> = {
   quarterfinal: "Quarterfinals",
@@ -30,37 +32,46 @@ export const ROUND_SINGULAR: Record<BracketSlot["round"], string> = {
   final: "Final",
 };
 
-function PlayerLine({ p, won, me }: { p: BracketSeed | null; won: boolean; me: boolean }) {
-  const c = useColors();
+function PlayerLine({ p, look, me }: { p: BracketSeed | null; look: NameStyle; me: boolean }) {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2, minHeight: 32 }}>
       <Text variant="titleItalic" tone="inkMuted" style={{ minWidth: 22 }} maxFontSizeMultiplier={1.5}>
         {p ? String(p.seed) : ""}
       </Text>
       <View style={{ flex: 1, flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.space2 }}>
-        <Text variant={won ? "bodyStrong" : "body"} tone={p ? "ink" : "inkMuted"}>
-          {p ? p.playerName : "To be decided"}
-        </Text>
+        {p ? (
+          // Winner mark (John, Nov 8): bold with the brush underline, the loser muted.
+          <MarkedName name={p.playerName} look={look} />
+        ) : (
+          <Text tone="inkMuted">To be decided</Text>
+        )}
         {p && me ? (
           <Text variant="section" tone="inkMuted">
             You
           </Text>
         ) : null}
       </View>
-      {won ? (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space1 }}>
-          <Icon name="checkmark" size={12} tintColor={c.ink} />
-          <Text variant="section">Won</Text>
-        </View>
-      ) : null}
     </View>
   );
+}
+
+/** The slot's winner mark: who's marked, the score line, and what VoiceOver reads. */
+function slotMark(slot: BracketSlot, round: BracketRound, ended: boolean) {
+  const result = slotResult(slot, round, ended);
+  const side = slot.status === "completed" ? sideOf(slot.winnerId, slot.player1?.playerId, slot.player2?.playerId) : null;
+  return winnerMark({
+    player1Name: slot.player1?.playerName ?? "To be decided",
+    player2Name: slot.player2?.playerName ?? "To be decided",
+    score: side ? slot.score : null,
+    winner: side,
+    status: side ? undefined : result,
+  });
 }
 
 function slotSummary(slot: BracketSlot, round: BracketRound, myPlayerId: number | null | undefined, ended: boolean): string {
   const name = (p: BracketSeed | null) => (p ? `seed ${p.seed}, ${p.playerName}${p.playerId === myPlayerId ? ", you" : ""}` : "to be decided");
   const base = `${ROUND_SINGULAR[slot.round]}: ${name(slot.player1)} versus ${name(slot.player2)}.`;
-  return `${base} ${slotResult(slot, round, ended)}.`;
+  return `${base} ${slotMark(slot, round, ended).spoken}.`;
 }
 
 function SlotButton({ label, hint, onPress }: { label: string; hint: string; onPress: () => void }) {
@@ -127,14 +138,15 @@ export function BracketView({
           {r.slots.map((slot) => {
             const mine = myPlayerId != null && (slot.player1?.playerId === myPlayerId || slot.player2?.playerId === myPlayerId);
             const can = slotActions(slot, r, { myPlayerId, isAdmin, ended });
+            const mark = slotMark(slot, r, ended);
             return (
               <Card key={`${r.round}-${slot.slot}`} style={{ gap: spacing.space1, backgroundColor: mine ? c.sand : c.linen }}>
                 <View accessible accessibilityLabel={slotSummary(slot, r, myPlayerId, ended)} style={{ gap: spacing.space1 }}>
-                  <PlayerLine p={slot.player1} won={slot.winnerId != null && slot.winnerId === slot.player1?.playerId} me={slot.player1?.playerId === myPlayerId} />
+                  <PlayerLine p={slot.player1} look={mark.player1} me={slot.player1?.playerId === myPlayerId} />
                   <View style={{ height: 1, backgroundColor: c.hairline }} />
-                  <PlayerLine p={slot.player2} won={slot.winnerId != null && slot.winnerId === slot.player2?.playerId} me={slot.player2?.playerId === myPlayerId} />
-                  <Text variant="small" tone="inkMuted">
-                    {slotResult(slot, r, ended)}
+                  <PlayerLine p={slot.player2} look={mark.player2} me={slot.player2?.playerId === myPlayerId} />
+                  <Text variant="small" tone="inkMuted" style={{ fontVariant: ["lining-nums", "tabular-nums"] }}>
+                    {mark.line}
                   </Text>
                 </View>
                 {can.enterScore ? (
