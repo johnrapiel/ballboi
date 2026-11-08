@@ -38,3 +38,18 @@ describe("carousel rules", () => {
     expect(canLeavePage("records", true, false)).toBe(true);
   });
 });
+
+describe("micState", async () => {
+  const { micState } = await import("@/lib/recording/permissions");
+  it("says when only the microphone is denied", () => {
+    expect(micState({ granted: false, status: "denied", canAskAgain: false })).toBe("denied");
+    expect(micState({ granted: false, status: "denied", canAskAgain: true })).toBe("denied");
+  });
+  it("asks while iOS can still prompt", () => {
+    expect(micState({ granted: false, status: "undetermined", canAskAgain: true })).toBe("ask");
+  });
+  it("is fine when allowed or still loading", () => {
+    expect(micState({ granted: true, status: "granted", canAskAgain: true })).toBe("ok");
+    expect(micState(null)).toBe("ok");
+  });
+});
