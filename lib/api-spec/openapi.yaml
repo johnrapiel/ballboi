@@ -1342,6 +1342,72 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /player-cards/me:
+    get:
+      operationId: getMyPlayerCard
+      tags: [players]
+      summary: Your player card and This season, for Profile (decisions 138 to 140)
+      responses:
+        '200':
+          description: Your card
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerCard'
+        '404':
+          description: No profile yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /player-cards/{userId}:
+    get:
+      operationId: getPlayerCard
+      tags: [players]
+      summary: Another player's card and This season, from Discover (decision 139)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Their card
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerCard'
+        '404':
+          description: Not in Discover (hidden, blocked either way, or not set up)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /player-cards/{userId}/matches:
+    get:
+      operationId: getPlayerMatches
+      tags: [players]
+      summary: Another player's Upcoming matches and Results, and your head-to-head (decision 143)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Their matches
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerMatches'
+        '404':
+          description: Not in Discover (hidden, blocked either way, or not set up)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /players/me:
     get:
       operationId: getMyPlayers
@@ -7130,6 +7196,142 @@ components:
                   type: [integer, 'null']
               required: [otherName, otherUserId]
       required: [matches]
+    PlayerCardSeason:
+      type: object
+      description: This season by F13's rules (decision 121), in the global season running today, else the calendar year
+      properties:
+        name:
+          type: string
+        from:
+          type: string
+          description: YYYY-MM-DD, inclusive
+        to:
+          type: string
+          description: YYYY-MM-DD, inclusive
+        wins:
+          type: integer
+        losses:
+          type: integer
+        played:
+          type: integer
+        streak:
+          type: [object, 'null']
+          properties:
+            won:
+              type: boolean
+            count:
+              type: integer
+          required: [won, count]
+        noShows:
+          type: integer
+      required: [name, from, to, wins, losses, played, streak, noShows]
+    PlayerCard:
+      type: object
+      description: The player card (design D). Holds only what the player entered.
+      properties:
+        userId:
+          type: integer
+        you:
+          type: boolean
+        name:
+          type: string
+        avatarUrl:
+          type: [string, 'null']
+        rating:
+          type: [number, 'null']
+        ratingSource:
+          type: [string, 'null']
+        plays:
+          type: [string, 'null']
+          enum: [singles, doubles, both, null]
+        town:
+          type: [string, 'null']
+        distance:
+          type: [string, 'null']
+          description: "\"~4 mi away\" on another player's card; null on yours"
+        homeCourt:
+          type: [string, 'null']
+        slots:
+          type: array
+          description: Free hours, day * 24 + hour, Monday is 0
+          items:
+            type: integer
+        freeSummary:
+          type: [string, 'null']
+        season:
+          $ref: '#/components/schemas/PlayerCardSeason'
+      required: [userId, you, name, avatarUrl, rating, ratingSource, plays, town, distance, homeCourt, slots, freeSummary, season]
+    PlayerMatches:
+      type: object
+      properties:
+        upcoming:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              kind:
+                type: string
+                enum: [league, playoff, discover]
+              matchId:
+                type: [integer, 'null']
+              scheduledAt:
+                type: [string, 'null']
+              playBy:
+                type: [string, 'null']
+                description: Last day to play (YYYY-MM-DD) when no time is set
+              opponentName:
+                type: string
+              opponentUserId:
+                type: [integer, 'null']
+                description: Null for a placeholder opponent, who shows by name with no link
+              context:
+                type: string
+              location:
+                type: [string, 'null']
+                description: Only for a league match in a league you're in
+              mine:
+                type: boolean
+            required: [key, kind, matchId, scheduledAt, playBy, opponentName, opponentUserId, context, location, mine]
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              matchId:
+                type: integer
+              player1Name:
+                type: string
+              player2Name:
+                type: string
+              player1UserId:
+                type: [integer, 'null']
+              player2UserId:
+                type: [integer, 'null']
+              score:
+                type: string
+                description: As stored, from player 1's side
+              winner:
+                type: [integer, 'null']
+                enum: [1, 2, null]
+              context:
+                type: string
+              completedAt:
+                type: [string, 'null']
+              mine:
+                type: boolean
+            required: [matchId, player1Name, player2Name, player1UserId, player2UserId, score, winner, context, completedAt, mine]
+        headToHead:
+          type: [object, 'null']
+          description: Your wins and theirs against each other, or null when you haven't played
+          properties:
+            you:
+              type: integer
+            them:
+              type: integer
+          required: [you, them]
+      required: [upcoming, results, headToHead]
     MyOpenMatches:
       type: object
       properties:
@@ -7142,6 +7344,9 @@ components:
                 type: integer
               when:
                 type: string
+              startsAt:
+                type: string
+                description: When it starts (ISO 8601), for sorting with your other upcoming matches
               format:
                 type: string
                 enum: [singles, doubles]
@@ -7155,7 +7360,7 @@ components:
                 type: integer
               chatTitle:
                 type: string
-            required: [id, when, format, courtName, status, spotsLeft, total, chatTitle]
+            required: [id, when, startsAt, format, courtName, status, spotsLeft, total, chatTitle]
       required: [matches]
     NewOpenMatchInput:
       type: object

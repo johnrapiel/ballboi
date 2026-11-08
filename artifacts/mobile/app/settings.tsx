@@ -7,10 +7,15 @@
 // Both stick after the app closes.
 // Notifications (Session G): Match day reminders (decision 127) and Show
 // message previews (decision 128).
-// Delete account sits at the bottom, in red, and opens the delete flow with
-// its own confirm (Apple 5.1.1(v); finding 21).
+// Account (decision 138, John, Nov 8): Sign out moved here from Profile and
+// sits above Delete account. Both are red and confirmed: Sign out asks
+// first (and warns about recordings that haven't uploaded); Delete account
+// opens the delete flow with its own confirm (Apple 5.1.1(v); finding 21).
+// About (the roundel and version) moved here from Profile too.
 
 import { useAuth } from "@clerk/expo";
+import Constants from "expo-constants";
+import * as Haptics from "expo-haptics";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetNotificationSettingsQueryKey,
@@ -27,11 +32,13 @@ import { DiscoverSettings } from "@/components/discover/DiscoverSettings";
 import { NotificationsOffBanner } from "@/components/NotificationsOffBanner";
 import { TRAINING_COPY } from "@/components/record/ConsentScreen";
 import { SettingsRow as ListSettingsRow, SettingsSection } from "@/components/SettingsList";
+import { Roundel } from "@/components/Roundel";
 import { Toggle } from "@/components/Toggle";
 import { Button, Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
+import { confirmSignOut } from "@/lib/confirmSignOut";
 import { consentKey, saveTrainingEnabled, useRecordingConsent, type RecordingConsent } from "@/lib/recording/api";
 import { loadUploadOnCellular, setUploadOnCellular, useUploadOnCellular } from "@/lib/recording/prefs";
 import { drainQueue } from "@/lib/recording/uploader";
@@ -71,7 +78,7 @@ function SettingRow({
 export default function SettingsScreen() {
   const c = useColors();
   const router = useRouter();
-  const { getToken } = useAuth();
+  const { getToken, signOut } = useAuth();
   const queryClient = useQueryClient();
   const consent = useRecordingConsent();
   const cellular = useUploadOnCellular();
@@ -81,6 +88,12 @@ export default function SettingsScreen() {
   useEffect(() => {
     loadUploadOnCellular().finally(() => setCellularLoaded(true));
   }, []);
+
+  async function signOutHere() {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (!(await confirmSignOut(signOut, { always: true }))) return;
+    router.replace("/(auth)/welcome");
+  }
 
   async function changeTraining(on: boolean) {
     const before = queryClient.getQueryData<RecordingConsent>(consentKey);
@@ -160,6 +173,7 @@ export default function SettingsScreen() {
 
       <View style={{ marginTop: spacing.space2 }}>
         <SettingsSection title="Account">
+          <ListSettingsRow title="Sign out" destructive onPress={() => void signOutHere()} accessibilityHint="Asks you to confirm first" />
           <ListSettingsRow
             title="Delete account"
             destructive
@@ -168,6 +182,16 @@ export default function SettingsScreen() {
             last
           />
         </SettingsSection>
+      </View>
+
+      <View style={{ alignItems: "center", gap: spacing.space2, paddingTop: spacing.space4 }}>
+        <Text variant="section" tone="inkMuted" accessibilityRole="header">
+          About
+        </Text>
+        <Roundel size={56} />
+        <Text variant="small" tone="inkMuted">
+          {`Ball Boi ${Constants.expoConfig?.version ?? "1.0"}`}
+        </Text>
       </View>
     </ScrollView>
   );

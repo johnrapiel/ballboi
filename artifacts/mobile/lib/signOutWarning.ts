@@ -17,3 +17,11 @@ export function signOutWarning(waitingCount: number): SignOutWarning | null {
       : `${waitingCount} recordings haven't uploaded. Signing out deletes them.`;
   return { title: "Recordings haven't uploaded", message, confirmLabel: "Sign out anyway" };
 }
+
+/**
+ * Sign out from Settings always asks first (decision 138, John, Nov 8): the
+ * recordings warning when one is waiting, otherwise a plain confirm.
+ */
+export function signOutConfirm(waitingCount: number): SignOutWarning {
+  return signOutWarning(waitingCount) ?? { title: "Sign out?", message: "You can sign back in any time.", confirmLabel: "Sign out" };
+}

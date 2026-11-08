@@ -59,7 +59,8 @@ export function NextMatchCard({
   /** Match day, singles: Record with Ball Boi, the one primary button. */
   record?: NextMatchAction | null;
   message?: NextMatchAction | null;
-  details: NextMatchAction;
+  /** Opens Match detail. Left off for a Discover match, whose Message opens the chat its card lives in. */
+  details?: NextMatchAction | null;
   /** Under the buttons, e.g. the doubles Ball Boi note. */
   footer?: React.ReactNode;
 }) {
@@ -67,7 +68,7 @@ export function NextMatchCard({
   const { fontScale } = useWindowDimensions();
   const face = Math.round(52 * Math.min(fontScale, 1.3));
   const stacked = fontScale >= 1.3;
-  const summary = [dateLabel, time, `You vs. ${opponentName}`, location, league, note].filter(Boolean).join(". ");
+  const summary = [dateLabel, time, `You versus ${opponentName}`, location, league, note].filter(Boolean).join(". ");
   // Message is primary unless Record leads on match day.
   const messageVariant = record ? "secondary" : "primary";
 
@@ -131,14 +132,16 @@ export function NextMatchCard({
               style={stacked ? undefined : { flex: 1 }}
             />
           ) : null}
-          <Button
-            label={details.label}
-            accessibilityLabel={details.accessibilityLabel}
-            accessibilityHint={details.hint}
-            variant={message || record ? "secondary" : "primary"}
-            onPress={details.onPress}
-            style={stacked ? undefined : { flex: 1 }}
-          />
+          {details ? (
+            <Button
+              label={details.label}
+              accessibilityLabel={details.accessibilityLabel}
+              accessibilityHint={details.hint}
+              variant={message || record ? "secondary" : "primary"}
+              onPress={details.onPress}
+              style={stacked ? undefined : { flex: 1 }}
+            />
+          ) : null}
         </View>
       </View>
       {footer ? <View style={{ width: "100%", marginTop: spacing.space3 }}>{footer}</View> : null}

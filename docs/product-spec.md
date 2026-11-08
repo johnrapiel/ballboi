@@ -280,7 +280,9 @@ Match video is an input to analysis, never a viewable product feature in v1.
 
 The player card is a brag sheet, never a scouting report: it shows strengths and records, while error patterns and heatmaps stay private. Your own Profile tab is your player card exactly as others see it, with your matches below it (decisions 138, 139).
 
-**The player card (design D, Portrait, chosen Nov 8):** a light tennis court drawing across the top with the photo overlapping it, the name in brush script, "Level 3.5" and "Singles" pills, the town, and along the bottom the home court and a grid icon that opens the player's free times as a read-only week grid. It holds only what the player entered. On your own card a pencil opens Edit profile. The same card is used everywhere, including Discover.
+**The player card (design D, Portrait, chosen Nov 8):** a light tennis court drawing across the top with the photo overlapping it, the name in full ink Cormorant (#181: names are never the faded title style), "Level 3.5" and "Singles" pills, the town, and along the bottom the home court and a grid icon that opens the player's free times as a read-only week grid. It holds only what the player entered. On your own card a pencil opens Edit profile. The same card is used everywhere, including Discover, where the distance sits beside the town, there's no pencil, Free times has no Edit, More (•••) holds Report, and "Set up a match" is pinned at the bottom.
+
+**Other players' cards (decision 143):** under This season, the same Upcoming matches and Results tabs as your own Profile. Upcoming rows read like yours (date and time, opponent, league or Discover); a court shows only where your own list would show it, a league match in a league you're in. Results show both names with the winner mark and the score from the winner's side, with RET or W/O tags. When you've played them, one head-to-head line sits above the tabs ("You and Priya: 2-1"). A private league's name shows only to its members; others see "League".
 
 **Profile tab, top to bottom:** the player card; This season (Record, Played, Streak, No-shows); Ball Boi this season (aces, forehand winners, first serves in, with See all for this season's recordings); then Upcoming matches and Results tabs. There's no separate My matches screen: Home's See all opens these tabs. Edit profile holds name and photo, level, home area, plays, free times and home court; Sign out lives in Settings.
 
@@ -289,7 +291,9 @@ The player card is a brag sheet, never a scouting report: it shows strengths and
 | Name, photo, level, plays, town, home court, free times | Public |
 | This season: record, played, streak, no-shows (reliability) | Public |
 | Ball Boi this season (aces, forehand winners, first serve %) | Public |
+| Their matches: Upcoming matches and Results | Public, except: never a match against someone blocked with the viewer, never a Quick match until they answered Yes to "Was that you?", never cancelled or draft-round matches. Placeholder opponents show by name with no link (decision 143) |
 | Head-to-head record vs. the viewer | Visible to that viewer |
+| Whole card, matches included | Never shown to a player blocked either way, or when the profile is hidden |
 | Error patterns, heatmaps, trends | Private. Whether an opponent from the same match sees its full breakdown is pending (decision 83) |
 | Match video | Never shown; raw video deleted after analysis unless kept for training |
 
@@ -486,7 +490,7 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 100 | Either player can edit a score for 24 hours after it's entered, from a small pencil next to the score on Match detail. The latest edit stands, standings recompute, and the other player sees "Score edited by [name]". After 24 hours only the admin's logged correction in Manage can change it. Replaces "first score stands" and the 10-minute Undo (John, Nov 6, finding 7) |
 | 101 | No Message Requests: every message goes straight to the inbox. A first message from someone outside your leagues still can't contain a phone number or email. Replaces the Message Requests inbox and its "can't send again until you reply" limit (John, Nov 6, finding 17) |
 | 102 | Block lives inside Report: Report is the only action on a message or player, and its sheet has one "Also block [name]" checkbox. No separate Block action and no Blocked players screen; a blocked chat shows a small Unblock link. Blocking still stops messages both ways and removes the player from search and pairing (guideline 1.2) (John, Nov 6, finding 20) |
-| 103 | Ball Boi opens in Light (Day) whatever the iPhone is set to; a Light/Dark toggle comes in Wave 2, Session H. Replaces the Nov 2 "Match iPhone" default (John, Nov 6) Replaced by decision 143 |
+| 103 | Ball Boi opens in Light (Day) whatever the iPhone is set to; a Light/Dark toggle comes in Wave 2, Session H. Replaces the Nov 2 "Match iPhone" default (John, Nov 6) Replaced by decision 144 |
 | 104 | A set entered as 6-6 opens tiebreak boxes; the tiebreak points are required, decide the set, and save as 7-6(x) (John, Nov 6) |
 | 105 | Quick match opponents and New message can find any Ball Boi player who hasn't hidden their profile, never a blocked one. New message lists "In your leagues" first, then "All Ball Boi players" (John, Nov 6) |
 | 106 | Levels run 2.5 to 5.0; 5.0 is "Expert" (John, Nov 6) |
@@ -526,4 +530,5 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 140 | The level pill on player cards reads "Level 3.5" with no "Self-rated"; Edit profile's Level row keeps "Self-rated". Changes decision 74 (John, Nov 8) |
 | 141 | The legal consult cleared the Ball Boi Beta Footage Release (decision 96). Testers can sign once /beta-release is live (John, Nov 8) |
 | 142 | Start is picked before mounting: Record works before the court locks, and the countdown starts on its own once it locks, or after the Record anyway fallback. The Live Activity Start button stays as a second way to start (John, Nov 8) |
-| 143 | The app follows the iPhone's Light or Dark Mode with no in-app override; shareable recaps always use the Day look (John, Nov 7 and 8). Replaces decision 103 |
+| 143 | Other players' cards show their full match history: Upcoming matches and Results tabs like your own Profile, with the winner mark and head-to-head. Blocks, hidden profiles and unconfirmed Quick matches stay out (John, Nov 8) |
+| 144 | The app follows the iPhone's Light or Dark Mode with no in-app override; shareable recaps always use the Day look (John, Nov 7 and 8). Replaces decision 103 |

@@ -1,88 +1,13 @@
-import type { LeagueWeek, LeagueWeekItem, LeagueWeekPlayoff, LeagueWeekSeason } from "@workspace/api-client-react";
+import type { LeagueWeekSeason } from "@workspace/api-client-react";
 
 import { flipScore, isRetiredScore, readSet, WALKOVER_SCORE } from "./tennisScore";
 
-// Home's season stats, My matches and Match detail (findings 6, 7, 14; John,
+// Match detail and the record screen's season line (findings 6, 7, 14; John,
 // Nov 6). Pure, so it's tested in lib/__tests__.
 
 /** "4–2" with an en dash, as records read everywhere. */
 export function recordLabel(s: Pick<LeagueWeekSeason, "wins" | "losses">): string {
   return `${s.wins}–${s.losses}`;
-}
-
-/** "67%", or a dash before your first result. */
-export function winRateLabel(s: Pick<LeagueWeekSeason, "wins" | "played">): string {
-  return s.played ? `${Math.round((s.wins / s.played) * 100)}%` : "–";
-}
-
-/** "Won 2" or "Lost 1", or a dash before your first result. */
-export function streakLabel(s: Pick<LeagueWeekSeason, "streak">): string {
-  return s.streak ? `${s.streak.won ? "Won" : "Lost"} ${s.streak.count}` : "–";
-}
-
-/** The season line as VoiceOver reads it, in one go. */
-export function seasonSpoken(s: LeagueWeekSeason): string {
-  if (!s.played) return "Your season. No results yet.";
-  const streak = s.streak ? ` ${s.streak.won ? "Won" : "Lost"} your last ${s.streak.count}.` : "";
-  return `Your season. Record ${s.wins} and ${s.losses}. Win rate ${winRateLabel(s)}.${streak} ${s.played} played.`;
-}
-
-/** One match still to play, from this week's rounds or the playoffs. */
-export interface UpcomingMatch {
-  key: string;
-  leagueId: number;
-  leagueName: string;
-  matchId: number;
-  opponentName: string;
-  scheduledAt: string | null;
-  location: string | null;
-  /** "Round 3" or "Playoffs". */
-  stage: string;
-  /** "Play by Wed, Nov 25" style deadline, as a date. */
-  playBy: string | null;
-  timeZone: string;
-  singles: boolean;
-}
-
-/**
- * Every match you still have to play, soonest first: ones with a set time by
- * that time, then the rest by their play-by date. Byes and played matches
- * aren't matches to play.
- */
-export function upcomingMatches(week: Pick<LeagueWeek, "thisWeek" | "playoffs"> | undefined): UpcomingMatch[] {
-  if (!week) return [];
-  const weekly = week.thisWeek
-    .filter((i): i is LeagueWeekItem & { matchId: number } => !i.bye && i.matchId != null && !i.played)
-    .map((i) => ({
-      key: `m-${i.matchId}`,
-      leagueId: i.leagueId,
-      leagueName: i.leagueName,
-      matchId: i.matchId,
-      opponentName: i.opponentName ?? "your opponent",
-      scheduledAt: i.scheduledAt,
-      location: i.location,
-      stage: `Round ${i.roundNumber}`,
-      playBy: i.phase === "grace" ? i.graceEnd : i.deadline,
-      timeZone: i.timeZone,
-      singles: i.singles,
-    }));
-  const playoffs = week.playoffs
-    .filter((p: LeagueWeekPlayoff) => !p.pastPlayBy)
-    .map((p) => ({
-      key: `po-${p.matchId}`,
-      leagueId: p.leagueId,
-      leagueName: p.leagueName,
-      matchId: p.matchId,
-      opponentName: p.opponentName,
-      scheduledAt: p.scheduledAt,
-      location: p.location,
-      stage: "Playoffs",
-      playBy: p.playBy,
-      timeZone: p.timeZone,
-      singles: p.singles,
-    }));
-  const sortKey = (m: UpcomingMatch) => m.scheduledAt ?? `${m.playBy ?? "9999-12-31"}T23:59:59`;
-  return [...weekly, ...playoffs].sort((a, b) => sortKey(a).localeCompare(sortKey(b)) || a.matchId - b.matchId);
 }
 
 export interface SetRow {
@@ -163,16 +88,4 @@ export function scoreFootnote(d: {
   if (d.editUntil) return `${entered} Either player can edit it until ${dayAndTime(d.editUntil)}.`;
   if (d.correctedBy) return entered;
   return `${entered} Need a fix? Your league admin can correct it in Manage.`;
-}
-
-/** 1st, 2nd, 3rd, 4th, 11th, 22nd. */
-export function ordinal(n: number): string {
-  const tens = n % 100;
-  if (tens >= 11 && tens <= 13) return `${n}th`;
-  return `${n}${({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th"}`;
-}
-
-/** "Beacon Courts · 2nd of 8 · 4–2" under a league's name in Your leagues. */
-export function leagueLine(l: { location: string | null; rank: number | null; playerCount: number; wins: number; losses: number }): string {
-  return [l.location, l.rank != null ? `${ordinal(l.rank)} of ${l.playerCount}` : null, `${l.wins}–${l.losses}`].filter(Boolean).join(" · ");
 }

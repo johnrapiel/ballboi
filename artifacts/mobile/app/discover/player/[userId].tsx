@@ -1,28 +1,44 @@
-// A player card from Discover (canvas W2_DiscoverPlayer, W2_PlayerMenu,
-// W2_DiscoverPlayerLarge; F3, F8, F10, F13). Brush name, level, town and an
-// approximate distance; Record / Played / No-shows read as one group; Plays,
-// Free and Home court; "Set up a match" pinned at the bottom. More (•••)
-// opens an action sheet with "Report [name]" and Cancel only. No handedness
-// anywhere (F10). Back returns to the list where you left it.
+// Another player's card from Discover (decision 139: the same card everywhere,
+// Discover included; decision 143: their matches below it, John, Nov 8).
+// Card D with the distance beside the town; no pencil, and Free times has no
+// Edit. This season's Record, Played, Streak and No-shows sit under it, then
+// the head-to-head line when you've played them, then the same Upcoming
+// matches and Results tabs as your own Profile. Results show both names with
+// the winner mark and the score from the winner's side. More (•••) opens
+// Report, as before, and "Set up a match" stays pinned at the bottom.
+//
+// Blocked either way, or a hidden profile: "isn't in Discover right now".
 
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import React from "react";
-import { ActionSheetIOS, Alert, Platform, ScrollView, View } from "react-native";
+import React, { useState } from "react";
+import { ActionSheetIOS, Alert, Platform, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Avatar } from "@/components/Avatar";
+import {
+  getGetPlayerCardQueryKey,
+  getGetPlayerMatchesQueryKey,
+  useGetPlayerCard,
+  useGetPlayerMatches,
+  type PlayerMatches,
+} from "@workspace/api-client-react";
+
+import { EmptyTab, MatchTabs } from "@/components/card/MatchTabs";
+import { PlayerCard } from "@/components/card/PlayerCard";
+import { SeasonRow } from "@/components/card/SeasonRow";
 import { HeaderIconButton } from "@/components/Choice";
-import { DetailRow } from "@/components/discover/DetailRow";
 import { ProblemCard } from "@/components/discover/States";
-import { RatingBadge } from "@/components/RatingBadge";
+import { Icon } from "@/components/Icon";
 import { Button, Card, Text } from "@/components/ui";
+import { UpcomingRows } from "@/components/UpcomingRows";
+import { WinnerNames } from "@/components/WinnerNames";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { useDiscoverPlayer } from "@/hooks/useDiscover";
 import { useReportBlock } from "@/hooks/useReportBlock";
 import { isOfflineError } from "@/lib/api";
-import { cardStatsSpoken, playsLabel, whereLine, type DiscoverPlayerCard } from "@/lib/discover";
-import { photoUrl } from "@/lib/photos";
+import { headToHeadLine, otherUpcomingItem, resultMeta, type MatchTab } from "@/lib/playerCard";
+import { winnerMark } from "@/lib/winnerMark";
+
+const notFound = (e: unknown) => (e as { status?: number } | null)?.status === 404;
 
 export default function PlayerCardScreen() {
   const c = useColors();
@@ -30,13 +46,19 @@ export default function PlayerCardScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ userId: string }>();
   const userId = Number(params.userId);
-  const player = useDiscoverPlayer(userId);
+  const valid = Number.isInteger(userId) && userId > 0;
+  const cardQ = useGetPlayerCard(userId, { query: { enabled: valid, queryKey: getGetPlayerCardQueryKey(userId), retry: (n, e) => n < 2 && !notFound(e) } });
+  const matchesQ = useGetPlayerMatches(userId, {
+    query: { enabled: valid, queryKey: getGetPlayerMatchesQueryKey(userId), retry: (n, e) => n < 2 && !notFound(e) },
+  });
   const report = useReportBlock();
-  const p = player.data;
+  const [tab, setTab] = useState<MatchTab>("upcoming");
+  const p = cardQ.data;
+  const first = p ? p.name.split(" ")[0] || p.name : "";
 
   function more() {
     if (!p) return;
-    const title = `Report ${p.name.split(" ")[0]}`;
+    const title = `Report ${first}`;
     const go = () => report.open({ id: null, userId: p.userId, name: p.name });
     if (Platform.OS === "ios") {
       ActionSheetIOS.showActionSheetWithOptions({ options: [title, "Cancel"], cancelButtonIndex: 1 }, (i) => {
@@ -56,6 +78,11 @@ export default function PlayerCardScreen() {
     router.push({ pathname: "/conversation/[id]", params: { id: "new", userId: String(p.userId), name: p.name } });
   }
 
+  const refresh = () => {
+    void cardQ.refetch();
+    void matchesQ.refetch();
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: c.paper }}>
       <Stack.Screen
@@ -64,13 +91,13 @@ export default function PlayerCardScreen() {
           headerRight: p ? () => <HeaderIconButton symbol="ellipsis" label={`More options for ${p.name}`} onPress={more} /> : undefined,
         }}
       />
-      {player.isLoading ? (
+      {cardQ.isLoading ? (
         <View style={{ padding: spacing.space4 }} accessible accessibilityLabel="Loading player">
-          <Card style={{ height: 160, backgroundColor: c.sand, borderColor: c.sand }} />
+          <Card style={{ height: 320, backgroundColor: c.sand, borderColor: c.sand }} />
         </View>
       ) : !p ? (
         <View style={{ padding: spacing.space4, gap: spacing.space3 }}>
-          {player.error && /isn't in Discover/.test(player.error.message) ? (
+          {notFound(cardQ.error) || !valid ? (
             <Card style={{ gap: spacing.space2 }}>
               <Text variant="title">This player isn't in Discover right now</Text>
               <Text tone="inkMuted">They may have hidden their profile. Find someone else near you.</Text>
@@ -79,22 +106,21 @@ export default function PlayerCardScreen() {
           ) : (
             <ProblemCard
               title="Can't load this player right now"
-              body={
-                isOfflineError(player.error)
-                  ? "You're offline. Check your connection and try again."
-                  : "Check your connection and try again."
-              }
-              onRetry={() => void player.refetch()}
-              retrying={player.isRefetching}
+              body={isOfflineError(cardQ.error) ? "You're offline. Check your connection and try again." : "Check your connection and try again."}
+              onRetry={() => void cardQ.refetch()}
+              retrying={cardQ.isRefetching}
             />
           )}
         </View>
       ) : (
         <>
-          <ScrollView contentContainerStyle={{ padding: spacing.space4, paddingBottom: 120 + insets.bottom, gap: spacing.space4 }}>
-            <Header p={p} />
-            <Stats p={p} />
-            <Details p={p} />
+          <ScrollView
+            contentContainerStyle={{ padding: spacing.space4, paddingBottom: 120 + insets.bottom, gap: spacing.space6 }}
+            refreshControl={<RefreshControl refreshing={cardQ.isRefetching || matchesQ.isRefetching} onRefresh={refresh} tintColor={c.ink} />}
+          >
+            <PlayerCard card={p} onFreeTimes={() => router.push({ pathname: "/free-times", params: { userId: String(p.userId) } })} />
+            <SeasonRow season={p.season} />
+            <TheirMatches name={p.name} q={matchesQ} tab={tab} onTab={setTab} />
           </ScrollView>
           <View
             style={{
@@ -118,92 +144,104 @@ export default function PlayerCardScreen() {
   );
 }
 
-function Header({ p }: { p: DiscoverPlayerCard }) {
-  const where = whereLine(p);
-  return (
-    <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.space4 }}>
-      <Avatar name={p.name} uri={photoUrl(p.avatarUrl)} size={72} />
-      <View style={{ flexShrink: 1, flexGrow: 1, gap: spacing.space2 }}>
-        {/* A player's name is always full ink, never the 50% title style (John, Nov 8). */}
-        <Text variant="title" accessibilityRole="header">
-          {p.name}
-        </Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.space2 }}>
-          {p.rating != null ? <RatingBadge rating={p.rating} source={p.ratingSource === "verified" ? "verified" : "self"} /> : null}
-          {where ? (
-            <Text variant="small" tone="inkMuted" accessibilityLabel={where.replace("~", "about ").replace(" mi ", " miles ")}>
-              {where}
-            </Text>
-          ) : null}
-        </View>
-      </View>
-    </View>
-  );
-}
-
-/** Record / Played / No-shows, side by side, or stacked at the largest text sizes. */
-function Stats({ p }: { p: DiscoverPlayerCard }) {
+/** Head-to-head, then their Upcoming matches and Results tabs. */
+function TheirMatches({
+  name,
+  q,
+  tab,
+  onTab,
+}: {
+  name: string;
+  q: { data?: PlayerMatches; isLoading: boolean; isError: boolean; isRefetching: boolean; refetch: () => unknown };
+  tab: MatchTab;
+  onTab: (t: MatchTab) => void;
+}) {
   const c = useColors();
-  const cells = [
-    { label: "Record", value: `${p.wins}–${p.losses}` },
-    { label: "Played", value: String(p.played) },
-    { label: "No-shows", value: String(p.noShows) },
-  ];
-  return (
-    <View
-      accessible
-      accessibilityLabel={cardStatsSpoken(p)}
-      style={{
-        flexDirection: "row",
-        flexWrap: "wrap",
-        backgroundColor: c.linen,
-        borderWidth: 1,
-        borderColor: c.hairline,
-        borderRadius: 16,
-        paddingVertical: spacing.space3,
-      }}
-    >
-      {cells.map((cell, i) => (
-        <View
-          key={cell.label}
-          style={{
-            flexGrow: 1,
-            flexBasis: 90,
-            paddingHorizontal: spacing.space3,
-            gap: 2,
-            borderLeftWidth: i === 0 ? 0 : 1,
-            borderLeftColor: c.hairline,
-          }}
-        >
-          <Text variant="small" tone="inkMuted">
-            {cell.label}
-          </Text>
-          <Text variant="title" style={{ fontVariant: ["lining-nums", "tabular-nums"] }}>
-            {cell.value}
-          </Text>
-        </View>
-      ))}
-    </View>
-  );
-}
+  const router = useRouter();
+  const first = name.split(" ")[0] || name;
+  const data = q.data;
+  const upcoming = (data?.upcoming ?? []).map(otherUpcomingItem);
+  const results = data?.results ?? [];
+  const h2h = data?.headToHead ? headToHeadLine(name, data.headToHead) : null;
 
-/**
- * Plays, Free and Home court. A long value ("Weekday evenings, weekend
- * mornings") wraps under its label without overlapping it, at every text
- * size (review finding 2).
- */
-function Details({ p }: { p: DiscoverPlayerCard }) {
-  const rows = [
-    { label: "Plays", value: playsLabel(p.plays) },
-    { label: "Free", value: p.freeSummary },
-    { label: "Home court", value: p.homeCourt },
-  ].filter((r): r is { label: string; value: string } => !!r.value);
-  if (!rows.length) return null;
   return (
-    <Card style={{ padding: 0, overflow: "hidden" }}>
-      {rows.map((r, i) => (
-        <DetailRow key={r.label} label={r.label} value={r.value} last={i === rows.length - 1} />
-      ))}
-    </Card>
+    <View style={{ gap: spacing.space2 }}>
+      {h2h ? (
+        <Text accessibilityLabel={h2h.spoken} variant="bodyStrong" style={{ paddingHorizontal: spacing.space1, fontVariant: ["lining-nums", "tabular-nums"] }}>
+          {h2h.text}
+        </Text>
+      ) : null}
+      <MatchTabs tab={tab} onChange={onTab} counts={{ upcoming: upcoming.length, results: results.length }} />
+      {q.isLoading ? (
+        <Text tone="inkMuted" style={{ paddingHorizontal: spacing.space1 }}>
+          Loading matches…
+        </Text>
+      ) : q.isError && !data ? (
+        <Card style={{ gap: spacing.space3 }}>
+          <Text variant="bodyStrong">Couldn't load {first}'s matches</Text>
+          <Button label="Try again" variant="secondary" loading={q.isRefetching} onPress={() => void q.refetch()} />
+        </Card>
+      ) : tab === "upcoming" ? (
+        upcoming.length === 0 ? (
+          <EmptyTab title="No upcoming matches" message={`When ${first} has a match coming up, it shows up here.`} />
+        ) : (
+          <UpcomingRows
+            items={upcoming}
+            // Only your own matches open, on Match detail.
+            canOpen={(m) => !!m.matchId && (data?.upcoming.find((u) => u.key === m.key)?.mine ?? false) && m.kind !== "discover"}
+            onOpen={(m) => router.push(`/match/${m.matchId}`)}
+            hint={() => "Opens the match"}
+          />
+        )
+      ) : results.length === 0 ? (
+        <EmptyTab title="No results yet" message={`${first}'s scored matches show up here.`} />
+      ) : (
+        <Card style={{ padding: 0, overflow: "hidden" }}>
+          {results.map((r, n) => {
+            const mark = winnerMark({ player1Name: r.player1Name, player2Name: r.player2Name, score: r.score, winner: r.winner === 1 || r.winner === 2 ? r.winner : null });
+            const meta = resultMeta(r);
+            const spoken = `${mark.spoken}. ${r.player1Name} versus ${r.player2Name}. ${meta.replace(/ · /g, ", ")}`;
+            const opens = r.mine && r.context !== "Quick match";
+            const row = {
+              minHeight: 56,
+              flexDirection: "row" as const,
+              alignItems: "center" as const,
+              gap: spacing.space3,
+              paddingHorizontal: spacing.space4,
+              paddingVertical: spacing.space3,
+              borderBottomWidth: n === results.length - 1 ? 0 : 1,
+              borderBottomColor: c.hairline,
+            };
+            const body = (
+              <>
+                <View style={{ flex: 1, gap: spacing.space1 }}>
+                  <WinnerNames player1Name={r.player1Name} player2Name={r.player2Name} mark={mark} />
+                  <Text variant="small" tone="inkMuted">
+                    {meta}
+                  </Text>
+                </View>
+                {opens ? <Icon name="chevron.right" size={13} tintColor={c.inkMuted} /> : null}
+              </>
+            );
+            return opens ? (
+              <Pressable
+                key={r.matchId}
+                onPress={() => router.push(`/match/${r.matchId}`)}
+                accessibilityRole="button"
+                accessibilityLabel={spoken}
+                accessibilityHint="Opens the match"
+                style={({ pressed }) => [row, { opacity: pressed ? 0.7 : 1 }]}
+              >
+                {body}
+              </Pressable>
+            ) : (
+              <View key={r.matchId} accessible accessibilityLabel={spoken} style={row}>
+                {body}
+              </View>
+            );
+          })}
+        </Card>
+      )}
+    </View>
   );
 }

@@ -451,6 +451,160 @@ export interface UpcomingMatchPlans {
   matches: UpcomingMatchPlansMatchesItem[];
 }
 
+/**
+ * @nullable
+ */
+export type PlayerCardSeasonStreak = {
+  won: boolean;
+  count: number;
+} | null;
+
+/**
+ * This season by F13's rules (decision 121), in the global season running today, else the calendar year
+ */
+export interface PlayerCardSeason {
+  name: string;
+  /** YYYY-MM-DD, inclusive */
+  from: string;
+  /** YYYY-MM-DD, inclusive */
+  to: string;
+  wins: number;
+  losses: number;
+  played: number;
+  /** @nullable */
+  streak: PlayerCardSeasonStreak;
+  noShows: number;
+}
+
+/**
+ * @nullable
+ */
+export type PlayerCardPlays =
+  | (typeof PlayerCardPlays)[keyof typeof PlayerCardPlays]
+  | null;
+
+export const PlayerCardPlays = {
+  singles: "singles",
+  doubles: "doubles",
+  both: "both",
+} as const;
+
+/**
+ * The player card (design D). Holds only what the player entered.
+ */
+export interface PlayerCard {
+  userId: number;
+  you: boolean;
+  name: string;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** @nullable */
+  rating: number | null;
+  /** @nullable */
+  ratingSource: string | null;
+  /** @nullable */
+  plays: PlayerCardPlays;
+  /** @nullable */
+  town: string | null;
+  /**
+   * "~4 mi away" on another player's card; null on yours
+   * @nullable
+   */
+  distance: string | null;
+  /** @nullable */
+  homeCourt: string | null;
+  /** Free hours, day * 24 + hour, Monday is 0 */
+  slots: number[];
+  /** @nullable */
+  freeSummary: string | null;
+  season: PlayerCardSeason;
+}
+
+export type PlayerMatchesUpcomingItemKind =
+  (typeof PlayerMatchesUpcomingItemKind)[keyof typeof PlayerMatchesUpcomingItemKind];
+
+export const PlayerMatchesUpcomingItemKind = {
+  league: "league",
+  playoff: "playoff",
+  discover: "discover",
+} as const;
+
+export type PlayerMatchesUpcomingItem = {
+  key: string;
+  kind: PlayerMatchesUpcomingItemKind;
+  /** @nullable */
+  matchId: number | null;
+  /** @nullable */
+  scheduledAt: string | null;
+  /**
+   * Last day to play (YYYY-MM-DD) when no time is set
+   * @nullable
+   */
+  playBy: string | null;
+  opponentName: string;
+  /**
+   * Null for a placeholder opponent, who shows by name with no link
+   * @nullable
+   */
+  opponentUserId: number | null;
+  context: string;
+  /**
+   * Only for a league match in a league you're in
+   * @nullable
+   */
+  location: string | null;
+  mine: boolean;
+};
+
+/**
+ * @nullable
+ */
+export type PlayerMatchesResultsItemWinner =
+  | (typeof PlayerMatchesResultsItemWinner)[keyof typeof PlayerMatchesResultsItemWinner]
+  | null;
+
+export const PlayerMatchesResultsItemWinner = {
+  NUMBER_1: 1,
+  NUMBER_2: 2,
+} as const;
+
+export type PlayerMatchesResultsItem = {
+  matchId: number;
+  player1Name: string;
+  player2Name: string;
+  /** @nullable */
+  player1UserId: number | null;
+  /** @nullable */
+  player2UserId: number | null;
+  /** As stored, from player 1's side */
+  score: string;
+  /** @nullable */
+  winner: PlayerMatchesResultsItemWinner;
+  context: string;
+  /** @nullable */
+  completedAt: string | null;
+  mine: boolean;
+};
+
+/**
+ * Your wins and theirs against each other, or null when you haven't played
+ * @nullable
+ */
+export type PlayerMatchesHeadToHead = {
+  you: number;
+  them: number;
+} | null;
+
+export interface PlayerMatches {
+  upcoming: PlayerMatchesUpcomingItem[];
+  results: PlayerMatchesResultsItem[];
+  /**
+   * Your wins and theirs against each other, or null when you haven't played
+   * @nullable
+   */
+  headToHead: PlayerMatchesHeadToHead;
+}
+
 export type MyOpenMatchesMatchesItemFormat =
   (typeof MyOpenMatchesMatchesItemFormat)[keyof typeof MyOpenMatchesMatchesItemFormat];
 
@@ -462,6 +616,8 @@ export const MyOpenMatchesMatchesItemFormat = {
 export type MyOpenMatchesMatchesItem = {
   id: number;
   when: string;
+  /** When it starts (ISO 8601), for sorting with your other upcoming matches */
+  startsAt: string;
   format: MyOpenMatchesMatchesItemFormat;
   /** @nullable */
   courtName: string | null;

@@ -160,6 +160,8 @@ export function createOpenMatchesRouter(
         matches: rows.map((m) => ({
           id: m.id,
           when: windowLabel(m.startsAt, m.endsAt, m.timeZone),
+          // For sorting with your other upcoming matches on Home (decision 137).
+          startsAt: m.startsAt.toISOString(),
           format: m.format === "doubles" ? "doubles" : "singles",
           courtName: m.courtName,
           status: m.status,
