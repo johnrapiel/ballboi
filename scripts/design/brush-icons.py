@@ -382,6 +382,12 @@ def _(p):
     for y, k in ((5.6, 15.4), (12, 8.2), (18.4, 14.4)):
         p.stroke(L(3.4, y, 20.6, y), 0.85); p.dot(k, y, 2.3)
 
+@icon("slider.horizontal.2")
+def _(p):
+    # Filters (John, Nov 7): two sliders, each with its knob.
+    for y, k in ((8, 15.2), (16, 8.8)):
+        p.stroke(L(3.4, y, 20.6, y), 0.85); p.dot(k, y, 2.5)
+
 @icon("line.3.horizontal.decrease")
 def _(p):
     p.stroke(L(3.4, 6.4, 20.6, 6.4)); p.stroke(L(6.6, 12, 17.4, 12)); p.stroke(L(9.6, 17.6, 14.4, 17.6))

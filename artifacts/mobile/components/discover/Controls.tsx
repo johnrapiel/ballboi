@@ -263,7 +263,11 @@ export function LinkButton({
   );
 }
 
-/** The Filters button beside the count line: an outlined 44pt pill. */
+/**
+ * The Filters button beside the count line: the brush sliders icon alone, in
+ * an outlined 44pt circle (John, Nov 7). VoiceOver reads "Filters" and what's
+ * set. A small ink dot shows when filters are on.
+ */
 export function FiltersButton({
   onPress,
   accessibilityLabel,
@@ -279,20 +283,26 @@ export function FiltersButton({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      hitSlop={4}
       style={({ pressed }) => ({
-        minHeight: MIN_TAP,
-        paddingHorizontal: spacing.space4,
+        width: MIN_TAP,
+        height: MIN_TAP,
         borderRadius: radius.radiusPill,
         borderWidth: 1,
         borderColor: c.hairlineStrong,
-        flexDirection: "row",
         alignItems: "center",
-        gap: spacing.space2,
+        justifyContent: "center",
         opacity: pressed ? 0.7 : 1,
       })}
     >
-      <Icon name="line.3.horizontal.decrease" size={15} tintColor={c.ink} />
-      <Text variant="bodyStrong">{active ? "Filters on" : "Filters"}</Text>
+      <Icon name="slider.horizontal.2" size={20} tintColor={c.ink} />
+      {active ? (
+        <View
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
+          style={{ position: "absolute", top: 2, right: 2, width: 10, height: 10, borderRadius: 5, backgroundColor: c.ink, borderWidth: 2, borderColor: c.paper }}
+        />
+      ) : null}
     </Pressable>
   );
 }

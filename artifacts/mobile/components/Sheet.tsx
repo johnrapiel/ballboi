@@ -139,7 +139,7 @@ export function SheetBody({
   ];
   const content = (
     <>
-      <Text variant="brushM" accessibilityRole="header">
+      <Text variant="headingM" accessibilityRole="header">
         {title}
       </Text>
       {children}

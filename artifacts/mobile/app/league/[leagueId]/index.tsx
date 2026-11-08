@@ -344,7 +344,7 @@ export default function LeagueScreen() {
       ) : (
         <>
           <View style={{ gap: spacing.space1 }}>
-            <Text variant="brushM" accessibilityRole="header">
+            <Text variant="headingM" accessibilityRole="header">
               {league.name}
             </Text>
             {meta ? (
