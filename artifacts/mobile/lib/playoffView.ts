@@ -11,7 +11,8 @@ type Round = BracketSlot["round"];
 /** The line under Save on the score screen, and its VoiceOver hint (C9). */
 export function scoreNote(input: { correcting: boolean; settling: boolean; editing?: boolean; playoffRound: Round | null }): { text: string; hint: string } {
   if (input.editing) return { text: "Standings update, and your opponent sees that you edited it.", hint: "Saves your edit and updates standings" };
-  if (input.correcting) return { text: "Players can't change a score. Only league admins can correct one.", hint: "Asks you to confirm, then updates standings" };
+  // Players can edit a score for 24 hours (spec decision 100), so this never says they can't.
+  if (input.correcting) return { text: "Standings update, and both players see that you corrected it.", hint: "Asks you to confirm, then updates standings" };
   if (input.settling) return { text: "The winner moves on in the playoffs. Both players are told.", hint: "Asks you to confirm" };
   if (input.playoffRound === "final") {
     return { text: "This decides the champion. Either player can edit it for 24 hours.", hint: "Decides the champion" };

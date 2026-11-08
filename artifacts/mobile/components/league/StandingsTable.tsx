@@ -36,6 +36,8 @@ function Row({ s, isMe, tied, last }: { s: Standing; isMe: boolean; tied: boolea
         paddingVertical: spacing.space2,
         borderBottomWidth: last ? 0 : 1,
         borderBottomColor: c.hairline,
+        // Your own row is shaded, as on Home (app gap 6).
+        backgroundColor: isMe ? c.sand : undefined,
       }}
     >
       <View style={{ minWidth: 32, alignItems: "flex-start" }}>
