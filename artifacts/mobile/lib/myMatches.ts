@@ -164,15 +164,3 @@ export function scoreFootnote(d: {
   if (d.correctedBy) return entered;
   return `${entered} Need a fix? Your league admin can correct it in Manage.`;
 }
-
-/** 1st, 2nd, 3rd, 4th, 11th, 22nd. */
-export function ordinal(n: number): string {
-  const tens = n % 100;
-  if (tens >= 11 && tens <= 13) return `${n}th`;
-  return `${n}${({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th"}`;
-}
-
-/** "Beacon Courts · 2nd of 8 · 4–2" under a league's name in Your leagues. */
-export function leagueLine(l: { location: string | null; rank: number | null; playerCount: number; wins: number; losses: number }): string {
-  return [l.location, l.rank != null ? `${ordinal(l.rank)} of ${l.playerCount}` : null, `${l.wins}–${l.losses}`].filter(Boolean).join(" · ");
-}

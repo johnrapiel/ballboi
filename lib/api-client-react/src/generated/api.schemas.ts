@@ -462,6 +462,8 @@ export const MyOpenMatchesMatchesItemFormat = {
 export type MyOpenMatchesMatchesItem = {
   id: number;
   when: string;
+  /** When it starts (ISO 8601), for sorting with your other upcoming matches */
+  startsAt: string;
   format: MyOpenMatchesMatchesItemFormat;
   /** @nullable */
   courtName: string | null;

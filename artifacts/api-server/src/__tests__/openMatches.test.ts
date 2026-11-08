@@ -255,6 +255,13 @@ describe("open match routes", () => {
     expect(list.body.matches[0].tags).toEqual(["need"]);
   });
 
+  it("lists your open matches with their start time, for Home's date order", async () => {
+    await post().expect(201);
+    const mine = await as("a").get("/api/open-matches/mine").expect(200);
+    expect(mine.body.matches).toHaveLength(1);
+    expect(mine.body.matches[0].startsAt).toBe(at(48).toISOString());
+  });
+
   it("fills on the last spot, opens the group chat in Messages, and turns away a late join", async () => {
     await post();
     await as("b").post("/api/open-matches/1/join").expect(200);

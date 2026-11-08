@@ -5,8 +5,6 @@ import type { LeagueWeekItem, LeagueWeekPlayoff } from "@workspace/api-client-re
 import { editedLine } from "@/lib/leagueSchedule";
 import {
   durationLabel,
-  leagueLine,
-  ordinal,
   recordLabel,
   resultSentence,
   scoreFootnote,
@@ -95,17 +93,5 @@ describe("Match detail helpers", () => {
   it("says who edited a score, and nothing before an edit", () => {
     expect(editedLine({ editedBy: "Ray Alvarez" })).toBe("Score edited by Ray Alvarez");
     expect(editedLine({ editedBy: null })).toBeNull();
-  });
-});
-
-describe("Your leagues", () => {
-  it("reads place and record like the approved design", () => {
-    expect(ordinal(1)).toBe("1st");
-    expect(ordinal(2)).toBe("2nd");
-    expect(ordinal(3)).toBe("3rd");
-    expect(ordinal(11)).toBe("11th");
-    expect(ordinal(22)).toBe("22nd");
-    expect(leagueLine({ location: "Beacon Courts", rank: 2, playerCount: 8, wins: 4, losses: 2 })).toBe("Beacon Courts · 2nd of 8 · 4–2");
-    expect(leagueLine({ location: null, rank: null, playerCount: 0, wins: 0, losses: 0 })).toBe("0–0");
   });
 });

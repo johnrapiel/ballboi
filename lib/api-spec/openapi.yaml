@@ -7142,6 +7142,9 @@ components:
                 type: integer
               when:
                 type: string
+              startsAt:
+                type: string
+                description: When it starts (ISO 8601), for sorting with your other upcoming matches
               format:
                 type: string
                 enum: [singles, doubles]
@@ -7155,7 +7158,7 @@ components:
                 type: integer
               chatTitle:
                 type: string
-            required: [id, when, format, courtName, status, spotsLeft, total, chatTitle]
+            required: [id, when, startsAt, format, courtName, status, spotsLeft, total, chatTitle]
       required: [matches]
     NewOpenMatchInput:
       type: object
