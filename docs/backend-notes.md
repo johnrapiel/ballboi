@@ -122,6 +122,15 @@ Carried over from the original web app's project notes. Describes how the API, s
 - Invite management panel in LeagueDetail page
 - Invite acceptance is the only normal path for creating league player records
 
+## League chat (decisions 145 and 146)
+
+- One chat per league on the messaging service (`message_groups.league_id`), listed in Messages with the other chats. `messaging/leagueChats.ts` keeps it in step with the league; `messaging/service.ts` holds the rules.
+- League routes call `leagueChat.*` from `messaging/leagueChatEvents.ts` after joins, leaves, removals, admin changes, renames, ends, deletes, published rounds and scores. These are fire-and-forget and do nothing until `startLeagueChats()` runs at API start, so route tests don't need messaging.
+- At start, every league is synced once (idempotent), which is how existing leagues get their chat. Opening the chat from the league page (`GET /api/leagues/:leagueId/chat`) also makes a missing one.
+- Members are current players with an account plus admins (the creator for leagues without admin rows). An ended league's chat is closed for sending; a deleted league's chat loses its members.
+- `message_group_members.unread` drives the bold row; `attention` (mentions of you and admin posts) is what the Messages button counts. Automatic posts add to `unread` only and never push.
+- Admin deletes and mutes file a `league_admin` report into the moderation queue. Mentions are found on the server from "@Full Name" in the text (`messaging/mentions.ts`).
+
 ## Season Tagging & Management
 
 - Matches have a `season` TEXT nullable column.

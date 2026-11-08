@@ -91,6 +91,8 @@ export class MemoryMessagingProvider implements MessagingProvider {
       createdAt: this.clock(),
       hidden: false,
       ...(system ? { system: true } : {}),
+      ...(!system && input.admin ? { admin: true } : {}),
+      ...(!system && input.mentions?.length ? { mentions: [...input.mentions] } : {}),
     };
     channel.messages.push(message);
     this.byId.set(message.id, message);

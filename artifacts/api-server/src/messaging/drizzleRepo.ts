@@ -17,6 +17,7 @@ import type {
   ConversationPatch,
   ConversationRecord,
   GroupMember,
+  GroupMemberPatch,
   GroupPatch,
   GroupRecord,
   MessagingRepo,
@@ -30,7 +31,16 @@ function toRecord(row: DmConversation): ConversationRecord {
 }
 
 function toMember(row: MessageGroupMember): GroupMember {
-  return { groupId: row.groupId, userId: row.clerkUserId, unread: row.unread, firstSentAt: row.firstSentAt, joinedAt: row.joinedAt };
+  return {
+    groupId: row.groupId,
+    userId: row.clerkUserId,
+    unread: row.unread,
+    attention: row.attention,
+    admin: row.admin,
+    mutedAt: row.mutedAt,
+    firstSentAt: row.firstSentAt,
+    joinedAt: row.joinedAt,
+  };
 }
 
 /** MessagingRepo on Postgres. */
@@ -217,8 +227,17 @@ export class DrizzleMessagingRepo implements MessagingRepo {
     return row ?? null;
   }
 
+  async findGroupByLeague(leagueId: number): Promise<GroupRecord | null> {
+    const [row] = await db.select().from(messageGroupsTable).where(eq(messageGroupsTable.leagueId, leagueId));
+    return row ?? null;
+  }
+
   async createGroup(input: NewGroup): Promise<GroupRecord> {
-    const [row] = await db.insert(messageGroupsTable).values(input).onConflictDoNothing().returning();
+    const [row] = await db
+      .insert(messageGroupsTable)
+      .values({ ...input, leagueId: input.leagueId ?? null })
+      .onConflictDoNothing()
+      .returning();
     if (row) return row;
     const existing = await this.findGroupByChannel(input.channelId);
     if (!existing) throw new Error("Group insert failed");
@@ -251,7 +270,18 @@ export class DrizzleMessagingRepo implements MessagingRepo {
       .where(and(eq(messageGroupMembersTable.groupId, id), inArray(messageGroupMembersTable.clerkUserId, userIds)));
   }
 
-  async recordGroupMessage(id: number, input: { sender: string | null; text: string; at: Date; recipients: string[] }) {
+  async updateGroupMember(id: number, userId: string, patch: GroupMemberPatch) {
+    const m = messageGroupMembersTable;
+    await db
+      .update(m)
+      .set(patch)
+      .where(and(eq(m.groupId, id), eq(m.clerkUserId, userId)));
+  }
+
+  async recordGroupMessage(
+    id: number,
+    input: { sender: string | null; text: string; at: Date; recipients: string[]; attention?: string[] },
+  ) {
     return db.transaction(async (tx) => {
       const [row] = await tx
         .update(messageGroupsTable)
@@ -265,6 +295,13 @@ export class DrizzleMessagingRepo implements MessagingRepo {
           .update(m)
           .set({ unread: sql`${m.unread} + 1` })
           .where(and(eq(m.groupId, id), inArray(m.clerkUserId, input.recipients)));
+      }
+      const attention = (input.attention ?? []).filter((u) => input.recipients.includes(u));
+      if (attention.length) {
+        await tx
+          .update(m)
+          .set({ attention: sql`${m.attention} + 1` })
+          .where(and(eq(m.groupId, id), inArray(m.clerkUserId, attention)));
       }
       if (input.sender) {
         await tx
@@ -280,7 +317,7 @@ export class DrizzleMessagingRepo implements MessagingRepo {
     const m = messageGroupMembersTable;
     await db
       .update(m)
-      .set({ unread: 0 })
+      .set({ unread: 0, attention: 0 })
       .where(and(eq(m.groupId, id), eq(m.clerkUserId, userId)));
   }
 

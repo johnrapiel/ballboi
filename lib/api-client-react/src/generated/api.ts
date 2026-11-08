@@ -23,6 +23,8 @@ import type {
   AccountStatus,
   ActivityItem,
   AddedCourt,
+  AdminDeleteInput,
+  AdminDeleteResult,
   AgentDecision,
   AppealDecisionInput,
   AppealListItem,
@@ -108,6 +110,8 @@ import type {
   GetRecentActivityParams,
   GetTodaysRecordableMatchesParams,
   GetTopPlayersParams,
+  GroupMemberList,
+  GroupMemberRef,
   GroupThread,
   HeadToHeadStats,
   HealthStatus,
@@ -123,6 +127,7 @@ import type {
   League,
   LeagueAdmin,
   LeagueBracket,
+  LeagueChat,
   LeagueHandoff,
   LeagueInvite,
   LeagueMatchTime,
@@ -152,6 +157,7 @@ import type {
   MessageReportInput,
   MessagesSummary,
   ModeratorReasonInput,
+  MuteResult,
   MyJoinRequest,
   MyMatchesResponse,
   MyOpenMatches,
@@ -169,6 +175,8 @@ import type {
   OpenMatchList,
   PhotoUploadRequest,
   PhotoUploadTicket,
+  PinInput,
+  PinList,
   Player,
   PlayerCard,
   PlayerIdBody,
@@ -186,6 +194,7 @@ import type {
   RecordingListItem,
   RecordingOpponent,
   RecordingRemoved,
+  RemoveLeaguePlayerInput,
   ReportReceipt,
   ReportStatusInput,
   ResetLeagueRecords200,
@@ -7540,6 +7549,7 @@ export const getRemoveLeaguePlayerUrl = (
 export const removeLeaguePlayer = async (
   leagueId: number,
   playerId: number,
+  removeLeaguePlayerInput?: RemoveLeaguePlayerInput,
   options?: RequestInit,
 ): Promise<DropoutResult> => {
   return customFetch<DropoutResult>(
@@ -7547,6 +7557,8 @@ export const removeLeaguePlayer = async (
     {
       ...options,
       method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(removeLeaguePlayerInput),
     },
   );
 };
@@ -7558,14 +7570,22 @@ export const getRemoveLeaguePlayerMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof removeLeaguePlayer>>,
     TError,
-    { leagueId: number; playerId: number },
+    {
+      leagueId: number;
+      playerId: number;
+      data: BodyType<RemoveLeaguePlayerInput>;
+    },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof removeLeaguePlayer>>,
   TError,
-  { leagueId: number; playerId: number },
+  {
+    leagueId: number;
+    playerId: number;
+    data: BodyType<RemoveLeaguePlayerInput>;
+  },
   TContext
 > => {
   const mutationKey = ["removeLeaguePlayer"];
@@ -7579,11 +7599,15 @@ export const getRemoveLeaguePlayerMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof removeLeaguePlayer>>,
-    { leagueId: number; playerId: number }
+    {
+      leagueId: number;
+      playerId: number;
+      data: BodyType<RemoveLeaguePlayerInput>;
+    }
   > = (props) => {
-    const { leagueId, playerId } = props ?? {};
+    const { leagueId, playerId, data } = props ?? {};
 
-    return removeLeaguePlayer(leagueId, playerId, requestOptions);
+    return removeLeaguePlayer(leagueId, playerId, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -7592,7 +7616,7 @@ export const getRemoveLeaguePlayerMutationOptions = <
 export type RemoveLeaguePlayerMutationResult = NonNullable<
   Awaited<ReturnType<typeof removeLeaguePlayer>>
 >;
-
+export type RemoveLeaguePlayerMutationBody = BodyType<RemoveLeaguePlayerInput>;
 export type RemoveLeaguePlayerMutationError = ErrorType<ErrorResponse>;
 
 /**
@@ -7605,14 +7629,22 @@ export const useRemoveLeaguePlayer = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof removeLeaguePlayer>>,
     TError,
-    { leagueId: number; playerId: number },
+    {
+      leagueId: number;
+      playerId: number;
+      data: BodyType<RemoveLeaguePlayerInput>;
+    },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof removeLeaguePlayer>>,
   TError,
-  { leagueId: number; playerId: number },
+  {
+    leagueId: number;
+    playerId: number;
+    data: BodyType<RemoveLeaguePlayerInput>;
+  },
   TContext
 > => {
   return useMutation(getRemoveLeaguePlayerMutationOptions(options));
@@ -15804,6 +15836,620 @@ export const useReportGroupMessage = <
 > => {
   return useMutation(getReportGroupMessageMutationOptions(options));
 };
+
+/**
+ * @summary Everyone in a group chat you're in, minus anyone you have a block with. For @mention suggestions and league admin tools.
+ */
+export const getGetGroupMembersUrl = (id: number) => {
+  return `/api/messages/groups/${id}/members`;
+};
+
+export const getGroupMembers = async (
+  id: number,
+  options?: RequestInit,
+): Promise<GroupMemberList> => {
+  return customFetch<GroupMemberList>(getGetGroupMembersUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetGroupMembersQueryKey = (id: number) => {
+  return [`/api/messages/groups/${id}/members`] as const;
+};
+
+export const getGetGroupMembersQueryOptions = <
+  TData = Awaited<ReturnType<typeof getGroupMembers>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getGroupMembers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetGroupMembersQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getGroupMembers>>> = ({
+    signal,
+  }) => getGroupMembers(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getGroupMembers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetGroupMembersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getGroupMembers>>
+>;
+export type GetGroupMembersQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Everyone in a group chat you're in, minus anyone you have a block with. For @mention suggestions and league admin tools.
+ */
+
+export function useGetGroupMembers<
+  TData = Awaited<ReturnType<typeof getGroupMembers>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getGroupMembers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetGroupMembersQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary League chat admins pin a post (up to 3, decision 145).
+ */
+export const getPinGroupMessageUrl = (id: number) => {
+  return `/api/messages/groups/${id}/pins`;
+};
+
+export const pinGroupMessage = async (
+  id: number,
+  pinInput: PinInput,
+  options?: RequestInit,
+): Promise<PinList> => {
+  return customFetch<PinList>(getPinGroupMessageUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(pinInput),
+  });
+};
+
+export const getPinGroupMessageMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof pinGroupMessage>>,
+    TError,
+    { id: number; data: BodyType<PinInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof pinGroupMessage>>,
+  TError,
+  { id: number; data: BodyType<PinInput> },
+  TContext
+> => {
+  const mutationKey = ["pinGroupMessage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof pinGroupMessage>>,
+    { id: number; data: BodyType<PinInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return pinGroupMessage(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PinGroupMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof pinGroupMessage>>
+>;
+export type PinGroupMessageMutationBody = BodyType<PinInput>;
+export type PinGroupMessageMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary League chat admins pin a post (up to 3, decision 145).
+ */
+export const usePinGroupMessage = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof pinGroupMessage>>,
+    TError,
+    { id: number; data: BodyType<PinInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof pinGroupMessage>>,
+  TError,
+  { id: number; data: BodyType<PinInput> },
+  TContext
+> => {
+  return useMutation(getPinGroupMessageMutationOptions(options));
+};
+
+/**
+ * @summary League chat admins unpin a post.
+ */
+export const getUnpinGroupMessageUrl = (id: number, messageId: string) => {
+  return `/api/messages/groups/${id}/pins/${messageId}`;
+};
+
+export const unpinGroupMessage = async (
+  id: number,
+  messageId: string,
+  options?: RequestInit,
+): Promise<PinList> => {
+  return customFetch<PinList>(getUnpinGroupMessageUrl(id, messageId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getUnpinGroupMessageMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unpinGroupMessage>>,
+    TError,
+    { id: number; messageId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unpinGroupMessage>>,
+  TError,
+  { id: number; messageId: string },
+  TContext
+> => {
+  const mutationKey = ["unpinGroupMessage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unpinGroupMessage>>,
+    { id: number; messageId: string }
+  > = (props) => {
+    const { id, messageId } = props ?? {};
+
+    return unpinGroupMessage(id, messageId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UnpinGroupMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof unpinGroupMessage>>
+>;
+
+export type UnpinGroupMessageMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary League chat admins unpin a post.
+ */
+export const useUnpinGroupMessage = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unpinGroupMessage>>,
+    TError,
+    { id: number; messageId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof unpinGroupMessage>>,
+  TError,
+  { id: number; messageId: string },
+  TContext
+> => {
+  return useMutation(getUnpinGroupMessageMutationOptions(options));
+};
+
+/**
+ * @summary League chat admins delete a message for everyone. It's hidden and goes to the moderation queue with a snapshot.
+ */
+export const getAdminDeleteGroupMessageUrl = (
+  id: number,
+  messageId: string,
+) => {
+  return `/api/messages/groups/${id}/messages/${messageId}/delete`;
+};
+
+export const adminDeleteGroupMessage = async (
+  id: number,
+  messageId: string,
+  adminDeleteInput?: AdminDeleteInput,
+  options?: RequestInit,
+): Promise<AdminDeleteResult> => {
+  return customFetch<AdminDeleteResult>(
+    getAdminDeleteGroupMessageUrl(id, messageId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(adminDeleteInput),
+    },
+  );
+};
+
+export const getAdminDeleteGroupMessageMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminDeleteGroupMessage>>,
+    TError,
+    { id: number; messageId: string; data: BodyType<AdminDeleteInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminDeleteGroupMessage>>,
+  TError,
+  { id: number; messageId: string; data: BodyType<AdminDeleteInput> },
+  TContext
+> => {
+  const mutationKey = ["adminDeleteGroupMessage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminDeleteGroupMessage>>,
+    { id: number; messageId: string; data: BodyType<AdminDeleteInput> }
+  > = (props) => {
+    const { id, messageId, data } = props ?? {};
+
+    return adminDeleteGroupMessage(id, messageId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminDeleteGroupMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminDeleteGroupMessage>>
+>;
+export type AdminDeleteGroupMessageMutationBody = BodyType<AdminDeleteInput>;
+export type AdminDeleteGroupMessageMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary League chat admins delete a message for everyone. It's hidden and goes to the moderation queue with a snapshot.
+ */
+export const useAdminDeleteGroupMessage = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminDeleteGroupMessage>>,
+    TError,
+    { id: number; messageId: string; data: BodyType<AdminDeleteInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminDeleteGroupMessage>>,
+  TError,
+  { id: number; messageId: string; data: BodyType<AdminDeleteInput> },
+  TContext
+> => {
+  return useMutation(getAdminDeleteGroupMessageMutationOptions(options));
+};
+
+/**
+ * @summary League chat admins mute a member here, so they read but can't send. Logged to the moderation queue.
+ */
+export const getMuteGroupMemberUrl = (id: number) => {
+  return `/api/messages/groups/${id}/mute`;
+};
+
+export const muteGroupMember = async (
+  id: number,
+  groupMemberRef: GroupMemberRef,
+  options?: RequestInit,
+): Promise<MuteResult> => {
+  return customFetch<MuteResult>(getMuteGroupMemberUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(groupMemberRef),
+  });
+};
+
+export const getMuteGroupMemberMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof muteGroupMember>>,
+    TError,
+    { id: number; data: BodyType<GroupMemberRef> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof muteGroupMember>>,
+  TError,
+  { id: number; data: BodyType<GroupMemberRef> },
+  TContext
+> => {
+  const mutationKey = ["muteGroupMember"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof muteGroupMember>>,
+    { id: number; data: BodyType<GroupMemberRef> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return muteGroupMember(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MuteGroupMemberMutationResult = NonNullable<
+  Awaited<ReturnType<typeof muteGroupMember>>
+>;
+export type MuteGroupMemberMutationBody = BodyType<GroupMemberRef>;
+export type MuteGroupMemberMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary League chat admins mute a member here, so they read but can't send. Logged to the moderation queue.
+ */
+export const useMuteGroupMember = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof muteGroupMember>>,
+    TError,
+    { id: number; data: BodyType<GroupMemberRef> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof muteGroupMember>>,
+  TError,
+  { id: number; data: BodyType<GroupMemberRef> },
+  TContext
+> => {
+  return useMutation(getMuteGroupMemberMutationOptions(options));
+};
+
+/**
+ * @summary League chat admins unmute a member.
+ */
+export const getUnmuteGroupMemberUrl = (id: number) => {
+  return `/api/messages/groups/${id}/unmute`;
+};
+
+export const unmuteGroupMember = async (
+  id: number,
+  groupMemberRef: GroupMemberRef,
+  options?: RequestInit,
+): Promise<MuteResult> => {
+  return customFetch<MuteResult>(getUnmuteGroupMemberUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(groupMemberRef),
+  });
+};
+
+export const getUnmuteGroupMemberMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unmuteGroupMember>>,
+    TError,
+    { id: number; data: BodyType<GroupMemberRef> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unmuteGroupMember>>,
+  TError,
+  { id: number; data: BodyType<GroupMemberRef> },
+  TContext
+> => {
+  const mutationKey = ["unmuteGroupMember"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unmuteGroupMember>>,
+    { id: number; data: BodyType<GroupMemberRef> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return unmuteGroupMember(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UnmuteGroupMemberMutationResult = NonNullable<
+  Awaited<ReturnType<typeof unmuteGroupMember>>
+>;
+export type UnmuteGroupMemberMutationBody = BodyType<GroupMemberRef>;
+export type UnmuteGroupMemberMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary League chat admins unmute a member.
+ */
+export const useUnmuteGroupMember = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unmuteGroupMember>>,
+    TError,
+    { id: number; data: BodyType<GroupMemberRef> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof unmuteGroupMember>>,
+  TError,
+  { id: number; data: BodyType<GroupMemberRef> },
+  TContext
+> => {
+  return useMutation(getUnmuteGroupMemberMutationOptions(options));
+};
+
+/**
+ * @summary The league page's Chat button. The league's chat in Messages (made now if it's missing) and your unread counts in it (decisions 145 and 146).
+ */
+export const getGetLeagueChatUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/chat`;
+};
+
+export const getLeagueChat = async (
+  leagueId: number,
+  options?: RequestInit,
+): Promise<LeagueChat> => {
+  return customFetch<LeagueChat>(getGetLeagueChatUrl(leagueId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetLeagueChatQueryKey = (leagueId: number) => {
+  return [`/api/leagues/${leagueId}/chat`] as const;
+};
+
+export const getGetLeagueChatQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLeagueChat>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeagueChat>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetLeagueChatQueryKey(leagueId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getLeagueChat>>> = ({
+    signal,
+  }) => getLeagueChat(leagueId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!leagueId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLeagueChat>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLeagueChatQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLeagueChat>>
+>;
+export type GetLeagueChatQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary The league page's Chat button. The league's chat in Messages (made now if it's missing) and your unread counts in it (decisions 145 and 146).
+ */
+
+export function useGetLeagueChat<
+  TData = Awaited<ReturnType<typeof getLeagueChat>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeagueChat>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLeagueChatQueryOptions(leagueId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Development only. Adds sample conversations for the signed-in person.

@@ -7,6 +7,11 @@
 // - iOS's own Show Previews setting still applies on top.
 // - Never between blocked players, whichever side blocked.
 // - Tapping opens that chat.
+// - League chats (decisions 145 and 146) push only admin posts and @mentions
+//   of you: "Admin post in Spring Ladder" over "Sam Patel: Courts are open",
+//   or "Sam Patel in Spring Ladder" over the text that mentions you. With
+//   previews off: "New admin post from Sam Patel in Spring Ladder", or "Sam
+//   Patel mentioned you in Spring Ladder". Automatic posts never push.
 // - Group chats (F15) use the same path and switch: "Sam Whitfield in Sat 9 AM
 //   doubles · Beacon Courts" over the text, or "New message from Sam
 //   Whitfield in Sat 9 AM doubles · Beacon Courts" with previews off.
@@ -19,6 +24,10 @@ export interface MessagePushEvent {
   text: string;
   /** A group chat message: the chat's title. conversationId is then the group's id. */
   groupTitle?: string;
+  /** League chat: pushed because it @mentions the recipient. */
+  mention?: boolean;
+  /** League chat: an admin post. */
+  admin?: boolean;
 }
 
 export interface PushContent {
@@ -38,13 +47,18 @@ function clip(text: string): string {
 }
 
 export function messagePushContent(
-  e: Pick<MessagePushEvent, "conversationId" | "senderName" | "text" | "groupTitle">,
+  e: Pick<MessagePushEvent, "conversationId" | "senderName" | "text" | "groupTitle" | "mention" | "admin">,
   previews: boolean,
 ): PushContent {
   const name = e.senderName.trim() || "a player";
   const group = e.groupTitle?.trim();
   if (group) {
     const link = `/conversation/group/${e.conversationId}`;
+    if (e.admin) {
+      if (!previews) return { title: "", body: `New admin post from ${name} in ${group}`, link };
+      return { title: `Admin post in ${group}`, body: `${name}: ${clip(e.text) || "Sent a message"}`, link };
+    }
+    if (e.mention && !previews) return { title: "", body: `${name} mentioned you in ${group}`, link };
     if (!previews) return { title: "", body: `New message from ${name} in ${group}`, link };
     return { title: `${name} in ${group}`, body: clip(e.text) || "Sent a message", link };
   }

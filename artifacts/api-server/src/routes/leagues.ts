@@ -9,6 +9,7 @@ import { requireAdmin } from "../middlewares/requireAdmin.js";
 import { adminLeagueIds, canViewLeague, isLeagueAdmin, memberLeagueIds, PRIVATE_LEAGUE } from "../lib/leagueAccess.js";
 import { runLeagueDay } from "../services/leagueRounds.js";
 import { logger } from "../lib/logger.js";
+import { leagueChat } from "../messaging/leagueChatEvents.js";
 import { getPastSeasonNames } from "../services/seasonService.js";
 import { computeStandings } from "../lib/leagueStandings.js";
 import { SKILL_LEVELS, checkStartDate, seasonDates, validateLeagueSetup } from "../lib/leagueSetup.js";
@@ -163,6 +164,9 @@ router.post("/leagues", requireAuth, async (req, res) => {
     return { league, playerCount: playing ? 1 : 0 };
   });
 
+  // Its chat in Messages, with the creator in it (decision 145).
+  leagueChat.leagueChanged(league.id);
+
   // A season starting tomorrow gets its first round drafted right away.
   runLeagueDay(league).catch((err) => logger.error({ err, leagueId: league.id }, "First league day failed"));
 
@@ -227,6 +231,8 @@ router.patch("/leagues/:leagueId", requireAdmin, async (req, res) => {
 
   const [league] = await db.update(leaguesTable).set(updates).where(eq(leaguesTable.id, leagueId)).returning();
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
+  // The chat's title is the league name.
+  leagueChat.leagueChanged(leagueId);
 
   const [pc] = await db.select({ count: count() }).from(playersTable).where(and(eq(playersTable.leagueId, leagueId), isNull(playersTable.leftAt)));
   const [mc] = await db.select({ count: count() }).from(matchesTable).where(eq(matchesTable.leagueId, leagueId));
@@ -322,6 +328,7 @@ router.post("/leagues/:leagueId/players", requireAuth, async (req: Request, res:
     .returning();
 
   const linked = await autoLinkPlayer(inserted);
+  if (linked) leagueChat.leagueChanged(leagueId);
 
   const { clerkUserId: _omit, ...publicPlayer } = {
     ...inserted,
