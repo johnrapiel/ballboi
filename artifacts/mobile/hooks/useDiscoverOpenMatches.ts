@@ -6,6 +6,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import { discoverKeys } from "@/hooks/useDiscover";
 import { apiErrorMessage, apiFetch } from "@/lib/api";
+import { askForNotifications } from "@/lib/notifications";
 import { openMatchesPath, type GroupMessage, type OpenMatchDetail, type OpenMatchList } from "@/lib/discover";
 
 export const openMatchKeys = {
@@ -98,6 +99,8 @@ export function usePostOpenMatch() {
         "Couldn't post your match.",
       ),
     onSuccess: async () => {
+      // Posting an open match: the notifications prompt, the first time (decision 125).
+      void askForNotifications("openMatch");
       await qc.invalidateQueries({ queryKey: openMatchKeys.all });
     },
   });
@@ -112,6 +115,10 @@ export function useOpenMatchAction(id: number) {
         await apiFetch(`/api/open-matches/${id}/${action}`, getToken, { method: "POST", body: JSON.stringify(userId ? { userId } : {}) }),
         "Couldn't do that. Try again.",
       ),
+    // Joining an open match: the notifications prompt, the first time (decision 125).
+    onSuccess: (_result, { action }) => {
+      if (action === "join") void askForNotifications("openMatch");
+    },
     onSettled: async () => {
       await Promise.all([qc.invalidateQueries({ queryKey: openMatchKeys.all }), qc.invalidateQueries({ queryKey: discoverKeys.me })]);
     },

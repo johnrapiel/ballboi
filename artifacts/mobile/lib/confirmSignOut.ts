@@ -3,6 +3,7 @@
 
 import { Alert } from "react-native";
 
+import { forgetThisPhone } from "@/lib/notifications";
 import { loadQueue } from "@/lib/recording/queue";
 import { signOutWarning } from "@/lib/signOutWarning";
 
@@ -32,6 +33,8 @@ export async function confirmSignOut(signOut: () => Promise<unknown>): Promise<b
     });
     if (!go) return false;
   }
+  // While still signed in: this phone stops getting the account's pushes.
+  await forgetThisPhone();
   await signOut();
   return true;
 }

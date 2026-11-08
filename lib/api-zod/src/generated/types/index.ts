@@ -273,6 +273,7 @@ export * from "./newOpenMatchInputLevel";
 export * from "./newReport";
 export * from "./newReportReason";
 export * from "./newReportTargetType";
+export * from "./notificationSettings";
 export * from "./openMatchActionInput";
 export * from "./openMatchCard";
 export * from "./openMatchCardTagsItem";

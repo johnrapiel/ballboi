@@ -66,6 +66,7 @@ export interface MessageView {
 
 export interface NewMessageEvent {
   conversationId: number;
+  senderId: string;
   recipientId: string;
   senderName: string;
   text: string;
@@ -78,7 +79,7 @@ export interface MessagingServiceDeps {
   provider: MessagingProvider;
   filter?: FirstMessageFilter;
   now?: () => Date;
-  /** Push hook. Messaging push isn't built yet; see notify.ts. */
+  /** Push hook: notify.ts sends the message push (Wave 2, Session G). */
   onNewMessage?: (event: NewMessageEvent) => void | Promise<void>;
   /** Development only: sample players reply to you after a few seconds. */
   devAutoReply?: boolean;
@@ -399,6 +400,7 @@ export class MessagingService {
     await Promise.resolve(
       this.onNewMessage?.({
         conversationId: c.id,
+        senderId: me,
         recipientId,
         senderName: people.get(me)?.name ?? "Player",
         text,

@@ -11,6 +11,7 @@ import { HomeLeagues, SectionHead } from "@/components/HomeLeagues";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
 import { MatchCard } from "@/components/MatchCard";
 import { NextMatchCard, type NextMatchAction } from "@/components/NextMatchCard";
+import { NotificationsOffBanner } from "@/components/NotificationsOffBanner";
 import { DoublesNote } from "@/components/record/DoublesMatchCard";
 import { ResultRow } from "@/components/ResultRow";
 import { SeasonStats } from "@/components/SeasonStats";
@@ -207,7 +208,9 @@ export default function HomeScreen() {
           contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom }}
           refreshControl={<RefreshControl refreshing={weekQ.isRefetching} onRefresh={() => void weekQ.refetch()} tintColor={c.ink} />}
         >
-          <View style={{ padding: spacing.space4 }}>
+          <View style={{ padding: spacing.space4, gap: spacing.space3 }}>
+            {/* Notifications off: one line to iOS Settings (decision 125). */}
+            <NotificationsOffBanner />
             <DiscoverMatchesSection />
           </View>
           <EmptyState roundel title="No league matches yet" message="Start or join a league in Leagues, and your matches show up here each week." />
@@ -225,6 +228,9 @@ export default function HomeScreen() {
               </Text>
             </Card>
           ) : null}
+
+          {/* Notifications off: one line to iOS Settings (decision 125). */}
+          <NotificationsOffBanner />
 
           {showStats && week ? <SeasonStats season={week.season} /> : null}
 
