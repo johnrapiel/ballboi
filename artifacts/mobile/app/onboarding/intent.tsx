@@ -6,6 +6,7 @@
 // and never shown back to the player.
 
 import { useAuth, useUser } from "@clerk/expo";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { View } from "react-native";
@@ -14,6 +15,7 @@ import { CheckboxCard } from "@/components/CheckboxCard";
 import { OnboardingStep, StepError } from "@/components/OnboardingStep";
 import { Button, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
+import { serverProfileKey } from "@/hooks/useServerProfile";
 import { INTENTS, ONBOARDED, saveIntents, type Intent } from "@/lib/onboarding";
 
 const QUESTION = "What do you want to do on Ball Boi?";
@@ -22,6 +24,7 @@ export default function IntentStep() {
   const router = useRouter();
   const { getToken } = useAuth();
   const { user } = useUser();
+  const queryClient = useQueryClient();
   const [picked, setPicked] = useState<Intent[]>([]);
   /** Which button is working, so only that one shows a spinner. */
   const [busy, setBusy] = useState<"skip" | "continue" | null>(null);
@@ -38,6 +41,8 @@ export default function IntentStep() {
     try {
       await saveIntents(getToken, answer);
       await user.update({ unsafeMetadata: { ...user.unsafeMetadata, onboarding: ONBOARDED } });
+      // The profile exists now; the gate must see that before Home opens.
+      queryClient.setQueryData(serverProfileKey, true);
       router.replace("/(tabs)");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong. Try again.");

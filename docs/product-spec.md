@@ -55,13 +55,13 @@ Five tabs, with Ball Boi in the center. Messages opens from the button in the to
 
 | Tab | What lives there |
 | --- | --- |
-| Home | Upcoming matches, matches waiting on your answer, this week's pairings, recent results |
+| Home | Upcoming matches, plus anything waiting on you (pairings to review, a match card to answer). No stats, results or standings (decision 137) |
 | Leagues | Your leagues, each with chat, schedule, standings, and Manage for admins; Start a league |
 | Ball Boi | Start a recording, past matches, replays, trends |
 | Discover | Players near you, Open leagues, Open matches (including your own) |
-| Profile | Player card, career stats, linked UTR, settings (including training data), account deletion |
+| Profile | Your player card, This season, Ball Boi this season, Upcoming matches and Results (decision 138); Settings (including training data, Sign out and account deletion) from the top corner |
 
-**Messages (top corner):** direct chats, including Message opponent from a league match and chats where Discover matches are set up. There are no Message Requests (decision 101). A 44pt button in the top-right of every tab with an unread count VoiceOver reads ("Messages, 3 unread").
+**Messages (top corner):** direct chats, including Message opponent from a league match and chats where Discover matches are set up, plus open match group chats (decision 136). There are no Message Requests (decision 101). A 44pt button in the top-right of every tab with an unread count VoiceOver reads ("Messages, 3 unread").
 
 League chat lives inside each league, not in Messages, so busy leagues never bury direct conversations. Every tab has an icon plus a text label, and badge counts are read by VoiceOver.
 
@@ -70,7 +70,7 @@ League chat lives inside each league, not in Messages, so busy leagues never bur
 One level on the NTRP scale (2.5 to 5.0, where 5.0 is "Expert", decision 106) drives all matching. Players set it themselves, so it avoids USTA's no-caching rule and works for players with no external rating. Until a USTA or NTRP sync lands, the app calls it "self-rated level", never "Ball Boi Rating".
 
 - **Set by the player:** onboarding quiz with plain descriptions, changed anytime in Edit profile
-- **Labels:** Edit profile row "Self-rated level"; badge "Level 3.5, Self-rated" with icon and text, read by VoiceOver as "Level 3.5, self-rated"; Manage roster and requests "Level 3.5, self-rated". A placeholder player shows "Level 3.0" and a signed-up player with no level shows "Level not set"
+- **Labels:** the level pill reads "Level 3.5" on player cards (decision 140); Edit profile's Level row reads "3.5 · Self-rated", so the player knows where it came from; Manage roster and requests "Level 3.5, self-rated". A placeholder player shows "Level 3.0" and a signed-up player with no level shows "Level not set"
 - **Verified by UTR link:** OAuth via the UTR Engage API seeds the level and shows a "Verified" badge with icon and text
 - **Results never move it (Oct 29, confirmed Nov 4):** no score, grace-period match or doubles result changes anyone's level. It changes only when the player edits it, or later through a USTA or NTRP sync
 - **One source:** the profile holds each player's name, photo and level, and every league reads the current profile. Admins set a level only for placeholder players not on Ball Boi, and the player's own level replaces it when they claim the spot
@@ -278,19 +278,23 @@ Match video is an input to analysis, never a viewable product feature in v1.
 
 ## Profile and player card
 
-The player card is a brag sheet, never a scouting report: it shows strengths and records, while error patterns and heatmaps stay private.
+The player card is a brag sheet, never a scouting report: it shows strengths and records, while error patterns and heatmaps stay private. Your own Profile tab is your player card exactly as others see it, with your matches below it (decisions 138, 139).
+
+**The player card (design D, Portrait, chosen Nov 8):** a light tennis court drawing across the top with the photo overlapping it, the name in brush script, "Level 3.5" and "Singles" pills, the town, and along the bottom the home court and a grid icon that opens the player's free times as a read-only week grid. It holds only what the player entered. On your own card a pencil opens Edit profile. The same card is used everywhere, including Discover.
+
+**Profile tab, top to bottom:** the player card; This season (Record, Played, Streak, No-shows); Ball Boi this season (aces, forehand winners, first serves in, with See all for this season's recordings); then Upcoming matches and Results tabs. There's no separate My matches screen: Home's See all opens these tabs. Edit profile holds name and photo, level, home area, plays, free times and home court; Sign out lives in Settings.
 
 | Element | Visibility |
 | --- | --- |
-| Name, photo, level (Self-rated or Verified) | Public |
-| Town, app win-loss record, reliability | Public |
-| Ball Boi highlights (forehand winners, aces, first serve %, win streak) | Public, season or career toggle |
+| Name, photo, level, plays, town, home court, free times | Public |
+| This season: record, played, streak, no-shows (reliability) | Public |
+| Ball Boi this season (aces, forehand winners, first serve %) | Public |
 | Head-to-head record vs. the viewer | Visible to that viewer |
 | Error patterns, heatmaps, trends | Private. Whether an opponent from the same match sees its full breakdown is pending (decision 83) |
 | Match video | Never shown; raw video deleted after analysis unless kept for training |
 
-- **No Ball Boi data yet:** card shows level and record with a "No Ball Boi matches yet" prompt
-- **VoiceOver reads the card as one summary,** e.g. "Alex Kim, Level 3.5, Verified, 14 and 6, 22 aces this season"
+- **No Ball Boi data yet:** Ball Boi this season shows a "No Ball Boi matches yet" prompt; it also stays empty until stats pass their accuracy bars
+- **VoiceOver reads the card as one summary,** e.g. "Alex Kim, Level 3.5, singles, Fishkill, home court Beacon Courts"
 - **Career stats:** full personal history, reached from Profile
 
 **Shareable match recap:** auto-generated after each match's score is entered with score, aces, and winners, sized for Instagram Stories and texts, carrying the Ball Boi logo.
@@ -452,7 +456,7 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 71 | Rosters, pairings and Manage always show a player's current profile name and level (Nov 4) |
 | 72 | Welcome switches from the browser sheet to Apple's and Google's native sign-in buttons (Nov 4) |
 | 73 | The Match day reminders switch is hidden until Wave 2. In Wave 2 reminders are on by default, still behind iOS's permission: provisional from sign-in, the full prompt after joining a league or sending a match request (decision 11) (Nov 4) Prompt timing replaced by decision 125 |
-| 74 | The app says "self-rated level", never "Ball Boi Rating", until a USTA or NTRP sync. Edit profile row "Self-rated level"; badge "Level 3.5, Self-rated"; Manage and requests "Level 3.5, self-rated"; VoiceOver "Level 3.5, self-rated". Once a sync lands, the source word replaces Self-rated (Nov 4) |
+| 74 | The app says "self-rated level", never "Ball Boi Rating", until a USTA or NTRP sync. Edit profile row "Self-rated level"; badge "Level 3.5, Self-rated"; Manage and requests "Level 3.5, self-rated"; VoiceOver "Level 3.5, self-rated". Once a sync lands, the source word replaces Self-rated (Nov 4) Pill label changed by decision 140 |
 | 75 | A player's level changes only when they edit it, or later through a USTA or NTRP sync. Match results never move it (confirms the Oct 29 call). Leagues read the profile's level; admins set one only for placeholder players, and the player's own replaces it when they claim the spot (Nov 4) |
 | 76 | Sign out warns first when recordings haven't uploaded, with the count, Cancel and Sign out anyway (Nov 4) |
 | 77 | League opponents talk in a direct chat (Message opponent) for now; full match threads come with Discover (Oct 31, logged Nov 4) |
@@ -474,7 +478,7 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 93 | Opponents outside the beta: the tester confirms they agreed. When the opponent is a placeholder (not on Ball Boi), the ready screen shows "[Name] agreed to be filmed." and Start stays off until it's checked. Chosen over requiring both players to be testers (John, Nov 7, B10) |
 | 94 | A confirmed placeholder opponent's match can be used in the labeled test set and scoring, never training (keeps decision 15). Flagged for the legal consult (John, Nov 7, B11) |
 | 95 | Withdrawing (email support or delete account) deletes all of that tester's video within 30 days, including test-set and training copies. Hand-made shot labels stay with the name removed; already-trained models aren't rebuilt (John, Nov 7, B12) |
-| 96 | The Ball Boi Beta Footage Release is approved as written, hosted at ballboi.tennis/beta-release styled like /privacy, and sent to the planned legal consult (biometric data, audio recording) before testers sign (John, Nov 7, B13) |
+| 96 | The Ball Boi Beta Footage Release is approved as written, hosted at ballboi.tennis/beta-release styled like /privacy, and sent to the planned legal consult (biometric data, audio recording) before testers sign (John, Nov 7, B13) Cleared by the consult (decision 141) |
 | 97 | Labeling tool speed-ups, in order: jump to the next hit (detects the hit sound in John's local files, nothing leaves his Mac), then undo, resume at the last position, and a progress count, in the same fix (John, Nov 7, B14) |
 | 98 | New accuracy bars: point endings 85% correct; rally length within 1 shot on 85% of points; first-serve % within 5 points of truth; placement in the right zone 80% of the time. Estimated serve speed is dropped from launch until there's a way to measure it (John, Nov 7, B15) |
 | 99 | Pre-labeling uses only Ball Boi's own models, on John's Mac or Ball Boi's servers; no outside AI service sees footage, so the in-app copy and the release stay true (John, Nov 7, B16) |
@@ -514,3 +518,9 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 133 | Buttons in the native header are plain icons; on iOS 26 Apple's glass circle is the only circle. Round buttons inside page headers stay (John, Nov 7) |
 | 134 | No press-and-hold stop: the Stop button, with its "Stop recording?" confirm, is the way to stop on the mounted phone; the other player's phone and the Live Activity still work (John, Nov 7) |
 | 135 | The voice coach uses John's recorded voice: 21 lines plus a chime, no text-to-speech and no shorter mode, with captions from one manifest (John, Nov 7) |
+| 136 | Open match group chats run through the same messaging service as Messages: listed in Messages and covered by the same first-message filter, Stream screening and message-level reports. Replaces the separate group chat #145 shipped (John, Nov 8, F15) |
+| 137 | Home shows only upcoming matches ("Upcoming matches", replacing "This week") plus anything waiting on you, like pairings to review or a match card to answer. Completed matches, recent results, season stats and league standings leave Home; standings live on the league page. One place for each thing (John, Nov 8) |
+| 138 | Profile becomes your player card with your matches below it: the card, This season, Ball Boi this season (See all opens this season's recordings), then Upcoming matches and Results tabs. My matches stops being its own screen; Home's See all opens these tabs. Player details move behind a pencil (Edit profile); Sign out moves to Settings. The tab keeps the name Profile (John, Nov 8) |
+| 139 | The player card is design D (Portrait): court drawing across the top, photo overlapping it, name, Level and Plays pills, town, home court and a free-times grid icon that opens a read-only week grid. It holds only what the player entered; Record, Played, Streak and No-shows sit in This season under it. The same card everywhere, Discover included (John, Nov 8) |
+| 140 | The level pill on player cards reads "Level 3.5" with no "Self-rated"; Edit profile's Level row keeps "Self-rated". Changes decision 74 (John, Nov 8) |
+| 141 | The legal consult cleared the Ball Boi Beta Footage Release (decision 96). Testers can sign once /beta-release is live (John, Nov 8) |

@@ -10,8 +10,8 @@ Ball Boi is a tennis app with heritage manners. Think Wilson's navy restraint, w
 - **Color is rare.** `court` green appears only when something good or live needs saying. Most screens use none. `danger` appears only for destructive actions and errors.
 - **Clean ground, not glass.** An ivory page with white cards by day, warm charcoal at night, no grain (John, Nov 6). No gradients, no glassmorphism, no neon.
 - **Hand-made, not decorated.** The brush headers, the ring, the painted ball and the roundel carry the brushwork. Never more than one motif per screen.
-- **Hairlines over shadows.** Cards sit on a 1px `hairline` border with a 16px corner (`radius-card`). The Next match card is the one soft card: no border, more padding, everything centred. Only floating things (sheets, menus) and the selected segment of a segmented control get a shadow.
-- **Brush for the page, serif for the moment, sans for the work.** Nanum Brush Script carries page headers, echoing the roundel. Cormorant Garamond carries scores, ranks, records, section headings and card titles. DM Sans carries everything you tap or read in a list.
+- **Hairlines over shadows, one rule for every card.** Every card and module, the Next match card included, is a white `linen` fill on a 1px `hairline` border with a 16px corner (`radius-card`). No borderless cards and no card shadows (John, Nov 7). `hairline` is light on purpose (10% ink by day, 10% ivory at night), so a border reads without feeling heavy. The Next match card keeps more padding and centres everything. Only floating things (sheets, menus) and the selected segment of a segmented control get a shadow.
+- **Serif for the page and the moment, sans for the work.** Page and sheet titles are Cormorant Garamond in ink at 50%, quiet like a watermark (John, Nov 7; replaces the Nanum Brush Script titles). Cormorant at full ink carries scores, ranks, records, section headings and card titles. DM Sans carries everything you tap or read in a list. The roundel keeps its own brush lettering.
 - **Generous, never crowded.** Default to `space-6` between cards and `space-12` above heroes.
 
 ## Voice
@@ -63,7 +63,7 @@ When iOS Increase Contrast is on, `ink-muted`, `hairline` and `hairline-strong` 
 
 ## Type
 
-- **Brush:** Nanum Brush Script 400. `brush-l` (48px) for tab headers and big screen titles: onboarding step titles, milestone titles, sheet titles like Enter score. `brush-m` (40px) for the page title on a pushed detail screen (a league, a player, Messages, Invite players), under its back button (John, Nov 6). It echoes the roundel's tall, upright lettering. Never below 28px. Never for buttons, body, scores, or the small title in a top bar (that stays DM Sans 600).
+- **Headings:** Cormorant Garamond 500 in ink at 50% (John, Nov 7). `heading-l` (30px) for tab headers and big screen titles: onboarding step titles, milestone titles. `heading-m` (24px) for sheet titles like Enter score and the title on a pushed detail screen (a league, a player, Messages, Invite players), under its back button. At 50% they measure 3.2:1 by day, which passes AA only because they're large: never set them below 24px, and never use the 50% ink for anything smaller. With Increase Contrast they show at full ink. They go one weight heavier at night, like all Cormorant. Never for buttons, body, scores, or the small title in a top bar (that stays DM Sans 600).
 - **Display:** Cormorant Garamond 500/600, italic 500. Upright `title` (26px) for section headings and card titles, `score` (44px) for hero scores, `score-row` (30px) for set scores in cards and grids and big stat values. Rank numerals and records in tables sit at 22px. Italic only for the quiet flourish, seeds in the bracket and Champion. Never below 20px: its hairline strokes vanish at small sizes.
 - **Text:** DM Sans 400/600. Body, buttons, labels.
 - **Body is 17px**, the iOS body size. Small is 15px, buttons 16px.
@@ -117,7 +117,7 @@ One rule for every bottom sheet (John, Nov 6), like the approved Enter score she
 
 - The sheet hugs its content and grows with larger text. It only scrolls when the content is taller than the screen.
 - No Cancel button. Drag down to close. If you changed something, closing asks before it discards your changes ("Discard changes?" with Keep editing and a red Discard). The VoiceOver escape gesture (two-finger Z) closes it the same way.
-- A left-aligned `brushM` title sits under the grabber, read by VoiceOver as the header.
+- A left-aligned `heading-m` title (Cormorant at 50% ink) sits under the grabber, read by VoiceOver as the header.
 - The primary action is the last thing in the sheet, full width.
 - Sheets sit on `linen` with the `radius-lg` corner and the system grabber.
 
@@ -127,13 +127,15 @@ In the app, `components/Sheet.tsx` (`SheetBody`) does all of this; sheet routes 
 
 The tab bar uses the custom brush icon set John approved (Nov 5): hand-drawn Home, Leagues, Discover and Profile in `ink-muted`, with the selected tab filled with the painted ball's paint under an `ink` outline. Ball Boi keeps the logo ball and follows the same rule (Nov 6): its strokes in `ink-muted` with no fill when unselected, filled with its paint under `ink` strokes only when selected. Sources are in `docs/design-system/icons`, and `scripts/design/tab-icons.py` draws the app's Day and Night PNGs from them. **Every icon is hand-drawn (John, Nov 7).** Outside the tab bar, every icon in the app comes from the same brush set: tapered, rounded strokes with a little wobble, and circles left with a small open gap, like the tab icons. They're drawn in one color (`ink` by default, `ink-muted` for chevrons and quiet meta icons, `danger` for destructive rows). Never use SF Symbols, Lucide or any other icon set, and never a thin line icon. In the app, use `<Icon name="..." />` (`components/Icon.tsx`); names follow SF Symbols so meanings stay familiar (`chevron.right`, `calendar.badge.plus`). A new icon is drawn in `scripts/design/brush-icons.py` (one function per icon, centre-line strokes on a 24 grid) and the script writes the app's paths and the sources in `docs/design-system/icons/ui`. A check (`scripts/check-brush-icons.mjs`, part of `pnpm test`) fails if any screen imports SF Symbols or an icon library. The native iOS back chevron and system sheets, alerts and share sheet stay as iOS draws them. No duotone icons, no emoji in UI.
 
+**Filters** (John, Nov 7) is the `slider.horizontal.2` icon alone (two sliders, each with a knob) in an outlined 44pt circle (`hairline-strong` border), beside a list's count line. VoiceOver reads "Filters" and what's set; a small ink dot marks filters that are on.
+
 ## Logo
 
 The roundel is the wordmark. `assets/Logos/ball-boi-roundel.png` is the painted original on paper, for print and marketing. In the app use the transparent traces: `ball-boi-roundel-ink.svg` by day, `ball-boi-roundel-white.svg` at night. Show it at 40px minimum. Do not recolor, outline or place it on photos.
 
 Where it appears:
 - Splash, Welcome, the marketing site and App Store screenshots
-- At 44px in place of the Home tab header's title, left aligned on the row with Messages, with no date or greeting, once Home has something to show. The brushstroke in ink by day; at night the brushstroke alone in white, with no paper fill (John, Nov 6)
+- At 52px in place of the Home tab header's title, left aligned on the row with Messages, with no date or greeting, once Home has something to show. The brushstroke in ink by day; at night the brushstroke alone in white, with no paper fill (John, Nov 6)
 - Player-facing empty states on the main tabs (Home, Leagues, Discover), at 120px in place of the symbol. On Home it appears here only while there's nothing to show yet, and the header then has no roundel, so it's never on screen twice (John, Nov 6, finding 27)
 - Behind the badge in milestone moments (first win, first Ball Boi match, 5- and 10-match win streaks)
 - Stamped on every shareable match recap
