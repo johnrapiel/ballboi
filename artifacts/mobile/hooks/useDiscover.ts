@@ -8,7 +8,6 @@ import { apiErrorMessage, apiFetch } from "@/lib/api";
 import {
   playersPath,
   type DiscoverMe,
-  type DiscoverPlayerCard,
   type DiscoverPlayers,
   type Plays,
   type PlayerFilters,
@@ -19,7 +18,6 @@ export const discoverKeys = {
   me: ["discover", "me"] as const,
   players: (radius: number, f: PlayerFilters) =>
     ["discover", "players", radius, f.levels === "mine" ? "mine" : f.levels.join(","), f.plays, f.free] as const,
-  player: (userId: number) => ["discover", "player", userId] as const,
 };
 
 async function json<T>(res: Response, fallback: string): Promise<T> {
@@ -42,17 +40,6 @@ export function useDiscoverPlayers(radius: number, filters: PlayerFilters, enabl
     queryFn: async () => json<DiscoverPlayers>(await apiFetch(playersPath(radius, filters), getToken), "Can't load players right now."),
     placeholderData: keepPreviousData,
     enabled,
-  });
-}
-
-export function useDiscoverPlayer(userId: number) {
-  const { getToken } = useAuth();
-  return useQuery({
-    queryKey: discoverKeys.player(userId),
-    queryFn: async () =>
-      json<DiscoverPlayerCard>(await apiFetch(`/api/discover/players/${userId}`, getToken), "Can't load this player right now."),
-    enabled: Number.isInteger(userId) && userId > 0,
-    retry: (count, e) => count < 2 && !/isn't in Discover/.test((e as Error).message),
   });
 }
 

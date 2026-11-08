@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_FILTERS,
   areaLine,
-  cardStatsSpoken,
   cellAt,
   cellSpoken,
   clampRadius,
@@ -30,7 +29,6 @@ import {
   slotOf,
   toggleRow,
   toggleSlot,
-  whereLine,
 } from "../discover";
 
 describe("Discover header and chips", () => {
@@ -104,16 +102,6 @@ describe("rows and the player card", () => {
     expect(rowDetail({ distance: "~4 mi", plays: "singles" })).toBe("~4 mi · Singles");
     expect(rowDetail({ distance: "~2 mi", plays: "both" })).toBe("~2 mi · Singles and doubles");
     expect(rowDetail({ distance: "~7 mi", plays: null })).toBe("~7 mi");
-  });
-
-  it("reads the stats box as one group", () => {
-    expect(cardStatsSpoken({ wins: 9, losses: 5, played: 14, noShows: 1 })).toBe("Record 9 wins 5 losses. Played 14, 1 no-show");
-    expect(cardStatsSpoken({ wins: 1, losses: 1, played: 2, noShows: 0 })).toBe("Record 1 win 1 loss. Played 2, 0 no-shows");
-  });
-
-  it("says where, approximately", () => {
-    expect(whereLine({ town: "Fishkill", distance: "~4 mi away" })).toBe("Fishkill · ~4 mi away");
-    expect(whereLine({ town: null, distance: null })).toBeNull();
   });
 
   it("maps the I play chips", () => {

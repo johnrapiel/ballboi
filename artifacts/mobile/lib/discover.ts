@@ -47,23 +47,6 @@ export interface DiscoverPlayers {
   needsArea: boolean;
 }
 
-export interface DiscoverPlayerCard {
-  userId: number;
-  name: string;
-  avatarUrl: string | null;
-  rating: number | null;
-  ratingSource: string | null;
-  town: string | null;
-  distance: string | null;
-  plays: Plays | null;
-  freeSummary: string | null;
-  homeCourt: string | null;
-  played: number;
-  noShows: number;
-  wins: number;
-  losses: number;
-}
-
 /** Every level, as chips in Filters (spec decision 86: 2.5 to 5.0). */
 export const FILTER_LEVELS = [2.5, 3.0, 3.5, 4.0, 4.5, 5.0] as const;
 
@@ -186,17 +169,6 @@ export function picksFromPlays(p: Plays | null): { singles: boolean; doubles: bo
 /** The line under a name on a Players row: "~4 mi · Singles". */
 export function rowDetail(p: Pick<DiscoverPlayerRow, "distance" | "plays">): string {
   return [p.distance, playsLabel(p.plays)].filter(Boolean).join(" · ");
-}
-
-/** Record / Played / No-shows on the player card, read as one group. */
-export function cardStatsSpoken(p: Pick<DiscoverPlayerCard, "wins" | "losses" | "played" | "noShows">): string {
-  return `Record ${p.wins} ${p.wins === 1 ? "win" : "wins"} ${p.losses} ${p.losses === 1 ? "loss" : "losses"}. Played ${p.played}, ${p.noShows} no-show${p.noShows === 1 ? "" : "s"}`;
-}
-
-/** "Fishkill · ~4 mi away". */
-export function whereLine(p: Pick<DiscoverPlayerCard, "town" | "distance">): string | null {
-  const parts = [p.town, p.distance].filter(Boolean);
-  return parts.length ? parts.join(" · ") : null;
 }
 
 /** Initials for a player with no photo. */

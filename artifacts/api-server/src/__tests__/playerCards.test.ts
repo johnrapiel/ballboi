@@ -14,7 +14,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
 
 import { GetMyPlayerCardResponse } from "@workspace/api-zod";
 import { seasonStats, seasonWindow, type CardMatch, type CardPerson, type SeasonWindow } from "../lib/playerCard";
-import type { PlayerCardRepo } from "../lib/playerCardRepo";
+import type { MatchData, PlayerCardRepo } from "../lib/playerCardRepo";
 import { createPlayerCardsRouter } from "../routes/playerCards";
 
 // The player card (decisions 138 to 140, John, Nov 8): your own on Profile,
@@ -93,6 +93,15 @@ class MemoryCards implements PlayerCardRepo {
   async noShows(_who: string, w: SeasonWindow) {
     this.windows.push(w);
     return this.noShowCount;
+  }
+  async other() {
+    return null;
+  }
+  async blocked() {
+    return new Set<string>();
+  }
+  async matchData(): Promise<MatchData> {
+    throw new Error("not used here");
   }
 }
 

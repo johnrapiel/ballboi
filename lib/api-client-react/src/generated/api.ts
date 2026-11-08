@@ -171,6 +171,7 @@ import type {
   Player,
   PlayerCard,
   PlayerIdBody,
+  PlayerMatches,
   PlayerSearchResponse,
   PlayerStats,
   PlayoffBracketResponse,
@@ -4158,6 +4159,181 @@ export function useGetMyPlayerCard<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetMyPlayerCardQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Another player's card and This season, from Discover (decision 139)
+ */
+export const getGetPlayerCardUrl = (userId: number) => {
+  return `/api/player-cards/${userId}`;
+};
+
+export const getPlayerCard = async (
+  userId: number,
+  options?: RequestInit,
+): Promise<PlayerCard> => {
+  return customFetch<PlayerCard>(getGetPlayerCardUrl(userId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPlayerCardQueryKey = (userId: number) => {
+  return [`/api/player-cards/${userId}`] as const;
+};
+
+export const getGetPlayerCardQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPlayerCard>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPlayerCard>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetPlayerCardQueryKey(userId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlayerCard>>> = ({
+    signal,
+  }) => getPlayerCard(userId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPlayerCard>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPlayerCardQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPlayerCard>>
+>;
+export type GetPlayerCardQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Another player's card and This season, from Discover (decision 139)
+ */
+
+export function useGetPlayerCard<
+  TData = Awaited<ReturnType<typeof getPlayerCard>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPlayerCard>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPlayerCardQueryOptions(userId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Another player's Upcoming matches and Results, and your head-to-head (decision 143)
+ */
+export const getGetPlayerMatchesUrl = (userId: number) => {
+  return `/api/player-cards/${userId}/matches`;
+};
+
+export const getPlayerMatches = async (
+  userId: number,
+  options?: RequestInit,
+): Promise<PlayerMatches> => {
+  return customFetch<PlayerMatches>(getGetPlayerMatchesUrl(userId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPlayerMatchesQueryKey = (userId: number) => {
+  return [`/api/player-cards/${userId}/matches`] as const;
+};
+
+export const getGetPlayerMatchesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPlayerMatches>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPlayerMatches>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPlayerMatchesQueryKey(userId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPlayerMatches>>
+  > = ({ signal }) => getPlayerMatches(userId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPlayerMatches>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPlayerMatchesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPlayerMatches>>
+>;
+export type GetPlayerMatchesQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Another player's Upcoming matches and Results, and your head-to-head (decision 143)
+ */
+
+export function useGetPlayerMatches<
+  TData = Awaited<ReturnType<typeof getPlayerMatches>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPlayerMatches>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPlayerMatchesQueryOptions(userId, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

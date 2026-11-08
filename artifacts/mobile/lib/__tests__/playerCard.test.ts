@@ -4,18 +4,22 @@ import { routeForPushLink } from "@/lib/notificationAccess";
 import {
   cardSpoken,
   freeTimesSpoken,
+  headToHeadLine,
   hoursFreeWeek,
   levelPill,
   levelRow,
+  otherUpcomingItem,
   playsPill,
   recordedLine,
   recordedThisSeason,
+  resultMeta,
   seasonCells,
   seasonSpoken,
   tabFromParam,
   townLine,
 } from "@/lib/playerCard";
 import { signOutConfirm } from "@/lib/signOutWarning";
+import { rowSub, rowWhen } from "@/lib/upcoming";
 
 // Profile is your player card (decisions 138 to 140, John, Nov 8).
 
@@ -105,5 +109,37 @@ describe("Sign out in Settings", () => {
   it("always asks, and warns about recordings first", () => {
     expect(signOutConfirm(0)).toEqual({ title: "Sign out?", message: "You can sign back in any time.", confirmLabel: "Sign out" });
     expect(signOutConfirm(2).confirmLabel).toBe("Sign out anyway");
+  });
+});
+
+describe("other players' cards (decision 143)", () => {
+  it("reads head-to-head from your side, in full for VoiceOver", () => {
+    expect(headToHeadLine("Priya Shah", { you: 2, them: 1 })).toEqual({
+      text: "You and Priya: 2-1",
+      spoken: "You and Priya have played 3 times. You won 2, Priya won 1.",
+    });
+    expect(headToHeadLine("Priya Shah", { you: 0, them: 1 }).spoken).toBe("You and Priya have played 1 time. You won 0, Priya won 1.");
+  });
+
+  it("reads their upcoming rows like yours", () => {
+    const m = otherUpcomingItem({
+      key: "m-3",
+      kind: "league",
+      matchId: 3,
+      scheduledAt: null,
+      playBy: "2026-11-15",
+      opponentName: "Theo Brandt",
+      opponentUserId: 23,
+      context: "Tuesday Flex 3.5",
+      location: null,
+      mine: false,
+    });
+    expect(rowWhen(m)).toBe("Play by Sun, Nov 15");
+    expect(rowSub(m)).toBe("vs. Theo Brandt · Tuesday Flex 3.5");
+  });
+
+  it("puts the league and day under a result", () => {
+    expect(resultMeta({ context: "Quick match", completedAt: new Date(2026, 10, 3, 18).toISOString() })).toBe("Quick match · Nov 3");
+    expect(resultMeta({ context: "League", completedAt: null })).toBe("League");
   });
 });
