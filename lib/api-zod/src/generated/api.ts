@@ -1635,6 +1635,74 @@ export const GetMyPlayerCardResponse = zod
   .describe("The player card (design D). Holds only what the player entered.");
 
 /**
+ * @summary Your career stats, seasons and head-to-head, from See all on This season (decision 147)
+ */
+export const GetMyCareerResponse = zod
+  .object({
+    wins: zod.number(),
+    losses: zod.number(),
+    played: zod.number(),
+    bestWinStreak: zod.number(),
+    sets: zod.object({
+      won: zod.number(),
+      lost: zod.number(),
+    }),
+    games: zod.object({
+      won: zod.number(),
+      lost: zod.number(),
+    }),
+    tiebreaks: zod.object({
+      won: zod.number(),
+      lost: zod.number(),
+    }),
+    seasons: zod
+      .array(
+        zod.object({
+          key: zod.string(),
+          name: zod.string(),
+          from: zod.string(),
+          to: zod.string(),
+          wins: zod.number(),
+          losses: zod.number(),
+          played: zod.number(),
+        }),
+      )
+      .describe("Newest first, only seasons you played in"),
+    results: zod
+      .array(
+        zod.object({
+          matchId: zod.number(),
+          seasonKey: zod.string(),
+          opponentName: zod.string(),
+          won: zod.boolean(),
+          score: zod.string().describe("From your side, your games first"),
+          context: zod
+            .string()
+            .describe("League name, Discover or Quick match"),
+          playoff: zod.boolean(),
+          league: zod
+            .boolean()
+            .describe("A league match, which opens Match detail"),
+          completedAt: zod.string().nullable(),
+        }),
+      )
+      .describe("Newest first"),
+    headToHead: zod
+      .array(
+        zod.object({
+          userId: zod.number().nullable(),
+          name: zod.string(),
+          wins: zod.number(),
+          losses: zod.number(),
+        }),
+      )
+      .describe("Most played first; never a player blocked with you"),
+  })
+  .describe(
+    "Scored matches against real Ball Boi players (league, Discover, confirmed Quick matches). Walkovers count in the record, never in sets or games",
+  );
+
+/**
  * @summary Another player's card and This season, from Discover (decision 139)
  */
 export const GetPlayerCardParams = zod.object({

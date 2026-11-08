@@ -299,7 +299,7 @@ The player card is a brag sheet, never a scouting report: it shows strengths and
 
 - **No Ball Boi data yet:** Ball Boi this season shows a "No Ball Boi matches yet" prompt; it also stays empty until stats pass their accuracy bars
 - **VoiceOver reads the card as one summary,** e.g. "Alex Kim, Level 3.5, singles, Fishkill, home court Beacon Courts"
-- **Career stats:** full personal history, reached from Profile
+- **Career stats (decision 147):** a Career screen, opened from See all on Profile's This season. It shows the all-time record and matches played, best win streak, share of sets won and share of games won, the tiebreak record, your seasons with their records (a season opens its results), and head-to-head against everyone you've played ("Sam Patel · 2-1"), each opening that player's card. League, Discover and confirmed Quick matches count; unconfirmed Quick matches (G2), cancelled matches and walkovers' games never do (a walkover still counts in the record). A player blocked with you never shows in head-to-head. Ball Boi career stats join once they pass their accuracy bars (G1)
 
 **Shareable match recap:** auto-generated after each match's score is entered with score, aces, and winners, sized for Instagram Stories and texts, carrying the Ball Boi logo.
 
@@ -383,7 +383,7 @@ _Phases are ordered, not dated. The live doc shows these as a chart._
 
 Coaching tips return only once a coach-authored library exists, and doubles analysis waits on per-player shot attribution.
 
-## Decision log (updated Nov 7, 2026)
+## Decision log (updated Nov 8, 2026)
 
 | # | Decision |
 | --- | --- |
@@ -530,3 +530,4 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 141 | The legal consult cleared the Ball Boi Beta Footage Release (decision 96). Testers can sign once /beta-release is live (John, Nov 8) |
 | 142 | Start is picked before mounting: Record works before the court locks, and the countdown starts on its own once it locks, or after the Record anyway fallback. The Live Activity Start button stays as a second way to start (John, Nov 8) |
 | 143 | Other players' cards show their full match history: Upcoming matches and Results tabs like your own Profile, with the winner mark and head-to-head. Blocks, hidden profiles and unconfirmed Quick matches stay out (John, Nov 8) |
+| 147 | Career stats: a Career screen from See all on Profile's This season, with all-time record and matches played, best win streak, share of sets and games won, tiebreak record, your seasons (each opening its results) and head-to-head rows opening each player's card. League, Discover and confirmed Quick matches count; never unconfirmed Quick matches, cancelled matches or walkovers' games. Ball Boi career stats join once they pass their accuracy bars (John, Nov 8, H4) |

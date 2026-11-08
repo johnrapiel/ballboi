@@ -1360,6 +1360,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /player-cards/me/career:
+    get:
+      operationId: getMyCareer
+      tags: [players]
+      summary: Your career stats, seasons and head-to-head, from See all on This season (decision 147)
+      responses:
+        '200':
+          description: Your career
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Career'
   /player-cards/{userId}:
     get:
       operationId: getPlayerCard
@@ -7225,6 +7237,97 @@ components:
         noShows:
           type: integer
       required: [name, from, to, wins, losses, played, streak, noShows]
+    Career:
+      type: object
+      description: Scored matches against real Ball Boi players (league, Discover, confirmed Quick matches). Walkovers count in the record, never in sets or games
+      properties:
+        wins:
+          type: integer
+        losses:
+          type: integer
+        played:
+          type: integer
+        bestWinStreak:
+          type: integer
+        sets:
+          $ref: '#/components/schemas/CareerWonLost'
+        games:
+          $ref: '#/components/schemas/CareerWonLost'
+        tiebreaks:
+          $ref: '#/components/schemas/CareerWonLost'
+        seasons:
+          type: array
+          description: Newest first, only seasons you played in
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              name:
+                type: string
+              from:
+                type: string
+              to:
+                type: string
+              wins:
+                type: integer
+              losses:
+                type: integer
+              played:
+                type: integer
+            required: [key, name, from, to, wins, losses, played]
+        results:
+          type: array
+          description: Newest first
+          items:
+            type: object
+            properties:
+              matchId:
+                type: integer
+              seasonKey:
+                type: string
+              opponentName:
+                type: string
+              won:
+                type: boolean
+              score:
+                type: string
+                description: From your side, your games first
+              context:
+                type: string
+                description: League name, Discover or Quick match
+              playoff:
+                type: boolean
+              league:
+                type: boolean
+                description: A league match, which opens Match detail
+              completedAt:
+                type: [string, 'null']
+            required: [matchId, seasonKey, opponentName, won, score, context, playoff, league, completedAt]
+        headToHead:
+          type: array
+          description: Most played first; never a player blocked with you
+          items:
+            type: object
+            properties:
+              userId:
+                type: [integer, 'null']
+              name:
+                type: string
+              wins:
+                type: integer
+              losses:
+                type: integer
+            required: [userId, name, wins, losses]
+      required: [wins, losses, played, bestWinStreak, sets, games, tiebreaks, seasons, results, headToHead]
+    CareerWonLost:
+      type: object
+      properties:
+        won:
+          type: integer
+        lost:
+          type: integer
+      required: [won, lost]
     PlayerCard:
       type: object
       description: The player card (design D). Holds only what the player entered.

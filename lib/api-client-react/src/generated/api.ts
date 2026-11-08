@@ -46,6 +46,7 @@ import type {
   BallBoiUploadUrl,
   BlockResult,
   BlockedPlayer,
+  Career,
   ClaimRecordingInvite200,
   CompleteBallBoiSessionBody,
   ConfirmLeagueName,
@@ -4159,6 +4160,79 @@ export function useGetMyPlayerCard<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetMyPlayerCardQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Your career stats, seasons and head-to-head, from See all on This season (decision 147)
+ */
+export const getGetMyCareerUrl = () => {
+  return `/api/player-cards/me/career`;
+};
+
+export const getMyCareer = async (options?: RequestInit): Promise<Career> => {
+  return customFetch<Career>(getGetMyCareerUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyCareerQueryKey = () => {
+  return [`/api/player-cards/me/career`] as const;
+};
+
+export const getGetMyCareerQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyCareer>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyCareer>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyCareerQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyCareer>>> = ({
+    signal,
+  }) => getMyCareer({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyCareer>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyCareerQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyCareer>>
+>;
+export type GetMyCareerQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Your career stats, seasons and head-to-head, from See all on This season (decision 147)
+ */
+
+export function useGetMyCareer<
+  TData = Awaited<ReturnType<typeof getMyCareer>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyCareer>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyCareerQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

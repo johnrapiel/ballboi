@@ -14,6 +14,7 @@ import leagueScoresRouter from "./leagueScores";
 import matchTimesRouter from "./matchTimes";
 import matchDetailRouter from "./matchDetail";
 import leaguesRouter from "./leagues";
+import careerRouter from "./career";
 import playerCardsRouter from "./playerCards";
 import playersRouter from "./players";
 import playerSearchRouter from "./playerSearch";
@@ -61,6 +62,8 @@ router.use(matchDetailRouter);
 router.use(leaguesRouter);
 // Before players: /players/search would otherwise read "search" as a player id.
 router.use(playerSearchRouter);
+// Before player cards: /player-cards/me/career is your own, not a player id.
+router.use(careerRouter);
 router.use(playerCardsRouter);
 router.use(playersRouter);
 router.use(matchesRouter);
