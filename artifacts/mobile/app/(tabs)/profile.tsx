@@ -153,6 +153,7 @@ export default function ProfileScreen() {
           ) : (
             <Card style={{ padding: 0, overflow: "hidden" }}>
               {results.map((r, n) => (
+                // League, Discover and Quick match results all open Match detail (decision 151).
                 <ResultRow key={r.matchId} r={r} last={n === results.length - 1} onPress={() => router.push(`/match/${r.matchId}`)} />
               ))}
             </Card>

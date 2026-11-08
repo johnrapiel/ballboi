@@ -9,7 +9,7 @@ const m = (over: Partial<DetailMatch> = {}): DetailMatch => ({
   status: "completed", score: "6-4, 7-5", winnerId: 10, inGrace: false, voidedAt: null,
   scheduledAt: "2026-11-06T18:00:00Z", completedAt: "2026-11-06T19:30:00Z", location: "Beacon Courts · Court 3",
   playoffBracketId: null, playoffRound: null, recordedAt: "2026-11-06T19:30:00Z", recordedByClerkUserId: "user_a",
-  correctedAt: null, correctedByName: null, scoreEditedAt: null, scoreEditedByName: null, ...over,
+  correctedAt: null, correctedByName: null, scoreEditedAt: null, scoreEditedByName: null, generatedFrom: "round", ...over,
 });
 const input = (over: Partial<DetailInput> = {}): DetailInput => ({
   match: m(),

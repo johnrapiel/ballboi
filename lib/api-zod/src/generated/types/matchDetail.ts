@@ -7,11 +7,20 @@
  */
 import type { MatchDetailReplay } from "./matchDetailReplay";
 import type { MatchDetailSide } from "./matchDetailSide";
+import type { MatchSource } from "./matchSource";
 
 export interface MatchDetail {
   matchId: number;
-  leagueId: number;
-  leagueName: string;
+  source: MatchSource;
+  /**
+   * Null for a Discover or Quick match
+   * @nullable
+   */
+  leagueId: number | null;
+  /** @nullable */
+  leagueName: string | null;
+  /** The league's name, "Discover" or "Quick match" */
+  context: string;
   singles: boolean;
   /** @nullable */
   timeZone: string | null;

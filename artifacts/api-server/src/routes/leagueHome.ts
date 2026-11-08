@@ -11,14 +11,16 @@ import {
 } from "@workspace/db";
 import { eq, inArray, or } from "drizzle-orm";
 import { todayFor } from "../lib/leagueCalendar.js";
-import { buildLeagueHome, homeLeagues, seasonFrom } from "../lib/leagueHome.js";
+import { allResults, buildLeagueHome, casualResults, homeLeagues, seasonFrom } from "../lib/leagueHome.js";
 import { computeStandings } from "../lib/leagueStandings.js";
 import { getPastSeasonNames } from "../services/seasonService.js";
 import { playoffPlayBy } from "../services/leaguePlayoffs.js";
 
 // Home tab's league section (spec: Navigation > Home): this week's matches
 // and byes across every league you play in, playoff matches, pairings you
-// need to review as an admin, and your last five results.
+// need to review as an admin, and your last five results. `results` also
+// carries your Discover and Quick match results for Profile's Results tab
+// (decision 151); they never count toward `recent` or `season`.
 
 const router = Router();
 
@@ -34,31 +36,42 @@ router.get("/me/league-week", async (req, res) => {
   const adminLeagueIds = adminRows.map((a) => a.leagueId);
   const leagueIds = [...new Set([...myPlayers.map((p) => p.leagueId).filter((id): id is number => id != null), ...adminLeagueIds])];
   const now = new Date();
+  // inArray needs at least one id; -1 matches nothing.
+  const ids = myIds.length ? myIds : [-1];
+  const myMatches = () =>
+    myIds.length
+      ? db
+          .select()
+          .from(matchesTable)
+          .where(or(
+            inArray(matchesTable.player1Id, ids),
+            inArray(matchesTable.player2Id, ids),
+            inArray(matchesTable.player3Id, ids),
+            inArray(matchesTable.player4Id, ids),
+          ))
+      : Promise.resolve([] as (typeof matchesTable.$inferSelect)[]);
+  const namesFor = async (matches: (typeof matchesTable.$inferSelect)[]) => {
+    const others = [...new Set(matches.flatMap((m) => [m.player1Id, m.player2Id, m.player3Id, m.player4Id]).filter((id): id is number => id != null))];
+    const rows = others.length
+      ? await db.select({ id: playersTable.id, name: playersTable.name }).from(playersTable).where(inArray(playersTable.id, others))
+      : [];
+    return new Map(rows.map((r) => [r.id, r.name]));
+  };
+
   if (leagueIds.length === 0) {
-    res.json({ today: todayFor(null, now), thisWeek: [], playoffs: [], drafts: [], recent: [], results: [], season: seasonFrom([]), leagues: [] });
+    const matches = await myMatches();
+    const casual = casualResults({ matches, myPlayerIds: myIds, names: await namesFor(matches) });
+    res.json({ today: todayFor(null, now), thisWeek: [], playoffs: [], drafts: [], recent: [], results: allResults([], casual), season: seasonFrom([]), leagues: [] });
     return;
   }
 
-  // inArray needs at least one id; -1 matches nothing.
-  const ids = myIds.length ? myIds : [-1];
   const [leagues, rounds, matches, byes] = await Promise.all([
     db.select().from(leaguesTable).where(inArray(leaguesTable.id, leagueIds)),
     db.select().from(leagueRoundsTable).where(inArray(leagueRoundsTable.leagueId, leagueIds)),
-    db
-      .select()
-      .from(matchesTable)
-      .where(or(
-        inArray(matchesTable.player1Id, ids),
-        inArray(matchesTable.player2Id, ids),
-        inArray(matchesTable.player3Id, ids),
-        inArray(matchesTable.player4Id, ids),
-      )),
+    myMatches(),
     db.select({ roundId: leagueRoundByesTable.roundId, playerId: leagueRoundByesTable.playerId }).from(leagueRoundByesTable).where(inArray(leagueRoundByesTable.playerId, ids)),
   ]);
-  const others = [...new Set(matches.flatMap((m) => [m.player1Id, m.player2Id, m.player3Id, m.player4Id]).filter((id): id is number => id != null))];
-  const nameRows = others.length
-    ? await db.select({ id: playersTable.id, name: playersTable.name }).from(playersTable).where(inArray(playersTable.id, others))
-    : [];
+  const names = await namesFor(matches);
 
   // Q5b: each open playoff match's play-by date.
   const playBys = new Map<number, string>();
@@ -91,19 +104,21 @@ router.get("/me/league-week", async (req, res) => {
     }
   }
 
+  const home = buildLeagueHome({
+    now,
+    myPlayers,
+    leagues,
+    // An ended league has no week to play (decision 31).
+    rounds: rounds.filter((r) => !leagues.find((l) => l.id === r.leagueId)?.endedAt),
+    matches: matches.filter((m) => m.leagueId != null && leagueIds.includes(m.leagueId)),
+    byes,
+    names,
+    adminLeagueIds,
+    playoffPlayBy: playBys,
+  });
   res.json({
-    ...buildLeagueHome({
-      now,
-      myPlayers,
-      leagues,
-      // An ended league has no week to play (decision 31).
-      rounds: rounds.filter((r) => !leagues.find((l) => l.id === r.leagueId)?.endedAt),
-      matches: matches.filter((m) => m.leagueId != null && leagueIds.includes(m.leagueId)),
-      byes,
-      names: new Map(nameRows.map((r) => [r.id, r.name])),
-      adminLeagueIds,
-      playoffPlayBy: playBys,
-    }),
+    ...home,
+    results: allResults(home.results, casualResults({ matches, myPlayerIds: myIds, names })),
     leagues: homeLeagues({ myPlayers, leagues, standings }),
   });
 });

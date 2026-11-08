@@ -67,8 +67,9 @@ export function useOpenUpcoming() {
         return;
       }
       if (m.kind === "discover") {
-        // Match detail covers league matches only, so a Discover match opens
-        // your chat with the other player, where its card lives.
+        // An upcoming Discover match opens your chat with the other player,
+        // where its card lives. Once it has a result it's on Profile's
+        // Results and opens Match detail (decision 151).
         if (m.otherUserId) router.push({ pathname: "/conversation/[id]", params: { id: "new", userId: String(m.otherUserId), name: m.opponentName ?? "" } });
         return;
       }

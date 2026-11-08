@@ -19,7 +19,7 @@ export interface LeagueWeek {
   drafts: LeagueWeekDraft[];
   /** Your last five results */
   recent: LeagueWeekResult[];
-  /** Every result, newest first, for My matches */
+  /** Every result, newest first, for Profile's Results tab. League, Discover and Quick matches (decision 151); Discover and Quick results never count toward recent or season */
   results: LeagueWeekResult[];
   season: LeagueWeekSeason;
   /** Leagues you play in that are still running, with where you stand */

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildLeagueHome, homeLeagues, seasonFrom, type HomeInput, type HomeMatch } from "../lib/leagueHome.js";
+import { allResults, buildLeagueHome, casualResults, homeLeagues, seasonFrom, type HomeInput, type HomeMatch } from "../lib/leagueHome.js";
 
 // Spec: Navigation > Home. This week's matches, pairings, and recent results.
 
@@ -181,5 +181,52 @@ describe("season stats, all results and your leagues (finding 14)", () => {
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({ leagueName: "Tuesday Flex", location: "Beacon Courts", rank: 5, playerCount: 5, wins: 1, losses: 4 });
     expect(out[0].rows.map((r) => [r.rank, r.you])).toEqual([[1, false], [2, false], [3, false], [5, true]]);
+  });
+});
+
+describe("casualResults (decision 151: Profile's Results tab)", () => {
+  const casual = (id: number, generatedFrom: string, extra: Partial<HomeMatch> = {}) => ({
+    ...match(id, null, 10, 20, { leagueId: null, status: "completed", score: "6-3, 6-4", winnerId: 10, completedAt: `2026-11-0${id % 10}T18:00:00Z`, ...extra }),
+    generatedFrom,
+  });
+
+  it("lists your scored Discover and Quick matches, from your side, labelled by where they came from", () => {
+    const out = casualResults({
+      matches: [casual(201, "discover"), casual(202, "quick_match", { player1Id: 20, player2Id: 10, score: "6-3, 6-4", winnerId: 20 }), casual(203, "discover_open_match")],
+      myPlayerIds: [10],
+      names: new Map([[20, "Alex"]]),
+    });
+    expect(out.map((r) => [r.matchId, r.leagueId, r.leagueName, r.source, r.score, r.won])).toEqual([
+      [201, null, "Discover", "discover", "6-3, 6-4", true],
+      [202, null, "Quick match", "quick_match", "3-6, 4-6", false],
+      [203, null, "Discover", "discover", "6-3, 6-4", true],
+    ]);
+  });
+
+  it("leaves out league, unscored, voided and other people's matches", () => {
+    const out = casualResults({
+      matches: [
+        { ...match(204, 1, 10, 20, { status: "completed", score: "6-1, 6-1", winnerId: 10 }), generatedFrom: "round" },
+        casual(205, "discover", { status: "scheduled", score: null, winnerId: null }),
+        casual(206, "quick_match", { voidedAt: new Date() }),
+        casual(207, "quick_match", { player1Id: 30, player2Id: 40 }),
+      ],
+      myPlayerIds: [10],
+      names: new Map(),
+    });
+    expect(out).toEqual([]);
+  });
+
+  it("shows a placeholder opponent by the name you typed", () => {
+    const out = casualResults({ matches: [casual(208, "quick_match", { player2Id: 99 })], myPlayerIds: [10], names: new Map([[99, "Sam"]]) });
+    expect(out[0].opponentName).toBe("Sam");
+  });
+
+  it("joins league results newest first without touching the season record", () => {
+    const home = buildLeagueHome(input({ matches: [match(100, 1, 10, 20, { status: "completed", score: "6-4, 6-4", winnerId: 10, completedAt: "2026-11-05T18:00:00Z" })] }));
+    const extra = casualResults({ matches: [casual(209, "discover", { winnerId: 20, completedAt: "2026-11-09T18:00:00Z" })], myPlayerIds: [10], names: new Map() });
+    const all = allResults(home.results, extra);
+    expect(all.map((r) => r.matchId)).toEqual([209, 100]);
+    expect(home.season).toMatchObject({ wins: 1, losses: 0, played: 1 });
   });
 });

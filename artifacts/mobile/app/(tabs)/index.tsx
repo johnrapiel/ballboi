@@ -78,7 +78,8 @@ export default function HomeScreen() {
           onPress: () => router.push({ pathname: "/conversation/[id]", params: chatWith }),
         }
       : null;
-    // Match detail covers league matches; a Discover match's card lives in the chat.
+    // An upcoming Discover match's card lives in the chat (decision 151: Match
+    // detail is for its result, from Profile's Results).
     const details: NextMatchAction | null =
       m.kind === "discover"
         ? null

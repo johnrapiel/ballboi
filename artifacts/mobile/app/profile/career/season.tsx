@@ -1,7 +1,7 @@
 // One season's results, from a Seasons row on Career (decision 147): the
 // season's name as the title, its record, then its results as Profile's
-// Results rows (W or L with the letter, the score from your side). League
-// results open Match detail; Discover and Quick match results have none.
+// Results rows (W or L with the letter, the score from your side). Every
+// result opens Match detail: league, Discover and Quick match (decision 151).
 
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
@@ -50,7 +50,7 @@ export default function CareerSeasonScreen() {
             </Text>
             <Card style={{ padding: 0, overflow: "hidden" }}>
               {results.map((r, n) => (
-                <ResultRow key={r.matchId} r={careerResultRow(r)} last={n === results.length - 1} onPress={r.league ? () => router.push(`/match/${r.matchId}`) : undefined} />
+                <ResultRow key={r.matchId} r={careerResultRow(r)} last={n === results.length - 1} onPress={() => router.push(`/match/${r.matchId}`)} />
               ))}
             </Card>
           </>

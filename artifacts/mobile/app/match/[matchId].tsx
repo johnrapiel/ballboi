@@ -16,19 +16,24 @@ import { MarkedName, WinnerNames } from "@/components/WinnerNames";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { correctionLine } from "@/lib/leagueSchedule";
-import { durationLabel, durationSpoken, resultSentence, scoreFootnote, setRows } from "@/lib/myMatches";
+import { durationLabel, durationSpoken, matchSourceLine, resultSentence, scoreFootnote, setRows } from "@/lib/myMatches";
 import { isRetiredScore, WALKOVER_SCORE } from "@/lib/tennisScore";
 import { winnerMark } from "@/lib/winnerMark";
 
 // Match detail (finding 6, John, Nov 6; approved design audit, Match detail).
-// Opened from Home's recent results and My matches. Plain match details like
-// Home's card (date and time, league, court), the score alone with the
+// Decision 151 (John, Nov 8): every match you played, league, Discover or
+// Quick match, with this one layout. Opened from Profile's Results, Career's
+// seasons, Home and your own rows on other players' cards. Plain match
+// details like Home's card (date and time, the court, and where it came
+// from: the league, "Discover" or "Quick match"), the score alone with the
 // winner's name marked by the brush underline (John, Nov 8), and Ball Boi Replay once an analysis has finished
 // (Wave 2 fills the replay in). More options holds Share and Report only.
 //
 // Finding 7: for 24 hours after the score is entered, either player sees a
 // small pencil next to the score ("Edit score", 44pt). It opens Enter score
-// prefilled. After that it's locked; the footnote points to the league admin.
+// prefilled. After that it's locked; in a league the footnote points to the
+// admin, and a Discover or Quick match just says "Scores lock 24 hours after
+// they're entered." A Discover or Quick edit never touches standings.
 //
 // Design audit (John, Nov 7: the audit overrides anything built that doesn't
 // match it): the score card is the same D2 card as Home's next match, with the standard
@@ -51,12 +56,7 @@ function whenLine(d: MatchDetail): string | null {
 }
 
 function stageLine(d: MatchDetail): string {
-  const stage = d.playoffRound
-    ? `Playoffs · ${ROUND_SINGULAR[d.playoffRound as keyof typeof ROUND_SINGULAR] ?? "Playoff"}`
-    : d.roundNumber != null
-      ? `Round ${d.roundNumber}`
-      : null;
-  return [d.leagueName, stage].filter(Boolean).join(" · ");
+  return matchSourceLine(d, (round) => ROUND_SINGULAR[round as keyof typeof ROUND_SINGULAR]);
 }
 
 const sideName = (s: MatchDetail["you"]) => s.players.map((p) => p.name).join(" & ") || "Player";
@@ -146,7 +146,7 @@ export default function MatchDetailScreen() {
         label: "Share",
         run: () =>
           void Share.share({
-            message: sentence ? `${sentence} · ${d.leagueName}` : `${you} vs. ${them} · ${d.leagueName}`,
+            message: sentence ? `${sentence} · ${d.context}` : `${you} vs. ${them} · ${d.context}`,
           }).catch(() => {}),
       },
     ];
@@ -243,8 +243,12 @@ export default function MatchDetailScreen() {
   const replaySpoken = d.replay
     ? ["Ball Boi Replay", durationSpoken(d.replay.durationSeconds), `${d.replay.shotCount} shots`].filter(Boolean).join(". ")
     : "";
+  // A league score is edited in the league's Enter score; a Discover or Quick
+  // match's in its own sheet, which never touches standings (decision 151).
   const editScore = () =>
-    router.push({ pathname: "/league/[leagueId]/score/[matchId]", params: { leagueId: String(d.leagueId), matchId: String(d.matchId), edit: "1" } });
+    d.leagueId != null
+      ? router.push({ pathname: "/league/[leagueId]/score/[matchId]", params: { leagueId: String(d.leagueId), matchId: String(d.matchId), edit: "1" } })
+      : router.push({ pathname: "/match/edit-score/[matchId]", params: { matchId: String(d.matchId) } });
 
   return (
     <ScrollView

@@ -240,6 +240,7 @@ function RootLayoutNav() {
         <Stack.Screen name="free-times" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="replay/[matchId]" options={{ ...pushedHeader, title: "Replay" }} />
         <Stack.Screen name="match/[matchId]" options={{ ...pushedHeader, title: "" }} />
+        <Stack.Screen name="match/edit-score/[matchId]" options={sheetOptions(colors.linen)} />
         {discoverScreens(colors.linen, pushedHeader)}
       </Stack>
       {covered ? <Cover /> : null}
