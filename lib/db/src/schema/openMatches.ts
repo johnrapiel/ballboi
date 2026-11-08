@@ -59,21 +59,6 @@ export const openMatchPlayersTable = pgTable(
   (t) => [uniqueIndex("uq_open_match_players").on(t.openMatchId, t.clerkUserId), index("idx_open_match_players_user").on(t.clerkUserId)],
 );
 
-/** The old group chat (#145). Since F15 the chat runs on the messaging service (message_groups); nothing writes here. Dropping it waits for John's go-ahead. */
-export const openMatchMessagesTable = pgTable(
-  "open_match_messages",
-  {
-    id: serial("id").primaryKey(),
-    openMatchId: integer("open_match_id")
-      .notNull()
-      .references(() => openMatchesTable.id, { onDelete: "cascade" }),
-    senderClerkUserId: text("sender_clerk_user_id"),
-    text: text("text").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [index("idx_open_match_messages").on(t.openMatchId, t.id)],
-);
-
 /** "Alerts for new posts": each alert sent, for the 2-a-day cap. */
 export const openMatchAlertsTable = pgTable(
   "open_match_alerts",

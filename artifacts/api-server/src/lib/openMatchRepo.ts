@@ -1,6 +1,5 @@
 // Database reads and writes for open matches. The rules live in openMatch.ts.
-// The group chat lives on the messaging service (F15); open_match_messages is
-// left in place and no longer written.
+// The group chat lives on the messaging service (F15).
 
 import {
   db,

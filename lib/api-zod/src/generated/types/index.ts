@@ -197,7 +197,6 @@ export * from "./leaguePlayoffSize";
 export * from "./leagueRoundWithMatchups";
 export * from "./leagueSchedule";
 export * from "./leagueStatus";
-export * from "./leagueUnplayedRule";
 export * from "./leagueVisibility";
 export * from "./leagueWeek";
 export * from "./leagueWeekDraft";

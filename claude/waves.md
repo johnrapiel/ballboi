@@ -155,7 +155,7 @@ Native owner: **Session D**. Needs a new development build after D's first nativ
 
 **Owns:** `app/league/**`, `app/(tabs)/leagues.tsx`, `app/(tabs)/index.tsx`, `app/match/**`, `components/MatchCard.tsx`, `routes/{leagues,seasons,invites,rounds,playoffs,matches,scheduling}.ts`, `services/{roundPairing,matchGeneration,scheduler,playoffBracket,seasonService}.ts`, `lib/db/src/schema/{leagues,seasons,leagueRounds,leagueInvites,matches,playoffBrackets,scheduleGenerationLogs}.ts`
 
-**John decides:** dropping the `leagues.unplayed_rule` column is destructive. Recommended: stop reading and writing it now, drop it in a later wave.
+**Done (Nov 8):** John approved dropping `leagues.unplayed_rule` (and the old `open_match_messages` table); `20261108_z_drop_unused_leftovers.sql` drops both.
 
 ### D. Ball Boi recording (native owner)
 

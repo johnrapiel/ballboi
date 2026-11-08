@@ -30,7 +30,7 @@ import { sendPushToUsers } from "./notifications.js";
 // The group chat (F15, John, Nov 8) runs on the messaging service, like
 // Messages: it opens when the last spot fills, members change on drop out,
 // removal and cancel, and sending, reports and pushes go through
-// /messages/groups. The old open_match_messages table is no longer written.
+// /messages/groups.
 
 export type Push = (userIds: string[], title: string, body: string, link?: string) => Promise<void>;
 

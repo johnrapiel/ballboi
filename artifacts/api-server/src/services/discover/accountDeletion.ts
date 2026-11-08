@@ -9,7 +9,6 @@ import {
   discoverProfilesTable,
   matchPlansTable,
   openMatchAlertsTable,
-  openMatchMessagesTable,
   openMatchPlayersTable,
   openMatchesTable,
   weeklyAvailabilityTable,
@@ -22,10 +21,9 @@ export async function deleteDiscoverData(tx: Tx, clerkUserId: string): Promise<v
   await tx
     .delete(matchPlansTable)
     .where(or(eq(matchPlansTable.proposerClerkUserId, clerkUserId), eq(matchPlansTable.recipientClerkUserId, clerkUserId)));
-  // Open matches: your posts (with their joins and chats), your spots in others', your group chat lines, alerts.
+  // Open matches: your posts (with their joins and chats), your spots in others', alerts. Group chat lines go with the messaging service.
   await tx.delete(openMatchesTable).where(eq(openMatchesTable.posterClerkUserId, clerkUserId));
   await tx.delete(openMatchPlayersTable).where(eq(openMatchPlayersTable.clerkUserId, clerkUserId));
-  await tx.delete(openMatchMessagesTable).where(eq(openMatchMessagesTable.senderClerkUserId, clerkUserId));
   await tx.delete(openMatchAlertsTable).where(eq(openMatchAlertsTable.clerkUserId, clerkUserId));
   await tx.delete(weeklyAvailabilityTable).where(eq(weeklyAvailabilityTable.clerkUserId, clerkUserId));
   await tx.delete(discoverProfilesTable).where(eq(discoverProfilesTable.clerkUserId, clerkUserId));

@@ -21,7 +21,6 @@ export const leaguesTable = pgTable("leagues", {
   rosterCap: integer("roster_cap"),
   seasonWeeks: integer("season_weeks"), // 1 to 24
   playoffSize: integer("playoff_size").notNull().default(0), // 0, 4, or 8
-  unplayedRule: text("unplayed_rule").notNull().default("no_result"), // forfeit | no_result
   // An admin ended the league (decision 31): standings freeze, unpublished
   // rounds are cancelled, and it moves to Past. Migration 20261101_c_league_end_and_notices.sql.
   endedAt: timestamp("ended_at", { withTimezone: true }),
