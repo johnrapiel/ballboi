@@ -48,7 +48,10 @@
     .field input[aria-invalid="true"]{border-width:3px}
     .ea .btn{min-height:56px;padding:0 28px}
     .hp{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
-    .status{grid-column:1 / -1;margin:0;font-size:15px;min-height:1.4em}
+    .ea .field{grid-column:1;grid-row:1}
+    .ea .btn{grid-column:2;grid-row:1}
+    .status{grid-column:1;grid-row:2;margin:-4px 0 0;font-size:15px}
+    .status:empty{display:none}
     .status.err::before{content:"\2715  ";font-weight:800}
     .done{margin:0;font-size:clamp(18px,1.8vw,22px);font-weight:800}
     .done::before{content:"\2713  "}
@@ -69,6 +72,7 @@
       .cta{display:flex;flex-direction:column;align-items:center;width:100%}
       .ea{grid-template-columns:1fr;width:100%;max-width:380px}
       .ea .btn{width:100%}
+      .ea .field,.ea .btn,.status{grid-column:1;grid-row:auto}
       h1{font-size:clamp(28px,7.8vw,56px)}
     }
   </style>
@@ -88,8 +92,8 @@
           <input id="ea-email" name="email" type="email" autocomplete="email" maxlength="254" required aria-describedby="ea-status">
         </div>
         <div class="hp" aria-hidden="true"><label for="ea-website">Website</label><input id="ea-website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
-        <button class="btn" type="submit">Join</button>
         <p class="status" id="ea-status" role="status"></p>
+        <button class="btn" type="submit">Join</button>
       </form>
       <p class="done" id="ea-done" tabindex="-1" hidden>You're on the list.<span>We'll email you when the beta opens.</span></p>
       <p class="note" id="ea-note">Coming soon to iPhone. Join the beta and help shape it.</p>
