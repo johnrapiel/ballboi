@@ -5,6 +5,7 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+import type { Milestone } from "./milestone";
 import type { PlayerCardPlays } from "./playerCardPlays";
 import type { PlayerCardSeason } from "./playerCardSeason";
 
@@ -37,4 +38,6 @@ export interface PlayerCard {
   /** @nullable */
   freeSummary: string | null;
   season: PlayerCardSeason;
+  /** Milestones the player earned, oldest first (decision 150) */
+  milestones: Milestone[];
 }

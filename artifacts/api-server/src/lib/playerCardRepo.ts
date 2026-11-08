@@ -11,6 +11,7 @@ import {
   leaguesTable,
   matchesTable,
   matchPlansTable,
+  playerMilestonesTable,
   playersTable,
   seasonsTable,
   usersTable,
@@ -20,8 +21,8 @@ import { blockedAccountsFor } from "./blocks.js";
 import { distanceLabel, milesBetween } from "./discoverArea.js";
 import { DrizzleDiscoverRepo } from "./discoverRepo.js";
 import { noShowCounts } from "./matchPlan.js";
-import type { CardMatch, CardPerson, SeasonWindow } from "./playerCard.js";
-import { inWindow } from "./playerCard.js";
+import type { CardMatch, CardMilestone, CardPerson, SeasonWindow } from "./playerCard.js";
+import { cardMilestones, inWindow } from "./playerCard.js";
 import type { PMInput } from "./playerMatches.js";
 
 /** Everything playerMatches needs, apart from who and when. */
@@ -45,6 +46,8 @@ export interface PlayerCardRepo {
   blocked(clerkUserId: string): Promise<Set<string>>;
   /** The target's matches and plans, with the names, leagues and rounds around them. */
   matchData(target: string, viewer: string, now: Date): Promise<MatchData>;
+  /** Milestones the account earned (decision 150), oldest first. */
+  milestones(clerkUserId: string): Promise<CardMilestone[]>;
 }
 
 export class DrizzlePlayerCardRepo implements PlayerCardRepo {
@@ -101,6 +104,14 @@ export class DrizzlePlayerCardRepo implements PlayerCardRepo {
 
   async blocked(clerkUserId: string) {
     return blockedAccountsFor(clerkUserId);
+  }
+
+  async milestones(clerkUserId: string) {
+    const rows = await db
+      .select({ kind: playerMilestonesTable.kind, earnedAt: playerMilestonesTable.earnedAt })
+      .from(playerMilestonesTable)
+      .where(eq(playerMilestonesTable.clerkUserId, clerkUserId));
+    return cardMilestones(rows);
   }
 
   async matchData(target: string, viewer: string, now: Date): Promise<MatchData> {

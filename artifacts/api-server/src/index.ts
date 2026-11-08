@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { startScheduler } from "./services/scheduler";
 import { seedGlobalData } from "./services/seasonService";
 import { startModerationAgent } from "./messaging/agentJob";
+import { backfillMilestones } from "./lib/milestoneRepo";
 
 const rawPort = process.env["PORT"];
 
@@ -34,6 +35,11 @@ async function bootstrap(): Promise<void> {
 
   startScheduler();
   startModerationAgent();
+  // Milestones earned before they existed (decision 149). Only what's
+  // missing is added, so it's safe on every start.
+  backfillMilestones()
+    .then((r) => logger.info(r, "Milestone backfill done"))
+    .catch((err) => logger.error({ err }, "Milestone backfill failed"));
 }
 
 bootstrap().catch((err) => {

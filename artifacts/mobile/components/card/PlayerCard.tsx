@@ -6,17 +6,20 @@ import type { PlayerCard as Card } from "@workspace/api-client-react";
 
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
+import { MilestoneBadge } from "@/components/MilestoneBadge";
 import { Pill, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { photoUrl } from "@/lib/photos";
+import { knownMilestones } from "@/lib/milestones";
 import { cardSpoken, levelPill, playsPill, townLine } from "@/lib/playerCard";
 
 // The player card, design D "Portrait" (spec decision 139, John, Nov 8;
 // canvas W2_ProfileCard). The same card everywhere: Profile and Discover.
 // A court drawing across the top with the photo (initials fallback) over it,
 // the name in full ink Cormorant (#181), Level and Plays pills, the town,
-// then the home court on the left and Free times on the right. It holds only
+// a small row of earned milestone badges (decision 150), then the home court
+// on the left and Free times on the right. Besides the badges, it holds only
 // what the player entered.
 //
 // VoiceOver reads the card as one element, then the pencil (your own card)
@@ -57,6 +60,7 @@ export function PlayerCard({
   const where = townLine(card);
   const showFree = card.you || card.slots.length > 0;
   const first = card.name.split(" ")[0] || card.name;
+  const badges = knownMilestones(card.milestones);
 
   return (
     <View
@@ -94,6 +98,14 @@ export function PlayerCard({
             <Text variant="small" tone="inkMuted" style={{ flexShrink: 1, textAlign: "center" }}>
               {where}
             </Text>
+          </View>
+        ) : null}
+        {/* Earned milestones (decision 150): read with the card's summary, so decorative here. */}
+        {badges.length ? (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: spacing.space2, marginTop: spacing.space3, paddingHorizontal: spacing.space4 }}>
+            {badges.map((m) => (
+              <MilestoneBadge key={m.kind} kind={m.kind} size={32} />
+            ))}
           </View>
         ) : null}
       </View>

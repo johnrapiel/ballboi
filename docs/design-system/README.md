@@ -98,7 +98,7 @@ The replay and stats stay inside the one-ink palette. No literal grass green, no
 
 Pick one per screen. Brush headers are type, not a motif, so a screen with a brush header can still use one of these.
 
-1. **Brush ring.** The logo's hand-drawn circle, wrapped around the single thing that matters: your rank in standings, Champion in the bracket. (Match winners now get the brush underline instead; see The winner mark.)
+1. **Brush ring.** The logo's hand-drawn circle, wrapped around the single thing that matters: your rank in standings, Champion in the bracket. (Match winners now get the brush underline instead; see The winner mark.) Milestone badges (decisions 149 and 150) are the brush ring around the milestone's own brush icon (`milestone.firstwin`, `milestone.ballboi`, `milestone.streak5`, `milestone.streak10`), in `ink`: 32pt on the player card, 44pt on Career, 112pt in the milestone moment, where the ring draws itself around the icon (`MilestoneBadge`). Pending John's review in the Milestones PR; no canvas design yet.
 2. **Painted ball.** The app icon's hand-painted ball, in `ink` on paper or `on-ink` on an ink field. One, large, in a hero, the splash or a celebration. Never as a repeating pattern. Its paint fills the selected tab's brush icon (John, Nov 5, kept as a rule Nov 6); that's the only place it appears in color, and the tab bar doesn't count toward a screen's one motif.
 3. **Roundel.** The logo itself, cropped to its circle, in the places listed under Logo. Decorative to VoiceOver.
 

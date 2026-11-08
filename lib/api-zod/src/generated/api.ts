@@ -1631,6 +1631,23 @@ export const GetMyPlayerCardResponse = zod
       .describe(
         "This season by F13's rules (decision 121), in the global season running today, else the calendar year",
       ),
+    milestones: zod
+      .array(
+        zod
+          .object({
+            kind: zod.enum([
+              "first_win",
+              "first_ball_boi",
+              "win_streak_5",
+              "win_streak_10",
+            ]),
+            earnedAt: zod
+              .string()
+              .describe("When the match or recording that earned it was saved"),
+          })
+          .describe("A career milestone, earned once (decisions 149 and 150)"),
+      )
+      .describe("Milestones the player earned, oldest first (decision 150)"),
   })
   .describe("The player card (design D). Holds only what the player entered.");
 
@@ -1697,10 +1714,61 @@ export const GetMyCareerResponse = zod
         }),
       )
       .describe("Most played first; never a player blocked with you"),
+    milestones: zod
+      .array(
+        zod
+          .object({
+            kind: zod.enum([
+              "first_win",
+              "first_ball_boi",
+              "win_streak_5",
+              "win_streak_10",
+            ]),
+            earnedAt: zod
+              .string()
+              .describe("When the match or recording that earned it was saved"),
+          })
+          .describe("A career milestone, earned once (decisions 149 and 150)"),
+      )
+      .describe("Milestones you earned, oldest first (decision 150)"),
   })
   .describe(
     "Scored matches against real Ball Boi players (league, Discover, confirmed Quick matches). Walkovers count in the record, never in sets or games",
   );
+
+/**
+ * @summary Milestones whose moment hasn't played yet (decision 149)
+ */
+export const GetMyNewMilestonesResponse = zod.object({
+  milestones: zod
+    .array(
+      zod
+        .object({
+          kind: zod.enum([
+            "first_win",
+            "first_ball_boi",
+            "win_streak_5",
+            "win_streak_10",
+          ]),
+          earnedAt: zod
+            .string()
+            .describe("When the match or recording that earned it was saved"),
+        })
+        .describe("A career milestone, earned once (decisions 149 and 150)"),
+    )
+    .describe("Milestones whose moment hasn't played yet, oldest first"),
+});
+
+/**
+ * @summary The milestone moment played, so it never plays again (decision 149)
+ */
+export const MarkMilestonesSeenBody = zod.object({
+  kinds: zod.array(zod.string()),
+});
+
+export const MarkMilestonesSeenResponse = zod.object({
+  ok: zod.boolean(),
+});
 
 /**
  * @summary Another player's card and This season, from Discover (decision 139)
@@ -1754,6 +1822,23 @@ export const GetPlayerCardResponse = zod
       .describe(
         "This season by F13's rules (decision 121), in the global season running today, else the calendar year",
       ),
+    milestones: zod
+      .array(
+        zod
+          .object({
+            kind: zod.enum([
+              "first_win",
+              "first_ball_boi",
+              "win_streak_5",
+              "win_streak_10",
+            ]),
+            earnedAt: zod
+              .string()
+              .describe("When the match or recording that earned it was saved"),
+          })
+          .describe("A career milestone, earned once (decisions 149 and 150)"),
+      )
+      .describe("Milestones the player earned, oldest first (decision 150)"),
   })
   .describe("The player card (design D). Holds only what the player entered.");
 

@@ -280,7 +280,7 @@ Match video is an input to analysis, never a viewable product feature in v1.
 
 The player card is a brag sheet, never a scouting report: it shows strengths and records, while error patterns and heatmaps stay private. Your own Profile tab is your player card exactly as others see it, with your matches below it (decisions 138, 139).
 
-**The player card (design D, Portrait, chosen Nov 8):** a light tennis court drawing across the top with the photo overlapping it, the name in full ink Cormorant (#181: names are never the faded title style), "Level 3.5" and "Singles" pills, the town, and along the bottom the home court and a grid icon that opens the player's free times as a read-only week grid. It holds only what the player entered. On your own card a pencil opens Edit profile. The same card is used everywhere, including Discover, where the distance sits beside the town, there's no pencil, Free times has no Edit, More (•••) holds Report, and "Set up a match" is pinned at the bottom.
+**The player card (design D, Portrait, chosen Nov 8):** a light tennis court drawing across the top with the photo overlapping it, the name in full ink Cormorant (#181: names are never the faded title style), "Level 3.5" and "Singles" pills, the town, and along the bottom the home court and a grid icon that opens the player's free times as a read-only week grid. Under the town sits a small row of the player's earned milestone badges (decision 150). Besides the badges, it holds only what the player entered. On your own card a pencil opens Edit profile. The same card is used everywhere, including Discover, where the distance sits beside the town, there's no pencil, Free times has no Edit, More (•••) holds Report, and "Set up a match" is pinned at the bottom.
 
 **Other players' cards (decision 143):** under This season, the same Upcoming matches and Results tabs as your own Profile. Upcoming rows read like yours (date and time, opponent, league or Discover); a court shows only where your own list would show it, a league match in a league you're in. Results show both names with the winner mark and the score from the winner's side, with RET or W/O tags. When you've played them, one head-to-head line sits above the tabs ("You and Priya: 2-1"). A private league's name shows only to its members; others see "League".
 
@@ -292,13 +292,15 @@ The player card is a brag sheet, never a scouting report: it shows strengths and
 | This season: record, played, streak, no-shows (reliability) | Public |
 | Ball Boi this season (aces, forehand winners, first serve %) | Public |
 | Their matches: Upcoming matches and Results | Public, except: never a match against someone blocked with the viewer, never a Quick match until they answered Yes to "Was that you?", never cancelled or draft-round matches. Placeholder opponents show by name with no link (decision 143) |
+| Milestone badges (decision 150) | Public |
 | Head-to-head record vs. the viewer | Visible to that viewer |
 | Whole card, matches included | Never shown to a player blocked either way, or when the profile is hidden |
 | Error patterns, heatmaps, trends | Private. Whether an opponent from the same match sees its full breakdown is pending (decision 83) |
 | Match video | Never shown; raw video deleted after analysis unless kept for training |
 
 - **No Ball Boi data yet:** Ball Boi this season shows a "No Ball Boi matches yet" prompt; it also stays empty until stats pass their accuracy bars
-- **VoiceOver reads the card as one summary,** e.g. "Alex Kim, Level 3.5, singles, Fishkill, home court Beacon Courts"
+- **VoiceOver reads the card as one summary,** e.g. "Alex Kim, Level 3.5, singles, Fishkill, milestones: first win, 5-match win streak, home court Beacon Courts"
+- **Milestones (decision 150):** earned badges show on Career (badge, title and the date earned) and as a small row on the player card, your own and other players'. Launch set: first win, first Ball Boi match, 5- and 10-match win streaks. Each badge is the brush ring around its own brush icon. Earned on the server when the result or recording that earns it is saved, once per player, with the date; existing players were backfilled
 - **Career stats (decision 147):** a Career screen, opened from See all on Profile's This season. It shows the all-time record and matches played, best win streak, share of sets won and share of games won, the tiebreak record, your seasons with their records (a season opens its results), and head-to-head against everyone you've played ("Sam Patel · 2-1"), each opening that player's card. League, Discover and confirmed Quick matches count; unconfirmed Quick matches (G2), cancelled matches and walkovers' games never do (a walkover still counts in the record). A player blocked with you never shows in head-to-head. Ball Boi career stats join once they pass their accuracy bars (G1)
 
 **Shareable match recap:** auto-generated after each match's score is entered with score, aces, and winners, sized for Instagram Stories and texts, carrying the Ball Boi logo.
@@ -309,13 +311,12 @@ The player card is a brag sheet, never a scouting report: it shows strengths and
 
 ## Milestone moments
 
-Four moments get a short animation and a haptic. Everything else uses standard iOS transitions.
+Three moments get a short animation and a haptic (decision 149). Everything else uses standard iOS transitions. The player card has no reveal: it appears like any other screen.
 
 | Moment | Animation | Haptic |
 | --- | --- | --- |
-| Score entered | Score settles in, then the win-loss record ticks to its new value. Levels never change from results | Success |
-| New career milestone | Badge scales in as a ring draws around it, then the title fades up. Launch set: first win, first Ball Boi match, 5- and 10-match win streaks | Success |
-| Player card reveal | Card flips from the Ball Boi back to the front, on the first view of each player only | Light |
+| Score entered | Score settles in, then This season's win-loss record ticks to its new value. Levels never change from results | Success |
+| New career milestone | The next time you open the app after earning one, the badge scales in as a brush ring draws around it, then the title fades up. Launch set: first win, first Ball Boi match, 5- and 10-match win streaks | Success |
 | Ball Boi analysis ready | Shot markers drop onto the court one by one, then "Your replay is ready" | Light ticks |
 
 - **Short and once:** each runs under 1 second, plays once, and never blocks input
@@ -414,7 +415,7 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 25 | Every league gets a fixed 1-week grace period after a round's deadline; matches played in it update ratings and Ball Boi stats but not standings. Replaces the admin's forfeit or no-result rule (Oct 29). Results never move levels, so only Ball Boi stats update (decision 75) |
 | 26 | Every league locks to new joins once the season starts; the waitlist holds requests for next season (Oct 29) |
 | 27 | A player who drops out keeps their played matches; their remaining matches are voided and they're removed from standings (Oct 29) |
-| 28 | Subtle animations at four moments (Oct 29): score entered, career milestone, player card reveal (first view only), Ball Boi analysis ready. League standings change dropped. Reanimated with a haptic; a fade under Reduce Motion |
+| 28 | Subtle animations at four moments (Oct 29): score entered, career milestone, player card reveal (first view only), Ball Boi analysis ready. League standings change dropped. Reanimated with a haptic; a fade under Reduce Motion The player card reveal is cut by decision 149 |
 | 29 | Flex pairings go out each week on the season's start weekday, not always Monday (Oct 29) |
 | 30 | Waitlists are Open-only. A Private league's code entered after its season starts creates a join request for the admin; approved players enter the next round at zero wins (Oct 31) |
 | 31 | League admins can end and delete their league. End freezes standings and keeps history; Delete removes it and notifies members. A league's only admin can't leave without promoting a co-admin (Oct 31). The leave rule is replaced by decision 53 |
@@ -525,9 +526,11 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 136 | Open match group chats run through the same messaging service as Messages: listed in Messages and covered by the same first-message filter, Stream screening and message-level reports. Replaces the separate group chat #145 shipped (John, Nov 8, F15) |
 | 137 | Home shows only upcoming matches ("Upcoming matches", replacing "This week") plus anything waiting on you, like pairings to review or a match card to answer. Completed matches, recent results, season stats and league standings leave Home; standings live on the league page. One place for each thing (John, Nov 8) |
 | 138 | Profile becomes your player card with your matches below it: the card, This season, Ball Boi this season (See all opens this season's recordings), then Upcoming matches and Results tabs. My matches stops being its own screen; Home's See all opens these tabs. Player details move behind a pencil (Edit profile); Sign out moves to Settings. The tab keeps the name Profile (John, Nov 8) |
-| 139 | The player card is design D (Portrait): court drawing across the top, photo overlapping it, name, Level and Plays pills, town, home court and a free-times grid icon that opens a read-only week grid. It holds only what the player entered; Record, Played, Streak and No-shows sit in This season under it. The same card everywhere, Discover included (John, Nov 8) |
+| 139 | The player card is design D (Portrait): court drawing across the top, photo overlapping it, name, Level and Plays pills, town, home court and a free-times grid icon that opens a read-only week grid. It holds what the player entered plus their earned milestone badges (decision 150); Record, Played, Streak and No-shows sit in This season under it. The same card everywhere, Discover included (John, Nov 8) |
 | 140 | The level pill on player cards reads "Level 3.5" with no "Self-rated"; Edit profile's Level row keeps "Self-rated". Changes decision 74 (John, Nov 8) |
 | 141 | The legal consult cleared the Ball Boi Beta Footage Release (decision 96). Testers can sign once /beta-release is live (John, Nov 8) |
 | 142 | Start is picked before mounting: Record works before the court locks, and the countdown starts on its own once it locks, or after the Record anyway fallback. The Live Activity Start button stays as a second way to start (John, Nov 8) |
 | 143 | Other players' cards show their full match history: Upcoming matches and Results tabs like your own Profile, with the winner mark and head-to-head. Blocks, hidden profiles and unconfirmed Quick matches stay out (John, Nov 8) |
 | 147 | Career stats: a Career screen from See all on Profile's This season, with all-time record and matches played, best win streak, share of sets and games won, tiebreak record, your seasons (each opening its results) and head-to-head rows opening each player's card. League, Discover and confirmed Quick matches count; never unconfirmed Quick matches, cancelled matches or walkovers' games. Ball Boi career stats join once they pass their accuracy bars (John, Nov 8, H4) |
+| 149 | Three milestone moments, not four: score entered, new career milestone, Ball Boi analysis ready. The player card reveal (flip) is cut; card D appears like any other screen. Milestones are earned on the server when the result or recording that earns them is saved, once per player, with the date; existing players are backfilled. The moment plays the next time you open the app (John, Nov 8, H6) |
+| 150 | Milestones show on the Career screen (badge, title and date earned) and as a small row of earned badges on the player card, your own and other players', read by VoiceOver as part of the card summary. Changes decision 139's "the card holds only what the player entered" (John, Nov 8, H7) |

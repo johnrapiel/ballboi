@@ -190,6 +190,9 @@ class MemoryCards implements PlayerCardRepo {
   async matchData() {
     return data(this.matches);
   }
+  async milestones() {
+    return [];
+  }
 }
 
 describe("player card routes", () => {

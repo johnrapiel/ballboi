@@ -9,6 +9,7 @@ import type { CareerHeadToHeadItem } from "./careerHeadToHeadItem";
 import type { CareerResultsItem } from "./careerResultsItem";
 import type { CareerSeasonsItem } from "./careerSeasonsItem";
 import type { CareerWonLost } from "./careerWonLost";
+import type { Milestone } from "./milestone";
 
 /**
  * Scored matches against real Ball Boi players (league, Discover, confirmed Quick matches). Walkovers count in the record, never in sets or games
@@ -27,4 +28,6 @@ export interface Career {
   results: CareerResultsItem[];
   /** Most played first; never a player blocked with you */
   headToHead: CareerHeadToHeadItem[];
+  /** Milestones you earned, oldest first (decision 150) */
+  milestones: Milestone[];
 }

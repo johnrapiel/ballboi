@@ -14,6 +14,7 @@ import pino from "pino";
 import { blockedAccountsFor } from "../lib/blocks";
 import { DrizzlePlayerSearchRepo } from "../lib/playerSearchRepo";
 import { flipScore, inviteUrl, newInviteCode, parseQuickMatch, parseSideScore, pickableOpponents } from "../lib/quickMatch";
+import { awardMilestonesForMatch } from "../lib/milestoneRepo";
 import { createStrangerQuickMatch, markRequestYes, quickMatchStranger, requestForCode } from "../services/push/opponentRequests";
 
 // Quick match: record a casual hit or a match outside a league, against a
@@ -261,6 +262,8 @@ router.post("/recording/quick-matches/:matchId/score", requireAuth, async (req: 
       res.status(409).json({ error: "A score is already in for this match. The first score entered stands." });
       return;
     }
+    // Milestones this result earned (decision 149), before the app asks for them.
+    await awardMilestonesForMatch(matchId);
     res.json({ matchId, score: parsed.score });
   } catch (err) {
     logger.error({ err }, "Failed to save a Quick match score");
@@ -422,6 +425,8 @@ router.post("/recording/invites/:code/claim", requireAuth, async (req: Request, 
       res.status(409).json({ error: "Someone already joined this match with this link." });
       return;
     }
+    // Yes to "Was that you?": the match counts now, for both players.
+    await awardMilestonesForMatch(claimed.matchId);
     res.json({ matchId: claimed.matchId });
   } catch (err) {
     logger.error({ err }, "Failed to claim a match invite");
