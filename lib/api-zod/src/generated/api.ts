@@ -442,6 +442,11 @@ export const ListMyOpenMatchesResponse = zod.object({
     zod.object({
       id: zod.number(),
       when: zod.string(),
+      startsAt: zod
+        .string()
+        .describe(
+          "When it starts (ISO 8601), for sorting with your other upcoming matches",
+        ),
       format: zod.enum(["singles", "doubles"]),
       courtName: zod.string().nullable(),
       status: zod.string(),

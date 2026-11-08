@@ -68,6 +68,7 @@ export function useMyOpenMatches() {
         matches: {
           id: number;
           when: string;
+          startsAt?: string;
           format: string;
           courtName: string | null;
           status: string;
