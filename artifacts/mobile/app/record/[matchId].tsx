@@ -27,9 +27,14 @@
 // Court detection (Wave 2, spec: Ball Boi > Recording and Processing). While
 // setting up and counting down, the phone reads about one small frame a
 // second and finds the court lines in it (lib/court). The overlay draws what
-// it found and says in words whether the court is in frame. Record turns on
-// once the court locks, or after about 20 seconds as Record anyway. Frames
-// stop the moment capture starts: while recording, the motion sensor says
+// it found and says in words whether the court is in frame.
+//
+// Armed start (John, Nov 8; lib/recording/armedStart.ts). Record works as
+// soon as the camera is ready: the player picks a start and taps Record with
+// the phone in hand, then mounts it. The phone waits for the court, and once
+// it locks the chosen countdown runs by itself. A bump mid-countdown pauses it
+// until the court locks again. No lock after about 20 seconds: line 12, and
+// the countdown starts anyway. Frames stop the moment capture starts: while recording, the motion sensor says
 // whether the phone has moved. After the stop, a locked court that never
 // moved goes with the match as its four corners. Otherwise the phone looks
 // once more and, if it still isn't sure, the player fixes the lines on that
@@ -84,6 +89,15 @@ import {
   useRecordingConsent,
 } from "@/lib/recording/api";
 import { chrome } from "@/lib/recording/chrome";
+import {
+  arm,
+  fallbackDue,
+  onCourtLocked,
+  onCourtLost,
+  startAnyway,
+  timeLeft,
+  type ArmedStart,
+} from "@/lib/recording/armedStart";
 import { countdownClock, START_DELAYS, type StartDelayMinutes } from "@/lib/recording/countdown";
 import { deleteRecording, keepRecording } from "@/lib/recording/files";
 import { formatElapsed, spokenDuration } from "@/lib/recording/format";
@@ -130,7 +144,11 @@ import {
 
 type Phase =
   | "ready"
+  /** Record tapped: waiting for the court to lock before the countdown runs. */
+  | "armed"
   | "countdown"
+  /** The phone moved mid-countdown: waiting for the court to lock again. */
+  | "paused"
   | "recording"
   /** The camera stopped while the app stayed open (a call ringing): starting again on its own. */
   | "rejoining"
@@ -204,8 +222,10 @@ export default function RecordScreen() {
   /** The voice coach: its repeat and quiet state (G8), and where the phone was at the last correction. */
   const coachState = useRef<CoachState>(COACH_START);
   const coachAttitude = useRef<Attitude | null>(null);
-  /** About 20 seconds without a lock: Record anyway (12) waits for the coach's quiet. */
-  const recordAnywayDue = useRef(false);
+  /** The armed start: waiting for the court, counting, or paused after a bump. Null when not armed. */
+  const armed = useRef<ArmedStart | null>(null);
+  /** Countdown lines already played for this start, so a paused countdown never repeats them. */
+  const playedCues = useRef<Set<CueId>>(new Set());
   const saidSetup = useRef(false);
   const countdownToken = useRef(0);
   const muted = useVoiceMuted();
@@ -259,24 +279,31 @@ export default function RecordScreen() {
   // sensor the whole time the camera is open.
   const court = useCourtWatch(
     camera,
-    cameraReady && !tipsOpen && (phase === "ready" || phase === "countdown"),
+    cameraReady && !tipsOpen && settingUp(phase),
     true,
     {
       onFrame: (step, lock) => coachFrame(step, lock),
-      // "Perfect. Court locked." then the chime.
+      // "Perfect. Court locked." then the chime. Armed: the countdown then runs by itself.
       onLocked: () => {
         coachState.current = COACH_START;
-        recordAnywayDue.current = false;
         say("locked");
         say("chime");
+        const p = phaseRef.current;
+        if ((p === "armed" || p === "paused") && armed.current) beginCountdown(onCourtLocked(armed.current, Date.now()));
       },
       onLockLost: () => {
         coachState.current = COACH_START;
-        // Bumped during the countdown: say so, and the lock check runs again.
-        if (phaseRef.current === "countdown" && startAt.current - Date.now() > COUNTDOWN_QUIET_MS) say("moved");
-      },
-      onRecordAnyway: () => {
-        if (courtRef.current.lock.stage !== "locked" && phaseRef.current === "ready") recordAnywayDue.current = true;
+        // Bumped during the countdown: it pauses, line 13 plays, and the coach
+        // re-aims until the court locks again.
+        if (phaseRef.current !== "countdown" || !armed.current) return;
+        const next = onCourtLost(armed.current, Date.now(), COACH_LINES.go.ms, playedCues.current.has("go"));
+        if (next.stage !== "paused") return;
+        armed.current = next;
+        countdownToken.current++;
+        stopVoice();
+        setSecondsLeft(Math.ceil(next.msLeft / 1000));
+        setPhase("paused");
+        say("moved");
       },
     },
     orientation,
@@ -315,7 +342,7 @@ export default function RecordScreen() {
       if (s === "background") {
         const p = phaseRef.current;
         if (p === "recording" || p === "rejoining") backgrounded.current = true;
-        if (p === "countdown") cancelCountdown(false);
+        if (p === "armed" || p === "countdown" || p === "paused") cancelCountdown(false);
       }
       if (s === "active") {
         getCamPerm().catch(() => {});
@@ -357,16 +384,17 @@ export default function RecordScreen() {
   // Countdown: 14, 15 or 16 at the start, 17 at one minute left, 18 at ten
   // seconds, and 19 timed so capture starts as it ends. Start Now is a
   // countdown as long as line 19, so it plays 19 only. Capture waits for 19 to
-  // finish, so the voice never lands in the recording.
+  // finish, so the voice never lands in the recording. After a pause it
+  // carries on from where it stopped, without repeating a line.
   useEffect(() => {
     if (phase !== "countdown") return;
-    const totalMs = Math.max(0, startAt.current - Date.now());
-    const played = new Set<CueId>();
+    const totalMs = armed.current?.totalMs ?? Math.max(0, startAt.current - Date.now());
+    const played = playedCues.current;
     const token = ++countdownToken.current;
     // After an earlier piece, iOS may still have the audio set up for the camera's microphone.
     if (segments.current.length > 0) prepareVoice(true);
     const opening = countdownOpening(delay);
-    if (opening && totalMs > COACH_LINES.go.ms) {
+    if (opening && totalMs > COACH_LINES.go.ms && !played.has(opening)) {
       played.add(opening);
       say(opening);
     }
@@ -414,23 +442,41 @@ export default function RecordScreen() {
   /** One court frame: the next piece of guidance, one at a time with quiet between (G8). */
   function coachFrame(step: AimStep | null, lock: LockState) {
     const p = phaseRef.current;
-    if (p !== "ready" && p !== "countdown") return;
+    if (!settingUp(p)) return;
     // Close to capture, lines 18 and 19 come first.
     if (p === "countdown" && startAt.current - Date.now() <= COUNTDOWN_QUIET_MS) return;
+    const now = Date.now();
     const attitude = courtRef.current.attitude.current;
     const { cue, state } = nextCoachCue(coachState.current, {
-      now: Date.now(),
+      now,
       step,
       stage: lock.stage,
       busy: voiceBusy(),
       movedSinceLast: hasMoved(coachAttitude.current, attitude),
-      recordAnywayDue: recordAnywayDue.current && p === "ready",
+      // Armed and still no lock after about 20 seconds: line 12, then the countdown starts anyway.
+      recordAnywayDue: (p === "armed" || p === "paused") && fallbackDue(armed.current, now),
     });
     coachState.current = state;
     if (!cue) return;
-    if (cue === "recordAnyway") recordAnywayDue.current = false;
-    else if (cue !== "hold") coachAttitude.current = attitude;
+    if (cue === "recordAnyway") {
+      const token = countdownToken.current;
+      say(cue).then(() => {
+        const q = phaseRef.current;
+        if (countdownToken.current !== token || !mounted.current || (q !== "armed" && q !== "paused") || !armed.current) return;
+        beginCountdown(startAnyway(armed.current, Date.now()));
+      });
+      return;
+    }
+    if (cue !== "hold") coachAttitude.current = attitude;
     say(cue);
+  }
+
+  /** The countdown runs: from the start, or from where a bump paused it. */
+  function beginCountdown(next: ArmedStart) {
+    armed.current = next;
+    startAt.current = next.startAt;
+    setSecondsLeft(Math.ceil(timeLeft(next, Date.now()) / 1000));
+    setPhase("countdown");
   }
 
   /** Leaves without a recording. A Quick match made just for this goes too (Q18). */
@@ -559,17 +605,30 @@ export default function RecordScreen() {
       await requestMic().catch(() => {});
     }
     setError(null);
-    // Start Now is a countdown as long as line 19 ("Three. Two. One. Recording
-    // has started."), so capture starts as it ends.
-    startAt.current = Date.now() + (delay === 0 ? COACH_LINES.go.ms : delay * 60 * 1000);
-    setPhase("countdown");
+    // Armed: the countdown runs once the court locks, or straight away if it
+    // already has. Start Now is a countdown as long as line 19 ("Three. Two.
+    // One. Recording has started."), so capture starts as it ends.
+    playedCues.current = new Set();
+    coachState.current = COACH_START;
+    const next = arm(delay, Date.now(), COACH_LINES.go.ms, courtRef.current.lock.stage === "locked");
+    if (next.stage === "counting") {
+      beginCountdown(next);
+      return;
+    }
+    armed.current = next;
+    countdownToken.current++;
+    setSecondsLeft(Math.ceil(next.msLeft / 1000));
+    setPhase("armed");
+    AccessibilityInfo.announceForAccessibility("Waiting for the court. Mount your phone. It starts on its own.");
   }
 
+  /** Cancel while armed, counting or paused: back to where Record was tapped. */
   function cancelCountdown(announce = true) {
     countdownToken.current++;
+    armed.current = null;
     stopVoice();
     setPhase(segments.current.length > 0 ? "interrupted" : "ready");
-    if (announce) AccessibilityInfo.announceForAccessibility("Countdown cancelled");
+    if (announce) AccessibilityInfo.announceForAccessibility("Start cancelled");
   }
 
   /** Records one piece, until it's stopped or iOS ends it. */
@@ -866,6 +925,8 @@ export default function RecordScreen() {
   const recording = phase === "recording";
   const rejoining = phase === "rejoining";
   const counting = phase === "countdown";
+  const waiting = phase === "armed" || phase === "paused";
+  const settingUpNow = settingUp(phase);
   const interrupted = phase === "interrupted";
   const status = recording
     ? `Recording, ${spokenDuration(elapsed)}`
@@ -873,20 +934,27 @@ export default function RecordScreen() {
       ? `Recording paused at ${spokenDuration(elapsed)}`
       : counting
         ? `Recording starts in ${spokenDuration(secondsLeft)}`
-        : `Match vs ${opponent}`;
+        : phase === "paused"
+          ? `Countdown paused at ${spokenDuration(secondsLeft)}. Waiting for the court.`
+          : phase === "armed"
+            ? "Waiting for the court"
+            : `Match vs ${opponent}`;
   const pillText = recording || rejoining || interrupted
     ? formatElapsed(elapsed)
     : counting
       ? `Starts in ${countdownClock(secondsLeft)}`
-      : `vs ${opponent}`;
+      : phase === "paused"
+        ? `Paused at ${countdownClock(secondsLeft)}`
+        : phase === "armed"
+          ? "Waiting for the court"
+          : `vs ${opponent}`;
   const canClose = phase === "ready" || phase === "error";
   // B10: an opponent who isn't on Ball Boi must have agreed before Start turns on.
   const needsAgreement = !!filming.data?.needsOpponentAgreement;
   const agreementMissing = needsAgreement && !opponentAgreedAt;
-  // Record turns on once the court locks, or after about 20 seconds as Record anyway.
+  // Record works as soon as the camera is ready: the court lock starts the countdown later (armed start).
   const courtLocked = court.lock.stage === "locked";
-  const courtReady = courtLocked || court.recordAnyway;
-  const startOff = !cameraReady || agreementMissing || !courtReady;
+  const startOff = !cameraReady || agreementMissing;
   const setupStatus: CourtStatusText = frameStatus(court.lock.stage, court.step, coachState.current.last === "noLock");
   // While recording there are no frames: the motion sensor says if the phone moved (G1).
   const recordingStatus: CourtStatusText = lockedAtStart.current
@@ -894,12 +962,12 @@ export default function RecordScreen() {
       ? "Phone moved"
       : "Court in frame"
     : "Court not locked";
-  const recordLabel = courtLocked ? "Record" : "Record anyway";
+  const recordLabel = delay === 0 ? "Record" : `Record, start in ${delay} minutes`;
   const startHint = agreementMissing
     ? "Check the box above to start."
-    : !courtReady
-      ? "Line up the court first. Record anyway turns on after about 20 seconds."
-      : undefined;
+    : courtLocked
+      ? "The countdown starts now."
+      : "Then mount your phone. The countdown starts on its own once the court locks.";
 
   if (phase === "courtFix" && fixStill) {
     return (
@@ -940,7 +1008,7 @@ export default function RecordScreen() {
         accessibilityElementsHidden
       />
 
-      {phase === "ready" || counting ? (
+      {settingUpNow ? (
         <CourtLines fit={court.fit} locked={courtLocked} orientation={orientation} width={width} height={height} />
       ) : null}
 
@@ -992,7 +1060,7 @@ export default function RecordScreen() {
             {pillText}
           </Text>
         </View>
-        {phase === "ready" || counting || interrupted ? (
+        {settingUpNow || interrupted ? (
           // Mute: silences the voice coach on this phone.
           <Pressable
             accessibilityRole="switch"
@@ -1015,12 +1083,12 @@ export default function RecordScreen() {
       </View>
 
       {/* G1: whether the court is in frame, and low battery or storage, in words and an icon, under the top bar. No live stats. */}
-      {phase === "ready" || counting || recording || rejoining ? (
+      {settingUpNow || recording || rejoining ? (
         <View
           pointerEvents="none"
           style={{ position: "absolute", top: insets.top + spacing.space2 + MIN_TAP + spacing.space2, left: spacing.space4, right: spacing.space4, gap: spacing.space2 }}
         >
-          <CourtStatus status={phase === "ready" || counting ? setupStatus : recordingStatus} />
+          <CourtStatus status={settingUpNow ? setupStatus : recordingStatus} />
           {recording && warnings.battery ? <WarningPill text={BATTERY_WARNING} symbol="battery.25" /> : null}
           {recording && warnings.storage ? <WarningPill text={STORAGE_WARNING} symbol="externaldrive.badge.exclamationmark" /> : null}
         </View>
@@ -1102,22 +1170,16 @@ export default function RecordScreen() {
                   Check the box above to start.
                 </Text>
               </View>
-            ) : !courtReady ? (
-              <View style={[styles.pill]}>
-                <Text variant="small" style={{ color: chrome.text, textAlign: "center" }}>
-                  Record turns on when the court locks.
-                </Text>
-              </View>
             ) : !courtLocked ? (
               <View style={[styles.pill]}>
                 <Text variant="small" style={{ color: chrome.text, textAlign: "center" }}>
-                  Record anyway. You can fix the court lines after.
+                  Tap Record, then mount your phone. It starts once the court locks.
                 </Text>
               </View>
             ) : null}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={delay === 0 ? recordLabel : `${courtLocked ? "Start" : "Start anyway,"} ${delay} minute countdown`}
+              accessibilityLabel={recordLabel}
               accessibilityHint={startHint}
               accessibilityState={{ disabled: startOff }}
               disabled={startOff}
@@ -1127,6 +1189,27 @@ export default function RecordScreen() {
               <View style={styles.shutterRecord} />
             </Pressable>
           </>
+        ) : null}
+
+        {waiting ? (
+          // Armed, or paused after a bump: waiting for the court to lock. Words
+          // for the moment the phone is in your hand; once mounted, the voice
+          // coach does the talking.
+          <View style={[styles.panel, { backgroundColor: chrome.scrim, alignSelf: "stretch", alignItems: "center" }]}>
+            <View style={{ alignItems: "center", gap: spacing.space1 }} accessible accessibilityLiveRegion="polite">
+              <Text variant="bodyStrong" style={{ color: chrome.text, textAlign: "center" }}>
+                {phase === "paused" ? "Countdown paused. Waiting for the court" : "Waiting for the court"}
+              </Text>
+              <Text variant="small" style={{ color: chrome.textMuted, textAlign: "center" }}>
+                {phase === "paused"
+                  ? "It carries on once the court locks again."
+                  : delay === 0
+                    ? "Mount your phone. Recording starts once the court locks."
+                    : `Mount your phone. The ${delay} minute countdown starts once the court locks.`}
+              </Text>
+            </View>
+            <ChromeButton variant="secondary" label="Cancel" accessibilityLabel="Cancel start" onPress={() => cancelCountdown()} />
+          </View>
         ) : null}
 
         {counting ? (
@@ -1211,6 +1294,11 @@ export default function RecordScreen() {
       </View>
     </View>
   );
+}
+
+/** Setting up: frames, the voice coach and the court overlay run in these phases. */
+function settingUp(p: Phase): boolean {
+  return p === "ready" || p === "armed" || p === "countdown" || p === "paused";
 }
 
 /** A warning while recording: an icon and the words, never color alone. */

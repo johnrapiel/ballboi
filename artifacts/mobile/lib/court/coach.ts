@@ -12,8 +12,9 @@
 //   a row agree on it (lib/court/aim.ts agreedStep). Until they do, quiet.
 // - "Hold your phone there" (09) once the frame is nearly right and steady.
 // - No court at all: "I can't see the court..." (11), under the same rules.
-//   After about 20 seconds without a lock: "You can record anyway..." (12),
-//   once, as soon as the quiet allows.
+//   Armed and about 20 seconds without a lock: "You can record anyway..."
+//   (12), once, as soon as the quiet allows, then the countdown starts on its
+//   own (lib/recording/armedStart.ts).
 // - Not held by the quiet, since they're events or timed: "Perfect. Court
 //   locked." (10) and the chime, "Your phone just moved" (13), the countdown
 //   (14 to 19) and the stop lines (20, 21). The screen plays those.
@@ -67,7 +68,7 @@ export interface CoachInput {
   busy: boolean;
   /** The phone has turned or tilted since `last` was said. */
   movedSinceLast: boolean;
-  /** About 20 seconds without a lock: "You can record anyway..." (12) is waiting to be said. */
+  /** Armed and about 20 seconds without a lock: "You can record anyway..." (12) is waiting to be said. */
   recordAnywayDue?: boolean;
 }
 
