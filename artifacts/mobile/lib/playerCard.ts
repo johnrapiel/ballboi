@@ -27,6 +27,38 @@ export function playsPill(plays: PlayerCard["plays"]): string | null {
   return plays === "singles" ? "Singles" : plays === "doubles" ? "Doubles" : plays === "both" ? "Singles and doubles" : null;
 }
 
+/**
+ * Prompts in place (John, Nov 9): on your own card only, a light link where
+ * an unset home court or Plays pill would sit. Someone else's card never
+ * prompts; those spots are simply left out.
+ */
+export function cardPrompts(card: Pick<PlayerCard, "you" | "homeCourt" | "plays">): { homeCourt: boolean; plays: boolean } {
+  return {
+    homeCourt: card.you && !card.homeCourt,
+    plays: card.you && playsPill(card.plays) == null,
+  };
+}
+
+export const ADD_HOME_COURT = "Add home court";
+export const ADD_PLAYS = "Add how you play";
+
+/**
+ * The card's bottom row. "split": something on the left (the court or your
+ * Add home court link) and Free times on the right. "start": one item alone,
+ * left-aligned so it reads as a footer, not a gap (someone else's card with
+ * no home court). null: no row at all.
+ */
+export function bottomRow(card: Pick<PlayerCard, "you" | "homeCourt" | "plays" | "slots">): {
+  left: "court" | "prompt" | null;
+  free: boolean;
+  align: "split" | "start";
+} | null {
+  const left = card.homeCourt ? "court" : cardPrompts(card).homeCourt ? "prompt" : null;
+  const free = card.you || card.slots.length > 0;
+  if (!left && !free) return null;
+  return { left, free, align: left && free ? "split" : "start" };
+}
+
 /** The town, with the distance on someone else's card: "Fishkill · ~4 mi away". */
 export function townLine(card: Pick<PlayerCard, "town" | "distance">): string | null {
   const parts = [card.town, card.distance].filter(Boolean);

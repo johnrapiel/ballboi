@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { routeForPushLink } from "@/lib/notificationAccess";
 import {
+  ADD_HOME_COURT,
+  ADD_PLAYS,
+  bottomRow,
+  cardPrompts,
   cardSpoken,
   freeTimesSpoken,
   headToHeadLine,
@@ -25,6 +29,38 @@ import { rowSub, rowWhen } from "@/lib/upcoming";
 
 const card = { name: "John Rapiel", rating: 3.5, plays: "singles" as const, town: "Wappingers Falls", distance: null, homeCourt: "Beacon Courts", you: true };
 const season = { name: "Fall 2026", from: "2026-09-01", to: "2026-12-31", wins: 4, losses: 2, played: 6, streak: { won: true, count: 2 }, noShows: 0 };
+
+describe("prompts in place (John, Nov 9)", () => {
+  const bare = { you: true, homeCourt: null, plays: null, slots: [] as number[] };
+
+  it("asks for a home court and how you play on your own card when they're unset", () => {
+    expect(cardPrompts(bare)).toEqual({ homeCourt: true, plays: true });
+    expect(ADD_HOME_COURT).toBe("Add home court");
+    expect(ADD_PLAYS).toBe("Add how you play");
+  });
+
+  it("stops asking once each is set", () => {
+    expect(cardPrompts({ ...bare, homeCourt: "Beacon Courts" })).toEqual({ homeCourt: false, plays: true });
+    expect(cardPrompts({ ...bare, plays: "both" })).toEqual({ homeCourt: true, plays: false });
+    expect(cardPrompts({ ...bare, homeCourt: "Beacon Courts", plays: "singles" })).toEqual({ homeCourt: false, plays: false });
+  });
+
+  it("never prompts on someone else's card", () => {
+    expect(cardPrompts({ ...bare, you: false })).toEqual({ homeCourt: false, plays: false });
+  });
+
+  it("splits your bottom row: court or Add home court on the left, Free times on the right", () => {
+    expect(bottomRow(bare)).toEqual({ left: "prompt", free: true, align: "split" });
+    expect(bottomRow({ ...bare, homeCourt: "Beacon Courts" })).toEqual({ left: "court", free: true, align: "split" });
+  });
+
+  it("left-aligns Free times alone on someone else's card with no home court", () => {
+    expect(bottomRow({ ...bare, you: false, slots: [18] })).toEqual({ left: null, free: true, align: "start" });
+    expect(bottomRow({ ...bare, you: false, homeCourt: "Beacon Courts" })).toEqual({ left: "court", free: false, align: "start" });
+    expect(bottomRow({ ...bare, you: false, homeCourt: "Beacon Courts", slots: [18] })).toEqual({ left: "court", free: true, align: "split" });
+    expect(bottomRow({ ...bare, you: false })).toBeNull();
+  });
+});
 
 describe("the card", () => {
   it("reads Level 3.5 with no Self-rated, and the Plays pill in words", () => {
