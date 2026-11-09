@@ -17,6 +17,20 @@ export interface ScheduleMatch {
   player2Rating: MatchPlayerRating | null;
   player1HasAccount: boolean;
   player2HasAccount: boolean;
+  /**
+   * Doubles (D8), player 1's partner. Null in singles
+   * @nullable
+   */
+  player3Id?: number | null;
+  /** @nullable */
+  player3Name?: string | null;
+  /**
+   * Doubles (D8), player 2's partner. Null in singles
+   * @nullable
+   */
+  player4Id?: number | null;
+  /** @nullable */
+  player4Name?: string | null;
   status: string;
   /**
    * From player 1's side

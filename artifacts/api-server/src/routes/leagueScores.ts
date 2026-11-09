@@ -21,6 +21,20 @@ import { sendPushToUsers } from "./notifications.js";
 import { logger } from "../lib/logger.js";
 import { awardMilestonesForMatch } from "../lib/milestoneRepo.js";
 import { leagueChat } from "../messaging/leagueChatEvents.js";
+import { closeChatForScore } from "../services/doublesChat.js";
+import { doublesResultLine } from "../lib/doublesTeams.js";
+
+/** D6, D7: a doubles match's chat gets the result in team names and goes read only. */
+async function doublesChatResult(match: { id: number; player1Id: number; player2Id: number; player3Id: number | null; player4Id: number | null }, storedScore: string, winnerSide: 1 | 2, prefix = "") {
+  if (match.player3Id == null || match.player4Id == null) return;
+  const ids = [match.player1Id, match.player3Id, match.player2Id, match.player4Id];
+  const rows = await db.select({ id: playersTable.id, name: playersTable.name }).from(playersTable).where(inArray(playersTable.id, ids));
+  const name = (id: number) => rows.find((r) => r.id === id)?.name ?? "Player";
+  const side1 = [name(match.player1Id), name(match.player3Id)];
+  const side2 = [name(match.player2Id), name(match.player4Id)];
+  const [w, l] = winnerSide === 1 ? [side1, side2] : [side2, side1];
+  closeChatForScore(match.id, `${prefix}${doublesResultLine(w, l, scoreFromSide(storedScore, winnerSide))}`);
+}
 
 // Enter a league score (spec: Leagues > Scores and standings). Either player
 // enters it, from their own side ("6-3, 6-4" means they won both sets).
@@ -151,6 +165,7 @@ router.post("/leagues/:leagueId/matches/:matchId/score", async (req, res) => {
   await awardMilestonesForMatch(matchId);
   // The result in the league chat, then any standings moves (decision 145).
   leagueChat.resultEntered(leagueId, saved.id);
+  await doublesChatResult(match, storedScore, winnerSide).catch((err) => logger.error({ err, matchId }, "Doubles chat result failed"));
 
   res.status(201).json({
     matchId: saved.id,
@@ -289,6 +304,7 @@ router.post("/leagues/:leagueId/matches/:matchId/score/edit", async (req, res) =
 
   await awardMilestonesForMatch(matchId);
   leagueChat.resultEntered(leagueId, saved.id, { edited: true });
+  await doublesChatResult(match, storedScore, winnerSide, `Score edited by ${caller.name}: `).catch((err) => logger.error({ err, matchId }, "Doubles chat result failed"));
   res.json({
     matchId: saved.id,
     score: saved.score!,
@@ -349,6 +365,7 @@ router.put("/leagues/:leagueId/matches/:matchId/score", requireLeagueAdmin, asyn
   }
   await awardMilestonesForMatch(matchId);
   leagueChat.resultEntered(leagueId, saved.id, { edited: true });
+  await doublesChatResult(match, storedScore, parsed.winnerSide, `Score corrected by ${adminName}: `).catch((err) => logger.error({ err, matchId }, "Doubles chat result failed"));
   res.json({
     matchId: saved.id,
     score: saved.score,

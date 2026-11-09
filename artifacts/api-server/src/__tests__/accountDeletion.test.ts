@@ -19,6 +19,11 @@ vi.mock("../lib/withdrawal", () => ({
   withdrawFromRecordings: async (input: unknown) => void withdrawals.push(input),
 }));
 vi.mock("../services/discover/accountDeletion", () => ({ deleteDiscoverData: vi.fn().mockResolvedValue(undefined) }));
+const { doublesDeleted } = vi.hoisted(() => ({ doublesDeleted: [] as number[][] }));
+// Doubles partners (D9): its own helper, called with the account's player rows.
+vi.mock("../lib/doublesAccountDeletion", () => ({
+  deleteDoublesDataFor: async (_tx: unknown, playerIds: number[]) => void doublesDeleted.push(playerIds),
+}));
 const { notificationDeleted, liveDeleted } = vi.hoisted(() => ({ notificationDeleted: [] as string[], liveDeleted: [] as string[] }));
 vi.mock("../services/push/accountDeletion", () => ({
   deleteNotificationData: async (_tx: unknown, id: string, playerIds: number[]) => void notificationDeleted.push(`${id}:${playerIds.join(",")}`),
@@ -124,6 +129,7 @@ beforeEach(() => {
   calls.length = 0;
   messagingDeleted.length = 0;
   notificationDeleted.length = 0;
+  doublesDeleted.length = 0;
   liveDeleted.length = 0;
   deviceTokenDeleted.length = 0;
   withdrawals.length = 0;
@@ -209,6 +215,7 @@ describe("deleteAccount", () => {
     expect(messagingDeleted).toEqual(["user_delete_me"]);
     // Notification settings, opponent notices and reminder logs go too (Session G, acceptance 41).
     expect(notificationDeleted).toEqual(["user_delete_me:7,9"]);
+    expect(doublesDeleted).toEqual([[7, 9]]);
     // Live Activity tokens and live sessions go too, in their own helper (acceptance 41).
     expect(liveDeleted).toEqual(["user_delete_me"]);
     // The DeviceCheck token goes; phone bans stay (acceptance 41).

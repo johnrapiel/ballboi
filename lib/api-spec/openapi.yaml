@@ -435,6 +435,13 @@ paths:
           type: integer
           minimum: 1
           maximum: 30
+      - name: play
+        in: query
+        required: false
+        description: "The Format filter (D8): only singles or only doubles leagues. Leave it out for all"
+        schema:
+          type: string
+          enum: [singles, doubles]
       responses:
         '200':
           description: Open leagues near you
@@ -2166,6 +2173,344 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DevPairResult"
+
+  /leagues/{leagueId}/partner:
+    get:
+      operationId: getMyPartner
+      tags: [leagues]
+      summary: "Fixed-partner doubles (D9): your partner, your request out, requests to you, a notice in words, and who you can ask"
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      responses:
+        "200":
+          description: Your partner state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyPartner"
+        "404":
+          description: League not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /leagues/{leagueId}/partner/requests:
+    post:
+      operationId: requestPartner
+      tags: [leagues]
+      summary: "Team up with someone (D9): a request with Accept and Decline, 48 hours to answer"
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartnerRequestBody"
+      responses:
+        "200":
+          description: Your partner state with the request out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyPartner"
+        "400":
+          description: No player picked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Not in this league
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: That player isn't available to team up
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Teaming up is closed, or one of you has a partner or a request out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /leagues/{leagueId}/partner/requests/{requestId}/accept:
+    post:
+      operationId: acceptPartnerRequest
+      tags: [leagues]
+      summary: Accept a request to team up, so you are partners for the season
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Your partner state after the change
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyPartner"
+        "404":
+          description: Request not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: The request can't be answered now
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /leagues/{leagueId}/partner/requests/{requestId}/decline:
+    post:
+      operationId: declinePartnerRequest
+      tags: [leagues]
+      summary: Decline a request to team up. The sender goes back on Looking for a partner with a notice
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Your partner state after the change
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyPartner"
+        "404":
+          description: Request not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: The request can't be answered now
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /leagues/{leagueId}/partner/requests/{requestId}/cancel:
+    post:
+      operationId: cancelPartnerRequest
+      tags: [leagues]
+      summary: Cancel your own request to team up
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Your partner state after the change
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyPartner"
+        "404":
+          description: Request not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: The request can't be answered now
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /leagues/{leagueId}/partner/requests/{requestId}/dismiss:
+    post:
+      operationId: dismissPartnerNotice
+      tags: [leagues]
+      summary: Done with the notice about a declined or unanswered request
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Your partner state after the change
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyPartner"
+        "404":
+          description: Request not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: The request can't be answered now
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /leagues/{leagueId}/partner/looking:
+    post:
+      operationId: setLookingForPartner
+      tags: [leagues]
+      summary: "Find me a partner (D9): on the list your league admin sees in Manage, by level"
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LookingForPartnerBody"
+      responses:
+        "200":
+          description: Your partner state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyPartner"
+        "409":
+          description: You have a partner, or teaming up is closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /leagues/{leagueId}/teams:
+    get:
+      operationId: getLeagueTeams
+      tags: [leagues]
+      summary: "Manage > Teams (D2, D4, D9), for league admins: teams, and players without a partner (Needs a partner, Looking for a partner)"
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      responses:
+        "200":
+          description: Teams
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueTeams"
+        "403":
+          description: Only this league's admins can do that
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    post:
+      operationId: teamUpPlayers
+      tags: [leagues]
+      summary: "League admins: team up two players without partners. A re-teamed player's new team starts 0-0 (D4)"
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamUpBody"
+      responses:
+        "200":
+          description: Teams after the change
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueTeams"
+        "403":
+          description: Only this league's admins can do that
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: One of them has a partner, or they can't be on a team together
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /leagues/{leagueId}/teams/{teamId}/split:
+    post:
+      operationId: splitLeagueTeam
+      tags: [leagues]
+      summary: "League admins: split a team. Its unplayed matches are cancelled"
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Teams after the change
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeagueTeams"
+        "403":
+          description: Only this league's admins can do that
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Team not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /leagues/{leagueId}/matches/{matchId}/chat:
+    post:
+      operationId: openDoublesMatchChat
+      tags: [leagues]
+      summary: "Message on a doubles league match (D6): one group chat for all four, made if needed"
+      parameters:
+        - $ref: "#/components/parameters/LeagueIdParam"
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The chat
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DoublesMatchChat"
+        "403":
+          description: Only the four players can open it
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Match not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leagues/{leagueId}/matches/{matchId}/score:
     post:
@@ -7683,6 +8028,9 @@ components:
           type: string
         type:
           type: string
+        partners:
+          type: [string, 'null']
+          description: Doubles (D1), "Fixed partners" or "Rotating partners"; null for singles
         levelText:
           type: string
         outsideLevel:
@@ -7736,7 +8084,10 @@ components:
           $ref: '#/components/schemas/DiscoverLeagueRequest'
         spoken:
           type: string
-      required: [leagueId, name, detail, status, tags, joining, myRequest, spoken]
+        doubles:
+          type: boolean
+          description: A doubles league, for the Doubles pill (D8)
+      required: [leagueId, name, detail, status, tags, joining, myRequest, spoken, doubles]
     DiscoverLeagueRequest:
       oneOf:
       - type: object
@@ -8772,6 +9123,13 @@ components:
         matchId: { type: ["integer", "null"] }
         myPlayerId: { type: integer }
         opponentName: { type: ["string", "null"] }
+        partnerName:
+          type: ["string", "null"]
+          description: Doubles (D8), your partner this match, for "You and Sam vs. Jo and Lee". Null in singles and byes
+        opponentNames:
+          type: array
+          items: { type: string }
+          description: Doubles (D8), the other team's names. Empty in singles and byes
         opponentPlayerId:
           type: ["integer", "null"]
           description: The singles opponent's player id, for Message on the Home card; null for doubles and byes
@@ -8787,7 +9145,7 @@ components:
         timeZone:
           type: string
           description: The league's time zone, for its deadlines
-      required: [leagueId, leagueName, roundId, roundNumber, phase, startDate, deadline, graceEnd, bye, matchId, myPlayerId, opponentName, opponentPlayerId, singles, scheduledAt, location, played, timeZone]
+      required: [leagueId, leagueName, roundId, roundNumber, phase, startDate, deadline, graceEnd, bye, matchId, myPlayerId, opponentName, partnerName, opponentNames, opponentPlayerId, singles, scheduledAt, location, played, timeZone]
 
     LeagueWeekPlayoff:
       type: object
@@ -8877,6 +9235,9 @@ components:
         source: { $ref: "#/components/schemas/MatchSource" }
         matchId: { type: integer }
         opponentName: { type: string }
+        partnerName:
+          type: ["string", "null"]
+          description: Doubles (D8), your partner. Absent or null in singles
         score:
           type: string
           description: From the viewer's side, their games first
@@ -9249,6 +9610,16 @@ components:
           type: boolean
         player2HasAccount:
           type: boolean
+        player3Id:
+          type: ["integer", "null"]
+          description: Doubles (D8), player 1's partner. Null in singles
+        player3Name:
+          type: ["string", "null"]
+        player4Id:
+          type: ["integer", "null"]
+          description: Doubles (D8), player 2's partner. Null in singles
+        player4Name:
+          type: ["string", "null"]
         status:
           type: string
         score:
@@ -9281,6 +9652,135 @@ components:
           type: ["string", "null"]
           description: Older matches only, from before Undo was replaced by the 24-hour edit. The player who undid the score, shown until a new score is in
       required: [matchId, player1Id, player1Name, player2Id, player2Name, player1Rating, player2Rating, player1HasAccount, player2HasAccount, status, score, winnerId, inGrace, voided, locked, scheduledAt, location, editUntil, editedBy, correctedBy, correctedAt, scoreClearedBy]
+
+    PartnerPerson:
+      type: object
+      properties:
+        playerId: { type: integer }
+        name: { type: string }
+        level:
+          type: number
+          description: Their self-rated level
+      required: [playerId, name, level]
+
+    MyPartner:
+      type: object
+      description: "Fixed-partner doubles (D2, D4, D9): what you see about teaming up in a league"
+      properties:
+        fixedPartners:
+          type: boolean
+          description: A fixed-partner doubles league, so teams apply
+        member:
+          type: boolean
+          description: You play in this league
+        teamingOpen:
+          type: boolean
+          description: Requests and Find me a partner close when the first round goes out
+        partner:
+          oneOf:
+            - $ref: "#/components/schemas/PartnerPerson"
+            - type: "null"
+        looking:
+          type: boolean
+          description: On the Looking for a partner list
+        outgoing:
+          oneOf:
+            - type: "null"
+            - type: object
+              properties:
+                requestId: { type: integer }
+                to: { $ref: "#/components/schemas/PartnerPerson" }
+                expiresAt: { type: string }
+              required: [requestId, to, expiresAt]
+        incoming:
+          type: array
+          items:
+            type: object
+            properties:
+              requestId: { type: integer }
+              from: { $ref: "#/components/schemas/PartnerPerson" }
+              expiresAt: { type: string }
+            required: [requestId, from, expiresAt]
+        notice:
+          description: Why your request ended without a team, in words, until you dismiss it
+          oneOf:
+            - type: "null"
+            - type: object
+              properties:
+                requestId: { type: integer }
+                text: { type: string }
+              required: [requestId, text]
+        candidates:
+          type: array
+          description: Members you can ask. Never someone you have a block with
+          items:
+            $ref: "#/components/schemas/PartnerPerson"
+        needsPartner:
+          type: boolean
+          description: Your partner left; byes until your league admin teams you up (D4)
+      required: [fixedPartners, member, teamingOpen, partner, looking, outgoing, incoming, notice, candidates, needsPartner]
+
+    PartnerRequestBody:
+      type: object
+      properties:
+        toPlayerId: { type: integer }
+      required: [toPlayerId]
+
+    LookingForPartnerBody:
+      type: object
+      properties:
+        "on": { type: boolean }
+      required: ["on"]
+
+    TeamUpBody:
+      type: object
+      properties:
+        playerIds:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items: { type: integer }
+      required: [playerIds]
+
+    LeagueTeams:
+      type: object
+      description: "Manage > Teams (D2, D4, D9)"
+      properties:
+        fixedPartners: { type: boolean }
+        firstRoundOut: { type: boolean }
+        teams:
+          type: array
+          items:
+            type: object
+            properties:
+              teamId: { type: integer }
+              players:
+                type: array
+                items: { $ref: "#/components/schemas/PartnerPerson" }
+            required: [teamId, players]
+        unpaired:
+          type: array
+          description: Players without a partner, highest level first
+          items:
+            type: object
+            properties:
+              playerId: { type: integer }
+              name: { type: string }
+              level: { type: number }
+              kind:
+                type: string
+                enum: [needs_partner, looking, no_partner]
+            required: [playerId, name, level, kind]
+        canLetInWaitlisted:
+          type: boolean
+          description: An Open league can let a waitlisted player in for a player who needs a partner (D4)
+      required: [fixedPartners, firstRoundOut, teams, unpaired, canLetInWaitlisted]
+
+    DoublesMatchChat:
+      type: object
+      properties:
+        groupId: { type: integer }
+      required: [groupId]
 
     MatchPlayerRating:
       type: object
@@ -9831,6 +10331,13 @@ components:
           type: integer
         gamesLost:
           type: integer
+        teamId:
+          type: ["integer", "null"]
+          description: Fixed-partner doubles (D3), this row is a team; playerName is "John Rapiel & Sam Lee" and playerId is its first player
+        teamPlayerIds:
+          type: ["array", "null"]
+          items: { type: integer }
+          description: Fixed-partner doubles, both players on the team
       required:
         - playerId
         - playerName
@@ -11763,8 +12270,8 @@ components:
           type: integer
         kind:
           type: string
-          enum: [match, league]
-          description: An open match's chat, or a league's chat (decision 145)
+          enum: [match, league, doubles]
+          description: An open match's chat, a league's chat (decision 145), or a doubles league match's chat for all four (D6)
         title:
           type: string
           description: Sat 9 AM doubles · Beacon Courts, or the league name
@@ -11772,6 +12279,9 @@ components:
           type: [integer, 'null']
         leagueId:
           type: [integer, 'null']
+        matchId:
+          type: [integer, 'null']
+          description: Doubles match chats, the league match (D6)
         memberCount:
           type: integer
         lastMessage:
@@ -11802,7 +12312,7 @@ components:
           type: boolean
         sendBlockedReason:
           type: [string, 'null']
-      required: [id, kind, title, openMatchId, leagueId, memberCount, lastMessage, unread, attention, isAdmin, canSend, sendBlockedReason]
+      required: [id, kind, title, openMatchId, leagueId, matchId, memberCount, lastMessage, unread, attention, isAdmin, canSend, sendBlockedReason]
     GroupMessageView:
       type: object
       properties:

@@ -7,6 +7,10 @@
 // - Grace-week matches don't count (decision 25), and neither do voided
 //   matches or playoff matches.
 // - A player who drops out is removed from standings (decision 27).
+// - Doubles (D3, John, Nov 9): rotating-partner leagues rank players, both
+//   partners credited with the result; fixed-partner leagues rank teams
+//   ("John Rapiel & Sam Lee, 5-2"). Ties use the same order: head to head,
+//   then sets won, then games won.
 //
 // Pure functions, so they're easy to test.
 
@@ -30,6 +34,9 @@ export interface StandingMatch {
   voidedAt: Date | null;
   inGrace: boolean;
   playoffBracketId: number | null;
+  /** Fixed-partner doubles: the team on each side (D3). */
+  team1Id?: number | null;
+  team2Id?: number | null;
 }
 
 export interface Standing {
@@ -46,6 +53,10 @@ export interface Standing {
   setsLost: number;
   gamesWon: number;
   gamesLost: number;
+  /** Fixed-partner doubles (D3): this row is a team. playerId is its first player; playerName is the team's name. */
+  teamId?: number | null;
+  /** Fixed-partner doubles: both players on the team, first player first. */
+  teamPlayerIds?: number[] | null;
 }
 
 /** Whether a completed match counts toward standings. */
@@ -111,8 +122,31 @@ function share(won: number, lost: number): number {
 
 type Rankable = Pick<Standing, "playerId" | "playerName" | "wins" | "setsWon" | "setsLost" | "gamesWon" | "gamesLost">;
 
-/** Head-to-head wins among players level on wins (singles meetings between two of them). */
-export function headToHead(rows: Rankable[], counted: StandingMatch[]): Map<number, number> {
+/** The ranked rows on each side of a match: players by default, or teams for fixed-partner doubles. */
+export type SidesOf = (m: StandingMatch) => [number[], number[]];
+
+const playerSides: SidesOf = (m) => [
+  [m.player1Id, m.player3Id].filter((id): id is number => id != null),
+  [m.player2Id, m.player4Id].filter((id): id is number => id != null),
+];
+
+const teamSides: SidesOf = (m) => [
+  m.team1Id != null ? [m.team1Id] : [],
+  m.team2Id != null ? [m.team2Id] : [],
+];
+
+function winningSide(m: StandingMatch): 1 | 2 | null {
+  if (m.winnerId == null) return null;
+  return m.winnerId === m.player1Id || m.winnerId === m.player3Id ? 1 : 2;
+}
+
+/**
+ * Head-to-head wins among rows level on wins: each win in a match where one
+ * of them was on the winning side and another on the losing side. In singles
+ * that's their meetings; in rotating doubles a match counts for each tied
+ * winner who beat a tied player (D3).
+ */
+export function headToHead(rows: Rankable[], counted: StandingMatch[], sides: SidesOf = playerSides): Map<number, number> {
   const byWins = new Map<number, Rankable[]>();
   for (const r of rows) byWins.set(r.wins, [...(byWins.get(r.wins) ?? []), r]);
   const h2h = new Map<number, number>();
@@ -120,8 +154,13 @@ export function headToHead(rows: Rankable[], counted: StandingMatch[]): Map<numb
     if (group.length < 2) continue;
     const ids = new Set(group.map((r) => r.playerId));
     for (const m of counted) {
-      if (!ids.has(m.player1Id) || !ids.has(m.player2Id) || m.winnerId == null) continue;
-      h2h.set(m.winnerId, (h2h.get(m.winnerId) ?? 0) + 1);
+      const side = winningSide(m);
+      if (side == null) continue;
+      const [one, two] = sides(m);
+      const [winners, losers] = side === 1 ? [one, two] : [two, one];
+      const tiedWinners = winners.filter((id) => ids.has(id));
+      if (!tiedWinners.length || !losers.some((id) => ids.has(id))) continue;
+      for (const id of tiedWinners) h2h.set(id, (h2h.get(id) ?? 0) + 1);
     }
   }
   return h2h;
@@ -136,8 +175,12 @@ function tiebreakKey(r: Rankable, h2h: Map<number, number>): string {
  * share of sets won, then share of games won, then name for a stable list.
  * Standings and playoff seeds both use it.
  */
-export function rankOrder<T extends Rankable>(rows: T[], counted: StandingMatch[]): T[] & { h2h: Map<number, number> } {
-  const h2h = headToHead(rows, counted);
+export function rankOrder<T extends Rankable>(
+  rows: T[],
+  counted: StandingMatch[],
+  sides: SidesOf = playerSides,
+): T[] & { h2h: Map<number, number> } {
+  const h2h = headToHead(rows, counted, sides);
   const sorted = [...rows].sort(
     (a, b) =>
       b.wins - a.wins ||
@@ -147,4 +190,54 @@ export function rankOrder<T extends Rankable>(rows: T[], counted: StandingMatch[
       a.playerName.localeCompare(b.playerName),
   );
   return Object.assign(sorted, { h2h });
+}
+
+export interface StandingTeam {
+  id: number;
+  playerIds: [number, number];
+}
+
+/** "John Rapiel & Sam Lee" (D3). */
+export function teamStandingName(names: string[]): string {
+  return names.join(" & ");
+}
+
+/**
+ * Fixed-partner doubles standings (D3): one row per active team. A team that
+ * was split, or lost a partner who left, is out of the standings, the way a
+ * player who drops out is (decision 27); a re-teamed player's new team starts
+ * at 0-0 (D4). Each row's playerId is the team's first player.
+ */
+export function computeTeamStandings(
+  teams: StandingTeam[],
+  names: Map<number, string>,
+  matches: StandingMatch[],
+  includeSeason: (season: string | null) => boolean = () => true,
+): Standing[] {
+  const counted = matches.filter((m) => countsForStandings(m) && includeSeason(m.season) && m.team1Id != null && m.team2Id != null);
+  const rows = teams.map((t) => {
+    const mine = counted.filter((m) => m.team1Id === t.id || m.team2Id === t.id);
+    const onSide1 = mine.map((m) => m.team1Id === t.id);
+    const wins = mine.filter((m, i) => winningSide(m) === (onSide1[i] ? 1 : 2)).length;
+    const totals = accumulateScoreTotals(mine.map((m) => m.score), onSide1);
+    return {
+      // Rank by team: the team id stands in as the row key, swapped back below.
+      playerId: t.id,
+      playerName: teamStandingName(t.playerIds.map((id) => names.get(id) ?? "Player")),
+      wins,
+      losses: mine.length - wins,
+      matchesPlayed: mine.length,
+      winRate: mine.length ? wins / mine.length : 0,
+      points: calculatePoints(totals, wins),
+      ...totals,
+      teamId: t.id,
+      teamPlayerIds: [...t.playerIds],
+    };
+  });
+  const ordered = rankOrder(rows, counted, teamSides);
+  const key = (r: (typeof ordered)[number]) => tiebreakKey(r, ordered.h2h);
+  return ordered.map((row, i) => {
+    const first = ordered.findIndex((r) => key(r) === key(row));
+    return { ...row, playerId: row.teamPlayerIds[0], rank: (first === -1 ? i : first) + 1 };
+  });
 }

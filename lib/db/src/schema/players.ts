@@ -19,6 +19,9 @@ export const playersTable = pgTable("players", {
   // Set when a player drops out mid-season (decision 27). Their played matches
   // stay; they leave standings and pairings.
   leftAt: timestamp("left_at", { withTimezone: true }),
+  // Fixed-partner doubles (D9): on the "Find me a partner" list since then.
+  // Migration 20261109_x_doubles_partners.sql.
+  lookingForPartnerAt: timestamp("looking_for_partner_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

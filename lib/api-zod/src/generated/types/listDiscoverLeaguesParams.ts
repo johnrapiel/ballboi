@@ -5,6 +5,7 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+import type { ListDiscoverLeaguesPlay } from "./listDiscoverLeaguesPlay";
 
 export type ListDiscoverLeaguesParams = {
   /**
@@ -12,4 +13,8 @@ export type ListDiscoverLeaguesParams = {
    * @maximum 30
    */
   radius?: number;
+  /**
+   * The Format filter (D8): only singles or only doubles leagues. Leave it out for all
+   */
+  play?: ListDiscoverLeaguesPlay;
 };

@@ -1,3 +1,6 @@
+import { getDoublesPartners } from "../services/doublesPartners.js";
+import { closeChatsForVoided } from "../services/doublesChat.js";
+import { isFixedDoubles } from "../lib/doublesTeams.js";
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { getAuth } from "@clerk/express";
 import { db, leagueJoinRequestsTable, leagueRoundByesTable, leaguesTable, matchesTable, playersTable } from "@workspace/db";
@@ -230,11 +233,17 @@ router.post("/leagues/:leagueId/join-requests/:requestId/approve", requireLeague
   const request = await loadPendingRequest(leagueId, requestId);
   if (!league || !request) { res.status(404).json({ error: "Request not found" }); return; }
 
+  // D4: an Open fixed-partner league can let a waitlisted player in for someone who needs a partner.
+  const letInForPartner =
+    isFixedDoubles(league) && league.visibility === "open"
+      ? (await (await getDoublesPartners()).manage(leagueId)).canLetInWaitlisted
+      : false;
   const outcome = approveOutcome({
     league,
     activePlayerCount: await activePlayerCount(leagueId),
     today: todayFor(league),
     request,
+    letInForPartner,
   });
   if (!outcome.ok) {
     if (outcome.moveToWaitlist) {
@@ -340,6 +349,9 @@ async function dropOut(leagueId: number, playerId: number, playerName: string): 
     return { ...out, matches: theirs };
   });
   const voided = plan.voidIds;
+  // D4, D6: a fixed partner leaving breaks up their team; cancelled doubles matches' chats go read only.
+  await (await getDoublesPartners()).onDropout(leagueId, playerId).catch((err) => logger.error({ err, leagueId }, "Doubles dropout failed"));
+  closeChatsForVoided(voided);
 
   // Q5: the opponent moves on in the bracket, shown as W/O.
   for (const w of plan.walkovers) {

@@ -173,12 +173,18 @@ export class MemoryMessagingRepo implements MessagingRepo {
     return this.groups.find((g) => g.leagueId === leagueId) ?? null;
   }
 
+  async findGroupByMatch(matchId: number) {
+    return this.groups.find((g) => g.matchId === matchId) ?? null;
+  }
+
   async createGroup(input: NewGroup) {
     const existing = await this.findGroupByChannel(input.channelId);
     if (existing) return existing;
     const g: GroupRecord = {
       ...input,
       leagueId: input.leagueId ?? null,
+      matchId: input.matchId ?? null,
+      memberTitles: null,
       pinnedIds: [],
       standings: null,
       id: this.nextGroupId++,

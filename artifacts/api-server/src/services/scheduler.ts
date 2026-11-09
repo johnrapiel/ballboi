@@ -11,6 +11,8 @@ import { runAllLeagueDays } from "./leagueRounds";
 import { sweepSessionVideos } from "../lib/videoRetention";
 import { runMatchReminders } from "./push/matchReminderJob";
 import { startMatchPlanJobs } from "./discover/matchPlanJobs";
+import { runDoublesChatCards } from "./doublesChat";
+import { getDoublesPartners } from "./doublesPartners";
 
 function getNextMonday(date: Date): string {
   const d = new Date(date);
@@ -185,6 +187,16 @@ export function startScheduler() {
   // (spec: Leagues > Weekly loop). Leagues run on their creator's time zone.
   cron.schedule("0 * * * *", () => {
     runAllLeagueDays().catch((err) => logger.error({ err }, "CRON: League day failed"));
+  });
+
+  // Every 15 minutes — doubles partners (D6, D9): team-up requests unanswered
+  // for 48 hours expire with a notice, and doubles match chats get their
+  // day-before and "Did it happen?" lines, each at most once.
+  cron.schedule("*/15 * * * *", () => {
+    getDoublesPartners()
+      .then((s) => s.expireRequests())
+      .catch((err) => logger.error({ err }, "CRON: Partner request expiry failed"));
+    runDoublesChatCards().catch((err) => logger.error({ err }, "CRON: Doubles chat cards failed"));
   });
 
   // Thursday at 9:00 AM — auto-generate availability-based schedules

@@ -87,6 +87,7 @@ import type {
   DiscoverReportInput,
   DiscoverReportResult,
   DiscoverSettingsInput,
+  DoublesMatchChat,
   DropoutResult,
   EditedScore,
   EndLiveMatch200,
@@ -143,6 +144,7 @@ import type {
   LeagueNotice,
   LeagueRoundWithMatchups,
   LeagueSchedule,
+  LeagueTeams,
   LeagueWeek,
   ListCourtsParams,
   ListDeviceBansParams,
@@ -152,6 +154,7 @@ import type {
   LiveActivityProps,
   LockMatchBody,
   LogDoublesViewBody,
+  LookingForPartnerBody,
   Match,
   MatchBallBoiShotCallbackBody,
   MatchDetail,
@@ -173,6 +176,7 @@ import type {
   MyJoinRequest,
   MyMatchesResponse,
   MyOpenMatches,
+  MyPartner,
   MyScheduleResponse,
   NewConversationInput,
   NewCourtInput,
@@ -186,6 +190,7 @@ import type {
   OpenMatchActionInput,
   OpenMatchDetail,
   OpenMatchList,
+  PartnerRequestBody,
   PhotoUploadRequest,
   PhotoUploadTicket,
   PinInput,
@@ -240,6 +245,7 @@ import type {
   StartBallBoiSessionBody,
   SuccessResult,
   SwapPlayersBody,
+  TeamUpBody,
   TopPlayer,
   TrainingChoice,
   UndoDeviceBan200,
@@ -6495,6 +6501,982 @@ export const useDevPairLeagueNow = <
   TContext
 > => {
   return useMutation(getDevPairLeagueNowMutationOptions(options));
+};
+
+/**
+ * @summary Fixed-partner doubles (D9): your partner, your request out, requests to you, a notice in words, and who you can ask
+ */
+export const getGetMyPartnerUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/partner`;
+};
+
+export const getMyPartner = async (
+  leagueId: number,
+  options?: RequestInit,
+): Promise<MyPartner> => {
+  return customFetch<MyPartner>(getGetMyPartnerUrl(leagueId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyPartnerQueryKey = (leagueId: number) => {
+  return [`/api/leagues/${leagueId}/partner`] as const;
+};
+
+export const getGetMyPartnerQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyPartner>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMyPartner>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyPartnerQueryKey(leagueId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyPartner>>> = ({
+    signal,
+  }) => getMyPartner(leagueId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!leagueId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyPartner>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyPartnerQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyPartner>>
+>;
+export type GetMyPartnerQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Fixed-partner doubles (D9): your partner, your request out, requests to you, a notice in words, and who you can ask
+ */
+
+export function useGetMyPartner<
+  TData = Awaited<ReturnType<typeof getMyPartner>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMyPartner>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyPartnerQueryOptions(leagueId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Team up with someone (D9): a request with Accept and Decline, 48 hours to answer
+ */
+export const getRequestPartnerUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/partner/requests`;
+};
+
+export const requestPartner = async (
+  leagueId: number,
+  partnerRequestBody: PartnerRequestBody,
+  options?: RequestInit,
+): Promise<MyPartner> => {
+  return customFetch<MyPartner>(getRequestPartnerUrl(leagueId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(partnerRequestBody),
+  });
+};
+
+export const getRequestPartnerMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestPartner>>,
+    TError,
+    { leagueId: number; data: BodyType<PartnerRequestBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestPartner>>,
+  TError,
+  { leagueId: number; data: BodyType<PartnerRequestBody> },
+  TContext
+> => {
+  const mutationKey = ["requestPartner"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestPartner>>,
+    { leagueId: number; data: BodyType<PartnerRequestBody> }
+  > = (props) => {
+    const { leagueId, data } = props ?? {};
+
+    return requestPartner(leagueId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestPartnerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestPartner>>
+>;
+export type RequestPartnerMutationBody = BodyType<PartnerRequestBody>;
+export type RequestPartnerMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Team up with someone (D9): a request with Accept and Decline, 48 hours to answer
+ */
+export const useRequestPartner = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestPartner>>,
+    TError,
+    { leagueId: number; data: BodyType<PartnerRequestBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestPartner>>,
+  TError,
+  { leagueId: number; data: BodyType<PartnerRequestBody> },
+  TContext
+> => {
+  return useMutation(getRequestPartnerMutationOptions(options));
+};
+
+/**
+ * @summary Accept a request to team up, so you are partners for the season
+ */
+export const getAcceptPartnerRequestUrl = (
+  leagueId: number,
+  requestId: number,
+) => {
+  return `/api/leagues/${leagueId}/partner/requests/${requestId}/accept`;
+};
+
+export const acceptPartnerRequest = async (
+  leagueId: number,
+  requestId: number,
+  options?: RequestInit,
+): Promise<MyPartner> => {
+  return customFetch<MyPartner>(
+    getAcceptPartnerRequestUrl(leagueId, requestId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getAcceptPartnerRequestMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof acceptPartnerRequest>>,
+    TError,
+    { leagueId: number; requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof acceptPartnerRequest>>,
+  TError,
+  { leagueId: number; requestId: number },
+  TContext
+> => {
+  const mutationKey = ["acceptPartnerRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof acceptPartnerRequest>>,
+    { leagueId: number; requestId: number }
+  > = (props) => {
+    const { leagueId, requestId } = props ?? {};
+
+    return acceptPartnerRequest(leagueId, requestId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AcceptPartnerRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof acceptPartnerRequest>>
+>;
+
+export type AcceptPartnerRequestMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Accept a request to team up, so you are partners for the season
+ */
+export const useAcceptPartnerRequest = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof acceptPartnerRequest>>,
+    TError,
+    { leagueId: number; requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof acceptPartnerRequest>>,
+  TError,
+  { leagueId: number; requestId: number },
+  TContext
+> => {
+  return useMutation(getAcceptPartnerRequestMutationOptions(options));
+};
+
+/**
+ * @summary Decline a request to team up. The sender goes back on Looking for a partner with a notice
+ */
+export const getDeclinePartnerRequestUrl = (
+  leagueId: number,
+  requestId: number,
+) => {
+  return `/api/leagues/${leagueId}/partner/requests/${requestId}/decline`;
+};
+
+export const declinePartnerRequest = async (
+  leagueId: number,
+  requestId: number,
+  options?: RequestInit,
+): Promise<MyPartner> => {
+  return customFetch<MyPartner>(
+    getDeclinePartnerRequestUrl(leagueId, requestId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getDeclinePartnerRequestMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof declinePartnerRequest>>,
+    TError,
+    { leagueId: number; requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof declinePartnerRequest>>,
+  TError,
+  { leagueId: number; requestId: number },
+  TContext
+> => {
+  const mutationKey = ["declinePartnerRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof declinePartnerRequest>>,
+    { leagueId: number; requestId: number }
+  > = (props) => {
+    const { leagueId, requestId } = props ?? {};
+
+    return declinePartnerRequest(leagueId, requestId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeclinePartnerRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof declinePartnerRequest>>
+>;
+
+export type DeclinePartnerRequestMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Decline a request to team up. The sender goes back on Looking for a partner with a notice
+ */
+export const useDeclinePartnerRequest = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof declinePartnerRequest>>,
+    TError,
+    { leagueId: number; requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof declinePartnerRequest>>,
+  TError,
+  { leagueId: number; requestId: number },
+  TContext
+> => {
+  return useMutation(getDeclinePartnerRequestMutationOptions(options));
+};
+
+/**
+ * @summary Cancel your own request to team up
+ */
+export const getCancelPartnerRequestUrl = (
+  leagueId: number,
+  requestId: number,
+) => {
+  return `/api/leagues/${leagueId}/partner/requests/${requestId}/cancel`;
+};
+
+export const cancelPartnerRequest = async (
+  leagueId: number,
+  requestId: number,
+  options?: RequestInit,
+): Promise<MyPartner> => {
+  return customFetch<MyPartner>(
+    getCancelPartnerRequestUrl(leagueId, requestId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getCancelPartnerRequestMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cancelPartnerRequest>>,
+    TError,
+    { leagueId: number; requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof cancelPartnerRequest>>,
+  TError,
+  { leagueId: number; requestId: number },
+  TContext
+> => {
+  const mutationKey = ["cancelPartnerRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof cancelPartnerRequest>>,
+    { leagueId: number; requestId: number }
+  > = (props) => {
+    const { leagueId, requestId } = props ?? {};
+
+    return cancelPartnerRequest(leagueId, requestId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CancelPartnerRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof cancelPartnerRequest>>
+>;
+
+export type CancelPartnerRequestMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Cancel your own request to team up
+ */
+export const useCancelPartnerRequest = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cancelPartnerRequest>>,
+    TError,
+    { leagueId: number; requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof cancelPartnerRequest>>,
+  TError,
+  { leagueId: number; requestId: number },
+  TContext
+> => {
+  return useMutation(getCancelPartnerRequestMutationOptions(options));
+};
+
+/**
+ * @summary Done with the notice about a declined or unanswered request
+ */
+export const getDismissPartnerNoticeUrl = (
+  leagueId: number,
+  requestId: number,
+) => {
+  return `/api/leagues/${leagueId}/partner/requests/${requestId}/dismiss`;
+};
+
+export const dismissPartnerNotice = async (
+  leagueId: number,
+  requestId: number,
+  options?: RequestInit,
+): Promise<MyPartner> => {
+  return customFetch<MyPartner>(
+    getDismissPartnerNoticeUrl(leagueId, requestId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getDismissPartnerNoticeMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dismissPartnerNotice>>,
+    TError,
+    { leagueId: number; requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof dismissPartnerNotice>>,
+  TError,
+  { leagueId: number; requestId: number },
+  TContext
+> => {
+  const mutationKey = ["dismissPartnerNotice"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof dismissPartnerNotice>>,
+    { leagueId: number; requestId: number }
+  > = (props) => {
+    const { leagueId, requestId } = props ?? {};
+
+    return dismissPartnerNotice(leagueId, requestId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DismissPartnerNoticeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof dismissPartnerNotice>>
+>;
+
+export type DismissPartnerNoticeMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Done with the notice about a declined or unanswered request
+ */
+export const useDismissPartnerNotice = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dismissPartnerNotice>>,
+    TError,
+    { leagueId: number; requestId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof dismissPartnerNotice>>,
+  TError,
+  { leagueId: number; requestId: number },
+  TContext
+> => {
+  return useMutation(getDismissPartnerNoticeMutationOptions(options));
+};
+
+/**
+ * @summary Find me a partner (D9): on the list your league admin sees in Manage, by level
+ */
+export const getSetLookingForPartnerUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/partner/looking`;
+};
+
+export const setLookingForPartner = async (
+  leagueId: number,
+  lookingForPartnerBody: LookingForPartnerBody,
+  options?: RequestInit,
+): Promise<MyPartner> => {
+  return customFetch<MyPartner>(getSetLookingForPartnerUrl(leagueId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(lookingForPartnerBody),
+  });
+};
+
+export const getSetLookingForPartnerMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setLookingForPartner>>,
+    TError,
+    { leagueId: number; data: BodyType<LookingForPartnerBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setLookingForPartner>>,
+  TError,
+  { leagueId: number; data: BodyType<LookingForPartnerBody> },
+  TContext
+> => {
+  const mutationKey = ["setLookingForPartner"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setLookingForPartner>>,
+    { leagueId: number; data: BodyType<LookingForPartnerBody> }
+  > = (props) => {
+    const { leagueId, data } = props ?? {};
+
+    return setLookingForPartner(leagueId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetLookingForPartnerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setLookingForPartner>>
+>;
+export type SetLookingForPartnerMutationBody = BodyType<LookingForPartnerBody>;
+export type SetLookingForPartnerMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Find me a partner (D9): on the list your league admin sees in Manage, by level
+ */
+export const useSetLookingForPartner = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setLookingForPartner>>,
+    TError,
+    { leagueId: number; data: BodyType<LookingForPartnerBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setLookingForPartner>>,
+  TError,
+  { leagueId: number; data: BodyType<LookingForPartnerBody> },
+  TContext
+> => {
+  return useMutation(getSetLookingForPartnerMutationOptions(options));
+};
+
+/**
+ * @summary Manage > Teams (D2, D4, D9), for league admins: teams, and players without a partner (Needs a partner, Looking for a partner)
+ */
+export const getGetLeagueTeamsUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/teams`;
+};
+
+export const getLeagueTeams = async (
+  leagueId: number,
+  options?: RequestInit,
+): Promise<LeagueTeams> => {
+  return customFetch<LeagueTeams>(getGetLeagueTeamsUrl(leagueId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetLeagueTeamsQueryKey = (leagueId: number) => {
+  return [`/api/leagues/${leagueId}/teams`] as const;
+};
+
+export const getGetLeagueTeamsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLeagueTeams>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeagueTeams>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetLeagueTeamsQueryKey(leagueId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getLeagueTeams>>> = ({
+    signal,
+  }) => getLeagueTeams(leagueId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!leagueId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLeagueTeams>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLeagueTeamsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLeagueTeams>>
+>;
+export type GetLeagueTeamsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Manage > Teams (D2, D4, D9), for league admins: teams, and players without a partner (Needs a partner, Looking for a partner)
+ */
+
+export function useGetLeagueTeams<
+  TData = Awaited<ReturnType<typeof getLeagueTeams>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  leagueId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeagueTeams>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLeagueTeamsQueryOptions(leagueId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary League admins: team up two players without partners. A re-teamed player's new team starts 0-0 (D4)
+ */
+export const getTeamUpPlayersUrl = (leagueId: number) => {
+  return `/api/leagues/${leagueId}/teams`;
+};
+
+export const teamUpPlayers = async (
+  leagueId: number,
+  teamUpBody: TeamUpBody,
+  options?: RequestInit,
+): Promise<LeagueTeams> => {
+  return customFetch<LeagueTeams>(getTeamUpPlayersUrl(leagueId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(teamUpBody),
+  });
+};
+
+export const getTeamUpPlayersMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof teamUpPlayers>>,
+    TError,
+    { leagueId: number; data: BodyType<TeamUpBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof teamUpPlayers>>,
+  TError,
+  { leagueId: number; data: BodyType<TeamUpBody> },
+  TContext
+> => {
+  const mutationKey = ["teamUpPlayers"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof teamUpPlayers>>,
+    { leagueId: number; data: BodyType<TeamUpBody> }
+  > = (props) => {
+    const { leagueId, data } = props ?? {};
+
+    return teamUpPlayers(leagueId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TeamUpPlayersMutationResult = NonNullable<
+  Awaited<ReturnType<typeof teamUpPlayers>>
+>;
+export type TeamUpPlayersMutationBody = BodyType<TeamUpBody>;
+export type TeamUpPlayersMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary League admins: team up two players without partners. A re-teamed player's new team starts 0-0 (D4)
+ */
+export const useTeamUpPlayers = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof teamUpPlayers>>,
+    TError,
+    { leagueId: number; data: BodyType<TeamUpBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof teamUpPlayers>>,
+  TError,
+  { leagueId: number; data: BodyType<TeamUpBody> },
+  TContext
+> => {
+  return useMutation(getTeamUpPlayersMutationOptions(options));
+};
+
+/**
+ * @summary League admins: split a team. Its unplayed matches are cancelled
+ */
+export const getSplitLeagueTeamUrl = (leagueId: number, teamId: number) => {
+  return `/api/leagues/${leagueId}/teams/${teamId}/split`;
+};
+
+export const splitLeagueTeam = async (
+  leagueId: number,
+  teamId: number,
+  options?: RequestInit,
+): Promise<LeagueTeams> => {
+  return customFetch<LeagueTeams>(getSplitLeagueTeamUrl(leagueId, teamId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSplitLeagueTeamMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof splitLeagueTeam>>,
+    TError,
+    { leagueId: number; teamId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof splitLeagueTeam>>,
+  TError,
+  { leagueId: number; teamId: number },
+  TContext
+> => {
+  const mutationKey = ["splitLeagueTeam"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof splitLeagueTeam>>,
+    { leagueId: number; teamId: number }
+  > = (props) => {
+    const { leagueId, teamId } = props ?? {};
+
+    return splitLeagueTeam(leagueId, teamId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SplitLeagueTeamMutationResult = NonNullable<
+  Awaited<ReturnType<typeof splitLeagueTeam>>
+>;
+
+export type SplitLeagueTeamMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary League admins: split a team. Its unplayed matches are cancelled
+ */
+export const useSplitLeagueTeam = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof splitLeagueTeam>>,
+    TError,
+    { leagueId: number; teamId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof splitLeagueTeam>>,
+  TError,
+  { leagueId: number; teamId: number },
+  TContext
+> => {
+  return useMutation(getSplitLeagueTeamMutationOptions(options));
+};
+
+/**
+ * @summary Message on a doubles league match (D6): one group chat for all four, made if needed
+ */
+export const getOpenDoublesMatchChatUrl = (
+  leagueId: number,
+  matchId: number,
+) => {
+  return `/api/leagues/${leagueId}/matches/${matchId}/chat`;
+};
+
+export const openDoublesMatchChat = async (
+  leagueId: number,
+  matchId: number,
+  options?: RequestInit,
+): Promise<DoublesMatchChat> => {
+  return customFetch<DoublesMatchChat>(
+    getOpenDoublesMatchChatUrl(leagueId, matchId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getOpenDoublesMatchChatMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof openDoublesMatchChat>>,
+    TError,
+    { leagueId: number; matchId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof openDoublesMatchChat>>,
+  TError,
+  { leagueId: number; matchId: number },
+  TContext
+> => {
+  const mutationKey = ["openDoublesMatchChat"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof openDoublesMatchChat>>,
+    { leagueId: number; matchId: number }
+  > = (props) => {
+    const { leagueId, matchId } = props ?? {};
+
+    return openDoublesMatchChat(leagueId, matchId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type OpenDoublesMatchChatMutationResult = NonNullable<
+  Awaited<ReturnType<typeof openDoublesMatchChat>>
+>;
+
+export type OpenDoublesMatchChatMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Message on a doubles league match (D6): one group chat for all four, made if needed
+ */
+export const useOpenDoublesMatchChat = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof openDoublesMatchChat>>,
+    TError,
+    { leagueId: number; matchId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof openDoublesMatchChat>>,
+  TError,
+  { leagueId: number; matchId: number },
+  TContext
+> => {
+  return useMutation(getOpenDoublesMatchChatMutationOptions(options));
 };
 
 /**

@@ -142,6 +142,16 @@ Carried over from the original web app's project notes. Describes how the API, s
 - Season badges appear on match rows. The active season name is shown dynamically in the standings header.
 - Service: `artifacts/api-server/src/services/seasonService.ts` — `getAutoSeason`, `getPastSeasonNames`, `getSeasonsForLeague`.
 
+## Doubles leagues (Wave 2, doubles flow review D1 to D10, Nov 9)
+
+- A doubles league is Fixed partners or Rotating partners (`leagues.partner_mode`), never has playoffs, and needs 4 active players before a round can be paired.
+- Pairing lives in `lib/doublesPairing.ts` (pure); `services/doublesRounds.ts` loads and saves it. Side 1 is `player1` + `player3`, side 2 is `player2` + `player4`, as scoring and standings already assume.
+- Rotating: fours by close level, the most even split, a repeat partner only when every choice repeats one (cost above any level gap), leftovers get byes fewest first, blocked pairs never share a four.
+- Fixed: `league_teams` holds teams; split or broken teams keep their row (`dissolved_at`), and `matches.team1_id`/`team2_id` say which team played, so team standings (`computeTeamStandings`) count only the active team's own matches. Anyone without a partner when the first round goes out is auto-teamed by level; after that they have byes until an admin re-teams them.
+- Team-up requests (`league_partner_requests`) expire after 48 hours via the 15-minute job in `services/scheduler.ts`. Declined, expired or "taken" (the other player teamed up with someone else) puts the sender back on Looking for a partner (`players.looking_for_partner_at`) with a notice until they dismiss it.
+- Each published doubles match gets a group chat for all four (`message_groups.match_id`, titled per member in `member_titles`). It gets day-before and "Did it happen?" lines once each (`league_match_chat_cards`) and goes read only once the score is in or the match is voided.
+- Account deletion: `lib/doublesAccountDeletion.ts`.
+
 ## Migrations
 
 - SQL files in `scripts/migrations` run through `scripts/run-db-migrations.mjs` when the API starts.

@@ -156,6 +156,11 @@ export interface DiscoverLeague {
   distance: string | null;
   format: string;
   type: string;
+  /**
+   * Doubles (D1), "Fixed partners" or "Rotating partners"; null for singles
+   * @nullable
+   */
+  partners?: string | null;
   levelText: string;
   outsideLevel: boolean;
   /** @nullable */
@@ -204,6 +209,8 @@ export interface DiscoverLeagueCard {
   joining: DiscoverLeagueCardJoining;
   myRequest: DiscoverLeagueRequest;
   spoken: string;
+  /** A doubles league, for the Doubles pill (D8) */
+  doubles: boolean;
 }
 
 export type DiscoverLeaguesCountsItem = {
@@ -1245,6 +1252,13 @@ export interface LeagueWeekItem {
   /** @nullable */
   opponentName: string | null;
   /**
+   * Doubles (D8), your partner this match, for "You and Sam vs. Jo and Lee". Null in singles and byes
+   * @nullable
+   */
+  partnerName: string | null;
+  /** Doubles (D8), the other team's names. Empty in singles and byes */
+  opponentNames: string[];
+  /**
    * The singles opponent's player id, for Message on the Home card; null for doubles and byes
    * @nullable
    */
@@ -1368,6 +1382,11 @@ export interface LeagueWeekResult {
   source: MatchSource;
   matchId: number;
   opponentName: string;
+  /**
+   * Doubles (D8), your partner. Absent or null in singles
+   * @nullable
+   */
+  partnerName?: string | null;
   /** From the viewer's side, their games first */
   score: string;
   won: boolean;
@@ -1691,6 +1710,20 @@ export interface ScheduleMatch {
   player2Rating: MatchPlayerRating | null;
   player1HasAccount: boolean;
   player2HasAccount: boolean;
+  /**
+   * Doubles (D8), player 1's partner. Null in singles
+   * @nullable
+   */
+  player3Id?: number | null;
+  /** @nullable */
+  player3Name?: string | null;
+  /**
+   * Doubles (D8), player 2's partner. Null in singles
+   * @nullable
+   */
+  player4Id?: number | null;
+  /** @nullable */
+  player4Name?: string | null;
   status: string;
   /**
    * From player 1's side
@@ -1728,6 +1761,110 @@ export interface ScheduleMatch {
    * @nullable
    */
   scoreClearedBy: string | null;
+}
+
+export interface PartnerPerson {
+  playerId: number;
+  name: string;
+  /** Their self-rated level */
+  level: number;
+}
+
+export type MyPartnerOutgoing = null | {
+  requestId: number;
+  to: PartnerPerson;
+  expiresAt: string;
+};
+
+export type MyPartnerIncomingItem = {
+  requestId: number;
+  from: PartnerPerson;
+  expiresAt: string;
+};
+
+/**
+ * Why your request ended without a team, in words, until you dismiss it
+ */
+export type MyPartnerNotice = null | {
+  requestId: number;
+  text: string;
+};
+
+/**
+ * Fixed-partner doubles (D2, D4, D9): what you see about teaming up in a league
+ */
+export interface MyPartner {
+  /** A fixed-partner doubles league, so teams apply */
+  fixedPartners: boolean;
+  /** You play in this league */
+  member: boolean;
+  /** Requests and Find me a partner close when the first round goes out */
+  teamingOpen: boolean;
+  partner: PartnerPerson | null;
+  /** On the Looking for a partner list */
+  looking: boolean;
+  outgoing: MyPartnerOutgoing;
+  incoming: MyPartnerIncomingItem[];
+  /** Why your request ended without a team, in words, until you dismiss it */
+  notice: MyPartnerNotice;
+  /** Members you can ask. Never someone you have a block with */
+  candidates: PartnerPerson[];
+  /** Your partner left; byes until your league admin teams you up (D4) */
+  needsPartner: boolean;
+}
+
+export interface PartnerRequestBody {
+  toPlayerId: number;
+}
+
+export interface LookingForPartnerBody {
+  on: boolean;
+}
+
+export interface TeamUpBody {
+  /**
+   * @minItems 2
+   * @maxItems 2
+   */
+  playerIds: number[];
+}
+
+export type LeagueTeamsTeamsItem = {
+  teamId: number;
+  players: PartnerPerson[];
+};
+
+export type LeagueTeamsUnpairedItemKind =
+  (typeof LeagueTeamsUnpairedItemKind)[keyof typeof LeagueTeamsUnpairedItemKind];
+
+export const LeagueTeamsUnpairedItemKind = {
+  needs_partner: "needs_partner",
+  looking: "looking",
+  no_partner: "no_partner",
+} as const;
+
+export type LeagueTeamsUnpairedItem = {
+  playerId: number;
+  name: string;
+  level: number;
+  kind: LeagueTeamsUnpairedItemKind;
+};
+
+/**
+ * Manage > Teams (D2, D4, D9)
+ */
+export interface LeagueTeams {
+  fixedPartners: boolean;
+  firstRoundOut: boolean;
+  teams: LeagueTeamsTeamsItem[];
+  /** Players without a partner, highest level first */
+  unpaired: LeagueTeamsUnpairedItem[];
+  /** An Open league can let a waitlisted player in for a player who needs a partner (D4) */
+  canLetInWaitlisted: boolean;
+}
+
+export interface DoublesMatchChat {
+  groupId: number;
 }
 
 export type ScheduleRoundPhase =
@@ -2219,6 +2356,16 @@ export interface Standing {
   setsLost: number;
   gamesWon: number;
   gamesLost: number;
+  /**
+   * Fixed-partner doubles (D3), this row is a team; playerName is "John Rapiel & Sam Lee" and playerId is its first player
+   * @nullable
+   */
+  teamId?: number | null;
+  /**
+   * Fixed-partner doubles, both players on the team
+   * @nullable
+   */
+  teamPlayerIds?: number[] | null;
 }
 
 export type PlayerSkillLevel =
@@ -3868,13 +4015,14 @@ export interface MessagesSummary {
 }
 
 /**
- * An open match's chat, or a league's chat (decision 145)
+ * An open match's chat, a league's chat (decision 145), or a doubles league match's chat for all four (D6)
  */
 export type GroupViewKind = (typeof GroupViewKind)[keyof typeof GroupViewKind];
 
 export const GroupViewKind = {
   match: "match",
   league: "league",
+  doubles: "doubles",
 } as const;
 
 export type GroupViewLastMessage = null | {
@@ -3890,7 +4038,7 @@ export type GroupViewLastMessage = null | {
 
 export interface GroupView {
   id: number;
-  /** An open match's chat, or a league's chat (decision 145) */
+  /** An open match's chat, a league's chat (decision 145), or a doubles league match's chat for all four (D6) */
   kind: GroupViewKind;
   /** Sat 9 AM doubles · Beacon Courts, or the league name */
   title: string;
@@ -3898,6 +4046,11 @@ export interface GroupView {
   openMatchId: number | null;
   /** @nullable */
   leagueId: number | null;
+  /**
+   * Doubles match chats, the league match (D6)
+   * @nullable
+   */
+  matchId: number | null;
   memberCount: number;
   lastMessage: GroupViewLastMessage;
   /** Every unread message; the row shows bold with this count */
@@ -4376,7 +4529,19 @@ export type ListDiscoverLeaguesParams = {
    * @maximum 30
    */
   radius?: number;
+  /**
+   * The Format filter (D8): only singles or only doubles leagues. Leave it out for all
+   */
+  play?: ListDiscoverLeaguesPlay;
 };
+
+export type ListDiscoverLeaguesPlay =
+  (typeof ListDiscoverLeaguesPlay)[keyof typeof ListDiscoverLeaguesPlay];
+
+export const ListDiscoverLeaguesPlay = {
+  singles: "singles",
+  doubles: "doubles",
+} as const;
 
 export type ListDiscoverPlayersParams = {
   /**

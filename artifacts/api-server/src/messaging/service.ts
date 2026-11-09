@@ -83,13 +83,15 @@ export interface NewMessageEvent {
 /** How a group chat looks to one of its members (F15, and league chats, decision 145). */
 export interface GroupView {
   id: number;
-  /** An open match's chat, or a league's chat (titled with the league name). */
-  kind: "match" | "league";
+  /** An open match's chat, a league's chat (titled with the league name), or a doubles league match's chat (D6). */
+  kind: "match" | "league" | "doubles";
   title: string;
   /** The open match behind it, for Players. */
   openMatchId: number | null;
   /** The league behind it, for the league page. */
   leagueId: number | null;
+  /** Doubles match chats: the league match behind it (D6). */
+  matchId: number | null;
   /** Everyone in the chat, you included. */
   memberCount: number;
   lastMessage: { text: string; fromMe: boolean; senderName: string | null; at: string } | null;
@@ -146,6 +148,21 @@ export interface LeagueGroupSync {
   ended: boolean;
 }
 
+/** One change to a doubles league match's chat (D6), from services/doublesChat.ts. */
+export interface MatchGroupSync {
+  matchId: number;
+  /** Shown in pushes: "Doubles · Week 3". */
+  title: string;
+  /** Each member's own title, by account. */
+  titles: Record<string, string>;
+  members: string[];
+  open: boolean;
+  closedReason?: string | null;
+  /** A line from Ball Boi to post with the change. */
+  system?: string;
+  create?: boolean;
+}
+
 /** One change to a group chat, from whatever owns it (open matches). */
 export interface GroupSync {
   openMatchId: number;
@@ -199,6 +216,10 @@ function channelIdFor(pairKey: string): string {
 
 function groupChannelFor(openMatchId: number): string {
   return `grp_${createHash("sha256").update(`open_match:${openMatchId}`).digest("hex").slice(0, 24)}`;
+}
+
+function matchChannelFor(matchId: number): string {
+  return `lm_${createHash("sha256").update(`league_match:${matchId}`).digest("hex").slice(0, 24)}`;
 }
 
 function leagueChannelFor(leagueId: number): string {
@@ -592,6 +613,56 @@ export class MessagingService {
     return group;
   }
 
+  /**
+   * A doubles league match's chat for all four players (D6), like an open
+   * match's: made with `create`, members kept in step, closed (read only)
+   * once the score is in or the match is cancelled.
+   */
+  async syncMatchGroup(input: MatchGroupSync): Promise<GroupRecord | null> {
+    let group = await this.repo.findGroupByMatch(input.matchId);
+    const want = [...new Set(input.members)];
+    if (!group) {
+      if (!input.create || !want.length) return null;
+      const channelId = matchChannelFor(input.matchId);
+      await this.provider.ensureChannel(channelId, want);
+      group = await this.repo.createGroup({ channelId, openMatchId: null, leagueId: null, matchId: input.matchId, title: input.title });
+      await this.provider.addMembers(channelId, want);
+      await this.repo.addGroupMembers(group.id, want, this.now());
+    } else {
+      const have = (await this.repo.groupMembers(group.id)).map((m) => m.userId);
+      const added = want.filter((u) => !have.includes(u));
+      const removed = have.filter((u) => !want.includes(u));
+      if (removed.length) {
+        await this.provider.removeMembers(group.channelId, removed);
+        await this.repo.removeGroupMembers(group.id, removed);
+      }
+      if (added.length) {
+        await this.provider.ensureChannel(group.channelId, want);
+        await this.provider.addMembers(group.channelId, added);
+        await this.repo.addGroupMembers(group.id, added, this.now());
+      }
+    }
+    group = await this.repo.updateGroup(group.id, {
+      title: input.title,
+      memberTitles: input.titles,
+      open: input.open,
+      closedReason: input.open ? null : (input.closedReason ?? null),
+    });
+    if (input.system) group = await this.postSystem(group, input.system);
+    return group;
+  }
+
+  /** The chat for a doubles league match, if it has one. */
+  async groupForMatch(matchId: number): Promise<GroupRecord | null> {
+    return this.repo.findGroupByMatch(matchId);
+  }
+
+  /** A line from Ball Boi in a doubles match's chat (the day-before and "Did it happen?" cards, D6). */
+  async postToMatch(matchId: number, text: string): Promise<GroupRecord | null> {
+    const group = await this.repo.findGroupByMatch(matchId);
+    return group ? this.postSystem(group, text) : null;
+  }
+
   /** The chat for an open match, if it has one. */
   async groupForOpenMatch(openMatchId: number): Promise<GroupRecord | null> {
     return this.repo.findGroupByOpenMatch(openMatchId);
@@ -630,12 +701,14 @@ export class MessagingService {
     }
     const league = group.leagueId !== null;
     const muted = league && !!member.mutedAt;
+    const doubles = group.matchId != null;
     return {
       id: group.id,
-      kind: league ? "league" : "match",
-      title: group.title,
+      kind: league ? "league" : doubles ? "doubles" : "match",
+      title: (doubles ? group.memberTitles?.[me] : null) ?? group.title,
       openMatchId: group.openMatchId,
       leagueId: group.leagueId,
+      matchId: group.matchId ?? null,
       memberCount,
       lastMessage: last,
       unread: member.unread,

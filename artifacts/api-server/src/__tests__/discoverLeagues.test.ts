@@ -109,6 +109,21 @@ describe("Open league routes", () => {
     expect(res.body.leagues[1].spoken).toMatch(/you're on the waitlist/);
   });
 
+  it("D8: the Format filter shows only singles or only doubles, with a Doubles pill and partners named", async () => {
+    repo.leagues = [league(1), league(4, { leagueType: "doubles", partnerMode: "fixed" }), league(5, { leagueType: "doubles", partnerMode: "rotating" })];
+    const all = await app().get("/api/discover/leagues").expect(200);
+    expect(all.body.leagues.map((l: { leagueId: number; doubles: boolean }) => [l.leagueId, l.doubles])).toEqual([[1, false], [4, true], [5, true]]);
+    expect(all.body.leagues[1].spoken).toMatch(/flex, doubles, fixed partners/i);
+    const doubles = await app().get("/api/discover/leagues?play=doubles").expect(200);
+    expect(doubles.body.leagues.map((l: { leagueId: number }) => l.leagueId)).toEqual([4, 5]);
+    expect(doubles.body.total).toBe(2);
+    expect(doubles.body.counts.every((c: { count: number }) => c.count <= 2)).toBe(true);
+    const singles = await app().get("/api/discover/leagues?play=singles").expect(200);
+    expect(singles.body.leagues.map((l: { leagueId: number }) => l.leagueId)).toEqual([1]);
+    const one = await app().get("/api/discover/leagues/5").expect(200);
+    expect(one.body).toMatchObject({ type: "Doubles", partners: "Rotating partners" });
+  });
+
   it("shows one league with where you stand", async () => {
     const res = await app().get("/api/discover/leagues/1").expect(200);
     expect(res.body).toMatchObject({ organizerName: "Dave Moreno", spotsLeft: 3, spotsTaken: 13, joining: "request", outsideLevel: false, startLabel: "Sun, Nov 22" });

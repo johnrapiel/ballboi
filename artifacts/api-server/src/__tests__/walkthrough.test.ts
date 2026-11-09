@@ -51,3 +51,13 @@ describe("redact (staging seed logs)", () => {
     expect(redact("key sk_live_ZZZ leaked", {})).toBe("key [key] leaked");
   });
 });
+
+describe("parseCommand: doubles partners (D9)", () => {
+  it("reads team-up, accept and decline", () => {
+    expect(parseCommand(["as", "B", "team-up", "A", "12"])).toEqual({ kind: "team-up", as: "B", to: "A", leagueId: 12 });
+    expect(parseCommand(["as", "C", "accept", "12"])).toEqual({ kind: "answer", as: "C", accept: true, leagueId: 12 });
+    expect(parseCommand(["as", "C", "decline", "12"])).toEqual({ kind: "answer", as: "C", accept: false, leagueId: 12 });
+    expect(parseCommand(["as", "B", "team-up", "B", "12"])).toEqual({ error: "Pick someone else to team up with." });
+    expect(parseCommand(["as", "B", "team-up", "A"])).toMatchObject({ error: expect.stringMatching(/Usage/) });
+  });
+});

@@ -7,7 +7,8 @@ import { graceEndFor, leagueZone, roundPhase, roundWindow, todayFor } from "../l
 import { editDeadline } from "../lib/leagueScoreChanges.js";
 import { matchParticipantIds } from "../lib/leagueScoring.js";
 import { leagueHasEnded } from "../lib/leagueLifecycle.js";
-import { planBye, planLock, planSwap, unpairedPlayers } from "../lib/roundEdits.js";
+import { DOUBLES_EDITS, planBye, planLock, planSwap, unpairedPlayers } from "../lib/roundEdits.js";
+import { isDoubles } from "../lib/doublesTeams.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
 import { draftNextRound, loadDraftRound, publishRound, repairRound, usesWeeklyRounds } from "../services/leagueRounds.js";
 import { bracketFor } from "../services/leaguePlayoffs.js";
@@ -61,7 +62,9 @@ async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDe
       includeDraftDetail && phase === "draft"
         ? unpairedPlayers({
             published: false,
-            matches: roundMatches.filter((m) => !m.voidedAt).map((m) => ({ id: m.id, player1Id: m.player1Id, player2Id: m.player2Id, locked: m.locked })),
+            matches: roundMatches
+              .filter((m) => !m.voidedAt)
+              .map((m) => ({ id: m.id, player1Id: m.player1Id, player2Id: m.player2Id, player3Id: m.player3Id, player4Id: m.player4Id, locked: m.locked })),
             byes: roundByes.map((b) => ({ playerId: b.playerId, setByAdmin: b.setByAdmin })),
             activePlayerIds: activeIds,
           })
@@ -86,6 +89,11 @@ async function buildRounds(league: League, rounds: LeagueRound[], includeDraftDe
           // C7: Message only works with players who have a Ball Boi account.
           player1HasAccount: !!players.find((p) => p.id === m.player1Id)?.clerkUserId,
           player2HasAccount: !!players.find((p) => p.id === m.player2Id)?.clerkUserId,
+          // Doubles (D8): player1 + player3 against player2 + player4. Null in singles.
+          player3Id: m.player3Id ?? null,
+          player3Name: m.player3Id != null ? name(m.player3Id) : null,
+          player4Id: m.player4Id ?? null,
+          player4Name: m.player4Id != null ? name(m.player4Id) : null,
           status: m.status,
           score: m.score ?? null,
           winnerId: m.winnerId ?? null,
@@ -219,6 +227,7 @@ router.post("/leagues/:leagueId/rounds/:roundId/swap", requireLeagueAdmin, async
   const b = Number(req.body?.playerBId);
   if (!Number.isInteger(a) || !Number.isInteger(b)) { res.status(400).json({ error: "Pick two players to swap." }); return; }
 
+  if (isDoubles(found.league)) { res.status(409).json({ error: DOUBLES_EDITS }); return; }
   const plan = planSwap(await loadDraftRound(found.round), a, b);
   if ("error" in plan) { res.status(409).json({ error: plan.error }); return; }
   await db.transaction(async (tx) => {
@@ -242,6 +251,7 @@ router.post("/leagues/:leagueId/rounds/:roundId/byes", requireLeagueAdmin, async
   const playerId = Number(req.body?.playerId);
   if (!Number.isInteger(playerId)) { res.status(400).json({ error: "Pick a player." }); return; }
 
+  if (isDoubles(found.league)) { res.status(409).json({ error: DOUBLES_EDITS }); return; }
   const plan = planBye(await loadDraftRound(found.round), playerId);
   if ("error" in plan) { res.status(409).json({ error: plan.error }); return; }
   await db.transaction(async (tx) => {

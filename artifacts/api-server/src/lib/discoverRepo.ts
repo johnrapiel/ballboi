@@ -77,6 +77,7 @@ type LeagueRow = {
   name: string;
   format: string;
   league_type: string;
+  partner_mode?: string | null;
   location: string | null;
   start_date: string | null;
   season_weeks: number | null;
@@ -94,7 +95,7 @@ type LeagueRow = {
 };
 
 const leagueSelect = (viewer: string) => sql`
-  SELECT l.id, l.name, l.format, l.league_type, l.location, l.start_date, l.season_weeks, l.min_rating, l.max_rating,
+  SELECT l.id, l.name, l.format, l.league_type, l.partner_mode, l.location, l.start_date, l.season_weeks, l.min_rating, l.max_rating,
     l.roster_cap, l.time_zone, u.display_name AS organizer_name, d.area_latitude, d.area_longitude,
     (SELECT count(*) FROM players p WHERE p.league_id = l.id AND p.left_at IS NULL) AS active,
     EXISTS (SELECT 1 FROM players p WHERE p.league_id = l.id AND p.clerk_user_id = ${viewer} AND p.left_at IS NULL) AS member,
@@ -121,6 +122,7 @@ const toLeague = (r: LeagueRow): OpenLeagueCandidate & { member: boolean } => ({
   name: r.name,
   format: r.format,
   leagueType: r.league_type,
+  partnerMode: r.partner_mode ?? null,
   location: r.location,
   startDate: r.start_date,
   seasonWeeks: r.season_weeks == null ? null : Number(r.season_weeks),

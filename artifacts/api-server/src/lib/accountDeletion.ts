@@ -17,6 +17,7 @@ import {
 import { eq, inArray, or, sql } from "drizzle-orm";
 import { DELETED_PLAYER_NAME } from "./deletedPlayer";
 import { deleteLeagueDataFor } from "./leagueAccountDeletion";
+import { deleteDoublesDataFor } from "./doublesAccountDeletion";
 import { deleteMessagingData } from "../messaging/accountDeletion";
 import { ObjectStorageService } from "./objectStorage";
 import { deleteRecordingData } from "./recordingCleanup";
@@ -209,6 +210,7 @@ export async function deleteAccount(
     const photoPaths = profiles.map((u) => u.avatarUrl).filter((p): p is string => !!p && p.startsWith("/objects/"));
     await deleteRecordingData(tx, clerkUserId);
     await deleteDiscoverData(tx, clerkUserId);
+    await deleteDoublesDataFor(tx, playerIds);
     await deleteNotificationData(tx, clerkUserId, playerIds);
     await deleteLiveActivityData(tx, clerkUserId);
     // Its DeviceCheck token goes; any phone ban stays (acceptance 41).

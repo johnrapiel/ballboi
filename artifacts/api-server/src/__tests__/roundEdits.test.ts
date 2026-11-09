@@ -79,3 +79,22 @@ describe("planLock", () => {
     expect(planLock({ ...draft, published: true }, 10)).toMatch(/already gone out/);
   });
 });
+
+describe("doubles drafts (D10: re-pair, lock, or change teams in Teams)", () => {
+  const doubles: DraftRound = {
+    published: false,
+    matches: [{ id: 1, player1Id: 1, player2Id: 2, player3Id: 3, player4Id: 4, locked: false }],
+    byes: [{ playerId: 5, setByAdmin: false }],
+    activePlayerIds: [1, 2, 3, 4, 5, 6],
+  };
+
+  it("counts all four players in a match as paired", () => {
+    expect(unpairedPlayers(doubles)).toEqual([6]);
+  });
+
+  it("swaps and byes are for singles; locking still works", () => {
+    expect(planSwap(doubles, 1, 6)).toEqual({ error: "In doubles, re-pair the round or lock matches. Change fixed teams in Teams." });
+    expect(planBye(doubles, 1)).toMatchObject({ error: expect.stringMatching(/In doubles/) });
+    expect(planLock(doubles, 1)).toBeNull();
+  });
+});

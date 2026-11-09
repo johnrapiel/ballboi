@@ -11,9 +11,11 @@ import { runLeagueDay } from "../services/leagueRounds.js";
 import { logger } from "../lib/logger.js";
 import { leagueChat } from "../messaging/leagueChatEvents.js";
 import { getPastSeasonNames } from "../services/seasonService.js";
-import { computeStandings } from "../lib/leagueStandings.js";
+import { computeStandings, computeTeamStandings } from "../lib/leagueStandings.js";
+import { isFixedDoubles } from "../lib/doublesTeams.js";
+import { standingTeams } from "../services/doublesRounds.js";
 import { SKILL_LEVELS, checkStartDate, seasonDates, validateLeagueSetup } from "../lib/leagueSetup.js";
-import { loadProfiles, playerLevelText } from "../lib/playerProfile.js";
+import { loadProfiles, playerDisplayName, playerLevelText } from "../lib/playerProfile.js";
 import { DEFAULT_LEAGUE_TIME_ZONE, isTimeZone } from "../lib/leagueCalendar.js";
 import { checkLeagueMatchTime } from "../lib/matchTimes.js";
 
@@ -275,7 +277,13 @@ router.get("/leagues/:leagueId/standings", requireAuth, async (req, res) => {
   const leagueId = parseInt(String(req.params.leagueId));
   if (isNaN(leagueId)) { res.status(400).json({ error: "Invalid id" }); return; }
   const [league] = await db
-    .select({ id: leaguesTable.id, visibility: leaguesTable.visibility, createdByClerkUserId: leaguesTable.createdByClerkUserId })
+    .select({
+      id: leaguesTable.id,
+      visibility: leaguesTable.visibility,
+      createdByClerkUserId: leaguesTable.createdByClerkUserId,
+      leagueType: leaguesTable.leagueType,
+      partnerMode: leaguesTable.partnerMode,
+    })
     .from(leaguesTable)
     .where(eq(leaguesTable.id, leagueId));
   if (!league) { res.status(404).json({ error: "League not found" }); return; }
@@ -295,6 +303,14 @@ router.get("/leagues/:leagueId/standings", requireAuth, async (req, res) => {
     return season === null || !pastSeasonNames.includes(season);
   };
 
+  // D3: fixed-partner doubles ranks teams ("John Rapiel & Sam Lee"); rotating ranks players.
+  if (isFixedDoubles(league)) {
+    const teams = await standingTeams(leagueId);
+    const profiles = await loadProfiles(players.map((p) => p.clerkUserId));
+    const names = new Map(players.map((p) => [p.id, playerDisplayName(p, profiles)]));
+    res.json(computeTeamStandings(teams, names, matches, includeSeason));
+    return;
+  }
   { res.json(computeStandings(players, matches, includeSeason)); return; }
 });
 
