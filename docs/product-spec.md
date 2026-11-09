@@ -96,7 +96,7 @@ Discover is always local: results are bounded by distance, never a national feed
 Three tabs at the top: Players, Open leagues, Open matches (decision 109).
 
 - **Players near you:** filtered by level range, singles or doubles, and "Free when I'm free". List rows don't show free times (decision 122)
-- **Open leagues:** distance, level range, format, start date, spots left
+- **Open leagues:** distance, level range, format, start date, spots left. Doubles leagues carry a Doubles pill, and a Format filter (All, Singles, Doubles) narrows the list and its distance counts (decision 167)
 - **Open matches:** post date, time window, court, skill range, and format; nearby matching players get notified
 - **Need 1 / Need 2:** a tag on doubles open matches; taking a spot works like joining any open match, and the group chat opens when the last spot fills (decision 114)
 - **Empty state:** widen radius, post an open match, or invite a friend by link
@@ -154,7 +154,7 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 - **Visibility:** Private (default, invite link or code) or Open (listed in Discover, request to join)
 - **Eligibility:** level range and roster cap for Open leagues
 - **Format:** Flex or Round robin ("Pairs you with someone new each week"); Ladder comes later
-- **Play type:** singles, fixed-partner doubles, or rotating-partner doubles. Doubles stays hidden in Start a league until doubles pairing is built (Nov 4)
+- **Play:** Singles or Doubles. Doubles picks Partners: Fixed (players team up and keep that partner all season) or Rotating (new teams each week by level). Doubles has no playoffs for now (decision 79), so Playoffs is hidden, and it needs at least 4 players before a round can be paired (decisions 160, 167)
 - **Season start:** any day from tomorrow on, chosen with a calendar picker
 - **Match day and time (optional):** a club league can set a weekly match day and time, and every match in a new round gets it. Without one, either player sets their match's date and time inside its week
 - **Time zone:** the league runs on its creator's time zone, taken from their phone at creation. Deadlines name the zone when it isn't the viewer's
@@ -166,6 +166,7 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 **Scores and standings**
 
 - **Standings rank on wins**, then head to head between players level on wins, then share of sets won, then share of games won; players share a rank only when all four are level (decision 79). Playoff seeding uses the same order
+- **Doubles standings (decision 162):** fixed-partner leagues rank teams ("John Rapiel & Sam Lee, 5-2"); rotating leagues rank players, both partners credited with the result. Ties use the same order: head to head, then sets, then games
 - **Either player can edit a score for 24 hours** from the pencil next to it on Match detail; the latest edit stands, standings recompute, and the other player sees "Score edited by [name]". After 24 hours only the admin's logged correction in Manage can change it (decision 100). Discover and Quick match scores get the same 24-hour edit from Match detail, but they never touch standings and there's no admin, so after 24 hours they're locked (decision 151)
 - **Tiebreaks:** a set entered as 6-6 opens tiebreak boxes; the points are required and the set saves as 7-6(x) (decision 104)
 - **Late matches (grace period):** an unplayed match can still be played in the week after its round's deadline, but its result doesn't change the standings. In the app it shows "Play by" the end of that extra week and "This match's week has passed. You can still play it, but the result won't change the standings." The app never says "grace week" or "Ball Boi stats" (decision 152)
@@ -179,6 +180,15 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 - **Dropouts:** when a player leaves mid-season, their played matches stay, their remaining matches are voided, and they're removed from standings. A bracket player who leaves gives their opponent a walkover, shown as W/O
 - **Admins who leave stay admin:** they stop playing but still manage the league. A league's only admin who deletes their account picks the new admin first; Skip hands it to the longest-standing member, so deletion is never blocked
 - **Ended leagues:** an ended league's invite code shows "This league has ended" and sends no request
+
+**Doubles (decisions 160 to 169, John, Nov 9)**
+
+- **Teaming up (fixed partners):** players team up when they join. "Team up with someone" sends a request to a member without a partner, with Accept and Decline; "Find me a partner" puts you on a list the admin sees in Manage > Teams, by level. Declined, or unanswered after 48 hours, puts you back on Looking for a partner with a notice in words. Teaming up closes when the first round goes out; anyone still without a partner then is teamed with the closest level and keeps that partner. Admins can team up or split in Manage > Teams. Blocked players can't request each other and never see each other on the list
+- **A fixed partner drops out:** the team's played results stay and its unplayed matches are voided. The other player shows "Needs a partner" in Manage and has byes until the admin re-teams them with anyone unpaired; the new team starts 0-0. The season's join lock holds, but an Open league's waitlisted player can be let in for this
+- **Rotating partners:** each week players are grouped in fours by close level, and each four is split into the most even teams. Nobody repeats a partner until everyone possible has been partnered. The 1 to 3 left over get byes, fewest byes first. Blocked pairs never share a four
+- **Score entry:** any of the four enters it; the first score stands, and any of them can edit it for 24 hours. The winner comes from the score; RET as in singles. Each player sees it from their own side, and the recap uses team names ("John R. & Sam L. def. Jo P. & Lee K.")
+- **Message:** opens one group chat for all four ("You, Sam, Jo and Lee · Week 3") on the messaging service, like open match chats. It holds the day-before and "Did it happen?" lines and goes read only once the score is in
+- **Where it shows:** the league page, Home and Profile read "You and Sam vs. Jo and Lee". Admins review doubles drafts by locking matches or re-pairing; fixed teams change in Manage > Teams. Ball Boi stays disabled on doubles matches
 
 **Weekly loop (Flex)**
 
@@ -444,7 +454,7 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 48 | Moderation stays at the minimum Apple requires: Report, Block, and the Moderation queue. No account is restricted automatically, by reports (2 or more people), Stream flags or behavior signals. Reports go to John, then the Claude agent after 6 hours, and nothing happens to the account until one of them acts. The agent never reviews appeals (Nov 4) |
 | 49 | Leagues can have a set match time: an admin can set a weekly match day and time (clubs). When none is set, either player sets a date and time for their match inside its week (rec leagues) (Nov 4) |
 | 50 | Any unplayed match this week, grace week included, can be recorded. A set time only moves the match to the top of Home and the Ball Boi tab on that day (Nov 4) |
-| 51 | Doubles is hidden in Start a league until a later wave builds doubles pairing, after a partner flow review (Nov 4) |
+| 51 | Doubles is hidden in Start a league until a later wave builds doubles pairing, after a partner flow review (Nov 4). Replaced by decision 160 |
 | 52 | Calls mid-recording: a ringing call pauses recording; if it isn't picked up, recording carries on in the same match. An answered call stops and saves, then Resume recording adds to the same match. A manual lock or app switch acts like an answered call. No Focus setup; a hint by Record suggests Do Not Disturb (Nov 4) |
 | 53 | An admin who leaves stops playing but stays admin, and the only-admin block on leaving is gone. Replaces the leave rule in decision 31 (Nov 4) |
 | 54 | A league's only admin who deletes their account picks the new admin first. Skip hands it to the longest-standing member, so deletion is never blocked (Apple 5.1.1(v)) (Nov 4) |
@@ -548,3 +558,13 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 152 | Late matches: a league match past its week shows 'Play by' the end of its extra week and 'This match's week has passed. You can still play it, but the result won't change the standings.' The words 'grace week' and 'Ball Boi stats' leave the app (John, Nov 8) |
 | 153 | Prompts in place on your own player card: an unset home court shows "Add home court" (pin, light link) on the bottom row's left, and unset Plays shows "Add how you play" beside the Level pill, each opening Edit profile's editor. Other players' cards leave those spots out, and Free times alone sits left-aligned. VoiceOver keeps the card as one element with the prompts as separate buttons (John, Nov 9) |
 | 156 | Free times replace the hour grid: one row per day, Monday to Sunday, with Morning 7 to 11, Afternoon 12 to 4, Evening 5 to 9 and Custom pills, any number per day. Custom takes typed times ("6-8pm", "6 to 8 PM", "18:00-20:00"), each its own pill to edit or remove; unreadable text is named in words and Save stays off until it's fixed. The card keeps its summary; the Free times sheet shows it, then only the days they're free in plain text, read only on other players' sheets. Old grids convert exactly (a run that covers a block becomes that pill, anything else a custom time) and stay stored. "Free when I'm free" matches any shared time on the same day. Plays opens a Singles and Doubles editor only, and Edit profile's Free times row is the one way in from there. Replaces decision 115 (John, Nov 9) |
+| 160 | Doubles leagues offer both partner types at creation: Fixed partners and Rotating partners. Replaces decision 51's hold: doubles is in Start a league (John, Nov 9, D1) |
+| 161 | Fixed partners: players team up when they join (request a partner, or "Find me a partner"); the admin can team up or split in Manage; anyone unpaired when the first round goes out is teamed with the closest level and keeps that partner (John, Nov 9, D2) |
+| 162 | Doubles standings: fixed-partner leagues rank teams ("John Rapiel & Sam Lee, 5-2"); rotating leagues rank players, both partners credited. Ties: head to head, then sets won (John, Nov 9, D3) |
+| 163 | A fixed partner drops out mid-season: the team's played results stay, unplayed are voided; the remaining player is "Needs a partner" in Manage and the admin can re-team them with anyone unpaired (the new team starts 0-0); byes until re-teamed; the season join lock holds, but an Open league's waitlisted players can be let in for this (John, Nov 9, D4) |
+| 164 | Rotating pairing: weekly fours by close level, split into the most even teams; no repeat partner until everyone possible has been partnered; leftovers (1 to 3) get byes, fewest byes first; blocked pairs never share a four (John, Nov 9, D5) |
+| 165 | Message on a doubles match opens one group chat for all four ("You, Sam, Jo and Lee · Week 3") on the messaging service, like open match chats; it holds the day-before and "Did it happen?" cards and goes read only after the score (John, Nov 9, D6) |
+| 166 | Doubles score entry: any of the four enters it, the first score stands, any can edit it for 24 hours, the winner comes from the score, with RET and W/O; each sees it from their side; the recap uses team names ("John R. & Sam L. def. Jo P. & Lee K.") (John, Nov 9, D7) |
+| 167 | Where doubles shows: Start a league gets Play (Singles, Doubles) and Partners (Fixed, Rotating), Playoffs hidden for doubles (decision 79), minimum 4 players; Discover Open leagues get a Doubles pill and a Format filter; the league page, Home and Profile show "You and Sam vs. Jo and Lee"; Ball Boi stays disabled on doubles (John, Nov 9, D8) |
+| 168 | Teaming up: "Team up with someone" sends a request (Accept, Decline) to a member without a partner; "Find me a partner" adds you to a list the admin sees in Manage by level; declined or unanswered after 48 hours returns you to "Looking for a partner" with a notice in words; blocked players can't request each other and never see each other on the list (John, Nov 9, D9) |
+| 169 | Doubles is built from existing screens and components, with no canvas first; a full Impeccable review and every screen shown in the PR before merge; the canvas is updated from what's built (John, Nov 9, D10) |

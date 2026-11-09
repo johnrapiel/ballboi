@@ -148,6 +148,8 @@ export function otherUpcomingItem(u: PlayerMatches["upcoming"][number]): Upcomin
     starts: null,
     opponentName: u.opponentName,
     opponentPlayerId: null,
+    partnerName: null,
+    opponentNames: [],
     // Rows show no faces.
     opponentPhoto: null,
     otherUserId: u.opponentUserId,

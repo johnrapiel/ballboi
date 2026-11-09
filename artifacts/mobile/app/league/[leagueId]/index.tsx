@@ -12,12 +12,15 @@ import {
   useLeaveLeague,
   useGetLeagueSchedule,
   useGetLeagueStandings,
+  useOpenDoublesMatchChat,
   useSettlePlayoffMatch,
   type BracketSlot,
   type ScheduleMatch,
 } from "@workspace/api-client-react";
 
 import { LeagueChatButton } from "@/components/league/LeagueChatButton";
+import { PartnerCard } from "@/components/league/PartnerCard";
+import { isDoublesMatch, opponentNames, partnerName, versusLine, versusSpoken } from "@/lib/doubles";
 import { RoundCard, UpcomingWeekRow } from "@/components/league/RoundCard";
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
 import { ListRow } from "@/components/league/ListRow";
@@ -129,6 +132,7 @@ function YourWeek({
   // C6: hooks before any early return, so a bye week turning into a match
   // doesn't change the hook order.
   const { fontScale } = useWindowDimensions();
+  const openChat = useOpenDoublesMatchChat();
   const { round, match, bye } = week;
   const label = `Round ${round.roundNumber} · ${dateRange(round.startDate, round.deadline)}`;
 
@@ -144,16 +148,28 @@ function YourWeek({
   }
   if (!match) return null;
 
+  // Doubles (D6, D8): "You and Sam vs. Jo and Lee", and Message opens one chat for all four.
+  const isDoubles = isDoublesMatch(match);
+  const partner = isDoubles ? partnerName(match, myPlayerId) : null;
+  const others = isDoubles ? opponentNames(match, myPlayerId) : [];
   const opponent = opponentName(match, myPlayerId);
   const opponentId = match.player1Id === myPlayerId ? match.player2Id : match.player1Id;
-  const opponentRating = match.player1Id === myPlayerId ? match.player2Rating : match.player1Rating;
-  const canMessage = match.player1Id === myPlayerId ? match.player2HasAccount : match.player1HasAccount;
+  const opponentRating = isDoubles ? null : match.player1Id === myPlayerId ? match.player2Rating : match.player1Rating;
+  const canMessage = isDoubles || (match.player1Id === myPlayerId ? match.player2HasAccount : match.player1HasAccount);
   const scoreable = canEnterScore(round, match, ended);
   const record = recordAction(round, match, ended, doubles);
   const stack = fontScale >= 1.3;
   // C7: a direct chat with your opponent.
-  const message = () =>
-    router.push({ pathname: "/conversation/[id]", params: { id: "new", playerId: String(opponentId), name: opponent } });
+  const message = () => {
+    if (!isDoubles) {
+      router.push({ pathname: "/conversation/[id]", params: { id: "new", playerId: String(opponentId), name: opponent } });
+      return;
+    }
+    openChat
+      .mutateAsync({ leagueId, matchId: match.matchId })
+      .then(({ groupId }) => router.push({ pathname: "/conversation/group/[id]", params: { id: String(groupId) } }))
+      .catch((e) => Alert.alert("Couldn't open the chat", (e as { data?: { error?: string } | null }).data?.error ?? "Try again in a moment."));
+  };
   const played = match.status === "completed" && !!match.score;
   const corrected = correctionLine(match) ?? editedLine(match);
   // Older matches only: before the 24-hour edit, an undo left who cleared it.
@@ -173,16 +189,16 @@ function YourWeek({
     <Card style={{ gap: spacing.space3 }}>
       <View
         accessible
-        accessibilityLabel={`Your match. ${label}. You versus ${opponent}${
+        accessibilityLabel={`Your match. ${label}. ${isDoubles ? versusSpoken(partner, others) : `You versus ${opponent}`}${
           opponentRating ? `, ${levelSpoken(opponentRating.rating, opponentRating.source)}` : ""
-        }. ${when}`}
+        }. ${when}`.replace(/ & /g, " and ")}
         style={{ gap: spacing.space1 }}
       >
         <Text variant="section" tone="inkMuted">
           {label}
         </Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.space2 }}>
-          <Text variant="title">{`You vs. ${opponent}`}</Text>
+          <Text variant="title">{isDoubles ? versusLine(partner, others) : `You vs. ${opponent}`}</Text>
           {opponentRating ? <RatingBadge rating={opponentRating.rating} source={opponentRating.source} /> : null}
         </View>
         <Text variant="small" tone="inkMuted">
@@ -217,10 +233,11 @@ function YourWeek({
           ) : null}
           {canMessage ? (
             <Button
-              label={`Message ${opponent.split(" ")[0]}`}
-              accessibilityLabel={`Message ${opponent}`}
-              accessibilityHint="Opens a direct chat"
+              label={isDoubles ? "Message" : `Message ${opponent.split(" ")[0]}`}
+              accessibilityLabel={isDoubles ? "Message all four players" : `Message ${opponent}`}
+              accessibilityHint={isDoubles ? "Opens one group chat for the four of you" : "Opens a direct chat"}
               variant="secondary"
+              loading={openChat.isPending}
               onPress={message}
               style={stack ? undefined : { flex: 1 }}
             />
@@ -293,8 +310,8 @@ export default function LeagueScreen() {
   const ended = !!league?.endedAt || league?.status === "completed";
   const started = !!league?.startDate && !!schedule && schedule.today >= league.startDate;
   const isAdmin = !!membershipQ.data?.isAdmin;
-  // Q2: doubles leagues don't run yet. One made before then says so.
-  const doublesOnHold = league?.leagueType === "doubles" && !ended;
+  // Decision 79: doubles leagues have no playoffs for now, so no Playoffs tab.
+  const doubles = league?.leagueType === "doubles";
   const playoffsNote = league ? playoffLine(league.playoffSize, league.playerCount) : null;
   // Dropouts (decision 27): played matches stay, the rest are cancelled.
   // Q4: an admin who leaves stops playing but still manages the league.
@@ -445,13 +462,6 @@ export default function LeagueScreen() {
                 </Text>
               </View>
             </Card>
-          ) : doublesOnHold ? (
-            <Card accessible style={{ gap: spacing.space1 }}>
-              <Text variant="bodyStrong">This doubles league isn't running yet</Text>
-              <Text variant="small" tone="inkMuted">
-                Weekly pairings are for singles leagues for now. Your league and its players are saved.
-              </Text>
-            </Card>
           ) : playoff ? (
             <Card style={{ gap: spacing.space3 }}>
               <View
@@ -491,8 +501,22 @@ export default function LeagueScreen() {
             />
           ) : null}
 
-          {doublesOnHold ? null : (
-          <>
+          {/* D8: doubles pairs no one until 4 players are in, and says so instead of an empty week. */}
+          {doubles && !ended && league.playerCount < 4 ? (
+            <Card accessible style={{ flexDirection: "row", gap: spacing.space3, alignItems: "flex-start" }}>
+              <Icon name="person.2" size={20} tintColor={c.ink} style={{ marginTop: 2 }} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text variant="bodyStrong">{`Doubles needs at least 4 players`}</Text>
+                <Text variant="small" tone="inkMuted">
+                  {`${playersLabel(league.playerCount)} so far. Pairings start once 4 have joined.${isAdmin ? " Share the invite code in Manage." : ""}`}
+                </Text>
+              </View>
+            </Card>
+          ) : null}
+
+          {/* D2, D9: teaming up in a fixed-partner doubles league. Shows nothing otherwise. */}
+          {!ended ? <PartnerCard leagueId={leagueId} /> : null}
+
           <SegmentedTabs
             label="League sections"
             value={tab}
@@ -500,7 +524,7 @@ export default function LeagueScreen() {
             tabs={[
               { value: "standings", label: "Standings" },
               { value: "rounds", label: "Matches" },
-              { value: "playoffs", label: "Playoffs" },
+              ...(doubles ? [] : [{ value: "playoffs" as const, label: "Playoffs" }]),
             ]}
           />
 
@@ -516,7 +540,7 @@ export default function LeagueScreen() {
                 <StandingsTable standings={standings} myPlayerId={myPlayerId} />
               )}
               <Text variant="small" tone="inkMuted">
-                {`Ranked by wins, then head to head.${playoffsNote ? ` ${playoffsNote}` : ""}`}
+                {`${standings.some((r) => r.teamId != null) ? "Teams ranked" : "Ranked"} by wins, then head to head.${playoffsNote && !doubles ? ` ${playoffsNote}` : ""}`}
               </Text>
             </View>
           ) : null}
@@ -555,7 +579,7 @@ export default function LeagueScreen() {
             </View>
           ) : null}
 
-          {tab === "playoffs" && bracket ? (
+          {tab === "playoffs" && !doubles && bracket ? (
             <BracketView
               bracket={bracket}
               myPlayerId={myPlayerId}
@@ -567,7 +591,7 @@ export default function LeagueScreen() {
             />
           ) : null}
 
-          {tab === "playoffs" && !bracket ? (
+          {tab === "playoffs" && !doubles && !bracket ? (
             <Card style={{ gap: spacing.space2 }}>
               {league.playoffSize && league.playerCount < 4 ? (
                 // C21: a bracket needs at least 4 players.
@@ -586,9 +610,6 @@ export default function LeagueScreen() {
               )}
             </Card>
           ) : null}
-
-          </>
-          )}
 
           {membershipQ.data?.isPlaying && !ended ? (
             <Button

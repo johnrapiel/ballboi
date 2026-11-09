@@ -372,6 +372,16 @@ export function GroupConversation({
                   onPress={() => router.push({ pathname: "/league/[leagueId]", params: { leagueId: String(leagueId) } })}
                 />
               )
+            : group?.matchId
+            ? () => (
+                // D6: a doubles league match's chat opens the match.
+                <HeaderIconButton
+                  symbol="sportscourt"
+                  label="Match"
+                  hint="Opens the match, where any of you can enter the score"
+                  onPress={() => router.push({ pathname: "/match/[matchId]", params: { matchId: String(group.matchId) } })}
+                />
+              )
             : openMatchId
             ? () => (
                 <HeaderIconButton

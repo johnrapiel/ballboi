@@ -7,6 +7,7 @@ import type { LeagueWeekResult } from "@workspace/api-client-react";
 import { ResultTag, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { versusLine, versusSpoken } from "@/lib/doubles";
 import { LATE_RESULT } from "@/lib/leagueSchedule";
 
 // A result on Profile's Results and Career's seasons: W in green or L in red with the letter,
@@ -14,13 +15,17 @@ import { LATE_RESULT } from "@/lib/leagueSchedule";
 // was against. The whole row is one VoiceOver button that opens Match detail.
 
 /** What a row needs: your results from the league week, or a career result. */
-export type ResultRowData = Pick<LeagueWeekResult, "won" | "score" | "opponentName" | "leagueName" | "playoff" | "inGrace">;
+export type ResultRowData = Pick<LeagueWeekResult, "won" | "score" | "opponentName" | "leagueName" | "playoff" | "inGrace"> &
+  Partial<Pick<LeagueWeekResult, "partnerName">>;
 
 /** With no onPress, the row is plain text with no chevron. Every result opens Match detail today (decision 151). */
 export function ResultRow({ r, last, onPress }: { r: ResultRowData; last: boolean; onPress?: () => void }) {
   const c = useColors();
   const outcome = r.won ? "Won" : "Lost";
-  const sub = [`vs. ${r.opponentName}`, r.leagueName, r.playoff ? "Playoffs" : null, r.inGrace ? LATE_RESULT : null]
+  // D8: a doubles result reads "You and Sam vs. Jo and Lee"; VoiceOver hears the names in full.
+  const others = r.opponentName.split(" & ");
+  const who = r.partnerName ? versusLine(r.partnerName, others) : `vs. ${r.opponentName}`;
+  const sub = [who, r.leagueName, r.playoff ? "Playoffs" : null, r.inGrace ? LATE_RESULT : null]
     .filter(Boolean)
     .join(" · ");
   const row = {
@@ -47,7 +52,7 @@ export function ResultRow({ r, last, onPress }: { r: ResultRowData; last: boolea
       {onPress ? <Icon name="chevron.right" size={13} tintColor={c.inkMuted} /> : null}
     </>
   );
-  const label = `${outcome} ${r.score}. ${sub}`;
+  const label = `${outcome} ${r.score}. ${r.partnerName ? sub.replace(who, versusSpoken(r.partnerName, others)) : sub}`;
   if (!onPress) {
     return (
       <View accessible accessibilityLabel={label} style={row}>

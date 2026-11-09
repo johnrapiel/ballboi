@@ -38,6 +38,31 @@ export function LeagueTagPill({ tag }: { tag: LeagueTag }) {
   );
 }
 
+/** D8: "Doubles", an outline pill with the two-player icon. Decorative: the card's label says doubles. */
+export function DoublesPill() {
+  const c = useColors();
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.space1,
+        minHeight: 26,
+        paddingHorizontal: 10,
+        borderRadius: radius.radiusPill,
+        borderWidth: 1,
+        borderColor: c.hairlineStrong,
+        alignSelf: "flex-start",
+      }}
+    >
+      <Icon name="person.2" size={12} tintColor={c.ink} />
+      <Text variant="pill">Doubles</Text>
+    </View>
+  );
+}
+
 /**
  * An Open league in Discover (canvas W2_DiscoverLeagues): name with its tags,
  * "~6 mi · Flex · Singles · Level 3.0 to 4.0", then the start and spots, or
@@ -54,6 +79,8 @@ export function LeagueCard({ league, onPress }: { league: DiscoverLeagueCard; on
             <Text variant="title" style={{ flexShrink: 1 }}>
               {league.name}
             </Text>
+            {/* D8: the Doubles pill, in words with an icon. */}
+            {league.doubles ? <DoublesPill /> : null}
             {league.tags.map((t) => (
               <LeagueTagPill key={t} tag={t} />
             ))}

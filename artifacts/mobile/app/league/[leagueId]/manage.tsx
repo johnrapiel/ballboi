@@ -10,6 +10,7 @@ import {
   getGetLeagueInvitesQueryKey,
   getGetLeagueJoinRequestsQueryKey,
   getGetLeagueRosterQueryKey,
+  getGetLeagueTeamsQueryKey,
   getGetLeaguesQueryKey,
   useApproveLeagueJoinRequest,
   useCreateLeagueInvite,
@@ -24,6 +25,7 @@ import {
   useGetLeagueMembership,
   useGetLeagueRoster,
   useGetLeagueSchedule,
+  useGetLeagueTeams,
   usePromoteLeagueAdmin,
   useRemoveLeagueAdmin,
   useRemoveLeaguePlayer,
@@ -51,6 +53,22 @@ function errorText(e: unknown, fallback: string): string {
   return (e as { data?: { error?: string } | null }).data?.error ?? fallback;
 }
 
+/** "3 teams · 1 needs a partner · 2 looking for a partner" */
+function teamsSummary(t: { teams: unknown[]; unpaired: { kind: string }[] } | undefined): string {
+  if (!t) return "Loading teams";
+  const needs = t.unpaired.filter((u) => u.kind === "needs_partner").length;
+  const looking = t.unpaired.filter((u) => u.kind === "looking").length;
+  const none = t.unpaired.filter((u) => u.kind === "no_partner").length;
+  return [
+    `${t.teams.length} ${t.teams.length === 1 ? "team" : "teams"}`,
+    needs ? `${needs} ${needs === 1 ? "needs" : "need"} a partner` : null,
+    looking ? `${looking} looking for a partner` : null,
+    none ? `${none} without a partner yet` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 function roleLabel(role: string | null | undefined): string | null {
   return role === "owner" ? "Creator" : role === "co_admin" ? "Co-admin" : null;
 }
@@ -70,6 +88,9 @@ export default function ManageLeagueScreen() {
   const adminsQ = useGetLeagueAdmins(leagueId);
   const requestsQ = useGetLeagueJoinRequests(leagueId);
   const invitesQ = useGetLeagueInvites(leagueId);
+  // Doubles flow review D2, D4, D9: teams, for fixed-partner doubles leagues.
+  const fixedPartners = leagueQ.data?.leagueType === "doubles" && leagueQ.data?.partnerMode === "fixed";
+  const teamsQ = useGetLeagueTeams(leagueId, { query: { enabled: fixedPartners, queryKey: getGetLeagueTeamsQueryKey(leagueId) } });
 
   const draftNext = useDraftNextLeagueRound();
   const promote = usePromoteLeagueAdmin();
@@ -113,6 +134,7 @@ export default function ManageLeagueScreen() {
         getGetLeagueAdminsQueryKey(leagueId),
         getGetLeagueJoinRequestsQueryKey(leagueId),
         getGetLeagueInvitesQueryKey(leagueId),
+        getGetLeagueTeamsQueryKey(leagueId),
       ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
       refreshLeague(queryClient, leagueId),
     ]);
@@ -258,6 +280,32 @@ export default function ManageLeagueScreen() {
 
   function requestMenu(r: JoinRequest) {
     if (r.kind === "waitlist") {
+      // D4: an Open fixed-partner league can let a waitlisted player in for a player who needs a partner.
+      if (teamsQ.data?.canLetInWaitlisted) {
+        ActionSheetIOS.showActionSheetWithOptions(
+          {
+            title: `${r.playerName} · ${leagueLevelLabel(r)}`,
+            message: "A player needs a partner, so you can let someone in from the waitlist now. Then team them up in Teams.",
+            options: ["Let in now", "Remove from waitlist", "Cancel"],
+            destructiveButtonIndex: 1,
+            cancelButtonIndex: 2,
+          },
+          (i) => {
+            if (i === 0) {
+              approve
+                .mutateAsync({ leagueId, requestId: r.id })
+                .then(refreshAll)
+                .then(() => AccessibilityInfo.announceForAccessibility(`${r.playerName} is in. Team them up in Teams.`))
+                .catch(async (e) => {
+                  await refreshAll();
+                  Alert.alert("Couldn't let them in", errorText(e, "Try again in a moment."));
+                });
+            }
+            if (i === 1) void declineRequest(r);
+          },
+        );
+        return;
+      }
       Alert.alert(`Remove ${r.playerName} from the waitlist?`, undefined, [
         { text: "Cancel", style: "cancel" },
         {
@@ -353,7 +401,7 @@ export default function ManageLeagueScreen() {
           <SectionLabel>Pairings</SectionLabel>
           <Card style={{ padding: 0, overflow: "hidden" }}>
             {!schedule?.weeklyRounds ? (
-              <ListRow title="Weekly pairing isn't available for this league yet" subtitle="Doubles pairing is coming." last />
+              <ListRow title="Weekly pairing isn't available for this league" subtitle="This league was set up before weekly rounds." last />
             ) : seasonOver ? (
               <ListRow title="This season's rounds are done" last />
             ) : (
@@ -367,6 +415,24 @@ export default function ManageLeagueScreen() {
           </Card>
         </>
       )}
+
+      {/* D2, D4, D9: Teams, with who needs a partner and who's looking, for fixed-partner doubles. */}
+      {fixedPartners && !ended ? (
+        <>
+          <SectionLabel>Teams</SectionLabel>
+          <Card style={{ padding: 0, overflow: "hidden" }}>
+            <ListRow
+              title="Teams"
+              subtitle={teamsSummary(teamsQ.data)}
+              symbol="person.2"
+              trailing={teamsQ.data?.unpaired.some((u) => u.kind === "needs_partner") ? "Needs a partner" : null}
+              onPress={() => router.push({ pathname: "/league/[leagueId]/teams", params: { leagueId: String(leagueId) } })}
+              accessibilityHint="Team players up or split a team"
+              last
+            />
+          </Card>
+        </>
+      ) : null}
 
       {/* PR 4: a club's weekly match day and time, or players pick. */}
       {schedule?.weeklyRounds && !league?.endedAt ? (

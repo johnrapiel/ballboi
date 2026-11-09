@@ -28,6 +28,7 @@ import { Button, Card, Text, TextButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { correctionLine, deadlineDate, LATE_NOTE, opponentName } from "@/lib/leagueSchedule";
+import { andJoin, firstName as firstNameOf, isDoublesMatch, opponentNames, partnerName, sideNames } from "@/lib/doubles";
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
 import { emptySet, readScore, setRowsToShow, setsFromScore, type SetEntry } from "@/lib/scoreEntry";
@@ -100,20 +101,34 @@ export default function EnterScoreScreen() {
   const ended = !!leagueQ.data?.endedAt || leagueQ.data?.status === "completed";
   // Q5b: after a playoff round's play-by date, the admin enters the result.
   const pastPlayBy = !asAdmin && !!playoffRound?.pastPlayBy;
+  // Doubles (D7): any of the four enters it, from their own side: "You and Sam" against "Jo and Lee".
+  const doubles = !!weekly && isDoublesMatch(weekly);
+  const partner = doubles && myPlayerId != null ? partnerName(weekly!, myPlayerId) : null;
   const opponent = asAdmin
-    ? weekly?.player2Name ?? playoffSlot?.player2?.playerName ?? "Player 2"
+    ? doubles
+      ? andJoin(sideNames(weekly!, 2))
+      : weekly?.player2Name ?? playoffSlot?.player2?.playerName ?? "Player 2"
     : weekly && myPlayerId != null
       ? opponentName(weekly, myPlayerId)
       : playoffOpponent ?? "your opponent";
-  const opponentShort = opponent.split(" ")[0];
-  // Admin: the first row is player 1, the second player 2.
-  const firstName = asAdmin ? weekly?.player1Name ?? playoffSlot?.player1?.playerName ?? "Player 1" : "You";
+  const opponentShort = doubles
+    ? andJoin((asAdmin ? sideNames(weekly!, 2) : opponentNames(weekly!, myPlayerId)).map(firstNameOf))
+    : opponent.split(" ")[0];
+  // Admin: the first row is player 1 (and 3), the second player 2 (and 4).
+  const firstName = asAdmin
+    ? doubles
+      ? andJoin(sideNames(weekly!, 1))
+      : weekly?.player1Name ?? playoffSlot?.player1?.playerName ?? "Player 1"
+    : partner
+      ? `You and ${firstNameOf(partner)}`
+      : "You";
   const currentScore = weekly?.score ?? playoffSlot?.score ?? null;
   // Stored from player 1's side; an edit starts from yours.
   const onSecondSide =
-    myPlayerId != null && (weekly ? weekly.player2Id === myPlayerId : playoffSlot?.player2?.playerId === myPlayerId);
+    myPlayerId != null &&
+    (weekly ? weekly.player2Id === myPlayerId || weekly.player4Id === myPlayerId : playoffSlot?.player2?.playerId === myPlayerId);
   const myCurrentScore = currentScore && onSecondSide ? flipScore(currentScore) : currentScore;
-  const firstShort = firstName.split(" ")[0];
+  const firstShort = doubles ? (asAdmin ? andJoin(sideNames(weekly!, 1).map(firstNameOf)) : firstName) : firstName.split(" ")[0];
 
   const [sets, setSets] = useState<SetEntry[]>([emptySet(), emptySet(), emptySet()]);
   const [retired, setRetired] = useState(false);
@@ -219,11 +234,13 @@ export default function EnterScoreScreen() {
   function matchDidntFinish() {
     Alert.alert(
       "Match didn't finish?",
-      "If your opponent couldn't continue, enter the games played so far. It counts as your win and shows RET.",
+      doubles
+        ? "If the other team couldn't continue, enter the games played so far. It counts as your team's win and shows RET."
+        : "If your opponent couldn't continue, enter the games played so far. It counts as your win and shows RET.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "My opponent retired",
+          text: doubles ? "The other team retired" : "My opponent retired",
           onPress: () => {
             setServerError(null);
             setTouched(true);
@@ -299,9 +316,19 @@ export default function EnterScoreScreen() {
   ]
     .filter(Boolean)
     .join(" · ");
-  const winnerLine = draft.ok ? (draft.iWon ? (asAdmin ? `${firstShort} wins` : "You win") : `${opponentShort} wins`) : "";
+  const winnerLine = draft.ok
+    ? draft.iWon
+      ? asAdmin
+        ? `${firstShort} ${doubles ? "win" : "wins"}`
+        : partner
+          ? `${firstName} win`
+          : "You win"
+      : `${opponentShort} ${doubles ? "win" : "wins"}`
+    : "";
   const prompt = retired
-    ? "Enter the games played before your opponent retired."
+    ? doubles
+      ? "Enter the games played before the other team retired."
+      : "Enter the games played before your opponent retired."
     : asAdmin
       ? `${firstShort}'s games on top. The third set opens if they split the first two.`
       : "Your games on top. The third set opens if you split the first two.";
@@ -347,7 +374,7 @@ export default function EnterScoreScreen() {
           <ScoreGrid
             sets={sets}
             onChange={update}
-            firstName={asAdmin ? firstShort : "You"}
+            firstName={asAdmin || partner ? firstShort : "You"}
             secondName={opponentShort}
             activeSets={rows}
             firstPossessive={asAdmin ? `${firstName}'s` : "your"}
@@ -359,7 +386,7 @@ export default function EnterScoreScreen() {
           {asAdmin ? null : retired ? (
             <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.space2 }}>
               <Text variant="small" tone="inkMuted" style={{ flexShrink: 1 }}>
-                Opponent retired: it counts as your win and shows RET.
+                {doubles ? "The other team retired: it counts as your team's win and shows RET." : "Opponent retired: it counts as your win and shows RET."}
               </Text>
               <TextButton
                 label="Undo"
