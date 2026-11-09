@@ -10,6 +10,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { RefreshControl, ScrollView, Share, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { IconButton } from "@/components/Choice";
 import { AreaRow, DiscoverTabs, FiltersButton, LinkButton } from "@/components/discover/Controls";
 import { LeagueCard } from "@/components/discover/LeagueCard";
 import { MatchAlertsCard } from "@/components/discover/MatchAlerts";
@@ -64,11 +65,23 @@ export default function DiscoverScreen() {
   const area = me.data?.area ?? null;
   const changeArea = () => router.push("/discover/area");
 
+  // Open matches' own action is the glass + in the top corner, left of
+  // Messages (button standard; John, Nov 9). Players and Open leagues have none.
+  const action =
+    tab === "matches" ? (
+      <IconButton symbol="plus" label="Post an open match" onPress={() => router.push("/discover/match/new")} />
+    ) : undefined;
+
   return (
-    <TabScreen title="Discover">
+    <TabScreen title="Discover" action={action}>
       <ScrollView
         style={{ flex: 1 }}
+        // Keep iOS from shifting the list under the title (the area line was
+        // clipped at the top, John, Nov 9). A little room above the area line too.
+        contentInsetAdjustmentBehavior="never"
+        automaticallyAdjustContentInsets={false}
         contentContainerStyle={{
+          paddingTop: spacing.space2,
           paddingHorizontal: spacing.space4,
           paddingBottom: insets.bottom + 96,
           gap: spacing.space3,
@@ -319,7 +332,6 @@ function MatchesTab() {
 
   return (
     <>
-      <Button label="Post an open match" onPress={post} />
       <CountRow radius={radius}>
         {loading || q.isFetching
           ? `Finding open matches within ${radius} mi…`
