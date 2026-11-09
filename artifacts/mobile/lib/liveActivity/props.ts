@@ -78,9 +78,10 @@ export function liveStage(phase: RecorderPhase): LiveStage {
 
 export const STAGE_TEXT: Record<LiveStage, string> = {
   setup: "Setting up",
-  waiting: "Waiting for the court",
+  // Until capture really starts, it says so (John, Nov 9).
+  waiting: "Waiting for the court, not recording yet",
   counting: "Recording starts in",
-  paused: "Countdown paused. Waiting for the court",
+  paused: "Countdown paused, not recording yet",
   recording: "Recording",
   interrupted: "Recording paused on the mounted phone",
   stopped: "Recording stopped",

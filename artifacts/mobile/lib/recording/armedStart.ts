@@ -87,3 +87,17 @@ export function startAnyway(s: ArmedStart, now: number): ArmedStart {
 export function timeLeft(s: ArmedStart, now: number): number {
   return s.stage === "counting" ? Math.max(0, s.startAt - now) : s.msLeft;
 }
+
+/**
+ * Can "Perfect. Court locked." and the chime play now? Only while setting up,
+ * and not once line 19 has started: capture follows it straight away, and no
+ * voice may land in the recording (John, Nov 9: he heard the lock line after
+ * capture had begun, when the court locked during line 19 of a Record anyway
+ * start).
+ */
+export function lockLineAllowed(settingUp: boolean, goStarted: boolean): boolean {
+  return settingUp && !goStarted;
+}
+
+/** Not recording yet: armed, paused or counting down. The words both phones show until capture really starts. */
+export const NOT_RECORDING_YET = "Not recording yet";

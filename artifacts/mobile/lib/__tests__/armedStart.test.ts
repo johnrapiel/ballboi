@@ -5,6 +5,8 @@ import {
   arm,
   countdownMs,
   fallbackDue,
+  lockLineAllowed,
+  NOT_RECORDING_YET,
   onCourtLocked,
   onCourtLost,
   startAnyway,
@@ -116,5 +118,34 @@ describe("armed start", () => {
     const l = onCourtLocked(c, T0 + 40_000);
     expect(l.anyway).toBe(false);
     expect(l.startAt).toBe(c.startAt);
+  });
+});
+
+describe("the lock line never plays once capture is due (Nov 9)", () => {
+  it("plays while setting up, before line 19", () => {
+    expect(lockLineAllowed(true, false)).toBe(true);
+  });
+
+  it("stays quiet once line 19 has started, so it can't land in the recording", () => {
+    expect(lockLineAllowed(true, true)).toBe(false);
+  });
+
+  it("stays quiet outside setup", () => {
+    expect(lockLineAllowed(false, false)).toBe(false);
+  });
+
+  it("Record anyway with Start Now: a lock during line 19 doesn't pause it or replay the lock", () => {
+    const anyway = startAnyway(arm(0, T0, GO, false), T0 + RECORD_ANYWAY_MS);
+    expect(anyway.stage).toBe("counting");
+    expect(onCourtLocked(anyway, T0 + RECORD_ANYWAY_MS + 1000).stage).toBe("counting");
+    expect(lockLineAllowed(true, true)).toBe(false);
+  });
+
+  it("Record with no lock waits: nothing counts down until the court locks or the fallback", () => {
+    const s = arm(0, T0, GO, false);
+    expect(s.stage).toBe("waiting");
+    expect(fallbackDue(s, T0 + RECORD_ANYWAY_MS - 1)).toBe(false);
+    expect(timeLeft(s, T0 + 60_000)).toBe(GO);
+    expect(NOT_RECORDING_YET).toBe("Not recording yet");
   });
 });

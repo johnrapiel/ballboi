@@ -142,7 +142,15 @@ const MatchActivity = (props: LiveProps, environment: LiveActivityEnvironment) =
     ),
     compactLeading: (
       <Text modifiers={[font({ textStyle: "caption", weight: "semibold" })]}>
-        {props.stage === "recording" ? "Rec" : props.stage === "stopped" ? "Saved" : "Setup"}
+        {props.stage === "recording"
+          ? "Rec"
+          : props.stage === "stopped"
+            ? "Saved"
+            : props.stage === "waiting" || props.stage === "paused"
+              ? "Waiting"
+              : props.stage === "counting"
+                ? "Starting"
+                : "Setup"}
       </Text>
     ),
     compactTrailing: timer ?? (
@@ -150,7 +158,15 @@ const MatchActivity = (props: LiveProps, environment: LiveActivityEnvironment) =
     ),
     minimal: (
       <Text modifiers={[font({ textStyle: "caption2", weight: "semibold" })]}>
-        {props.stage === "recording" ? "Rec" : props.stage === "stopped" ? "Saved" : "Setup"}
+        {props.stage === "recording"
+          ? "Rec"
+          : props.stage === "stopped"
+            ? "Saved"
+            : props.stage === "waiting" || props.stage === "paused"
+              ? "Waiting"
+              : props.stage === "counting"
+                ? "Starting"
+                : "Setup"}
       </Text>
     ),
     expandedLeading: (

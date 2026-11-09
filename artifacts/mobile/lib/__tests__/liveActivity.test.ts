@@ -156,3 +156,12 @@ describe("the second phone's clock", () => {
     expect(liveClock({ stage: "setup", countdownTo: null, recordingSince: null }, 0)).toBeNull();
   });
 });
+
+describe("says it isn't recording until capture starts (Nov 9)", () => {
+  it("waiting and paused both say not recording yet; only recording says Recording", () => {
+    expect(STAGE_TEXT.waiting).toBe("Waiting for the court, not recording yet");
+    expect(STAGE_TEXT.paused).toBe("Countdown paused, not recording yet");
+    expect(buildLiveProps(snap({ phase: "armed" })).status).toMatch(/not recording yet/);
+    expect(buildLiveProps(snap({ phase: "armed" })).recordingSince).toBeNull();
+  });
+});

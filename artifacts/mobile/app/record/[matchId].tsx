@@ -96,6 +96,8 @@ import { chrome } from "@/lib/recording/chrome";
 import {
   arm,
   fallbackDue,
+  lockLineAllowed,
+  NOT_RECORDING_YET,
   onCourtLocked,
   onCourtLost,
   startAnyway,
@@ -295,9 +297,12 @@ export default function RecordScreen() {
       // "Perfect. Court locked." then the chime. Armed: the countdown then runs by itself.
       onLocked: () => {
         coachState.current = COACH_START;
-        say("locked");
-        say("chime");
         const p = phaseRef.current;
+        // Never once line 19 has started: capture follows it, and the voice must not land in the recording.
+        if (lockLineAllowed(settingUp(p), p === "countdown" && playedCues.current.has("go"))) {
+          say("locked");
+          say("chime");
+        }
         if ((p === "armed" || p === "paused") && armed.current) beginCountdown(onCourtLocked(armed.current, Date.now()));
       },
       onLockLost: () => {
@@ -425,6 +430,8 @@ export default function RecordScreen() {
       }
       say(cue).then(() => {
         if (countdownToken.current !== token || phaseRef.current !== "countdown" || !mounted.current) return;
+        // Nothing else may play once capture starts (mic bleed): drop anything still waiting.
+        stopVoice();
         runRecording(segments.current.length > 0 ? RESUME_GIVE_UP_MS : 0);
       });
     };
@@ -701,7 +708,7 @@ export default function RecordScreen() {
     countdownToken.current++;
     setSecondsLeft(Math.ceil(next.msLeft / 1000));
     setPhase("armed");
-    AccessibilityInfo.announceForAccessibility("Waiting for the court. Mount your phone. It starts on its own.");
+    AccessibilityInfo.announceForAccessibility("Waiting for the court. Not recording yet. Mount your phone. It starts on its own.");
   }
 
   /** Cancel while armed, counting or paused: back to where Record was tapped. */
@@ -1015,11 +1022,11 @@ export default function RecordScreen() {
     : rejoining || interrupted
       ? `Recording paused at ${spokenDuration(elapsed)}`
       : counting
-        ? `Recording starts in ${spokenDuration(secondsLeft)}`
+        ? `Recording starts in ${spokenDuration(secondsLeft)}. ${NOT_RECORDING_YET}.`
         : phase === "paused"
-          ? `Countdown paused at ${spokenDuration(secondsLeft)}. Waiting for the court.`
+          ? `Countdown paused at ${spokenDuration(secondsLeft)}. Waiting for the court. ${NOT_RECORDING_YET}.`
           : phase === "armed"
-            ? "Waiting for the court"
+            ? `Waiting for the court. ${NOT_RECORDING_YET}.`
             : `Match vs ${opponent}`;
   const pillText = recording || rejoining || interrupted
     ? formatElapsed(elapsed)
@@ -1286,10 +1293,10 @@ export default function RecordScreen() {
               </Text>
               <Text variant="small" style={{ color: chrome.textMuted, textAlign: "center" }}>
                 {phase === "paused"
-                  ? "It carries on once the court locks again."
+                  ? `${NOT_RECORDING_YET}. It carries on once the court locks again.`
                   : delay === 0
-                    ? "Mount your phone. Recording starts once the court locks."
-                    : `Mount your phone. The ${delay} minute countdown starts once the court locks.`}
+                    ? `${NOT_RECORDING_YET}. Mount your phone. Recording starts once the court locks.`
+                    : `${NOT_RECORDING_YET}. Mount your phone. The ${delay} minute countdown starts once the court locks.`}
               </Text>
             </View>
             <ChromeButton variant="secondary" label="Cancel" accessibilityLabel="Cancel start" onPress={() => cancelCountdown()} />
@@ -1305,6 +1312,9 @@ export default function RecordScreen() {
               importantForAccessibility="no"
             >
               {countdownClock(secondsLeft)}
+            </Text>
+            <Text variant="small" style={{ color: chrome.textMuted, textAlign: "center" }} accessibilityElementsHidden importantForAccessibility="no">
+              {NOT_RECORDING_YET}
             </Text>
             <ChromeButton variant="secondary" label="Cancel" accessibilityLabel="Cancel countdown" onPress={() => cancelCountdown()} />
           </View>
