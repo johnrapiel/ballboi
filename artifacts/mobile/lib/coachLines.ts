@@ -6,10 +6,11 @@
 // Never retype a caption anywhere else. The mounted screen, the partner
 // phone, the Live Activity and Apple Watch all read this file.
 //
-// The clips are John's recorded voice, final as of Nov 7, in
+// The clips are the ElevenLabs "Oliver" voice (John, Nov 9, replaces his own
+// recorded voice), generated once on a paid plan and bundled, in
 // assets/audio/coach/ (masters in docs/voice-coach/masters/, outside the app).
-// They play exactly as recorded: no pitch, speed or effects at runtime, and
-// no text-to-speech anywhere. lib/recording/coachAudio.ts loads them.
+// They play exactly as generated: no pitch, speed or effects at runtime, and
+// no text-to-speech at runtime. lib/recording/coachAudio.ts loads them.
 //
 // Pure TypeScript, no React Native: tested in lib/__tests__/coach.test.ts.
 
@@ -50,36 +51,36 @@ export interface CoachLine {
 }
 
 export const COACH_LINES: Record<CueId, CoachLine> = {
-  setup: { file: "01-setup", caption: "Mount your phone behind the baseline, camera facing the court.", ms: 4387 },
-  tiltUp: { file: "02-tilt-up", caption: "Please tilt your phone up a little.", ms: 1632 },
-  tiltDown: { file: "03-tilt-down", caption: "Please tilt your phone down a little.", ms: 1806 },
-  raise: { file: "04-raise", caption: "Move your phone up a bit.", ms: 1728 },
-  lower: { file: "05-lower", caption: "Please move your phone down a bit more.", ms: 2046 },
-  left: { file: "06-left", caption: "Turn your phone slightly left.", ms: 2104 },
-  right: { file: "07-right", caption: "Turn your phone slightly right.", ms: 2013 },
-  centre: { file: "08-centre", caption: "Move your phone towards the centre of the court.", ms: 2359 },
-  hold: { file: "09-hold", caption: "Hold your phone there.", ms: 1335 },
-  locked: { file: "10-locked", caption: "Perfect. Court locked.", ms: 2234 },
+  setup: { file: "01-setup", caption: "Mount your phone behind the baseline, camera facing the court.", ms: 3560 },
+  tiltUp: { file: "02-tilt-up", caption: "Please tilt your phone up a little.", ms: 1690 },
+  tiltDown: { file: "03-tilt-down", caption: "Please tilt your phone down a little.", ms: 1770 },
+  raise: { file: "04-raise", caption: "Move your phone up a bit.", ms: 1370 },
+  lower: { file: "05-lower", caption: "Please move your phone down a bit more.", ms: 1890 },
+  left: { file: "06-left", caption: "Turn your phone slightly left.", ms: 1830 },
+  right: { file: "07-right", caption: "Turn your phone slightly right.", ms: 1780 },
+  centre: { file: "08-centre", caption: "Move your phone towards the centre of the court.", ms: 2220 },
+  hold: { file: "09-hold", caption: "Hold your phone there.", ms: 1070 },
+  locked: { file: "10-locked", caption: "Perfect. Court locked.", ms: 1520 },
   noLock: {
     file: "11-no-lock",
     caption: "I can't see the court. Make sure both sidelines and the far baseline are in view.",
-    ms: 4942,
+    ms: 4630,
   },
   // TODO(John, Nov 8): line 12 now plays when the armed phone starts the
   // countdown on its own, so "You can record anyway" no longer fits. New take:
   // "I'll record anyway. We'll fix the lines afterwards." Swap the clip in
   // assets/audio/coach/12-record-anyway.m4a and this caption and ms together,
   // and the CONFIRMED row in lib/__tests__/coach.test.ts.
-  recordAnyway: { file: "12-record-anyway", caption: "You can record anyway. We'll fix the lines afterwards.", ms: 3467 },
-  moved: { file: "13-moved", caption: "Your phone just moved. Let's line it up again.", ms: 3086 },
-  count5m: { file: "14-count-5m", caption: "Recording starts in five minutes.", ms: 2366 },
-  count10m: { file: "15-count-10m", caption: "Recording starts in ten minutes.", ms: 2456 },
-  count15m: { file: "16-count-15m", caption: "Recording starts in fifteen minutes.", ms: 2707 },
-  count1m: { file: "17-count-1m", caption: "One minute left.", ms: 1435 },
-  count10s: { file: "18-count-10s", caption: "Ten seconds before recording.", ms: 2139 },
-  go: { file: "19-go", caption: "Three. Two. One. Recording has started.", ms: 5047 },
-  stopped: { file: "20-stopped", caption: "Recording stopped. Well played.", ms: 2601 },
-  autoStopBattery: { file: "21-auto-stop", caption: "Your phone battery is low, so I've saved the match.", ms: 2924 },
+  recordAnyway: { file: "12-record-anyway", caption: "You can record anyway. We'll fix the lines afterwards.", ms: 2580 },
+  moved: { file: "13-moved", caption: "Your phone just moved. Let's line it up again.", ms: 2330 },
+  count5m: { file: "14-count-5m", caption: "Recording starts in five minutes.", ms: 2110 },
+  count10m: { file: "15-count-10m", caption: "Recording starts in ten minutes.", ms: 2000 },
+  count15m: { file: "16-count-15m", caption: "Recording starts in fifteen minutes.", ms: 2240 },
+  count1m: { file: "17-count-1m", caption: "One minute left.", ms: 1090 },
+  count10s: { file: "18-count-10s", caption: "Ten seconds before recording.", ms: 1700 },
+  go: { file: "19-go", caption: "Three. Two. One. Recording has started.", ms: 3560 },
+  stopped: { file: "20-stopped", caption: "Recording stopped. Well played.", ms: 2140 },
+  autoStopBattery: { file: "21-auto-stop", caption: "Your phone battery is low, so I've saved the match.", ms: 2667 },
   chime: { file: "22-chime", caption: null, ms: 900 },
   autoStopStorage: { file: "22-chime", caption: "Your phone is running out of space, so I've saved the match.", ms: 900 },
   autoStopTime: { file: "22-chime", caption: "We've hit four hours, so I've saved the match.", ms: 900 },
