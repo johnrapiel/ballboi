@@ -5,7 +5,7 @@
 // directory) and an optional note. A time that has passed says so and stays.
 
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
-import { Stack, useNavigation, usePreventRemove, useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { AccessibilityInfo, Alert, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,6 +16,7 @@ import { SettingsRow, SettingsSection } from "@/components/SettingsList";
 import { Button, Field, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors, useScheme } from "@/hooks/useColors";
+import { useDiscardGuard } from "@/hooks/useDiscardGuard";
 import { courtPick, usePickedCourt } from "@/hooks/useCourts";
 import { useDiscoverMe } from "@/hooks/useDiscover";
 import { usePostOpenMatch } from "@/hooks/useDiscoverOpenMatches";
@@ -32,7 +33,6 @@ export default function PostOpenMatchScreen() {
   const c = useColors();
   const scheme = useScheme();
   const router = useRouter();
-  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const me = useDiscoverMe();
   const court = usePickedCourt();
@@ -46,18 +46,12 @@ export default function PostOpenMatchScreen() {
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
-  const [done, setDone] = useState(false);
 
   useEffect(() => {
     courtPick.clear();
   }, []);
 
-  usePreventRemove(touched && !done, ({ data }) => {
-    Alert.alert("Discard this post?", "What you entered won't be saved.", [
-      { text: "Keep editing", style: "cancel" },
-      { text: "Discard", style: "destructive", onPress: () => navigation.dispatch(data.action) },
-    ]);
-  });
+  const guard = useDiscardGuard(touched, { title: "Discard this post?", message: "What you entered won't be saved." });
 
   const touch = () => {
     setTouched(true);
@@ -92,8 +86,8 @@ export default function PostOpenMatchScreen() {
         note: note.trim() || null,
       });
       AccessibilityInfo.announceForAccessibility("Posted. Players near you who fit can see it.");
-      setDone(true);
-      router.replace({ pathname: "/discover/match/[id]", params: { id: String(created.id) } });
+      // The guard turns off first, so opening the post doesn't ask "Discard this post?".
+      guard.finish(() => router.replace({ pathname: "/discover/match/[id]", params: { id: String(created.id) } }));
     } catch (e) {
       const message = isOfflineError(e) ? OFFLINE_MESSAGE : e instanceof Error ? e.message : "Couldn't post your match. Try again.";
       setError(message);
