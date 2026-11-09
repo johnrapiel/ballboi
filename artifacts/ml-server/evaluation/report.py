@@ -18,9 +18,16 @@ STAT_NAMES = {
     "hitter": "Right player credited",
     "in_out": "In or out, all shots",
     "point_ending": "Point ending (winner, forced, unforced)",
+    "rally_length": "Rally length (within 1 shot)",
+    "first_serve_pct": "First serve % (within 5 points, per match)",
+    "placement": "Placement (right landing zone)",
     "close_call_flagged": "Close calls labeled \"Close call\"",
     "wrong_calls_flagged": "Wrong calls that were labeled \"Close call\"",
 }
+
+# The seven stats the app gates at launch, in the order the report lists them.
+LAUNCH_STATS = ("shot_type", "close_call_in_out", "serve_placement", "point_ending",
+                "rally_length", "first_serve_pct", "placement")
 
 ERROR_NAMES = {
     "landing_error_m": ("Landing spot error", "m"),
@@ -46,7 +53,8 @@ def launch_status(stat: StatResult) -> str:
         return "Hidden (nothing to score yet)"
     status = "Shown" if stat.meets_bar else "Hidden (below bar)"
     if stat.tally.total < MIN_TRUSTED_EXAMPLES:
-        status += f", only {stat.tally.total} examples"
+        n = stat.tally.total
+        status += f", only {n} example{'' if n == 1 else 's'}"
     return status
 
 
@@ -67,15 +75,15 @@ def to_markdown(summary: Summary, model: dict[str, Any], regressions: list[str] 
             lines += ["No stat got worse than the baseline.", ""]
 
     lines += ["## Launch decision", "", "| Stat | Score | Likely range | Bar | At launch |", "|---|---|---|---|---|"]
-    for stat in sorted(summary.stats.values(), key=lambda s: (s.bar is None, s.name)):
-        if stat.bar is None and stat.name not in ("point_ending",):
+    for name in LAUNCH_STATS:
+        stat = summary.stats.get(name)
+        if stat is None:
             continue
         bar = "none" if stat.bar is None else f"{stat.bar * 100:.0f}%"
         lines.append(f"| {STAT_NAMES.get(stat.name, stat.name)} | {_pct(stat.rate)} | {_range(stat)} "
                      f"| {bar} | {launch_status(stat)} |")
     lines.append("")
-    lines.append("Rally length, first serve %, and placement heatmaps have no bar yet, so they're hidden at launch "
-                 "until one is set. Serve speed can't be scored until the test set has radar readings.")
+    lines.append("Estimated serve speed isn't a launch stat until there's a way to measure it (decision 98).")
     lines.append("")
 
     lines += ["## Other numbers", "", "| Measure | Score | Examples |", "|---|---|---|"]
@@ -103,7 +111,7 @@ def to_markdown(summary: Summary, model: dict[str, Any], regressions: list[str] 
     lines.append("")
 
     lines += ["## Most common mistakes", ""]
-    for name in ("shot_type", "close_call_in_out", "serve_placement", "point_ending"):
+    for name in ("shot_type", "close_call_in_out", "serve_placement", "point_ending", "placement"):
         table = summary.confusion.get(name, {})
         mistakes = sorted(((n, t, p) for (t, p), n in table.items() if t != p), reverse=True)[:5]
         if mistakes:
@@ -111,11 +119,14 @@ def to_markdown(summary: Summary, model: dict[str, Any], regressions: list[str] 
             lines.append(f"- {STAT_NAMES[name]}: {parts}")
     lines.append("")
 
-    lines += ["## Per match", "", "| Match | Shot type | Close calls | Serve placement | Shots found |",
-              "|---|---|---|---|---|"]
+    per_match = ("shot_type", "close_call_in_out", "serve_placement", "point_ending", "rally_length",
+                 "first_serve_pct", "placement", "shot_detection_recall")
+    lines += ["## Per match", "",
+              "| Match | Shot type | Close calls | Serve placement | Point ending | Rally length "
+              "| First serve % | Placement | Shots found |",
+              "|---|---|---|---|---|---|---|---|---|"]
     for m in summary.matches:
-        cells = [_pct(m.tallies[n].rate) if n in m.tallies else "n/a"
-                 for n in ("shot_type", "close_call_in_out", "serve_placement", "shot_detection_recall")]
+        cells = [_pct(m.tallies[n].rate) if n in m.tallies else "n/a" for n in per_match]
         lines.append(f"| {m.match_id} | " + " | ".join(cells) + " |")
     lines.append("")
 

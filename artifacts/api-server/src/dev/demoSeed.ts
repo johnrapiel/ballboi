@@ -5,15 +5,20 @@
 // - Test League 1 (Private, run by John): 13 players with John, today is the
 //   last day of week 4. Three weeks of results, John's match tonight, a
 //   pending join request, and round 5's pairings waiting for his review.
-// - Dutchess County Singles (Open, run by John): full at 10, today is day 2
+// - Dutchess County Singles (Private, run by John): full at 10, today is day 2
 //   of week 3, John's match later this week, and three players on the waitlist.
 // - Hudson Valley Summer Singles (Private, ended): final standings and a
 //   finished top-8 playoff, with a walkover.
-// - About 30 nearby players for Discover (3 far away who shouldn't show), and
-//   two Open leagues starting soon.
+// - Only with --discover (local development, never staging): about 30 more
+//   nearby players for Discover (3 far away who shouldn't show), and two Open
+//   leagues starting soon.
 //
 // Every demo player is a real Clerk account ("+clerk_test" email, code
 // 424242), created only if missing, so you can sign in as any of them.
+// Without --discover every demo account has "Show me in Discover" off, so beta
+// testers on staging never see fake players in Discover, Quick match or New
+// message search, while John still sees them in the leagues they share
+// (John, Nov 8).
 // Safe to re-run: it removes what it made last time (demo accounts' data,
 // demo leagues, and the rounds and matches in Test League 1), then rebuilds
 // it the same way. It never touches other people's data or the schema.
@@ -24,6 +29,7 @@
 import { clerkClient } from "@clerk/express";
 import {
   db,
+  discoverProfilesTable,
   leagueAdminsTable,
   leagueInvitesTable,
   leagueJoinRequestsTable,
@@ -52,6 +58,7 @@ import {
   DEMO_PAST_LEAGUE,
   DEMO_SECOND_LEAGUE,
   demoEmail,
+  demoPeople,
   hasMatchTiebreak,
   nyTime,
   retirementScore,
@@ -63,6 +70,7 @@ import {
   startForRoundDay,
   type DemoPerson,
 } from "../lib/demoData.js";
+import { areaForZip } from "../lib/discoverArea.js";
 import { addDays, leagueToday, roundWindow } from "../lib/leagueCalendar.js";
 import { seasonDates } from "../lib/leagueSetup.js";
 import { computeStandings } from "../lib/leagueStandings.js";
@@ -93,6 +101,10 @@ export interface DemoSummary {
   league: LeagueCounts & { startDate: string; weeks: number; inviteCode: string | null };
   second: LeagueCounts & { waitlist: number };
   past: LeagueCounts & { playoffMatches: number; champion: string; johnSeed: number | null };
+  /** Whether the Discover extras were made (--discover). */
+  discover: boolean;
+  /** Demo accounts this run made profiles for. */
+  accounts: number;
   accountsCreated: number;
   leaguePlayers: number;
   nearby: number;
@@ -111,8 +123,12 @@ export interface DemoSummary {
 
 // ─── Accounts ────────────────────────────────────────────────────────────────
 
-/** Clerk ids for every demo account, creating only the missing ones. */
-async function demoClerkIds(people: DemoPerson[]): Promise<{ ids: Map<string, string>; created: number }> {
+/**
+ * Clerk ids for the demo accounts this run uses, creating only the missing
+ * ones, plus every demo account that already exists (so the reset also
+ * clears accounts an earlier run used and this one doesn't).
+ */
+async function demoClerkIds(people: DemoPerson[]): Promise<{ ids: Map<string, string>; existing: string[]; created: number }> {
   const existing = new Map<string, string>();
   for (let offset = 0; ; offset += 100) {
     const { data } = await clerkClient.users.getUserList({ query: DEMO_EMAIL_PREFIX, limit: 100, offset });
@@ -137,7 +153,10 @@ async function demoClerkIds(people: DemoPerson[]): Promise<{ ids: Map<string, st
     }
     ids.set(email, id);
   }
-  return { ids, created };
+  // Only accounts with a demo email: never anyone else's.
+  const known = new Set([...DEMO_LEAGUE_PLAYERS, ...DEMO_NEARBY_PLAYERS].map(demoEmail));
+  const old = [...existing].filter(([email]) => known.has(email)).map(([, id]) => id);
+  return { ids, existing: [...new Set([...old, ...ids.values()])], created };
 }
 
 // ─── Finding Test League 1 ───────────────────────────────────────────────────
@@ -201,7 +220,7 @@ async function reset(leagueId: number | null, johnId: string, demoIds: string[])
 
 // ─── Building blocks ─────────────────────────────────────────────────────────
 
-async function insertProfile(p: DemoPerson, clerkUserId: string, intent: string) {
+async function insertProfile(p: DemoPerson, clerkUserId: string, intent: string, hidden: boolean) {
   const area = DEMO_AREAS[p.zip];
   await db.insert(usersTable).values({
     clerkUserId,
@@ -218,6 +237,18 @@ async function insertProfile(p: DemoPerson, clerkUserId: string, intent: string)
     intent,
     intents: [intent],
     onboardingComplete: true,
+  });
+  // "Show me in Discover", set up front. Discover only refreshes the area
+  // later, never this switch.
+  const placed = areaForZip(p.zip);
+  await db.insert(discoverProfilesTable).values({
+    clerkUserId,
+    hidden,
+    areaZip: p.zip,
+    areaTown: placed?.town ?? null,
+    areaState: placed?.state ?? null,
+    areaLatitude: placed?.point.latitude ?? null,
+    areaLongitude: placed?.point.longitude ?? null,
   });
 }
 
@@ -533,7 +564,8 @@ async function playPlayoffs(ctx: Ctx, league: League, johnPlayerId: number) {
 
 // ─── Seed ────────────────────────────────────────────────────────────────────
 
-export async function seedDemo(opts: { me: string | null; leagueId: number | null; name: string }): Promise<DemoSummary> {
+export async function seedDemo(opts: { me: string | null; leagueId: number | null; name: string; discover?: boolean }): Promise<DemoSummary> {
+  const discover = opts.discover === true;
   const john = await johnsAccount(opts.me);
   const found = await findJohnsLeague(john.id, opts.leagueId, opts.name);
   if (found) checkLeague(found);
@@ -541,16 +573,20 @@ export async function seedDemo(opts: { me: string | null; leagueId: number | nul
   const johnRating = johnUser?.rating ?? 3.5;
   const johnName = johnUser?.displayName ?? john.name;
 
-  const everyone = [...DEMO_LEAGUE_PLAYERS, ...DEMO_NEARBY_PLAYERS];
-  const { ids, created: accountsCreated } = await demoClerkIds(everyone);
+  const everyone = demoPeople(discover);
+  const nearby = DEMO_NEARBY_PLAYERS.filter((p) => everyone.includes(p));
+  const { ids, existing, created: accountsCreated } = await demoClerkIds(everyone);
   const idOf = (p: DemoPerson) => ids.get(demoEmail(p))!;
-  await reset(found?.id ?? null, john.id, [...ids.values()]);
+  await reset(found?.id ?? null, john.id, existing);
 
   // Profiles: onboarding done, so each lands on the tabs if you sign in as them.
-  for (const p of DEMO_LEAGUE_PLAYERS) await insertProfile(p, idOf(p), "join_league");
-  for (const p of DEMO_NEARBY_PLAYERS) await insertProfile(p, idOf(p), "find_matches");
-  // Nearby players get a player profile too, so they can be messaged and reported.
-  await db.insert(playersTable).values(DEMO_NEARBY_PLAYERS.map((p) => ({ name: fullName(p), clerkUserId: idOf(p), skillLevel: p.rating.toFixed(1), dominantHand: p.hand, bio: p.bio })));
+  // Hidden from Discover unless this run makes the Discover extras.
+  for (const p of DEMO_LEAGUE_PLAYERS) await insertProfile(p, idOf(p), "join_league", !discover);
+  for (const p of nearby) await insertProfile(p, idOf(p), "find_matches", !discover);
+  // In Discover, nearby players get a player profile too, so they can be messaged and reported.
+  if (discover) {
+    await db.insert(playersTable).values(nearby.map((p) => ({ name: fullName(p), clerkUserId: idOf(p), skillLevel: p.rating.toFixed(1), dominantHand: p.hand, bio: p.bio })));
+  }
 
   const today = leagueToday();
   const ctx: Ctx = {
@@ -634,7 +670,7 @@ export async function seedDemo(opts: { me: string | null; leagueId: number | nul
     createdAt: new Date(nyTime(addDays(today, -1), 20, 15)),
   });
 
-  // ── Dutchess County Singles: Open, run by John, full, today is day 2 of week 3.
+  // ── Dutchess County Singles: Private, run by John, full, today is day 2 of week 3.
   const s = DEMO_SECOND_LEAGUE;
   const secondStart = startForRoundDay(today, s.currentRound, 2);
   const { league: second, players: secondPlayers } = await createLeague(
@@ -644,7 +680,7 @@ export async function seedDemo(opts: { me: string | null; leagueId: number | nul
       format: s.format,
       status: "active",
       leagueType: "singles",
-      visibility: "open",
+      visibility: "private", // never listed in Discover (John, Nov 8)
       minRating: s.minRating,
       maxRating: s.maxRating,
       rosterCap: s.rosterCap,
@@ -728,8 +764,9 @@ export async function seedDemo(opts: { me: string | null; leagueId: number | nul
   });
   const playoffs = await playPlayoffs(ctx, past, johnInPast.id);
 
-  // ── Two Open leagues nearby, starting soon, run by demo players.
-  for (const o of DEMO_OPEN_LEAGUES) {
+  // ── Two Open leagues nearby, starting soon, run by demo players. Discover extras only.
+  const openLeagues = discover ? DEMO_OPEN_LEAGUES : [];
+  for (const o of openLeagues) {
     const start = addDays(today, o.startsInDays);
     const owner = memberOf(ctx, o.organizer);
     await createLeague(
@@ -760,7 +797,7 @@ export async function seedDemo(opts: { me: string | null; leagueId: number | nul
     .from(leagueInvitesTable)
     .where(and(eq(leagueInvitesTable.leagueId, league.id), eq(leagueInvitesTable.isActive, true)))
     .limit(1);
-  const farAway = DEMO_NEARBY_PLAYERS.filter((p) => FAR_AWAY_ZIPS.includes(p.zip)).length;
+  const farAway = discover ? nearby.filter((p) => FAR_AWAY_ZIPS.includes(p.zip)).length : 0;
   const johnRecord = await recordOf(johnPlayer.id);
 
   return {
@@ -798,11 +835,13 @@ export async function seedDemo(opts: { me: string | null; leagueId: number | nul
       champion: playoffs.champion,
       johnSeed: playoffs.johnSeed,
     },
+    discover,
+    accounts: everyone.length,
     accountsCreated,
     leaguePlayers: DEMO_LEAGUE_PLAYERS.length,
-    nearby: DEMO_NEARBY_PLAYERS.length - farAway,
+    nearby: discover ? nearby.length - farAway : 0,
     farAway,
-    openLeagues: DEMO_OPEN_LEAGUES.map((o) => o.name),
+    openLeagues: openLeagues.map((o) => o.name),
     joinRequests: 1,
     draftRound: draft ? draft.round.roundNumber : null,
     johnsMatchToday: tl1.johnsCurrent,

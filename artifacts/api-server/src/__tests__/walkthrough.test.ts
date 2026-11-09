@@ -12,10 +12,11 @@ describe("parseCommand", () => {
   });
 
   it("reads demo, defaulting to Test League 1", () => {
-    expect(parseCommand(["demo"])).toEqual({ kind: "demo", me: null, leagueId: null, name: "Test League 1", counts: false });
-    expect(parseCommand(["demo", "--league", "7", "--me", "j@x.com"])).toEqual({ kind: "demo", me: "j@x.com", leagueId: 7, name: "Test League 1", counts: false });
-    expect(parseCommand(["demo", "--name", "Tuesday Night"])).toEqual({ kind: "demo", me: null, leagueId: null, name: "Tuesday Night", counts: false });
-    expect(parseCommand(["demo", "--counts"])).toEqual({ kind: "demo", me: null, leagueId: null, name: "Test League 1", counts: true });
+    expect(parseCommand(["demo"])).toEqual({ kind: "demo", me: null, leagueId: null, name: "Test League 1", counts: false, discover: false });
+    expect(parseCommand(["demo", "--league", "7", "--me", "j@x.com"])).toEqual({ kind: "demo", me: "j@x.com", leagueId: 7, name: "Test League 1", counts: false, discover: false });
+    expect(parseCommand(["demo", "--name", "Tuesday Night"])).toEqual({ kind: "demo", me: null, leagueId: null, name: "Tuesday Night", counts: false, discover: false });
+    expect(parseCommand(["demo", "--counts"])).toEqual({ kind: "demo", me: null, leagueId: null, name: "Test League 1", counts: true, discover: false });
+    expect(parseCommand(["demo", "--discover"])).toEqual({ kind: "demo", me: null, leagueId: null, name: "Test League 1", counts: false, discover: true });
     expect(parseCommand(["demo", "--league", "abc"])).toHaveProperty("error");
   });
 

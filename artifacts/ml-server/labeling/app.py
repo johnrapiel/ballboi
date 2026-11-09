@@ -23,6 +23,7 @@ from starlette.responses import FileResponse, JSONResponse, Response
 from starlette.routing import Route
 
 from evaluation.schema import SCHEMA_VERSION, LabelError, parse_match
+from labeling.hits import HitJobs
 from services import court_model
 
 HERE = Path(__file__).resolve().parent
@@ -168,6 +169,8 @@ def create_app(videos_dir: Path, labels_dir: Path, analysis_dir: Path | None = N
     labels_dir = labels_dir.expanduser().resolve()
     analysis_dir = (analysis_dir or labels_dir.parent / "analysis").expanduser().resolve()
     jobs = AnalysisJobs(analysis_dir)
+    # Hit times are cached in a hidden folder next to the labels (never scored, never committed).
+    hit_jobs = HitJobs(labels_dir / ".hits", write_atomic)
 
     def find_video(match_id: str) -> Path | None:
         if not SAFE_ID.match(match_id):
@@ -257,6 +260,18 @@ def create_app(videos_dir: Path, labels_dir: Path, analysis_dir: Path | None = N
         write_atomic(label_path(match_id), raw)
         return JSONResponse({"ok": True, "shots": raw["shots"]})
 
+    async def get_hits(request: Request) -> Response:
+        match_id = request.path_params["match_id"]
+        video = find_video(match_id)
+        if not video:
+            return JSONResponse({"error": "video not found"}, status_code=404)
+        duration = None
+        if hit_jobs.cached(match_id, video) is None:
+            duration = video_metadata(video).get("durationSeconds")
+        st = hit_jobs.get(match_id, video, duration)
+        st.pop("fingerprint", None)
+        return JSONResponse(st)
+
     async def court_lines(request: Request) -> Response:
         return JSONResponse({
             "lines": court_model.COURT_LINES_M,
@@ -303,6 +318,7 @@ def create_app(videos_dir: Path, labels_dir: Path, analysis_dir: Path | None = N
         Route("/", index),
         Route("/api/videos", list_videos),
         Route("/api/court", court_lines),
+        Route("/api/hits/{match_id}", get_hits, methods=["GET"]),
         Route("/api/labels/{match_id}", get_label, methods=["GET"]),
         Route("/api/labels/{match_id}", put_label, methods=["PUT"]),
         Route("/video/{match_id}", get_video),

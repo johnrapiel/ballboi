@@ -48,7 +48,7 @@ export const REPORT_REASONS = ["harassment", "inappropriate_content", "impersona
 export type Command =
   | { kind: "help" }
   | { kind: "seed"; me: string | null; counts: boolean }
-  | { kind: "demo"; me: string | null; leagueId: number | null; name: string; counts: boolean }
+  | { kind: "demo"; me: string | null; leagueId: number | null; name: string; counts: boolean; discover: boolean }
   | { kind: "accounts" }
   | { kind: "message"; as: SeededLetter; to: Letter; text: string }
   | { kind: "join"; as: SeededLetter; code: string }
@@ -93,8 +93,10 @@ export function parseCommand(argv: string[]): Command | { error: string } {
   if (verb === "demo") {
     const raw = flag(rest, "--league");
     const leagueId = raw === null ? null : Number(raw);
-    if (leagueId !== null && !(Number.isInteger(leagueId) && leagueId > 0)) return { error: 'Usage: demo [--league <id>] [--name "League name"] [--me <email>] [--counts]' };
-    return { kind: "demo", me: flag(rest, "--me"), leagueId, name: flag(rest, "--name") ?? DEMO_LEAGUE_NAME, counts };
+    if (leagueId !== null && !(Number.isInteger(leagueId) && leagueId > 0)) return { error: 'Usage: demo [--league <id>] [--name "League name"] [--me <email>] [--discover] [--counts]' };
+    // --discover: the fake nearby players and Open leagues, for local development only (never staging).
+    const discover = rest.includes("--discover");
+    return { kind: "demo", me: flag(rest, "--me"), leagueId, name: flag(rest, "--name") ?? DEMO_LEAGUE_NAME, counts, discover };
   }
 
   if (verb === "time") {
@@ -158,9 +160,11 @@ export const HELP = `Ball Boi walkthrough tools (development only)
   pnpm walkthrough accounts                List the seeded accounts and how to sign in as them
   pnpm seed:demo                           Test League 1 with 13 players and 3 weeks of results
                                            (made if you don't have it), a second league you run,
-                                           a past league with playoffs, 31 players and 2 Open
-                                           leagues nearby (--league <id> or --name "..." to fill
-                                           another league; --counts prints numbers only)
+                                           and a past league with playoffs. Demo players are
+                                           hidden from Discover. --discover also makes 31 players
+                                           and 2 Open leagues nearby, shown in Discover (local
+                                           only). --league <id> or --name "..." fills another
+                                           league; --counts prints numbers only
 
 Act as B, C or D (needs the API running: pnpm dev)
   pnpm walkthrough as C message A "Hi"     Send a message (starts a conversation if needed)
