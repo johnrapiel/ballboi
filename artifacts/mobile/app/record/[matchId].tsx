@@ -42,7 +42,7 @@
 // match is in the upload queue before the fix shows, held until it's
 // answered, so a dead battery never loses it.
 
-import { useAuth } from "@clerk/expo";
+import { useAuth, useUser } from "@clerk/expo";
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import { useKeepAwake } from "expo-keep-awake";
@@ -73,7 +73,10 @@ import { CourtLines, CourtStatus, type CourtStatusText } from "@/components/reco
 import { FirstRunCarousel } from "@/components/record/FirstRunCarousel";
 import { Button, Screen, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
-import { COACH_LINES, type CueId } from "@/lib/coachLines";
+import { captionFor, COACH_LINES, type CueId } from "@/lib/coachLines";
+import { commandAction, playersLine, type LiveCommand } from "@/lib/liveActivity/props";
+import { useRecorderLiveActivity } from "@/lib/liveActivity/useRecorderLiveActivity";
+import { captionOnLiveActivity } from "@/lib/recording/captions";
 import { frameStatus, type AimStep, type LockState } from "@/lib/court/aim";
 import { COACH_START, countdownCueDue, countdownOpening, COUNTDOWN_QUIET_MS, nextCoachCue, type CoachState } from "@/lib/court/coach";
 import { hasMoved, type Attitude } from "@/lib/court/motion";
@@ -253,6 +256,11 @@ export default function RecordScreen() {
   /** When the recorder checked "[Name] agreed to be filmed." (B10). */
   const [opponentAgreedAt, setOpponentAgreedAt] = useState<string | null>(null);
   const { getToken } = useAuth();
+  const { user } = useUser();
+  /** The voice coach's latest caption, for the Live Activity only (G11). */
+  const [liveCaption, setLiveCaption] = useState<string | null>(null);
+  /** Setup started on the camera: the Live Activity runs from here until the match is saved. */
+  const liveStarted = useRef(false);
   /** "Don't show this again" from the setup page; null until read. */
   const [hideSetup, setHideSetupState] = useState<boolean | null>(null);
   /** The carousel's pages, decided once when the screen opens so saving page 2 doesn't reshuffle them. */
@@ -431,12 +439,85 @@ export default function RecordScreen() {
   // G1: low battery or storage show in words while recording, before the safety cap stops the match.
   const warnings = useRecordingWarnings(phase === "recording");
 
+  // The Live Activity on both phones (Session G, acceptance 31 to 35): from
+  // the moment setup starts on the camera until the match is saved. It
+  // carries the coach's captions, which never show on this screen (G11), and
+  // brings back Start or Stop from the other player's phone.
+  if (cameraReady) liveStarted.current = true;
+  const liveCourt: CourtStatusText = settingUp(phase)
+    ? frameStatus(court.lock.stage, court.step, coachState.current.last === "noLock")
+    : lockedAtStart.current
+      ? court.movedSinceLock
+        ? "Phone moved"
+        : "Court in frame"
+      : "Court not locked";
+  const liveStartBlocked = !!filming.data?.needsOpponentAgreement && !opponentAgreedAt;
+  const liveRecordingSince =
+    phase === "recording" && pieceStart.current !== null
+      ? pieceStart.current - elapsedSeconds(segments.current, null, 0) * 1000
+      : null;
+  useRecorderLiveActivity(
+    liveStarted.current
+      ? {
+          matchId,
+          players: playersLine(user?.fullName, opponent),
+          phase,
+          court: liveCourt,
+          caption: liveCaption,
+          countdownTo: phase === "countdown" ? startAt.current : null,
+          recordingSince: liveRecordingSince,
+          startBlocked: liveStartBlocked,
+        }
+      : null,
+    remoteCommand,
+  );
+
+  /**
+   * Start or Stop from the other player's phone or a Lock Screen (acceptance
+   * 32). The other phone already confirmed a Stop. Start begins line 19 now,
+   * with or without a court lock (the lines are fixed after, as with Record anyway).
+   */
+  async function remoteCommand(command: LiveCommand) {
+    const p = phaseRef.current;
+    const action = commandAction(p, command, liveStartBlocked);
+    if (action === "stop") {
+      AccessibilityInfo.announceForAccessibility("Stopped from the other phone");
+      stop("user");
+      return;
+    }
+    if (action === "finish") {
+      doneAfterInterruption();
+      return;
+    }
+    if (action !== "startNow") return;
+    const now = Date.now();
+    if (p === "countdown") {
+      // Already counting: jump to line 19, unless it's already playing.
+      if (!armed.current || startAt.current - now <= COACH_LINES.go.ms) return;
+      armed.current = { ...armed.current, startAt: now + COACH_LINES.go.ms };
+      startAt.current = armed.current.startAt;
+      return;
+    }
+    if (p === "ready") {
+      if (!cameraReady || running.current) return;
+      if ((await batteryBlocksStart()) || !hasRoomToStart()) return;
+    }
+    stopVoice();
+    playedCues.current = new Set();
+    coachState.current = COACH_START;
+    beginCountdown(arm(0, now, COACH_LINES.go.ms, true));
+    AccessibilityInfo.announceForAccessibility("Started from the other phone");
+  }
+
   /**
    * Says one coach line from the manifest. Its caption never shows on the
    * mounted phone (its screen faces the fence) and VoiceOver doesn't read it
    * there, since the line already plays out loud (lib/recording/captions.ts).
    */
   async function say(id: CueId): Promise<void> {
+    // The caption goes to the Live Activity (and the other phone and Watch), never this screen (G11).
+    const caption = captionFor(id);
+    if (caption && captionOnLiveActivity(settingUp(phaseRef.current) ? "setup" : "recording")) setLiveCaption(caption);
     await playCue(id);
   }
 

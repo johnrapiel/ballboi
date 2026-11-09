@@ -79,6 +79,14 @@
             "NSPrivacyCollectedDataTypePurposes": [
               "NSPrivacyCollectedDataTypePurposeAppFunctionality"
             ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeDeviceID",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
           }
         ],
         "NSPrivacyAccessedAPITypes": [
@@ -104,7 +112,10 @@
       },
       "associatedDomains": [
         "applinks:ballboi.tennis"
-      ]
+      ],
+      "entitlements": {
+        "com.apple.developer.declared-age-range": true
+      }
     },
     "android": {},
     "web": {
@@ -159,6 +170,14 @@
         {
           "microphonePermission": "Ball Boi listens for the sound of the ball being hit to detect shots. Audio is never played back and is deleted after your match is analyzed.",
           "enableBackgroundPlayback": false
+        }
+      ],
+      [
+        "expo-widgets",
+        {
+          "enablePushNotifications": true,
+          "groupIdentifier": "group.tennis.ballboi",
+          "bundleIdentifier": "tennis.ballboi.ExpoWidgetsTarget"
         }
       ]
     ],

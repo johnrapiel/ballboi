@@ -34,6 +34,7 @@ import { sheetOptions } from "@/components/Sheet";
 import { Button, ScrollScreen, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { accountStatusKey } from "@/hooks/useAccountStatus";
+import { useDeviceCheck } from "@/hooks/useDeviceCheck";
 import { useColors } from "@/hooks/useColors";
 import { useGate } from "@/hooks/useGate";
 import { checkForAccountBlock, onAccountBlocked } from "@/lib/accountBlocked";
@@ -163,6 +164,7 @@ function RootLayoutNav() {
   useAuthTokenGetter();
   useForgetPreviousAccount();
   useRecheckWhenBlocked();
+  useDeviceCheck();
   const covered = useGateRedirect();
   // Standard iOS header for screens pushed from a tab: back at the top left.
   const pushedHeader = {
@@ -240,6 +242,8 @@ function RootLayoutNav() {
         <Stack.Screen name="free-times" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="replay/[matchId]" options={{ ...pushedHeader, title: "Replay" }} />
         <Stack.Screen name="match/[matchId]" options={{ ...pushedHeader, title: "" }} />
+        {/* Live match: the second phone, opened from the Live Activity (Session G). */}
+        <Stack.Screen name="live/[matchId]" options={{ ...pushedHeader, title: "" }} />
         <Stack.Screen name="match/edit-score/[matchId]" options={sheetOptions(colors.linen)} />
         {discoverScreens(colors.linen, pushedHeader)}
       </Stack>

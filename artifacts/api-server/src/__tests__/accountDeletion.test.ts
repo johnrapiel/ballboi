@@ -19,9 +19,14 @@ vi.mock("../lib/withdrawal", () => ({
   withdrawFromRecordings: async (input: unknown) => void withdrawals.push(input),
 }));
 vi.mock("../services/discover/accountDeletion", () => ({ deleteDiscoverData: vi.fn().mockResolvedValue(undefined) }));
-const { notificationDeleted } = vi.hoisted(() => ({ notificationDeleted: [] as string[] }));
+const { notificationDeleted, liveDeleted } = vi.hoisted(() => ({ notificationDeleted: [] as string[], liveDeleted: [] as string[] }));
 vi.mock("../services/push/accountDeletion", () => ({
   deleteNotificationData: async (_tx: unknown, id: string, playerIds: number[]) => void notificationDeleted.push(`${id}:${playerIds.join(",")}`),
+  deleteLiveActivityData: async (_tx: unknown, id: string) => void liveDeleted.push(id),
+}));
+const { deviceTokenDeleted } = vi.hoisted(() => ({ deviceTokenDeleted: [] as string[] }));
+vi.mock("../services/deviceBans", () => ({
+  deleteDeviceCheckToken: async (_tx: unknown, id: string) => void deviceTokenDeleted.push(id),
 }));
 const { messagingDeleted } = vi.hoisted(() => ({ messagingDeleted: [] as string[] }));
 vi.mock("../messaging/accountDeletion", () => ({
@@ -119,6 +124,8 @@ beforeEach(() => {
   calls.length = 0;
   messagingDeleted.length = 0;
   notificationDeleted.length = 0;
+  liveDeleted.length = 0;
+  deviceTokenDeleted.length = 0;
   withdrawals.length = 0;
   for (const k of Object.keys(selectResults)) delete selectResults[k];
   for (const k of Object.keys(secondSelectResults)) delete secondSelectResults[k];
@@ -202,6 +209,10 @@ describe("deleteAccount", () => {
     expect(messagingDeleted).toEqual(["user_delete_me"]);
     // Notification settings, opponent notices and reminder logs go too (Session G, acceptance 41).
     expect(notificationDeleted).toEqual(["user_delete_me:7,9"]);
+    // Live Activity tokens and live sessions go too, in their own helper (acceptance 41).
+    expect(liveDeleted).toEqual(["user_delete_me"]);
+    // The DeviceCheck token goes; phone bans stay (acceptance 41).
+    expect(deviceTokenDeleted).toEqual(["user_delete_me"]);
     // Withdrawal (B12): every match they played, plus the recording deleted outright for the test-set email.
     expect(withdrawals).toEqual([
       { clerkUserId: "user_delete_me", playerIds: [7, 9], deletedSessions: [{ matchId: 101, sessionId: 2, recordedAt: null }] },

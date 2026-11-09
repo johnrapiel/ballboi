@@ -40,7 +40,19 @@ export function feedbackError(problem: FeedbackProblem | null, note: string): st
 }
 
 /**
- * The phone, as best the app can tell without a native device module:
+ * The exact iPhone, from expo-device: "iPhone 16 Pro (iPhone17,1)". Falls
+ * back to the screen size (deviceLabel) when the model isn't known, such as
+ * in a simulator.
+ */
+export function exactDevice(modelName: string | null | undefined, modelId: string | null | undefined, fallback: string): string {
+  const name = modelName?.trim();
+  const id = modelId?.trim();
+  if (name && id && id !== name) return `${name} (${id})`;
+  return name || id || fallback;
+}
+
+/**
+ * The phone, as best the app can tell from the screen alone:
  * "iPhone · 393×852 pt @3x". The screen size narrows it to a model family.
  */
 export function deviceLabel(idiom: string | undefined, width: number, height: number, scale: number): string {

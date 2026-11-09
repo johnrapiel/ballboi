@@ -10,6 +10,7 @@ import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import {
+  useDeviceBans,
   useIsAdmin,
   useModerationActions,
   useOpenAppeals,
@@ -17,6 +18,7 @@ import {
   usePendingDecisions,
   type AgentDecision,
   type Appeal,
+  type DeviceBan,
   type Report,
 } from "@/hooks/useModeration";
 import { agentActionLabel, ago, reasonLabel, sourceLabel } from "@/lib/moderation";
@@ -26,8 +28,11 @@ import { agentActionLabel, ago, reasonLabel, sourceLabel } from "@/lib/moderatio
 //   the queue the server returns. Opening one shows the conversation and actions.
 // - Agent: the Claude agent's decisions, each to confirm or undo.
 // - Appeals: the one appeal per ban or suspension, to keep or overturn.
+// - Phones: phone bans from DeviceCheck (Session G, acceptance 38), each
+//   with Undo. A ban marks the account's iPhone; a new account on that
+//   iPhone is banned too and shows here.
 
-type Box = "reports" | "agent" | "appeals";
+type Box = "reports" | "agent" | "appeals" | "phones";
 
 const headerOptions = (c: ReturnType<typeof useColors>) =>
   ({
@@ -49,6 +54,7 @@ export default function ModerationScreen() {
   const reports = useOpenReports(isAdmin);
   const decisions = usePendingDecisions(isAdmin);
   const appeals = useOpenAppeals(isAdmin);
+  const phones = useDeviceBans(isAdmin);
   const actions = useModerationActions();
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -99,7 +105,17 @@ export default function ModerationScreen() {
     ]);
   };
 
-  const active = box === "reports" ? reports : box === "agent" ? decisions : appeals;
+  const undoPhoneBan = (b: DeviceBan) =>
+    Alert.alert(
+      "Undo this phone ban?",
+      `${b.name ?? "This player"} can use Ball Boi again, and so can anyone on that iPhone. Their account ban is lifted too.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Undo", onPress: () => run(`p${b.id}`, () => actions.undoDeviceBan(b.id)) },
+      ],
+    );
+
+  const active = box === "reports" ? reports : box === "agent" ? decisions : box === "appeals" ? appeals : phones;
   const refreshing = active.isRefetching;
 
   return (
@@ -113,6 +129,7 @@ export default function ModerationScreen() {
             { key: "reports", label: "Reports", count: reports.data?.length },
             { key: "agent", label: "Agent", count: decisions.data?.length },
             { key: "appeals", label: "Appeals", count: appeals.data?.length },
+            { key: "phones", label: "Phones", count: phones.data?.length },
           ]}
         />
       </View>
@@ -127,8 +144,8 @@ export default function ModerationScreen() {
           <Button label="Try again" variant="secondary" onPress={() => void active.refetch()} />
         </View>
       ) : (
-        <FlatList<Report | AgentDecision | Appeal>
-          data={(active.data ?? []) as (Report | AgentDecision | Appeal)[]}
+        <FlatList<Report | AgentDecision | Appeal | DeviceBan>
+          data={(active.data ?? []) as (Report | AgentDecision | Appeal | DeviceBan)[]}
           keyExtractor={(item) => String(item.id)}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void active.refetch()} tintColor={c.ink} />}
           contentContainerStyle={{ flexGrow: 1, gap: spacing.space3, paddingHorizontal: spacing.space4, paddingBottom: insets.bottom + spacing.space6 }}
@@ -145,6 +162,8 @@ export default function ModerationScreen() {
                   router.push({ pathname: "/moderation/report/[id]", params: { id: String((item as AgentDecision).reportId) } })
                 }
               />
+            ) : box === "phones" ? (
+              <PhoneBanRow ban={item as DeviceBan} busy={busy === `p${item.id}`} onUndo={() => undoPhoneBan(item as DeviceBan)} />
             ) : (
               <AppealRow
                 appeal={item as Appeal}
@@ -160,8 +179,10 @@ export default function ModerationScreen() {
                 <EmptyState symbol="checkmark.shield" title="No open reports" message="Every report has been handled." />
               ) : box === "agent" ? (
                 <EmptyState symbol="checkmark.circle" title="Nothing to review" message="The agent's decisions show up here for you to confirm or undo." />
-              ) : (
+              ) : box === "appeals" ? (
                 <EmptyState symbol="envelope" title="No open appeals" message="Banned and suspended players can appeal once by email." />
+              ) : (
+                <EmptyState symbol="checkmark.shield" title="No phone bans" message="When you ban someone, their iPhone shows here with an undo." />
               )}
             </View>
           }
@@ -256,6 +277,25 @@ function AppealRow({ appeal, busy, onKeep, onOverturn }: { appeal: Appeal; busy:
         <Button label={`Keep ${what}`} loading={busy} onPress={onKeep} style={{ flex: 1 }} />
         <Button label="Overturn" variant="secondary" disabled={busy} onPress={onOverturn} style={{ flex: 1 }} />
       </View>
+    </Card>
+  );
+}
+
+function PhoneBanRow({ ban, busy, onUndo }: { ban: DeviceBan; busy: boolean; onUndo: () => void }) {
+  const who = ban.name ?? "A player";
+  return (
+    <Card style={{ gap: spacing.space3 }}>
+      <View accessible accessibilityLabel={`${who}. ${ban.label}. ${ban.reason}. ${ago(ban.createdAt)}`} style={{ gap: 2 }}>
+        <Text variant="bodyStrong">{who}</Text>
+        <Text>{ban.label}</Text>
+        <Text variant="small" tone="inkMuted">
+          {ban.reason}
+        </Text>
+        <Text variant="small" tone="inkMuted">
+          {ago(ban.createdAt)}
+        </Text>
+      </View>
+      <Button label="Undo" variant="secondary" loading={busy} onPress={onUndo} accessibilityLabel={`Undo the phone ban for ${who}`} />
     </Card>
   );
 }

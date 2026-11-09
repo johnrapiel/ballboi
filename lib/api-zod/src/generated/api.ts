@@ -7487,3 +7487,207 @@ export const AbandonQuickMatchParams = zod.object({
 export const AbandonQuickMatchResponse = zod.object({
   removed: zod.literal(true),
 });
+
+/**
+ * @summary This phone's Live Activity push-to-start token (Session G)
+ */
+export const SaveLiveActivityStartTokenBody = zod.object({
+  token: zod.string(),
+});
+
+export const SaveLiveActivityStartTokenResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary A running Live Activity's update token, tied to the match's live session
+ */
+export const SaveLiveActivityTokenBody = zod.object({
+  token: zod.string(),
+  activityId: zod.string().nullish(),
+  matchId: zod.number().nullish(),
+});
+
+export const SaveLiveActivityTokenResponse = zod.object({
+  saved: zod.boolean(),
+});
+
+/**
+ * @summary What the Live Activity shows for this match, for either player's second phone
+ */
+export const GetLiveMatchParams = zod.object({
+  matchId: zod.coerce.number(),
+});
+
+export const GetLiveMatchResponse = zod.object({
+  live: zod.boolean(),
+  props: zod
+    .object({
+      matchId: zod.number().optional(),
+      players: zod.string(),
+      stage: zod.enum([
+        "setup",
+        "waiting",
+        "counting",
+        "paused",
+        "recording",
+        "interrupted",
+        "stopped",
+      ]),
+      status: zod.string(),
+      court: zod.string(),
+      battery: zod.string().nullish(),
+      caption: zod.string().nullish(),
+      countdownTo: zod.number().nullish(),
+      recordingSince: zod.number().nullish(),
+      canStart: zod.boolean(),
+      canStop: zod.boolean(),
+      startUrl: zod.string().optional(),
+      stopUrl: zod.string().optional(),
+      openUrl: zod.string().optional(),
+    })
+    .describe(
+      "What the Live Activity shows (Session G). Built on the mounted phone; the server rebuilds the links.",
+    )
+    .nullable(),
+  youRecord: zod.boolean(),
+});
+
+/**
+ * @summary The mounted phone's Live Activity state, on each change and every few seconds; answers with a Start or Stop from another phone, once
+ */
+export const UpdateLiveMatchParams = zod.object({
+  matchId: zod.coerce.number(),
+});
+
+export const UpdateLiveMatchBody = zod
+  .object({
+    matchId: zod.number().optional(),
+    players: zod.string(),
+    stage: zod.enum([
+      "setup",
+      "waiting",
+      "counting",
+      "paused",
+      "recording",
+      "interrupted",
+      "stopped",
+    ]),
+    status: zod.string(),
+    court: zod.string(),
+    battery: zod.string().nullish(),
+    caption: zod.string().nullish(),
+    countdownTo: zod.number().nullish(),
+    recordingSince: zod.number().nullish(),
+    canStart: zod.boolean(),
+    canStop: zod.boolean(),
+    startUrl: zod.string().optional(),
+    stopUrl: zod.string().optional(),
+    openUrl: zod.string().optional(),
+  })
+  .describe(
+    "What the Live Activity shows (Session G). Built on the mounted phone; the server rebuilds the links.",
+  );
+
+export const UpdateLiveMatchResponse = zod.object({
+  command: zod.enum(["start", "stop"]).nullable(),
+});
+
+/**
+ * @summary Recording stopped or the recorder left; ends the Live Activity on both phones
+ */
+export const EndLiveMatchParams = zod.object({
+  matchId: zod.coerce.number(),
+});
+
+export const EndLiveMatchBody = zod
+  .object({
+    matchId: zod.number().optional(),
+    players: zod.string(),
+    stage: zod.enum([
+      "setup",
+      "waiting",
+      "counting",
+      "paused",
+      "recording",
+      "interrupted",
+      "stopped",
+    ]),
+    status: zod.string(),
+    court: zod.string(),
+    battery: zod.string().nullish(),
+    caption: zod.string().nullish(),
+    countdownTo: zod.number().nullish(),
+    recordingSince: zod.number().nullish(),
+    canStart: zod.boolean(),
+    canStop: zod.boolean(),
+    startUrl: zod.string().optional(),
+    stopUrl: zod.string().optional(),
+    openUrl: zod.string().optional(),
+  })
+  .describe(
+    "What the Live Activity shows (Session G). Built on the mounted phone; the server rebuilds the links.",
+  );
+
+export const EndLiveMatchResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Start or Stop from either player's phone; the mounted phone picks it up
+ */
+export const SendLiveCommandParams = zod.object({
+  matchId: zod.coerce.number(),
+});
+
+export const SendLiveCommandBody = zod.object({
+  command: zod.enum(["start", "stop"]),
+});
+
+export const SendLiveCommandResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Ball Boi opened on a phone; checks Apple's DeviceCheck bits for a phone ban (Session G)
+ */
+export const DeviceCheckInBody = zod.object({
+  token: zod.string(),
+});
+
+export const DeviceCheckInResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Phone bans for the admin queue, newest first (active unless active=false)
+ */
+export const ListDeviceBansQueryParams = zod.object({
+  active: zod.coerce.string().optional(),
+});
+
+export const ListDeviceBansResponseItem = zod
+  .object({
+    id: zod.number(),
+    clerkUserId: zod.string(),
+    name: zod.string().nullable(),
+    kind: zod.enum(["banned", "caught"]),
+    label: zod.string(),
+    reason: zod.string(),
+    phoneMarked: zod.boolean(),
+    createdAt: zod.coerce.date(),
+    liftedAt: zod.coerce.date().nullable(),
+  })
+  .describe("A phone ban from DeviceCheck (Session G)");
+export const ListDeviceBansResponse = zod.array(ListDeviceBansResponseItem);
+
+/**
+ * @summary Undo a phone ban; the account ban that came with it is lifted too
+ */
+export const UndoDeviceBanParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UndoDeviceBanResponse = zod.object({
+  success: zod.boolean(),
+});
