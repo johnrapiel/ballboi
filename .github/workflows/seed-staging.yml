@@ -9,6 +9,12 @@ name: Seed staging data
 # rounds and matches in John's Test League 1). It never creates, drops or
 # changes tables, and it stops before writing anything if the tables aren't
 # there. The log shows counts only: no names, emails, codes or secrets.
+#
+# Staging never gets the fake Discover players or Open leagues (John, Nov 8):
+# beta testers would think the app is broken when they never reply. The seed
+# runs without --discover, so every demo account has "Show me in Discover" off
+# and Dutchess County Singles is Private. Running it once clears what earlier
+# runs put in Discover. Don't add --discover here.
 
 on:
   workflow_dispatch:

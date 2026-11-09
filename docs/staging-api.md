@@ -21,15 +21,17 @@ Cloudflare Containers need the Workers Paid plan: $5/month, which includes enoug
 
 Actions > **Seed staging data** > Run workflow loads the same demo data as `pnpm seed:demo` into staging. Run it whenever you want a fresh, realistic set to review on TestFlight; each run resets the demo data to the same state (dates move with today). It only touches demo accounts, demo leagues and the rounds and matches in your Test League 1, never anyone else's data or the tables, and its log shows counts only. Tick **include_walkthrough** to also make walkthrough accounts B, C and D (`pnpm seed:walkthrough`).
 
+Since Nov 8, staging seeds only John's three leagues and the demo players in them, every demo account has "Show me in Discover" off, and no demo Open leagues: beta testers see no fake players in Discover, Quick match or New message search, and no fake Open leagues (John still sees his league mates in the leagues they share). Running it once also removes the fake Discover players and Open leagues earlier runs made. The nearby players and Open leagues are for local development only: `pnpm seed:demo --discover`.
+
 What you'll see in the app (sign in with the `ADMIN_EMAIL` account):
 
 - **Test League 1** (Private, you run it): 13 players, today is the last day of week 4. Three weeks of results, your match tonight at 6:30 PM at Memorial Park, Beacon, Round 5 pairings waiting for review in Manage, and a join request from Olivia Park. Made for you if it doesn't exist yet.
-- **Dutchess County Singles** (Open, you run it): full at 10 players, week 3, your match later this week at Spratt Park, and three players on the waitlist.
+- **Dutchess County Singles** (Private, you run it, so it isn't listed in Discover): full at 10 players, week 3, your match later this week at Spratt Park, and three players on the waitlist.
 - **Hudson Valley Summer Singles** (Past): final standings and a finished top-8 playoff.
-- **Discover**: 31 players nearby (levels 2.5 to 5.0), 3 far away who shouldn't show, and two Open leagues starting soon.
+- **Discover**: no demo players and no demo Open leagues. Only real testers who left "Show me in Discover" on.
 - **Messages**: not seeded. Staging keeps messages in the API's memory, so they'd vanish when it sleeps.
 
-Every demo player is a real Clerk Development account: sign in as one with `ballboi-demo-first-last+clerk_test@example.com` (for example `ballboi-demo-maya-chen+clerk_test@example.com`) and code 424242.
+Every demo player in your leagues is a real Clerk Development account: sign in as one with `ballboi-demo-first-last+clerk_test@example.com` (for example `ballboi-demo-maya-chen+clerk_test@example.com`) and code 424242.
 
 ## Secrets
 

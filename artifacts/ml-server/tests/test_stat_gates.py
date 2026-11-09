@@ -34,8 +34,18 @@ def test_only_stats_at_or_above_their_bar_are_shown(tmp_path):
     assert gates["stats"]["line_calls"]["reason"] == "below bar"
     assert gates["stats"]["serve_placement"]["reason"] == "nothing scored yet"
     assert gates["stats"]["point_ending"]["reason"] == "no bar set"
-    assert gates["stats"]["serve_speed"]["reason"] == "not measured by the eval yet"
+    assert gates["stats"]["rally_length"]["reason"] == "no bar set"   # not in this old report
+    assert "serve_speed" not in gates["stats"]      # out of launch (decision 98)
     assert set(gates["stats"]) == set(STATS)
+
+
+def test_every_launch_stat_is_decided_by_an_eval_stat_with_a_bar():
+    from evaluation.__main__ import DEFAULT_BARS, load_bars
+    bars = load_bars(DEFAULT_BARS)
+    assert set(STATS) == {"shot_type", "line_calls", "serve_placement", "point_ending",
+                          "placement_heatmap", "rally_length", "first_serve_pct"}
+    for app_stat, eval_stat in STATS.items():
+        assert eval_stat in bars, app_stat
 
 
 def test_exactly_at_the_bar_counts(tmp_path):
