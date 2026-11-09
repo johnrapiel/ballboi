@@ -577,6 +577,8 @@ export interface OpenMatchPlayer {
   rating: number | null;
   poster: boolean;
   me: boolean;
+  /** Their photo ("/objects/..."); older servers don't send it. */
+  avatarUrl?: string | null;
 }
 
 export interface OpenMatchDetail {

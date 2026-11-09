@@ -19,10 +19,15 @@ import type { DetailInput, DetailPlayer } from "./matchDetail.js";
 
 export interface MatchDetailData {
   match: Match;
-  /** Names as shown: a signed-up player's profile name, a placeholder's own. */
+  /**
+   * Names as shown: a signed-up player's profile name, a placeholder's own.
+   * avatarUrl is the account's photo, before any block is applied; null for a placeholder.
+   */
   players: DetailPlayer[];
   league: DetailInput["league"];
   roundNumber: number | null;
+  /** The match's round, for late matches (decision 152). */
+  round: DetailInput["round"];
   plan: DetailInput["plan"];
   replay: DetailInput["replay"];
 }
@@ -51,13 +56,21 @@ export class DrizzleMatchDetailRepo implements MatchDetailRepo {
     const ids = [match.player1Id, match.player2Id, match.player3Id, match.player4Id].filter((id): id is number => id != null);
     const [players, league, round, plan, session] = await Promise.all([
       db
-        .select({ id: playersTable.id, name: playersTable.name, clerkUserId: playersTable.clerkUserId, displayName: usersTable.displayName })
+        .select({ id: playersTable.id, name: playersTable.name, clerkUserId: playersTable.clerkUserId, displayName: usersTable.displayName, avatarUrl: usersTable.avatarUrl })
         .from(playersTable)
         .leftJoin(usersTable, eq(usersTable.clerkUserId, playersTable.clerkUserId))
         .where(inArray(playersTable.id, ids)),
       match.leagueId != null ? db.select().from(leaguesTable).where(eq(leaguesTable.id, match.leagueId)) : Promise.resolve([]),
       match.roundId
-        ? db.select({ roundNumber: leagueRoundsTable.roundNumber }).from(leagueRoundsTable).where(eq(leagueRoundsTable.id, match.roundId))
+        ? db
+            .select({
+              roundNumber: leagueRoundsTable.roundNumber,
+              publishedAt: leagueRoundsTable.publishedAt,
+              startDate: leagueRoundsTable.startDate,
+              endDate: leagueRoundsTable.endDate,
+            })
+            .from(leagueRoundsTable)
+            .where(eq(leagueRoundsTable.id, match.roundId))
         : Promise.resolve([]),
       match.leagueId == null
         ? db
@@ -80,9 +93,16 @@ export class DrizzleMatchDetailRepo implements MatchDetailRepo {
     return {
       match,
       // A1: a signed-up player's profile name; a placeholder's name from the row.
-      players: players.map((p) => ({ id: p.id, name: (p.clerkUserId ? p.displayName?.trim() : null) || p.name, clerkUserId: p.clerkUserId })),
+      // A placeholder (no account) has no photo.
+      players: players.map((p) => ({
+        id: p.id,
+        name: (p.clerkUserId ? p.displayName?.trim() : null) || p.name,
+        clerkUserId: p.clerkUserId,
+        avatarUrl: p.clerkUserId ? (p.avatarUrl ?? null) : null,
+      })),
       league: league[0] ?? null,
       roundNumber: round[0]?.roundNumber ?? null,
+      round: round[0] ? { publishedAt: round[0].publishedAt, startDate: round[0].startDate, endDate: round[0].endDate } : null,
       plan: plan[0] ?? null,
       replay: s ? { durationSeconds: s.durationSeconds ?? null, shotCount: Number(shots) } : null,
     };

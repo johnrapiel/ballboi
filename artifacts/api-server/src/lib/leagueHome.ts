@@ -46,6 +46,8 @@ export interface HomeInput {
   matches: HomeMatch[];
   byes: { roundId: number; playerId: number }[];
   names: Map<number, string>;
+  /** Photos the viewer may see, by player id (no blocks, no placeholders). */
+  photos?: Map<number, string>;
   /** Leagues the viewer runs. */
   adminLeagueIds: number[];
   /** Q5b: each playoff match's play-by date, by match id. */
@@ -67,6 +69,8 @@ export interface HomeWeekItem {
   opponentName: string | null;
   /** The singles opponent, for Message on the Home card; null for doubles and byes. */
   opponentPlayerId: number | null;
+  /** The singles opponent's photo ("/objects/..."); null for doubles, byes, placeholders and blocks. */
+  opponentAvatarUrl: string | null;
   singles: boolean;
   scheduledAt: string | null;
   location: string | null;
@@ -84,6 +88,8 @@ export interface HomePlayoffItem {
   opponentName: string;
   /** The singles opponent, for Message on the Home card; null for doubles. */
   opponentPlayerId: number | null;
+  /** The singles opponent's photo ("/objects/..."); null for doubles, placeholders and blocks. */
+  opponentAvatarUrl: string | null;
   singles: boolean;
   timeZone: string;
   /** Last day to play this round (Q5b): a play week plus a grace week. */
@@ -167,6 +173,7 @@ function opponentOf(m: HomeMatch, side: 1 | 2, names: Map<number, string>): stri
 }
 
 export function buildLeagueHome(input: HomeInput) {
+  const photoOf = (playerId: number | null) => (playerId == null ? null : (input.photos?.get(playerId) ?? null));
   const leagueName = (id: number) => input.leagues.find((l) => l.id === id)?.name ?? "League";
   const singles = (id: number) => (input.leagues.find((l) => l.id === id)?.leagueType ?? "singles") === "singles";
   const zone = (id: number) => leagueZone(input.leagues.find((l) => l.id === id));
@@ -203,12 +210,13 @@ export function buildLeagueHome(input: HomeInput) {
           matchId: match.id,
           opponentName: opponentOf(match, sideOf(match, me.id)!, input.names),
           opponentPlayerId: singlesOpponent(match, sideOf(match, me.id)!),
+          opponentAvatarUrl: photoOf(singlesOpponent(match, sideOf(match, me.id)!)),
           scheduledAt: match.scheduledAt,
           location: match.location,
           played: match.status === "completed" || !!match.score,
         });
       } else if (input.byes.some((b) => b.roundId === r.id && b.playerId === me.id)) {
-        thisWeek.push({ ...base, bye: true, matchId: null, opponentName: null, opponentPlayerId: null, scheduledAt: null, location: null, played: false });
+        thisWeek.push({ ...base, bye: true, matchId: null, opponentName: null, opponentPlayerId: null, opponentAvatarUrl: null, scheduledAt: null, location: null, played: false });
       }
     }
   }
@@ -246,6 +254,7 @@ export function buildLeagueHome(input: HomeInput) {
         round: m.playoffRound ?? "playoff",
         opponentName: opponentOf(m, mySide(m)!, input.names),
         opponentPlayerId: singlesOpponent(m, mySide(m)!),
+        opponentAvatarUrl: photoOf(singlesOpponent(m, mySide(m)!)),
         singles: singles(m.leagueId!),
         timeZone: zone(m.leagueId!),
         playBy,

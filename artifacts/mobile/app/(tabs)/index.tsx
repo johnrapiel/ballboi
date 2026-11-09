@@ -16,7 +16,7 @@ import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useProfile } from "@/hooks/useProfile";
 import { upcomingHint, useOpenUpcoming, useUpcomingMatches } from "@/hooks/useUpcomingMatches";
-import { dateRange, pairingTime, shortDate } from "@/lib/leagueSchedule";
+import { dateRange, LATE_NOTE, pairingTime, shortDate } from "@/lib/leagueSchedule";
 import { openRecorder } from "@/lib/recording/start";
 import { cardWhen, isMatchDay, type UpcomingItem } from "@/lib/upcoming";
 
@@ -89,7 +89,7 @@ export default function HomeScreen() {
             hint: "Opens the match, where you can enter the score",
             onPress: () => (m.matchId ? router.push(`/match/${m.matchId}`) : m.leagueId ? openLeague(m.leagueId) : undefined),
           };
-    const note = m.grace ? "Grace week: a score now counts for Ball Boi stats, not standings." : null;
+    const note = m.grace ? LATE_NOTE : null;
     return (
       <NextMatchCard
         key={m.key}
@@ -97,6 +97,7 @@ export default function HomeScreen() {
         time={when.time}
         myName={myName}
         myPhoto={profile?.avatarUrl}
+        opponentPhoto={m.opponentPhoto}
         opponentName={opponent}
         location={m.location}
         league={m.context}

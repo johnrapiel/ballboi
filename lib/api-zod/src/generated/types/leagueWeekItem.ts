@@ -27,6 +27,11 @@ export interface LeagueWeekItem {
    * @nullable
    */
   opponentPlayerId: number | null;
+  /**
+   * The singles opponent's photo ("/objects/..."); null for doubles, byes, placeholders and a block either way
+   * @nullable
+   */
+  opponentAvatarUrl?: string | null;
   singles: boolean;
   /** @nullable */
   scheduledAt: string | null;

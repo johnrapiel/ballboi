@@ -15,6 +15,7 @@ import { allResults, buildLeagueHome, casualResults, homeLeagues, seasonFrom } f
 import { computeStandings } from "../lib/leagueStandings.js";
 import { getPastSeasonNames } from "../services/seasonService.js";
 import { playoffPlayBy } from "../services/leaguePlayoffs.js";
+import { visiblePhotos } from "../lib/visiblePhotos.js";
 
 // Home tab's league section (spec: Navigation > Home): this week's matches
 // and byes across every league you play in, playoff matches, pairings you
@@ -53,14 +54,14 @@ router.get("/me/league-week", async (req, res) => {
   const namesFor = async (matches: (typeof matchesTable.$inferSelect)[]) => {
     const others = [...new Set(matches.flatMap((m) => [m.player1Id, m.player2Id, m.player3Id, m.player4Id]).filter((id): id is number => id != null))];
     const rows = others.length
-      ? await db.select({ id: playersTable.id, name: playersTable.name }).from(playersTable).where(inArray(playersTable.id, others))
+      ? await db.select({ id: playersTable.id, name: playersTable.name, clerkUserId: playersTable.clerkUserId }).from(playersTable).where(inArray(playersTable.id, others))
       : [];
-    return new Map(rows.map((r) => [r.id, r.name]));
+    return { names: new Map(rows.map((r) => [r.id, r.name])), rows };
   };
 
   if (leagueIds.length === 0) {
     const matches = await myMatches();
-    const casual = casualResults({ matches, myPlayerIds: myIds, names: await namesFor(matches) });
+    const casual = casualResults({ matches, myPlayerIds: myIds, names: (await namesFor(matches)).names });
     res.json({ today: todayFor(null, now), thisWeek: [], playoffs: [], drafts: [], recent: [], results: allResults([], casual), season: seasonFrom([]), leagues: [] });
     return;
   }
@@ -71,7 +72,14 @@ router.get("/me/league-week", async (req, res) => {
     myMatches(),
     db.select({ roundId: leagueRoundByesTable.roundId, playerId: leagueRoundByesTable.playerId }).from(leagueRoundByesTable).where(inArray(leagueRoundByesTable.playerId, ids)),
   ]);
-  const names = await namesFor(matches);
+  const { names, rows: nameRows } = await namesFor(matches);
+  // The opponent's photo for the next-match card; none with a block either way, none for a placeholder.
+  const photoByAccount = await visiblePhotos(userId, nameRows.map((r) => r.clerkUserId));
+  const photos = new Map<number, string>();
+  for (const r of nameRows) {
+    const photo = r.clerkUserId ? photoByAccount.get(r.clerkUserId) : undefined;
+    if (photo) photos.set(r.id, photo);
+  }
 
   // Q5b: each open playoff match's play-by date.
   const playBys = new Map<number, string>();
@@ -113,6 +121,7 @@ router.get("/me/league-week", async (req, res) => {
     matches: matches.filter((m) => m.leagueId != null && leagueIds.includes(m.leagueId)),
     byes,
     names,
+    photos,
     adminLeagueIds,
     playoffPlayBy: playBys,
   });

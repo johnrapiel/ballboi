@@ -163,7 +163,7 @@ export class DrizzleMessagingRepo implements MessagingRepo {
     if (!userIds.length) return out;
     const [users, players] = await Promise.all([
       db
-        .select({ id: usersTable.clerkUserId, userId: usersTable.id, name: usersTable.displayName })
+        .select({ id: usersTable.clerkUserId, userId: usersTable.id, name: usersTable.displayName, avatarUrl: usersTable.avatarUrl })
         .from(usersTable)
         .where(inArray(usersTable.clerkUserId, userIds)),
       db
@@ -175,7 +175,7 @@ export class DrizzleMessagingRepo implements MessagingRepo {
       const player = players.find((p) => p.clerkUserId === id);
       const user = users.find((u) => u.id === id);
       const name = user?.name || player?.name || "Player";
-      out.set(id, { name, playerId: player?.id ?? null, userId: user?.userId ?? null });
+      out.set(id, { name, playerId: player?.id ?? null, userId: user?.userId ?? null, avatarUrl: user?.avatarUrl ?? null });
     }
     return out;
   }

@@ -1,38 +1,14 @@
 import React from "react";
 import { Pressable, View } from "react-native";
 
+import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 import { Pill, Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import type { Conversation, GroupConversation } from "@/hooks/useMessages";
 import { useColors } from "@/hooks/useColors";
 import { badgeText, leagueRowLabel } from "@/lib/leagueChat";
-import { initials, shortTime, spokenTime } from "@/lib/messages";
-
-/** Initials in a sand circle. Decorative: the name is always next to it. */
-export function Avatar({ name, size = 44 }: { name: string; size?: number }) {
-  const c = useColors();
-  return (
-    <View
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: radius.radiusPill,
-        backgroundColor: c.sand,
-        borderWidth: 1,
-        borderColor: c.hairline,
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <Text variant="bodyStrong" maxFontSizeMultiplier={1.3}>
-        {initials(name)}
-      </Text>
-    </View>
-  );
-}
+import { shortTime, spokenTime } from "@/lib/messages";
 
 /**
  * One conversation in Messages (approved canvas: Messages). VoiceOver reads
@@ -72,7 +48,7 @@ export function ConversationRow({ conversation, onPress }: { conversation: Conve
         opacity: pressed ? 0.7 : 1,
       })}
     >
-      <Avatar name={other.name} />
+      <Avatar name={other.name} uri={other.avatarUrl} size={44} />
       <View style={{ flex: 1, gap: 2 }}>
         <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", columnGap: spacing.space3, rowGap: 2 }}>
           <Text variant="bodyStrong" style={{ flexGrow: 1, flexShrink: 1 }}>

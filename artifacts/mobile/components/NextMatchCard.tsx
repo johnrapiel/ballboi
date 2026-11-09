@@ -33,6 +33,7 @@ export function NextMatchCard({
   time,
   myName,
   myPhoto,
+  opponentPhoto,
   opponentName,
   location,
   league,
@@ -47,7 +48,10 @@ export function NextMatchCard({
   /** The big serif line: "5:30 PM", or "By Sun, Nov 9" when no time is set. */
   time: string;
   myName: string;
+  /** Photos as the API stores them ("/objects/..."); `Avatar` builds the address. */
   myPhoto?: string | null;
+  /** The singles opponent's photo; initials in doubles or when they have none. */
+  opponentPhoto?: string | null;
   /** "Mike Okafor", or "Okafor & Lindqvist" in doubles. */
   opponentName: string;
   /** Court, e.g. "Beacon Courts · Court 3". */
@@ -98,7 +102,7 @@ export function NextMatchCard({
             <Avatar name={myName} uri={myPhoto} size={face} />
           </View>
           <View style={{ marginLeft: -10, borderRadius: radius.radiusPill, borderWidth: 2, borderColor: c.linen }}>
-            <Avatar name={opponentName} size={face} />
+            <Avatar name={opponentName} uri={opponentPhoto} size={face} />
           </View>
         </View>
         <Text variant="bodyStrong" style={{ marginTop: 10, marginBottom: spacing.space1, textAlign: "center" }}>

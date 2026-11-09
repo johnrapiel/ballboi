@@ -75,7 +75,7 @@ export function checkScoreEntry(input: {
   }
   const graceEnd = graceEndFor(round.endDate);
   if (today > graceEnd) {
-    return { ok: false, status: 409, error: `The grace week for this match ended on ${shortDate(graceEnd)}.` };
+    return { ok: false, status: 409, error: `This match can't be scored now. The last day to play it was ${shortDate(graceEnd)}.` };
   }
   return { ok: true, inGrace: today > round.endDate };
 }

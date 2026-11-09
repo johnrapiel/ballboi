@@ -9,10 +9,10 @@ import { WinnerNames } from "@/components/WinnerNames";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { sideOf, winnerMark } from "@/lib/winnerMark";
-import { canEnterScore, correctionLine, dateRange, deadlineDate, editedLine, isMine, isNotPlayed, phaseLabel, resultLine, shortDate } from "@/lib/leagueSchedule";
+import { canEnterScore, correctionLine, dateRange, editedLine, isMine, isNotPlayed, LATE_ROUND_RESULT, phaseLabel, resultLine, roundPlayByLine, shortDate } from "@/lib/leagueSchedule";
 
 // One week of a league season (spec: Leagues > Weekly loop). Every state is in
-// words: "This week", "Grace week", "Cancelled", "Not played yet", "Not played".
+// words: "This week", "Late matches", "Cancelled", "Not played yet", "Not played".
 
 function MatchRow({
   leagueId,
@@ -37,7 +37,7 @@ function MatchRow({
   const result = resultLine(m, round, ended);
   const notPlayed = isNotPlayed(round, m, ended);
   const notes = [
-    m.inGrace ? "Grace week: counts for Ball Boi stats, not standings" : null,
+    m.inGrace ? LATE_ROUND_RESULT : null,
     correctionLine(m),
     m.status === "completed" ? editedLine(m) : null,
     m.status !== "completed" && m.scoreClearedBy ? `Score cleared by ${m.scoreClearedBy}` : null,
@@ -144,14 +144,9 @@ export function RoundCard({
         </View>
         <Chip label={phaseLabel(round.phase)} />
       </View>
-      {!ended && (round.phase === "open" || round.phase === "upcoming") ? (
+      {roundPlayByLine(round, timeZone, ended) ? (
         <Text variant="small" tone="inkMuted">
-          {`Play by ${deadlineDate(round.deadline, timeZone)}. Grace week until ${deadlineDate(round.graceEnd, timeZone)}.`}
-        </Text>
-      ) : null}
-      {!ended && round.phase === "grace" ? (
-        <Text variant="small" tone="inkMuted">
-          {`Grace week until ${deadlineDate(round.graceEnd, timeZone)}. Scores now count for Ball Boi stats, not standings.`}
+          {roundPlayByLine(round, timeZone, ended)}
         </Text>
       ) : null}
       <View>

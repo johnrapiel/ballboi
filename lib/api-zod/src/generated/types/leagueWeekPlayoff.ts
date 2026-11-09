@@ -17,6 +17,11 @@ export interface LeagueWeekPlayoff {
    * @nullable
    */
   opponentPlayerId: number | null;
+  /**
+   * The singles opponent's photo ("/objects/..."); null for doubles, placeholders and a block either way
+   * @nullable
+   */
+  opponentAvatarUrl?: string | null;
   singles: boolean;
   timeZone: string;
   /**

@@ -15,7 +15,7 @@ import { RecapShareButton } from "@/components/RecapShareButton";
 import { MarkedName, WinnerNames } from "@/components/WinnerNames";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { correctionLine } from "@/lib/leagueSchedule";
+import { correctionLine, LATE_NOTE, LATE_ROUND_RESULT, lateDateLine } from "@/lib/leagueSchedule";
 import { durationLabel, durationSpoken, matchSourceLine, resultSentence, scoreFootnote, setRows } from "@/lib/myMatches";
 import { isRetiredScore, WALKOVER_SCORE } from "@/lib/tennisScore";
 import { winnerMark } from "@/lib/winnerMark";
@@ -47,6 +47,8 @@ const BALL = {
 };
 
 function whenLine(d: MatchDetail): string | null {
+  // A late match: its saved time while still ahead, else "Play by" the end of its extra week (decision 152).
+  if (d.lateUntil) return lateDateLine(d.scheduledAt, d.lateUntil, d.timeZone);
   const iso = d.scheduledAt ?? d.completedAt;
   if (!iso) return null;
   const at = new Date(iso);
@@ -60,16 +62,18 @@ function stageLine(d: MatchDetail): string {
 }
 
 const sideName = (s: MatchDetail["you"]) => s.players.map((p) => p.name).join(" & ") || "Player";
+/** A singles player's photo; doubles sides keep their initials. */
+const sidePhoto = (s: MatchDetail["you"]) => (s.players.length === 1 ? (s.players[0].avatarUrl ?? null) : null);
 
 /** One player's row: avatar, name (marked if they won), then their games in each set. */
-function ScoreLine({ name, won, games, other, tiebreaks, sets }: { name: string; won: boolean; games: number[]; other: number[]; tiebreaks: (number | null)[]; sets: number }) {
+function ScoreLine({ name, photo, won, games, other, tiebreaks, sets }: { name: string; photo?: string | null; won: boolean; games: number[]; other: number[]; tiebreaks: (number | null)[]; sets: number }) {
   const c = useColors();
   const { fontScale } = useWindowDimensions();
   const cell = Math.round(36 * Math.min(fontScale, 1.5));
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2, minHeight: 52 }}>
       <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.space2 }}>
-        <Avatar name={name} size={32} />
+        <Avatar name={name} uri={photo} size={32} />
         <View style={{ flexShrink: 1 }}>
           {/* Winner mark (John, Nov 8): bold with the brush underline, the loser muted. */}
           <MarkedName name={name} look={won ? "winner" : "loser"} />
@@ -223,7 +227,7 @@ export default function MatchDetailScreen() {
     retired ? `${youWon ? them : you} retired.` : null,
     correctionLine(d),
     !d.correctedBy && d.editedBy ? `Score edited by ${d.editedBy}` : null,
-    d.inGrace ? "Grace week: counts for Ball Boi stats, not standings." : null,
+    d.lateUntil ? LATE_NOTE : d.inGrace ? LATE_ROUND_RESULT : null,
   ].filter((n): n is string => !!n);
   const footnote = scoreFootnote(d);
   // The walkover line already shows in the card when there's no score.
@@ -295,9 +299,9 @@ export default function MatchDetailScreen() {
               ))}
             </View>
             <View accessible accessibilityLabel={scoreSpoken}>
-            <ScoreLine name={you} won={youWon} games={youGames} other={themGames} tiebreaks={tbs} sets={sets} />
+            <ScoreLine name={you} photo={sidePhoto(d.you)} won={youWon} games={youGames} other={themGames} tiebreaks={tbs} sets={sets} />
             <View style={{ height: 1, backgroundColor: c.hairline }} />
-            <ScoreLine name={them} won={!youWon} games={themGames} other={youGames} tiebreaks={tbs} sets={sets} />
+            <ScoreLine name={them} photo={sidePhoto(d.opponents)} won={!youWon} games={themGames} other={youGames} tiebreaks={tbs} sets={sets} />
             </View>
           </View>
         ) : (

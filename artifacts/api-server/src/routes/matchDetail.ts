@@ -51,13 +51,20 @@ export function createMatchDetailRouter(repo: MatchDetailRepo = new DrizzleMatch
         res.status(403).json({ error: "Only the players in this match can see it." });
         return;
       }
+      // Photos (#199): never for someone with a block either way, never for a placeholder.
+      const hidden = await repo.blocked(userId);
+      const players = data.players.map((p) => ({
+        ...p,
+        avatarUrl: p.clerkUserId && !hidden.has(p.clerkUserId) ? (p.avatarUrl ?? null) : null,
+      }));
       res.json(
         buildMatchDetail({
           match: data.match,
           league: data.league,
           plan: data.plan,
-          players: data.players,
+          players,
           roundNumber: data.roundNumber,
+          round: data.round,
           userId,
           replay: data.replay,
           now: deps.now(),

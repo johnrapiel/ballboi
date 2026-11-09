@@ -340,7 +340,7 @@ export default function StartLeagueScreen() {
           }
         />
         <Text variant="small" tone="inkMuted">
-          Each round runs a week. Unplayed matches get a 1-week grace period: scores then count for Ball Boi stats, not standings.
+          Each round runs a week. A match that isn't played in its week can still be played the week after, but that late result won't change the standings.
         </Text>
         <Text variant="small" tone="inkMuted">
           Players join with your invite link or code.

@@ -11,4 +11,9 @@ export interface MatchDetailPlayer {
   name: string;
   you: boolean;
   hasAccount: boolean;
+  /**
+   * Their photo ("/objects/..."); null for placeholders and a block either way
+   * @nullable
+   */
+  avatarUrl?: string | null;
 }

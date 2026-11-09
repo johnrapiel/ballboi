@@ -179,7 +179,8 @@ class MemoryOpenMatches implements OpenMatchRepo {
   }
   async people(ids: string[]) {
     const n: Record<string, [number, string]> = { a: [1, "Dana Lindqvist"], b: [2, "Theo Brandt"], c: [3, "Mia Kowalski"], d: [4, "Sam Whitfield"] };
-    return new Map(ids.map((id) => [id, { userId: n[id][0], name: n[id][1], rating: 3.5 }]));
+    // Mia (c) has no photo.
+    return new Map(ids.map((id) => [id, { userId: n[id][0], name: n[id][1], rating: 3.5, avatarUrl: id === "c" ? null : `/objects/uploads/${id}` }]));
   }
   async courtName() {
     return "Beacon Courts";
@@ -406,6 +407,10 @@ describe("open match routes", () => {
       expect(asC.body.players.map((p: { userId: number }) => p.userId)).toEqual([1, 3]);
       const asA = await as("a").get("/api/open-matches/1").expect(200);
       expect(asA.body.players).toHaveLength(3);
+      // Photos show for everyone left in; nobody gets a blocked player's photo.
+      expect(asB.body.players.map((p: { avatarUrl: string | null }) => p.avatarUrl)).toEqual(["/objects/uploads/a", "/objects/uploads/b"]);
+      expect(asC.body.players.map((p: { avatarUrl: string | null }) => p.avatarUrl)).toEqual(["/objects/uploads/a", null]);
+      expect(asA.body.players.map((p: { avatarUrl: string | null }) => p.avatarUrl)).toEqual(["/objects/uploads/a", "/objects/uploads/b", null]);
 
       expect(await texts("b")).not.toContain("From Mia");
       expect(await texts("b")).toContain("From Theo");

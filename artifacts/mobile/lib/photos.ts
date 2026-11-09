@@ -9,6 +9,20 @@ export function photoUrl(path: string | null | undefined): string | null {
   return path.startsWith("/objects/") ? `${API_BASE}/api/storage${path}` : null;
 }
 
+/**
+ * What an avatar shows for a photo value from anywhere in the app: a stored
+ * "/objects/..." path becomes its API URL, a full URL or a photo just picked
+ * on the phone (file://, ph://) is used as it is, and anything else is no
+ * photo (initials). `Avatar` runs every `uri` through this, so a screen can
+ * hand it the raw `avatarUrl` the API sent.
+ */
+export function avatarUri(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (isApiPhoto(value)) return value;
+  if (value.startsWith("/")) return photoUrl(value);
+  return /^[a-z][a-z0-9+.-]*:/i.test(value) ? value : null;
+}
+
 /** True for a photo the API serves, which needs the sign-in header (A17). A photo just picked on the phone doesn't. */
 export function isApiPhoto(uri: string): boolean {
   return uri.startsWith(`${API_BASE}/api/storage/objects/`);

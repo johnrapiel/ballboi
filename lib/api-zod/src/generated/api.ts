@@ -238,6 +238,12 @@ export const ListUpcomingMatchPlansResponse = zod.object({
         zod.object({
           otherName: zod.string(),
           otherUserId: zod.number().nullable(),
+          otherAvatarUrl: zod
+            .string()
+            .nullish()
+            .describe(
+              'Their photo (\"\/objects\/...\"); null with a block either way',
+            ),
         }),
       ),
   ),
@@ -485,6 +491,12 @@ export const GetOpenMatchResponse = zod.object({
       rating: zod.number().nullable(),
       poster: zod.boolean(),
       me: zod.boolean(),
+      avatarUrl: zod
+        .string()
+        .nullish()
+        .describe(
+          'Their photo (\"\/objects\/...\"). Players with a block either way are left out.',
+        ),
     }),
   ),
   role: zod.enum(["poster", "in", "none"]),
@@ -533,6 +545,12 @@ export const ActOnOpenMatchResponse = zod.object({
       rating: zod.number().nullable(),
       poster: zod.boolean(),
       me: zod.boolean(),
+      avatarUrl: zod
+        .string()
+        .nullish()
+        .describe(
+          'Their photo (\"\/objects\/...\"). Players with a block either way are left out.',
+        ),
     }),
   ),
   role: zod.enum(["poster", "in", "none"]),
@@ -2460,6 +2478,12 @@ export const GetMyLeagueWeekResponse = zod.object({
         .describe(
           "The singles opponent's player id, for Message on the Home card; null for doubles and byes",
         ),
+      opponentAvatarUrl: zod
+        .string()
+        .nullish()
+        .describe(
+          'The singles opponent\'s photo (\"\/objects\/...\"); null for doubles, byes, placeholders and a block either way',
+        ),
       singles: zod.boolean(),
       scheduledAt: zod.string().nullable(),
       location: zod.string().nullable(),
@@ -2483,6 +2507,12 @@ export const GetMyLeagueWeekResponse = zod.object({
         .nullable()
         .describe(
           "The singles opponent's player id, for Message on the Home card; null for doubles",
+        ),
+      opponentAvatarUrl: zod
+        .string()
+        .nullish()
+        .describe(
+          'The singles opponent\'s photo (\"\/objects\/...\"); null for doubles, placeholders and a block either way',
         ),
       singles: zod.boolean(),
       timeZone: zod.string(),
@@ -2674,6 +2704,12 @@ export const GetMyMatchResponse = zod.object({
   played: zod.boolean(),
   voided: zod.boolean(),
   inGrace: zod.boolean(),
+  lateUntil: zod
+    .string()
+    .nullable()
+    .describe(
+      "Set while an unplayed league match is late (its round's week has passed). The last day to play it, YYYY-MM-DD in the league's zone (decision 152)",
+    ),
   score: zod.string().nullable().describe("From your side, your games first"),
   you: zod.object({
     players: zod.array(
@@ -2682,6 +2718,12 @@ export const GetMyMatchResponse = zod.object({
         name: zod.string(),
         you: zod.boolean(),
         hasAccount: zod.boolean(),
+        avatarUrl: zod
+          .string()
+          .nullish()
+          .describe(
+            'Their photo (\"\/objects\/...\"); null for placeholders and a block either way',
+          ),
       }),
     ),
     won: zod.boolean(),
@@ -2693,6 +2735,12 @@ export const GetMyMatchResponse = zod.object({
         name: zod.string(),
         you: zod.boolean(),
         hasAccount: zod.boolean(),
+        avatarUrl: zod
+          .string()
+          .nullish()
+          .describe(
+            'Their photo (\"\/objects\/...\"); null for placeholders and a block either way',
+          ),
       }),
     ),
     won: zod.boolean(),
@@ -6577,6 +6625,12 @@ export const GetConversationsResponse = zod
               .describe(
                 "Their users.id, for report and block when they have no player record (a Discover player)",
               ),
+            avatarUrl: zod
+              .string()
+              .nullish()
+              .describe(
+                'Their photo (\"\/objects\/...\"); null when you blocked them',
+              ),
           }),
           lastMessage: zod.union([
             zod.object({
@@ -6731,6 +6785,12 @@ export const GetConversationResponse = zod.object({
         .nullish()
         .describe(
           "Their users.id, for report and block when they have no player record (a Discover player)",
+        ),
+      avatarUrl: zod
+        .string()
+        .nullish()
+        .describe(
+          'Their photo (\"\/objects\/...\"); null when you blocked them',
         ),
     }),
     lastMessage: zod.union([

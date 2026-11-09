@@ -11,4 +11,9 @@ export type UpcomingMatchPlansMatchesItem = MatchPlan & {
   otherName: string;
   /** @nullable */
   otherUserId: number | null;
+  /**
+   * Their photo ("/objects/..."); null with a block either way
+   * @nullable
+   */
+  otherAvatarUrl?: string | null;
 };

@@ -80,12 +80,13 @@ const JOHN = { id: 10, name: "John Rapiel", clerkUserId: "user_a" };
 const RAY = { id: 20, name: "Ray Alvarez", clerkUserId: "user_b" };
 const LEAGUE = { id: 1, name: "Men's 3.5", leagueType: "singles", timeZone: "America/New_York", endedAt: null, status: "active" };
 
-const league = (): MatchDetailData => ({ match: row(), players: [JOHN, RAY], league: LEAGUE, roundNumber: 3, plan: null, replay: null });
+const league = (): MatchDetailData => ({ match: row(), players: [JOHN, RAY], league: LEAGUE, roundNumber: 3, round: null, plan: null, replay: null });
 const discover = (o: Partial<Match> = {}): MatchDetailData => ({
   match: row({ leagueId: null, roundId: null, generatedFrom: "discover", ...o }),
   players: [JOHN, RAY],
   league: null,
   roundNumber: null,
+  round: null,
   plan: { courtName: "Beacon Courts", timeZone: "America/New_York" },
   replay: null,
 });
@@ -94,6 +95,7 @@ const quick = (o: Partial<Match> = {}, opponent: { id: number; name: string; cle
   players: [JOHN, opponent],
   league: null,
   roundNumber: null,
+  round: null,
   plan: null,
   replay: null,
 });
@@ -174,7 +176,7 @@ describe("GET /api/me/matches/:matchId by match type", () => {
 
   it("shows a placeholder opponent by name, with no account", async () => {
     const res = await supertest(app(new MemoryRepo(quick({}, { id: 30, name: "Sam", clerkUserId: null }))).app).get("/api/me/matches/7");
-    expect(res.body.opponents.players).toEqual([{ playerId: 30, name: "Sam", you: false, hasAccount: false }]);
+    expect(res.body.opponents.players).toEqual([{ playerId: 30, name: "Sam", you: false, hasAccount: false, avatarUrl: null }]);
   });
 
   it("refuses anyone who didn't play in it, whatever the match type", async () => {
@@ -182,6 +184,18 @@ describe("GET /api/me/matches/:matchId by match type", () => {
     for (const data of [league(), discover(), quick()]) {
       expect((await supertest(app(new MemoryRepo(data)).app).get("/api/me/matches/7")).status).toBe(403);
     }
+  });
+
+  it("shows a league match past its week as late, with its real Play by date (decision 152)", async () => {
+    const unplayed = { status: "scheduled", score: null, winnerId: null, recordedAt: null, recordedByClerkUserId: null };
+    const round = { publishedAt: new Date("2026-10-26T00:00:00Z"), startDate: "2026-10-30", endDate: "2026-11-05" };
+    const res = await supertest(app(new MemoryRepo({ ...league(), match: row(unplayed), round })).app).get("/api/me/matches/7");
+    expect(res.status).toBe(200);
+    expect(GetMyMatchResponse.safeParse(res.body).success).toBe(true);
+    expect(res.body.lateUntil).toBe("2026-11-12");
+    // Discover and Quick matches have no round, so they're never late.
+    const casual = await supertest(app(new MemoryRepo(discover(unplayed))).app).get("/api/me/matches/7");
+    expect(casual.body.lateUntil).toBeNull();
   });
 
   it("404s a match that doesn't exist", async () => {
@@ -312,5 +326,61 @@ describe("POST /api/me/matches/:matchId/score/edit", () => {
     const after = computeStandings(players as never, [edited].filter((m) => m.leagueId === 1) as never);
     expect(after).toEqual(before);
     expect(after.every((r) => r.wins === 0 && r.losses === 0)).toBe(true);
+  });
+});
+
+describe("profile photos (#199)", () => {
+  type Body = { you: { players: { playerId: number; avatarUrl: string | null }[] }; opponents: { players: { playerId: number; avatarUrl: string | null }[] } };
+  const photo = (body: Body, id: number) => [...body.you.players, ...body.opponents.players].find((p) => p.playerId === id)?.avatarUrl;
+
+  it("sends each player's photo, none for a placeholder or someone with a block", async () => {
+    const doubles = (): MatchDetailData => ({
+      ...league(),
+      match: row({ player3Id: 30, player4Id: 40 }),
+      league: { ...LEAGUE, leagueType: "doubles" },
+      players: [
+        { ...JOHN, avatarUrl: "/objects/uploads/john" },
+        { ...RAY, avatarUrl: "/objects/uploads/ray" },
+        { id: 30, name: "Sam", clerkUserId: null, avatarUrl: null },
+        { id: 40, name: "Kim", clerkUserId: "user_d", avatarUrl: "/objects/uploads/kim" },
+      ],
+    });
+    const res = await supertest(app(new MemoryRepo(doubles())).app).get("/api/me/matches/7");
+    expect(res.status).toBe(200);
+    expect(GetMyMatchResponse.safeParse(res.body).success).toBe(true);
+    expect(photo(res.body, 10)).toBe("/objects/uploads/john");
+    expect(photo(res.body, 20)).toBe("/objects/uploads/ray");
+    expect(photo(res.body, 30)).toBeNull();
+    expect(photo(res.body, 40)).toBe("/objects/uploads/kim");
+
+    // Kim blocked John (or John blocked Kim): no photo either way.
+    const after = await supertest(app(new MemoryRepo(doubles(), new Set(["user_d"]))).app).get("/api/me/matches/7");
+    expect(photo(after.body, 40)).toBeNull();
+    expect(photo(after.body, 20)).toBe("/objects/uploads/ray");
+  });
+
+  it("sends a Discover or Quick opponent's photo, and none across a block", async () => {
+    const withPhotos = (data: MatchDetailData): MatchDetailData => ({
+      ...data,
+      players: [
+        { ...JOHN, avatarUrl: "/objects/uploads/john" },
+        { ...RAY, avatarUrl: "/objects/uploads/ray" },
+      ],
+    });
+    for (const data of [discover(), quick()]) {
+      const open = await supertest(app(new MemoryRepo(withPhotos(data))).app).get("/api/me/matches/7");
+      expect(open.status).toBe(200);
+      expect(open.body.opponents.players[0]).toMatchObject({ playerId: 20, avatarUrl: "/objects/uploads/ray" });
+      expect(open.body.you.players[0].avatarUrl).toBe("/objects/uploads/john");
+
+      const blocked = await supertest(app(new MemoryRepo(withPhotos(data), new Set(["user_b"]))).app).get("/api/me/matches/7");
+      expect(blocked.status).toBe(200);
+      expect(blocked.body.opponents.players[0]).toMatchObject({ playerId: 20, name: "Ray Alvarez", avatarUrl: null });
+    }
+  });
+
+  it("never sends a photo for a Quick match placeholder", async () => {
+    const res = await supertest(app(new MemoryRepo(quick({}, { id: 30, name: "Sam", clerkUserId: null }))).app).get("/api/me/matches/7");
+    expect(res.body.opponents.players[0].avatarUrl).toBeNull();
   });
 });

@@ -50,7 +50,7 @@ export interface ConversationView {
   state: ConversationState;
   /** You blocked the other person: read only, with Unblock. */
   blocked: boolean;
-  other: { name: string; playerId: number | null; userId?: number | null };
+  other: { name: string; playerId: number | null; userId?: number | null; avatarUrl: string | null };
   lastMessage: { text: string; fromMe: boolean; at: string } | null;
   unread: number;
   canSend: boolean;
@@ -271,7 +271,9 @@ export class MessagingService {
   private async views(me: string, rows: Visible[]): Promise<ConversationView[]> {
     const people = await this.repo.people(rows.map((r) => this.otherOf(r.c, me)));
     return rows.map(({ c, state, blocked }) => {
-      const other = people.get(this.otherOf(c, me)) ?? { name: "Player", playerId: null };
+      const person = people.get(this.otherOf(c, me)) ?? { name: "Player", playerId: null };
+      // Someone who blocked you never shows here; someone you blocked shows without their photo.
+      const other = { name: person.name, playerId: person.playerId, userId: person.userId, avatarUrl: blocked ? null : (person.avatarUrl ?? null) };
       return {
         id: c.id,
         state,
