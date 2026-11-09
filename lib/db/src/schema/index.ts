@@ -33,3 +33,4 @@ export * from "./feedback";
 export * from "./notifications";
 export * from "./milestones";
 export * from "./liveActivities";
+export * from "./deviceBans";

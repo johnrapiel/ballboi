@@ -5,6 +5,7 @@ import { clearSanctionsCache } from "../messaging/enforceSanctions";
 import { SanctionError, type AccountIdentity, type SanctionsService } from "../messaging/sanctions";
 import { requireAdmin } from "../middlewares/requireAdmin";
 import { logger } from "../lib/logger";
+import { banDevicesFor, undoDeviceBansForSanction } from "../services/deviceBans";
 
 // Bans, suspensions and one appeal. Spec: Enforcement ladder steps 4 to 6.
 // Mounted from routes/safety.ts.
@@ -37,6 +38,10 @@ export function createSanctionsRouter(
     onChange?: () => void;
     isAdmin?: (clerkUserId: string) => Promise<boolean>;
     getNames?: (clerkUserIds: string[]) => Promise<Map<string, string>>;
+    /** A ban marks the account's phone (DeviceCheck, Session G). */
+    onBan?: (clerkUserId: string, sanctionId: number, reason: string, by: string) => Promise<void>;
+    /** Lifting or overturning a ban ends its phone ban too. */
+    onLift?: (sanctionId: number, by: string) => Promise<void>;
   } = {},
 ): IRouter {
   const getService = deps.getService ?? getSanctionsService;
@@ -45,6 +50,10 @@ export function createSanctionsRouter(
   const onChange = deps.onChange ?? clearSanctionsCache;
   const isAdmin = deps.isAdmin ?? isAdminAccount;
   const getNames = deps.getNames ?? namesFor;
+  const onBan = deps.onBan ?? banDevicesFor;
+  const onLift = deps.onLift ?? undoDeviceBansForSanction;
+  /** Phone bans never stop the account ban itself from saving. */
+  const quietly = (p: Promise<void>) => p.catch((err) => logger.error({ err }, "Phone ban step failed"));
   const router: IRouter = Router();
 
   const handle =
@@ -126,6 +135,7 @@ export function createSanctionsRouter(
           by: getAuth(req).userId ?? "admin",
         });
         onChange();
+        if (kind === "ban") await quietly(onBan(sanction.clerkUserId, sanction.id, sanction.reason, sanction.createdBy));
         res.status(201).json({ sanction });
       }),
     );
@@ -137,6 +147,7 @@ export function createSanctionsRouter(
     handle(async (req, res) => {
       const sanction = await getService().lift(idParam(req), getAuth(req).userId ?? "admin");
       onChange();
+      await quietly(onLift(sanction.id, getAuth(req).userId ?? "admin"));
       res.json({ sanction });
     }),
   );
@@ -169,6 +180,7 @@ export function createSanctionsRouter(
         by: getAuth(req).userId ?? "admin",
       });
       onChange();
+      if (appeal.outcome === "overturned") await quietly(onLift(appeal.sanctionId, getAuth(req).userId ?? "admin"));
       res.json({ appeal });
     }),
   );

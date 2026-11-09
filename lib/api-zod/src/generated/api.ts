@@ -7621,3 +7621,47 @@ export const SendLiveCommandBody = zod.object({
 export const SendLiveCommandResponse = zod.object({
   success: zod.boolean(),
 });
+
+/**
+ * @summary Ball Boi opened on a phone; checks Apple's DeviceCheck bits for a phone ban (Session G)
+ */
+export const DeviceCheckInBody = zod.object({
+  token: zod.string(),
+});
+
+export const DeviceCheckInResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Phone bans for the admin queue, newest first (active unless active=false)
+ */
+export const ListDeviceBansQueryParams = zod.object({
+  active: zod.coerce.string().optional(),
+});
+
+export const ListDeviceBansResponseItem = zod
+  .object({
+    id: zod.number(),
+    clerkUserId: zod.string(),
+    name: zod.string().nullable(),
+    kind: zod.enum(["banned", "caught"]),
+    label: zod.string(),
+    reason: zod.string(),
+    phoneMarked: zod.boolean(),
+    createdAt: zod.coerce.date(),
+    liftedAt: zod.coerce.date().nullable(),
+  })
+  .describe("A phone ban from DeviceCheck (Session G)");
+export const ListDeviceBansResponse = zod.array(ListDeviceBansResponseItem);
+
+/**
+ * @summary Undo a phone ban; the account ban that came with it is lifted too
+ */
+export const UndoDeviceBanParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UndoDeviceBanResponse = zod.object({
+  success: zod.boolean(),
+});

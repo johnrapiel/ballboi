@@ -5,6 +5,28 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+export type DeviceBanKind = (typeof DeviceBanKind)[keyof typeof DeviceBanKind];
+
+export const DeviceBanKind = {
+  banned: "banned",
+  caught: "caught",
+} as const;
+
+/**
+ * A phone ban from DeviceCheck (Session G)
+ */
+export interface DeviceBan {
+  id: number;
+  clerkUserId: string;
+  name: string | null;
+  kind: DeviceBanKind;
+  label: string;
+  reason: string;
+  phoneMarked: boolean;
+  createdAt: string;
+  liftedAt: string | null;
+}
+
 export type LiveActivityPropsStage =
   (typeof LiveActivityPropsStage)[keyof typeof LiveActivityPropsStage];
 
@@ -4656,5 +4678,21 @@ export type SendLiveCommandBody = {
 };
 
 export type SendLiveCommand200 = {
+  success: boolean;
+};
+
+export type DeviceCheckInBody = {
+  token: string;
+};
+
+export type DeviceCheckIn200 = {
+  ok: boolean;
+};
+
+export type ListDeviceBansParams = {
+  active?: string;
+};
+
+export type UndoDeviceBan200 = {
   success: boolean;
 };

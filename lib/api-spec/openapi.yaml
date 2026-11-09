@@ -7369,6 +7369,92 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /account/device-check:
+    post:
+      operationId: deviceCheckIn
+      tags: [account]
+      summary: Ball Boi opened on a phone; checks Apple's DeviceCheck bits for a phone ban (Session G)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+              required: [token]
+      responses:
+        '200':
+          description: Checked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required: [ok]
+        '400':
+          description: Invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: This account was just banned for using a banned phone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/device-bans:
+    get:
+      operationId: listDeviceBans
+      tags: [moderation]
+      summary: Phone bans for the admin queue, newest first (active unless active=false)
+      parameters:
+      - name: active
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Phone bans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeviceBan'
+  /admin/device-bans/{id}/undo:
+    post:
+      operationId: undoDeviceBan
+      tags: [moderation]
+      summary: Undo a phone ban; the account ban that came with it is lifted too
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Undone
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                required: [success]
+        '409':
+          description: Already undone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   parameters:
     LeagueIdParam:
@@ -7390,6 +7476,34 @@ components:
       schema:
         type: integer
   schemas:
+    DeviceBan:
+      type: object
+      description: A phone ban from DeviceCheck (Session G)
+      properties:
+        id:
+          type: integer
+        clerkUserId:
+          type: string
+        name:
+          type: string
+          nullable: true
+        kind:
+          type: string
+          enum: [banned, caught]
+        label:
+          type: string
+        reason:
+          type: string
+        phoneMarked:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        liftedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, clerkUserId, name, kind, label, reason, phoneMarked, createdAt, liftedAt]
     LiveActivityProps:
       type: object
       description: What the Live Activity shows (Session G). Built on the mounted phone; the server rebuilds the links.
