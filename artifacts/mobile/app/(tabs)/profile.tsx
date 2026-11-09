@@ -109,7 +109,13 @@ export default function ProfileScreen() {
           </Card>
         ) : (
           <>
-            <PlayerCard card={card} onEdit={() => router.push("/profile/edit")} onFreeTimes={() => router.push("/free-times")} />
+            <PlayerCard
+              card={card}
+              onEdit={() => router.push("/profile/edit")}
+              onFreeTimes={() => router.push("/free-times")}
+              onAddHomeCourt={() => router.push({ pathname: "/courts", params: { mode: "home" } })}
+              onAddPlays={() => router.push("/discover/play")}
+            />
             <SeasonRow season={card.season} onSeeAll={() => router.push("/profile/career")} />
             {seasonRecordings.length > 0 ? (
               <View style={{ gap: spacing.space2 }}>
