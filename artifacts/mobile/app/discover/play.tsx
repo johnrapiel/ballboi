@@ -3,7 +3,7 @@
 // else (John, Nov 9): free times have their own editor, opened from Edit
 // profile's Free times row. Optional: it shows on your player card.
 
-import { useNavigation, usePreventRemove, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { AccessibilityInfo, Alert, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -13,6 +13,7 @@ import { ProblemCard } from "@/components/discover/States";
 import { Button, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { useDiscardGuard } from "@/hooks/useDiscardGuard";
 import { useDiscoverMe, useSaveDiscoverSettings } from "@/hooks/useDiscover";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { picksFromPlays, playsFromPicks } from "@/lib/discover";
@@ -20,7 +21,6 @@ import { picksFromPlays, playsFromPicks } from "@/lib/discover";
 export default function WhenIPlayScreen() {
   const c = useColors();
   const router = useRouter();
-  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const me = useDiscoverMe();
   const save = useSaveDiscoverSettings();
@@ -32,22 +32,13 @@ export default function WhenIPlayScreen() {
 
   const plays = picks ? playsFromPicks(picks.singles, picks.doubles) : null;
   const dirty = !!me.data && !!picks && plays !== me.data.plays;
-  const [leaving, setLeaving] = useState(false);
-  usePreventRemove(dirty && !leaving, ({ data }) => {
-    Alert.alert("Discard changes?", "What you picked won't be saved.", [
-      { text: "Keep editing", style: "cancel" },
-      { text: "Discard", style: "destructive", onPress: () => navigation.dispatch(data.action) },
-    ]);
-  });
-  useEffect(() => {
-    if (leaving) router.back();
-  }, [leaving, router]);
+  const guard = useDiscardGuard(dirty, { title: "Discard changes?", message: "What you picked won't be saved." });
 
   async function onSave() {
     try {
       await save.mutateAsync({ plays });
       AccessibilityInfo.announceForAccessibility("Saved");
-      setLeaving(true);
+      guard.finish();
     } catch (e) {
       Alert.alert("Couldn't save", isOfflineError(e) ? OFFLINE_MESSAGE : e instanceof Error ? e.message : "Try again.");
     }

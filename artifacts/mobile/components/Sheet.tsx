@@ -7,14 +7,14 @@
 // - has a left-aligned brush title under the grabber, read as the header,
 // - ends on its primary action.
 
-import { useNavigation, usePreventRemove, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Keyboard, ScrollView, View, useWindowDimensions, type StyleProp, type ViewStyle } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Keyboard, ScrollView, View, useWindowDimensions, type StyleProp, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { useDiscardGuard } from "@/hooks/useDiscardGuard";
 import { fillSheetHeight } from "@/lib/sheetHeight";
 
 /**
@@ -40,51 +40,10 @@ export function sheetOptions(linen: string, opts: { fill?: boolean } = {}) {
  * next screen in its place).
  */
 export function useSheetClose(dirty: boolean) {
-  const router = useRouter();
-  const navigation = useNavigation();
-  const [finished, setFinished] = useState(false);
-  const next = useRef<(() => void) | null>(null);
-  // Discard turns the guard off first, then leaves. Dispatching while the
-  // guard was still on asked "Discard changes?" again, in a loop (John, Nov 7).
-  const [discarding, setDiscarding] = useState(false);
-  const leaveWith = useRef<Parameters<typeof navigation.dispatch>[0] | null>(null);
-
-  usePreventRemove(dirty && !finished && !discarding, ({ data }) => {
-    Alert.alert("Discard changes?", "What you entered in this sheet won't be saved.", [
-      { text: "Keep editing", style: "cancel" },
-      {
-        text: "Discard",
-        style: "destructive",
-        onPress: () => {
-          leaveWith.current = data.action;
-          setDiscarding(true);
-        },
-      },
-    ]);
+  return useDiscardGuard(dirty, {
+    title: "Discard changes?",
+    message: "What you entered in this sheet won't be saved.",
   });
-
-  useEffect(() => {
-    if (!discarding || !leaveWith.current) return;
-    const action = leaveWith.current;
-    leaveWith.current = null;
-    navigation.dispatch(action);
-  }, [discarding, navigation]);
-
-  // Once the guard is off, leave: back, or wherever `finish` was told to go.
-  useEffect(() => {
-    if (!finished) return;
-    if (next.current) next.current();
-    else if (router.canGoBack()) router.back();
-  }, [finished, router]);
-
-  const close = useCallback(() => {
-    if (router.canGoBack()) router.back();
-  }, [router]);
-  const finish = useCallback((then?: () => void) => {
-    next.current = then ?? null;
-    setFinished(true);
-  }, []);
-  return { close, finish };
 }
 
 export function SheetBody({

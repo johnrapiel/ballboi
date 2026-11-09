@@ -15,7 +15,7 @@
 // pills are filled ink with on-ink text and no check (Nov 7 chip rule), read
 // as "selected". Pills wrap onto more lines at the largest text sizes.
 
-import { useNavigation, usePreventRemove, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { AccessibilityInfo, Alert, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,6 +28,7 @@ import { ProblemCard } from "@/components/discover/States";
 import { Button, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { useDiscardGuard } from "@/hooks/useDiscardGuard";
 import { useDiscoverMe, useSaveAvailability } from "@/hooks/useDiscover";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import {
@@ -50,7 +51,6 @@ type Fields = Record<number, CustomField>;
 export default function AvailabilityScreen() {
   const c = useColors();
   const router = useRouter();
-  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const me = useDiscoverMe();
   const save = useSaveAvailability();
@@ -73,17 +73,7 @@ export default function AvailabilityScreen() {
   const hasProblems = Object.keys(draft.problems).length > 0;
   const changed = loaded && !sameTimes(draft.ranges, saved);
   const dirty = changed || hasProblems;
-  const [leaving, setLeaving] = useState(false);
-
-  usePreventRemove(dirty && !leaving, ({ data }) => {
-    Alert.alert("Discard changes?", "The times you picked won't be saved.", [
-      { text: "Keep editing", style: "cancel" },
-      { text: "Discard", style: "destructive", onPress: () => navigation.dispatch(data.action) },
-    ]);
-  });
-  useEffect(() => {
-    if (leaving) router.back();
-  }, [leaving, router]);
+  const guard = useDiscardGuard(dirty, { title: "Discard changes?", message: "The times you picked won't be saved." });
 
   const openField = (day: number, editing: FreeRange | null) => {
     setFields((f) => ({ ...f, [day]: { text: editing ? editText(editing) : "", editing } }));
@@ -140,7 +130,7 @@ export default function AvailabilityScreen() {
     try {
       const after = await save.mutateAsync(draft.ranges);
       AccessibilityInfo.announceForAccessibility(`Saved. ${freeTimesLine(after.freeSummary ?? freeSummary(after.freeTimes), true)}`);
-      setLeaving(true);
+      guard.finish();
     } catch (e) {
       Alert.alert("Couldn't save", isOfflineError(e) ? OFFLINE_MESSAGE : e instanceof Error ? e.message : "Try again.");
     }
