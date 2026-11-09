@@ -5,10 +5,17 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+import type { MatchSource } from "./matchSource";
 
 export interface LeagueWeekResult {
-  leagueId: number;
+  /**
+   * Null for a Discover or Quick match
+   * @nullable
+   */
+  leagueId: number | null;
+  /** The league's name, "Discover" or "Quick match" */
   leagueName: string;
+  source: MatchSource;
   matchId: number;
   opponentName: string;
   /** From the viewer's side, their games first */

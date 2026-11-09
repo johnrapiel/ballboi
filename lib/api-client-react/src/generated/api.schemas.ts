@@ -1247,9 +1247,26 @@ export interface LeagueMatchTime {
   timeZone: string;
 }
 
+/**
+ * Where a match came from
+ */
+export type MatchSource = (typeof MatchSource)[keyof typeof MatchSource];
+
+export const MatchSource = {
+  league: "league",
+  discover: "discover",
+  quick_match: "quick_match",
+} as const;
+
 export interface LeagueWeekResult {
-  leagueId: number;
+  /**
+   * Null for a Discover or Quick match
+   * @nullable
+   */
+  leagueId: number | null;
+  /** The league's name, "Discover" or "Quick match" */
   leagueName: string;
+  source: MatchSource;
   matchId: number;
   opponentName: string;
   /** From the viewer's side, their games first */
@@ -1309,7 +1326,7 @@ export interface LeagueWeek {
   drafts: LeagueWeekDraft[];
   /** Your last five results */
   recent: LeagueWeekResult[];
-  /** Every result, newest first, for My matches */
+  /** Every result, newest first, for Profile's Results tab. League, Discover and Quick matches (decision 151); Discover and Quick results never count toward recent or season */
   results: LeagueWeekResult[];
   season: LeagueWeekSeason;
   /** Leagues you play in that are still running, with where you stand */
@@ -1483,10 +1500,23 @@ export interface MatchDetailReplay {
   shotCount: number;
 }
 
+export interface CasualScoreEditBody {
+  /** From your side, your games first, one to five sets */
+  score: string;
+}
+
 export interface MatchDetail {
   matchId: number;
-  leagueId: number;
-  leagueName: string;
+  source: MatchSource;
+  /**
+   * Null for a Discover or Quick match
+   * @nullable
+   */
+  leagueId: number | null;
+  /** @nullable */
+  leagueName: string | null;
+  /** The league's name, "Discover" or "Quick match" */
+  context: string;
   singles: boolean;
   /** @nullable */
   timeZone: string | null;

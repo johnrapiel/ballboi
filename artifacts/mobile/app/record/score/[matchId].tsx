@@ -5,7 +5,7 @@
 //
 // C23: the same sets and boxes as league score entry (best of three, real set
 // scores, the third set only at one set all, a 6-6 set asks for its
-// tiebreak), and a league match mentions the 24-hour edit (finding 7). Saving
+// tiebreak), and it mentions the 24-hour edit (finding 7; decision 151). Saving
 // refreshes the league's standings, round and Home. A bottom sheet: no
 // Cancel or Not now, drag down to close (asks first if scores were typed).
 // Once saved, the score-entered moment plays (spec: Milestone moments): the
@@ -84,7 +84,8 @@ export default function ScorePromptScreen() {
   const rows = quick ? sets.length : setRowsToShow(sets);
   // Typed scores not saved yet: closing asks first.
   const sheet = useSheetClose(touched && !done && !saving);
-  // A league match can be edited for 24 hours from Match detail; a Quick match can't.
+  // Either player can edit the score for 24 hours from Match detail: a league
+  // match, and a Discover or Quick match too (decision 151).
   const scheduleQ = useGetLeagueSchedule(leagueId ?? 0, {
     query: { enabled: leagueId != null, queryKey: getGetLeagueScheduleQueryKey(leagueId ?? 0) },
   });
@@ -164,7 +165,7 @@ export default function ScorePromptScreen() {
           <View style={{ gap: spacing.space1 }}>
             <Text variant="title">{`You vs. ${opponent}`}</Text>
             <Text variant="small" tone="inkMuted">
-              {`Your games on top.${weeklyLeagueMatch ? " Either player can edit it for 24 hours after you save." : ""}`}
+              {`Your games on top.${weeklyLeagueMatch || quick ? " Either player can edit it for 24 hours after you save." : ""}`}
             </Text>
           </View>
 

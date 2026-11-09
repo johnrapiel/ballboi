@@ -49,6 +49,7 @@ import type {
   BlockResult,
   BlockedPlayer,
   Career,
+  CasualScoreEditBody,
   ClaimRecordingInvite200,
   CompleteBallBoiSessionBody,
   ConfirmLeagueName,
@@ -6043,7 +6044,7 @@ export function useGetMatchRecap<
 }
 
 /**
- * @summary Match detail for one of your league matches - details, the score from your side, who entered or changed it, and the Ball Boi Replay once it exists
+ * @summary Match detail for any match you played (league, Discover or Quick match, decision 151) - details, where it came from, the score from your side, who entered or changed it, and the Ball Boi Replay once it exists
  */
 export const getGetMyMatchUrl = (matchId: number) => {
   return `/api/me/matches/${matchId}`;
@@ -6103,7 +6104,7 @@ export type GetMyMatchQueryResult = NonNullable<
 export type GetMyMatchQueryError = ErrorType<ErrorResponse>;
 
 /**
- * @summary Match detail for one of your league matches - details, the score from your side, who entered or changed it, and the Ball Boi Replay once it exists
+ * @summary Match detail for any match you played (league, Discover or Quick match, decision 151) - details, where it came from, the score from your side, who entered or changed it, and the Ball Boi Replay once it exists
  */
 
 export function useGetMyMatch<
@@ -6128,6 +6129,93 @@ export function useGetMyMatch<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Either player edits a Discover or Quick match's score from their own side, for 24 hours after it was entered (decision 151). The latest edit stands; standings never move. League matches use editLeagueScore
+ */
+export const getEditMyMatchScoreUrl = (matchId: number) => {
+  return `/api/me/matches/${matchId}/score/edit`;
+};
+
+export const editMyMatchScore = async (
+  matchId: number,
+  casualScoreEditBody: CasualScoreEditBody,
+  options?: RequestInit,
+): Promise<EditedScore> => {
+  return customFetch<EditedScore>(getEditMyMatchScoreUrl(matchId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(casualScoreEditBody),
+  });
+};
+
+export const getEditMyMatchScoreMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof editMyMatchScore>>,
+    TError,
+    { matchId: number; data: BodyType<CasualScoreEditBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof editMyMatchScore>>,
+  TError,
+  { matchId: number; data: BodyType<CasualScoreEditBody> },
+  TContext
+> => {
+  const mutationKey = ["editMyMatchScore"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof editMyMatchScore>>,
+    { matchId: number; data: BodyType<CasualScoreEditBody> }
+  > = (props) => {
+    const { matchId, data } = props ?? {};
+
+    return editMyMatchScore(matchId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EditMyMatchScoreMutationResult = NonNullable<
+  Awaited<ReturnType<typeof editMyMatchScore>>
+>;
+export type EditMyMatchScoreMutationBody = BodyType<CasualScoreEditBody>;
+export type EditMyMatchScoreMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Either player edits a Discover or Quick match's score from their own side, for 24 hours after it was entered (decision 151). The latest edit stands; standings never move. League matches use editLeagueScore
+ */
+export const useEditMyMatchScore = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof editMyMatchScore>>,
+    TError,
+    { matchId: number; data: BodyType<CasualScoreEditBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof editMyMatchScore>>,
+  TError,
+  { matchId: number; data: BodyType<CasualScoreEditBody> },
+  TContext
+> => {
+  return useMutation(getEditMyMatchScoreMutationOptions(options));
+};
 
 /**
  * @summary Development only. What the Testing tools section in Manage shows. 404 in production.

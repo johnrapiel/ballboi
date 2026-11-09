@@ -201,7 +201,8 @@ function TheirMatches({
             const mark = winnerMark({ player1Name: r.player1Name, player2Name: r.player2Name, score: r.score, winner: r.winner === 1 || r.winner === 2 ? r.winner : null });
             const meta = resultMeta(r);
             const spoken = `${mark.spoken}. ${r.player1Name} versus ${r.player2Name}. ${meta.replace(/ · /g, ", ")}`;
-            const opens = r.mine && r.context !== "Quick match";
+            // Only your own matches open Match detail, whatever the type (decision 151).
+            const opens = r.mine;
             const row = {
               minHeight: 56,
               flexDirection: "row" as const,

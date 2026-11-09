@@ -3,6 +3,8 @@
 
 import { graceEndFor, leagueZone, roundPhase, todayFor, type RoundPhase } from "./leagueCalendar.js";
 import { leagueHasEnded } from "./leagueLifecycle.js";
+import { contextFor } from "./career.js";
+import { matchSource, type MatchSource } from "./matchDetail.js";
 import { flipScore as flip } from "./tennisScore.js";
 
 export interface HomeRound {
@@ -99,8 +101,11 @@ export interface HomePlayoffItem {
 }
 
 export interface HomeResult {
-  leagueId: number;
+  /** Null for a Discover or Quick match. */
+  leagueId: number | null;
+  /** The league's name, or "Discover" or "Quick match" (decision 151). */
   leagueName: string;
+  source: MatchSource;
   matchId: number;
   opponentName: string;
   /** From the viewer's side: their games first. */
@@ -268,6 +273,7 @@ export function buildLeagueHome(input: HomeInput) {
       return {
         leagueId: m.leagueId!,
         leagueName: leagueName(m.leagueId!),
+        source: "league" as const,
         matchId: m.id,
         opponentName: opponentOf(m, side, input.names),
         score: side === 1 ? m.score! : flip(m.score!),
@@ -285,9 +291,52 @@ export function buildLeagueHome(input: HomeInput) {
 
   // Season stats count leagues that are still running: an ended league's
   // season is over (decision 31).
-  const season = seasonFrom(results.filter((r) => !ended(r.leagueId)));
+  const season = seasonFrom(results.filter((r) => r.leagueId != null && !ended(r.leagueId)));
 
   return { today: todayFor(null, input.now), thisWeek: week, playoffs, drafts, recent: results.slice(0, 5), results, season };
+}
+
+/**
+ * Your Discover and Quick match results for Profile's Results tab (decision
+ * 151), newest first, each opening Match detail. They never count toward a
+ * league's season or standings, so they join `results` only, not `recent`
+ * or `season`. A Quick match against someone who hasn't answered "Was that
+ * you?" is still yours, against the name you typed.
+ */
+export function casualResults(input: {
+  matches: (HomeMatch & { generatedFrom: string | null })[];
+  myPlayerIds: number[];
+  names: Map<number, string>;
+}): HomeResult[] {
+  const mine = new Set(input.myPlayerIds);
+  const sideOfMe = (m: HomeMatch): 1 | 2 | null =>
+    mine.has(m.player1Id) || (m.player3Id != null && mine.has(m.player3Id))
+      ? 1
+      : mine.has(m.player2Id) || (m.player4Id != null && mine.has(m.player4Id))
+        ? 2
+        : null;
+  return input.matches
+    .filter((m) => m.leagueId == null && !m.voidedAt && m.status === "completed" && !!m.score && m.winnerId != null && sideOfMe(m))
+    .map((m) => {
+      const side = sideOfMe(m)!;
+      return {
+        leagueId: null,
+        leagueName: contextFor(m, new Map()),
+        source: matchSource(m),
+        matchId: m.id,
+        opponentName: opponentOf(m, side, input.names),
+        score: side === 1 ? m.score! : flip(m.score!),
+        won: (side === 1 ? m.player1Id : m.player2Id) === m.winnerId,
+        inGrace: false,
+        playoff: false,
+        completedAt: m.completedAt,
+      };
+    });
+}
+
+/** League and casual results together, newest first. */
+export function allResults(league: HomeResult[], casual: HomeResult[]): HomeResult[] {
+  return [...league, ...casual].sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? "") || b.matchId - a.matchId);
 }
 
 export interface HomeStandingRow {

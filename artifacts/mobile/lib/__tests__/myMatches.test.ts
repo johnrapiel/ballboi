@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { editedLine } from "@/lib/leagueSchedule";
 import {
+  CASUAL_LOCKED,
   durationLabel,
+  matchSourceLine,
   recordLabel,
   resultSentence,
   scoreFootnote,
@@ -47,5 +49,38 @@ describe("Match detail helpers", () => {
   it("says who edited a score, and nothing before an edit", () => {
     expect(editedLine({ editedBy: "Ray Alvarez" })).toBe("Score edited by Ray Alvarez");
     expect(editedLine({ editedBy: null })).toBeNull();
+  });
+});
+
+describe("Match detail for every match (decision 151)", () => {
+  const base = { played: true, enteredBy: "John Rapiel", enteredAt: "2026-11-06T19:30:00Z", editUntil: null, correctedBy: null, leagueEnded: false };
+
+  it("names where the match came from: the league and round, Discover or Quick match", () => {
+    expect(matchSourceLine({ source: "league", leagueName: "Men's 3.5", roundNumber: 3, playoffRound: null })).toBe("Men's 3.5 · Round 3");
+    expect(matchSourceLine({ source: "league", leagueName: "Men's 3.5", roundNumber: null, playoffRound: "semifinal" }, () => "Semifinal")).toBe(
+      "Men's 3.5 · Playoffs · Semifinal",
+    );
+    expect(matchSourceLine({ source: "discover", leagueName: null, context: "Discover", roundNumber: null, playoffRound: null })).toBe("Discover");
+    expect(matchSourceLine({ source: "quick_match", leagueName: null, context: "Quick match", roundNumber: null, playoffRound: null })).toBe("Quick match");
+  });
+
+  it("offers the same 24-hour edit for Discover and Quick matches", () => {
+    for (const source of ["discover", "quick_match"] as const) {
+      expect(scoreFootnote({ ...base, source, editUntil: "2026-11-07T19:30:00Z" })).toMatch(/^Entered by John Rapiel, .+\. Either player can edit it until .+\.$/);
+    }
+  });
+
+  it("once locked, says so plainly and never points to an admin", () => {
+    for (const source of ["discover", "quick_match"] as const) {
+      const note = scoreFootnote({ ...base, source });
+      expect(note).toMatch(/^Entered by John Rapiel, .+\. Scores lock 24 hours after they're entered\.$/);
+      expect(note).not.toMatch(/admin|Manage/);
+      expect(scoreFootnote({ ...base, source, enteredBy: null })).toBe(CASUAL_LOCKED);
+    }
+    expect(CASUAL_LOCKED).toBe("Scores lock 24 hours after they're entered.");
+  });
+
+  it("keeps the league footnote as it was", () => {
+    expect(scoreFootnote({ ...base, source: "league" })).toMatch(/Your league admin can correct it in Manage\.$/);
   });
 });

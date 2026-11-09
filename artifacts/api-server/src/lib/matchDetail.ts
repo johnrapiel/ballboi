@@ -1,7 +1,10 @@
-// Match detail (finding 6, John, Nov 6; approved design audit, Match detail):
-// a league match's plain details, the score from your side, who entered or
-// changed it, and the Ball Boi Replay once one exists. Pure, so it's easy to test.
+// Match detail (finding 6, John, Nov 6; approved design audit, Match detail;
+// decision 151, John, Nov 8): every match you played, league, Discover or
+// Quick match, with one layout. Its plain details, where it came from, the
+// score from your side, who entered or changed it, and the Ball Boi Replay
+// once one exists. Pure, so it's easy to test.
 
+import { contextFor } from "./career.js";
 import { editDeadline } from "./leagueScoreChanges.js";
 import { graceEndFor, roundPhase, todayFor } from "./leagueCalendar.js";
 import { leagueHasEnded } from "./leagueLifecycle.js";
@@ -31,6 +34,16 @@ export interface DetailMatch {
   correctedByName: string | null;
   scoreEditedAt: Date | null;
   scoreEditedByName: string | null;
+  /** "discover" or "discover_open_match" for a Discover match, "quick_match", or a league's own values. */
+  generatedFrom: string | null;
+}
+
+export type MatchSource = "league" | "discover" | "quick_match";
+
+/** Where a match came from: a league, Discover, or a Quick match. */
+export function matchSource(m: Pick<DetailMatch, "leagueId" | "generatedFrom">): MatchSource {
+  if (m.leagueId != null) return "league";
+  return m.generatedFrom === "discover" || m.generatedFrom === "discover_open_match" ? "discover" : "quick_match";
 }
 
 export interface DetailPlayer {
@@ -44,7 +57,10 @@ export interface DetailPlayer {
 
 export interface DetailInput {
   match: DetailMatch;
-  league: { id: number; name: string; leagueType: string; timeZone?: string | null; endedAt?: Date | null; status?: string };
+  /** Null for a Discover or Quick match. */
+  league: { id: number; name: string; leagueType: string; timeZone?: string | null; endedAt?: Date | null; status?: string } | null;
+  /** A Discover match card's court and time zone, when the match row has none. */
+  plan?: { courtName: string | null; timeZone: string | null } | null;
   players: DetailPlayer[];
   roundNumber: number | null;
   /** The match's round, for late matches (decision 152). */
@@ -69,7 +85,7 @@ export function buildMatchDetail(input: DetailInput) {
   // Decision 152: an unplayed league match past its round's deadline, in its
   // extra week. The last day to play it (YYYY-MM-DD, the league's zone).
   const late =
-    !played && !m.voidedAt && !m.playoffBracketId && !leagueHasEnded(league) && input.round && roundPhase(input.round, todayFor(league, now)) === "grace";
+    !!league && !played && !m.voidedAt && !m.playoffBracketId && !leagueHasEnded(league) && !!input.round && roundPhase(input.round, todayFor(league, now)) === "grace";
   const lateUntil = late && input.round ? graceEndFor(input.round.endDate) : null;
   const side = (team: DetailPlayer[], won: boolean | null) => ({
     players: team.map((p) => ({
@@ -82,17 +98,24 @@ export function buildMatchDetail(input: DetailInput) {
     won: !!won,
   });
 
+  const source = matchSource(m);
+  const leagueEnded = leagueHasEnded(league);
+  const names = new Map(league ? [[league.id, { name: league.name }]] : []);
+
   return {
     matchId: m.id,
-    leagueId: league.id,
-    leagueName: league.name,
-    singles: league.leagueType === "singles",
-    timeZone: league.timeZone ?? null,
+    source,
+    leagueId: league?.id ?? null,
+    leagueName: league?.name ?? null,
+    /** The league's name, "Discover" or "Quick match". */
+    context: contextFor(m, names),
+    singles: league ? league.leagueType === "singles" : m.player3Id == null && m.player4Id == null,
+    timeZone: league?.timeZone ?? input.plan?.timeZone ?? null,
     roundNumber: input.roundNumber,
     playoffRound: m.playoffBracketId ? (m.playoffRound ?? "playoff") : null,
     scheduledAt: m.scheduledAt,
     completedAt: m.completedAt,
-    location: m.location,
+    location: m.location ?? input.plan?.courtName ?? null,
     played,
     voided: !!m.voidedAt,
     inGrace: m.inGrace,
@@ -101,16 +124,19 @@ export function buildMatchDetail(input: DetailInput) {
     score: played ? (youOnTeam1 ? m.score! : flipScore(m.score!)) : null,
     you: side(yours, youWon),
     opponents: side(theirs, youWon === null ? null : !youWon),
-    /** Who first entered the score: a player's name, or null when the admin did. */
+    /** Who first entered the score: a player's name, or null when the admin did (or, outside a league, when it's unknown). */
     enteredBy: played && enteredBy && accounts.includes(enteredBy.clerkUserId!) ? enteredBy.name : null,
     enteredAt: played ? m.recordedAt : null,
-    /** Set while you can still edit the score (finding 7). */
-    editUntil: leagueHasEnded(league) ? null : editDeadline(m, userId, accounts, now),
+    /**
+     * Set while you can still edit the score (finding 7). The same 24 hours
+     * for league, Discover and Quick matches (decision 151).
+     */
+    editUntil: leagueEnded ? null : editDeadline(m, userId, accounts, now),
     editedBy: played && m.scoreEditedAt ? (m.scoreEditedByName ?? "A player") : null,
     editedAt: played && m.scoreEditedAt ? m.scoreEditedAt.toISOString() : null,
     correctedBy: played && m.correctedAt ? (m.correctedByName ?? "League admin") : null,
     correctedAt: played && m.correctedAt ? m.correctedAt.toISOString() : null,
-    leagueEnded: leagueHasEnded(league),
+    leagueEnded,
     replay: input.replay,
   };
 }

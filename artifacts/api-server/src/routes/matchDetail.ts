@@ -1,84 +1,132 @@
-import { Router } from "express";
+import { Router, type IRouter } from "express";
 import { getAuth } from "@clerk/express";
-import { ballBoiSessionsTable, db, leagueRoundsTable, leaguesTable, matchesTable, matchShotsTable, playersTable, usersTable } from "@workspace/db";
-import { and, count, desc, eq, inArray } from "drizzle-orm";
-import { matchParticipantIds } from "../lib/leagueScoring.js";
+import { logger } from "../lib/logger.js";
 import { buildMatchDetail } from "../lib/matchDetail.js";
-import { blockedAccountsFor } from "../lib/blocks.js";
+import { DrizzleMatchDetailRepo, type MatchDetailRepo } from "../lib/matchDetailRepo.js";
+import { planCasualEdit } from "../lib/matchScoreEdit.js";
+import { flipScore } from "../lib/quickMatch.js";
 
-// Match detail (finding 6): opened from Home's recent results and My matches.
-// Only the players in the match can open it.
+// Match detail (finding 6; decision 151, John, Nov 8): every match you
+// played, league, Discover or Quick match, with one layout.
+// - GET /me/matches/:matchId
+// - POST /me/matches/:matchId/score/edit (Discover and Quick matches; league
+//   matches use POST /leagues/:leagueId/matches/:matchId/score/edit)
+//
+// Who can open it:
+// - Only the players in the match. A Quick match against someone you'd
+//   never played (G2) is on an unlinked stand-in until they answer Yes to
+//   "Was that you?", so until then it isn't theirs to open. After "Not me"
+//   it never is.
+// - Blocks don't open anything new: a match you both played stays yours, as
+//   it already does in your results and Career, and anyone else is refused.
+//   A score edit isn't pushed to someone blocked with the editor.
 
-const router = Router();
+export interface MatchDetailDeps {
+  now: () => Date;
+  push: (to: string[], title: string, body: string, path: string) => Promise<unknown>;
+  awardMilestones: (matchId: number) => Promise<unknown>;
+}
 
-router.get("/me/matches/:matchId", async (req, res) => {
-  const { userId } = getAuth(req);
-  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const matchId = parseInt(String(req.params.matchId));
-  if (isNaN(matchId)) { res.status(400).json({ error: "Invalid id" }); return; }
+const liveDeps: MatchDetailDeps = {
+  now: () => new Date(),
+  push: async (to, title, body, path) => (await import("./notifications.js")).sendPushToUsers(to, title, body, path),
+  awardMilestones: async (matchId) => (await import("../lib/milestoneRepo.js")).awardMilestonesForMatch(matchId),
+};
 
-  const [match] = await db.select().from(matchesTable).where(eq(matchesTable.id, matchId));
-  if (!match || match.leagueId == null) { res.status(404).json({ error: "Match not found" }); return; }
+const teamOf = (m: { player1Id: number; player2Id: number; player3Id: number | null; player4Id: number | null }, side: 1 | 2) =>
+  (side === 1 ? [m.player1Id, m.player3Id] : [m.player2Id, m.player4Id]).filter((id): id is number => id != null);
 
-  const players = await db
-    .select({
-      id: playersTable.id,
-      name: playersTable.name,
-      clerkUserId: playersTable.clerkUserId,
-      displayName: usersTable.displayName,
-      avatarUrl: usersTable.avatarUrl,
-    })
-    .from(playersTable)
-    .leftJoin(usersTable, eq(usersTable.clerkUserId, playersTable.clerkUserId))
-    .where(inArray(playersTable.id, matchParticipantIds(match)));
-  if (!players.some((p) => p.clerkUserId === userId)) { res.status(403).json({ error: "Only the players in this match can see it." }); return; }
+export function createMatchDetailRouter(repo: MatchDetailRepo = new DrizzleMatchDetailRepo(), deps: MatchDetailDeps = liveDeps): IRouter {
+  const router = Router();
 
-  const [[league], [round], [session], hidden] = await Promise.all([
-    db.select().from(leaguesTable).where(eq(leaguesTable.id, match.leagueId)),
-    match.roundId
-      ? db
-          .select({
-            roundNumber: leagueRoundsTable.roundNumber,
-            publishedAt: leagueRoundsTable.publishedAt,
-            startDate: leagueRoundsTable.startDate,
-            endDate: leagueRoundsTable.endDate,
-          })
-          .from(leagueRoundsTable).where(eq(leagueRoundsTable.id, match.roundId))
-      : Promise.resolve([]),
-    // The Ball Boi Replay row shows only once an analysis has finished.
-    db
-      .select({ id: ballBoiSessionsTable.id, durationSeconds: ballBoiSessionsTable.durationSeconds })
-      .from(ballBoiSessionsTable)
-      .where(and(eq(ballBoiSessionsTable.matchId, matchId), eq(ballBoiSessionsTable.status, "completed")))
-      .orderBy(desc(ballBoiSessionsTable.createdAt))
-      .limit(1),
-    // No photo for someone with a block either way.
-    blockedAccountsFor(userId),
-  ]);
-  if (!league) { res.status(404).json({ error: "Match not found" }); return; }
-  const shots = session
-    ? (await db.select({ n: count() }).from(matchShotsTable).where(eq(matchShotsTable.sessionId, session.id)))[0]?.n ?? 0
-    : 0;
-
-  res.json(
-    buildMatchDetail({
-      match,
-      league,
-      // A1: a signed-up player's profile name; a placeholder's name from the row.
-      // A placeholder (no account) has no photo.
-      players: players.map((p) => ({
-        id: p.id,
-        name: (p.clerkUserId ? p.displayName?.trim() : null) || p.name,
-        clerkUserId: p.clerkUserId,
+  router.get("/me/matches/:matchId", async (req, res) => {
+    const { userId } = getAuth(req);
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const matchId = Number(req.params.matchId);
+    if (!Number.isInteger(matchId) || matchId <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
+    try {
+      const data = await repo.load(matchId);
+      if (!data) { res.status(404).json({ error: "Match not found" }); return; }
+      if (!data.players.some((p) => p.clerkUserId === userId)) {
+        res.status(403).json({ error: "Only the players in this match can see it." });
+        return;
+      }
+      // Photos (#199): never for someone with a block either way, never for a placeholder.
+      const hidden = await repo.blocked(userId);
+      const players = data.players.map((p) => ({
+        ...p,
         avatarUrl: p.clerkUserId && !hidden.has(p.clerkUserId) ? (p.avatarUrl ?? null) : null,
-      })),
-      roundNumber: round?.roundNumber ?? null,
-      round: round ?? null,
-      userId,
-      replay: session ? { durationSeconds: session.durationSeconds ?? null, shotCount: Number(shots) } : null,
-      now: new Date(),
-    }),
-  );
-});
+      }));
+      res.json(
+        buildMatchDetail({
+          match: data.match,
+          league: data.league,
+          plan: data.plan,
+          players,
+          roundNumber: data.roundNumber,
+          round: data.round,
+          userId,
+          replay: data.replay,
+          now: deps.now(),
+        }),
+      );
+    } catch (err) {
+      logger.error({ err, matchId }, "Match detail failed");
+      res.status(500).json({ error: "Can't load this match right now." });
+    }
+  });
 
-export default router;
+  /**
+   * Decision 151: either player edits a Discover or Quick match's score, from
+   * their own side, for 24 hours after it was entered. The latest edit stands
+   * and the other player is told "Score edited by {name}". Nothing here
+   * touches standings or league records: these matches have no league.
+   */
+  router.post("/me/matches/:matchId/score/edit", async (req, res) => {
+    const { userId } = getAuth(req);
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const matchId = Number(req.params.matchId);
+    if (!Number.isInteger(matchId) || matchId <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
+    try {
+      const data = await repo.load(matchId);
+      if (!data) { res.status(404).json({ error: "Match not found" }); return; }
+      const { match, players } = data;
+      const accounts = players.map((p) => p.clerkUserId).filter((id): id is string => !!id);
+      const mine = players.filter((p) => p.clerkUserId === userId);
+      const plan = planCasualEdit({ match, userId, accounts, myPlayerIds: mine.map((p) => p.id), raw: req.body?.score, now: deps.now() });
+      if (!plan.ok) { res.status(plan.status).json({ error: plan.error }); return; }
+
+      const caller = mine[0]!;
+      const at = deps.now();
+      const saved = await repo.saveEdit(matchId, match.score!, { score: plan.score, winnerId: plan.winnerId, byClerkUserId: userId, byName: caller.name, at });
+      if (!saved) { res.status(409).json({ error: "This score changed. Pull down to see the latest." }); return; }
+
+      // Tell everyone else in the match, each from their own side, except anyone blocked with the editor.
+      const blocked = await repo.blocked(userId);
+      const team1 = teamOf(match, 1);
+      const others = players.filter((p) => p.clerkUserId && p.clerkUserId !== userId && !blocked.has(p.clerkUserId));
+      Promise.all(
+        others.map((p) => {
+          const theirs = team1.includes(p.id) ? plan.score : flipScore(plan.score);
+          return deps.push([p.clerkUserId!], "Score edited", `Score edited by ${caller.name}: ${theirs}.`, `/match/${matchId}`).catch(() => {});
+        }),
+      ).catch((err) => logger.error({ err, matchId }, "Couldn't send score edit notifications"));
+
+      await deps.awardMilestones(matchId);
+      res.json({
+        matchId: saved.id,
+        score: saved.score!,
+        winnerId: saved.winnerId,
+        editedAt: (saved.scoreEditedAt ?? at).toISOString(),
+        editedBy: caller.name,
+      });
+    } catch (err) {
+      logger.error({ err, matchId }, "Score edit failed");
+      res.status(500).json({ error: "Couldn't save the score. Try again." });
+    }
+  });
+
+  return router;
+}
+
+export default createMatchDetailRouter();

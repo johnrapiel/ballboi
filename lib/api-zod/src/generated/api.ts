@@ -2544,8 +2544,16 @@ export const GetMyLeagueWeekResponse = zod.object({
   recent: zod
     .array(
       zod.object({
-        leagueId: zod.number(),
-        leagueName: zod.string(),
+        leagueId: zod
+          .number()
+          .nullable()
+          .describe("Null for a Discover or Quick match"),
+        leagueName: zod
+          .string()
+          .describe('The league\'s name, \"Discover\" or \"Quick match\"'),
+        source: zod
+          .enum(["league", "discover", "quick_match"])
+          .describe("Where a match came from"),
         matchId: zod.number(),
         opponentName: zod.string(),
         score: zod
@@ -2561,8 +2569,16 @@ export const GetMyLeagueWeekResponse = zod.object({
   results: zod
     .array(
       zod.object({
-        leagueId: zod.number(),
-        leagueName: zod.string(),
+        leagueId: zod
+          .number()
+          .nullable()
+          .describe("Null for a Discover or Quick match"),
+        leagueName: zod
+          .string()
+          .describe('The league\'s name, \"Discover\" or \"Quick match\"'),
+        source: zod
+          .enum(["league", "discover", "quick_match"])
+          .describe("Where a match came from"),
         matchId: zod.number(),
         opponentName: zod.string(),
         score: zod
@@ -2574,7 +2590,9 @@ export const GetMyLeagueWeekResponse = zod.object({
         completedAt: zod.string().nullable(),
       }),
     )
-    .describe("Every result, newest first, for My matches"),
+    .describe(
+      "Every result, newest first, for Profile's Results tab. League, Discover and Quick matches (decision 151); Discover and Quick results never count toward recent or season",
+    ),
   season: zod
     .object({
       wins: zod.number(),
@@ -2657,7 +2675,7 @@ export const GetMatchRecapResponse = zod
   );
 
 /**
- * @summary Match detail for one of your league matches - details, the score from your side, who entered or changed it, and the Ball Boi Replay once it exists
+ * @summary Match detail for any match you played (league, Discover or Quick match, decision 151) - details, where it came from, the score from your side, who entered or changed it, and the Ball Boi Replay once it exists
  */
 export const GetMyMatchParams = zod.object({
   matchId: zod.coerce.number(),
@@ -2665,8 +2683,17 @@ export const GetMyMatchParams = zod.object({
 
 export const GetMyMatchResponse = zod.object({
   matchId: zod.number(),
-  leagueId: zod.number(),
-  leagueName: zod.string(),
+  source: zod
+    .enum(["league", "discover", "quick_match"])
+    .describe("Where a match came from"),
+  leagueId: zod
+    .number()
+    .nullable()
+    .describe("Null for a Discover or Quick match"),
+  leagueName: zod.string().nullable(),
+  context: zod
+    .string()
+    .describe('The league\'s name, \"Discover\" or \"Quick match\"'),
   singles: zod.boolean(),
   timeZone: zod.string().nullable(),
   roundNumber: zod.number().nullable(),
@@ -2750,6 +2777,27 @@ export const GetMyMatchResponse = zod.object({
       zod.null(),
     ])
     .describe("Set once a Ball Boi analysis of this match has finished"),
+});
+
+/**
+ * @summary Either player edits a Discover or Quick match's score from their own side, for 24 hours after it was entered (decision 151). The latest edit stands; standings never move. League matches use editLeagueScore
+ */
+export const EditMyMatchScoreParams = zod.object({
+  matchId: zod.coerce.number(),
+});
+
+export const EditMyMatchScoreBody = zod.object({
+  score: zod
+    .string()
+    .describe("From your side, your games first, one to five sets"),
+});
+
+export const EditMyMatchScoreResponse = zod.object({
+  matchId: zod.number(),
+  score: zod.string().describe("From player 1's side"),
+  winnerId: zod.number().nullable(),
+  editedAt: zod.string(),
+  editedBy: zod.string(),
 });
 
 /**

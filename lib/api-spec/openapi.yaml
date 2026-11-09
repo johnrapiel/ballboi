@@ -1970,7 +1970,7 @@ paths:
     get:
       operationId: getMyMatch
       tags: [leagues]
-      summary: Match detail for one of your league matches - details, the score from your side, who entered or changed it, and the Ball Boi Replay once it exists
+      summary: Match detail for any match you played (league, Discover or Quick match, decision 151) - details, where it came from, the score from your side, who entered or changed it, and the Ball Boi Replay once it exists
       parameters:
         - name: matchId
           in: path
@@ -1998,6 +1998,55 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: "Not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /me/matches/{matchId}/score/edit:
+    post:
+      operationId: editMyMatchScore
+      tags: [matches]
+      summary: Either player edits a Discover or Quick match's score from their own side, for 24 hours after it was entered (decision 151). The latest edit stands; standings never move. League matches use editLeagueScore
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CasualScoreEditBody"
+      responses:
+        "200":
+          description: Score edited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditedScore"
+        "400":
+          description: "Invalid id or input"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Not a player in this match
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found, or a league match"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: The 24 hours have passed, the score changed, or there's no score to edit
           content:
             application/json:
               schema:
@@ -8377,8 +8426,13 @@ components:
     LeagueWeekResult:
       type: object
       properties:
-        leagueId: { type: integer }
-        leagueName: { type: string }
+        leagueId:
+          type: ["integer", "null"]
+          description: Null for a Discover or Quick match
+        leagueName:
+          type: string
+          description: The league's name, "Discover" or "Quick match"
+        source: { $ref: "#/components/schemas/MatchSource" }
         matchId: { type: integer }
         opponentName: { type: string }
         score:
@@ -8388,7 +8442,7 @@ components:
         inGrace: { type: boolean }
         playoff: { type: boolean }
         completedAt: { type: ["string", "null"] }
-      required: [leagueId, leagueName, matchId, opponentName, score, won, inGrace, playoff, completedAt]
+      required: [leagueId, leagueName, source, matchId, opponentName, score, won, inGrace, playoff, completedAt]
 
     LeagueWeek:
       type: object
@@ -8409,7 +8463,7 @@ components:
           items: { $ref: "#/components/schemas/LeagueWeekResult" }
         results:
           type: array
-          description: Every result, newest first, for My matches
+          description: Every result, newest first, for Profile's Results tab. League, Discover and Quick matches (decision 151); Discover and Quick results never count toward recent or season
           items: { $ref: "#/components/schemas/LeagueWeekResult" }
         season: { $ref: "#/components/schemas/LeagueWeekSeason" }
         leagues:
@@ -8654,12 +8708,31 @@ components:
         shotCount: { type: integer }
       required: [durationSeconds, shotCount]
 
+    CasualScoreEditBody:
+      type: object
+      properties:
+        score:
+          type: string
+          description: From your side, your games first, one to five sets
+      required: [score]
+
+    MatchSource:
+      type: string
+      description: Where a match came from
+      enum: [league, discover, quick_match]
+
     MatchDetail:
       type: object
       properties:
         matchId: { type: integer }
-        leagueId: { type: integer }
-        leagueName: { type: string }
+        source: { $ref: "#/components/schemas/MatchSource" }
+        leagueId:
+          type: ["integer", "null"]
+          description: Null for a Discover or Quick match
+        leagueName: { type: ["string", "null"] }
+        context:
+          type: string
+          description: The league's name, "Discover" or "Quick match"
         singles: { type: boolean }
         timeZone: { type: ["string", "null"] }
         roundNumber: { type: ["integer", "null"] }
@@ -8697,7 +8770,7 @@ components:
           oneOf:
             - $ref: "#/components/schemas/MatchDetailReplay"
             - type: "null"
-      required: [matchId, leagueId, leagueName, singles, timeZone, roundNumber, playoffRound, scheduledAt, completedAt, location, played, voided, inGrace, lateUntil, score, you, opponents, enteredBy, enteredAt, editUntil, editedBy, editedAt, correctedBy, correctedAt, leagueEnded, replay]
+      required: [matchId, source, leagueId, leagueName, context, singles, timeZone, roundNumber, playoffRound, scheduledAt, completedAt, location, played, voided, inGrace, lateUntil, score, you, opponents, enteredBy, enteredAt, editUntil, editedBy, editedAt, correctedBy, correctedAt, leagueEnded, replay]
 
     CorrectedScore:
       type: object

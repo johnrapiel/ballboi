@@ -16,7 +16,7 @@ import { LATE_RESULT } from "@/lib/leagueSchedule";
 /** What a row needs: your results from the league week, or a career result. */
 export type ResultRowData = Pick<LeagueWeekResult, "won" | "score" | "opponentName" | "leagueName" | "playoff" | "inGrace">;
 
-/** With no onPress (a Discover or Quick match result on Career), the row is plain text with no chevron. */
+/** With no onPress, the row is plain text with no chevron. Every result opens Match detail today (decision 151). */
 export function ResultRow({ r, last, onPress }: { r: ResultRowData; last: boolean; onPress?: () => void }) {
   const c = useColors();
   const outcome = r.won ? "Won" : "Lost";
