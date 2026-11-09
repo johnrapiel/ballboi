@@ -14,7 +14,8 @@ from evaluation.__main__ import main  # noqa: E402
 from evaluation.schema import LabelError, parse_match, split_points  # noqa: E402
 
 EXAMPLE = Path(__file__).resolve().parent.parent / "evaluation" / "labels" / "_example.json"
-BARS = {"shot_type": 0.90, "close_call_in_out": 0.85, "serve_placement": 0.85}
+BARS = json.loads((EXAMPLE.parent.parent / "bars.json").read_text())
+BARS = {k: v for k, v in BARS.items() if not k.startswith("_")}
 
 
 def example() -> dict:
@@ -152,6 +153,70 @@ def test_in_progress_labels_are_skipped():
     assert s.stats["shot_type"].rate is None
 
 
+def test_bars_match_decision_98():
+    assert BARS == {"shot_type": 0.90, "close_call_in_out": 0.85, "serve_placement": 0.85,
+                    "point_ending": 0.85, "rally_length": 0.85, "first_serve_pct": 0.85, "placement": 0.80}
+
+
+def _extra_shots(raw, times):
+    """Inserts rally shots (no bounce) into the example's point before its last shot."""
+    for i, t in enumerate(times):
+        raw["shots"].insert(3, {"id": f"x{i}", "time": t, "hitter": "near", "type": "forehand",
+                                "serveNumber": None, "bounce": None, "result": "none",
+                                "closeCall": False, "pointEnd": None})
+    return raw
+
+
+def test_rally_length_within_one_shot_counts():
+    # The example point is 3 shots long (the fault doesn't count).
+    s = summary_for(example(), as_prediction(_extra_shots(example(), [26.2])))
+    assert s.stats["rally_length"].rate == 1.0
+    s = summary_for(example(), as_prediction(_extra_shots(example(), [26.0, 26.3])))
+    assert s.stats["rally_length"].rate == 0.0
+    assert s.errors["rally_length_abs_error"]["median"] == 2
+
+
+def test_rally_length_missed_point_counts_as_wrong():
+    s = summary_for(example(), as_prediction(example(), s0004={"pointEnd": None}))
+    t = s.stats["rally_length"].tally
+    assert (t.correct, t.total) == (0, 1)
+    assert summary_for(example(), None).stats["rally_length"].rate == 0.0
+
+
+def test_first_serve_pct_within_five_points_per_match():
+    assert summary_for(example(), as_prediction(example())).stats["first_serve_pct"].rate == 1.0
+    # The first serve was out (0%); predicting it in says 100%.
+    s = summary_for(example(), as_prediction(example(), s0001={"result": "in"}))
+    t = s.stats["first_serve_pct"].tally
+    assert (t.correct, t.total) == (0, 1)
+    assert s.errors["first_serve_pct_error"]["median"] == 100
+    assert summary_for(example(), None).stats["first_serve_pct"].rate == 0.0
+
+
+def _shot(x, y, result="in"):
+    from evaluation.schema import parse_shot
+    return parse_shot({"id": "z", "time": 1.0, "hitter": "near", "type": "forehand", "serveNumber": None,
+                       "bounce": {"time": 1.5, "court": [x, y]}, "result": result,
+                       "closeCall": False, "pointEnd": None}, "test")
+
+
+def test_placement_zones():
+    assert metrics.placement_zone(_shot(0.0, 3.0)) == "far_short_middle"
+    assert metrics.placement_zone(_shot(-3.5, 10.0)) == "far_deep_left"
+    assert metrics.placement_zone(_shot(3.5, -8.0)) == "near_deep_right"
+    assert metrics.placement_zone(_shot(3.5, -8.0, result="out")) is None
+
+
+def test_placement_wrong_zone_and_misses():
+    s = summary_for(example(), as_prediction(example()))
+    t = s.stats["placement"].tally
+    assert (t.correct, t.total) == (3, 3)          # every in-bounce in the example
+    s = summary_for(example(), as_prediction(example(), s0003={"bounce": {"time": 26.1, "court": [2.4, -9.8]}}))
+    assert s.stats["placement"].tally.correct == 2
+    assert s.confusion["placement"][("near_deep_left", "near_deep_right")] == 1
+    assert summary_for(example(), None).stats["placement"].rate == 0.0
+
+
 # ─── Report ──────────────────────────────────────────────────────────────────
 
 def test_report_shows_launch_decision():
@@ -160,6 +225,17 @@ def test_report_shows_launch_decision():
     assert "| Shot type | 75.0% |" in md
     assert "Hidden (below bar), only 4 examples" in md
     assert "| Serve placement (box and lane) | 100.0% |" in md
+
+
+def test_report_lists_all_seven_launch_stats_and_no_serve_speed():
+    md = report.to_markdown(summary_for(example(), as_prediction(example())), {"version": "test-model"})
+    launch = md.split("## Launch decision")[1].split("##")[0]
+    rows = [line for line in launch.splitlines() if line.startswith("| ") and not line.startswith("| Stat")]
+    assert len(rows) == 7
+    for name in ("Point ending", "Rally length", "First serve %", "Placement (right landing zone)"):
+        assert any(name in r and "| Shown" in r for r in rows), name
+    assert "| 80% |" in launch
+    assert "Serve speed" not in md and "serve speed isn't a launch stat" in md
 
 
 def test_wilson_interval_brackets_rate():
