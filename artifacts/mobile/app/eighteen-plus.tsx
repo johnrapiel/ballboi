@@ -1,5 +1,7 @@
 // Shown to anyone under 18 after the age check. Their account was deleted.
-// Spec: Roles and onboarding, step 2 ("Ball Boi is 18+ for now").
+// Spec: Roles and onboarding, step 2 ("Ball Boi is 18+ for now"). Reached from
+// the birthday step or from Apple's age range (Session G). Title in the page
+// title style (Cormorant at 50% ink, Nov 7), like the age check.
 
 import { useRouter } from "expo-router";
 import React from "react";
@@ -13,7 +15,7 @@ export default function EighteenPlusScreen() {
   return (
     <ScrollScreen style={{ justifyContent: "center", gap: spacing.space6 }}>
       <View style={{ gap: spacing.space3 }}>
-        <Text variant="displayL" accessibilityRole="header">
+        <Text variant="headingL" accessibilityRole="header">
           Ball Boi is 18+ for now.
         </Text>
         <Text tone="inkMuted">
