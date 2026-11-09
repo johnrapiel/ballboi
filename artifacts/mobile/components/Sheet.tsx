@@ -1,7 +1,8 @@
 // The one bottom sheet (design system README, Bottom sheets; John, Nov 6,
 // finding 9). Every sheet:
 // - hugs its content and grows with larger text, scrolling only when it's
-//   taller than the screen (the route uses `sheetOptions` from here),
+//   taller than the screen (the route uses `sheetOptions` from here). The
+//   one exception is New league, a full-height page sheet (`fullSheetOptions`),
 // - has no Cancel: drag down to close, and if something changed it asks
 //   before discarding it. The VoiceOver escape gesture closes it the same way,
 // - has a left-aligned brush title under the grabber, read as the header,
@@ -15,20 +16,38 @@ import { Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useDiscardGuard } from "@/hooks/useDiscardGuard";
-import { fillSheetHeight } from "@/lib/sheetHeight";
+import { keyboardCover } from "@/lib/keyboardCover";
 
-/**
- * Stack options for a sheet route. `fill` is for a form taller than the screen
- * (New league): the large detent, with `SheetBody fill` giving its content a
- * definite height.
- */
-export function sheetOptions(linen: string, opts: { fill?: boolean } = {}) {
+/** Stack options for a sheet route that hugs its content. */
+export function sheetOptions(linen: string) {
   return {
     headerShown: false,
     presentation: "formSheet" as const,
-    sheetAllowedDetents: opts.fill ? [1.0] : ("fitToContents" as const),
+    sheetAllowedDetents: "fitToContents" as const,
     sheetGrabberVisible: true,
     sheetCornerRadius: radius.radiusLg,
+    contentStyle: { backgroundColor: linen },
+  };
+}
+
+/**
+ * Stack options for a full-height form (New league), used with `SheetBody fill`:
+ * the standard iOS page sheet, the same presentation as Mail's New Message.
+ * It slides up to just under the status bar, the screen behind shows above
+ * it, and it closes with a drag down.
+ *
+ * Not a formSheet: react-native-screens lays a formSheet's content out in an
+ * absolutely positioned box with no bottom edge, and on iOS 26 wraps it in a
+ * `flex: 1` safe area view, which has zero height inside that box. A plain
+ * View still draws past it (the hugging sheets, the pinned button), but the
+ * ScrollView of a full-height form drew nothing (New league, builds 21 and
+ * 22). A page sheet gets its size from iOS and fills it with `flex: 1`, like
+ * every pushed screen and the other modals in the app.
+ */
+export function fullSheetOptions(linen: string) {
+  return {
+    headerShown: false,
+    presentation: "modal" as const,
     contentStyle: { backgroundColor: linen },
   };
 }
@@ -61,7 +80,7 @@ export function SheetBody({
   dirty?: boolean;
   /** The sheet's own close, from `useSheetClose`, when the screen also needs `finish`. */
   close?: () => void;
-  /** Fill the screen (New league). Otherwise the sheet hugs its content. */
+  /** Fill a full-height page sheet (New league, route uses `fullSheetOptions`). Otherwise the sheet hugs its content. */
   fill?: boolean;
   /** Pinned under the scrolling content, like a full-height form's primary button. */
   footer?: React.ReactNode;
@@ -92,13 +111,11 @@ export function SheetBody({
   }, [fill, tall, contentH, footerH, maxHeight]);
   const scrolls = fill || tall;
 
-  // Full-height sheet (New league). `flex: 1` collapses to zero height inside
-  // the native formSheet on iOS 26, which left New league blank with only the
-  // grabber showing. So it gets a definite height: the screen below the top
-  // safe area, less the keyboard while it's up, so the footer's button stays
-  // in view above it.
+  // Full-height page sheet (New league, `fullSheetOptions`). iOS sizes the
+  // page sheet, so the root fills it with `flex: 1`. While the keyboard is up
+  // the root leaves room for it at the bottom, so the pinned button sits just
+  // above it and the form scrolls in the space above.
   const keyboardH = useKeyboardHeight(fill);
-  const fillHeight = fillSheetHeight({ windowHeight: height, topInset: insets.top, keyboardHeight: keyboardH });
 
   const padding: StyleProp<ViewStyle> = [
     {
@@ -122,15 +139,15 @@ export function SheetBody({
     <View
       // The VoiceOver escape gesture (two-finger Z) closes the sheet.
       onAccessibilityEscape={onEscape}
-      style={[{ backgroundColor: c.linen }, fill ? { height: fillHeight } : null]}
+      style={[{ backgroundColor: c.linen }, fill ? { flex: 1, paddingBottom: keyboardH } : null]}
     >
       {scrolls ? (
         <ScrollView
           ref={scrollRef}
           keyboardShouldPersistTaps="handled"
-          // Full-height sheets: fills the definite-height root above the
-          // footer. A hugging sheet that outgrew the screen gets a fixed
-          // height so the native sheet can still measure it.
+          // Full-height sheet: fills the root above the footer. A hugging
+          // sheet that outgrew the screen gets a fixed height so the native
+          // sheet can still measure it.
           style={fill ? { flex: 1 } : { height: Math.max(0, maxHeight - footerH) }}
           contentContainerStyle={padding}
         >
@@ -172,14 +189,13 @@ function useKeyboardHeight(on: boolean) {
   const [covered, setCovered] = useState(0);
   useEffect(() => {
     if (!on) return;
-    const onFrame = (e: { endCoordinates: { screenY: number } }) =>
-      setCovered(Math.max(0, height - e.endCoordinates.screenY));
+    const onFrame = (e: { endCoordinates: { screenY: number } }) => setCovered(keyboardCover(height, e.endCoordinates.screenY));
     const show = Keyboard.addListener("keyboardWillShow", onFrame);
     const change = Keyboard.addListener("keyboardWillChangeFrame", onFrame);
     const hide = Keyboard.addListener("keyboardWillHide", () => setCovered(0));
     // The Name field's autoFocus can raise the keyboard before this subscribes.
     const now = Keyboard.metrics();
-    if (now) setCovered(Math.max(0, height - now.screenY));
+    if (now) setCovered(keyboardCover(height, now.screenY));
     return () => {
       show.remove();
       change.remove();
