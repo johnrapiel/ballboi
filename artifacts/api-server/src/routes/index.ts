@@ -43,8 +43,9 @@ import ratingsRouter from "./ratings";
 import recordingRouter from "./recording";
 import trainingConsentRouter from "./trainingConsent";
 import feedbackRouter from "./feedback";
-import liveActivityRouter from "./liveActivity";
 import deviceBansRouter from "./deviceBans";
+import labelingRouter from "./labeling";
+import liveActivityRouter from "./liveActivity";
 
 const router: IRouter = Router();
 
@@ -94,7 +95,8 @@ router.use(ratingsRouter);
 router.use(recordingRouter);
 router.use(trainingConsentRouter);
 router.use(feedbackRouter);
-router.use(liveActivityRouter);
 router.use(deviceBansRouter);
+router.use(labelingRouter);
+router.use(liveActivityRouter);
 
 export default router;

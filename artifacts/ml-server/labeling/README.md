@@ -38,7 +38,7 @@ Hit times are cached in `labels/.hits/`, which git ignores and the eval never re
 
 The same page shows what the shot analysis finds, so you can check it against the video and use it as a head start on labels.
 
-On your Mac, the viewer runs in Docker with the real models: `bash scripts/mac/open-viewer.sh` (or double-click **Open analysis viewer**). Videos come straight from the Match Footage Drive folder; labels and analysis results are saved in `evaluation/labels` and `evaluation/analysis`.
+On your Mac, the viewer runs in Docker with the real models: `bash scripts/mac/open-viewer.sh` (or double-click **Open analysis viewer** in `scripts/mac`). Videos come straight from the Match Footage Drive folder; labels and analysis results are saved in `evaluation/labels` and `evaluation/analysis`.
 
 1. **Calibrate the court first** (K). The analysis uses your corners, like the app uses the phone's.
 2. **Pick a stretch:** set From and To (minutes:seconds), or press **Next 2 minutes from here**. On this Mac's processor, analysis takes about three times as long as the stretch itself, so start with a few minutes, not the whole match.
@@ -46,3 +46,27 @@ On your Mac, the viewer runs in Docker with the real models: `bash scripts/mac/o
 4. **Use as labels** copies the analysis's shots into your labels as suggestions, marked **Suggested**. The list switches to "Suggestions to check first," starting with the ones the analysis was least sure about. For each one, check it against the video: press **Y** if it's right, or fix any field (that confirms it too). Delete shots that didn't happen and add any it missed.
 
 A match can't be marked done until every suggestion has been checked. The eval report says how many labels came from suggestions accepted unchanged, because a high share can make the scores look better than they are.
+
+## Label beta recordings
+
+Matches beta testers record in the app can join the test set. Only matches that may be used for testing come down: the person who recorded it agreed to the Beta Footage Release, the match is held for beta, and nobody in it withdrew. Placeholder opponents are fine for testing; the training toggle doesn't matter here. Recordings show up once Ball Boi has analyzed them, because that's when the video-only copy is made (no audio, so **J** has no hit sounds to jump to on these; step with **,** and **.**).
+
+**One-time setup.** The download signs in as you, using two lines that are probably already in `~/ballboi/.env` from running Ball Boi locally:
+
+```sh
+CLERK_SECRET_KEY=sk_test_...      # dashboard.clerk.com > Ball Boi Development instance > API Keys > Secret keys
+ADMIN_EMAIL=you@example.com       # the email you sign in to Ball Boi with; same as the staging API's ADMIN_EMAIL secret
+```
+
+Staging uses the same Clerk Development instance as local, so it's the same key. No R2 token is needed: the staging API checks who agreed and who withdrew, then hands back download links that work for two hours. Never paste these keys in chat. To use a different API, add `BALLBOI_STAGING_API_URL=`; to save somewhere else, add `BALLBOI_BETA_FOLDER=`.
+
+**Each time:**
+
+1. In Finder, open `~/ballboi/artifacts/ml-server/scripts/mac` and double-click **Download beta recordings** (copy it to your Desktop if you like). New matches download into `~/BallBoiTestSet/Beta` as `2026-11-08-beta-match-123.mp4` (recording date and match ID). Ones you already have are skipped, and an interrupted download picks up where it stopped next time.
+2. Double-click **Open analysis viewer (beta)**. The labeling tool lists the beta recordings. Without Docker: `cd ~/ballboi/artifacts/ml-server && python3 -m labeling --beta`.
+
+The download only reads. It never deletes or changes anything in Ball Boi's storage, the database or your folder. If a player later withdraws, the next download names the file on your Mac to delete (the release promises it's gone within 30 days). Labels you made can stay; they don't have names in them.
+
+**Cost:** nothing. Downloads from Cloudflare R2 are free (R2 doesn't charge for data going out), and the few requests each run makes are far inside R2's free monthly allowance. The video goes from Ball Boi's R2 bucket straight to your Mac; no other service sees it.
+
+**Docker:** the viewer runs in Docker Desktop. If it isn't installed, install Docker Desktop for Mac (Intel chip) from docker.com and open it once. The first time the viewer runs, it builds the analysis image, which takes 10 to 20 minutes once.

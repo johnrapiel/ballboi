@@ -46,6 +46,7 @@ import type {
   BallBoiSession,
   BallBoiStatus,
   BallBoiUploadUrl,
+  BetaFootageList,
   BlockResult,
   BlockedPlayer,
   Career,
@@ -13914,6 +13915,88 @@ export const useCreateReport = <
 > => {
   return useMutation(getCreateReportMutationOptions(options));
 };
+
+/**
+ * For the Mac download script (artifacts/ml-server/scripts/mac/download-beta.sh).
+Lists matches whose recording is held for beta, whose recorder agreed to the
+Beta Footage Release, and that nobody withdrew from; one recording per match.
+Each link is a presigned R2 GET that works for two hours. Read-only: nothing
+in the database or storage changes. Withdrawn match IDs are listed so the
+script can say which downloaded files to delete.
+
+ * @summary Beta recordings that may be used for testing, with short-lived download links
+ */
+export const getGetBetaFootageUrl = () => {
+  return `/api/admin/beta-footage`;
+};
+
+export const getBetaFootage = async (
+  options?: RequestInit,
+): Promise<BetaFootageList> => {
+  return customFetch<BetaFootageList>(getGetBetaFootageUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetBetaFootageQueryKey = () => {
+  return [`/api/admin/beta-footage`] as const;
+};
+
+export const getGetBetaFootageQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBetaFootage>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBetaFootage>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetBetaFootageQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBetaFootage>>> = ({
+    signal,
+  }) => getBetaFootage({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBetaFootage>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetBetaFootageQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBetaFootage>>
+>;
+export type GetBetaFootageQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Beta recordings that may be used for testing, with short-lived download links
+ */
+
+export function useGetBetaFootage<
+  TData = Awaited<ReturnType<typeof getBetaFootage>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBetaFootage>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetBetaFootageQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary The reports queue: open reports oldest first, closed ones newest first

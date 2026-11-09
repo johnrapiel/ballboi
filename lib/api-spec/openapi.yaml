@@ -38,6 +38,8 @@ tags:
     description: The moderator's tools. Only the app's moderator account can use them.
   - name: account
     description: Ban and suspension status and the one appeal. These work while banned.
+  - name: labeling
+    description: Beta recordings for the labeled test set. Only the admin account can use them.
   - name: messages
     description: Player-to-player messages
   - name: recording
@@ -5024,6 +5026,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /admin/beta-footage:
+    get:
+      operationId: getBetaFootage
+      tags: [labeling]
+      summary: Beta recordings that may be used for testing, with short-lived download links
+      description: |
+        For the Mac download script (artifacts/ml-server/scripts/mac/download-beta.sh).
+        Lists matches whose recording is held for beta, whose recorder agreed to the
+        Beta Footage Release, and that nobody withdrew from; one recording per match.
+        Each link is a presigned R2 GET that works for two hours. Read-only: nothing
+        in the database or storage changes. Withdrawn match IDs are listed so the
+        script can say which downloaded files to delete.
+      responses:
+        '200':
+          description: Eligible matches and withdrawn match IDs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BetaFootageList'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not the admin account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't list recordings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /admin/reports:
     get:
       operationId: getAdminReports
@@ -9409,6 +9448,38 @@ components:
       required:
         - status
 
+    BetaFootageMatch:
+      type: object
+      required: [matchId, sessionId, recordedAt, url, expiresAt]
+      properties:
+        matchId:
+          type: integer
+        sessionId:
+          type: integer
+        recordedAt:
+          type: string
+          format: date-time
+        url:
+          type: string
+          description: Presigned GET for the video-only copy in R2
+        expiresAt:
+          type: string
+          format: date-time
+    BetaFootageList:
+      type: object
+      required: [matches, withdrawnMatchIds, missingCount]
+      properties:
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/BetaFootageMatch'
+        withdrawnMatchIds:
+          type: array
+          items:
+            type: integer
+        missingCount:
+          type: integer
+          description: Held recordings whose copy wasn't found in storage
     ErrorResponse:
       type: object
       description: >-

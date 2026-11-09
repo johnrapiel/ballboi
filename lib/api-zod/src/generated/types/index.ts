@@ -47,6 +47,8 @@ export * from "./ballBoiSessionMetadata";
 export * from "./ballBoiSessionSegment";
 export * from "./ballBoiStatus";
 export * from "./ballBoiUploadUrl";
+export * from "./betaFootageList";
+export * from "./betaFootageMatch";
 export * from "./betaReleaseStatus";
 export * from "./blockedPlayer";
 export * from "./blockResult";

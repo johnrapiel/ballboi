@@ -6242,6 +6242,32 @@ export const CreateReportBody = zod.object({
 });
 
 /**
+ * For the Mac download script (artifacts/ml-server/scripts/mac/download-beta.sh).
+Lists matches whose recording is held for beta, whose recorder agreed to the
+Beta Footage Release, and that nobody withdrew from; one recording per match.
+Each link is a presigned R2 GET that works for two hours. Read-only: nothing
+in the database or storage changes. Withdrawn match IDs are listed so the
+script can say which downloaded files to delete.
+
+ * @summary Beta recordings that may be used for testing, with short-lived download links
+ */
+export const GetBetaFootageResponse = zod.object({
+  matches: zod.array(
+    zod.object({
+      matchId: zod.number(),
+      sessionId: zod.number(),
+      recordedAt: zod.coerce.date(),
+      url: zod.string().describe("Presigned GET for the video-only copy in R2"),
+      expiresAt: zod.coerce.date(),
+    }),
+  ),
+  withdrawnMatchIds: zod.array(zod.number()),
+  missingCount: zod
+    .number()
+    .describe("Held recordings whose copy wasn't found in storage"),
+});
+
+/**
  * @summary The reports queue: open reports oldest first, closed ones newest first
  */
 export const getAdminReportsQueryStatusDefault = `open`;
