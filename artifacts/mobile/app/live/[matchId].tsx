@@ -62,7 +62,10 @@ export default function LiveMatchScreen() {
   const [sending, setSending] = useState<LiveCommand | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const [sent, setSent] = useState<LiveCommand | null>(null);
-  const props = q.data?.live ? q.data.props : null;
+  // Live, or stopped in the last few minutes ("Recording stopped" with Done).
+  const props = q.data?.props ?? null;
+  /** The Live Activity's Start or Stop couldn't apply by the time the screen opened. */
+  const [actionNote, setActionNote] = useState<string | null>(null);
 
   async function send(command: LiveCommand) {
     if (sending) return;
@@ -95,8 +98,14 @@ export default function LiveMatchScreen() {
     handledAction.current = true;
     const action = liveAction(params.action);
     if (!action || !props) return;
-    if (action === "start" && props.canStart) void send("start");
-    if (action === "stop" && props.canStop) confirmStop();
+    if (action === "start") {
+      if (props.canStart) void send("start");
+      else setActionNote(props.stage === "recording" ? "The match is already recording." : "The match can't start from here right now.");
+    }
+    if (action === "stop") {
+      if (props.canStop) confirmStop();
+      else setActionNote(props.stage === "stopped" ? "The recording has already stopped." : "There's no recording to stop yet.");
+    }
     // Once, when the first answer arrives.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q.data]);
@@ -129,7 +138,8 @@ export default function LiveMatchScreen() {
     );
   }
 
-  if (q.isError || !q.data) {
+  // A failed refresh keeps what's on screen and says so below; only a first load that fails shows this.
+  if (!q.data) {
     const offline = isOfflineError(q.error);
     return (
       <Message
@@ -183,7 +193,7 @@ export default function LiveMatchScreen() {
           ) : null}
         </View>
         <Text tone="inkMuted">{props.court}</Text>
-        {props.battery ? <Text tone="inkMuted">Mounted phone: {props.battery.replace("Phone battery ", "battery ")}</Text> : null}
+        {props.battery ? <Text tone="inkMuted">Mounted phone {props.battery.toLowerCase()}</Text> : null}
       </Card>
 
       {props.caption ? (
@@ -193,6 +203,18 @@ export default function LiveMatchScreen() {
           </Text>
           <Text variant="bodyStrong">{props.caption}</Text>
         </Card>
+      ) : null}
+
+      {q.isError ? (
+        <Text tone="inkMuted" accessibilityLiveRegion="polite">
+          Couldn't refresh. Still trying.
+        </Text>
+      ) : null}
+
+      {actionNote ? (
+        <Text tone="inkMuted" accessibilityRole="alert">
+          {actionNote}
+        </Text>
       ) : null}
 
       {sendError ? (

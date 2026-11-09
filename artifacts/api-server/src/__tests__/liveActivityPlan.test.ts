@@ -22,7 +22,7 @@ const body = {
   stage: "setup",
   status: "Setting up",
   court: "Finding the court",
-  battery: "Phone battery 80%",
+  battery: "Battery 80%",
   caption: "Mount your phone behind the baseline, camera facing the court.",
   countdownTo: null,
   recordingSince: null,
@@ -139,7 +139,7 @@ describe("worthPushing", () => {
   it("sends a new caption, stage or battery", () => {
     expect(worthPushing(p, { ...p, caption: "Hold your phone there." })).toBe(true);
     expect(worthPushing(p, { ...p, stage: "waiting" })).toBe(true);
-    expect(worthPushing(p, { ...p, battery: "Phone battery 75%" })).toBe(true);
+    expect(worthPushing(p, { ...p, battery: "Battery 75%" })).toBe(true);
     expect(worthPushing(null, p)).toBe(true);
   });
 });

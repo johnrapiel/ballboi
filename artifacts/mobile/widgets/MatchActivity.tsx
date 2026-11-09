@@ -73,7 +73,7 @@ const MatchActivity = (props: LiveProps, environment: LiveActivityEnvironment) =
 
   const details = (
     <Text modifiers={[font({ textStyle: "footnote" }), foregroundStyle(muted), lineLimit(2)]}>
-      {stale ? "Waiting for the mounted phone" : props.battery ? `${props.court} · ${props.battery}` : props.court}
+      {stale ? "Waiting for the mounted phone" : props.battery ? `${props.court} · Mounted phone ${props.battery.toLowerCase()}` : props.court}
     </Text>
   );
 
@@ -148,7 +148,11 @@ const MatchActivity = (props: LiveProps, environment: LiveActivityEnvironment) =
     compactTrailing: timer ?? (
       <Text modifiers={[font({ textStyle: "caption" })]}>{props.court === "Court locked" ? "Locked" : "Aiming"}</Text>
     ),
-    minimal: <Text modifiers={[font({ textStyle: "caption2", weight: "semibold" })]}>{props.stage === "recording" ? "Rec" : "BB"}</Text>,
+    minimal: (
+      <Text modifiers={[font({ textStyle: "caption2", weight: "semibold" })]}>
+        {props.stage === "recording" ? "Rec" : props.stage === "stopped" ? "Saved" : "Setup"}
+      </Text>
+    ),
     expandedLeading: (
       <Text modifiers={[font({ textStyle: "subheadline", weight: "semibold" }), lineLimit(1)]}>{props.status}</Text>
     ),

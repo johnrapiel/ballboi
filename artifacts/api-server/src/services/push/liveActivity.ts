@@ -138,17 +138,32 @@ export async function endSession(matchId: number, recorderId: string, finalProps
   return true;
 }
 
-/** What a viewer's second phone shows. */
+/** How long a stopped match still shows "Recording stopped" on the second phone. */
+const SHOW_STOPPED_MS = 15 * 60_000;
+
+async function recentlyEnded(matchId: number): Promise<LiveSession | null> {
+  const [row] = await db
+    .select()
+    .from(liveSessionsTable)
+    .where(and(eq(liveSessionsTable.matchId, matchId), eq(liveSessionsTable.status, "ended")))
+    .orderBy(desc(liveSessionsTable.id))
+    .limit(1);
+  return row?.endedAt && Date.now() - row.endedAt.getTime() < SHOW_STOPPED_MS ? row : null;
+}
+
+/**
+ * What a viewer's second phone shows: the live session, or one that stopped
+ * in the last few minutes (so the screen says "Recording stopped" instead of
+ * going blank), or nothing.
+ */
 export async function viewSession(matchId: number, userId: string): Promise<{ live: boolean; props: LiveProps | null; youRecord: boolean } | null> {
-  const session = await activeSession(matchId);
-  const people = await matchPeople(matchId, userId, session?.recorderClerkUserId);
-  if (!people) {
-    // No session: anyone on the match may look, and sees nothing live.
-    if (!session && (await matchPeople(matchId, userId))) return { live: false, props: null, youRecord: false };
-    return null;
+  const session = (await activeSession(matchId)) ?? (await recentlyEnded(matchId));
+  if (!session) {
+    // Anyone on the match may look, and sees nothing live.
+    return (await matchPeople(matchId, userId)) ? { live: false, props: null, youRecord: false } : null;
   }
-  if (!session) return { live: false, props: null, youRecord: false };
-  return { live: true, props: session.props as LiveProps, youRecord: session.recorderClerkUserId === userId };
+  if (!(await matchPeople(matchId, userId, session.recorderClerkUserId))) return null;
+  return { live: session.status === "active", props: session.props as LiveProps, youRecord: session.recorderClerkUserId === userId };
 }
 
 /** Start or Stop from another phone (or the recorder's own Lock Screen). */

@@ -26,7 +26,7 @@ export interface LiveProps {
   status: string;
   /** The court, in the mounted phone's words: "Court locked", "Finding the court". */
   court: string;
-  /** "Phone battery 64%", or null when unknown. */
+  /** The mounted phone's battery, "Battery 65%", or null when unknown. */
   battery: string | null;
   /** The voice coach's latest line, word for word from the manifest. */
   caption: string | null;
@@ -86,11 +86,11 @@ export const STAGE_TEXT: Record<LiveStage, string> = {
   stopped: "Recording stopped",
 };
 
-/** "Phone battery 64%", in steps of 5 so the Live Activity isn't updated for every percent. Null when unknown. */
+/** "Battery 65%", in steps of 5 so the Live Activity isn't updated for every percent. Null when unknown. */
 export function batteryText(level: number | null | undefined): string | null {
   if (level == null || !Number.isFinite(level) || level < 0) return null;
   const pct = Math.max(0, Math.min(100, Math.round((level * 100) / 5) * 5));
-  return `Phone battery ${pct}%`;
+  return `Battery ${pct}%`;
 }
 
 export function liveLinks(matchId: number): Pick<LiveProps, "startUrl" | "stopUrl" | "openUrl"> {
