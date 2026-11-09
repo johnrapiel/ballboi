@@ -7,9 +7,7 @@ import {
   bottomRow,
   cardPrompts,
   cardSpoken,
-  freeTimesSpoken,
   headToHeadLine,
-  hoursFreeWeek,
   levelPill,
   levelRow,
   otherUpcomingItem,
@@ -31,7 +29,7 @@ const card = { name: "John Rapiel", rating: 3.5, plays: "singles" as const, town
 const season = { name: "Fall 2026", from: "2026-09-01", to: "2026-12-31", wins: 4, losses: 2, played: 6, streak: { won: true, count: 2 }, noShows: 0 };
 
 describe("prompts in place (John, Nov 9)", () => {
-  const bare = { you: true, homeCourt: null, plays: null, slots: [] as number[] };
+  const bare = { you: true, homeCourt: null, plays: null, freeTimes: [] as { day: number; start: number; end: number }[] };
 
   it("asks for a home court and how you play on your own card when they're unset", () => {
     expect(cardPrompts(bare)).toEqual({ homeCourt: true, plays: true });
@@ -55,9 +53,9 @@ describe("prompts in place (John, Nov 9)", () => {
   });
 
   it("left-aligns Free times alone on someone else's card with no home court", () => {
-    expect(bottomRow({ ...bare, you: false, slots: [18] })).toEqual({ left: null, free: true, align: "start" });
+    expect(bottomRow({ ...bare, you: false, freeTimes: [{ day: 0, start: 1080, end: 1140 }] })).toEqual({ left: null, free: true, align: "start" });
     expect(bottomRow({ ...bare, you: false, homeCourt: "Beacon Courts" })).toEqual({ left: "court", free: false, align: "start" });
-    expect(bottomRow({ ...bare, you: false, homeCourt: "Beacon Courts", slots: [18] })).toEqual({ left: "court", free: true, align: "split" });
+    expect(bottomRow({ ...bare, you: false, homeCourt: "Beacon Courts", freeTimes: [{ day: 0, start: 1080, end: 1140 }] })).toEqual({ left: "court", free: true, align: "split" });
     expect(bottomRow({ ...bare, you: false })).toBeNull();
   });
 });
@@ -116,15 +114,6 @@ describe("Ball Boi this season", () => {
     expect(recordedThisSeason(recs, season)).toHaveLength(2);
     expect(recordedLine(1)).toBe("1 match recorded");
     expect(recordedLine(3)).toBe("3 matches recorded");
-  });
-});
-
-describe("free times", () => {
-  it("says the grid in words", () => {
-    expect(freeTimesSpoken("Weekday evenings, weekend mornings", 23, true)).toBe("Free weekday evenings, weekend mornings. 23 hours a week.");
-    expect(freeTimesSpoken(null, 0, true)).toBe("You haven't added free times yet.");
-    expect(freeTimesSpoken(null, 0, false)).toBe("No free times added yet.");
-    expect(hoursFreeWeek(1)).toBe("1 hour free a week");
   });
 });
 

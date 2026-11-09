@@ -75,6 +75,7 @@ export class DrizzlePlayerCardRepo implements PlayerCardRepo {
       plays: d.plays,
       homeCourt: court?.name ?? null,
       slots: d.slots,
+      freeTimes: d.freeTimes ?? null,
     };
   }
 
@@ -96,6 +97,7 @@ export class DrizzlePlayerCardRepo implements PlayerCardRepo {
         plays: p.plays,
         homeCourt: p.homeCourt ?? null,
         slots: p.slots,
+        freeTimes: p.freeTimes ?? null,
       },
       hidden: false,
       distance: miles == null ? null : `${distanceLabel(miles)} away`,

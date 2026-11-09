@@ -5,6 +5,7 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+import type { FreeTime } from "./freeTime";
 import type { Milestone } from "./milestone";
 import type { PlayerCardPlays } from "./playerCardPlays";
 import type { PlayerCardSeason } from "./playerCardSeason";
@@ -33,8 +34,13 @@ export interface PlayerCard {
   distance: string | null;
   /** @nullable */
   homeCourt: string | null;
-  /** Free hours, day * 24 + hour, Monday is 0 */
+  /**
+   * The old hour grid as saved (day * 24 + hour, Monday is 0); read freeTimes instead
+   * @deprecated
+   */
   slots: number[];
+  /** Free times (decision 156), or the old hour grid converted exactly */
+  freeTimes: FreeTime[];
   /** @nullable */
   freeSummary: string | null;
   season: PlayerCardSeason;

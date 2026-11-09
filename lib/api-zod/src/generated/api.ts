@@ -572,6 +572,14 @@ export const SetDiscoverAreaBody = zod.object({
   zip: zod.string().describe("Five digits"),
 });
 
+export const setDiscoverAreaResponseFreeTimesItemDayMin = 0;
+export const setDiscoverAreaResponseFreeTimesItemDayMax = 6;
+
+export const setDiscoverAreaResponseFreeTimesItemStartMin = 0;
+export const setDiscoverAreaResponseFreeTimesItemStartMax = 1439;
+
+export const setDiscoverAreaResponseFreeTimesItemEndMax = 1440;
+
 export const SetDiscoverAreaResponse = zod.object({
   area: zod.union([
     zod
@@ -597,8 +605,37 @@ export const SetDiscoverAreaResponse = zod.object({
     .nullable(),
   radius: zod.number().describe("Last distance picked, 1 to 30 miles"),
   rating: zod.number().nullable(),
-  slots: zod.array(zod.number()),
-  hoursFree: zod.number(),
+  slots: zod
+    .array(zod.number())
+    .describe("The old hour grid as saved; read freeTimes instead"),
+  freeTimes: zod
+    .array(
+      zod
+        .object({
+          day: zod
+            .number()
+            .min(setDiscoverAreaResponseFreeTimesItemDayMin)
+            .max(setDiscoverAreaResponseFreeTimesItemDayMax)
+            .describe("Monday is 0, Sunday is 6"),
+          start: zod
+            .number()
+            .min(setDiscoverAreaResponseFreeTimesItemStartMin)
+            .max(setDiscoverAreaResponseFreeTimesItemStartMax)
+            .describe("Minutes after midnight"),
+          end: zod
+            .number()
+            .min(1)
+            .max(setDiscoverAreaResponseFreeTimesItemEndMax)
+            .describe(
+              "Minutes after midnight, after start; 1440 is midnight at the end of the day",
+            ),
+        })
+        .describe(
+          "One free time in a generic week (decision 156). A time that exactly matches a block (Morning 7 to 11 AM, Afternoon 12 to 4 PM, Evening 5 to 9 PM) is that block.",
+        ),
+    )
+    .describe("Your free times, or your old hour grid converted exactly"),
+  hoursFree: zod.number().describe("Hours free in the week, rounded"),
   freeSummary: zod
     .string()
     .nullable()
@@ -611,15 +648,66 @@ export const SetDiscoverAreaResponse = zod.object({
 });
 
 /**
- * @summary Save the "When you can play" grid (a Monday to Sunday week of hours)
+ * @summary Save your free times (decision 156). Old app versions send the hour grid instead
  */
-export const SaveDiscoverAvailabilityBody = zod.object({
-  slots: zod
-    .array(zod.number())
-    .describe(
-      "Free hours, each day \* 24 + hour. Monday is day 0; hours 6 (6 AM) to 21 (9 PM).",
-    ),
-});
+export const saveDiscoverAvailabilityBodyFreeTimesItemDayMin = 0;
+export const saveDiscoverAvailabilityBodyFreeTimesItemDayMax = 6;
+
+export const saveDiscoverAvailabilityBodyFreeTimesItemStartMin = 0;
+export const saveDiscoverAvailabilityBodyFreeTimesItemStartMax = 1439;
+
+export const saveDiscoverAvailabilityBodyFreeTimesItemEndMax = 1440;
+
+export const saveDiscoverAvailabilityBodyFreeTimesMax = 70;
+
+export const SaveDiscoverAvailabilityBody = zod
+  .object({
+    freeTimes: zod
+      .array(
+        zod
+          .object({
+            day: zod
+              .number()
+              .min(saveDiscoverAvailabilityBodyFreeTimesItemDayMin)
+              .max(saveDiscoverAvailabilityBodyFreeTimesItemDayMax)
+              .describe("Monday is 0, Sunday is 6"),
+            start: zod
+              .number()
+              .min(saveDiscoverAvailabilityBodyFreeTimesItemStartMin)
+              .max(saveDiscoverAvailabilityBodyFreeTimesItemStartMax)
+              .describe("Minutes after midnight"),
+            end: zod
+              .number()
+              .min(1)
+              .max(saveDiscoverAvailabilityBodyFreeTimesItemEndMax)
+              .describe(
+                "Minutes after midnight, after start; 1440 is midnight at the end of the day",
+              ),
+          })
+          .describe(
+            "One free time in a generic week (decision 156). A time that exactly matches a block (Morning 7 to 11 AM, Afternoon 12 to 4 PM, Evening 5 to 9 PM) is that block.",
+          ),
+      )
+      .max(saveDiscoverAvailabilityBodyFreeTimesMax)
+      .optional(),
+    slots: zod
+      .array(zod.number())
+      .optional()
+      .describe(
+        "The old hour grid, each day \* 24 + hour. Monday is day 0; hours 6 (6 AM) to 21 (9 PM).",
+      ),
+  })
+  .describe(
+    "Send freeTimes. Old app versions send slots (the hour grid), which clears saved free times.",
+  );
+
+export const saveDiscoverAvailabilityResponseFreeTimesItemDayMin = 0;
+export const saveDiscoverAvailabilityResponseFreeTimesItemDayMax = 6;
+
+export const saveDiscoverAvailabilityResponseFreeTimesItemStartMin = 0;
+export const saveDiscoverAvailabilityResponseFreeTimesItemStartMax = 1439;
+
+export const saveDiscoverAvailabilityResponseFreeTimesItemEndMax = 1440;
 
 export const SaveDiscoverAvailabilityResponse = zod.object({
   area: zod.union([
@@ -646,8 +734,37 @@ export const SaveDiscoverAvailabilityResponse = zod.object({
     .nullable(),
   radius: zod.number().describe("Last distance picked, 1 to 30 miles"),
   rating: zod.number().nullable(),
-  slots: zod.array(zod.number()),
-  hoursFree: zod.number(),
+  slots: zod
+    .array(zod.number())
+    .describe("The old hour grid as saved; read freeTimes instead"),
+  freeTimes: zod
+    .array(
+      zod
+        .object({
+          day: zod
+            .number()
+            .min(saveDiscoverAvailabilityResponseFreeTimesItemDayMin)
+            .max(saveDiscoverAvailabilityResponseFreeTimesItemDayMax)
+            .describe("Monday is 0, Sunday is 6"),
+          start: zod
+            .number()
+            .min(saveDiscoverAvailabilityResponseFreeTimesItemStartMin)
+            .max(saveDiscoverAvailabilityResponseFreeTimesItemStartMax)
+            .describe("Minutes after midnight"),
+          end: zod
+            .number()
+            .min(1)
+            .max(saveDiscoverAvailabilityResponseFreeTimesItemEndMax)
+            .describe(
+              "Minutes after midnight, after start; 1440 is midnight at the end of the day",
+            ),
+        })
+        .describe(
+          "One free time in a generic week (decision 156). A time that exactly matches a block (Morning 7 to 11 AM, Afternoon 12 to 4 PM, Evening 5 to 9 PM) is that block.",
+        ),
+    )
+    .describe("Your free times, or your old hour grid converted exactly"),
+  hoursFree: zod.number().describe("Hours free in the week, rounded"),
   freeSummary: zod
     .string()
     .nullable()
@@ -742,6 +859,14 @@ export const GetDiscoverLeagueResponse = zod.object({
 /**
  * @summary Your area, hidden profile, plays, last distance and hours, for Discover
  */
+export const getDiscoverMeResponseFreeTimesItemDayMin = 0;
+export const getDiscoverMeResponseFreeTimesItemDayMax = 6;
+
+export const getDiscoverMeResponseFreeTimesItemStartMin = 0;
+export const getDiscoverMeResponseFreeTimesItemStartMax = 1439;
+
+export const getDiscoverMeResponseFreeTimesItemEndMax = 1440;
+
 export const GetDiscoverMeResponse = zod.object({
   area: zod.union([
     zod
@@ -767,8 +892,37 @@ export const GetDiscoverMeResponse = zod.object({
     .nullable(),
   radius: zod.number().describe("Last distance picked, 1 to 30 miles"),
   rating: zod.number().nullable(),
-  slots: zod.array(zod.number()),
-  hoursFree: zod.number(),
+  slots: zod
+    .array(zod.number())
+    .describe("The old hour grid as saved; read freeTimes instead"),
+  freeTimes: zod
+    .array(
+      zod
+        .object({
+          day: zod
+            .number()
+            .min(getDiscoverMeResponseFreeTimesItemDayMin)
+            .max(getDiscoverMeResponseFreeTimesItemDayMax)
+            .describe("Monday is 0, Sunday is 6"),
+          start: zod
+            .number()
+            .min(getDiscoverMeResponseFreeTimesItemStartMin)
+            .max(getDiscoverMeResponseFreeTimesItemStartMax)
+            .describe("Minutes after midnight"),
+          end: zod
+            .number()
+            .min(1)
+            .max(getDiscoverMeResponseFreeTimesItemEndMax)
+            .describe(
+              "Minutes after midnight, after start; 1440 is midnight at the end of the day",
+            ),
+        })
+        .describe(
+          "One free time in a generic week (decision 156). A time that exactly matches a block (Morning 7 to 11 AM, Afternoon 12 to 4 PM, Evening 5 to 9 PM) is that block.",
+        ),
+    )
+    .describe("Your free times, or your old hour grid converted exactly"),
+  hoursFree: zod.number().describe("Hours free in the week, rounded"),
   freeSummary: zod
     .string()
     .nullable()
@@ -935,6 +1089,14 @@ export const SaveDiscoverSettingsBody = zod.object({
   matchAlerts: zod.boolean().optional(),
 });
 
+export const saveDiscoverSettingsResponseFreeTimesItemDayMin = 0;
+export const saveDiscoverSettingsResponseFreeTimesItemDayMax = 6;
+
+export const saveDiscoverSettingsResponseFreeTimesItemStartMin = 0;
+export const saveDiscoverSettingsResponseFreeTimesItemStartMax = 1439;
+
+export const saveDiscoverSettingsResponseFreeTimesItemEndMax = 1440;
+
 export const SaveDiscoverSettingsResponse = zod.object({
   area: zod.union([
     zod
@@ -960,8 +1122,37 @@ export const SaveDiscoverSettingsResponse = zod.object({
     .nullable(),
   radius: zod.number().describe("Last distance picked, 1 to 30 miles"),
   rating: zod.number().nullable(),
-  slots: zod.array(zod.number()),
-  hoursFree: zod.number(),
+  slots: zod
+    .array(zod.number())
+    .describe("The old hour grid as saved; read freeTimes instead"),
+  freeTimes: zod
+    .array(
+      zod
+        .object({
+          day: zod
+            .number()
+            .min(saveDiscoverSettingsResponseFreeTimesItemDayMin)
+            .max(saveDiscoverSettingsResponseFreeTimesItemDayMax)
+            .describe("Monday is 0, Sunday is 6"),
+          start: zod
+            .number()
+            .min(saveDiscoverSettingsResponseFreeTimesItemStartMin)
+            .max(saveDiscoverSettingsResponseFreeTimesItemStartMax)
+            .describe("Minutes after midnight"),
+          end: zod
+            .number()
+            .min(1)
+            .max(saveDiscoverSettingsResponseFreeTimesItemEndMax)
+            .describe(
+              "Minutes after midnight, after start; 1440 is midnight at the end of the day",
+            ),
+        })
+        .describe(
+          "One free time in a generic week (decision 156). A time that exactly matches a block (Morning 7 to 11 AM, Afternoon 12 to 4 PM, Evening 5 to 9 PM) is that block.",
+        ),
+    )
+    .describe("Your free times, or your old hour grid converted exactly"),
+  hoursFree: zod.number().describe("Hours free in the week, rounded"),
   freeSummary: zod
     .string()
     .nullable()
@@ -1604,6 +1795,14 @@ export const GetPlayersResponse = zod.array(GetPlayersResponseItem);
 /**
  * @summary Your player card and This season, for Profile (decisions 138 to 140)
  */
+export const getMyPlayerCardResponseFreeTimesItemDayMin = 0;
+export const getMyPlayerCardResponseFreeTimesItemDayMax = 6;
+
+export const getMyPlayerCardResponseFreeTimesItemStartMin = 0;
+export const getMyPlayerCardResponseFreeTimesItemStartMax = 1439;
+
+export const getMyPlayerCardResponseFreeTimesItemEndMax = 1440;
+
 export const GetMyPlayerCardResponse = zod
   .object({
     userId: zod.number(),
@@ -1628,7 +1827,38 @@ export const GetMyPlayerCardResponse = zod
     homeCourt: zod.string().nullable(),
     slots: zod
       .array(zod.number())
-      .describe("Free hours, day \* 24 + hour, Monday is 0"),
+      .describe(
+        "The old hour grid as saved (day \* 24 + hour, Monday is 0); read freeTimes instead",
+      ),
+    freeTimes: zod
+      .array(
+        zod
+          .object({
+            day: zod
+              .number()
+              .min(getMyPlayerCardResponseFreeTimesItemDayMin)
+              .max(getMyPlayerCardResponseFreeTimesItemDayMax)
+              .describe("Monday is 0, Sunday is 6"),
+            start: zod
+              .number()
+              .min(getMyPlayerCardResponseFreeTimesItemStartMin)
+              .max(getMyPlayerCardResponseFreeTimesItemStartMax)
+              .describe("Minutes after midnight"),
+            end: zod
+              .number()
+              .min(1)
+              .max(getMyPlayerCardResponseFreeTimesItemEndMax)
+              .describe(
+                "Minutes after midnight, after start; 1440 is midnight at the end of the day",
+              ),
+          })
+          .describe(
+            "One free time in a generic week (decision 156). A time that exactly matches a block (Morning 7 to 11 AM, Afternoon 12 to 4 PM, Evening 5 to 9 PM) is that block.",
+          ),
+      )
+      .describe(
+        "Free times (decision 156), or the old hour grid converted exactly",
+      ),
     freeSummary: zod.string().nullable(),
     season: zod
       .object({
@@ -1795,6 +2025,14 @@ export const GetPlayerCardParams = zod.object({
   userId: zod.coerce.number(),
 });
 
+export const getPlayerCardResponseFreeTimesItemDayMin = 0;
+export const getPlayerCardResponseFreeTimesItemDayMax = 6;
+
+export const getPlayerCardResponseFreeTimesItemStartMin = 0;
+export const getPlayerCardResponseFreeTimesItemStartMax = 1439;
+
+export const getPlayerCardResponseFreeTimesItemEndMax = 1440;
+
 export const GetPlayerCardResponse = zod
   .object({
     userId: zod.number(),
@@ -1819,7 +2057,38 @@ export const GetPlayerCardResponse = zod
     homeCourt: zod.string().nullable(),
     slots: zod
       .array(zod.number())
-      .describe("Free hours, day \* 24 + hour, Monday is 0"),
+      .describe(
+        "The old hour grid as saved (day \* 24 + hour, Monday is 0); read freeTimes instead",
+      ),
+    freeTimes: zod
+      .array(
+        zod
+          .object({
+            day: zod
+              .number()
+              .min(getPlayerCardResponseFreeTimesItemDayMin)
+              .max(getPlayerCardResponseFreeTimesItemDayMax)
+              .describe("Monday is 0, Sunday is 6"),
+            start: zod
+              .number()
+              .min(getPlayerCardResponseFreeTimesItemStartMin)
+              .max(getPlayerCardResponseFreeTimesItemStartMax)
+              .describe("Minutes after midnight"),
+            end: zod
+              .number()
+              .min(1)
+              .max(getPlayerCardResponseFreeTimesItemEndMax)
+              .describe(
+                "Minutes after midnight, after start; 1440 is midnight at the end of the day",
+              ),
+          })
+          .describe(
+            "One free time in a generic week (decision 156). A time that exactly matches a block (Morning 7 to 11 AM, Afternoon 12 to 4 PM, Evening 5 to 9 PM) is that block.",
+          ),
+      )
+      .describe(
+        "Free times (decision 156), or the old hour grid converted exactly",
+      ),
     freeSummary: zod.string().nullable(),
     season: zod
       .object({

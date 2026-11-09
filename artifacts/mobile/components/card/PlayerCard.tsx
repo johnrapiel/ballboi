@@ -193,7 +193,7 @@ export function PlayerCard({
                 onPress={onFreeTimes}
                 accessibilityRole="button"
                 accessibilityLabel={card.you ? "Free times" : `${first}'s free times`}
-                accessibilityHint={card.you ? "Shows the hours you're usually free" : `Shows the hours ${first} is usually free`}
+                accessibilityHint={card.you ? "Shows when you're usually free" : `Shows when ${first} is usually free`}
                 style={({ pressed }) => ({
                   minHeight: MIN_TAP,
                   minWidth: MIN_TAP,

@@ -12,6 +12,7 @@ on:
       - 'artifacts/api-host/**'
       - 'lib/db/**'
       - 'lib/api-zod/**'
+      - 'lib/free-times/**'
       - 'scripts/migrations/**'
       - 'scripts/run-db-migrations.mjs'
       - 'pnpm-lock.yaml'

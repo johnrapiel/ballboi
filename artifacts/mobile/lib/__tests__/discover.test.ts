@@ -3,8 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_FILTERS,
   areaLine,
-  cellAt,
-  cellSpoken,
   clampRadius,
   countLine,
   filtersSpoken,
@@ -12,23 +10,15 @@ import {
   levelsText,
   pickedLevels,
   toggleLevel,
-  hourShort,
-  hoursFreeLine,
   initials,
   inviteMessage,
   isCustomRadius,
   levelRangeText,
-  paintSlot,
   picksFromPlays,
   playersPath,
   playsFromPicks,
   radiusChipSpoken,
   rowDetail,
-  rowSlots,
-  sameSlots,
-  slotOf,
-  toggleRow,
-  toggleSlot,
 } from "../discover";
 
 describe("Discover header and chips", () => {
@@ -113,47 +103,6 @@ describe("rows and the player card", () => {
   it("makes initials", () => {
     expect(initials("Sam Whitfield")).toBe("SW");
     expect(initials("Cher")).toBe("C");
-  });
-});
-
-describe("the hour grid (F7)", () => {
-  it("labels hours and cells", () => {
-    expect(hourShort(6)).toBe("6a");
-    expect(hourShort(12)).toBe("12p");
-    expect(hourShort(21)).toBe("9p");
-    expect(cellSpoken(0, 18, true)).toBe("Monday 6 PM, free");
-    expect(cellSpoken(6, 9, false)).toBe("Sunday 9 AM, not free");
-    expect(hoursFreeLine(1)).toBe("1 hour free");
-  });
-
-  it("toggles a cell and a whole row", () => {
-    let s = toggleSlot(new Set(), slotOf(0, 18));
-    expect([...s]).toEqual([slotOf(0, 18)]);
-    s = toggleRow(s, 18);
-    expect(rowSlots(18).every((x) => s.has(x))).toBe(true);
-    s = toggleRow(s, 18);
-    expect(s.size).toBe(0);
-  });
-
-  it("paints the way the drag started", () => {
-    const start = new Set([slotOf(1, 7)]);
-    expect(paintSlot(start, slotOf(1, 7), true)).toBe(start);
-    expect(paintSlot(start, slotOf(1, 8), true).has(slotOf(1, 8))).toBe(true);
-    expect(paintSlot(start, slotOf(1, 7), false).size).toBe(0);
-  });
-
-  it("finds the cell under a finger", () => {
-    const layout = { labelWidth: 46, cellWidth: 40, cellHeight: 44, gap: 2 };
-    expect(cellAt(10, 10, layout)).toBeNull();
-    expect(cellAt(47, 1, layout)).toEqual({ day: 0, hour: 6 });
-    expect(cellAt(46 + 42 * 6 + 5, 46 * 15 + 5, layout)).toEqual({ day: 6, hour: 21 });
-    expect(cellAt(46 + 42 * 7 + 5, 5, layout)).toBeNull();
-    expect(cellAt(50, 46 * 16 + 1, layout)).toBeNull();
-  });
-
-  it("knows when nothing changed", () => {
-    expect(sameSlots(new Set([1, 2]), [2, 1])).toBe(true);
-    expect(sameSlots(new Set([1]), [1, 2])).toBe(false);
   });
 });
 

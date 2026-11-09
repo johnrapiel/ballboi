@@ -5,8 +5,17 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+import type { FreeTime } from "./freeTime";
 
+/**
+ * Send freeTimes. Old app versions send slots (the hour grid), which clears saved free times.
+ */
 export interface DiscoverAvailabilityInput {
-  /** Free hours, each day * 24 + hour. Monday is day 0; hours 6 (6 AM) to 21 (9 PM). */
-  slots: number[];
+  /** @maxItems 70 */
+  freeTimes?: FreeTime[];
+  /**
+   * The old hour grid, each day * 24 + hour. Monday is day 0; hours 6 (6 AM) to 21 (9 PM).
+   * @deprecated
+   */
+  slots?: number[];
 }

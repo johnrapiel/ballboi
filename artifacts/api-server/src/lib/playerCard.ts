@@ -13,7 +13,8 @@
 // The season is the global season running today; with none running, the
 // calendar year so far. Pure, so it's easy to test.
 
-import { availabilitySummary } from "./discoverAvailability.js";
+import { freeSummary, type FreeRange } from "@workspace/free-times";
+import { timesOf } from "./discoverAvailability.js";
 import { isMilestoneKind, MILESTONE_KINDS, type MilestoneKind } from "./milestones.js";
 
 export interface SeasonWindow {
@@ -113,7 +114,10 @@ export interface CardPerson {
   town: string | null;
   plays: string | null;
   homeCourt: string | null;
+  /** The old hour grid (F7), read when they haven't saved free times. */
   slots: number[];
+  /** Free times from the new editor (decision 156), or null. */
+  freeTimes?: FreeRange[] | null;
 }
 
 /** A milestone on the card (decision 150): a small badge, read with the card. */
@@ -135,6 +139,7 @@ export function cardMilestones(rows: { kind: string; earnedAt: Date }[]): CardMi
  * earned (decision 150 changes decision 139's "only what the player entered").
  */
 export function cardView(p: CardPerson, extra: { distance: string | null; season: SeasonWindow & SeasonStats; you: boolean; milestones: CardMilestone[] }) {
+  const times = timesOf(p);
   return {
     userId: p.userId,
     you: extra.you,
@@ -147,7 +152,8 @@ export function cardView(p: CardPerson, extra: { distance: string | null; season
     distance: extra.distance,
     homeCourt: p.homeCourt,
     slots: [...p.slots].sort((a, b) => a - b),
-    freeSummary: availabilitySummary(p.slots),
+    freeTimes: times,
+    freeSummary: freeSummary(times),
     season: extra.season,
     milestones: extra.milestones,
   };

@@ -7,6 +7,7 @@
  */
 import type { DiscoverArea } from "./discoverArea";
 import type { DiscoverMePlays } from "./discoverMePlays";
+import type { FreeTime } from "./freeTime";
 
 export interface DiscoverMe {
   area: DiscoverArea | null;
@@ -20,7 +21,14 @@ export interface DiscoverMe {
   radius: number;
   /** @nullable */
   rating: number | null;
+  /**
+   * The old hour grid as saved; read freeTimes instead
+   * @deprecated
+   */
   slots: number[];
+  /** Your free times, or your old hour grid converted exactly */
+  freeTimes: FreeTime[];
+  /** Hours free in the week, rounded */
   hoursFree: number;
   /**
    * "Weekday evenings, weekend mornings", or null with no hours set

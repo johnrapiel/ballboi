@@ -141,6 +141,7 @@ export * from "./expoPushTokenInput";
 export * from "./feedbackReport";
 export * from "./feedbackReportProblem";
 export * from "./feedbackReportSource";
+export * from "./freeTime";
 export * from "./gatedStat";
 export * from "./generateLeagueRoundBody";
 export * from "./getAdminMe200";

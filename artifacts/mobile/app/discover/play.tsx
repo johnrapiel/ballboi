@@ -1,7 +1,7 @@
-// When I play (canvas W2_EditProfilePlay; F7, F8, F11), from Profile ›
-// Player details. "I play" Singles and Doubles (either or both), and the
-// "When you can play" row that opens the hour grid with your summary under
-// it. Optional: it shows on your player card and powers "Free when I'm free".
+// Plays, from Edit profile's Plays row and the card's "Add how you play"
+// prompt: the Singles and Doubles chips (either or both) and Save. Nothing
+// else (John, Nov 9): free times have their own editor, opened from Edit
+// profile's Free times row. Optional: it shows on your player card.
 
 import { useNavigation, usePreventRemove, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -10,7 +10,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChipRow, ChoiceChip } from "@/components/discover/Controls";
 import { ProblemCard } from "@/components/discover/States";
-import { SettingsRow, SettingsSection } from "@/components/SettingsList";
 import { Button, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -73,6 +72,12 @@ export default function WhenIPlayScreen() {
     <View style={{ flex: 1, backgroundColor: c.paper }}>
       <ScrollView contentContainerStyle={{ padding: spacing.space4, paddingBottom: 120 + insets.bottom, gap: spacing.space6 }}>
         <View style={{ gap: spacing.space2 }}>
+          <Text variant="headingL" accessibilityRole="header">
+            Plays
+          </Text>
+          <Text tone="inkMuted">Pick one or both. It shows on your player card.</Text>
+        </View>
+        <View style={{ gap: spacing.space2 }}>
           <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
             I play
           </Text>
@@ -81,15 +86,6 @@ export default function WhenIPlayScreen() {
             <ChoiceChip label="Doubles" selected={picks.doubles} onPress={() => setPicks({ ...picks, doubles: !picks.doubles })} />
           </ChipRow>
         </View>
-        <SettingsSection footer="Optional. Shows on your player card and helps players near you find a time.">
-          <SettingsRow
-            title="When you can play"
-            subtitle={me.data.freeSummary ?? "Not set"}
-            onPress={() => router.push("/availability")}
-            accessibilityHint="Opens the hour grid, Monday to Sunday"
-            last
-          />
-        </SettingsSection>
       </ScrollView>
       <View
         style={{

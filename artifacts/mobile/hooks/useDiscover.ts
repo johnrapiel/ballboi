@@ -4,6 +4,9 @@
 import { useAuth } from "@clerk/expo";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { getGetMyPlayerCardQueryKey } from "@workspace/api-client-react";
+import type { FreeRange } from "@workspace/free-times";
+
 import { apiErrorMessage, apiFetch } from "@/lib/api";
 import {
   playersPath,
@@ -81,8 +84,18 @@ export function useSaveDiscoverSettings() {
   );
 }
 
+/** Saves your free times (decision 156). Also refreshes the player card, which shows them. */
 export function useSaveAvailability() {
-  return useSaveMe<number[]>("/api/discover/availability", "PUT", (slots) => ({ slots }), "Couldn't save your times. Try again.");
+  const qc = useQueryClient();
+  const save = useSaveMe<FreeRange[]>("/api/discover/availability", "PUT", (freeTimes) => ({ freeTimes }), "Couldn't save your times. Try again.");
+  return {
+    ...save,
+    mutateAsync: async (freeTimes: FreeRange[]) => {
+      const me = await save.mutateAsync(freeTimes);
+      await qc.invalidateQueries({ queryKey: getGetMyPlayerCardQueryKey() });
+      return me;
+    },
+  };
 }
 
 /** Saves the distance picked, for next time and the other two tabs. Quiet: the list already shows it. */

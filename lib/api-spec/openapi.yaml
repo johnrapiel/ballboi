@@ -400,7 +400,7 @@ paths:
     put:
       operationId: saveDiscoverAvailability
       tags: [discover]
-      summary: Save the "When you can play" grid (a Monday to Sunday week of hours)
+      summary: Save your free times (decision 156). Old app versions send the hour grid instead
       requestBody:
         required: true
         content:
@@ -415,7 +415,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DiscoverMe'
         '400':
-          description: An hour outside the grid
+          description: A time that isn't a day and a start before its end, or an hour outside the grid
           content:
             application/json:
               schema:
@@ -7592,15 +7592,41 @@ components:
           type: string
           description: Five digits
       required: [zip]
+    FreeTime:
+      type: object
+      description: One free time in a generic week (decision 156). A time that exactly matches a block (Morning 7 to 11 AM, Afternoon 12 to 4 PM, Evening 5 to 9 PM) is that block.
+      properties:
+        day:
+          type: integer
+          minimum: 0
+          maximum: 6
+          description: Monday is 0, Sunday is 6
+        start:
+          type: integer
+          minimum: 0
+          maximum: 1439
+          description: Minutes after midnight
+        end:
+          type: integer
+          minimum: 1
+          maximum: 1440
+          description: Minutes after midnight, after start; 1440 is midnight at the end of the day
+      required: [day, start, end]
     DiscoverAvailabilityInput:
       type: object
+      description: Send freeTimes. Old app versions send slots (the hour grid), which clears saved free times.
       properties:
+        freeTimes:
+          type: array
+          maxItems: 70
+          items:
+            $ref: '#/components/schemas/FreeTime'
         slots:
           type: array
-          description: Free hours, each day * 24 + hour. Monday is day 0; hours 6 (6 AM) to 21 (9 PM).
+          deprecated: true
+          description: The old hour grid, each day * 24 + hour. Monday is day 0; hours 6 (6 AM) to 21 (9 PM).
           items:
             type: integer
-      required: [slots]
     DiscoverLeague:
       type: object
       properties:
@@ -7730,17 +7756,25 @@ components:
           type: [number, 'null']
         slots:
           type: array
+          deprecated: true
+          description: The old hour grid as saved; read freeTimes instead
           items:
             type: integer
+        freeTimes:
+          type: array
+          description: Your free times, or your old hour grid converted exactly
+          items:
+            $ref: '#/components/schemas/FreeTime'
         hoursFree:
           type: integer
+          description: Hours free in the week, rounded
         freeSummary:
           type: [string, 'null']
           description: '"Weekday evenings, weekend mornings", or null with no hours set'
         matchAlerts:
           type: boolean
           description: Alerts for new open matches near you, up to 2 a day
-      required: [area, homeZip, hidden, plays, radius, rating, slots, hoursFree, freeSummary, matchAlerts]
+      required: [area, homeZip, hidden, plays, radius, rating, slots, freeTimes, hoursFree, freeSummary, matchAlerts]
     DiscoverPlayerCard:
       type: object
       properties:
@@ -8190,9 +8224,15 @@ components:
           type: [string, 'null']
         slots:
           type: array
-          description: Free hours, day * 24 + hour, Monday is 0
+          deprecated: true
+          description: The old hour grid as saved (day * 24 + hour, Monday is 0); read freeTimes instead
           items:
             type: integer
+        freeTimes:
+          type: array
+          description: Free times (decision 156), or the old hour grid converted exactly
+          items:
+            $ref: '#/components/schemas/FreeTime'
         freeSummary:
           type: [string, 'null']
         season:
@@ -8202,7 +8242,7 @@ components:
           description: Milestones the player earned, oldest first (decision 150)
           items:
             $ref: '#/components/schemas/Milestone'
-      required: [userId, you, name, avatarUrl, rating, ratingSource, plays, town, distance, homeCourt, slots, freeSummary, season, milestones]
+      required: [userId, you, name, avatarUrl, rating, ratingSource, plays, town, distance, homeCourt, slots, freeTimes, freeSummary, season, milestones]
     Milestone:
       type: object
       description: A career milestone, earned once (decisions 149 and 150)

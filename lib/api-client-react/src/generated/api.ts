@@ -1543,7 +1543,7 @@ export const useSetDiscoverArea = <
 };
 
 /**
- * @summary Save the "When you can play" grid (a Monday to Sunday week of hours)
+ * @summary Save your free times (decision 156). Old app versions send the hour grid instead
  */
 export const getSaveDiscoverAvailabilityUrl = () => {
   return `/api/discover/availability`;
@@ -1607,7 +1607,7 @@ export type SaveDiscoverAvailabilityMutationBody =
 export type SaveDiscoverAvailabilityMutationError = ErrorType<ErrorResponse>;
 
 /**
- * @summary Save the "When you can play" grid (a Monday to Sunday week of hours)
+ * @summary Save your free times (decision 156). Old app versions send the hour grid instead
  */
 export const useSaveDiscoverAvailability = <
   TError = ErrorType<ErrorResponse>,
