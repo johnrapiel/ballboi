@@ -1,16 +1,20 @@
 // Database side of the Live Activity (rules in liveActivityPlan.ts).
 
 import { db, liveActivityTokensTable, liveSessionsTable, matchesTable, playersTable, usersTable, type LiveSession } from "@workspace/db";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, ne, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { sendLiveActivityPush, tokenIsDead, type ApnsEnv } from "./apns";
 import {
   canControl,
+  dismissAfterSeconds,
   endPayload,
+  LIVE_ACTIVITY_MAX_MS,
   liveViewers,
   needsStart,
+  pickStartTokens,
   startAlert,
   startPayload,
+  startPlan,
   stoppedProps,
   updatePayload,
   worthPushing,
@@ -68,18 +72,116 @@ async function push(row: { id: number; token: string; apnsEnv: string | null }, 
   }
 }
 
-/** Opens the Live Activity on each viewer's phone that hasn't had it yet (G7). */
+/**
+ * Claims one viewer on the session, so two updates arriving together (a
+ * change and the heartbeat) never open it twice. True when this call won.
+ */
+async function claimViewer(sessionId: number, viewer: string): Promise<boolean> {
+  const rows = await db
+    .update(liveSessionsTable)
+    .set({ startedFor: sql`array_append(${liveSessionsTable.startedFor}, ${viewer})` })
+    .where(and(eq(liveSessionsTable.id, sessionId), sql`NOT (${viewer} = ANY(${liveSessionsTable.startedFor}))`))
+    .returning({ id: liveSessionsTable.id });
+  return rows.length > 0;
+}
+
+async function unclaimViewer(sessionId: number, viewer: string): Promise<void> {
+  await db
+    .update(liveSessionsTable)
+    .set({ startedFor: sql`array_remove(${liveSessionsTable.startedFor}, ${viewer})` })
+    .where(eq(liveSessionsTable.id, sessionId));
+}
+
+/**
+ * Opens the Live Activity on each viewer's phone that hasn't had it yet (G7),
+ * once per match per phone (Nov 9): the newest push-to-start token per phone
+ * only, and a Live Activity already showing this match from an earlier setup
+ * is updated in place instead of getting a second one.
+ */
 async function startForViewers(session: LiveSession, people: MatchPeople, props: LiveProps): Promise<void> {
   const todo = needsStart(people.viewers, session.startedFor);
-  if (!todo.length) return;
-  // Claimed before sending, so a second update never starts it twice.
-  await db.update(liveSessionsTable).set({ startedFor: [...session.startedFor, ...todo] }).where(eq(liveSessionsTable.id, session.id));
-  const tokens = await db
+  for (const viewer of todo) {
+    if (!(await claimViewer(session.id, viewer))) continue;
+    const earlier = await db
+      .select({ id: liveSessionsTable.id, status: liveSessionsTable.status })
+      .from(liveSessionsTable)
+      .where(
+        and(
+          eq(liveSessionsTable.matchId, session.matchId),
+          ne(liveSessionsTable.id, session.id),
+          gt(liveSessionsTable.createdAt, new Date(Date.now() - LIVE_ACTIVITY_MAX_MS)),
+          sql`${viewer} = ANY(${liveSessionsTable.startedFor})`,
+        ),
+      );
+    const earlierTokens = earlier.length
+      ? await db
+          .select()
+          .from(liveActivityTokensTable)
+          .where(
+            and(
+              eq(liveActivityTokensTable.kind, "activity"),
+              eq(liveActivityTokensTable.clerkUserId, viewer),
+              inArray(
+                liveActivityTokensTable.sessionId,
+                earlier.map((e) => e.id),
+              ),
+            ),
+          )
+      : [];
+    const plan = startPlan(
+      earlier.map((e) => ({ active: e.status === "active", hasToken: earlierTokens.some((t) => t.sessionId === e.id) })),
+    );
+    if (plan === "wait") continue;
+    if (plan === "adopt") {
+      const live = earlierTokens.filter((t) => earlier.some((e) => e.id === t.sessionId && e.status === "active"));
+      await db
+        .update(liveActivityTokensTable)
+        .set({ sessionId: session.id, updatedAt: new Date() })
+        .where(inArray(liveActivityTokensTable.id, live.map((t) => t.id)));
+      const payload = updatePayload(props, nowSeconds());
+      await Promise.all(live.map((t) => push(t, payload)));
+      continue;
+    }
+    const tokens = pickStartTokens(
+      await db
+        .select()
+        .from(liveActivityTokensTable)
+        .where(and(eq(liveActivityTokensTable.kind, "start"), eq(liveActivityTokensTable.clerkUserId, viewer))),
+    );
+    if (!tokens.length) {
+      // No phone to open it on yet: try again on the next update.
+      await unclaimViewer(session.id, viewer);
+      continue;
+    }
+    const payload = startPayload(props, nowSeconds(), startAlert(people.recorderName));
+    await Promise.all(tokens.map((t) => push(t, payload)));
+  }
+}
+
+/**
+ * Setup started on a new match: any other session this recorder left running
+ * (the app was closed mid-setup, say) ends, so its Live Activities don't stay
+ * up next to the new one.
+ */
+async function endStaleSessions(recorderId: string, keepSessionId: number): Promise<void> {
+  const stale = await db
     .select()
-    .from(liveActivityTokensTable)
-    .where(and(eq(liveActivityTokensTable.kind, "start"), inArray(liveActivityTokensTable.clerkUserId, todo)));
-  const payload = startPayload(props, nowSeconds(), startAlert(people.recorderName));
-  await Promise.all(tokens.map((t) => push(t, payload)));
+    .from(liveSessionsTable)
+    .where(
+      and(
+        eq(liveSessionsTable.recorderClerkUserId, recorderId),
+        eq(liveSessionsTable.status, "active"),
+        ne(liveSessionsTable.id, keepSessionId),
+      ),
+    );
+  for (const old of stale) {
+    const props = stoppedProps(old.props as LiveProps);
+    await db
+      .update(liveSessionsTable)
+      .set({ status: "ended", props, pendingCommand: null, endedAt: new Date(), updatedAt: new Date() })
+      .where(eq(liveSessionsTable.id, old.id));
+    await pushToActivities(old.id, endPayload(props, nowSeconds(), 0), 10);
+  }
 }
 
 async function pushToActivities(sessionId: number, payload: unknown, priority: 5 | 10) {
@@ -110,6 +212,7 @@ export async function recorderUpdate(
   const previous = (session?.props as LiveProps | undefined) ?? null;
   if (!session) {
     [session] = await db.insert(liveSessionsTable).values({ matchId, recorderClerkUserId: recorderId, props }).returning();
+    await endStaleSessions(recorderId, session.id);
   }
   const command = session.pendingCommand as LiveCommand | null;
   await db
@@ -134,7 +237,7 @@ export async function endSession(matchId: number, recorderId: string, finalProps
     .update(liveSessionsTable)
     .set({ status: "ended", props, pendingCommand: null, endedAt: new Date(), updatedAt: new Date() })
     .where(eq(liveSessionsTable.id, session.id));
-  await pushToActivities(session.id, endPayload(props, nowSeconds()), 10);
+  await pushToActivities(session.id, endPayload(props, nowSeconds(), dismissAfterSeconds(props)), 10);
   return true;
 }
 
@@ -191,12 +294,30 @@ export async function sendCommand(
   return { ok: true };
 }
 
-/** This phone's push-to-start token (one per phone). */
-export async function saveStartToken(userId: string, token: string): Promise<void> {
+/**
+ * This phone's push-to-start token. One per phone: the phone's older tokens
+ * (and any saved before phones were told apart) are dropped, so a match opens
+ * one Live Activity there, not one per token it ever sent.
+ */
+export async function saveStartToken(userId: string, token: string, installId: string | null): Promise<void> {
   await db
     .insert(liveActivityTokensTable)
-    .values({ clerkUserId: userId, kind: "start", token })
-    .onConflictDoUpdate({ target: liveActivityTokensTable.token, set: { clerkUserId: userId, kind: "start", updatedAt: new Date() } });
+    .values({ clerkUserId: userId, kind: "start", token, installId })
+    .onConflictDoUpdate({
+      target: liveActivityTokensTable.token,
+      set: { clerkUserId: userId, kind: "start", installId, updatedAt: new Date() },
+    });
+  if (!installId) return;
+  await db
+    .delete(liveActivityTokensTable)
+    .where(
+      and(
+        eq(liveActivityTokensTable.kind, "start"),
+        eq(liveActivityTokensTable.clerkUserId, userId),
+        ne(liveActivityTokensTable.token, token),
+        sql`(${liveActivityTokensTable.installId} IS NULL OR ${liveActivityTokensTable.installId} = ${installId})`,
+      ),
+    );
 }
 
 /**

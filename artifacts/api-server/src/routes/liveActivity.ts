@@ -20,20 +20,24 @@ import {
 const router = Router();
 
 const TOKEN = /^[0-9a-f]{32,512}$/i;
+/** The phone's app install id: letters, digits and dashes. */
+const INSTALL = /^[A-Za-z0-9-]{8,64}$/;
 
 function matchIdOf(raw: unknown): number | null {
   const id = Number(raw);
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-/** PUT /live-activity/start-token { token }: this phone's push-to-start token. */
+/** PUT /live-activity/start-token { token, installId? }: this phone's push-to-start token. */
 router.put("/live-activity/start-token", async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
   const token = String(req.body?.token ?? "");
   if (!TOKEN.test(token)) return res.status(400).json({ error: "Invalid token" });
+  const rawInstall = req.body?.installId;
+  const installId = typeof rawInstall === "string" && INSTALL.test(rawInstall) ? rawInstall : null;
   try {
-    await saveStartToken(userId, token);
+    await saveStartToken(userId, token, installId);
     return res.json({ success: true });
   } catch (err) {
     logger.error({ err }, "Couldn't save a push-to-start token");

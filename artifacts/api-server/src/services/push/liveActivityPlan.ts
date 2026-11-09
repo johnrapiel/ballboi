@@ -169,3 +169,72 @@ export function worthPushing(prev: LiveProps | null, next: LiveProps): boolean {
   const keys: (keyof LiveProps)[] = ["stage", "status", "court", "battery", "caption", "countdownTo", "recordingSince", "canStart", "canStop", "players"];
   return keys.some((k) => prev[k] !== next[k]);
 }
+
+// ---------------------------------------------------------------------------
+// One Live Activity per match per phone (John, Nov 9: the opponent's Lock
+// Screen showed three identical cards).
+
+/** Apple keeps a Live Activity running for up to 8 hours. */
+export const LIVE_ACTIVITY_MAX_MS = 8 * 60 * 60_000;
+
+export interface StartTokenRow {
+  id: number;
+  clerkUserId: string;
+  installId: string | null;
+  updatedAt: Date;
+}
+
+/**
+ * The push-to-start tokens to use: the newest one for each phone. A phone is
+ * its app install. Tokens saved before installs were sent count as one phone
+ * per account, and only when that account has no install-tagged tokens yet.
+ */
+export function pickStartTokens<T extends StartTokenRow>(rows: T[]): T[] {
+  const best = new Map<string, T>();
+  const tagged = new Set(rows.filter((r) => r.installId).map((r) => r.clerkUserId));
+  for (const r of rows) {
+    if (!r.installId && tagged.has(r.clerkUserId)) continue;
+    const key = `${r.clerkUserId}\u0000${r.installId ?? ""}`;
+    const prev = best.get(key);
+    if (!prev || r.updatedAt.getTime() > prev.updatedAt.getTime() || (r.updatedAt.getTime() === prev.updatedAt.getTime() && r.id > prev.id)) {
+      best.set(key, r);
+    }
+  }
+  return [...best.values()];
+}
+
+/** An earlier setup of the same match that already opened the Live Activity on this viewer's phone. */
+export interface EarlierStart {
+  /** The earlier session is still running. */
+  active: boolean;
+  /** Their phone sent the update token for it, so Ball Boi can reach that Live Activity. */
+  hasToken: boolean;
+}
+
+/**
+ * What to do for a viewer when a match's setup starts:
+ * - start: open the Live Activity with push-to-start (nothing is there yet,
+ *   or the earlier one was ended).
+ * - adopt: their phone already shows this match and Ball Boi can reach it:
+ *   point it at the new session and update it in place.
+ * - wait: their phone already shows this match but never sent its update
+ *   token. Another push-to-start would stack a second card, so the one
+ *   there joins this session as soon as Ball Boi opens on that phone.
+ */
+export type StartPlan = "start" | "adopt" | "wait";
+
+export function startPlan(earlier: EarlierStart[]): StartPlan {
+  if (!earlier.length) return "start";
+  if (earlier.some((e) => e.active && e.hasToken)) return "adopt";
+  if (earlier.some((e) => e.hasToken)) return "start";
+  return "wait";
+}
+
+/**
+ * How long the ended Live Activity stays on the Lock Screen: a few minutes
+ * with "Recording stopped", or straight away when setup ended with nothing
+ * recorded (a new setup would otherwise sit next to it).
+ */
+export function dismissAfterSeconds(props: LiveProps): number {
+  return props.status === "Setup ended" ? 0 : 5 * 60;
+}

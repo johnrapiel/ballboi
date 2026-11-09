@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { captionFor, COACH_LINES, type CueId } from "@/lib/coachLines";
 import { liveClock, liveClockSpoken } from "@/lib/liveActivity/clock";
+import { extraActivities } from "@/lib/liveActivity/dedupe";
 import {
   batteryText,
   buildLiveProps,
@@ -154,5 +155,21 @@ describe("the second phone's clock", () => {
     expect(liveClock({ stage: "recording", countdownTo: null, recordingSince: 0 }, 3_725_000)).toBe("1:02:05");
     expect(liveClockSpoken({ stage: "recording", countdownTo: null, recordingSince: 0 }, 75_000)).toBe("1 minute 15 seconds");
     expect(liveClock({ stage: "setup", countdownTo: null, recordingSince: null }, 0)).toBeNull();
+  });
+});
+
+describe("one Live Activity per phone (Nov 9)", () => {
+  it("leaves a single Live Activity alone", () => {
+    expect(extraActivities([], null)).toEqual([]);
+    expect(extraActivities(["a"], null)).toEqual([]);
+  });
+
+  it("ends the leftovers and keeps the last one iOS lists", () => {
+    expect(extraActivities(["a", "b", "c"], null)).toEqual(["a", "b"]);
+  });
+
+  it("keeps the one the mounted phone is updating", () => {
+    expect(extraActivities(["a", "b", "c"], "a")).toEqual(["b", "c"]);
+    expect(extraActivities(["a", "b"], "gone")).toEqual(["a"]);
   });
 });

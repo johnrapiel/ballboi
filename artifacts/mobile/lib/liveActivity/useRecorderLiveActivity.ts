@@ -34,6 +34,9 @@ export function useRecorderLiveActivity(snapshot: Omit<RecorderSnapshot, "batter
   const sent = useRef<LiveProps | null>(null);
   const latest = useRef<LiveProps | null>(null);
   const ended = useRef(false);
+  /** One request to the server at a time; the newest waiting one goes next. */
+  const inFlight = useRef(false);
+  const queued = useRef<LiveProps | null>(null);
   const tokenGetter = () => getTokenRef.current();
 
   useEffect(() => {
@@ -54,7 +57,25 @@ export function useRecorderLiveActivity(snapshot: Omit<RecorderSnapshot, "batter
   const props = snapshot ? buildLiveProps({ ...snapshot, batteryLevel: battery }) : null;
   latest.current = props;
 
+  // One at a time, so a change and the heartbeat never arrive together (the
+  // server opens the other phone's Live Activity on the first one).
   async function sendToServer(p: LiveProps) {
+    if (inFlight.current) {
+      queued.current = p;
+      return;
+    }
+    inFlight.current = true;
+    try {
+      await sendNow(p);
+    } finally {
+      inFlight.current = false;
+    }
+    const next = queued.current;
+    queued.current = null;
+    if (next && !ended.current) void sendToServer(next);
+  }
+
+  async function sendNow(p: LiveProps) {
     try {
       const res = await apiFetch(`/api/live/${p.matchId}`, tokenGetter, { method: "PUT", body: JSON.stringify(p) });
       if (!res.ok) return;
@@ -86,7 +107,7 @@ export function useRecorderLiveActivity(snapshot: Omit<RecorderSnapshot, "batter
   useEffect(() => {
     const t = setInterval(() => {
       const p = latest.current;
-      if (!p || ended.current || AppState.currentState !== "active") return;
+      if (!p || ended.current || inFlight.current || AppState.currentState !== "active") return;
       void sendToServer(p);
     }, HEARTBEAT_MS);
     return () => clearInterval(t);
