@@ -3899,7 +3899,7 @@ export const OpenDoublesMatchChatResponse = zod.object({
 });
 
 /**
- * @summary Enter a league match score from your own side. Either player can edit it for 24 hours after.
+ * @summary Enter a league match score from your own side, or (doubles) a W/O or double default. Either player can edit it for 24 hours after.
  */
 export const EnterLeagueScoreParams = zod.object({
   leagueId: zod.coerce.number(),
@@ -3909,6 +3909,7 @@ export const EnterLeagueScoreParams = zod.object({
 export const EnterLeagueScoreBody = zod.object({
   score: zod
     .string()
+    .optional()
     .describe(
       'Sets from your own side, like \"6-3, 4-6, 10-7\". Your games first. Best of three; a set ends 6-0 to 6-4, 7-5 or 7-6, and a third set can be a match tiebreak (10-7).',
     ),
@@ -3917,6 +3918,18 @@ export const EnterLeagueScoreBody = zod.object({
     .optional()
     .describe(
       "The opponent retired. The score is the sets so far (the last can be unfinished), it counts as the caller's win, and it's stored with RET at the end, like \"6-3, 2-1 RET\". Admin corrections ignore it.",
+    ),
+  walkoverWinnerId: zod
+    .number()
+    .nullish()
+    .describe(
+      'Doubles in regular play only (John, Nov 9). The match is a walkover (W\/O) to the team that was complete, named by its first player (player1Id or player2Id). Stored as \"W\/O\"; it counts as a win in standings, with no sets or games. Send it instead of score.',
+    ),
+  doubleDefault: zod
+    .boolean()
+    .optional()
+    .describe(
+      'Doubles in regular play only (John, Nov 9). Both teams were a player short. Stored as \"Double default\" with no winner, and no standings points for either team. Send it instead of score.',
     ),
 });
 
@@ -3931,6 +3944,7 @@ export const CorrectLeagueScoreParams = zod.object({
 export const CorrectLeagueScoreBody = zod.object({
   score: zod
     .string()
+    .optional()
     .describe(
       'Sets from your own side, like \"6-3, 4-6, 10-7\". Your games first. Best of three; a set ends 6-0 to 6-4, 7-5 or 7-6, and a third set can be a match tiebreak (10-7).',
     ),
@@ -3939,6 +3953,18 @@ export const CorrectLeagueScoreBody = zod.object({
     .optional()
     .describe(
       "The opponent retired. The score is the sets so far (the last can be unfinished), it counts as the caller's win, and it's stored with RET at the end, like \"6-3, 2-1 RET\". Admin corrections ignore it.",
+    ),
+  walkoverWinnerId: zod
+    .number()
+    .nullish()
+    .describe(
+      'Doubles in regular play only (John, Nov 9). The match is a walkover (W\/O) to the team that was complete, named by its first player (player1Id or player2Id). Stored as \"W\/O\"; it counts as a win in standings, with no sets or games. Send it instead of score.',
+    ),
+  doubleDefault: zod
+    .boolean()
+    .optional()
+    .describe(
+      'Doubles in regular play only (John, Nov 9). Both teams were a player short. Stored as \"Double default\" with no winner, and no standings points for either team. Send it instead of score.',
     ),
 });
 
@@ -4039,6 +4065,7 @@ export const EditLeagueScoreParams = zod.object({
 export const EditLeagueScoreBody = zod.object({
   score: zod
     .string()
+    .optional()
     .describe(
       'Sets from your own side, like \"6-3, 4-6, 10-7\". Your games first. Best of three; a set ends 6-0 to 6-4, 7-5 or 7-6, and a third set can be a match tiebreak (10-7).',
     ),
@@ -4047,6 +4074,18 @@ export const EditLeagueScoreBody = zod.object({
     .optional()
     .describe(
       "The opponent retired. The score is the sets so far (the last can be unfinished), it counts as the caller's win, and it's stored with RET at the end, like \"6-3, 2-1 RET\". Admin corrections ignore it.",
+    ),
+  walkoverWinnerId: zod
+    .number()
+    .nullish()
+    .describe(
+      'Doubles in regular play only (John, Nov 9). The match is a walkover (W\/O) to the team that was complete, named by its first player (player1Id or player2Id). Stored as \"W\/O\"; it counts as a win in standings, with no sets or games. Send it instead of score.',
+    ),
+  doubleDefault: zod
+    .boolean()
+    .optional()
+    .describe(
+      'Doubles in regular play only (John, Nov 9). Both teams were a player short. Stored as \"Double default\" with no winner, and no standings points for either team. Send it instead of score.',
     ),
 });
 

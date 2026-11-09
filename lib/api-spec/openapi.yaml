@@ -2516,7 +2516,7 @@ paths:
     post:
       operationId: enterLeagueScore
       tags: [leagues]
-      summary: Enter a league match score from your own side. Either player can edit it for 24 hours after.
+      summary: Enter a league match score from your own side, or (doubles) a W/O or double default. Either player can edit it for 24 hours after.
       parameters:
         - $ref: "#/components/parameters/LeagueIdParam"
         - name: matchId
@@ -9058,7 +9058,18 @@ components:
             The opponent retired. The score is the sets so far (the last can be unfinished),
             it counts as the caller's win, and it's stored with RET at the end, like "6-3, 2-1 RET".
             Admin corrections ignore it.
-      required: [score]
+        walkoverWinnerId:
+          type: ["integer", "null"]
+          description: >-
+            Doubles in regular play only (John, Nov 9). The match is a walkover (W/O) to the team
+            that was complete, named by its first player (player1Id or player2Id). Stored as "W/O";
+            it counts as a win in standings, with no sets or games. Send it instead of score.
+        doubleDefault:
+          type: boolean
+          description: >-
+            Doubles in regular play only (John, Nov 9). Both teams were a player short. Stored as
+            "Double default" with no winner, and no standings points for either team. Send it
+            instead of score.
 
     SettleMatchBody:
       type: object

@@ -151,6 +151,7 @@ Carried over from the original web app's project notes. Describes how the API, s
 - Team-up requests (`league_partner_requests`) expire after 48 hours via the 15-minute job in `services/scheduler.ts`. Declined, expired or "taken" (the other player teamed up with someone else) puts the sender back on Looking for a partner (`players.looking_for_partner_at`) with a notice until they dismiss it.
 - Each published doubles match gets a group chat for all four (`message_groups.match_id`, titled per member in `member_titles`). It gets day-before and "Did it happen?" lines once each (`league_match_chat_cards`) and goes read only once the score is in or the match is voided.
 - Account deletion: `lib/doublesAccountDeletion.ts`.
+- W/O and double default (John, Nov 9): in regular doubles play, any of the four can enter a W/O for the complete team (`walkoverWinnerId`, that team's first player, the same field the playoff walkover uses) or a double default (`doubleDefault: true`) instead of a score. They go through the same enter, 24-hour edit and admin correction routes (`resolveMatchResult` in `lib/leagueScoring.ts`). A W/O is stored as `W/O` and counts as a win with no sets or games. A double default is stored as `Double default` with `winner_id` null, so standings, league records and Career skip it. Singles regular play still takes scores only. No schema change.
 
 ## Migrations
 

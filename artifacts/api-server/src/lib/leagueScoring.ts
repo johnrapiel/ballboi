@@ -10,7 +10,7 @@
 //
 // Pure functions, so they're easy to test.
 
-import { checkTennisScore, flipScore, RETIRED_SUFFIX } from "./tennisScore.js";
+import { checkTennisScore, DOUBLE_DEFAULT_SCORE, flipScore, RETIRED_SUFFIX, WALKOVER_SCORE } from "./tennisScore.js";
 import { graceEndFor, shortDate } from "./leagueCalendar.js";
 
 export interface ScoreableMatch {
@@ -95,6 +95,55 @@ export function parseMatchScore(raw: string, opts: { retired?: boolean } = {}): 
   if (!check.ok) return check;
   const score = check.sets.join(", ") + (opts.retired ? RETIRED_SUFFIX : "");
   return { ok: true, score, winnerSide: check.winnerSide };
+}
+
+export type MatchResult =
+  | { ok: true; score: string; winnerSide: 1 | 2 | null }
+  | { ok: false; error: string };
+
+/** A doubles match: two players a side. */
+export function isDoublesMatch(m: Pick<ScoreableMatch, "player3Id" | "player4Id">): boolean {
+  return m.player3Id != null && m.player4Id != null;
+}
+
+/**
+ * The result a score entry, edit or correction stores, from player 1's side.
+ *
+ * - A score: the sets as the caller typed them (their games first), with
+ *   "Opponent retired" as before (Q6).
+ * - Doubles only (John, Nov 9), in regular play: a walkover (W/O) to the team
+ *   that was complete, named by its first player (`walkoverWinnerId`, the same
+ *   field the playoff walkover uses), or a double default when both teams were
+ *   a player short: no winner, so no standings points either side.
+ *
+ * `callerSide` is the side the caller is on (1 for admin corrections, which
+ * are written from player 1's side). `winnerSide` is null for a double default.
+ */
+export function resolveMatchResult(
+  match: Pick<ScoreableMatch, "player1Id" | "player2Id" | "player3Id" | "player4Id" | "playoffBracketId">,
+  body: { score?: unknown; retired?: unknown; walkoverWinnerId?: unknown; doubleDefault?: unknown } | undefined,
+  callerSide: 1 | 2,
+): MatchResult {
+  const walkoverTo = body?.walkoverWinnerId;
+  const wantsWalkover = walkoverTo !== undefined && walkoverTo !== null;
+  const doubleDefault = body?.doubleDefault === true;
+  if (wantsWalkover || doubleDefault) {
+    if (!isDoublesMatch(match) || match.playoffBracketId) {
+      return { ok: false, error: "Enter the score for each set, like 6-4." };
+    }
+    if (wantsWalkover && doubleDefault) return { ok: false, error: "Pick W/O or Double default, not both." };
+    if (body?.retired === true) return { ok: false, error: "Pick W/O or The other team retired, not both." };
+    if (doubleDefault) return { ok: true, score: DOUBLE_DEFAULT_SCORE, winnerSide: null };
+    if (walkoverTo !== match.player1Id && walkoverTo !== match.player2Id) {
+      return { ok: false, error: "Pick one of the two teams for the walkover." };
+    }
+    return { ok: true, score: WALKOVER_SCORE, winnerSide: walkoverTo === match.player1Id ? 1 : 2 };
+  }
+  if (typeof body?.score !== "string") return { ok: false, error: "Enter the score for each set, like 6-4." };
+  const parsed = parseMatchScore(body.score, { retired: body.retired === true });
+  if (!parsed.ok) return parsed;
+  const winnerSide: 1 | 2 = callerSide === 1 ? parsed.winnerSide : parsed.winnerSide === 1 ? 2 : 1;
+  return { ok: true, score: scoreFromSide(parsed.score, callerSide), winnerSide };
 }
 
 /** The winning player's id. Doubles store the team by its first player (player1 or player2). */
