@@ -1,34 +1,89 @@
-import React from "react";
-import { Switch, type SwitchProps } from "react-native";
+import * as Haptics from "expo-haptics";
+import React, { useEffect, useRef } from "react";
+import { Animated, Easing, Pressable, type StyleProp, type ViewStyle } from "react-native";
+import { useReducedMotion } from "react-native-reanimated";
 
+import { MIN_TAP } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { KNOB_SIZE, KNOB_TRAVEL, TOGGLE_BORDER, TOGGLE_HEIGHT, TOGGLE_WIDTH, toggleLook, toggleValue } from "@/lib/toggle";
 
-export interface ToggleProps extends Omit<
-  SwitchProps,
-  "trackColor" | "thumbColor" | "ios_backgroundColor"
-> {
+export interface ToggleProps {
+  value: boolean;
+  onValueChange?: (value: boolean) => void;
+  disabled?: boolean;
   /** Required: VoiceOver reads it with the on/off state. */
   accessibilityLabel: string;
+  accessibilityHint?: string;
+  testID?: string;
+  style?: StyleProp<ViewStyle>;
 }
 
 /**
- * The one toggle used across Ball Boi. Use it instead of a raw Switch.
+ * The one switch used across Ball Boi. Use it instead of a raw Switch.
  *
- * On: navy (`ink`) track, knob in `onInk`, so the knob always contrasts with
- * the track (white on navy by day, navy on cream at night, 15:1 or better).
- * The default white knob vanished on the cream Night track (1.2:1).
- * Off: `hairlineStrong` track, which clears 3:1 against linen and paper in
- * both themes (WCAG 1.4.11). The knob's position is the non-color signal.
- * Increase Contrast swaps in the -hc hairline through useColors.
+ * Drawn from the design system tokens in the iOS switch's shape and size,
+ * because iOS 26 ignores the knob color on a native switch (lib/toggle.ts):
+ * - On: `ink` track, `on-ink` knob on the right.
+ * - Off: `hairline-strong` border (3:1 on cards and the page), solid
+ *   `ink-muted` knob on the left.
+ * Day, Night and Increase Contrast come from useColors. Tap anywhere in its
+ * 44pt area to switch. VoiceOver reads the label, "switch button", and On
+ * or Off. Reduce Motion: the knob jumps instead of sliding.
  */
-export function Toggle(props: ToggleProps) {
+export function Toggle({ value, onValueChange, disabled, accessibilityLabel, accessibilityHint, testID, style }: ToggleProps) {
   const c = useColors();
+  const reduceMotion = useReducedMotion();
+  const look = toggleLook(c, value);
+  const x = useRef(new Animated.Value(value ? KNOB_TRAVEL : 0)).current;
+
+  useEffect(() => {
+    const to = value ? KNOB_TRAVEL : 0;
+    if (reduceMotion) {
+      x.setValue(to);
+      return;
+    }
+    const anim = Animated.timing(x, { toValue: to, duration: 160, easing: Easing.out(Easing.quad), useNativeDriver: true });
+    anim.start();
+    return () => anim.stop();
+  }, [value, reduceMotion, x]);
+
   return (
-    <Switch
-      {...props}
-      trackColor={{ true: c.ink, false: c.hairlineStrong }}
-      thumbColor={c.onInk}
-      ios_backgroundColor={c.hairlineStrong}
-    />
+    <Pressable
+      testID={testID}
+      accessibilityRole="switch"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ checked: value, disabled: !!disabled }}
+      accessibilityValue={{ text: toggleValue(value) }}
+      disabled={disabled}
+      onPress={() => {
+        void Haptics.selectionAsync().catch(() => {});
+        onValueChange?.(!value);
+      }}
+      hitSlop={{ top: (MIN_TAP - TOGGLE_HEIGHT) / 2, bottom: (MIN_TAP - TOGGLE_HEIGHT) / 2 }}
+      style={[{ minWidth: MIN_TAP, minHeight: TOGGLE_HEIGHT, justifyContent: "center", opacity: disabled ? 0.45 : 1 }, style]}
+    >
+      <Animated.View
+        style={{
+          width: TOGGLE_WIDTH,
+          height: TOGGLE_HEIGHT,
+          borderRadius: TOGGLE_HEIGHT / 2,
+          borderWidth: TOGGLE_BORDER,
+          borderColor: look.border,
+          backgroundColor: look.track,
+          padding: (TOGGLE_HEIGHT - 2 * TOGGLE_BORDER - KNOB_SIZE) / 2,
+        }}
+      >
+        <Animated.View
+          style={{
+            width: KNOB_SIZE,
+            height: KNOB_SIZE,
+            borderRadius: KNOB_SIZE / 2,
+            backgroundColor: look.knob,
+            transform: [{ translateX: x }],
+          }}
+        />
+      </Animated.View>
+    </Pressable>
   );
 }
