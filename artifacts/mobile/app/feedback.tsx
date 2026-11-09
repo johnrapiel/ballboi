@@ -10,6 +10,7 @@
 
 import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
+import * as Device from "expo-device";
 import { useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import { AccessibilityInfo, Alert, PixelRatio, Platform, Pressable, View, useWindowDimensions } from "react-native";
@@ -22,6 +23,7 @@ import { useColors } from "@/hooks/useColors";
 import { apiErrorMessage, apiFetch, isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import {
   deviceLabel,
+  exactDevice,
   FEEDBACK_PROBLEMS,
   FEEDBACK_TITLE,
   feedbackError,
@@ -53,7 +55,8 @@ export default function FeedbackSheet() {
   const appVersion = Constants.expoConfig?.version ?? null;
   const osVersion = Platform.OS === "ios" ? String(Platform.Version) : `${Platform.OS} ${Platform.Version}`;
   const idiom = (Platform.constants as { interfaceIdiom?: string } | undefined)?.interfaceIdiom;
-  const deviceModel = deviceLabel(idiom, width, height, PixelRatio.get());
+  // The exact model (Session D asked for it), with the screen size as a fallback.
+  const deviceModel = exactDevice(Device.modelName, Device.modelId, deviceLabel(idiom, width, height, PixelRatio.get()));
 
   async function send() {
     if (sending) return;

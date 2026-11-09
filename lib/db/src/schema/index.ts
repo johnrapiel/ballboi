@@ -32,3 +32,4 @@ export * from "./weeklyAvailability";
 export * from "./feedback";
 export * from "./notifications";
 export * from "./milestones";
+export * from "./liveActivities";

@@ -160,6 +160,14 @@
           "microphonePermission": "Ball Boi listens for the sound of the ball being hit to detect shots. Audio is never played back and is deleted after your match is analyzed.",
           "enableBackgroundPlayback": false
         }
+      ],
+      [
+        "expo-widgets",
+        {
+          "enablePushNotifications": true,
+          "groupIdentifier": "group.tennis.ballboi",
+          "bundleIdentifier": "tennis.ballboi.ExpoWidgetsTarget"
+        }
       ]
     ],
     "experiments": {

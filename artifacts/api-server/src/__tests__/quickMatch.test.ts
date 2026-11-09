@@ -85,6 +85,7 @@ vi.mock("../lib/blocks", () => ({ blockedAccountsFor: vi.fn().mockResolvedValue(
 // "Was that you?" requests (Session G): none unless a test sets one.
 let mockRequest: { opponentClerkUserId: string; status: string } | null = null;
 const requestsMarkedYes: string[] = [];
+vi.mock("../services/push/liveActivity", () => ({ startForNewViewer: async () => undefined }));
 vi.mock("../services/push/opponentRequests", () => ({
   requestForCode: async () => mockRequest,
   markRequestYes: async (_tx: unknown, code: string) => void requestsMarkedYes.push(code),

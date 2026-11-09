@@ -85,6 +85,7 @@ import type {
   DiscoverSettingsInput,
   DropoutResult,
   EditedScore,
+  EndLiveMatch200,
   EndMatchBallBoiBody,
   EndedLeague,
   EnterScoreBody,
@@ -103,6 +104,7 @@ import type {
   GetHeadToHeadParams,
   GetLeagueStandingsParams,
   GetLeaguesParams,
+  GetLiveMatch200,
   GetMatchBallBoiReplayMetadata200,
   GetMatchNarrative200,
   GetMatchesParams,
@@ -142,6 +144,7 @@ import type {
   ListDiscoverLeaguesParams,
   ListDiscoverPlayersParams,
   ListOpenMatchesParams,
+  LiveActivityProps,
   LockMatchBody,
   LogDoublesViewBody,
   Match,
@@ -208,6 +211,10 @@ import type {
   RunMatchRemindersDev200,
   SanctionInput,
   SanctionResult,
+  SaveLiveActivityStartToken200,
+  SaveLiveActivityStartTokenBody,
+  SaveLiveActivityToken200,
+  SaveLiveActivityTokenBody,
   ScheduleRound,
   ScoreQuickMatch200,
   ScoreQuickMatchBody,
@@ -217,6 +224,8 @@ import type {
   SelfRatingInput,
   SelfRatingResult,
   SendFeedback201,
+  SendLiveCommand200,
+  SendLiveCommandBody,
   SendOpponentNotice200,
   SentGroupMessage,
   SentMessage,
@@ -230,6 +239,7 @@ import type {
   TrainingChoice,
   UpcomingMatchPlans,
   UpdateLeagueBody,
+  UpdateLiveMatch200,
   UpdateMatchBody,
   UpdatePlayerBody,
   UpdateSeasonBody,
@@ -18409,4 +18419,529 @@ export const useAbandonQuickMatch = <
   TContext
 > => {
   return useMutation(getAbandonQuickMatchMutationOptions(options));
+};
+
+/**
+ * @summary This phone's Live Activity push-to-start token (Session G)
+ */
+export const getSaveLiveActivityStartTokenUrl = () => {
+  return `/api/live-activity/start-token`;
+};
+
+export const saveLiveActivityStartToken = async (
+  saveLiveActivityStartTokenBody: SaveLiveActivityStartTokenBody,
+  options?: RequestInit,
+): Promise<SaveLiveActivityStartToken200> => {
+  return customFetch<SaveLiveActivityStartToken200>(
+    getSaveLiveActivityStartTokenUrl(),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(saveLiveActivityStartTokenBody),
+    },
+  );
+};
+
+export const getSaveLiveActivityStartTokenMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveLiveActivityStartToken>>,
+    TError,
+    { data: BodyType<SaveLiveActivityStartTokenBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveLiveActivityStartToken>>,
+  TError,
+  { data: BodyType<SaveLiveActivityStartTokenBody> },
+  TContext
+> => {
+  const mutationKey = ["saveLiveActivityStartToken"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveLiveActivityStartToken>>,
+    { data: BodyType<SaveLiveActivityStartTokenBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return saveLiveActivityStartToken(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveLiveActivityStartTokenMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveLiveActivityStartToken>>
+>;
+export type SaveLiveActivityStartTokenMutationBody =
+  BodyType<SaveLiveActivityStartTokenBody>;
+export type SaveLiveActivityStartTokenMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary This phone's Live Activity push-to-start token (Session G)
+ */
+export const useSaveLiveActivityStartToken = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveLiveActivityStartToken>>,
+    TError,
+    { data: BodyType<SaveLiveActivityStartTokenBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveLiveActivityStartToken>>,
+  TError,
+  { data: BodyType<SaveLiveActivityStartTokenBody> },
+  TContext
+> => {
+  return useMutation(getSaveLiveActivityStartTokenMutationOptions(options));
+};
+
+/**
+ * @summary A running Live Activity's update token, tied to the match's live session
+ */
+export const getSaveLiveActivityTokenUrl = () => {
+  return `/api/live-activity/activity-token`;
+};
+
+export const saveLiveActivityToken = async (
+  saveLiveActivityTokenBody: SaveLiveActivityTokenBody,
+  options?: RequestInit,
+): Promise<SaveLiveActivityToken200> => {
+  return customFetch<SaveLiveActivityToken200>(getSaveLiveActivityTokenUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(saveLiveActivityTokenBody),
+  });
+};
+
+export const getSaveLiveActivityTokenMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveLiveActivityToken>>,
+    TError,
+    { data: BodyType<SaveLiveActivityTokenBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveLiveActivityToken>>,
+  TError,
+  { data: BodyType<SaveLiveActivityTokenBody> },
+  TContext
+> => {
+  const mutationKey = ["saveLiveActivityToken"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveLiveActivityToken>>,
+    { data: BodyType<SaveLiveActivityTokenBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return saveLiveActivityToken(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveLiveActivityTokenMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveLiveActivityToken>>
+>;
+export type SaveLiveActivityTokenMutationBody =
+  BodyType<SaveLiveActivityTokenBody>;
+export type SaveLiveActivityTokenMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary A running Live Activity's update token, tied to the match's live session
+ */
+export const useSaveLiveActivityToken = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveLiveActivityToken>>,
+    TError,
+    { data: BodyType<SaveLiveActivityTokenBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveLiveActivityToken>>,
+  TError,
+  { data: BodyType<SaveLiveActivityTokenBody> },
+  TContext
+> => {
+  return useMutation(getSaveLiveActivityTokenMutationOptions(options));
+};
+
+/**
+ * @summary What the Live Activity shows for this match, for either player's second phone
+ */
+export const getGetLiveMatchUrl = (matchId: number) => {
+  return `/api/live/${matchId}`;
+};
+
+export const getLiveMatch = async (
+  matchId: number,
+  options?: RequestInit,
+): Promise<GetLiveMatch200> => {
+  return customFetch<GetLiveMatch200>(getGetLiveMatchUrl(matchId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetLiveMatchQueryKey = (matchId: number) => {
+  return [`/api/live/${matchId}`] as const;
+};
+
+export const getGetLiveMatchQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLiveMatch>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  matchId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLiveMatch>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetLiveMatchQueryKey(matchId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getLiveMatch>>> = ({
+    signal,
+  }) => getLiveMatch(matchId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!matchId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLiveMatch>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLiveMatchQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLiveMatch>>
+>;
+export type GetLiveMatchQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary What the Live Activity shows for this match, for either player's second phone
+ */
+
+export function useGetLiveMatch<
+  TData = Awaited<ReturnType<typeof getLiveMatch>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  matchId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLiveMatch>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLiveMatchQueryOptions(matchId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary The mounted phone's Live Activity state, on each change and every few seconds; answers with a Start or Stop from another phone, once
+ */
+export const getUpdateLiveMatchUrl = (matchId: number) => {
+  return `/api/live/${matchId}`;
+};
+
+export const updateLiveMatch = async (
+  matchId: number,
+  liveActivityProps: LiveActivityProps,
+  options?: RequestInit,
+): Promise<UpdateLiveMatch200> => {
+  return customFetch<UpdateLiveMatch200>(getUpdateLiveMatchUrl(matchId), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(liveActivityProps),
+  });
+};
+
+export const getUpdateLiveMatchMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateLiveMatch>>,
+    TError,
+    { matchId: number; data: BodyType<LiveActivityProps> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateLiveMatch>>,
+  TError,
+  { matchId: number; data: BodyType<LiveActivityProps> },
+  TContext
+> => {
+  const mutationKey = ["updateLiveMatch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateLiveMatch>>,
+    { matchId: number; data: BodyType<LiveActivityProps> }
+  > = (props) => {
+    const { matchId, data } = props ?? {};
+
+    return updateLiveMatch(matchId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateLiveMatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateLiveMatch>>
+>;
+export type UpdateLiveMatchMutationBody = BodyType<LiveActivityProps>;
+export type UpdateLiveMatchMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary The mounted phone's Live Activity state, on each change and every few seconds; answers with a Start or Stop from another phone, once
+ */
+export const useUpdateLiveMatch = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateLiveMatch>>,
+    TError,
+    { matchId: number; data: BodyType<LiveActivityProps> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateLiveMatch>>,
+  TError,
+  { matchId: number; data: BodyType<LiveActivityProps> },
+  TContext
+> => {
+  return useMutation(getUpdateLiveMatchMutationOptions(options));
+};
+
+/**
+ * @summary Recording stopped or the recorder left; ends the Live Activity on both phones
+ */
+export const getEndLiveMatchUrl = (matchId: number) => {
+  return `/api/live/${matchId}`;
+};
+
+export const endLiveMatch = async (
+  matchId: number,
+  liveActivityProps?: LiveActivityProps,
+  options?: RequestInit,
+): Promise<EndLiveMatch200> => {
+  return customFetch<EndLiveMatch200>(getEndLiveMatchUrl(matchId), {
+    ...options,
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(liveActivityProps),
+  });
+};
+
+export const getEndLiveMatchMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof endLiveMatch>>,
+    TError,
+    { matchId: number; data: BodyType<LiveActivityProps> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof endLiveMatch>>,
+  TError,
+  { matchId: number; data: BodyType<LiveActivityProps> },
+  TContext
+> => {
+  const mutationKey = ["endLiveMatch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof endLiveMatch>>,
+    { matchId: number; data: BodyType<LiveActivityProps> }
+  > = (props) => {
+    const { matchId, data } = props ?? {};
+
+    return endLiveMatch(matchId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EndLiveMatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof endLiveMatch>>
+>;
+export type EndLiveMatchMutationBody = BodyType<LiveActivityProps>;
+export type EndLiveMatchMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Recording stopped or the recorder left; ends the Live Activity on both phones
+ */
+export const useEndLiveMatch = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof endLiveMatch>>,
+    TError,
+    { matchId: number; data: BodyType<LiveActivityProps> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof endLiveMatch>>,
+  TError,
+  { matchId: number; data: BodyType<LiveActivityProps> },
+  TContext
+> => {
+  return useMutation(getEndLiveMatchMutationOptions(options));
+};
+
+/**
+ * @summary Start or Stop from either player's phone; the mounted phone picks it up
+ */
+export const getSendLiveCommandUrl = (matchId: number) => {
+  return `/api/live/${matchId}/command`;
+};
+
+export const sendLiveCommand = async (
+  matchId: number,
+  sendLiveCommandBody: SendLiveCommandBody,
+  options?: RequestInit,
+): Promise<SendLiveCommand200> => {
+  return customFetch<SendLiveCommand200>(getSendLiveCommandUrl(matchId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(sendLiveCommandBody),
+  });
+};
+
+export const getSendLiveCommandMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendLiveCommand>>,
+    TError,
+    { matchId: number; data: BodyType<SendLiveCommandBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendLiveCommand>>,
+  TError,
+  { matchId: number; data: BodyType<SendLiveCommandBody> },
+  TContext
+> => {
+  const mutationKey = ["sendLiveCommand"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendLiveCommand>>,
+    { matchId: number; data: BodyType<SendLiveCommandBody> }
+  > = (props) => {
+    const { matchId, data } = props ?? {};
+
+    return sendLiveCommand(matchId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendLiveCommandMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendLiveCommand>>
+>;
+export type SendLiveCommandMutationBody = BodyType<SendLiveCommandBody>;
+export type SendLiveCommandMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Start or Stop from either player's phone; the mounted phone picks it up
+ */
+export const useSendLiveCommand = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendLiveCommand>>,
+    TError,
+    { matchId: number; data: BodyType<SendLiveCommandBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendLiveCommand>>,
+  TError,
+  { matchId: number; data: BodyType<SendLiveCommandBody> },
+  TContext
+> => {
+  return useMutation(getSendLiveCommandMutationOptions(options));
 };

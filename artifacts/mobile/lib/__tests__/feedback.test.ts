@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { deviceLabel, feedbackError, FEEDBACK_PROBLEMS, noteLabel } from "@/lib/feedback";
+import { deviceLabel, exactDevice, feedbackError, FEEDBACK_PROBLEMS, noteLabel } from "@/lib/feedback";
 
 describe("Something not working? (B3)", () => {
   it("lists the seven options in order, ending in Something else", () => {
@@ -22,5 +22,18 @@ describe("Something not working? (B3)", () => {
 
   it("describes the phone from its screen", () => {
     expect(deviceLabel("phone", 852, 393, 3)).toBe("iPhone · 393×852 pt @3x");
+  });
+});
+
+describe("exactDevice", () => {
+  it("names the exact iPhone with its model id", () => {
+    expect(exactDevice("iPhone 16 Pro", "iPhone17,1", "iPhone · 402×874 pt @3x")).toBe("iPhone 16 Pro (iPhone17,1)");
+  });
+  it("falls back to the screen size when the model is unknown", () => {
+    expect(exactDevice(null, null, "iPhone · 393×852 pt @3x")).toBe("iPhone · 393×852 pt @3x");
+    expect(exactDevice("", "  ", "x")).toBe("x");
+  });
+  it("uses whichever part it has", () => {
+    expect(exactDevice(null, "iPhone17,1", "x")).toBe("iPhone17,1");
   });
 });

@@ -5,6 +5,39 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+export type LiveActivityPropsStage =
+  (typeof LiveActivityPropsStage)[keyof typeof LiveActivityPropsStage];
+
+export const LiveActivityPropsStage = {
+  setup: "setup",
+  waiting: "waiting",
+  counting: "counting",
+  paused: "paused",
+  recording: "recording",
+  interrupted: "interrupted",
+  stopped: "stopped",
+} as const;
+
+/**
+ * What the Live Activity shows (Session G). Built on the mounted phone; the server rebuilds the links.
+ */
+export interface LiveActivityProps {
+  matchId?: number;
+  players: string;
+  stage: LiveActivityPropsStage;
+  status: string;
+  court: string;
+  battery?: string | null;
+  caption?: string | null;
+  countdownTo?: number | null;
+  recordingSince?: number | null;
+  canStart: boolean;
+  canStop: boolean;
+  startUrl?: string;
+  stopUrl?: string;
+  openUrl?: string;
+}
+
 export interface CourtCard {
   courtId: number;
   name: string;
@@ -4567,4 +4600,61 @@ export type DiscardRecordingBody = {
 
 export type AbandonQuickMatch200 = {
   removed: boolean;
+};
+
+export type SaveLiveActivityStartTokenBody = {
+  token: string;
+};
+
+export type SaveLiveActivityStartToken200 = {
+  success: boolean;
+};
+
+export type SaveLiveActivityTokenBody = {
+  token: string;
+  activityId?: string | null;
+  matchId?: number | null;
+};
+
+export type SaveLiveActivityToken200 = {
+  saved: boolean;
+};
+
+export type GetLiveMatch200 = {
+  live: boolean;
+  props: LiveActivityProps | null;
+  youRecord: boolean;
+};
+
+export type UpdateLiveMatch200Command =
+  | (typeof UpdateLiveMatch200Command)[keyof typeof UpdateLiveMatch200Command]
+  | null;
+
+export const UpdateLiveMatch200Command = {
+  start: "start",
+  stop: "stop",
+} as const;
+
+export type UpdateLiveMatch200 = {
+  command: UpdateLiveMatch200Command;
+};
+
+export type EndLiveMatch200 = {
+  success: boolean;
+};
+
+export type SendLiveCommandBodyCommand =
+  (typeof SendLiveCommandBodyCommand)[keyof typeof SendLiveCommandBodyCommand];
+
+export const SendLiveCommandBodyCommand = {
+  start: "start",
+  stop: "stop",
+} as const;
+
+export type SendLiveCommandBody = {
+  command: SendLiveCommandBodyCommand;
+};
+
+export type SendLiveCommand200 = {
+  success: boolean;
 };

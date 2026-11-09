@@ -16,6 +16,7 @@ import { DrizzlePlayerSearchRepo } from "../lib/playerSearchRepo";
 import { flipScore, inviteUrl, newInviteCode, parseQuickMatch, parseSideScore, pickableOpponents } from "../lib/quickMatch";
 import { awardMilestonesForMatch } from "../lib/milestoneRepo";
 import { createStrangerQuickMatch, markRequestYes, quickMatchStranger, requestForCode } from "../services/push/opponentRequests";
+import { startForNewViewer } from "../services/push/liveActivity";
 
 // Quick match: record a casual hit or a match outside a league, against a
 // league mate, a past opponent, or someone not on Ball Boi yet (a
@@ -427,6 +428,8 @@ router.post("/recording/invites/:code/claim", requireAuth, async (req: Request, 
     }
     // Yes to "Was that you?": the match counts now, for both players.
     await awardMilestonesForMatch(claimed.matchId);
+    // Yes while the match is being set up or recorded: the Live Activity opens on their phone now (G7).
+    if (request) await startForNewViewer(claimed.matchId);
     res.json({ matchId: claimed.matchId });
   } catch (err) {
     logger.error({ err }, "Failed to claim a match invite");
