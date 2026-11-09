@@ -165,10 +165,13 @@ export function AreaRow({ area, onPress }: { area: DiscoverArea | null; onPress:
       accessibilityHint={area ? "Changes your area" : undefined}
       style={({ pressed }) => ({
         minHeight: MIN_TAP,
+        // Room above and below the line so it's never cut off, at any text size.
+        paddingVertical: spacing.space1,
         flexDirection: "row",
         alignItems: "center",
         gap: spacing.space2,
         alignSelf: "flex-start",
+        maxWidth: "100%",
         opacity: pressed ? 0.6 : 1,
       })}
     >
