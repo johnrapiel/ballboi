@@ -9,14 +9,19 @@
 
 import { useNavigation, usePreventRemove, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, ScrollView, View, useWindowDimensions, type StyleProp, type ViewStyle } from "react-native";
+import { Alert, Keyboard, ScrollView, View, useWindowDimensions, type StyleProp, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { fillSheetHeight } from "@/lib/sheetHeight";
 
-/** Stack options for a sheet route. `fill` is for a form taller than the screen (New league). */
+/**
+ * Stack options for a sheet route. `fill` is for a form taller than the screen
+ * (New league): the large detent, with `SheetBody fill` giving its content a
+ * definite height.
+ */
 export function sheetOptions(linen: string, opts: { fill?: boolean } = {}) {
   return {
     headerShown: false,
@@ -128,6 +133,14 @@ export function SheetBody({
   }, [fill, tall, contentH, footerH, maxHeight]);
   const scrolls = fill || tall;
 
+  // Full-height sheet (New league). `flex: 1` collapses to zero height inside
+  // the native formSheet on iOS 26, which left New league blank with only the
+  // grabber showing. So it gets a definite height: the screen below the top
+  // safe area, less the keyboard while it's up, so the footer's button stays
+  // in view above it.
+  const keyboardH = useKeyboardHeight(fill);
+  const fillHeight = fillSheetHeight({ windowHeight: height, topInset: insets.top, keyboardHeight: keyboardH });
+
   const padding: StyleProp<ViewStyle> = [
     {
       paddingTop: spacing.space6,
@@ -150,14 +163,15 @@ export function SheetBody({
     <View
       // The VoiceOver escape gesture (two-finger Z) closes the sheet.
       onAccessibilityEscape={onEscape}
-      style={[{ backgroundColor: c.linen }, fill ? { flex: 1 } : null]}
+      style={[{ backgroundColor: c.linen }, fill ? { height: fillHeight } : null]}
     >
       {scrolls ? (
         <ScrollView
           ref={scrollRef}
           keyboardShouldPersistTaps="handled"
-          // Full-height sheets fill the screen; a hugging sheet that outgrew it
-          // gets a fixed height so the native sheet can still measure it.
+          // Full-height sheets: fills the definite-height root above the
+          // footer. A hugging sheet that outgrew the screen gets a fixed
+          // height so the native sheet can still measure it.
           style={fill ? { flex: 1 } : { height: Math.max(0, maxHeight - footerH) }}
           contentContainerStyle={padding}
         >
@@ -174,7 +188,8 @@ export function SheetBody({
           style={{
             paddingHorizontal: spacing.space4,
             paddingTop: spacing.space3,
-            paddingBottom: insets.bottom + spacing.space3,
+            // Over the keyboard there's no home indicator to clear.
+            paddingBottom: (keyboardH > 0 ? 0 : insets.bottom) + spacing.space3,
             borderTopWidth: 1,
             borderTopColor: c.hairline,
             backgroundColor: c.linen,
@@ -186,4 +201,31 @@ export function SheetBody({
       ) : null}
     </View>
   );
+}
+
+/**
+ * How much of the screen the keyboard covers, in points, for a full-height
+ * sheet (0 when it's down, or when `on` is false). Measured from the bottom of
+ * the window, so a floating or split keyboard that covers nothing counts as 0.
+ */
+function useKeyboardHeight(on: boolean) {
+  const { height } = useWindowDimensions();
+  const [covered, setCovered] = useState(0);
+  useEffect(() => {
+    if (!on) return;
+    const onFrame = (e: { endCoordinates: { screenY: number } }) =>
+      setCovered(Math.max(0, height - e.endCoordinates.screenY));
+    const show = Keyboard.addListener("keyboardWillShow", onFrame);
+    const change = Keyboard.addListener("keyboardWillChangeFrame", onFrame);
+    const hide = Keyboard.addListener("keyboardWillHide", () => setCovered(0));
+    // The Name field's autoFocus can raise the keyboard before this subscribes.
+    const now = Keyboard.metrics();
+    if (now) setCovered(Math.max(0, height - now.screenY));
+    return () => {
+      show.remove();
+      change.remove();
+      hide.remove();
+    };
+  }, [on, height]);
+  return on ? covered : 0;
 }
