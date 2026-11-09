@@ -30,7 +30,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { discoverScreens } from "@/components/discover/routes";
-import { sheetOptions } from "@/components/Sheet";
+import { fullSheetOptions, sheetOptions } from "@/components/Sheet";
 import { Button, ScrollScreen, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { accountStatusKey } from "@/hooks/useAccountStatus";
@@ -186,7 +186,7 @@ function RootLayoutNav() {
         <Stack.Screen name="messages" options={{ ...pushedHeader, title: "" }} />
         <Stack.Screen name="delete-account" options={{ ...pushedHeader, title: "Delete account" }} />
         <Stack.Screen name="settings" options={{ ...pushedHeader, title: "Settings" }} />
-        <Stack.Screen name="league/new" options={sheetOptions(colors.linen, { fill: true })} />
+        <Stack.Screen name="league/new" options={fullSheetOptions(colors.linen)} />
         <Stack.Screen name="league/join" options={sheetOptions(colors.linen)} />
         <Stack.Screen
           name="league/invite/[leagueId]"

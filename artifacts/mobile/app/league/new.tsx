@@ -1,8 +1,8 @@
 import { useUser } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, TextInput, View } from "react-native";
 
 import {
@@ -25,9 +25,11 @@ import { useColors, useScheme } from "@/hooks/useColors";
 import { useProfile } from "@/hooks/useProfile";
 
 // Start a league (spec: Leagues > Setup and Onboarding > Run a league;
-// approved canvas: Admin · Create league, a tall sheet with a brush title and
-// Create league at the bottom; no Cancel, per the sheet rule: drag down to
-// close, and it asks before discarding). Anyone can start one and becomes its admin.
+// approved canvas: Admin · Create league, a full-height sheet with a serif
+// title and Create league pinned at the bottom; no Cancel, per the sheet rule:
+// drag down to close, and it asks before discarding). It's the standard iOS
+// page sheet (`fullSheetOptions` in app/_layout.tsx), not a formSheet, which
+// drew this form blank on iOS 26. Anyone can start one and becomes its admin.
 // Singles only for now (Q2). A season starts tomorrow at the earliest (Q7), so a
 // friend who joins on the day it's made is in from round 1.
 
@@ -242,6 +244,12 @@ export default function StartLeagueScreen() {
     setTime ||
     dateKey(start) !== dateKey(nextMonday());
   const sheet = useSheetClose(dirty && !saving);
+  // While the league is being created the sheet can't be dragged away, so the
+  // request can't finish behind a closed sheet and skip the invite screen.
+  const navigation = useNavigation();
+  useEffect(() => {
+    navigation.setOptions({ gestureEnabled: !saving });
+  }, [navigation, saving]);
 
   // A1: the league shows the profile name, never any part of the email. The
   // API uses the saved profile too; this is only its fallback.
