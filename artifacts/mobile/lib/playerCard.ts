@@ -48,13 +48,13 @@ export const ADD_PLAYS = "Add how you play";
  * left-aligned so it reads as a footer, not a gap (someone else's card with
  * no home court). null: no row at all.
  */
-export function bottomRow(card: Pick<PlayerCard, "you" | "homeCourt" | "plays" | "slots">): {
+export function bottomRow(card: Pick<PlayerCard, "you" | "homeCourt" | "plays" | "freeTimes">): {
   left: "court" | "prompt" | null;
   free: boolean;
   align: "split" | "start";
 } | null {
   const left = card.homeCourt ? "court" : cardPrompts(card).homeCourt ? "prompt" : null;
-  const free = card.you || card.slots.length > 0;
+  const free = card.you || card.freeTimes.length > 0;
   if (!left && !free) return null;
   return { left, free, align: left && free ? "split" : "start" };
 }
@@ -127,18 +127,6 @@ export function tabFromParam(tab: unknown): MatchTab | null {
 }
 
 export const TAB_LABELS: Record<MatchTab, string> = { upcoming: "Upcoming matches", results: "Results" };
-
-/** The Free times grid for VoiceOver: "Free weekday evenings, weekend mornings. 23 hours a week." */
-export function freeTimesSpoken(summary: string | null | undefined, hours: number, you: boolean): string {
-  if (!hours) return you ? "You haven't added free times yet." : "No free times added yet.";
-  const week = `${hours} ${hours === 1 ? "hour" : "hours"} a week.`;
-  return summary ? `Free ${summary.replace(/^./, (ch) => ch.toLowerCase())}. ${week}` : `Free ${week}`;
-}
-
-/** "23 hours free a week". */
-export function hoursFreeWeek(hours: number): string {
-  return `${hours} ${hours === 1 ? "hour" : "hours"} free a week`;
-}
 
 /** Head-to-head above their tabs: "You and Priya: 2-1", from your side. */
 export function headToHeadLine(name: string, h: { you: number; them: number }): { text: string; spoken: string } {

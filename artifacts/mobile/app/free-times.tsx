@@ -1,21 +1,22 @@
-// Free times (decision 139; canvas W2_FreeTimesSheet): a read-only sheet of
-// the Monday to Sunday hour grid, from the player card's Free times. On your
-// own card, Edit opens the grid editor. Sheet rules: the left-aligned 50%
-// serif title, drag down to close. With `userId`, it's another player's
-// (Discover's card, decision 139): read only, with no Edit.
+// Free times (decisions 139 and 156; canvas W2_FreeTimesSheet), from the
+// player card's Free times. The card's one-line summary, then a plain list of
+// only the days they're free: "Tue: Evening, 5 to 9 PM", "Sat: Morning, 7 to
+// 11 AM; 1 to 3 PM". No pills here. On your own card, Edit opens the editor
+// (When you can play); with `userId` it's another player's (Discover's card)
+// and read only. Sheet rules: left-aligned 50% serif title, drag down to close.
 
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 
 import { getGetMyPlayerCardQueryKey, getGetPlayerCardQueryKey, useGetMyPlayerCard, useGetPlayerCard } from "@workspace/api-client-react";
 
-import { FreeTimesGrid } from "@/components/card/FreeTimesGrid";
+import { LinkButton } from "@/components/discover/Controls";
 import { SheetBody, useSheetClose } from "@/components/Sheet";
 import { Text } from "@/components/ui";
-import { MIN_TAP, radius, spacing } from "@/constants/tokens";
+import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { freeTimesSpoken, hoursFreeWeek } from "@/lib/playerCard";
+import { dayLines, freeTimesLine } from "@/lib/freeTimes";
 
 export default function FreeTimesSheet() {
   const c = useColors();
@@ -28,6 +29,7 @@ export default function FreeTimesSheet() {
   const other = useGetPlayerCard(userId, { query: { enabled: theirs, queryKey: getGetPlayerCardQueryKey(userId) } });
   const q = theirs ? other : mine;
   const card = q.data;
+  const lines = card ? dayLines(card.freeTimes ?? []) : [];
 
   return (
     <SheetBody title={card && !card.you ? `${card.name.split(" ")[0]}'s free times` : "Free times"} close={sheet.close}>
@@ -39,27 +41,23 @@ export default function FreeTimesSheet() {
         )
       ) : (
         <>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: spacing.space2 }}>
-            {/* The swatch is the key: filled squares are free hours. */}
-            <View style={{ width: 14, height: 14, borderRadius: radius.radiusSm - 1, backgroundColor: c.ink }} />
-            <Text variant="small" tone="inkMuted">
-              {hoursFreeWeek(card.slots.length)}
-            </Text>
-            {card.you ? (
-              <Pressable
-                onPress={() => sheet.finish(() => router.replace("/availability"))}
-                accessibilityRole="button"
-                accessibilityLabel="Edit free times"
-                hitSlop={spacing.space2}
-                style={({ pressed }) => ({ minHeight: MIN_TAP, justifyContent: "center", opacity: pressed ? 0.6 : 1 })}
-              >
-                <Text variant="small" style={{ textDecorationLine: "underline" }}>
-                  Edit
+          <Text variant="bodyStrong">{freeTimesLine(lines.length ? card.freeSummary : null, card.you)}</Text>
+          {lines.length ? (
+            <View style={{ gap: spacing.space2 }}>
+              {lines.map((l) => (
+                <Text key={l.day} accessibilityLabel={l.spoken}>
+                  {l.text}
                 </Text>
-              </Pressable>
-            ) : null}
-          </View>
-          <FreeTimesGrid slots={card.slots} spoken={freeTimesSpoken(card.freeSummary, card.slots.length, card.you)} />
+              ))}
+            </View>
+          ) : null}
+          {card.you ? (
+            <LinkButton
+              label={lines.length ? "Edit" : "Add free times"}
+              accessibilityLabel={lines.length ? "Edit free times" : "Add free times"}
+              onPress={() => sheet.finish(() => router.replace("/availability"))}
+            />
+          ) : null}
         </>
       )}
     </SheetBody>

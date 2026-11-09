@@ -1,8 +1,12 @@
-// When you can play (F7, F8, F11): a generic Monday to Sunday week of hours.
-// Pure rules, shared by the API routes and tests.
+// The old "When you can play" hour grid (F7): a generic Monday to Sunday
+// week of hours. Free times (decision 156) replaced it with times in
+// @workspace/free-times; this file keeps the grid's shape so old saves and old
+// app versions still work, and reads them through the new rules.
 //
 // A slot is day * 24 + hour. Day 0 is Monday and 6 is Sunday. Hours run from
 // 6 (6 AM) to 21 (9 PM); each slot is the hour that starts then.
+
+import { freeSummary, freeTimesOf, overlaps as timesOverlap, rangesFromSlots, type FreeRange } from "@workspace/free-times";
 
 export const FIRST_HOUR = 6;
 export const LAST_HOUR = 21;
@@ -27,53 +31,17 @@ export function parseSlots(raw: unknown): number[] | { error: string } {
   return [...new Set(raw as number[])].sort((a, b) => a - b);
 }
 
-/** True when two weeks share at least one free hour ("Free when I'm free"). */
+/** A player's times: saved in the new editor, or their old hour grid converted exactly. */
+export function timesOf(p: { slots?: readonly number[] | null; freeTimes?: readonly FreeRange[] | null }): FreeRange[] {
+  return freeTimesOf({ ranges: p.freeTimes, slots: p.slots });
+}
+
+/** True when two old hour grids share a free hour, read through the new times ("Free when I'm free"). */
 export function overlaps(mine: readonly number[], theirs: readonly number[] | null | undefined): boolean {
-  if (!mine.length || !theirs?.length) return false;
-  const set = new Set(mine);
-  return theirs.some((s) => set.has(s));
+  return timesOverlap(rangesFromSlots(mine), rangesFromSlots(theirs ?? []));
 }
 
-const PERIODS = [
-  { name: "mornings", from: 6, to: 11 },
-  { name: "afternoons", from: 12, to: 16 },
-  { name: "evenings", from: 17, to: 21 },
-] as const;
-
-const WEEKDAYS = [0, 1, 2, 3, 4];
-const WEEKEND = [5, 6];
-
-function joinNames(names: string[]): string {
-  if (names.length <= 1) return names.join("");
-  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
-}
-
-/**
- * A short summary for the player card (F8): "Weekday evenings, weekend
- * mornings". Each part of the day (mornings to 11 AM, afternoons to 4 PM,
- * evenings from 5 PM) names the days it covers: all five weekdays or three
- * or more read "Weekday"; one or two read their names ("Tuesday and Thursday
- * evenings"); the weekend reads "Weekend" or the day. Weekdays come first,
- * then the weekend, earliest part of the day first. Null with no hours.
- */
+/** The card summary for an old hour grid: "Weekday evenings, weekend mornings" (F8). */
 export function availabilitySummary(slots: readonly number[]): string | null {
-  if (!slots.length) return null;
-  const daysIn = (period: (typeof PERIODS)[number], days: number[]) =>
-    days.filter((d) => slots.some((s) => dayOf(s) === d && hourOf(s) >= period.from && hourOf(s) <= period.to));
-
-  const parts: string[] = [];
-  for (const group of ["weekday", "weekend"] as const) {
-    for (const p of PERIODS) {
-      const days = daysIn(p, group === "weekday" ? WEEKDAYS : WEEKEND);
-      if (!days.length) continue;
-      if (group === "weekday") {
-        parts.push(days.length >= 3 ? `weekday ${p.name}` : `${joinNames(days.map((d) => DAYS[d]))} ${p.name}`);
-      } else {
-        parts.push(days.length === 2 ? `weekend ${p.name}` : `${DAYS[days[0]]} ${p.name}`);
-      }
-    }
-  }
-  if (parts.length > 4) return "Most of the week";
-  const text = parts.join(", ");
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  return freeSummary(rangesFromSlots(slots));
 }

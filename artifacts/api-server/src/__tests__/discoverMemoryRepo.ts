@@ -1,5 +1,6 @@
 // An in-memory Discover repository for route tests (no database).
 
+import type { FreeRange } from "@workspace/free-times";
 import type { Area } from "../lib/discoverArea";
 import type { OpenLeagueCandidate } from "../lib/discoverLeagues";
 import type { DiscoverCandidate } from "../lib/discoverPlayers";
@@ -35,7 +36,11 @@ export class MemoryDiscoverRepo implements DiscoverRepo {
   }
   async saveSlots(id: string, slots: number[]) {
     const m = this.mes.get(id)!;
-    this.mes.set(id, { ...m, slots });
+    this.mes.set(id, { ...m, slots, freeTimes: null });
+  }
+  async saveFreeTimes(id: string, freeTimes: FreeRange[]) {
+    const m = this.mes.get(id)!;
+    this.mes.set(id, { ...m, freeTimes });
   }
   async accountForUser(userId: number) {
     return this.accounts.get(userId) ?? null;

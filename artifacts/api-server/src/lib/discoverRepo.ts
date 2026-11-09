@@ -3,6 +3,7 @@
 // only fetches and saves, behind an interface so routes test without a
 // database.
 
+import type { FreeRange } from "@workspace/free-times";
 import {
   contentReportsTable,
   db,
@@ -34,7 +35,10 @@ export interface DiscoverMe {
   hidden: boolean;
   plays: string | null;
   radius: number;
+  /** The old hour grid (F7), kept as it was. */
   slots: number[];
+  /** Times saved in the new editor (decision 156); null until then, when `slots` is converted. */
+  freeTimes?: FreeRange[] | null;
   /** "Alerts for new posts" (open matches near you that fit your level). */
   matchAlerts?: boolean;
 }
@@ -52,7 +56,10 @@ export interface DiscoverRepo {
   saveSettings(clerkUserId: string, input: DiscoverSettingsInput): Promise<void>;
   /** Saves a new home area: the profile's ZIP (exact location dropped) and Discover's point. */
   setArea(clerkUserId: string, area: Area): Promise<void>;
+  /** An old app version's hour grid; clears saved times so the grid is read again. */
   saveSlots(clerkUserId: string, slots: number[]): Promise<void>;
+  /** Free times from the new editor (decision 156). The old grid stays stored. */
+  saveFreeTimes(clerkUserId: string, freeTimes: FreeRange[]): Promise<void>;
   /** The account behind a user id, or null. */
   accountForUser(userId: number): Promise<string | null>;
   /** Files a player report from Discover; returns its id. Waits for a moderator like every report. */
@@ -161,12 +168,13 @@ type CandidateRow = {
   area_town: string | null;
   plays: string | null;
   slots: number[] | null;
+  free_times: FreeRange[] | null;
   home_court: string | null;
 };
 
 const candidateSelect = sql`
   SELECT u.id AS user_id, u.clerk_user_id, u.display_name AS name, u.avatar_url, u.rating, u.rating_source,
-    d.area_latitude, d.area_longitude, d.area_town, d.plays, w.slots, hc.name AS home_court
+    d.area_latitude, d.area_longitude, d.area_town, d.plays, w.slots, w.free_times, hc.name AS home_court
   FROM users u
   JOIN discover_profiles d ON d.clerk_user_id = u.clerk_user_id
   LEFT JOIN weekly_availability w ON w.clerk_user_id = u.clerk_user_id
@@ -183,6 +191,7 @@ const toCandidate = (r: CandidateRow): DiscoverCandidate => ({
   town: r.area_town,
   plays: r.plays,
   slots: r.slots ?? [],
+  freeTimes: r.free_times ?? null,
   homeCourt: r.home_court ?? null,
 });
 
@@ -260,6 +269,7 @@ export class DrizzleDiscoverRepo implements DiscoverRepo {
       plays: profile?.plays ?? null,
       radius: profile?.radiusMiles ?? 10,
       slots: week?.slots ?? [],
+      freeTimes: week?.freeTimes ?? null,
       matchAlerts: profile?.matchAlerts ?? false,
     };
   }
@@ -402,8 +412,15 @@ export class DrizzleDiscoverRepo implements DiscoverRepo {
   async saveSlots(clerkUserId: string, slots: number[]): Promise<void> {
     await db
       .insert(weeklyAvailabilityTable)
-      .values({ clerkUserId, slots })
-      .onConflictDoUpdate({ target: weeklyAvailabilityTable.clerkUserId, set: { slots } });
+      .values({ clerkUserId, slots, freeTimes: null })
+      .onConflictDoUpdate({ target: weeklyAvailabilityTable.clerkUserId, set: { slots, freeTimes: null } });
+  }
+
+  async saveFreeTimes(clerkUserId: string, freeTimes: FreeRange[]): Promise<void> {
+    await db
+      .insert(weeklyAvailabilityTable)
+      .values({ clerkUserId, freeTimes })
+      .onConflictDoUpdate({ target: weeklyAvailabilityTable.clerkUserId, set: { freeTimes } });
   }
 }
 

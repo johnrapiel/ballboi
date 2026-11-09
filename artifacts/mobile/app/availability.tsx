@@ -1,46 +1,51 @@
-// When you can play (canvas W2_Availability; F7, F8, F11). One generic
-// Monday to Sunday week, hourly from 6 AM to 9 PM: tap or drag across the
-// hours you're usually free. No week picker and no "Copy last week". The
-// grid powers Discover only ("Free when I'm free" and the player card's
-// summary); league pairing doesn't use it.
+// When you can play (John, Nov 9; spec decision 156, replacing F7's hour
+// grid). One row per day, Monday to Sunday. Each row has pills: Morning 7 to
+// 11, Afternoon 12 to 4, Evening 5 to 9, and Custom, any number per day.
+// Custom opens a text field on that day's row ("6-8pm, 9 to 10 PM"); each
+// time it reads becomes its own pill, and tapping one edits or removes it.
+// Anything it can't read is named in words, everything typed stays, and
+// Save stays off until it's fixed.
 //
-// Accessibility (review finding 4): every cell is its own VoiceOver button,
-// "Monday 6 PM, free" or "not free"; each hour's label toggles the whole row,
-// the non-drag way to fill it. Dragging starts on the cells only, so the hour
-// labels and the space around the grid still scroll to the evening rows.
-// Save stays pinned at the bottom.
+// One way in for each place: Edit profile's Free times row, the Free times
+// sheet's Edit, Discover's "Set times" (F11) and Filters' "Set times".
+// Powers Discover only: the card's summary and "Free when I'm free".
+//
+// Rules: page title in the 50% serif style, back at the top left, Save pinned
+// at the bottom, "Discard changes?" before leaving with changes. Selected
+// pills are filled ink with on-ink text and no check (Nov 7 chip rule), read
+// as "selected". Pills wrap onto more lines at the largest text sizes.
 
 import { useNavigation, usePreventRemove, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, Alert, PanResponder, Pressable, ScrollView, View, type LayoutChangeEvent } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { AccessibilityInfo, Alert, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { freeSummary } from "@workspace/free-times";
+
+import { DayRow } from "@/components/card/FreeTimesDayRow";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { ProblemCard } from "@/components/discover/States";
 import { Button, Text } from "@/components/ui";
-import { radius, spacing } from "@/constants/tokens";
+import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useDiscoverMe, useSaveAvailability } from "@/hooks/useDiscover";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import {
-  DAY_LETTERS,
   DAY_NAMES,
-  HOURS,
-  cellAt,
-  cellSpoken,
-  hourShort,
-  hourSpoken,
-  hoursFreeLine,
-  paintSlot,
-  rowSlots,
-  sameSlots,
-  slotOf,
-  toggleRow,
-  toggleSlot,
-} from "@/lib/discover";
+  applyCustom,
+  editText,
+  freeTimesLine,
+  rangeText,
+  removeTime,
+  sameTimes,
+  saveHint,
+  toggleBlock,
+  withFields,
+  type CustomField,
+  type FreeRange,
+} from "@/lib/freeTimes";
 
-const LABEL_W = 44;
-const CELL_H = 44;
-const GAP = 2;
+type Fields = Record<number, CustomField>;
 
 export default function AvailabilityScreen() {
   const c = useColors();
@@ -50,22 +55,28 @@ export default function AvailabilityScreen() {
   const me = useDiscoverMe();
   const save = useSaveAvailability();
 
-  const [slots, setSlots] = useState<Set<number>>(new Set());
+  const [ranges, setRanges] = useState<FreeRange[]>([]);
+  const [fields, setFields] = useState<Fields>({});
+  // Days whose field has been left or submitted: only then are problems shown,
+  // so half-typed text ("6-") isn't called unreadable mid-word.
+  const [checked, setChecked] = useState<Record<number, boolean>>({});
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     if (me.data && !loaded) {
-      setSlots(new Set(me.data.slots));
+      setRanges(me.data.freeTimes);
       setLoaded(true);
     }
   }, [me.data, loaded]);
 
-  const saved = me.data?.slots ?? [];
-  const dirty = loaded && !sameSlots(slots, saved);
+  const saved = me.data?.freeTimes ?? [];
+  const draft = useMemo(() => withFields(ranges, fields), [ranges, fields]);
+  const hasProblems = Object.keys(draft.problems).length > 0;
+  const changed = loaded && !sameTimes(draft.ranges, saved);
+  const dirty = changed || hasProblems;
   const [leaving, setLeaving] = useState(false);
 
-  // Leaving with changes asks first (Wave 1 sheet rule, same words).
   usePreventRemove(dirty && !leaving, ({ data }) => {
-    Alert.alert("Discard changes?", "The hours you marked won't be saved.", [
+    Alert.alert("Discard changes?", "The times you picked won't be saved.", [
       { text: "Keep editing", style: "cancel" },
       { text: "Discard", style: "destructive", onPress: () => navigation.dispatch(data.action) },
     ]);
@@ -74,65 +85,66 @@ export default function AvailabilityScreen() {
     if (leaving) router.back();
   }, [leaving, router]);
 
+  const openField = (day: number, editing: FreeRange | null) => {
+    setFields((f) => ({ ...f, [day]: { text: editing ? editText(editing) : "", editing } }));
+    setChecked((x) => ({ ...x, [day]: false }));
+  };
+  const closeField = (day: number) => {
+    setFields((f) => {
+      const next = { ...f };
+      delete next[day];
+      return next;
+    });
+    setChecked((x) => ({ ...x, [day]: false }));
+  };
+  const typeIn = (day: number, text: string) => setFields((f) => ({ ...f, [day]: { ...f[day], text } }));
+
+  /** Add (or Done): turns what's typed into pills, or says what couldn't be read. */
+  const addField = (day: number) => {
+    const field = fields[day];
+    if (!field) return;
+    if (!field.text.trim()) {
+      // Nothing typed: closing an edit keeps the time it was editing.
+      closeField(day);
+      return;
+    }
+    const r = applyCustom(ranges, day, field);
+    if (r.problems.length) {
+      setChecked((x) => ({ ...x, [day]: true }));
+      AccessibilityInfo.announceForAccessibility(r.problems.join(" "));
+      return;
+    }
+    setRanges(r.ranges);
+    closeField(day);
+    const added = r.ranges.filter((x) => x.day === day && !ranges.some((y) => y.day === day && y.start === x.start && y.end === x.end));
+    if (added.length) AccessibilityInfo.announceForAccessibility(`Added ${added.map(rangeText).join(", ")} on ${DAY_NAMES[day]}`);
+  };
+
+  const customMenu = (r: FreeRange) => {
+    Alert.alert(`${rangeText(r)}, ${DAY_NAMES[r.day]}`, undefined, [
+      { text: "Edit", onPress: () => openField(r.day, r) },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: () => {
+          setRanges((x) => removeTime(x, r));
+          AccessibilityInfo.announceForAccessibility(`Removed ${rangeText(r)} on ${DAY_NAMES[r.day]}`);
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
   async function onSave() {
+    if (hasProblems) return;
     try {
-      const after = await save.mutateAsync([...slots].sort((a, b) => a - b));
-      AccessibilityInfo.announceForAccessibility(`Saved. ${hoursFreeLine(after.hoursFree)}.`);
+      const after = await save.mutateAsync(draft.ranges);
+      AccessibilityInfo.announceForAccessibility(`Saved. ${freeTimesLine(after.freeSummary ?? freeSummary(after.freeTimes), true)}`);
       setLeaving(true);
     } catch (e) {
       Alert.alert("Couldn't save", isOfflineError(e) ? OFFLINE_MESSAGE : e instanceof Error ? e.message : "Try again.");
     }
   }
-
-  // ─── Drag to paint ──────────────────────────────────────────────────────
-  const [gridW, setGridW] = useState(0);
-  const cellW = gridW > 0 ? (gridW - LABEL_W - GAP * 7) / 7 : 0;
-  const layout = useRef({ labelWidth: LABEL_W + GAP, cellWidth: 0, cellHeight: CELL_H, gap: GAP });
-  layout.current.cellWidth = cellW;
-  const slotsRef = useRef(slots);
-  slotsRef.current = slots;
-  const painting = useRef<{ on: boolean; last: number | null } | null>(null);
-  // Where the grid sits on screen, so a touch's page position finds its cell.
-  // Re-measured after layout and after each scroll; a paint never scrolls.
-  const gridRef = useRef<React.ComponentRef<typeof View>>(null);
-  const origin = useRef({ x: 0, y: 0 });
-  const measure = () => gridRef.current?.measureInWindow((x: number, y: number) => (origin.current = { x, y }));
-  const cellFor = (pageX: number, pageY: number) => cellAt(pageX - origin.current.x, pageY - origin.current.y, layout.current);
-
-  const pan = useMemo(
-    () =>
-      PanResponder.create({
-        // Only touches that start on a cell paint; the hour labels scroll.
-        onStartShouldSetPanResponder: (e) => e.nativeEvent.pageX - origin.current.x > LABEL_W + GAP,
-        onMoveShouldSetPanResponder: () => painting.current !== null,
-        onPanResponderTerminationRequest: () => false,
-        onPanResponderGrant: (e) => {
-          const cell = cellFor(e.nativeEvent.pageX, e.nativeEvent.pageY);
-          if (!cell) return;
-          const slot = slotOf(cell.day, cell.hour);
-          const on = !slotsRef.current.has(slot);
-          painting.current = { on, last: slot };
-          setSlots((s) => paintSlot(s, slot, on));
-        },
-        onPanResponderMove: (e) => {
-          if (!painting.current) return;
-          const cell = cellFor(e.nativeEvent.pageX, e.nativeEvent.pageY);
-          if (!cell) return;
-          const slot = slotOf(cell.day, cell.hour);
-          if (slot === painting.current.last) return;
-          painting.current.last = slot;
-          const on = painting.current.on;
-          setSlots((s) => paintSlot(s, slot, on));
-        },
-        onPanResponderRelease: () => {
-          painting.current = null;
-        },
-        onPanResponderTerminate: () => {
-          painting.current = null;
-        },
-      }),
-    [],
-  );
 
   if (!me.data) {
     return (
@@ -155,104 +167,37 @@ export default function AvailabilityScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.paper }}>
-      <ScrollView
-        onScrollEndDrag={measure}
-        onMomentumScrollEnd={measure}
+      <KeyboardAwareScrollViewCompat
+        bottomOffset={spacing.space6}
         contentContainerStyle={{ padding: spacing.space4, paddingBottom: 120 + insets.bottom, gap: spacing.space4 }}
       >
         <View style={{ gap: spacing.space2 }}>
           <Text variant="headingL" accessibilityRole="header">
             When you can play
           </Text>
-          <Text tone="inkMuted">Tap or drag the hours you're usually free in a week. Tap an hour to fill its whole row.</Text>
+          <Text tone="inkMuted">Pick the times you're usually free each week. Players near you see a short summary on your card.</Text>
         </View>
 
-        <View
-          style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: spacing.space2 }}
-        >
-          <Text variant="bodyStrong">Monday to Sunday</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <View
-              style={{ width: 14, height: 14, borderRadius: 3, backgroundColor: c.ink }}
-              importantForAccessibility="no"
-              accessibilityElementsHidden
+        <View>
+          {DAY_NAMES.map((name, day) => (
+            <DayRow
+              key={name}
+              day={day}
+              ranges={ranges}
+              field={fields[day] ?? null}
+              problems={checked[day] ? (draft.problems[day] ?? []) : []}
+              last={day === 6}
+              onToggle={(b) => setRanges((x) => toggleBlock(x, day, b))}
+              onCustom={() => openField(day, null)}
+              onCustomPill={customMenu}
+              onType={(t) => typeIn(day, t)}
+              onAdd={() => addField(day)}
+              onLeave={() => setChecked((x) => ({ ...x, [day]: true }))}
+              onCancel={() => closeField(day)}
             />
-            <Text variant="small" accessibilityLiveRegion="polite" accessibilityRole="text">
-              {hoursFreeLine(slots.size)}
-            </Text>
-          </View>
+          ))}
         </View>
-
-        <View
-          accessibilityLabel="Hours you're free, Monday to Sunday"
-          onLayout={(e: LayoutChangeEvent) => setGridW(e.nativeEvent.layout.width)}
-        >
-          {/* Day letters */}
-          <View
-            style={{ flexDirection: "row", gap: GAP, marginBottom: spacing.space1 }}
-            importantForAccessibility="no-hide-descendants"
-            accessibilityElementsHidden
-          >
-            <View style={{ width: LABEL_W }} />
-            {DAY_LETTERS.map((d, i) => (
-              <Text key={i} variant="label" tone="inkMuted" maxFontSizeMultiplier={1.3} style={{ width: cellW, textAlign: "center" }}>
-                {d}
-              </Text>
-            ))}
-          </View>
-          <View ref={gridRef} onLayout={measure} {...pan.panHandlers} style={{ gap: GAP }}>
-            {HOURS.map((h) => {
-              const row = rowSlots(h);
-              const allOn = row.every((s) => slots.has(s));
-              return (
-                <View key={h} style={{ flexDirection: "row", gap: GAP }}>
-                  <Pressable
-                    onPress={() => setSlots((s) => toggleRow(s, h))}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${hourSpoken(h)}, every day`}
-                    accessibilityState={{ selected: allOn }}
-                    accessibilityHint={allOn ? "Marks this hour not free, Monday to Sunday" : "Marks this hour free, Monday to Sunday"}
-                    style={({ pressed }) => ({
-                      width: LABEL_W,
-                      height: CELL_H,
-                      alignItems: "flex-end",
-                      justifyContent: "center",
-                      paddingRight: 6,
-                      opacity: pressed ? 0.6 : 1,
-                    })}
-                  >
-                    <Text variant="small" tone="inkMuted" maxFontSizeMultiplier={1.3} style={{ textDecorationLine: "underline" }}>
-                      {hourShort(h)}
-                    </Text>
-                  </Pressable>
-                  {DAY_NAMES.map((_, d) => {
-                    const slot = slotOf(d, h);
-                    const on = slots.has(slot);
-                    return (
-                      <View
-                        key={d}
-                        accessible
-                        accessibilityRole="button"
-                        accessibilityLabel={cellSpoken(d, h, on)}
-                        accessibilityState={{ selected: on }}
-                        onAccessibilityTap={() => setSlots((s) => toggleSlot(s, slot))}
-                        style={{
-                          width: cellW,
-                          height: CELL_H,
-                          borderRadius: radius.radiusSm + 2,
-                          borderWidth: 1,
-                          borderColor: on ? c.ink : c.hairlineStrong,
-                          backgroundColor: on ? c.ink : c.linen,
-                        }}
-                      />
-                    );
-                  })}
-                </View>
-              );
-            })}
-          </View>
-        </View>
-      </ScrollView>
+      </KeyboardAwareScrollViewCompat>
 
       <View
         style={{
@@ -272,8 +217,8 @@ export default function AvailabilityScreen() {
           label="Save"
           onPress={() => void onSave()}
           loading={save.isPending}
-          disabled={!dirty}
-          accessibilityHint={dirty ? undefined : "Mark or clear an hour first"}
+          disabled={!changed || hasProblems}
+          accessibilityHint={saveHint(draft.problems, changed)}
         />
       </View>
     </View>

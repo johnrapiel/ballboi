@@ -96,9 +96,41 @@ export interface DiscoverAreaInput {
   zip: string;
 }
 
+/**
+ * One free time in a generic week (decision 156). A time that exactly matches a block (Morning 7 to 11 AM, Afternoon 12 to 4 PM, Evening 5 to 9 PM) is that block.
+ */
+export interface FreeTime {
+  /**
+   * Monday is 0, Sunday is 6
+   * @minimum 0
+   * @maximum 6
+   */
+  day: number;
+  /**
+   * Minutes after midnight
+   * @minimum 0
+   * @maximum 1439
+   */
+  start: number;
+  /**
+   * Minutes after midnight, after start; 1440 is midnight at the end of the day
+   * @minimum 1
+   * @maximum 1440
+   */
+  end: number;
+}
+
+/**
+ * Send freeTimes. Old app versions send slots (the hour grid), which clears saved free times.
+ */
 export interface DiscoverAvailabilityInput {
-  /** Free hours, each day * 24 + hour. Monday is day 0; hours 6 (6 AM) to 21 (9 PM). */
-  slots: number[];
+  /** @maxItems 70 */
+  freeTimes?: FreeTime[];
+  /**
+   * The old hour grid, each day * 24 + hour. Monday is day 0; hours 6 (6 AM) to 21 (9 PM).
+   * @deprecated
+   */
+  slots?: number[];
 }
 
 export type DiscoverLeagueJoining =
@@ -212,7 +244,14 @@ export interface DiscoverMe {
   radius: number;
   /** @nullable */
   rating: number | null;
+  /**
+   * The old hour grid as saved; read freeTimes instead
+   * @deprecated
+   */
   slots: number[];
+  /** Your free times, or your old hour grid converted exactly */
+  freeTimes: FreeTime[];
+  /** Hours free in the week, rounded */
   hoursFree: number;
   /**
    * "Weekday evenings, weekend mornings", or null with no hours set
@@ -710,8 +749,13 @@ export interface PlayerCard {
   distance: string | null;
   /** @nullable */
   homeCourt: string | null;
-  /** Free hours, day * 24 + hour, Monday is 0 */
+  /**
+   * The old hour grid as saved (day * 24 + hour, Monday is 0); read freeTimes instead
+   * @deprecated
+   */
   slots: number[];
+  /** Free times (decision 156), or the old hour grid converted exactly */
+  freeTimes: FreeTime[];
   /** @nullable */
   freeSummary: string | null;
   season: PlayerCardSeason;

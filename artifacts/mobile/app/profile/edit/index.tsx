@@ -86,7 +86,7 @@ export default function EditProfileScreen() {
             title="Free times"
             subtitle={card ? (card.freeSummary ?? "Add when you can play") : null}
             onPress={() => router.push("/availability")}
-            accessibilityHint="The hours you're usually free"
+            accessibilityHint="Opens When you can play"
           />
           <SettingsRow
             title="Home court"

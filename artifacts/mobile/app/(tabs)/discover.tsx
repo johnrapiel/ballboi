@@ -119,7 +119,7 @@ function PlayersTab() {
   const loading = !data && (players.isLoading || me.isLoading);
   const counts = data?.counts ?? [];
   const n = data?.total ?? countFor(counts, radius) ?? 0;
-  const noTimes = me.data != null && me.data.hoursFree === 0;
+  const noTimes = me.data != null && (me.data.freeTimes ?? []).length === 0;
 
   const saveRadius = useSaveRadius();
   const pickRadius = (r: number) => {

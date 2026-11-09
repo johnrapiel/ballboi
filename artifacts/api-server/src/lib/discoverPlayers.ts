@@ -14,7 +14,9 @@
 // - Hidden profiles, blocks either way, banned or suspended accounts and the
 //   viewer never reach these rules: the repository leaves them out.
 
-import { overlaps } from "./discoverAvailability.js";
+import { overlaps } from "@workspace/free-times";
+import type { FreeRange } from "@workspace/free-times";
+import { timesOf } from "./discoverAvailability.js";
 import { RADIUS_STEPS, distanceLabel, milesBetween, parseRadius, type Point } from "./discoverArea.js";
 import { reliabilityLine, reliabilitySpoken, type Reliability } from "./reliability.js";
 
@@ -124,7 +126,10 @@ export interface DiscoverCandidate {
   point: Point;
   town: string | null;
   plays: string | null;
+  /** The old hour grid (F7), read when they haven't saved free times. */
   slots: number[];
+  /** Free times from the new editor (decision 156), or null. */
+  freeTimes?: FreeRange[] | null;
   /** Their home court's name from the court directory, if they picked one. */
   homeCourt?: string | null;
 }
@@ -165,11 +170,12 @@ export interface NearbyResult {
 }
 
 export function nearbyPlayers(
-  me: { point: Point; rating: number | null; slots: number[] },
+  me: { point: Point; rating: number | null; slots: number[]; freeTimes?: FreeRange[] | null },
   candidates: DiscoverCandidate[],
   filters: PlayerFilters,
   reliability: (clerkUserId: string) => Reliability,
 ): NearbyResult {
+  const mine = timesOf(me);
   const matching = candidates
     .filter(
       (p) =>
@@ -177,7 +183,7 @@ export function nearbyPlayers(
           ? fitsLevel(me.rating, p.rating, filters.level)
           : fitsLevels(me.rating, p.rating, filters.levels)) &&
         fitsPlays(p.plays, filters.plays) &&
-        (!filters.free || overlaps(me.slots, p.slots)),
+        (!filters.free || overlaps(mine, timesOf(p))),
     )
     .map((p) => ({ p, miles: milesBetween(me.point, p.point) }));
 

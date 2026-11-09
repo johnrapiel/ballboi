@@ -15,7 +15,7 @@ export function discoverScreens(linen: string, pushed: Header) {
     <Stack.Screen key="filters" name="discover/filters" options={sheetOptions(linen)} />,
     <Stack.Screen key="radius" name="discover/radius" options={sheetOptions(linen)} />,
     <Stack.Screen key="player" name="discover/player/[userId]" options={{ ...pushed, title: "" }} />,
-    <Stack.Screen key="play" name="discover/play" options={{ ...pushed, title: "When I play" }} />,
+    <Stack.Screen key="play" name="discover/play" options={{ ...pushed, title: "" }} />,
     <Stack.Screen key="availability" name="availability" options={{ ...pushed, title: "" }} />,
     <Stack.Screen key="league" name="discover/league/[leagueId]" options={{ ...pushed, title: "" }} />,
     <Stack.Screen key="request" name="discover/request/[leagueId]" options={sheetOptions(linen)} />,

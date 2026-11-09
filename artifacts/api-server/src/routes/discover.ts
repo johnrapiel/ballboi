@@ -1,6 +1,7 @@
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { getAuth } from "@clerk/express";
-import { availabilitySummary, parseSlots } from "../lib/discoverAvailability.js";
+import { freeSummary, hoursFree, parseFreeTimes } from "@workspace/free-times";
+import { parseSlots, timesOf } from "../lib/discoverAvailability.js";
 import { ZIP_NOT_FOUND, areaForZip, distanceLabel, milesBetween, parseRadius } from "../lib/discoverArea.js";
 import { formatLabel, leagueState, levelText, nearbyLeagues, outsideLevel, typeLabel } from "../lib/discoverLeagues.js";
 import { shortDate } from "../lib/leagueCalendar.js";
@@ -13,7 +14,7 @@ import { REPORT_REASONS, type ReportReason } from "@workspace/db";
 // - GET  /discover/me            your area, hidden profile, plays, distance and hours
 // - PUT  /discover/area          change your home ZIP from Discover
 // - PUT  /discover/settings      Show me in Discover, what you play, last distance
-// - PUT  /discover/availability  the "When you can play" grid
+// - PUT  /discover/availability  your free times (decision 156; old app versions send the hour grid)
 // - GET  /discover/players       Players near you, with a count per distance chip
 // - GET  /discover/players/:id   one player card
 // Everything here is free, never Pro (spec decision 32).
@@ -31,6 +32,7 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
 
 /** What the app shows about you in Discover. */
 export function meView(me: DiscoverMe) {
+  const times = timesOf(me);
   return {
     area: me.area ? { zip: me.area.zip, town: me.area.town, state: me.area.state } : null,
     homeZip: me.homeZip,
@@ -39,8 +41,9 @@ export function meView(me: DiscoverMe) {
     radius: me.radius,
     rating: me.rating,
     slots: me.slots,
-    hoursFree: me.slots.length,
-    freeSummary: availabilitySummary(me.slots),
+    freeTimes: times,
+    hoursFree: Math.round(hoursFree(times)),
+    freeSummary: freeSummary(times),
     matchAlerts: me.matchAlerts ?? false,
   };
 }
@@ -100,13 +103,20 @@ export function createDiscoverRouter(repo: DiscoverRepo = new DrizzleDiscoverRep
   });
 
   router.put("/discover/availability", requireAuth, async (req, res) => {
-    const slots = parseSlots((req.body ?? {}).slots);
-    if ("error" in slots) {
-      res.status(400).json({ error: slots.error });
+    const body = (req.body ?? {}) as { freeTimes?: unknown; slots?: unknown };
+    // The new editor sends free times; an old app version still sends the grid.
+    const legacy = body.freeTimes === undefined;
+    const slots = legacy ? parseSlots(body.slots) : null;
+    const times = legacy ? null : parseFreeTimes(body.freeTimes);
+    const error = (slots && "error" in slots && slots.error) || (times && "error" in times && times.error);
+    if (error) {
+      res.status(400).json({ error });
       return;
     }
     try {
-      await repo.saveSlots(getAuth(req).userId!, slots);
+      const me = getAuth(req).userId!;
+      if (Array.isArray(slots)) await repo.saveSlots(me, slots);
+      else if (Array.isArray(times)) await repo.saveFreeTimes(me, times);
       const after = await loadMe(req, res);
       if (after) res.json(meView(after));
     } catch (err) {
@@ -120,7 +130,7 @@ export function createDiscoverRouter(repo: DiscoverRepo = new DrizzleDiscoverRep
       if (!me) return;
       const filters = parseFilters(req.query as Record<string, unknown>, me.radius);
       // No times set: "Free when I'm free" can't apply (F11).
-      if (!me.slots.length) filters.free = false;
+      if (!timesOf(me).length) filters.free = false;
       if (!me.area) {
         res.json({ players: [], counts: [], radius: filters.radius, total: 0, needsArea: true });
         return;
@@ -130,7 +140,7 @@ export function createDiscoverRouter(repo: DiscoverRepo = new DrizzleDiscoverRep
       const candidates = await repo.near(me.clerkUserId, me.area.point, widest);
       const reliability = await repo.reliability(candidates.map((c) => c.clerkUserId));
       const result = nearbyPlayers(
-        { point: me.area.point, rating: me.rating, slots: me.slots },
+        { point: me.area.point, rating: me.rating, slots: me.slots, freeTimes: me.freeTimes },
         candidates,
         filters,
         (id) => reliabilityOrEmpty(reliability, id),
@@ -167,7 +177,7 @@ export function createDiscoverRouter(repo: DiscoverRepo = new DrizzleDiscoverRep
         town: p.town,
         distance: miles == null ? null : `${distanceLabel(miles)} away`,
         plays: isOneOf(PLAYS, p.plays) ? p.plays : null,
-        freeSummary: availabilitySummary(p.slots),
+        freeSummary: freeSummary(timesOf(p)),
         homeCourt: p.homeCourt ?? null,
         played: r.played,
         noShows: r.noShows,

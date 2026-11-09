@@ -55,7 +55,7 @@ export default function FiltersSheet() {
   const router = useRouter();
   const { tab, radius, filters } = useDiscoverState();
   const me = useDiscoverMe();
-  const noTimes = (me.data?.hoursFree ?? 0) === 0;
+  const noTimes = (me.data?.freeTimes ?? []).length === 0;
   // What the sheet opened with. "Changed" means changed from this, so opening
   // and closing without touching anything never asks to discard.
   const [opened] = useState<PlayerFilters>(() => ({ ...filters, free: filters.free && !noTimes }));
@@ -160,7 +160,7 @@ export default function FiltersSheet() {
                 onValueChange={(free) => set({ free })}
                 disabled={noTimes}
                 accessibilityLabel="Free when I'm free"
-                accessibilityHint={noTimes ? "Set your times first." : "Shows players whose hours overlap yours."}
+                accessibilityHint={noTimes ? "Set your times first." : "Shows players free at the same times as you."}
               />
             </View>
             {noTimes ? (
@@ -172,7 +172,7 @@ export default function FiltersSheet() {
               </View>
             ) : (
               <Text variant="small" tone="inkMuted">
-                Shows players whose hours overlap yours.
+                Shows players free at the same times as you.
               </Text>
             )}
           </View>

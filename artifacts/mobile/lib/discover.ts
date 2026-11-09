@@ -1,6 +1,8 @@
 // Discover (spec: Discover; Wave 2 Session F, F1 to F14). Pure helpers only,
 // so they're testable in Node; the data hooks are hooks/useDiscover*.ts.
 
+import type { FreeRange } from "@workspace/free-times";
+
 export type Plays = "singles" | "doubles" | "both";
 export type LevelRange = "close" | "wider" | "any";
 export type PlaysFilter = "singles" | "doubles" | "either";
@@ -19,7 +21,10 @@ export interface DiscoverMe {
   plays: Plays | null;
   radius: number;
   rating: number | null;
+  /** The old hour grid as saved; read freeTimes. */
   slots: number[];
+  /** Your free times, or your old hour grid converted exactly. */
+  freeTimes: FreeRange[];
   hoursFree: number;
   freeSummary: string | null;
   matchAlerts?: boolean;
@@ -177,85 +182,7 @@ export function initials(name: string): string {
   return ((words[0]?.[0] ?? "") + (words.length > 1 ? words[words.length - 1][0] : "")).toUpperCase() || "?";
 }
 
-// ─── When you can play (F7): the hour grid ──────────────────────────────────
-
-export const FIRST_HOUR = 6;
-export const LAST_HOUR = 21;
-export const HOURS = Array.from({ length: LAST_HOUR - FIRST_HOUR + 1 }, (_, i) => FIRST_HOUR + i);
-export const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
-export const DAY_LETTERS = ["M", "T", "W", "T", "F", "S", "S"] as const;
-
-export const slotOf = (day: number, hour: number) => day * 24 + hour;
-export const dayOf = (slot: number) => Math.floor(slot / 24);
-export const hourOf = (slot: number) => slot % 24;
-
-/** "6a", "12p", "9p" beside each row. */
-export function hourShort(h: number): string {
-  return h === 12 ? "12p" : h > 12 ? `${h - 12}p` : `${h}a`;
-}
-
-/** "6 AM", "12 PM", "9 PM", for VoiceOver. */
-export function hourSpoken(h: number): string {
-  return h === 12 ? "12 PM" : h > 12 ? `${h - 12} PM` : `${h} AM`;
-}
-
-/** "Monday 6 PM, free". */
-export function cellSpoken(day: number, hour: number, free: boolean): string {
-  return `${DAY_NAMES[day]} ${hourSpoken(hour)}, ${free ? "free" : "not free"}`;
-}
-
-/** Every slot in an hour row, Monday to Sunday. */
-export const rowSlots = (hour: number) => DAY_NAMES.map((_, d) => slotOf(d, hour));
-
-/** A whole row on when any of it is off, otherwise off (the non-drag way to fill a row). */
-export function toggleRow(slots: ReadonlySet<number>, hour: number): Set<number> {
-  const row = rowSlots(hour);
-  const next = new Set(slots);
-  const allOn = row.every((s) => next.has(s));
-  for (const s of row) {
-    if (allOn) next.delete(s);
-    else next.add(s);
-  }
-  return next;
-}
-
-/** One cell flipped. */
-export function toggleSlot(slots: ReadonlySet<number>, slot: number): Set<number> {
-  const next = new Set(slots);
-  if (next.has(slot)) next.delete(slot);
-  else next.add(slot);
-  return next;
-}
-
-/** Dragging paints every cell it crosses the way the first cell went. */
-export function paintSlot(slots: ReadonlySet<number>, slot: number, on: boolean): Set<number> {
-  if (slots.has(slot) === on) return slots as Set<number>;
-  const next = new Set(slots);
-  if (on) next.add(slot);
-  else next.delete(slot);
-  return next;
-}
-
-/** The cell under a point in the grid, or null outside it. */
-export function cellAt(
-  x: number,
-  y: number,
-  layout: { labelWidth: number; cellWidth: number; cellHeight: number; gap: number },
-): { day: number; hour: number } | null {
-  const col = Math.floor((x - layout.labelWidth) / (layout.cellWidth + layout.gap));
-  const row = Math.floor(y / (layout.cellHeight + layout.gap));
-  if (x < layout.labelWidth || col < 0 || col > 6 || row < 0 || row >= HOURS.length) return null;
-  return { day: col, hour: HOURS[row] };
-}
-
-/** "15 hours free". */
-export function hoursFreeLine(n: number): string {
-  return `${n} hour${n === 1 ? "" : "s"} free`;
-}
-
-export function sameSlots(a: ReadonlySet<number>, b: readonly number[]): boolean {
-  return a.size === b.length && b.every((s) => a.has(s));
-}
+// ─── Free times: see lib/freeTimes.ts (decision 156; the F7 hour grid is gone)
 
 // ─── Filters and invites ─────────────────────────────────────────────────────
 
