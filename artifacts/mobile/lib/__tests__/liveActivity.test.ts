@@ -35,7 +35,7 @@ describe("what the Live Activity shows (acceptance 31)", () => {
     expect(p.stage).toBe("setup");
     expect(p.status).toBe("Setting up");
     expect(p.court).toBe("Finding the court");
-    expect(p.battery).toBe("Phone battery 80%");
+    expect(p.battery).toBe("Battery 80%");
     expect(p.caption).toBe("Mount your phone behind the baseline, camera facing the court.");
     expect(p.canStart).toBe(true);
     expect(p.canStop).toBe(false);
@@ -72,8 +72,8 @@ describe("what the Live Activity shows (acceptance 31)", () => {
   });
 
   it("battery moves in 5% steps, and hides when unknown", () => {
-    expect(batteryText(0.64)).toBe("Phone battery 65%");
-    expect(batteryText(1)).toBe("Phone battery 100%");
+    expect(batteryText(0.64)).toBe("Battery 65%");
+    expect(batteryText(1)).toBe("Battery 100%");
     expect(batteryText(-1)).toBeNull();
     expect(batteryText(null)).toBeNull();
   });
