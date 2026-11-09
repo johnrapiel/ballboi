@@ -14,6 +14,7 @@ import {
   DEMO_NEARBY_PLAYERS,
   DEMO_OPEN_LEAGUES,
   demoEmail,
+  demoPeople,
   nyTime,
   seededRandom,
   simulateMatch,
@@ -48,6 +49,18 @@ describe("demo data", () => {
     expect(DEMO_SECOND_LEAGUE.members.length + 1).toBe(DEMO_SECOND_LEAGUE.rosterCap);
     // Twelve with John, so a top-8 playoff.
     expect(past.length + 1).toBe(12);
+  });
+
+  it("staging makes only John's league mates, never the Discover-only players or far-away ones", () => {
+    const name = (p: { firstName: string; lastName: string }) => `${p.firstName} ${p.lastName}`;
+    const staging = demoPeople(false).map(name);
+    const needed = [...DEMO_SECOND_LEAGUE.members, ...DEMO_SECOND_LEAGUE.waitlist, DEMO_PAST_LEAGUE.organizer, ...DEMO_PAST_LEAGUE.members, DEMO_JOIN_REQUEST];
+    for (const n of [...DEMO_LEAGUE_PLAYERS.map(name), ...needed]) expect(staging, n).toContain(n);
+    expect(new Set(staging).size).toBe(new Set([...DEMO_LEAGUE_PLAYERS.map(name), ...needed]).size);
+    expect(staging).not.toContain("Isaac Levy"); // far away
+    expect(staging).not.toContain("Paul Greenberg"); // Discover only
+    expect(staging.length).toBeLessThan(DEMO_LEAGUE_PLAYERS.length + DEMO_NEARBY_PLAYERS.length);
+    expect(demoPeople(true)).toHaveLength(DEMO_LEAGUE_PLAYERS.length + DEMO_NEARBY_PLAYERS.length);
   });
 
   it("has 25 to 40 Discover players with varied levels, hands and towns", () => {
