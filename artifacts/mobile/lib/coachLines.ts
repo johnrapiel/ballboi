@@ -66,11 +66,9 @@ export const COACH_LINES: Record<CueId, CoachLine> = {
     caption: "I can't see the court. Make sure both sidelines and the far baseline are in view.",
     ms: 4630,
   },
-  // TODO(John, Nov 8): line 12 now plays when the armed phone starts the
-  // countdown on its own, so "You can record anyway" no longer fits. New take:
-  // "I'll record anyway. We'll fix the lines afterwards." Swap the clip in
-  // assets/audio/coach/12-record-anyway.m4a and this caption and ms together,
-  // and the CONFIRMED row in lib/__tests__/coach.test.ts.
+  // Line 12 plays when the armed phone starts the countdown on its own. John
+  // kept the original wording on Nov 9 (replaces the Nov 8 plan to re-record it
+  // as "I'll record anyway").
   recordAnyway: { file: "12-record-anyway", caption: "You can record anyway. We'll fix the lines afterwards.", ms: 2580 },
   moved: { file: "13-moved", caption: "Your phone just moved. Let's line it up again.", ms: 2330 },
   count5m: { file: "14-count-5m", caption: "Recording starts in five minutes.", ms: 2110 },
