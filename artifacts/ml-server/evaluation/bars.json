@@ -1,6 +1,10 @@
 {
-  "_about": "Launch accuracy bars from the product spec (Ball Boi > Shot analysis build). A stat below its bar is hidden at launch. A stat with no bar here is hidden until John sets one.",
-  "shot_type": 0.90,
+  "_about": "Launch accuracy bars from the product spec (Ball Boi > Shot analysis build, decision 98). A stat below its bar is hidden at launch. A stat with no bar here is hidden until John sets one. first_serve_pct is the share of matches within 5 points of the true first-serve %; 85% of matches is a placeholder pending John's call.",
+  "shot_type": 0.9,
   "close_call_in_out": 0.85,
-  "serve_placement": 0.85
+  "serve_placement": 0.85,
+  "point_ending": 0.85,
+  "rally_length": 0.85,
+  "first_serve_pct": 0.85,
+  "placement": 0.8
 }

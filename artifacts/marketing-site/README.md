@@ -13,6 +13,7 @@ ballboitennis.com and both `www` addresses serve or redirect to the same site.
 | `early-access.js` | Opens the email form from the pill, validates, posts, and shows "You're on the list" |
 | `balls.js` | The pill's ball animation. Desktop: hover the pill. Phones: plays once on load. Off under Reduce Motion |
 | `privacy.html`, `terms.html`, `legal.css` | Legal pages, served at `/privacy` and `/terms` |
+| `invite.html`, `invite.js` | Invite landing page. `_worker.js` serves it at `/join/CODE` (league invites) and `/record/invite/CODE` (Quick match invites) for people without the app: email sign-up, with the invite code saved in the `ref` column (`join:CODE` or `match:CODE`) |
 | `beta-release.html` | Beta Footage Release, served at `/beta-release`. Linked from the app's recording consent, not from the site |
 | `assets/roundel-ink.*` | The roundel with no paper (navy strokes, transparent), 888px from the 1024px master |
 | `assets/og.jpg` | Share image for link previews (1200x630) |
@@ -47,6 +48,14 @@ The pill opens a one-field form: email only, to keep it seamless (decided Nov 7,
 `SELECT email, created_at FROM early_access ORDER BY created_at;`
 
 **Remove someone:** `DELETE FROM early_access WHERE email = 'name@example.com';`
+
+## Invite links
+
+The app shares `https://ballboi.tennis/join/CODE` and `https://ballboi.tennis/record/invite/CODE`.
+
+- **App installed:** iOS opens the app directly. `_worker.js` serves `/.well-known/apple-app-site-association` for team `AVAJZ56CBY`, bundle `tennis.ballboi`, matching `applinks:ballboi.tennis` in the app.
+- **No app:** the link shows `invite.html`, which explains the private beta and takes an email. The sign-up joins the early-access list with the code, so approving it sends a TestFlight invite, and once installed the same link opens the app.
+- **Who came from an invite:** `SELECT email, ref, created_at FROM early_access WHERE ref IS NOT NULL;`
 
 ## Check before deploying
 

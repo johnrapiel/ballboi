@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="robots" content="noindex">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>You're invited · Ball Boi</title>
+  <meta name="description" content="Ball Boi is in a private beta on iPhone. Join with your email to get an invite.">
+  <link rel="canonical" href="https://ballboi.tennis/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Ball Boi">
+  <meta property="og:title" content="Ball Boi">
+  <meta property="og:description" content="Ball Boi is in a private beta on iPhone. Join with your email to get an invite.">
+  <meta property="og:url" content="https://ballboi.tennis/">
+  <meta property="og:image" content="https://ballboi.tennis/assets/og.jpg?v=3">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="The Ball Boi logo">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://ballboi.tennis/assets/og.jpg?v=3">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;800&display=swap">
+  <link rel="stylesheet" href="/legal.css">
+  <style>
+    .lede { font-size: 19px; margin: 20px 0 0; }
+    .ea { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; max-width: 560px; margin: 32px 0 0; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 15px; font-weight: 800; }
+    .field input { min-height: 56px; padding: 0 16px; border: 2px solid var(--ink); border-radius: 14px; background: #fff; color: var(--ink); font: 500 17px/1.2 var(--font); width: 100%; }
+    .field input[aria-invalid="true"] { border-width: 3px; }
+    .btn { min-height: 56px; padding: 0 28px; border: 0; border-radius: 999px; background: var(--ink); color: #fff; font: 800 17px/1 var(--font); cursor: pointer; }
+    .btn:disabled { opacity: .6; cursor: default; }
+    .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+    .status { grid-column: 1 / -1; margin: 0; font-size: 15px; }
+    .status:empty { display: none; }
+    .status.err::before { content: "\2715  "; font-weight: 800; }
+    .done { margin: 32px 0 0; font-size: 20px; font-weight: 800; }
+    .done::before { content: "\2713  "; }
+    .done span { display: block; margin-top: 6px; font-size: 17px; font-weight: 500; color: var(--muted); }
+    .fine { color: var(--muted); font-size: 15px; margin-top: 24px; }
+    @media (max-width: 520px) { .ea { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="top"><a href="/"><img src="/assets/roundel-ink.webp?v=3" alt="Ball Boi home" width="44" height="44"></a></header>
+
+  <main id="main">
+    <h1 id="invite-title">You're invited to Ball Boi</h1>
+    <p class="lede" id="invite-lede">Someone invited you to Ball Boi, a tennis app for finding players, running leagues and recording your matches.</p>
+    <p>Ball Boi is in a private beta on iPhone. Join with your email and we'll send you an invite from Apple's TestFlight app. <strong>Once Ball Boi is installed, open this link again</strong> and it takes you straight there.</p>
+
+    <form id="ea-form" class="ea" action="/api/early-access" method="post" novalidate>
+      <div class="field">
+        <label for="ea-email">Email</label>
+        <input id="ea-email" name="email" type="email" autocomplete="email" maxlength="254" required aria-describedby="ea-status">
+      </div>
+      <input type="hidden" name="ref" id="ea-ref" value="">
+      <input type="hidden" name="back" id="ea-back" value="">
+      <div class="hp" aria-hidden="true"><label for="ea-website">Website</label><input id="ea-website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
+      <button class="btn" type="submit">Join</button>
+      <p class="status" id="ea-status" role="status"></p>
+    </form>
+    <p class="done" id="ea-done" tabindex="-1" hidden>You're on the list.<span>Watch for an email from TestFlight. After you install Ball Boi, open this link again.</span></p>
+
+    <p class="fine">Ball Boi is for adults 18 and over. See our <a href="/privacy">Privacy Policy</a>.</p>
+  </main>
+  <script src="/invite.js?v=1" defer></script>
+
+
+  <footer>
+    <div class="inner">
+      <a href="/">Home</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="mailto:support@ballboi.tennis">Support</a>
+      <span>© 2026 Ball Boi Tennis</span>
+    </div>
+  </footer>
+</body>
+</html>

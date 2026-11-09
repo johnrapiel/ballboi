@@ -174,11 +174,13 @@ async function checkTables() {
 export function demoCounts(d: DemoSummary): string {
   return [
     "Demo data is ready.",
-    `Demo accounts: ${d.leaguePlayers + d.nearby + d.farAway} (${d.accountsCreated} new in Clerk)`,
+    `Demo accounts: ${d.accounts} (${d.accountsCreated} new in Clerk)${d.discover ? "" : ", all hidden from Discover"}`,
     `Test League 1: ${d.league.players} players, ${d.league.played} played, ${d.league.inGrace} in grace week, ${d.league.notPlayed} not played; match today: ${d.johnsMatchToday ? "yes" : "no"}; round ${d.draftRound ?? "-"} draft for review; ${d.joinRequests} join request`,
     `Second league: ${d.second.players} players, ${d.second.played} played, ${d.second.inGrace} in grace week, ${d.second.notPlayed} not played; match later this week: ${d.johnsMatchLater ? "yes" : "no"}; ${d.second.waitlist} on the waitlist`,
     `Past league: ${d.past.players} players, ${d.past.played} played, ${d.past.playoffMatches} playoff matches`,
-    `Discover: ${d.nearby} nearby, ${d.farAway} far away; ${d.openLeagues.length} Open leagues starting soon`,
+    d.discover
+      ? `Discover: ${d.nearby} nearby, ${d.farAway} far away; ${d.openLeagues.length} Open leagues starting soon`
+      : "Discover: no demo players or Open leagues",
   ].join("\n");
 }
 
@@ -249,16 +251,22 @@ ${d.league.name} (id ${d.league.id}): Private, you run it
   ${d.league.played} matches played, ${d.league.inGrace} entered late in the grace week, ${d.league.notPlayed} never played. Your record: ${rec(d.league.johnRecord)}.
 ${d.johnsMatchToday ? `  Tonight: you vs ${d.johnsMatchToday.opponent}, ${time(d.johnsMatchToday.at)} at ${d.johnsMatchToday.location}.\n` : ""}${d.draftRound ? `  Round ${d.draftRound} pairings are waiting for your review in Manage (they go out tomorrow).\n` : ""}  ${d.joinRequests} join request waiting in Manage.${d.league.inviteCode ? `  Invite code: ${d.league.inviteCode}` : ""}
 
-${d.second.name} (id ${d.second.id}): Open, you run it, full
+${d.second.name} (id ${d.second.id}): Private, you run it, full
   ${d.second.players} players with you, today is week 3. ${d.second.played} played, ${d.second.inGrace} in the grace week, ${d.second.notPlayed} never played. Your record: ${rec(d.second.johnRecord)}.
 ${d.johnsMatchLater ? `  ${day(d.johnsMatchLater.at)}: you vs ${d.johnsMatchLater.opponent}, ${time(d.johnsMatchLater.at)} at ${d.johnsMatchLater.location}.\n` : ""}  ${d.second.waitlist} players on the waitlist for next season.
 
 ${d.past.name} (id ${d.past.id}): ended
   ${d.past.players} players, ${d.past.played} matches, your record ${rec(d.past.johnRecord)}${d.past.johnSeed ? `, playoff seed ${d.past.johnSeed}` : ""}. Champion: ${d.past.champion}.
 
-Not in your leagues
+${
+        d.discover
+          ? `Not in your leagues
   ${d.nearby} players within about 30 miles of 12590, and ${d.farAway} far away (Brooklyn, Manhattan, Cambridge) that Discover should never show you.
-  Open leagues starting soon: ${d.openLeagues.join(", ")}.
+  Open leagues starting soon: ${d.openLeagues.join(", ")}.`
+          : `Discover
+  Every demo player is hidden from Discover, Quick match and New message search for people outside your leagues.
+  Run pnpm seed:demo --discover for nearby players and Open leagues (local only).`
+      }
 
 Sign in as any demo player with Email: ballboi-demo-first-last+clerk_test@example.com, code ${TEST_EMAIL_CODE}
   (for example ballboi-demo-maya-chen+clerk_test@example.com)
