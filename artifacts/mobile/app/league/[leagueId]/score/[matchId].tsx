@@ -28,7 +28,7 @@ import { Button, Card, Text, TextButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { correctionLine, deadlineDate, LATE_NOTE, opponentName } from "@/lib/leagueSchedule";
-import { andJoin, firstName as firstNameOf, isDoublesMatch, opponentNames, partnerName, sideNames } from "@/lib/doubles";
+import { andJoin, firstName as firstNameOf, isDoublesMatch, opponentNames, partnerName, shortTeamChoices, sideNames, type ShortTeamResult } from "@/lib/doubles";
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
 import { emptySet, readScore, setRowsToShow, setsFromScore, type SetEntry } from "@/lib/scoreEntry";
@@ -58,6 +58,11 @@ import { flipScore, isRetiredScore } from "@/lib/tennisScore";
 // After a player saves a new score, the sheet shows the score-entered moment
 // (spec: Milestone moments): the score settles in and This season's record
 // ticks to its new value, with Done to close.
+//
+// Doubles (John, Nov 9): "Team a player short?" offers a walkover (W/O) to
+// the team that was complete, or a double default when both teams were short
+// (no winner, no points), in the same alert style as the singles playoff
+// walkover. Players, edits and admin corrections all get it.
 
 /** Drops the third set's boxes whenever the sheet no longer shows them. */
 function keepShownSets(sets: SetEntry[]): SetEntry[] {
@@ -229,6 +234,50 @@ export default function EnterScoreScreen() {
     }
   }
 
+  // John, Nov 9: a doubles W/O or double default, instead of sets.
+  async function submitShort(outcome: ShortTeamResult, saved: string) {
+    if (busy) return;
+    setServerError(null);
+    try {
+      if (correcting) await fix.mutateAsync({ leagueId, matchId, data: outcome });
+      else if (editing) await change.mutateAsync({ leagueId, matchId, data: outcome });
+      else await save.mutateAsync({ leagueId, matchId, data: outcome });
+      await refreshLeague(queryClient, leagueId);
+      void queryClient.invalidateQueries({ queryKey: getGetMyMatchQueryKey(matchId) });
+      void queryClient.invalidateQueries({ queryKey: getGetMyNewMilestonesQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: getGetMyCareerQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: cardQ.queryKey });
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      AccessibilityInfo.announceForAccessibility(saved);
+      sheet.finish();
+    } catch (e) {
+      const data = (e as { data?: { error?: string } | null }).data;
+      setServerError(data?.error ?? "Couldn't save the result. Check your connection and try again.");
+      void queryClient.invalidateQueries({ queryKey: getGetLeagueScheduleQueryKey(leagueId) });
+    }
+  }
+
+  function teamShort() {
+    if (!weekly) return;
+    const choices = shortTeamChoices(weekly, { first: firstShort, second: opponentShort, firstIsSide1: asAdmin || !onSecondSide });
+    const pick = (choice: (typeof choices)[number]) => {
+      if (!correcting) {
+        void submitShort(choice.result, choice.saved);
+        return;
+      }
+      // Admin corrections confirm, like a corrected score.
+      Alert.alert("Correct this result?", `${choice.label}. Standings update, and all four players see that you corrected it.`, [
+        { text: "Cancel", style: "cancel" },
+        { text: "Correct result", onPress: () => void submitShort(choice.result, "Result corrected") },
+      ]);
+    };
+    Alert.alert(
+      "Team a player short?",
+      "If one team was a player short, the complete team wins by walkover (W/O). If both teams were short, it's a double default: no winner, and no points for either team.",
+      [...choices.map((choice) => ({ text: choice.label, onPress: () => pick(choice) })), { text: "Cancel", style: "cancel" as const }],
+    );
+  }
+
   // Q6: the opponent stopped mid-match. A quiet link, since it's the one case
   // the score can't decide. Not for admin corrections.
   function matchDidntFinish() {
@@ -382,6 +431,16 @@ export default function EnterScoreScreen() {
           />
 
           <ScoreResult draft={draft} winner={winnerLine} prompt={prompt} error={serverError} />
+
+          {doubles && !settling && !retired ? (
+            <TextButton
+              label="Team a player short?"
+              accessibilityHint="Enter a walkover or a double default"
+              style={{ alignSelf: "flex-start", paddingHorizontal: 0 }}
+              disabled={busy}
+              onPress={teamShort}
+            />
+          ) : null}
 
           {asAdmin ? null : retired ? (
             <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.space2 }}>

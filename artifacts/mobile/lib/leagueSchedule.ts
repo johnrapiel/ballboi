@@ -1,6 +1,6 @@
 import type { LeagueSchedule, ScheduleMatch, ScheduleRound } from "@workspace/api-client-react";
 
-import { flipScore, WALKOVER_SCORE } from "./tennisScore";
+import { DOUBLE_DEFAULT_SCORE, flipScore, isDoubleDefault, WALKOVER_SCORE } from "./tennisScore";
 
 // Helpers for the league schedule (spec: Leagues > Weekly loop, Scores and
 // standings). Dates are YYYY-MM-DD in the league's time zone.
@@ -245,6 +245,8 @@ export function isNotPlayed(round: Pick<ScheduleRound, "phase">, m: ScheduleMatc
 export function resultLine(m: ScheduleMatch, round?: Pick<ScheduleRound, "phase">, ended = false): string {
   if (m.voided) return "Cancelled";
   if (round && isNotPlayed(round, m, ended)) return "Not played";
+  // Doubles (John, Nov 9): both teams a player short, so no winner.
+  if (m.status === "completed" && isDoubleDefault(m.score)) return DOUBLE_DEFAULT_SCORE;
   if (m.status !== "completed" || !m.score || m.winnerId == null) return ended ? "Not played" : "Not played yet";
   const { side1, side2 } = sideLabels(m);
   const winner = m.winnerId === m.player1Id || m.winnerId === m.player3Id ? side1 : side2;

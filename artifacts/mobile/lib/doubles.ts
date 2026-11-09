@@ -122,3 +122,36 @@ export function expiresLine(iso: string, now: Date = new Date()): string {
   if (hours < 24) return `Expires in ${hours} ${hours === 1 ? "hour" : "hours"}`;
   return `Expires ${at.toLocaleDateString("en-US", { weekday: "short" })} ${at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
 }
+
+/** What a doubles score entry sends instead of sets (John, Nov 9). */
+export type ShortTeamResult = { walkoverWinnerId: number } | { doubleDefault: true };
+
+export interface ShortTeamChoice {
+  /** The alert button: "Walkover to You and Sam", "Double default". */
+  label: string;
+  result: ShortTeamResult;
+  /** What VoiceOver hears once it's saved. */
+  saved: string;
+}
+
+/**
+ * "Team a player short?" in doubles score entry (John, Nov 9): a walkover
+ * (W/O) to the team that was complete, or a double default when both teams
+ * were short. The same words as the singles playoff walkover ("Walkover to
+ * ..."). `first` is the top row's name (yours, or player 1's side for an
+ * admin) and `firstIsSide1` says which stored side that is.
+ */
+export function shortTeamChoices(
+  m: Pick<FourPlayers, "player1Id" | "player2Id">,
+  names: { first: string; second: string; firstIsSide1: boolean },
+): ShortTeamChoice[] {
+  const [firstId, secondId] = names.firstIsSide1 ? [m.player1Id, m.player2Id] : [m.player2Id, m.player1Id];
+  // "Walkover to you and Sam" mid-sentence, "You and Sam win" to start one.
+  const inLine = (n: string) => n.replace(/^You\b/, "you");
+  const start = (n: string) => n.charAt(0).toUpperCase() + n.slice(1);
+  return [
+    { label: `Walkover to ${inLine(names.first)}`, result: { walkoverWinnerId: firstId }, saved: `W/O saved. ${start(names.first)} win by walkover.` },
+    { label: `Walkover to ${inLine(names.second)}`, result: { walkoverWinnerId: secondId }, saved: `W/O saved. ${start(names.second)} win by walkover.` },
+    { label: "Double default", result: { doubleDefault: true }, saved: "Double default saved. No winner, and no points for either team." },
+  ];
+}

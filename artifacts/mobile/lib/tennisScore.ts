@@ -18,6 +18,13 @@
 
 export const RETIRED_SUFFIX = " RET";
 export const WALKOVER_SCORE = "W/O";
+/** Doubles only (John, Nov 9): both teams were a player short. No winner, no standings points. */
+export const DOUBLE_DEFAULT_SCORE = "Double default";
+
+/** True for a doubles match that ended as a double default. */
+export function isDoubleDefault(score: string | null | undefined): boolean {
+  return !!score && score.trim() === DOUBLE_DEFAULT_SCORE;
+}
 
 const SET_HINT = "A set ends 6-0 to 6-4, 7-5 or 7-6.";
 const DECIDER_HINT = "A third set can also be a match tiebreak, like 10-7.";
