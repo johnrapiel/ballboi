@@ -284,3 +284,9 @@ export function doublesResultLine(winners: string[], losers: string[], scoreFrom
   const team = (names: string[]) => names.map(shortName).join(" & ");
   return `${team(winners)} def. ${team(losers)} ${scoreFromWinners}`.trim();
 }
+
+/** A double default in the match chat (John, Nov 9): "Double default: John R. & Sam L. and Jo P. & Lee K." */
+export function doublesDoubleDefaultLine(side1: string[], side2: string[]): string {
+  const team = (names: string[]) => names.map(shortName).join(" & ");
+  return `Double default: ${team(side1)} and ${team(side2)}`;
+}

@@ -8,7 +8,14 @@
 
 export interface EnterScoreBody {
   /** Sets from your own side, like "6-3, 4-6, 10-7". Your games first. Best of three; a set ends 6-0 to 6-4, 7-5 or 7-6, and a third set can be a match tiebreak (10-7). */
-  score: string;
+  score?: string;
   /** The opponent retired. The score is the sets so far (the last can be unfinished), it counts as the caller's win, and it's stored with RET at the end, like "6-3, 2-1 RET". Admin corrections ignore it. */
   retired?: boolean;
+  /**
+   * Doubles in regular play only (John, Nov 9). The match is a walkover (W/O) to the team that was complete, named by its first player (player1Id or player2Id). Stored as "W/O"; it counts as a win in standings, with no sets or games. Send it instead of score.
+   * @nullable
+   */
+  walkoverWinnerId?: number | null;
+  /** Doubles in regular play only (John, Nov 9). Both teams were a player short. Stored as "Double default" with no winner, and no standings points for either team. Send it instead of score. */
+  doubleDefault?: boolean;
 }

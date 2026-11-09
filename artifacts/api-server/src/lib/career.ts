@@ -21,7 +21,7 @@
 // from match_statistics, and the Career screen gets a section for it. Until
 // then the API doesn't send them, so nothing shows on screen.
 
-import { flipScore, isCompleteSet, isMatchTiebreak, readSet, WALKOVER_SCORE } from "./tennisScore.js";
+import { flipScore, isCompleteSet, isDoubleDefault, isMatchTiebreak, readSet, WALKOVER_SCORE } from "./tennisScore.js";
 
 export interface CareerMatch {
   id: number;
@@ -185,6 +185,8 @@ export function countedMatches(input: Pick<CareerInput, "account" | "matches" | 
   const counted: CountedMatch[] = [];
   for (const m of input.matches) {
     if (m.status !== "completed" || !m.score || m.voidedAt || NOT_PLAYED.has(m.status)) continue;
+    // A doubles double default (John, Nov 9) wasn't played: no result to count.
+    if (isDoubleDefault(m.score)) continue;
     const side = sideOf(m);
     if (side == null) continue;
     const opponents = team(m, side === 1 ? 2 : 1)

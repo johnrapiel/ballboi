@@ -7480,7 +7480,7 @@ export const useOpenDoublesMatchChat = <
 };
 
 /**
- * @summary Enter a league match score from your own side. Either player can edit it for 24 hours after.
+ * @summary Enter a league match score from your own side, or (doubles) a W/O or double default. Either player can edit it for 24 hours after.
  */
 export const getEnterLeagueScoreUrl = (leagueId: number, matchId: number) => {
   return `/api/leagues/${leagueId}/matches/${matchId}/score`;
@@ -7545,7 +7545,7 @@ export type EnterLeagueScoreMutationBody = BodyType<EnterScoreBody>;
 export type EnterLeagueScoreMutationError = ErrorType<ErrorResponse>;
 
 /**
- * @summary Enter a league match score from your own side. Either player can edit it for 24 hours after.
+ * @summary Enter a league match score from your own side, or (doubles) a W/O or double default. Either player can edit it for 24 hours after.
  */
 export const useEnterLeagueScore = <
   TError = ErrorType<ErrorResponse>,
