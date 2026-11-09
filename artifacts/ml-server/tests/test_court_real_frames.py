@@ -81,3 +81,60 @@ def test_a_sideways_still_finds_no_court():
     frame = cv2.rotate(_frame("video-01"), cv2.ROTATE_90_CLOCKWISE)
     fit = court.detect_court(frame)
     assert fit is None or fit.confidence < 0.55
+
+
+# ─── Low light and shade ─────────────────────────────────────────────────────
+# The same frames as if filmed later in the day or with the court partly in
+# shade (the phone's "low light and shade" tests in courtFrames.test.ts).
+# Before Nov 9 the paint rule wanted lines brighter than 120, so at 40%
+# brightness, or with a shadow across the near court, it found nothing.
+
+def _darker(frame: np.ndarray, gain: float) -> np.ndarray:
+    return (frame.astype(np.float64) * gain).astype(np.uint8)
+
+
+def _shaded(frame: np.ndarray) -> np.ndarray:
+    """A shadow (40% light) over the near court, its edge running down from left to right."""
+    h, w = frame.shape[:2]
+    ys, xs = np.mgrid[0:h, 0:w]
+    out = frame.astype(np.float64)
+    out[ys >= 140 + xs * 60 / w] *= 0.4
+    return out.astype(np.uint8)
+
+
+def _err(fit, name) -> float:
+    c, lab = np.array(fit.corners), np.array(_labels()[name])
+    return float(np.hypot(c[:, 0] - lab[:, 0], (c[:, 1] - lab[:, 1]) * 9 / 16).max())
+
+
+@pytest.mark.parametrize("name", NAMES)
+def test_finds_the_court_in_shade(name):
+    fit = court.detect_court(_shaded(_frame(name)))
+    assert fit is not None and fit.confidence >= 0.55
+    assert _err(fit, name) < 0.035
+
+
+def test_finds_the_court_at_40_percent_brightness():
+    found = 0
+    for name in NAMES:
+        fit = court.detect_court(_darker(_frame(name), 0.4))
+        if fit is not None and fit.confidence >= 0.55 and _err(fit, name) < 0.035:
+            found += 1
+    assert found >= 10
+
+
+def test_usual_rule_sees_no_paint_in_the_dark_and_low_light_rule_does():
+    dim = _darker(_frame("video-05"), 0.4)
+    assert (court.line_mask(dim) > 0).sum() < 500
+    assert (court.line_mask(dim, low_light=True) > 0).sum() > 3000
+
+
+def test_well_lit_frames_keep_the_usual_fit(monkeypatch):
+    calls = []
+    real = court._detect_small
+    monkeypatch.setattr(court, "_detect_small", lambda f, low_light=False: calls.append(low_light) or real(f, low_light))
+    for name in NAMES:
+        calls.clear()
+        fit = court.detect_court(_frame(name))
+        if fit.confidence >= court.RETRY_BELOW:
+            assert calls == [False]

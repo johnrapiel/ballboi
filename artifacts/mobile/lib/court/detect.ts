@@ -181,7 +181,36 @@ interface Paint {
   data: Uint8Array | Uint8ClampedArray;
 }
 
-function findPaint(px: Pixels): Paint {
+// Low light. The usual paint rule wants a line 25 grey levels brighter than
+// the court beside it and over 120: on John's Nov 8 frames made 30 to 40%
+// darker, or with a shadow across the court, it finds no court at all. When
+// the usual rule gives no confident court, detection runs once more with
+// paint judged against the court right around it: a line is
+// LOW_LIGHT_CONTRAST of the court's own brightness above it
+// (LOW_LIGHT_MIN_RISE to 25 grey levels), LOW_LIGHT_RATIO times as bright,
+// and above LOW_LIGHT_FLOOR. The same rule as court.py.
+export const LOW_LIGHT_CONTRAST = 0.15;
+export const LOW_LIGHT_MIN_RISE = 10;
+export const LOW_LIGHT_RATIO = 1.1;
+export const LOW_LIGHT_FLOOR = 40;
+/**
+ * A fit below this confidence also gets the low-light rule, and the more
+ * confident of the two is kept. Above the lock's 0.55, because in dim light
+ * the usual rule can see only the brightest bits of paint and make a
+ * confident wrong fit (on the Nov 8 frames at half brightness it said
+ * "tilt down" at 0.58 to 0.67). John's well-lit Nov 8 frames fit at 0.71 to
+ * 0.82, so they rarely pay for the second pass.
+ */
+export const RETRY_BELOW = 0.7;
+
+/** True when a pixel this grey, on court this grey around it, counts as paint. */
+export function isPaint(gray: number, court: number, lowLight = false): boolean {
+  if (!lowLight) return gray - court > 25 && gray > 120;
+  const rise = Math.min(25, Math.max(LOW_LIGHT_MIN_RISE, court * LOW_LIGHT_CONTRAST));
+  return gray - court > rise && gray > court * LOW_LIGHT_RATIO && gray > LOW_LIGHT_FLOOR;
+}
+
+function findPaint(px: Pixels, lowLight = false): Paint {
   const { width: w, height: h, data } = px;
   const n = w * h;
   const gray = new Uint8Array(n);
@@ -201,7 +230,7 @@ function findPaint(px: Pixels): Paint {
   const opened = rankFilter(rankFilter(gray, w, h, k, false), w, h, k, true);
   const mask = new Uint8Array(n);
   for (let i = 0; i < n; i++) {
-    mask[i] = gray[i] - opened[i] > 25 && lowSat[i] && gray[i] > 120 ? 1 : 0;
+    mask[i] = lowSat[i] && isPaint(gray[i], opened[i], lowLight) ? 1 : 0;
   }
   return { mask, width: w, height: h, data };
 }
@@ -261,8 +290,8 @@ function lineYellow(paint: Paint, xs: ArrayLike<number>, ys: ArrayLike<number>, 
 }
 
 /** Thin bright marks: court paint, not sky or white clothing blobs (court.py line_mask). */
-export function lineMask(px: Pixels): Uint8Array {
-  return findPaint(px).mask;
+export function lineMask(px: Pixels, lowLight = false): Uint8Array {
+  return findPaint(px, lowLight).mask;
 }
 
 // ---------------------------------------------------------------------------
@@ -502,8 +531,8 @@ export function whiteLevel(lines: readonly Line[]): number {
 }
 
 /** Long straight lines in the mask, strongest first, each painted line once. */
-export function houghLines(px: Pixels): Line[] {
-  const paint = findPaint(px);
+export function houghLines(px: Pixels, lowLight = false): Line[] {
+  const paint = findPaint(px, lowLight);
   return findLines(paint, px.width, px.height, minLine(px.width, px.height)).map(({ rho, theta, votes, yellow }) => ({ rho, theta, votes, yellow }));
 }
 
@@ -847,11 +876,20 @@ const UNIT_SQUARE: Point[] = [
  * Finds the court in one frame. Returns the best fit, or null when nothing
  * fits at all. A fit with a low confidence is still returned, so the
  * court-line fix can start its handles from it; a fit whose corners can't be
- * a court always comes back with a confidence of 0.
+ * a court always comes back with a confidence of 0. When the usual paint rule
+ * gives no confident court, the low-light rule gets a try and the more
+ * confident of the two is kept.
  */
 export function detectCourt(px: Pixels): CourtFit | null {
+  const fit = fitCourt(px, false);
+  if (fit && fit.confidence >= RETRY_BELOW) return fit;
+  const dim = fitCourt(px, true);
+  return dim && (!fit || dim.confidence > fit.confidence) ? dim : fit;
+}
+
+function fitCourt(px: Pixels, lowLight: boolean): CourtFit | null {
   const { width: w, height: h } = px;
-  const paint = findPaint(px);
+  const paint = findPaint(px, lowLight);
   const found = findLines(paint, w, h, minScoreLine(w, h));
 
   // Only straight white lines count as court paint, for the search and the
