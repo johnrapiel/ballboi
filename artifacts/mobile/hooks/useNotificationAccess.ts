@@ -4,6 +4,7 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 
+import { startLiveActivityTokens } from "@/lib/liveActivity/native";
 import type { NotificationAccess } from "@/lib/notificationAccess";
 import { openPushLink, readNotificationAccess, startQuietNotifications } from "@/lib/notifications";
 
@@ -39,7 +40,7 @@ export function useNotificationAccess(): NotificationAccess | null {
 /**
  * Once the player is in the app (tab layout): quiet notifications and the
  * push token (step 1 in lib/notifications.ts), again whenever the app comes
- * back to the front, and taps on pushes open the screen they're about,
+ * back to the front, the Live Activity tokens, and taps on pushes open the screen they're about,
  * including the one that launched the app.
  */
 export function usePushSetup(ready: boolean) {
@@ -56,6 +57,13 @@ export function usePushSetup(ready: boolean) {
       if (s === "active") start();
     });
     return () => sub.remove();
+  }, [ready, userId]);
+
+  // Live Activity tokens (Session G): push-to-start, so the opponent's
+  // phone can show the match, and any running Live Activity's update token.
+  useEffect(() => {
+    if (!ready || !userId) return;
+    return startLiveActivityTokens(() => tokenGetter.current());
   }, [ready, userId]);
 
   useEffect(() => {

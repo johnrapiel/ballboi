@@ -2,9 +2,18 @@
 // acceptance 41). Push tokens go in lib/accountDeletion.ts; the rest of what
 // notifications store about an account goes here.
 
-import { matchRemindersLogTable, matchesTable, notificationSettingsTable, opponentNoticesTable, opponentRequestsTable } from "@workspace/db";
+import { liveActivityTokensTable, liveSessionsTable, matchRemindersLogTable, matchesTable, notificationSettingsTable, opponentNoticesTable, opponentRequestsTable } from "@workspace/db";
 import { eq, inArray, or } from "drizzle-orm";
 import type { Tx } from "../../lib/recordingCleanup";
+
+/**
+ * Live Activity tokens (acceptance 41), and the live sessions they recorded.
+ * A session is only the state of a match being recorded right now.
+ */
+export async function deleteLiveActivityData(tx: Tx, clerkUserId: string): Promise<void> {
+  await tx.delete(liveActivityTokensTable).where(eq(liveActivityTokensTable.clerkUserId, clerkUserId));
+  await tx.delete(liveSessionsTable).where(eq(liveSessionsTable.recorderClerkUserId, clerkUserId));
+}
 
 export async function deleteNotificationData(tx: Tx, clerkUserId: string, playerIds: number[] = []): Promise<void> {
   // Settings › Notifications switches.

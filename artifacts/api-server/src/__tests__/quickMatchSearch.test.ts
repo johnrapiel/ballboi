@@ -30,6 +30,7 @@ vi.mock("../lib/playerSearchRepo", () => ({
 
 // "Was that you?" (Session G): strangers get a stand-in and a request.
 const strangers = vi.hoisted(() => ({ isStranger: vi.fn(), create: vi.fn() }));
+vi.mock("../services/push/liveActivity", () => ({ startForNewViewer: async () => undefined }));
 vi.mock("../services/push/opponentRequests", () => ({
   quickMatchStranger: strangers.isStranger,
   createStrangerQuickMatch: strangers.create,
