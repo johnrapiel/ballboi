@@ -71,6 +71,9 @@ import type {
   DevPairResult,
   DevTimeBody,
   DevTimeResult,
+  DeviceBan,
+  DeviceCheckIn200,
+  DeviceCheckInBody,
   DiscardRecordingBody,
   DiscardResult,
   DiscoverAreaInput,
@@ -141,6 +144,7 @@ import type {
   LeagueSchedule,
   LeagueWeek,
   ListCourtsParams,
+  ListDeviceBansParams,
   ListDiscoverLeaguesParams,
   ListDiscoverPlayersParams,
   ListOpenMatchesParams,
@@ -237,6 +241,7 @@ import type {
   SwapPlayersBody,
   TopPlayer,
   TrainingChoice,
+  UndoDeviceBan200,
   UpcomingMatchPlans,
   UpdateLeagueBody,
   UpdateLiveMatch200,
@@ -18944,4 +18949,268 @@ export const useSendLiveCommand = <
   TContext
 > => {
   return useMutation(getSendLiveCommandMutationOptions(options));
+};
+
+/**
+ * @summary Ball Boi opened on a phone; checks Apple's DeviceCheck bits for a phone ban (Session G)
+ */
+export const getDeviceCheckInUrl = () => {
+  return `/api/account/device-check`;
+};
+
+export const deviceCheckIn = async (
+  deviceCheckInBody: DeviceCheckInBody,
+  options?: RequestInit,
+): Promise<DeviceCheckIn200> => {
+  return customFetch<DeviceCheckIn200>(getDeviceCheckInUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(deviceCheckInBody),
+  });
+};
+
+export const getDeviceCheckInMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deviceCheckIn>>,
+    TError,
+    { data: BodyType<DeviceCheckInBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deviceCheckIn>>,
+  TError,
+  { data: BodyType<DeviceCheckInBody> },
+  TContext
+> => {
+  const mutationKey = ["deviceCheckIn"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deviceCheckIn>>,
+    { data: BodyType<DeviceCheckInBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return deviceCheckIn(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeviceCheckInMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deviceCheckIn>>
+>;
+export type DeviceCheckInMutationBody = BodyType<DeviceCheckInBody>;
+export type DeviceCheckInMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Ball Boi opened on a phone; checks Apple's DeviceCheck bits for a phone ban (Session G)
+ */
+export const useDeviceCheckIn = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deviceCheckIn>>,
+    TError,
+    { data: BodyType<DeviceCheckInBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deviceCheckIn>>,
+  TError,
+  { data: BodyType<DeviceCheckInBody> },
+  TContext
+> => {
+  return useMutation(getDeviceCheckInMutationOptions(options));
+};
+
+/**
+ * @summary Phone bans for the admin queue, newest first (active unless active=false)
+ */
+export const getListDeviceBansUrl = (params?: ListDeviceBansParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/admin/device-bans?${stringifiedParams}`
+    : `/api/admin/device-bans`;
+};
+
+export const listDeviceBans = async (
+  params?: ListDeviceBansParams,
+  options?: RequestInit,
+): Promise<DeviceBan[]> => {
+  return customFetch<DeviceBan[]>(getListDeviceBansUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDeviceBansQueryKey = (params?: ListDeviceBansParams) => {
+  return [`/api/admin/device-bans`, ...(params ? [params] : [])] as const;
+};
+
+export const getListDeviceBansQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDeviceBans>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListDeviceBansParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDeviceBans>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListDeviceBansQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listDeviceBans>>> = ({
+    signal,
+  }) => listDeviceBans(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDeviceBans>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDeviceBansQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDeviceBans>>
+>;
+export type ListDeviceBansQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Phone bans for the admin queue, newest first (active unless active=false)
+ */
+
+export function useListDeviceBans<
+  TData = Awaited<ReturnType<typeof listDeviceBans>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListDeviceBansParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDeviceBans>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDeviceBansQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Undo a phone ban; the account ban that came with it is lifted too
+ */
+export const getUndoDeviceBanUrl = (id: number) => {
+  return `/api/admin/device-bans/${id}/undo`;
+};
+
+export const undoDeviceBan = async (
+  id: number,
+  options?: RequestInit,
+): Promise<UndoDeviceBan200> => {
+  return customFetch<UndoDeviceBan200>(getUndoDeviceBanUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getUndoDeviceBanMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof undoDeviceBan>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof undoDeviceBan>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["undoDeviceBan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof undoDeviceBan>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return undoDeviceBan(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UndoDeviceBanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof undoDeviceBan>>
+>;
+
+export type UndoDeviceBanMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Undo a phone ban; the account ban that came with it is lifted too
+ */
+export const useUndoDeviceBan = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof undoDeviceBan>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof undoDeviceBan>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getUndoDeviceBanMutationOptions(options));
 };

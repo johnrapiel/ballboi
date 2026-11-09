@@ -50,12 +50,26 @@ export interface Appeal {
   sanction: { id: number; kind: "ban" | "suspend"; reason: string; endsAt: string | null; liftedAt: string | null } | null;
 }
 
+/** A phone ban (DeviceCheck, Session G): a banned account's iPhone, or a new account caught on one. */
+export interface DeviceBan {
+  id: number;
+  clerkUserId: string;
+  name: string | null;
+  kind: "banned" | "caught";
+  label: string;
+  reason: string;
+  phoneMarked: boolean;
+  createdAt: string;
+  liftedAt: string | null;
+}
+
 export const moderationKeys = {
   all: ["moderation"] as const,
   admin: ["moderation", "admin"] as const,
   reports: ["moderation", "reports"] as const,
   decisions: ["moderation", "decisions"] as const,
   appeals: ["moderation", "appeals"] as const,
+  phones: ["moderation", "phones"] as const,
 };
 
 function useCall() {
@@ -121,6 +135,16 @@ export function useOpenAppeals(enabled = true) {
   });
 }
 
+/** Phone bans that are in force, newest first. */
+export function useDeviceBans(enabled = true) {
+  const call = useCall();
+  return useQuery({
+    queryKey: moderationKeys.phones,
+    queryFn: () => call<DeviceBan[]>("/api/admin/device-bans"),
+    enabled,
+  });
+}
+
 const post = (body?: object): RequestInit => ({ method: "POST", body: body ? JSON.stringify(body) : undefined });
 
 export function useModerationActions() {
@@ -147,5 +171,6 @@ export function useModerationActions() {
     decide: (decisionId: number, verb: "confirm" | "undo") => after(call(`/api/admin/agent-decisions/${decisionId}/${verb}`, post())),
     decideAppeal: (appealId: number, outcome: "upheld" | "overturned") =>
       after(call(`/api/admin/appeals/${appealId}/decide`, post({ outcome }))),
+    undoDeviceBan: (id: number) => after(call(`/api/admin/device-bans/${id}/undo`, post())),
   };
 }

@@ -44,6 +44,7 @@ import recordingRouter from "./recording";
 import trainingConsentRouter from "./trainingConsent";
 import feedbackRouter from "./feedback";
 import liveActivityRouter from "./liveActivity";
+import deviceBansRouter from "./deviceBans";
 
 const router: IRouter = Router();
 
@@ -94,5 +95,6 @@ router.use(recordingRouter);
 router.use(trainingConsentRouter);
 router.use(feedbackRouter);
 router.use(liveActivityRouter);
+router.use(deviceBansRouter);
 
 export default router;

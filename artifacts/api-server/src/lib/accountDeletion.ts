@@ -22,6 +22,7 @@ import { ObjectStorageService } from "./objectStorage";
 import { deleteRecordingData } from "./recordingCleanup";
 import { deleteDiscoverData } from "../services/discover/accountDeletion";
 import { deleteLiveActivityData, deleteNotificationData } from "../services/push/accountDeletion";
+import { deleteDeviceCheckToken } from "../services/deviceBans";
 import { sessionFiles } from "./sessionFiles";
 import { withdrawFromRecordings, type WithdrawalInput, type WithdrawnMatch } from "./withdrawal";
 
@@ -210,6 +211,8 @@ export async function deleteAccount(
     await deleteDiscoverData(tx, clerkUserId);
     await deleteNotificationData(tx, clerkUserId, playerIds);
     await deleteLiveActivityData(tx, clerkUserId);
+    // Its DeviceCheck token goes; any phone ban stays (acceptance 41).
+    await deleteDeviceCheckToken(tx, clerkUserId);
     await tx.delete(usersTable).where(eq(usersTable.clerkUserId, clerkUserId));
 
     // Every stored file: the raw upload, its pieces, and a kept video-only

@@ -10,6 +10,7 @@ export {
   CreateLeagueBody,
   CreateLeagueInviteBody,
   CreateMatchBody,
+  DeviceCheckInBody,
   DiscardRecordingBody,
   EndMatchBallBoiBody,
   GenerateLeagueRoundBody,

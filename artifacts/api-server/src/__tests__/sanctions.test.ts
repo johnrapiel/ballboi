@@ -64,6 +64,8 @@ function app(opts: { gate?: boolean } = {}) {
       onChange: () => undefined,
       isAdmin: async (id) => id === "user_admin",
       getNames: async (ids) => new Map(ids.filter((id) => id === "user_bad").map((id) => [id, "Bad Actor"])),
+      onBan: async (id, sanctionId) => void phoneBans.push(`ban:${id}:${sanctionId}`),
+      onLift: async (sanctionId) => void phoneBans.push(`lift:${sanctionId}`),
     }),
   );
   return a;
@@ -207,7 +209,35 @@ describe("sign-in gate", () => {
   });
 });
 
+const phoneBans: string[] = [];
+
 describe("moderator routes", () => {
+  beforeEach(() => {
+    phoneBans.length = 0;
+  });
+
+  it("a ban marks the phone too, and lifting it undoes the phone ban (DeviceCheck, acceptance 38)", async () => {
+    mockUserId = "user_admin";
+    const a = app();
+    const ban = await supertest(a).post("/api/admin/accounts/user_bad/ban").send({ reason: "Threats in DMs" });
+    expect(phoneBans).toEqual([`ban:user_bad:${ban.body.sanction.id}`]);
+    await supertest(a).post("/api/admin/accounts/user_bad/suspend").send({ reason: "r", days: 3 });
+    // Suspensions never ban the phone.
+    expect(phoneBans).toHaveLength(1);
+    await supertest(a).post(`/api/admin/sanctions/${ban.body.sanction.id}/lift`);
+    expect(phoneBans).toEqual([`ban:user_bad:${ban.body.sanction.id}`, `lift:${ban.body.sanction.id}`]);
+  });
+
+  it("an overturned appeal undoes the phone ban; an upheld one doesn't", async () => {
+    const s = await svc.sanction({ kind: "ban", identity: bad, reason: "Spam", reportId: null, by: "john" });
+    await svc.appeal(bad);
+    mockUserId = "user_admin";
+    const a = app();
+    const open = await supertest(a).get("/api/admin/appeals");
+    await supertest(a).post(`/api/admin/appeals/${open.body[0].id}/decide`).send({ outcome: "overturned" });
+    expect(phoneBans).toEqual([`lift:${s.id}`]);
+  });
+
   it("ban, list, lift", async () => {
     mockUserId = "user_admin";
     const a = app();
