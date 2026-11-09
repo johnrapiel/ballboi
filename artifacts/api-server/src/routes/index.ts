@@ -43,6 +43,7 @@ import ratingsRouter from "./ratings";
 import recordingRouter from "./recording";
 import trainingConsentRouter from "./trainingConsent";
 import feedbackRouter from "./feedback";
+import labelingRouter from "./labeling";
 
 const router: IRouter = Router();
 
@@ -92,5 +93,6 @@ router.use(ratingsRouter);
 router.use(recordingRouter);
 router.use(trainingConsentRouter);
 router.use(feedbackRouter);
+router.use(labelingRouter);
 
 export default router;
