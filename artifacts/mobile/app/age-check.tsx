@@ -15,14 +15,17 @@
 // A quiet Sign out sits under Continue, so someone who signed in with the
 // wrong account has a way out (S3).
 //
-// TODO(native build): ask Apple's Declared Age Range API first and fall back
-// to this screen only when it returns nothing.
+// Apple's age range comes first (Session G, acceptance 36): on iOS 26 and
+// later, iOS asks the person whether to share their age range with Ball Boi.
+// An adult goes straight past this step; under 18 gets "18+ for now" and no
+// account. Not shared or not available: this birthday step. Only the pass
+// flag is stored, never the range (lib/ageCheck.ts).
 
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useAuth, useUser } from "@clerk/expo";
 import { Redirect, useRouter } from "expo-router";
-import React, { useState } from "react";
-import { Modal, Pressable, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Modal, Platform, Pressable, View } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -31,8 +34,11 @@ import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors, useScheme } from "@/hooks/useColors";
 import {
   AGE_CHECK_PASSED,
+  AGE_GATE,
   EARLIEST_BIRTH_DATE,
   ageOn,
+  ageRangeOutcome,
+  canAskAppleAgeRange,
   formatBirthday,
   neutralStartDate,
 } from "@/lib/ageCheck";
@@ -49,24 +55,71 @@ export default function AgeCheckScreen() {
   const [error, setError] = useState<string | null>(null);
   /** On the way to the 18+ screen: deleting the account signs them out first. */
   const [leaving, setLeaving] = useState(false);
+  /** Asking Apple for the age range first (iOS 26 and later); the birthday step waits. */
+  const [askingApple, setAskingApple] = useState(() => canAskAppleAgeRange(Platform.OS, Platform.Version));
+  const askedApple = useRef(false);
+
+  /** Adult: save the pass flag. Under 18: delete the account just made. Shared by both checks. */
+  async function decide(adult: boolean) {
+    if (!user) return;
+    if (adult) {
+      // The root gate moves on to onboarding, or Home, once this is saved.
+      await user.update({ unsafeMetadata: { ...user.unsafeMetadata, ageCheck: AGE_CHECK_PASSED } });
+    } else {
+      // No account for under-18s: remove the one sign-in just created.
+      setLeaving(true);
+      await user.delete();
+      router.replace("/eighteen-plus");
+    }
+  }
+
+  useEffect(() => {
+    if (!askingApple || askedApple.current || !isLoaded || !isSignedIn || !user) return;
+    askedApple.current = true;
+    (async () => {
+      let outcome: ReturnType<typeof ageRangeOutcome> = "askBirthday";
+      try {
+        // Loaded here so Expo Go and older builds, without the native module, fall back to the birthday step.
+        const AgeRange = (await import("expo-age-range")) as typeof import("expo-age-range");
+        outcome = ageRangeOutcome(await AgeRange.requestAgeRangeAsync({ threshold1: AGE_GATE }));
+      } catch {
+        // Not shared, not signed in to iCloud, or not available: the birthday step.
+      }
+      try {
+        if (outcome !== "askBirthday") {
+          await decide(outcome === "adult");
+          return;
+        }
+      } catch {
+        setLeaving(false);
+        // Couldn't save: the birthday step still works, with Continue to try again.
+      }
+      setAskingApple(false);
+    })();
+    // Once, when the signed-in user is ready.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [askingApple, isLoaded, isSignedIn, user]);
 
   if (!isLoaded) return null;
   if (!isSignedIn || !user) return leaving ? <Screen /> : <Redirect href="/(auth)/welcome" />;
+
+  if (askingApple || leaving) {
+    return (
+      <Screen style={{ justifyContent: "center", alignItems: "center", gap: spacing.space4 }}>
+        <ActivityIndicator accessibilityLabel="Checking your age" />
+        <Text tone="inkMuted" style={{ textAlign: "center" }}>
+          One quick check
+        </Text>
+      </Screen>
+    );
+  }
 
   async function submit() {
     if (!user || !birthDate) return;
     setError(null);
     setBusy(true);
     try {
-      if (ageOn(birthDate, new Date()) >= 18) {
-        // The root gate moves on to onboarding, or Home, once this is saved.
-        await user.update({ unsafeMetadata: { ...user.unsafeMetadata, ageCheck: AGE_CHECK_PASSED } });
-      } else {
-        // No account for under-18s: remove the one sign-in just created.
-        setLeaving(true);
-        await user.delete();
-        router.replace("/eighteen-plus");
-      }
+      await decide(ageOn(birthDate, new Date()) >= AGE_GATE);
     } catch {
       setLeaving(false);
       setError("Something went wrong. Try again.");

@@ -104,7 +104,10 @@
       },
       "associatedDomains": [
         "applinks:ballboi.tennis"
-      ]
+      ],
+      "entitlements": {
+        "com.apple.developer.declared-age-range": true
+      }
     },
     "android": {},
     "web": {
