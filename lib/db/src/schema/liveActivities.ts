@@ -53,6 +53,12 @@ export const liveActivityTokensTable = pgTable(
     /** "start" (push-to-start, one per phone) or "activity" (one running Live Activity). */
     kind: text("kind").notNull(),
     token: text("token").notNull(),
+    /**
+     * The app install the token came from ("start" only), so each phone gets
+     * one Live Activity per match however many tokens it has sent. Null for
+     * tokens saved before Nov 10.
+     */
+    installId: text("install_id"),
     /** The running Live Activity's id on the phone ("activity" only). */
     activityId: text("activity_id"),
     sessionId: integer("session_id").references(() => liveSessionsTable.id, { onDelete: "cascade" }),
@@ -65,6 +71,7 @@ export const liveActivityTokensTable = pgTable(
     uniqueIndex("live_activity_tokens_token_unique").on(table.token),
     index("idx_live_activity_tokens_user").on(table.clerkUserId),
     index("idx_live_activity_tokens_session").on(table.sessionId),
+    index("idx_live_activity_tokens_install").on(table.clerkUserId, table.installId),
   ],
 );
 
