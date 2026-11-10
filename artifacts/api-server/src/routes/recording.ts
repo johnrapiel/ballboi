@@ -26,6 +26,8 @@ import {
 import { planDiscard } from "../lib/recordingDiscard";
 import { ANALYSIS_MAX_RETRIES, failureReason, retryPending } from "../lib/analysisFailure";
 import { deleteSessionFiles } from "../lib/sessionFiles";
+import { checkSidecar, sidecarObjectPath } from "../lib/recordingSidecar";
+import { ObjectStorageService } from "../lib/objectStorage";
 import { shownStats } from "../lib/statGates";
 
 // Ball Boi recording: the matches a player can record now.
@@ -528,6 +530,57 @@ router.post("/recording/discard", requireAuth, async (req: Request, res: Respons
   } catch (err) {
     logger.error({ err }, "Failed to discard a recording");
     res.status(500).json({ error: "Couldn't discard the recording. Try again." });
+  }
+});
+
+let sidecarStore: Pick<ObjectStorageService, "putObject"> | null = null;
+
+/** Tests swap the store. */
+export function setSidecarStoreForTests(store: Pick<ObjectStorageService, "putObject"> | null) {
+  sidecarStore = store;
+}
+
+/**
+ * PUT /recording/sessions/:sessionId/sidecar
+ * The recording's metadata sidecar (decision T5), from the phone that
+ * recorded it. Stored in storage next to the video, one file per session; a
+ * newer copy (after the court-line fix or the score prompt) replaces it.
+ * Checked and cleaned first (lib/recordingSidecar.ts): no location, no names.
+ */
+router.put("/recording/sessions/:sessionId/sidecar", requireAuth, async (req: Request, res: Response) => {
+  const userId = getAuth(req).userId!;
+  const sessionId = Number(req.params.sessionId);
+  if (!Number.isInteger(sessionId) || sessionId <= 0) {
+    res.status(400).json({ error: "Invalid recording id" });
+    return;
+  }
+  try {
+    const [session] = await db.select().from(ballBoiSessionsTable).where(eq(ballBoiSessionsTable.id, sessionId));
+    if (!session) {
+      res.status(404).json({ error: "Recording not found" });
+      return;
+    }
+    if (session.recordedByClerkUserId !== userId) {
+      res.status(403).json({ error: "Only the player who recorded this can send its sidecar." });
+      return;
+    }
+    const checked = checkSidecar(req.body, { matchId: session.matchId, sessionId });
+    if (!checked.ok) {
+      res.status(400).json({ error: checked.error });
+      return;
+    }
+    const objectPath = sidecarObjectPath(session.matchId, sessionId);
+    sidecarStore ??= new ObjectStorageService();
+    await sidecarStore.putObject(objectPath, checked.json);
+    const patch: Record<string, unknown> = { sidecarPath: objectPath, sidecarUpdatedAt: new Date().toISOString() };
+    await db
+      .update(ballBoiSessionsTable)
+      .set({ metadata: sql`coalesce(${ballBoiSessionsTable.metadata}, '{}'::jsonb) || ${JSON.stringify(patch)}::jsonb` })
+      .where(eq(ballBoiSessionsTable.id, sessionId));
+    res.json({ saved: true, objectPath });
+  } catch (err) {
+    logger.error({ err, sessionId }, "Failed to save a recording sidecar");
+    res.status(500).json({ error: "Couldn't save the sidecar." });
   }
 });
 

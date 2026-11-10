@@ -45,6 +45,10 @@ export interface QueuedRecording {
    * the corners go with the match. Saved first, so a match is never lost.
    */
   courtLinesPending?: boolean;
+  /** The recording's metadata sidecar on the phone (decision T5). */
+  sidecarUri?: string;
+  /** The sidecar changed since the server last got it (the court fix, the score prompt's conditions). */
+  sidecarDirty?: boolean;
 }
 
 const KEY = "ballboi.recording.queue.v1";

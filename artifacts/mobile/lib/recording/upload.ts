@@ -20,12 +20,15 @@ import {
   completeBallBoiSession,
   requestBallBoiUploadPartUrl,
   startBallBoiMultipartUpload,
+  putRecordingSidecar,
   startBallBoiSession,
   type BallBoiSessionSegment,
+  type RecordingSidecar,
 } from "@workspace/api-client-react";
 import { Directory, File, FileMode, Paths, UploadType } from "expo-file-system";
 
 import { joinSegments, recordingFiles, type RecordedSegment } from "@/lib/recording/segments";
+import { readSidecar } from "@/lib/recording/sidecarFile";
 
 const MAX_INT32 = 2_147_483_647;
 const COPY_CHUNK_BYTES = 4 * 1024 * 1024;
@@ -226,4 +229,17 @@ export async function uploadRecording(
     durationSeconds: totals?.durationSeconds ?? rec.durationSeconds,
     segments: sent,
   });
+}
+
+/**
+ * Sends the recording's metadata sidecar (decision T5). It's small, so it
+ * goes on any connection, cellular included. True once the server has the
+ * newest copy; false when there's nothing to send. Throws when the server
+ * can't be reached, so the queue tries again.
+ */
+export async function uploadSidecar(sessionId: number, uri: string): Promise<boolean> {
+  const sc = await readSidecar(uri);
+  if (!sc) return false;
+  await putRecordingSidecar(sessionId, sc as unknown as RecordingSidecar);
+  return true;
 }

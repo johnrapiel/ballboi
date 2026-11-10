@@ -72,6 +72,18 @@ export interface CourtWatchEvents {
   /** The phone moved away from where the court locked. */
   onLockLost?: () => void;
   onRecordAnyway?: () => void;
+  /**
+   * Every motion reading (about five a second): the rotation rate in degrees
+   * a second, the shake without gravity in m/s², and whether this reading
+   * moved the phone off where it was holding (the line 13 test). The
+   * recording's sidecar logs bumps and wind wobble from these (decision T5),
+   * so there's one motion sensor and one "moved" rule.
+   */
+  onMotion?: (reading: {
+    rate: { alpha: number; beta: number; gamma: number } | null;
+    accel: { x: number; y: number; z: number } | null;
+    moved: boolean;
+  }) => void;
 }
 
 /**
@@ -126,8 +138,15 @@ export function useCourtWatch(
         const now = { alpha: m.rotation.alpha, beta: m.rotation.beta, gamma: m.rotation.gamma };
         attitude.current = now;
         steady.current = isSteady(m.rotationRate);
+        const before = stillness.current;
         stillness.current = nextStillness(stillness.current, now, Date.now());
         stillSince.current = stillness.current.since;
+        ev.current.onMotion?.({
+          rate: m.rotationRate ?? null,
+          accel: m.acceleration ?? null,
+          // A move restarts the stillness from a new hold point; the very first reading only sets one.
+          moved: before.ref !== null && stillness.current !== before,
+        });
         if (lockRef.current.stage === "locked" && hasMoved(lockAttitude.current, now)) {
           lockAttitude.current = null;
           stepRun.current = STEP_RUN_START;

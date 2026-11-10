@@ -8638,6 +8638,26 @@ export const RemoveRecordingResponse = zod.object({
 });
 
 /**
+ * @summary Save a recording's metadata sidecar (decision T5) next to its video. Recorder only. Sent again whenever it changes; the newest replaces the last.
+ */
+export const PutRecordingSidecarParams = zod.object({
+  sessionId: zod.coerce.number(),
+});
+
+export const PutRecordingSidecarBody = zod
+  .object({
+    sidecarVersion: zod.literal(1),
+  })
+  .describe(
+    "A recording's metadata sidecar. The phone's lib\/recording\/sidecar.ts has the full shape; the server checks the version, keeps only known sections, and drops anything that looks like a location or a name.",
+  );
+
+export const PutRecordingSidecarResponse = zod.object({
+  saved: zod.literal(true),
+  objectPath: zod.string(),
+});
+
+/**
  * @summary Remove a Quick match left before recording it, with its placeholder opponent and invite
  */
 export const AbandonQuickMatchParams = zod.object({

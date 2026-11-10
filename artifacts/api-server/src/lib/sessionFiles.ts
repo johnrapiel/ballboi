@@ -30,6 +30,8 @@ export function sessionFiles(session: SessionFilesLike): { objects: string[]; un
   if (session.videoObjectPath) objects.add(session.videoObjectPath);
   for (const p of segmentPathsOf(session.metadata)) objects.add(p);
   if (training) objects.add(training);
+  // The recording's metadata sidecar (decision T5) goes with it.
+  if (typeof m.sidecarPath === "string") objects.add(m.sidecarPath);
   for (const u of uploads) if (u.completedAt) objects.add(u.objectPath);
   return {
     objects: [...objects],

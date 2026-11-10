@@ -212,6 +212,8 @@ import type {
   RecordingListItem,
   RecordingOpponent,
   RecordingRemoved,
+  RecordingSidecar,
+  RecordingSidecarSaved,
   RemoveLeaguePlayerInput,
   ReportReceipt,
   ReportStatusInput,
@@ -19405,6 +19407,96 @@ export const useRemoveRecording = <
   TContext
 > => {
   return useMutation(getRemoveRecordingMutationOptions(options));
+};
+
+/**
+ * @summary Save a recording's metadata sidecar (decision T5) next to its video. Recorder only. Sent again whenever it changes; the newest replaces the last.
+ */
+export const getPutRecordingSidecarUrl = (sessionId: number) => {
+  return `/api/recording/sessions/${sessionId}/sidecar`;
+};
+
+export const putRecordingSidecar = async (
+  sessionId: number,
+  recordingSidecar: RecordingSidecar,
+  options?: RequestInit,
+): Promise<RecordingSidecarSaved> => {
+  return customFetch<RecordingSidecarSaved>(
+    getPutRecordingSidecarUrl(sessionId),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(recordingSidecar),
+    },
+  );
+};
+
+export const getPutRecordingSidecarMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putRecordingSidecar>>,
+    TError,
+    { sessionId: number; data: BodyType<RecordingSidecar> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof putRecordingSidecar>>,
+  TError,
+  { sessionId: number; data: BodyType<RecordingSidecar> },
+  TContext
+> => {
+  const mutationKey = ["putRecordingSidecar"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof putRecordingSidecar>>,
+    { sessionId: number; data: BodyType<RecordingSidecar> }
+  > = (props) => {
+    const { sessionId, data } = props ?? {};
+
+    return putRecordingSidecar(sessionId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PutRecordingSidecarMutationResult = NonNullable<
+  Awaited<ReturnType<typeof putRecordingSidecar>>
+>;
+export type PutRecordingSidecarMutationBody = BodyType<RecordingSidecar>;
+export type PutRecordingSidecarMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Save a recording's metadata sidecar (decision T5) next to its video. Recorder only. Sent again whenever it changes; the newest replaces the last.
+ */
+export const usePutRecordingSidecar = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putRecordingSidecar>>,
+    TError,
+    { sessionId: number; data: BodyType<RecordingSidecar> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof putRecordingSidecar>>,
+  TError,
+  { sessionId: number; data: BodyType<RecordingSidecar> },
+  TContext
+> => {
+  return useMutation(getPutRecordingSidecarMutationOptions(options));
 };
 
 /**

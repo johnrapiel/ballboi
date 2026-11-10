@@ -5,6 +5,26 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+export type RecordingSidecarSidecarVersion =
+  (typeof RecordingSidecarSidecarVersion)[keyof typeof RecordingSidecarSidecarVersion];
+
+export const RecordingSidecarSidecarVersion = {
+  NUMBER_1: 1,
+} as const;
+
+/**
+ * A recording's metadata sidecar. The phone's lib/recording/sidecar.ts has the full shape; the server checks the version, keeps only known sections, and drops anything that looks like a location or a name.
+ */
+export interface RecordingSidecar {
+  sidecarVersion: RecordingSidecarSidecarVersion;
+  [key: string]: unknown;
+}
+
+export interface RecordingSidecarSaved {
+  saved: boolean;
+  objectPath: string;
+}
+
 export type DeviceBanKind = (typeof DeviceBanKind)[keyof typeof DeviceBanKind];
 
 export const DeviceBanKind = {
