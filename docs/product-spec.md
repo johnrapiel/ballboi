@@ -313,7 +313,7 @@ The player card is a brag sheet, never a scouting report: it shows strengths and
 | Milestone badges (decision 150) | Public |
 | Head-to-head record vs. the viewer | Visible to that viewer |
 | Whole card, matches included | Never shown to a player blocked either way, or when the profile is hidden |
-| Error patterns, heatmaps, trends | Private. Whether an opponent from the same match sees its full breakdown is pending (decision 83) |
+| Error patterns, heatmaps, trends | Private, except an opponent from the same match sees its full breakdown, both ways (decision 83) |
 | Match video | Never shown; raw video deleted after analysis unless kept for training |
 
 - **No Ball Boi data yet:** Ball Boi this season shows a "No Ball Boi matches yet" prompt; it also stays empty until stats pass their accuracy bars
@@ -349,7 +349,7 @@ Everything is free at launch, Ball Boi included. Ball Boi Pro is parked until th
 - **Free for everyone at launch:** leagues, Discover, match requests, scores, messaging, the player card, shot analysis, the simulated replay, trends, and full career stats
 - **Every recorded singles match is analyzed,** whoever's phone recorded it. Shot data is stored for both players
 - **No paywall, subscription, free-months clock, or In-App Purchase** in v1. No locked games or "Subscribe" prompts anywhere
-- **Opponent breakdowns:** pending John (decision 83). Until decided, a player sees only their own breakdown
+- **Opponent breakdowns are mutual:** both players see each other's full breakdown for matches they played together (decision 83). Public player cards still show only highlights
 - **Club and enterprise plans:** being worked out (see League fees and decision 47)
 
 **League fees**
@@ -489,7 +489,7 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 80 | The score-entered animation shows the win-loss record ticking to its new value, never a level change; VoiceOver reads "Win recorded. You're now 15 and 6." Levels stay static unless the player edits them (John, Nov 7) |
 | 81 | The app only speaks while recording: the voice coach and countdown play from the mounted phone during a Ball Boi recording, with captions on the partner phone. No spoken cues anywhere else; VoiceOver announcements speak only when the player has VoiceOver on (John, Nov 7) |
 | 82 | Ball Boi Pro is parked until there's traction: no paywall, subscription, free-months clock or In-App Purchase at launch. Shot analysis, replay, trends and career stats are free for everyone, and every recorded singles match is analyzed. The full plan (decisions 3, 14 and 33 to 42) is saved in `docs/backlog/ball-boi-pro.md`. Playing stays free (decision 32) (John, Nov 7) |
-| 83 | Pending John: with no Pro, does a player see their opponent's full breakdown for matches they played together? Until decided, each player sees only their own (Nov 7) |
+| 83 | Opponent breakdowns are mutual with no Pro: both players in a match see each other's full breakdown for that match. Public player cards still show only highlights, never errors. Replaces the both-have-Pro rule in decision 40 (John, Nov 10) |
 | 84 | A small beta of 3 to 5 commissioned players starts once Session G's voice coach merges. John's own test-set filming can start sooner (John, Nov 7, B1) |
 | 85 | Beta testers use the same app as everyone: no beta flag. During the beta the app only exists on TestFlight, so a server setting on the private beta backend turns the release requirement on; it's off for the App Store launch. No opponent recording notice is needed for the beta (John, Nov 7, B2) |
 | 86 | A "Something not working?" form: pick a likely problem or "Something else" with a free-text box, optional note, Send. Attaches app version, iPhone model, iOS version and the match. Saved server-side and emailed to support@ballboi.tennis. Lives in Settings plus a small link on the ready-to-record screen, the processing card and the replay placeholder. Also covers the checklist's in-app support contact (John, Nov 7, B3) |
