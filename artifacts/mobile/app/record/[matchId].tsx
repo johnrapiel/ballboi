@@ -118,8 +118,13 @@ import {
   newSidecar,
   onBatteryAtStart,
   onCameraLock,
+  onActualFps,
   onCaptureStart,
   onCorners,
+  onDroppedFrames,
+  onHdr,
+  onThermal,
+  minuteOf,
   onInterruption,
   onLensesKnown,
   onLock,
@@ -130,6 +135,7 @@ import {
   type StartedBy,
 } from "@/lib/recording/sidecar";
 import { batteryNow, sidecarDevice } from "@/lib/recording/sidecarDevice";
+import { holdExposure, onThermalChange, thermalState, videoInfo } from "@/modules/capture-info";
 import { deleteSidecar, SidecarWriter } from "@/lib/recording/sidecarFile";
 import { enqueue, getQueue, updateQueued } from "@/lib/recording/queue";
 import {
@@ -516,8 +522,31 @@ export default function RecordScreen() {
     capturing: phase === "recording" || phase === "rejoining" || phase === "interrupted",
   });
   useEffect(() => {
-    sidecar.current?.apply((sc) => onCameraLock(sc, "focus", focusLocked, new Date()), true);
+    const now = new Date();
+    // Exposure locks with focus, and video HDR goes off (capture-info native module; null without it).
+    const held = holdExposure(focusLocked);
+    sidecar.current?.apply((sc) => {
+      let next = onCameraLock(sc, "focus", focusLocked, now);
+      if (held?.exposureLocked != null) next = onCameraLock(next, "exposure", held.exposureLocked, now);
+      return onHdr(next, held?.hdr ?? null);
+    }, true);
   }, [focusLocked]);
+
+  // Thermal state while capturing: every 30 seconds and on every change (native module; nothing without it).
+  const capturingForThermal = phase === "recording" || phase === "rejoining";
+  useEffect(() => {
+    if (!capturingForThermal) return;
+    const note = (state: ReturnType<typeof thermalState>) => {
+      if (state) sidecar.current?.apply((sc) => onThermal(sc, state, new Date()));
+    };
+    note(thermalState());
+    const t = setInterval(() => note(thermalState()), 30_000);
+    const stopListening = onThermalChange((state) => note(state));
+    return () => {
+      clearInterval(t);
+      stopListening();
+    };
+  }, [capturingForThermal]);
 
   useSafetyCap(phase === "recording", (reason) => stop(reason));
   // G1: low battery or storage show in words while recording, before the safety cap stops the match.
@@ -843,6 +872,19 @@ export default function RecordScreen() {
       (sc) => onSegment(sc, { startedAt: seg.startedAt, durationSeconds: seg.durationSeconds, sizeBytes: seg.sizeBytes }),
       true,
     );
+    // The frame rate the file really has, and its dropped frames, read from the file (native module).
+    videoInfo(seg.uri).then((info) => {
+      if (!info) return;
+      sidecar.current?.apply((sc) => {
+        const next = onActualFps(sc, info.deliveredFps ?? info.nominalFps);
+        return onDroppedFrames(next, info.droppedFramesByMinute, minuteOf(next, seg.startedAt));
+      }, true);
+      // Read after the match was queued (a long last piece): send the sidecar again.
+      const id = recId.current;
+      if (id && getQueue().some((r) => r.id === id)) {
+        updateQueued(id, { sidecarDirty: true }).then(() => drainQueue());
+      }
+    });
   }
 
   /** A pause or resume, for the sidecar. Written at once: a pause may be followed by the app being closed. */
