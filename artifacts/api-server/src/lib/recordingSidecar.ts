@@ -80,3 +80,45 @@ export function checkSidecar(body: unknown, ids: { matchId: number; sessionId: n
 export function sidecarObjectPath(matchId: number, sessionId: number): string {
   return `/objects/sidecars/match-${matchId}/session-${sessionId}.json`;
 }
+
+/** Conditions at stop (test plan section 3), from the score prompt. Every part optional. */
+export interface RecordingConditions {
+  setting: "indoor" | "outdoor" | null;
+  light: "day" | "night" | null;
+  surface: "hard" | "clay" | "grass" | "other" | null;
+}
+
+const SETTINGS = ["indoor", "outdoor"] as const;
+const LIGHTS = ["day", "night"] as const;
+const SURFACES = ["hard", "clay", "grass", "other"] as const;
+
+function oneOf<T extends string>(v: unknown, allowed: readonly T[]): T | null {
+  return typeof v === "string" && (allowed as readonly string[]).includes(v) ? (v as T) : null;
+}
+
+/**
+ * Checks conditions from the phone. Null means skipped (nothing picked);
+ * `undefined` means it wasn't conditions at all.
+ */
+export function cleanConditions(v: unknown): RecordingConditions | null | undefined {
+  if (v === null) return null;
+  if (!v || typeof v !== "object" || Array.isArray(v)) return undefined;
+  const o = v as Record<string, unknown>;
+  for (const [key, allowed] of [["setting", SETTINGS], ["light", LIGHTS], ["surface", SURFACES]] as const) {
+    if (o[key] != null && oneOf(o[key], allowed) == null) return undefined;
+  }
+  const c: RecordingConditions = {
+    setting: oneOf(o.setting, SETTINGS),
+    light: oneOf(o.light, LIGHTS),
+    surface: oneOf(o.surface, SURFACES),
+  };
+  return c.setting || c.light || c.surface ? c : null;
+}
+
+/** A stored sidecar with new conditions, for when they arrive after it was sent. */
+export function withConditions(stored: Record<string, unknown>, conditions: RecordingConditions | null): Record<string, unknown> {
+  const missing = stored.missing && typeof stored.missing === "object" ? { ...(stored.missing as Record<string, unknown>) } : {};
+  if (conditions) delete missing.conditions;
+  else missing.conditions = "Not picked on the score prompt (optional).";
+  return { ...stored, conditions, missing };
+}

@@ -20,6 +20,7 @@ export {
   HideMessageBody,
   LogDoublesViewBody,
   MatchBallBoiShotCallbackBody,
+  PutRecordingConditionsBody,
   SaveLiveActivityStartTokenBody,
   SaveLiveActivityTokenBody,
   ScoreQuickMatchBody,

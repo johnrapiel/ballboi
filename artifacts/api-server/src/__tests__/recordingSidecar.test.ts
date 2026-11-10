@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import supertest from "supertest";
 
-import { checkSidecar, MAX_SIDECAR_BYTES, sidecarObjectPath } from "../lib/recordingSidecar";
+import { checkSidecar, cleanConditions, MAX_SIDECAR_BYTES, sidecarObjectPath, withConditions } from "../lib/recordingSidecar";
+import { Readable } from "node:stream";
 import { sessionFiles } from "../lib/sessionFiles";
 
 let mockUserId: string | null = "user_me";
@@ -63,12 +64,19 @@ vi.mock("drizzle-orm", () => ({
 }));
 
 const puts: { path: string; body: string }[] = [];
+const stored = new Map<string, string>();
 
 async function app() {
   const mod = await import("../routes/recording.js");
   mod.setSidecarStoreForTests({
     putObject: async (path: string, body: string) => {
       puts.push({ path, body });
+      stored.set(path, body);
+    },
+    getObject: async (path: string) => {
+      const body = stored.get(path);
+      if (body == null) throw new Error("missing");
+      return { body: Readable.from([Buffer.from(body)]), contentType: "application/json" };
     },
   });
   const a = express();
@@ -98,6 +106,7 @@ beforeEach(() => {
   selectQueue.length = 0;
   updates.length = 0;
   puts.length = 0;
+  stored.clear();
 });
 
 describe("checkSidecar", () => {
@@ -182,5 +191,43 @@ describe("sessionFiles", () => {
   it("deletes the sidecar with the recording", () => {
     const files = sessionFiles({ id: 1, videoObjectPath: "/objects/uploads/a", metadata: { sidecarPath: "/objects/sidecars/match-7/session-1.json" } });
     expect(files.objects).toContain("/objects/sidecars/match-7/session-1.json");
+  });
+});
+
+describe("conditions at stop", () => {
+  it("cleans conditions: all-empty is skipped, bad values refused", () => {
+    expect(cleanConditions({ setting: "outdoor", light: "night", surface: "hard" })).toEqual({ setting: "outdoor", light: "night", surface: "hard" });
+    expect(cleanConditions({ setting: null, light: null, surface: null })).toBeNull();
+    expect(cleanConditions(null)).toBeNull();
+    expect(cleanConditions({ surface: "carpet" })).toBeUndefined();
+    expect(cleanConditions("outdoor")).toBeUndefined();
+  });
+
+  it("updates a stored sidecar's conditions and its missing list", () => {
+    const next = withConditions({ conditions: null, missing: { conditions: "x", "capture.hdr": "y" } }, { setting: "indoor", light: null, surface: "clay" });
+    expect(next.conditions).toEqual({ setting: "indoor", light: null, surface: "clay" });
+    expect(next.missing).toEqual({ "capture.hdr": "y" });
+  });
+
+  it("the sidecar route copies conditions onto the session", async () => {
+    selectQueue.push([{ id: 42, matchId: 7, recordedByClerkUserId: "user_me", metadata: {} }]);
+    await (await app()).put("/api/recording/sessions/42/sidecar").send({ ...sample, conditions: { setting: "outdoor", light: "night", surface: "hard" } });
+    expect(JSON.stringify(updates[0])).toContain('\\"conditions\\":{\\"setting\\":\\"outdoor\\"');
+  });
+
+  it("PUT /recording/matches/:id/conditions saves on the recorder's sessions and their stored sidecars", async () => {
+    const path = sidecarObjectPath(7, 42);
+    stored.set(path, JSON.stringify({ ...sample, matchId: 7, sessionId: 42 }));
+    selectQueue.push([{ id: 42, matchId: 7, recordedByClerkUserId: "user_me", metadata: { sidecarPath: path } }]);
+    const res = await (await app()).put("/api/recording/matches/7/conditions").send({ conditions: { setting: "outdoor", light: "night", surface: "hard" } });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ saved: true, recordings: 1 });
+    expect(JSON.parse(stored.get(path)!).conditions).toEqual({ setting: "outdoor", light: "night", surface: "hard" });
+    expect(JSON.stringify(updates[0])).toContain("outdoor");
+  });
+
+  it("refuses bad conditions", async () => {
+    const res = await (await app()).put("/api/recording/matches/7/conditions").send({ conditions: { light: "dusk" } });
+    expect(res.status).toBe(400);
   });
 });

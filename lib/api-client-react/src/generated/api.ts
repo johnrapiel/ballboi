@@ -204,6 +204,8 @@ import type {
   PlayoffBracketResponse,
   PlayoffsStatusResponse,
   PushRegistrationStatus,
+  PutRecordingConditions200,
+  PutRecordingConditionsBody,
   QuickMatchCreated,
   QuickMatchInput,
   RecordableMatch,
@@ -19497,6 +19499,97 @@ export const usePutRecordingSidecar = <
   TContext
 > => {
   return useMutation(getPutRecordingSidecarMutationOptions(options));
+};
+
+/**
+ * @summary Conditions at stop from the score prompt (indoor or outdoor, day or night, surface). Optional; null clears them. Saved on the caller's recordings of this match and their stored sidecars.
+ */
+export const getPutRecordingConditionsUrl = (matchId: number) => {
+  return `/api/recording/matches/${matchId}/conditions`;
+};
+
+export const putRecordingConditions = async (
+  matchId: number,
+  putRecordingConditionsBody: PutRecordingConditionsBody,
+  options?: RequestInit,
+): Promise<PutRecordingConditions200> => {
+  return customFetch<PutRecordingConditions200>(
+    getPutRecordingConditionsUrl(matchId),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(putRecordingConditionsBody),
+    },
+  );
+};
+
+export const getPutRecordingConditionsMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putRecordingConditions>>,
+    TError,
+    { matchId: number; data: BodyType<PutRecordingConditionsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof putRecordingConditions>>,
+  TError,
+  { matchId: number; data: BodyType<PutRecordingConditionsBody> },
+  TContext
+> => {
+  const mutationKey = ["putRecordingConditions"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof putRecordingConditions>>,
+    { matchId: number; data: BodyType<PutRecordingConditionsBody> }
+  > = (props) => {
+    const { matchId, data } = props ?? {};
+
+    return putRecordingConditions(matchId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PutRecordingConditionsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof putRecordingConditions>>
+>;
+export type PutRecordingConditionsMutationBody =
+  BodyType<PutRecordingConditionsBody>;
+export type PutRecordingConditionsMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Conditions at stop from the score prompt (indoor or outdoor, day or night, surface). Optional; null clears them. Saved on the caller's recordings of this match and their stored sidecars.
+ */
+export const usePutRecordingConditions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putRecordingConditions>>,
+    TError,
+    { matchId: number; data: BodyType<PutRecordingConditionsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof putRecordingConditions>>,
+  TError,
+  { matchId: number; data: BodyType<PutRecordingConditionsBody> },
+  TContext
+> => {
+  return useMutation(getPutRecordingConditionsMutationOptions(options));
 };
 
 /**

@@ -10,12 +10,17 @@
 // Cancel or Not now, drag down to close (asks first if scores were typed).
 // Once saved, the score-entered moment plays (spec: Milestone moments): the
 // score settles in and This season's record ticks to its new value.
+//
+// Conditions (shot tracker test plan section 3): under the score, one
+// optional row (Indoor / Outdoor, Day / Night, surface). Skippable; it never
+// blocks saving. Each tap goes into the recording's sidecar on the phone, or
+// straight to the server when the recording has already uploaded.
 
 import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import { Icon } from "@/components/Icon";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { AccessibilityInfo, View } from "react-native";
 
 import {
@@ -25,9 +30,11 @@ import {
   getGetMyNewMilestonesQueryKey,
   useGetLeagueSchedule,
   useGetMyPlayerCard,
+  putRecordingConditions,
 } from "@workspace/api-client-react";
 
 import { ScoreGrid, ScoreResult, displayScore } from "@/components/league/ScoreGrid";
+import { ConditionsRow } from "@/components/record/ConditionsRow";
 import { LocalProcessingCard } from "@/components/record/ProcessingCard";
 import { RecapShareButton } from "@/components/RecapShareButton";
 import { ScoreEnteredMoment, type Record as SeasonRecord } from "@/components/ScoreEnteredMoment";
@@ -39,7 +46,11 @@ import { recordingsKey, submitScore, todaysMatchesKey } from "@/lib/recording/ap
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { emptySet, readScore, setRowsToShow, type SetEntry } from "@/lib/scoreEntry";
 import { QUICK_MAX_SETS } from "@/lib/tennisScore";
-import { updateQueued, useQueuedRecording } from "@/lib/recording/queue";
+import { getQueue, updateQueued, useQueuedRecording } from "@/lib/recording/queue";
+import { conditionsToSave, NO_CONDITIONS, type Conditions } from "@/lib/recording/conditions";
+import { onConditions } from "@/lib/recording/sidecar";
+import { updateSidecar } from "@/lib/recording/sidecarFile";
+import { drainQueue } from "@/lib/recording/uploader";
 import { STOP_MESSAGES, type StopReason } from "@/lib/recording/safety";
 
 /** Best of three: the third set's boxes go away unless the first two are split. */
@@ -79,6 +90,11 @@ export default function ScorePromptScreen() {
   const matchGone = discarded === "match";
 
   const [touched, setTouched] = useState(false);
+  const [conditions, setConditions] = useState<Conditions>(NO_CONDITIONS);
+  const [conditionsError, setConditionsError] = useState(false);
+  /** Saves run one at a time, newest value last, so quick taps never land out of order. */
+  const conditionsSaving = useRef<Promise<void>>(Promise.resolve());
+  const latestConditions = useRef<Conditions>(NO_CONDITIONS);
   const draft = readScore(sets, { quick });
   const score = draft.ok ? draft.score : "";
   const rows = quick ? sets.length : setRowsToShow(sets);
@@ -100,8 +116,42 @@ export default function ScorePromptScreen() {
     });
   }
 
+  /** Saves conditions: into the sidecar on the phone, or on the server once the recording has uploaded. */
+  async function saveConditions() {
+    const value = conditionsToSave(latestConditions.current);
+    const queued = params.rec ? getQueue().find((r) => r.id === params.rec) : undefined;
+    try {
+      if (queued?.sidecarUri) {
+        await updateSidecar(queued.sidecarUri, (sc) => onConditions(sc, value));
+        await updateQueued(queued.id, { sidecarDirty: true });
+        drainQueue();
+      } else {
+        await putRecordingConditions(matchId, { conditions: value });
+      }
+      setConditionsError(false);
+    } catch {
+      setConditionsError((was) => {
+        // iOS doesn't read live regions: say it once when it first fails.
+        if (!was) AccessibilityInfo.announceForAccessibility("Couldn't save the conditions. Your score still saves.");
+        return true;
+      });
+    }
+  }
+
+  function queueConditionsSave() {
+    conditionsSaving.current = conditionsSaving.current.then(saveConditions, saveConditions);
+  }
+
+  function changeConditions(next: Conditions) {
+    setConditions(next);
+    latestConditions.current = next;
+    queueConditionsSave();
+  }
+
   async function save() {
     if (!score) return;
+    // Conditions that didn't save get one more try; the score never waits on them.
+    if (conditionsError) queueConditionsSave();
     setSaving(true);
     setError(null);
     const result = await submitScore({ matchId, leagueId }, score, getToken).catch(() => ({
@@ -202,6 +252,20 @@ export default function ScorePromptScreen() {
             }
             error={error}
           />
+        </View>
+      )}
+
+      {fromCard || !params.rec || discarded ? null : (
+        <View style={{ gap: spacing.space2 }}>
+          <ConditionsRow value={conditions} onChange={changeConditions} />
+          {conditionsError ? (
+            <View style={{ flexDirection: "row", gap: spacing.space2, alignItems: "flex-start" }} accessible>
+              <Icon name="exclamationmark.triangle" size={16} tintColor={c.danger} style={{ marginTop: 2 }} />
+              <Text variant="small" tone="danger" style={{ flex: 1 }}>
+                Couldn't save the conditions. Your score still saves.
+              </Text>
+            </View>
+          ) : null}
         </View>
       )}
 
