@@ -179,6 +179,7 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 - **Every league locks to new joins once the season starts,** Private and Open alike. The waitlist holds requests for next season
 - **Dropouts:** when a player leaves mid-season, their played matches stay, their remaining matches are voided, and they're removed from standings. A bracket player who leaves gives their opponent a walkover, shown as W/O
 - **Admins who leave stay admin:** they stop playing but still manage the league. A league's only admin who deletes their account picks the new admin first; Skip hands it to the longest-standing member, so deletion is never blocked
+- **Invite players:** the invite shows the code and its link, https://ballboi.tennis/join/CODE. Copy and Share both give the link, which opens the league's join screen in the app. Without the app, the web page shows the code and how to get Ball Boi. The code stays on the card for people who type it in (decision 175)
 - **Ended leagues:** an ended league's invite code shows "This league has ended" and sends no request
 
 **Doubles (decisions 160 to 169 and 170 to 172, John, Nov 9)**
@@ -575,3 +576,4 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 172 | Backlog, not built: a one-time permanent replacement partner during the first three weeks of a season, as Ultimate Tennis allows (John, Nov 9) |
 | 173 | Start match on the Lock Screen (either phone's Live Activity) arms and waits for the court exactly like Record on the mounted phone. Line 19 and capture wait for the court lock or the Record anyway fallback. If the countdown is already armed, Start match does nothing new. After it's tapped, the Live Activity says "Waiting for the court, not recording yet" (John, Nov 9) |
 | 174 | The roughly 20 second Record anyway timer starts once the phone is mounted and holding still, not when Record is tapped. Still is judged by the same motion signal as "Your phone just moved" (line 13). If the phone moves before the court locks, the 20 seconds start again once it's still. The 10 second quiet gap between pieces of guidance (decision 130) and the 3-repeat limit stay (John, Nov 9) |
+| 175 | The invite's copy icon gives the join link (https://ballboi.tennis/join/CODE), not just the code, so a pasted invite opens the league; the code stays on the card (John, Nov 9) |

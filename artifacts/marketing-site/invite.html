@@ -40,6 +40,11 @@
     .done { margin: 32px 0 0; font-size: 20px; font-weight: 800; }
     .done::before { content: "\2713  "; }
     .done span { display: block; margin-top: 6px; font-size: 17px; font-weight: 500; color: var(--muted); }
+    .code { margin: 28px 0 0; padding: 18px 20px; border: 2px solid var(--ink); border-radius: 14px; max-width: 560px; }
+    .code[hidden] { display: none; }
+    .code-label { display: block; font-size: 15px; font-weight: 800; }
+    .code strong { display: block; margin-top: 4px; font-size: 32px; font-weight: 800; letter-spacing: .12em; font-variant-numeric: tabular-nums; }
+    .code-note { display: block; margin-top: 8px; font-size: 15px; color: var(--muted); }
     .fine { color: var(--muted); font-size: 15px; margin-top: 24px; }
     @media (max-width: 520px) { .ea { grid-template-columns: 1fr; } }
   </style>
@@ -51,6 +56,7 @@
   <main id="main">
     <h1 id="invite-title">You're invited to Ball Boi</h1>
     <p class="lede" id="invite-lede">Someone invited you to Ball Boi, a tennis app for finding players, running leagues and recording your matches.</p>
+    <div class="code" id="invite-code" hidden><span class="code-label">Invite code</span><strong id="invite-code-value"></strong><span class="code-note" id="invite-code-note">Already have Ball Boi? Open it, go to Leagues and enter this code.</span></div>
     <p>Ball Boi is in a private beta on iPhone. Join with your email and we'll send you an invite from Apple's TestFlight app. <strong>Once Ball Boi is installed, open this link again</strong> and it takes you straight there.</p>
 
     <form id="ea-form" class="ea" action="/api/early-access" method="post" novalidate>

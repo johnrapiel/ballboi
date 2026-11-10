@@ -3,7 +3,8 @@
 //
 // POST /api/early-access                 saves an early-access sign-up to D1 (binding: DB).
 // GET /join/CODE, /record/invite/CODE     invite landing page (invite.html) for people
-//                                          without the app; the code is saved with their email.
+//                                          without the app: how to get Ball Boi, the league
+//                                          code to type in, and the code saved with their email.
 // GET /.well-known/apple-app-site-association  lets those same links open the app when installed.
 // Everything else is served from the static files as usual.
 
@@ -19,6 +20,8 @@ const REF_RE = /^(join|match):[A-Za-z0-9]{4,16}$/;
 const INVITE_PATH_RE = /^\/(join|record\/invite)\/([A-Za-z0-9]{4,16})\/?$/;
 
 // Universal links: the app (team AVAJZ56CBY, bundle tennis.ballboi) claims these paths.
+// Staging (TestFlight) and production builds share this one bundle ID, so one entry
+// covers both. The app declares applinks:ballboi.tennis in app.json.
 const AASA = {
   applinks: {
     details: [
@@ -110,6 +113,9 @@ async function invitePage(request, env, url, kind, code) {
   return new HTMLRewriter()
     .on("#invite-title", { element: (el) => el.setInnerContent(title) })
     .on("#invite-lede", { element: (el) => el.setInnerContent(lede) })
+    // The code, for people who type it into the app (league invites; John, Nov 9).
+    .on("#invite-code", { element: (el) => (kind === "join" ? el.removeAttribute("hidden") : undefined) })
+    .on("#invite-code-value", { element: (el) => el.setInnerContent(code.toUpperCase()) })
     .on("#ea-ref", { element: (el) => el.setAttribute("value", `${kind}:${code}`) })
     .on("#ea-back", { element: (el) => el.setAttribute("value", url.pathname) })
     .transform(new Response(page.body, { status: 200, headers: page.headers }));
