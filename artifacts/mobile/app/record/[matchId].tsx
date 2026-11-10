@@ -117,6 +117,7 @@ import {
   handlesMoved,
   newSidecar,
   onBatteryAtStart,
+  onCameraLock,
   onCaptureStart,
   onCorners,
   onInterruption,
@@ -152,7 +153,15 @@ import {
   remainingSeconds,
   type RecordedSegment,
 } from "@/lib/recording/segments";
-import { VIDEO_CODEC, VIDEO_QUALITY, VIDEO_STABILIZATION, VIDEO_TARGET_FPS } from "@/lib/recording/settings";
+import {
+  focusSetting,
+  focusShouldLock,
+  RECORDING_LENS,
+  VIDEO_CODEC,
+  VIDEO_QUALITY,
+  VIDEO_STABILIZATION,
+  VIDEO_TARGET_FPS,
+} from "@/lib/recording/settings";
 import { drainQueue } from "@/lib/recording/uploader";
 import { tellOpponent } from "@/lib/notifications";
 import {
@@ -497,6 +506,18 @@ export default function RecordScreen() {
     // say and runRecording read refs only; the countdown restarts only on a new phase or delay.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, delay]);
+
+  // The camera holds its view still (shot analyst, Nov 9): focus keeps
+  // adjusting while aiming, then locks at court lock (or a Record anyway
+  // start) and stays locked while recording. The lens is pinned below.
+  const focusLocked = focusShouldLock({
+    courtLocked: court.lock.stage === "locked",
+    countingAnyway: phase === "countdown" && !!armed.current?.anyway,
+    capturing: phase === "recording" || phase === "rejoining" || phase === "interrupted",
+  });
+  useEffect(() => {
+    sidecar.current?.apply((sc) => onCameraLock(sc, "focus", focusLocked, new Date()), true);
+  }, [focusLocked]);
 
   useSafetyCap(phase === "recording", (reason) => stop(reason));
   // G1: low battery or storage show in words while recording, before the safety cap stops the match.
@@ -1179,11 +1200,14 @@ export default function RecordScreen() {
         style={StyleSheet.absoluteFill}
         facing="back"
         mode="video"
+        // No automatic lens switching, and focus locks at court lock (lib/recording/settings.ts).
+        selectedLens={RECORDING_LENS}
+        autofocus={focusSetting(focusLocked)}
         onAvailableLensesChanged={(e) => {
           const lenses = (e as { lenses?: { deviceType: string }[]; nativeEvent?: { lenses?: { deviceType: string }[] } }).lenses
             ?? (e as { nativeEvent?: { lenses?: { deviceType: string }[] } }).nativeEvent?.lenses
             ?? [];
-          sidecar.current?.apply((sc) => onLensesKnown(sc, lenses.map((l) => l.deviceType)));
+          sidecar.current?.apply((sc) => onLensesKnown(sc, lenses.map((l) => l.deviceType), RECORDING_LENS));
         }}
         // 1280x720, 30 fps, H.264, no stabilization: what the analysis models read.
         videoQuality={VIDEO_QUALITY}
