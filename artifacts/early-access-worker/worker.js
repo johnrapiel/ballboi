@@ -13,6 +13,9 @@
 //   PUBLIC_URL       this worker's address, e.g. https://ballboi-beta.<you>.workers.dev (variable)
 //   APPROVE_SECRET   long random string that signs Approve links (secret)
 //   ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY (.p8 text), ASC_BETA_GROUP_ID (secrets, add later)
+//   RESEND_API_KEY   Resend API key (secret). With it, each person gets the "You're in the Ball Boi beta"
+//                    welcome email right after their TestFlight invite. Without it, no welcome email.
+//   WELCOME_FROM     sender for the welcome email, default "Ball Boi <beta@ballboi.tennis>" (variable)
 // Cron trigger: "7 13,22 * * *" (13:07 and 22:07 UTC = 8:07 am and 5:07 pm Eastern in winter, an hour later in summer).
 
 const ASC = "https://api.appstoreconnect.apple.com";
@@ -20,7 +23,7 @@ const enc = new TextEncoder();
 
 // ---------- database ----------
 
-const NEW_COLUMNS = ["notified_at", "approved_at", "invited_at", "invite_error"];
+const NEW_COLUMNS = ["notified_at", "approved_at", "invited_at", "invite_error", "welcomed_at", "welcome_error"];
 
 async function ensureSchema(db) {
   await db
@@ -169,6 +172,116 @@ async function sendApproved(env, only) {
   return outcome;
 }
 
+// ---------- welcome email (Resend) ----------
+
+const RESEND = "https://api.resend.com/emails";
+const SUPPORT = "support@ballboi.tennis";
+
+function welcomeEmail() {
+  const subject = "You're in the Ball Boi beta";
+  const sections = [
+    ["Getting started", "ol", [
+      "Watch for an email from Apple's TestFlight inviting you to test Ball Boi (check spam).",
+      "Install TestFlight from the App Store, open the invite on your iPhone, then tap Accept and Install.",
+      "Leave Automatic Updates on in TestFlight so you always have the latest version.",
+    ]],
+    ["What to try", "ul", [
+      "Set up your profile, then start or join a league and enter a score after you play.",
+      "Record a match with Ball Boi. Before you do, send your opponent an invite from the app so they can join too. The first time you record, you'll agree to our Beta Footage Release (ballboi.tennis/beta-release).",
+    ]],
+    ["What to expect", "ul", [
+      "It's an early version, so some things will be rough and change week to week.",
+      "Shot stats and replays aren't switched on yet. Your recordings help train them.",
+      "If something looks off, close Ball Boi and reopen it to get the latest update.",
+      "You must be 18 or older.",
+    ]],
+    ["Sending feedback", "ol", [
+      "See something off? Take a screenshot, tap the preview, then Share > Share Beta Feedback.",
+      "General thoughts: open TestFlight, tap Ball Boi, then Send Beta Feedback.",
+      'Recording trouble: in the app, tap "Something not working?"',
+    ]],
+  ];
+  const intro = "Thanks for signing up early. You're one of the first people to try Ball Boi, a tennis app for finding players near you, running leagues and recording your matches.";
+  const outro = "Nothing is too small. Thanks for helping shape Ball Boi.";
+
+  const text = [
+    "Hi,",
+    "",
+    intro,
+    ...sections.flatMap(([title, kind, items]) => [
+      "",
+      title,
+      ...items.map((item, i) => (kind === "ol" ? `${i + 1}. ${item}` : `- ${item}`)),
+    ]),
+    "",
+    outro,
+    "",
+    "John",
+    SUPPORT,
+  ].join("\n");
+
+  const link = (t) =>
+    esc(t).replace("ballboi.tennis/beta-release", '<a href="https://ballboi.tennis/beta-release" style="color:#1B2A4A">ballboi.tennis/beta-release</a>');
+  const html = `<!doctype html><html><body style="margin:0;background:#FAF9F5">
+<div style="max-width:560px;margin:0 auto;padding:32px 24px;font:16px/1.55 -apple-system,Helvetica,Arial,sans-serif;color:#1B2A4A">
+<p style="margin:0 0 16px">Hi,</p>
+<p style="margin:0 0 8px">${esc(intro)}</p>
+${sections
+  .map(
+    ([title, kind, items]) =>
+      `<h2 style="margin:24px 0 8px;font-size:17px">${esc(title)}</h2><${kind} style="margin:0;padding-left:22px">${items
+        .map((i) => `<li style="margin:0 0 6px">${link(i)}</li>`)
+        .join("")}</${kind}>`
+  )
+  .join("\n")}
+<p style="margin:24px 0 16px">${esc(outro)}</p>
+<p style="margin:0">John<br><a href="mailto:${SUPPORT}" style="color:#1B2A4A">${SUPPORT}</a></p>
+</div></body></html>`;
+  return { subject, text, html };
+}
+
+// Sends the welcome email to everyone this worker approved and invited, once.
+// People added to TestFlight by hand (no approved_at) never get it from here.
+async function sendWelcomes(env, only) {
+  if (!env.RESEND_API_KEY) return {};
+  const { results } = await env.DB.prepare(
+    "SELECT email FROM early_access WHERE approved_at IS NOT NULL AND invited_at IS NOT NULL AND welcomed_at IS NULL ORDER BY invited_at"
+  ).all();
+  const pending = results.map((r) => r.email).filter((e) => !only || only.includes(e));
+  const outcome = {};
+  const { subject, text, html } = welcomeEmail();
+  for (const email of pending) {
+    let error = null;
+    try {
+      const res = await fetch(RESEND, {
+        method: "POST",
+        headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
+        body: JSON.stringify({
+          from: env.WELCOME_FROM || "Ball Boi <beta@ballboi.tennis>",
+          to: [email],
+          reply_to: SUPPORT,
+          subject,
+          text,
+          html,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        error = `Resend ${res.status}${body?.message ? `: ${body.message}` : ""}`.slice(0, 300);
+      }
+    } catch (err) {
+      error = `Couldn't reach Resend: ${String(err).slice(0, 200)}`;
+    }
+    outcome[email] = error ? { ok: false, error } : { ok: true };
+    if (error) {
+      await env.DB.prepare("UPDATE early_access SET welcome_error = ?2 WHERE email = ?1").bind(email, error).run();
+    } else {
+      await env.DB.prepare("UPDATE early_access SET welcomed_at = ?2, welcome_error = NULL WHERE email = ?1").bind(email, now()).run();
+    }
+  }
+  return outcome;
+}
+
 // ---------- daily digest ----------
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -256,6 +369,7 @@ async function sendEmail(env, message) {
 async function dailyRun(env) {
   await ensureSchema(env.DB);
   await sendApproved(env); // retry anyone approved earlier who isn't invited yet
+  await sendWelcomes(env); // and anyone invited whose welcome email hasn't gone out
 
   const { results: fresh } = await env.DB.prepare(
     "SELECT email, created_at FROM early_access WHERE notified_at IS NULL ORDER BY created_at"
@@ -335,12 +449,17 @@ async function approvePost(env, request) {
     .all();
   const already = new Set(results.filter((r) => r.invited_at).map((r) => r.email));
   const outcome = await sendApproved(env, known);
+  const welcomed = await sendWelcomes(env, known);
 
   const line = (email) => {
     if (!known.includes(email)) return `<strong>${esc(email)}</strong><br><span class="muted">Not on the list anymore. Nothing sent.</span>`;
     if (already.has(email)) return `<strong>${esc(email)}</strong><br><span class="muted">Already invited earlier.</span>`;
     const o = outcome[email];
-    if (o?.ok) return `<strong>${esc(email)}</strong><br><span class="muted">&#10003; Invited. Apple is emailing them now.</span>`;
+    if (o?.ok) {
+      const w = welcomed[email];
+      const note = w?.ok ? " Welcome email sent." : w ? ` Welcome email didn't send (${esc(w.error)}); the next run tries again.` : "";
+      return `<strong>${esc(email)}</strong><br><span class="muted">&#10003; Invited. Apple is emailing them now.${note}</span>`;
+    }
     if (o && !o.ok) return `<strong>${esc(email)}</strong><br><span class="muted">&#10005; Approved, but Apple said no: ${esc(o.error)}. The next run tries again.</span>`;
     return `<strong>${esc(email)}</strong><br><span class="muted">&#10003; Approved. The invite goes out once TestFlight is set up.</span>`;
   };
@@ -365,4 +484,4 @@ export default {
 };
 
 // For tests only.
-export const _test = { dailyRun, approveLink, ensureSchema };
+export const _test = { dailyRun, approveLink, ensureSchema, welcomeEmail, sendWelcomes };
