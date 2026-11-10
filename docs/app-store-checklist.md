@@ -130,7 +130,7 @@ Ball Boi Pro is parked as of Nov 7 (spec decision 82): no subscription, paywall 
 
 | Item | Criterion | Status | Notes |
 |---|---|---|---|
-| Text contrast ≥ 4.5:1, borders and focus ≥ 3:1 | 1.4.3, 1.4.11 | ✅ | `scripts/check-contrast.mjs` checks token pairs in Day and Night on every `pnpm test`. PR #31 expands it to 62 pairs, including Increase Contrast values and heatmap labels. Wave 1 Fix 6 (Nov 6 ivory and charcoal palette): 64 pairs, all passing |
+| Text contrast ≥ 4.5:1, borders and focus ≥ 3:1 | 1.4.3, 1.4.11 | ✅ | `scripts/check-contrast.mjs` checks token pairs in Day and Night on every `pnpm test`. PR #31 expands it to 62 pairs, including Increase Contrast values and heatmap labels. Wave 1 Fix 6 (Nov 6 ivory and charcoal palette): 64 pairs, all passing. Nov 9: the switch (`components/Toggle.tsx`) is drawn from tokens with a 3:1 border and its pairs added |
 | Primary button contrast | 1.4.3 | ✅ | Day: white (`on-ink`) on navy (`ink`), 15.5:1 (PR #31). Night: charcoal on ivory, 15.1:1 (Wave 1 Fix 6). Teal retired in the Oct 29 palette refresh |
 | Status colors (success/live/error) | 1.4.3, 1.4.1 | 🟡 | In PR #31: `court` (wins, live, links) and `danger` (errors) only; `pool`, `clay` and `sun` retired. Each job has a shape cue: underlined links, live dot, win check, error cross. The contrast check fails if a cue goes missing |
 | Focus indicator contrast ≥ 3:1 | 1.4.11 | ✅ | `focus` = `ink`, 2px ring, 13.2:1 or better in both themes (Wave 1 Fix 6) |
