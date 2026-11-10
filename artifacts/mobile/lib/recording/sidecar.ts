@@ -294,8 +294,16 @@ export function onLock(sc: Sidecar, now: Date, confidence: number | null): Sidec
   return { ...sc, courtLock: { ...sc.courtLock, relocks: [...sc.courtLock.relocks, { ...timed(sc, now), confidence }] } };
 }
 
-export function onLensesKnown(sc: Sidecar, lenses: string[]): Sidecar {
-  return { ...sc, capture: { ...sc.capture, availableLenses: [...new Set(lenses)].sort() } };
+/**
+ * The lenses the phone offers. When the pinned lens is among them, it's the
+ * one in use; otherwise the camera picked its own.
+ */
+export function onLensesKnown(sc: Sidecar, lenses: string[], pinned: string | null = null): Sidecar {
+  const lens = pinned && lenses.includes(pinned) ? pinned : null;
+  const missing = { ...sc.missing };
+  if (lens) delete missing["capture.lens"];
+  else missing["capture.lens"] = "The camera picked its own lens.";
+  return { ...sc, missing, capture: { ...sc.capture, lens, availableLenses: [...new Set(lenses)].sort() } };
 }
 
 /** Focus or exposure locked (at court lock), or went back to auto. */

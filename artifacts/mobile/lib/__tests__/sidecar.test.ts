@@ -14,7 +14,9 @@ import {
   onCaptureStart,
   onConditions,
   onCorners,
+  onCameraLock,
   onInterruption,
+  onLensesKnown,
   onLock,
   onMotion,
   onSegment,
@@ -223,5 +225,16 @@ describe("sidecar", () => {
     expect(batteryPercent(0.764)).toBe(76);
     expect(batteryPercent(-1)).toBeNull();
     expect(batteryPercent(null)).toBeNull();
+  });
+
+  it("records the pinned lens only when the phone has it, and when focus locked", () => {
+    const wide = "AVCaptureDeviceTypeBuiltInWideAngleCamera";
+    const sc = onLensesKnown(fresh(), ["AVCaptureDeviceTypeBuiltInTripleCamera", wide], wide);
+    expect(sc.capture.lens).toBe(wide);
+    expect(sc.missing["capture.lens"]).toBeUndefined();
+    expect(onLensesKnown(fresh(), ["AVCaptureDeviceTypeBuiltInTripleCamera"], wide).capture.lens).toBeNull();
+    const locked = onCameraLock(sc, "focus", true, at(30_000));
+    expect(locked.capture.focus).toEqual({ mode: "locked", lockedAt: at(30_000).toISOString() });
+    expect(onCameraLock(locked, "focus", false, at(40_000)).capture.focus).toEqual({ mode: "auto", lockedAt: null });
   });
 });
