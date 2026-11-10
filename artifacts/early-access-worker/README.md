@@ -32,8 +32,17 @@ Cost: free. Workers, D1, cron triggers and Email Routing all stay inside Cloudfl
 
 The next run sends everyone already approved.
 
+## Welcome email (optional, Resend)
+
+With `RESEND_API_KEY` set, everyone this worker approves gets "You're in the Ball Boi beta" right after Apple's invite: getting started, what to try (including inviting their opponent and the Beta Footage Release), what to expect, and how to send feedback. From `Ball Boi <beta@ballboi.tennis>`, replies to support@ballboi.tennis. Sent once per person (`welcomed_at`); failures are saved in `welcome_error` and retried on the next run. People added to TestFlight by hand never get it from here.
+
+Setup (free tier, 3,000 emails a month):
+1. Create a Resend account and add the domain `ballboi.tennis`. Resend shows a few DNS records; add them in Cloudflare > ballboi.tennis > DNS (they don't touch Email Routing) and wait for **Verified**.
+2. Resend > API Keys > create a key with **Sending access** for `ballboi.tennis`.
+3. Add it to this worker as a **secret** named `RESEND_API_KEY` (never in chat or the repo), then deploy the updated `worker.js`.
+
 ## Useful queries (D1 > ballboi-early-access > Console)
 
-- Everyone: `SELECT email, created_at, approved_at, invited_at, invite_error FROM early_access ORDER BY created_at;`
+- Everyone: `SELECT email, created_at, approved_at, invited_at, invite_error, welcomed_at, welcome_error FROM early_access ORDER BY created_at;`
 - Approved but not invited yet: `SELECT email, invite_error FROM early_access WHERE approved_at IS NOT NULL AND invited_at IS NULL;`
 - Remove someone: `DELETE FROM early_access WHERE email = 'name@example.com';` (removing them from TestFlight is done in App Store Connect)
