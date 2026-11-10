@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import { RECORD_ANYWAY_MS } from "@/lib/court/aim";
+import { MOVED_DEGREES } from "@/lib/court/motion";
 import {
   arm,
   countdownMs,
   fallbackDue,
+  nextStillness,
+  lockLineAllowed,
+  NOT_RECORDING_YET,
   onCourtLocked,
   onCourtLost,
   startAnyway,
+  startMatch,
+  startStillness,
   timeLeft,
 } from "@/lib/recording/armedStart";
 
@@ -116,5 +122,110 @@ describe("armed start", () => {
     const l = onCourtLocked(c, T0 + 40_000);
     expect(l.anyway).toBe(false);
     expect(l.startAt).toBe(c.startAt);
+  });
+});
+
+describe("the lock line never plays once capture is due (Nov 9)", () => {
+  it("plays while setting up, before line 19", () => {
+    expect(lockLineAllowed(true, false)).toBe(true);
+  });
+
+  it("stays quiet once line 19 has started, so it can't land in the recording", () => {
+    expect(lockLineAllowed(true, true)).toBe(false);
+  });
+
+  it("stays quiet outside setup", () => {
+    expect(lockLineAllowed(false, false)).toBe(false);
+  });
+
+  it("Record anyway with Start Now: a lock during line 19 doesn't pause it or replay the lock", () => {
+    const anyway = startAnyway(arm(0, T0, GO, false), T0 + RECORD_ANYWAY_MS);
+    expect(anyway.stage).toBe("counting");
+    expect(onCourtLocked(anyway, T0 + RECORD_ANYWAY_MS + 1000).stage).toBe("counting");
+    expect(lockLineAllowed(true, true)).toBe(false);
+  });
+
+  it("Record with no lock waits: nothing counts down until the court locks or the fallback", () => {
+    const s = arm(0, T0, GO, false);
+    expect(s.stage).toBe("waiting");
+    expect(fallbackDue(s, T0 + RECORD_ANYWAY_MS - 1)).toBe(false);
+    expect(timeLeft(s, T0 + 60_000)).toBe(GO);
+    expect(NOT_RECORDING_YET).toBe("Not recording yet");
+  });
+});
+
+describe("Start match on a Lock Screen arms like Record (Nov 9)", () => {
+  it("while waiting for the court it doesn't start capture without a lock", () => {
+    const s = startMatch(null, 0, T0, GO, false);
+    expect(s).not.toBeNull();
+    expect(s!.stage).toBe("waiting");
+    // Line 19 and capture don't come: the clock doesn't run.
+    expect(timeLeft(s!, T0 + 60_000)).toBe(GO);
+    // Tapped again while armed, paused or counting: nothing new.
+    expect(startMatch(s, 0, T0 + 5000, GO, false)).toBeNull();
+    const counting = arm(5, T0, GO, true);
+    expect(startMatch(counting, 0, T0 + 5000, GO, true)).toBeNull();
+    const paused = onCourtLost(counting, T0 + 60_000, GO, false);
+    expect(startMatch(paused, 0, T0 + 70_000, GO, false)).toBeNull();
+  });
+
+  it("then the court locks: the countdown runs, exactly as after Record", () => {
+    const s = startMatch(null, 0, T0, GO, false)!;
+    const locked = onCourtLocked(s, T0 + 8000);
+    expect(locked).toEqual(onCourtLocked(arm(0, T0, GO, false), T0 + 8000));
+    expect(locked.startAt).toBe(T0 + 8000 + GO);
+  });
+
+  it("after a lock it behaves like Record: counting straight away, with the chosen countdown", () => {
+    expect(startMatch(null, 0, T0, GO, true)).toEqual(arm(0, T0, GO, true));
+    expect(startMatch(null, 10, T0, GO, true)).toEqual(arm(10, T0, GO, true));
+    expect(startMatch(null, 0, T0, GO, true)!.stage).toBe("counting");
+  });
+
+  it("the Record anyway fallback still applies after Start match", () => {
+    const s = startMatch(null, 0, T0, GO, false)!;
+    expect(fallbackDue(s, T0 + RECORD_ANYWAY_MS, T0)).toBe(true);
+  });
+});
+
+describe("the 20 seconds only run while the phone holds still (Nov 9)", () => {
+  const level = { alpha: 0, beta: 0, gamma: 0 };
+  const turned = (deg: number) => ({ alpha: (deg * Math.PI) / 180, beta: 0, gamma: 0 });
+
+  it("small wobble counts as still; a move like line 13's restarts it", () => {
+    let st = nextStillness(startStillness(T0), level, T0);
+    expect(st.since).toBe(T0);
+    st = nextStillness(st, turned(MOVED_DEGREES - 1), T0 + 1000);
+    expect(st.since).toBe(T0);
+    st = nextStillness(st, turned(MOVED_DEGREES + 5), T0 + 2000);
+    expect(st.since).toBe(T0 + 2000);
+    // No reading: nothing changes.
+    expect(nextStillness(st, null, T0 + 3000)).toEqual(st);
+  });
+
+  it("don't run while the phone is moving", () => {
+    const s = arm(0, T0, GO, false);
+    let st = startStillness(T0);
+    // Moving the whole time: a new move every second, for a minute.
+    for (let t = 0; t <= 60; t++) st = nextStillness(st, turned(t * 10), T0 + t * 1000);
+    expect(fallbackDue(s, T0 + 60_000, st.since)).toBe(false);
+  });
+
+  it("start once it's still, and restart after a move before the lock", () => {
+    const s = arm(0, T0, GO, false);
+    // Mounting takes 15 seconds, then it holds still.
+    let st = nextStillness(startStillness(T0), turned(30), T0 + 15_000);
+    expect(fallbackDue(s, T0 + 15_000 + RECORD_ANYWAY_MS - 1, st.since)).toBe(false);
+    // Moved at 25 seconds: the 20 seconds start again from there.
+    st = nextStillness(st, turned(50), T0 + 25_000);
+    expect(fallbackDue(s, T0 + 35_000, st.since)).toBe(false);
+    expect(fallbackDue(s, T0 + 25_000 + RECORD_ANYWAY_MS - 1, st.since)).toBe(false);
+    expect(fallbackDue(s, T0 + 25_000 + RECORD_ANYWAY_MS, st.since)).toBe(true);
+  });
+
+  it("never earlier than 20 seconds after arming, even if it was already still", () => {
+    const s = arm(0, T0, GO, false);
+    expect(fallbackDue(s, T0 + RECORD_ANYWAY_MS - 1, T0 - 60_000)).toBe(false);
+    expect(fallbackDue(s, T0 + RECORD_ANYWAY_MS, T0 - 60_000)).toBe(true);
   });
 });

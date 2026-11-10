@@ -48,7 +48,10 @@ describe("what the Live Activity shows (acceptance 31)", () => {
     const c = buildLiveProps(snap({ phase: "countdown", countdownTo: 5000, recordingSince: 1 }));
     expect(c.countdownTo).toBe(5000);
     expect(c.recordingSince).toBeNull();
-    expect(c.canStart).toBe(true);
+    // Already armed: Start match has nothing new to do, so it's not offered (Nov 9).
+    expect(c.canStart).toBe(false);
+    expect(buildLiveProps(snap({ phase: "armed" })).canStart).toBe(false);
+    expect(buildLiveProps(snap({ phase: "paused" })).canStart).toBe(false);
     const r = buildLiveProps(snap({ phase: "recording", countdownTo: 5000, recordingSince: 1000 }));
     expect(r.status).toBe("Recording");
     expect(r.recordingSince).toBe(1000);
@@ -103,8 +106,9 @@ describe("captions mirror on the Live Activity (G11, acceptance 34)", () => {
 });
 
 describe("Start and Stop from the other phone (acceptance 32)", () => {
-  it("Start begins line 19 now from setup, waiting or a countdown", () => {
-    for (const ph of ["ready", "armed", "paused", "countdown"] as RecorderPhase[]) expect(commandAction(ph, "start", false)).toBe("startNow");
+  it("Start match arms from setup like Record, and does nothing new once armed (Nov 9)", () => {
+    expect(commandAction("ready", "start", false)).toBe("arm");
+    for (const ph of ["armed", "paused", "countdown"] as RecorderPhase[]) expect(commandAction(ph, "start", false)).toBe("ignore");
     expect(commandAction("recording", "start", false)).toBe("ignore");
     expect(commandAction("ready", "start", true)).toBe("ignore");
   });
@@ -155,6 +159,15 @@ describe("the second phone's clock", () => {
     expect(liveClock({ stage: "recording", countdownTo: null, recordingSince: 0 }, 3_725_000)).toBe("1:02:05");
     expect(liveClockSpoken({ stage: "recording", countdownTo: null, recordingSince: 0 }, 75_000)).toBe("1 minute 15 seconds");
     expect(liveClock({ stage: "setup", countdownTo: null, recordingSince: null }, 0)).toBeNull();
+  });
+});
+
+describe("says it isn't recording until capture starts (Nov 9)", () => {
+  it("waiting and paused both say not recording yet; only recording says Recording", () => {
+    expect(STAGE_TEXT.waiting).toBe("Waiting for the court, not recording yet");
+    expect(STAGE_TEXT.paused).toBe("Countdown paused, not recording yet");
+    expect(buildLiveProps(snap({ phase: "armed" })).status).toMatch(/not recording yet/);
+    expect(buildLiveProps(snap({ phase: "armed" })).recordingSince).toBeNull();
   });
 });
 

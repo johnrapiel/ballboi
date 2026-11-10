@@ -12,6 +12,8 @@
 //   sensor: still where it locked, or moved.
 // - After about 20 seconds without a lock, Record anyway turns on, and stays
 //   on.
+// - Holding still: when the phone last moved, by the same test as line 13.
+//   The armed start's Record anyway clock only runs while it's still.
 
 import type { CameraView } from "expo-camera";
 import { DeviceMotion } from "expo-sensors";
@@ -33,6 +35,7 @@ import {
 import type { CourtFit } from "@/lib/court/detect";
 import { captureFrame, releaseFrame, type CourtFrame } from "@/lib/court/frame";
 import { hasMoved, isSteady, type Attitude } from "@/lib/court/motion";
+import { nextStillness, startStillness, type Stillness } from "@/lib/recording/armedStart";
 import type { PhoneOrientation } from "@/lib/court/overlay";
 
 /** Time between frames while setting up. */
@@ -56,6 +59,8 @@ export interface CourtWatch {
   attitude: RefObject<Attitude | null>;
   /** True when the phone isn't moving right now. */
   steady: RefObject<boolean>;
+  /** When the phone last moved (the line 13 test), for the Record anyway clock. */
+  stillSince: RefObject<number>;
   /** Resolves once no frame is being taken, so capture never starts mid-photo. */
   idle: () => Promise<void>;
 }
@@ -93,6 +98,8 @@ export function useCourtWatch(
   const latestFrame = useRef<CourtFrame | null>(null);
   const attitude = useRef<Attitude | null>(null);
   const steady = useRef(true);
+  const stillness = useRef<Stillness>(startStillness(Date.now()));
+  const stillSince = useRef(stillness.current.since);
   const lockAttitude = useRef<Attitude | null>(null);
   const started = useRef(false);
   const inflight = useRef<Promise<unknown> | null>(null);
@@ -119,6 +126,8 @@ export function useCourtWatch(
         const now = { alpha: m.rotation.alpha, beta: m.rotation.beta, gamma: m.rotation.gamma };
         attitude.current = now;
         steady.current = isSteady(m.rotationRate);
+        stillness.current = nextStillness(stillness.current, now, Date.now());
+        stillSince.current = stillness.current.since;
         if (lockRef.current.stage === "locked" && hasMoved(lockAttitude.current, now)) {
           lockAttitude.current = null;
           stepRun.current = STEP_RUN_START;
@@ -202,5 +211,5 @@ export function useCourtWatch(
     if (p) await p.catch(() => {});
   };
 
-  return { lock, step, fit, recordAnyway, movedSinceLock, latestFrame, attitude, steady, idle };
+  return { lock, step, fit, recordAnyway, movedSinceLock, latestFrame, attitude, steady, stillSince, idle };
 }
