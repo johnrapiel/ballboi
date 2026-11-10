@@ -78,9 +78,10 @@ export function liveStage(phase: RecorderPhase): LiveStage {
 
 export const STAGE_TEXT: Record<LiveStage, string> = {
   setup: "Setting up",
-  waiting: "Waiting for the court",
+  // Until capture really starts, it says so (John, Nov 9).
+  waiting: "Waiting for the court, not recording yet",
   counting: "Recording starts in",
-  paused: "Countdown paused. Waiting for the court",
+  paused: "Countdown paused, not recording yet",
   recording: "Recording",
   interrupted: "Recording paused on the mounted phone",
   stopped: "Recording stopped",
@@ -133,8 +134,9 @@ export function buildLiveProps(s: RecorderSnapshot): LiveProps {
     caption: s.caption,
     countdownTo: stage === "counting" ? s.countdownTo : null,
     recordingSince: stage === "recording" ? s.recordingSince : null,
-    // Start: before recording, from setup, waiting or a countdown (it starts now).
-    canStart: !s.startBlocked && (stage === "setup" || stage === "waiting" || stage === "paused" || stage === "counting"),
+    // Start: only while setting up. It arms like Record (John, Nov 9), so once
+    // armed there's nothing new for it to do and the button goes.
+    canStart: !s.startBlocked && stage === "setup",
     // Stop: while recording, or paused after an interruption (it saves what's there).
     canStop: stage === "recording" || stage === "interrupted",
     ...liveLinks(s.matchId),
@@ -175,15 +177,17 @@ export function liveAction(v: unknown): LiveCommand | null {
 
 /**
  * What the mounted phone does with Start or Stop from another phone.
- * - startNow: line 19, then capture, with or without a court lock.
+ * - arm: armed like Record on the mounted phone (John, Nov 9). It waits for
+ *   the court, or the Record anyway fallback, before line 19 and capture.
+ *   Already armed, paused or counting: ignore, nothing new.
  * - stop: as if Stop was confirmed on the mounted phone (the other phone confirmed).
  * - finish: paused after an interruption, so it saves what was recorded.
  * - ignore: not possible right now (the Live Activity already says so).
  */
-export function commandAction(phase: RecorderPhase, command: LiveCommand, startBlocked: boolean): "startNow" | "stop" | "finish" | "ignore" {
+export function commandAction(phase: RecorderPhase, command: LiveCommand, startBlocked: boolean): "arm" | "stop" | "finish" | "ignore" {
   if (command === "start") {
     if (startBlocked) return "ignore";
-    return phase === "ready" || phase === "armed" || phase === "paused" || phase === "countdown" ? "startNow" : "ignore";
+    return phase === "ready" ? "arm" : "ignore";
   }
   if (phase === "recording" || phase === "rejoining") return "stop";
   if (phase === "interrupted") return "finish";
