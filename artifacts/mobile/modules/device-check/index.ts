@@ -1,22 +1,15 @@
 // Ball Boi's DeviceCheck token (Wave 2, Session G; device bans). The native
-// side is ios/BallBoiDeviceCheckModule.swift. Where it isn't built in (Expo Go,
-// a simulator, older builds), it reports unsupported and nothing breaks.
+// side is apple/BallBoiDeviceCheckModule.swift (apple/, not ios/, because the
+// app's .gitignore drops ios/ folders). Where it isn't built in (Expo Go, a
+// simulator, older builds), it reports unsupported and nothing breaks.
 
 import { requireOptionalNativeModule } from "expo";
 
-interface DeviceCheckModule {
-  isSupported(): boolean;
-  generateTokenAsync(): Promise<string>;
-}
+import { readDeviceCheckToken, type DeviceCheckNative } from "@/lib/deviceCheck/token";
 
-const native = requireOptionalNativeModule<DeviceCheckModule>("BallBoiDeviceCheck");
+const native = requireOptionalNativeModule<DeviceCheckNative>("BallBoiDeviceCheck");
 
 /** A fresh DeviceCheck token, or null where DeviceCheck isn't available. Never throws. */
-export async function deviceCheckToken(): Promise<string | null> {
-  try {
-    if (!native || !native.isSupported()) return null;
-    return await native.generateTokenAsync();
-  } catch {
-    return null;
-  }
+export function deviceCheckToken(): Promise<string | null> {
+  return readDeviceCheckToken(native);
 }
