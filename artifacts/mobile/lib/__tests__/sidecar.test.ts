@@ -238,3 +238,22 @@ describe("sidecar", () => {
     expect(onCameraLock(locked, "focus", false, at(40_000)).capture.focus).toEqual({ mode: "auto", lockedAt: null });
   });
 });
+
+describe("native capture info in the sidecar", () => {
+  it("adds dropped frames per minute across pieces", async () => {
+    const { onDroppedFrames, minuteOf } = await import("@/lib/recording/sidecar");
+    let sc = capturing();
+    sc = onDroppedFrames(sc, [0, 3], 0);
+    sc = onDroppedFrames(sc, [2, 1], minuteOf(sc, at(10_000 + 61_000).toISOString()));
+    expect(sc.health.droppedFramesByMinute).toEqual([0, 5, 1]);
+    expect(sc.missing["health.droppedFramesByMinute"]).toBeUndefined();
+  });
+
+  it("records HDR only when the camera says", async () => {
+    const { onHdr } = await import("@/lib/recording/sidecar");
+    expect(onHdr(capturing(), null).capture.hdr).toBeNull();
+    const off = onHdr(capturing(), false);
+    expect(off.capture.hdr).toBe(false);
+    expect(off.missing["capture.hdr"]).toBeUndefined();
+  });
+});

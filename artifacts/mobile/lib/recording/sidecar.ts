@@ -515,3 +515,34 @@ export function onBatteryAtStart(sc: Sidecar, battery: number | null): Sidecar {
   delete missing["health.batteryAtStart"];
   return { ...sc, missing, health: { ...sc.health, batteryAtStart: battery } };
 }
+
+/**
+ * Dropped frames from one saved piece, per minute of that piece, added to the
+ * recording's minutes from where the piece started (`startMinute`).
+ */
+export function onDroppedFrames(sc: Sidecar, perMinute: number[], startMinute: number): Sidecar {
+  const list = [...(sc.health.droppedFramesByMinute ?? [])];
+  perMinute.forEach((n, i) => {
+    const m = Math.max(0, startMinute + i);
+    if (m >= MAX_MINUTES) return;
+    while (list.length <= m) list.push(0);
+    list[m] += Math.max(0, Math.round(n));
+  });
+  const missing = { ...sc.missing };
+  delete missing["health.droppedFramesByMinute"];
+  return { ...sc, missing, health: { ...sc.health, droppedFramesByMinute: list } };
+}
+
+/** HDR as the camera reports it. Null keeps the field unknown. */
+export function onHdr(sc: Sidecar, hdr: boolean | null): Sidecar {
+  if (hdr == null) return sc;
+  const missing = { ...sc.missing };
+  delete missing["capture.hdr"];
+  return { ...sc, missing, capture: { ...sc.capture, hdr } };
+}
+
+/** Minutes from capture start to a piece's start, for lining up its dropped frames. */
+export function minuteOf(sc: Sidecar, isoStart: string): number {
+  if (!sc.captureStartedAt) return 0;
+  return Math.max(0, Math.floor((Date.parse(isoStart) - Date.parse(sc.captureStartedAt)) / 60_000));
+}
