@@ -97,16 +97,36 @@ class CourtFit:
         return cm.image_to_court_matrix(self.corners)
 
 
-def line_mask(frame: np.ndarray) -> np.ndarray:
+# Low light (the phone's lowLightPaint in lib/court/detect.ts). The usual
+# paint rule wants a line 25 grey levels brighter than the court beside it and
+# over 120: on John's Nov 8 frames made 30 to 40% darker, or with a shadow
+# across the court, it finds no court at all. When the usual rule gives no
+# confident court, detection runs once more with paint judged against the
+# court right around it: a line is LOW_LIGHT_CONTRAST of the court's own
+# brightness above it (LOW_LIGHT_MIN_RISE to 25 grey levels), LOW_LIGHT_RATIO
+# times as bright, and above LOW_LIGHT_FLOOR.
+LOW_LIGHT_CONTRAST = 0.15
+LOW_LIGHT_MIN_RISE = 10
+LOW_LIGHT_RATIO = 1.1
+LOW_LIGHT_FLOOR = 40
+RETRY_BELOW = 0.7             # a fit below this also gets the low-light rule; the more confident is kept
+
+
+def line_mask(frame: np.ndarray, low_light: bool = False) -> np.ndarray:
     """Thin bright marks: court paint, not sky or white clothing blobs."""
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     h, w = gray.shape
     k = max(5, int(round(min(h, w) / 60)) | 1)
-    tophat = cv2.morphologyEx(gray, cv2.MORPH_TOPHAT, cv2.getStructuringElement(cv2.MORPH_RECT, (k, k)))
+    opened = cv2.morphologyEx(gray, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (k, k)))
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     low_sat = hsv[..., 1] < 90
-    mask = ((tophat > 25) & low_sat & (gray > 120)).astype(np.uint8) * 255
-    return mask
+    g, court = gray.astype(np.float64), opened.astype(np.float64)
+    if low_light:
+        rise = np.clip(court * LOW_LIGHT_CONTRAST, LOW_LIGHT_MIN_RISE, 25)
+        paint = (g - court > rise) & (g > court * LOW_LIGHT_RATIO) & (g > LOW_LIGHT_FLOOR)
+    else:
+        paint = (g - court > 25) & (g > 120)
+    return (paint & low_sat).astype(np.uint8) * 255
 
 
 # ─── Lines ───────────────────────────────────────────────────────────────────
@@ -484,10 +504,10 @@ def _refine(hm: np.ndarray, mask: np.ndarray, band: float) -> np.ndarray | None:
     return _fit_to_lines(matches, w, hm)
 
 
-def _detect_small(frame: np.ndarray) -> tuple[np.ndarray, float] | None:
+def _detect_small(frame: np.ndarray, low_light: bool = False) -> tuple[np.ndarray, float] | None:
     """The best view (court meters to pixels) and its confidence, on a frame at the analysis size."""
     h, w = frame.shape[:2]
-    mask = line_mask(frame)
+    mask = line_mask(frame, low_light)
     found = _find_lines(frame, mask, min(w, h) * 0.07)
     min_line = min(w, h) * 0.12
     white = _white_level([l for l in found if l.votes >= min_line])
@@ -592,7 +612,7 @@ def _shape_ok(c: np.ndarray) -> bool:
     return bool(fl[1] < nl[1] and fr[1] < nr[1] and nl[0] < nr[0] and fl[0] < fr[0])
 
 
-def _sharpen(frame: np.ndarray, hm: np.ndarray, scale: float) -> np.ndarray:
+def _sharpen(frame: np.ndarray, hm: np.ndarray, scale: float, low_light: bool = False) -> np.ndarray:
     """
     The server has the full frame, so it pulls the phone-size fit onto the
     paint at full size too: one more refine pass, kept only if it explains the
@@ -601,7 +621,7 @@ def _sharpen(frame: np.ndarray, hm: np.ndarray, scale: float) -> np.ndarray:
     """
     h, w = frame.shape[:2]
     up = np.diag([1 / scale, 1 / scale, 1.0]) @ hm
-    mask = (line_mask(frame) > 0).astype(np.uint8)
+    mask = (line_mask(frame, low_light) > 0).astype(np.uint8)
     near = cv2.dilate(mask, np.ones((3, 3), np.uint8))
     step = 2 / scale
     best, rank = up, _rank(_score(up, near, step))
@@ -626,14 +646,18 @@ def detect_court(frame: np.ndarray) -> CourtFit | None:
     scale = ANALYSIS_LONG_SIDE / max(h, w)
     small = cv2.resize(frame, (int(round(w * scale)), int(round(h * scale))), interpolation=cv2.INTER_AREA)
     sh, sw = small.shape[:2]
-    found = _detect_small(small)
+    found, low_light = _detect_small(small), False
+    if found is None or found[1] < RETRY_BELOW:
+        dim = _detect_small(small, low_light=True)
+        if dim is not None and (found is None or dim[1] > found[1]):
+            found, low_light = dim, True
     if found is None:
         return None
     hm, confidence = found
     if confidence < MIN_FIT_SCORE:
         return None
     if scale < 1:
-        hm = _sharpen(frame, hm, sw / w)
+        hm = _sharpen(frame, hm, sw / w, low_light)
         corners = _apply(hm[None], cm.SINGLES_CORNERS_M)[0] / [w, h]
     else:
         corners = _apply(hm[None], cm.SINGLES_CORNERS_M)[0] / [sw, sh]
