@@ -1,6 +1,8 @@
 import { useAuth, useUser } from "@clerk/expo";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { PartnerCard } from "@/components/league/PartnerCard";
+import { useGetMyPartner } from "@workspace/api-client-react";
 import React, { useEffect, useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -90,6 +92,22 @@ function errorText(e: unknown, fallback: string): string {
 type Done = { kind: "joined" | "requested" | "waitlisted"; leagueId: number | null; message: string };
 
 const ACTION_LABEL = { join: "Join the league", request: "Ask to join", waitlist: "Join waitlist" } as const;
+
+/**
+ * D9: in a fixed-partner doubles league, the team-up step comes right after
+ * joining, and Open league steps back to secondary under it. Otherwise Open
+ * league is the one primary action.
+ */
+function JoinedActions({ leagueId, onOpen }: { leagueId: number; onOpen: () => void }) {
+  const q = useGetMyPartner(leagueId);
+  const step = !!q.data?.fixedPartners && q.data.member && !q.data.partner && q.data.teamingOpen;
+  return (
+    <>
+      {step ? <PartnerCard leagueId={leagueId} joining /> : null}
+      <Button label="Open league" variant={step ? "secondary" : "primary"} onPress={onOpen} />
+    </>
+  );
+}
 
 export default function JoinLeagueScreen() {
   const c = useColors();
@@ -260,7 +278,7 @@ export default function JoinLeagueScreen() {
           <Text tone="inkMuted">{state.message}</Text>
         </View>
         {state.kind === "joined" && state.leagueId ? (
-          <Button label="Open league" onPress={() => openLeague(state.leagueId!)} />
+          <JoinedActions leagueId={state.leagueId} onOpen={() => openLeague(state.leagueId!)} />
         ) : (
           <Button label="Done" onPress={() => router.replace("/(tabs)/leagues")} />
         )}

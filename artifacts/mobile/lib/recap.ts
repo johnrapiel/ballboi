@@ -9,7 +9,8 @@ import { winnerScoreLine } from "./winnerMark";
 // winner's side with the winner underlined, the date, the court and the
 // league (or "Discover" / "Quick match"), your new season record ("5-2 this
 // season") and the Ball Boi roundel. Doubles use team names in the same
-// pattern. Always the Day look. Pure, so the words are tested in
+// pattern, every name short: "John R. & Sam L. def. Jo P. & Lee K." (D7).
+// Always the Day look. Pure, so the words are tested in
 // lib/__tests__/recap.test.ts.
 //
 // Aces and winners join once those stats pass their accuracy bars (G1).
@@ -47,7 +48,8 @@ export interface RecapView {
 export function recapView(r: Pick<MatchRecap, "you" | "side1" | "side2" | "score" | "winner" | "playedAt" | "court" | "context" | "season">): RecapView {
   const mine = r.you === 1 ? r.side1 : r.side2;
   const theirs = r.you === 1 ? r.side2 : r.side1;
-  const me = mine.join(" & ");
+  // Doubles (D7, John, Nov 9): both teams in short names, "John R. & Sam L. def. Jo P. & Lee K.".
+  const me = mine.length > 1 ? mine.map(shortName).join(" & ") : mine.join(" & ");
   const them = theirs.map(shortName).join(" & ");
   const youWon = r.winner != null && r.winner === r.you;
   const theyWon = r.winner != null && r.winner !== r.you;

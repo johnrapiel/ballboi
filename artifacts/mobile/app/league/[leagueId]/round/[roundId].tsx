@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
+  useGetLeague,
   getGetLeagueScheduleQueryKey,
   useAddLeagueRoundBye,
   useGetLeagueRoster,
@@ -22,7 +23,7 @@ import { ListRow } from "@/components/league/ListRow";
 import { Button, Card, Text, TextButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { dateRange, pairingTime, shortDate } from "@/lib/leagueSchedule";
+import { dateRange, pairingTime, shortDate, sideLabels } from "@/lib/leagueSchedule";
 
 // Review a round before it goes out (spec: Leagues > Weekly loop, step 2;
 // approved canvas: Admin · Schedule review). A brush title, the matches as
@@ -65,6 +66,8 @@ export default function RoundReviewScreen() {
   const roundId = Number(rawRound);
 
   const scheduleQ = useGetLeagueSchedule(leagueId);
+  // Doubles drafts (D10): lock or re-pair; fixed teams change in Manage > Teams.
+  const doubles = useGetLeague(leagueId).data?.leagueType === "doubles";
   const rosterQ = useGetLeagueRoster(leagueId);
   const [busy, setBusy] = useState(false);
 
@@ -116,9 +119,18 @@ export default function RoundReviewScreen() {
   }
 
   function matchMenu(r: ScheduleRound, m: ScheduleMatch) {
-    const a = { playerId: m.player1Id, name: m.player1Name };
-    const b = { playerId: m.player2Id, name: m.player2Name };
-    const actions: { label: string; go: () => void }[] = m.locked
+    const a = { playerId: m.player1Id, name: doubles ? sideLabels(m).side1 : m.player1Name };
+    const b = { playerId: m.player2Id, name: doubles ? sideLabels(m).side2 : m.player2Name };
+    const lockOnly = [
+      {
+        label: m.locked ? "Unlock match" : "Lock match",
+        go: () =>
+          void run(() => lock.mutateAsync({ leagueId, roundId, matchId: m.matchId, data: { locked: !m.locked } }), m.locked ? "Match unlocked" : "Match locked"),
+      },
+    ];
+    const actions: { label: string; go: () => void }[] = doubles
+      ? lockOnly
+      : m.locked
       ? [
           {
             label: "Unlock match",
@@ -252,7 +264,9 @@ export default function RoundReviewScreen() {
             {`Round ${round.roundNumber} pairings`}
           </Text>
           <Text variant="small" tone="inkMuted">
-            {`${dateRange(round.startDate, round.deadline)}. Only admins see these until they go out ${shortDate(round.startDate)} at ${pairingTime(scheduleQ.data?.timeZone)}. Tap a match to swap players, give a bye, or lock it.`}
+            {`${dateRange(round.startDate, round.deadline)}. Only admins see these until they go out ${shortDate(round.startDate)} at ${pairingTime(scheduleQ.data?.timeZone)}. ${
+              doubles ? "Tap a match to lock it, or re-pair. Change fixed teams in Manage, Teams." : "Tap a match to swap players, give a bye, or lock it."
+            }`}
           </Text>
         </View>
 
@@ -264,12 +278,16 @@ export default function RoundReviewScreen() {
             round.matches.map((m, i) => (
               <ListRow
                 key={m.matchId}
-                title={`${m.player1Name} vs. ${m.player2Name}`}
-                subtitle={[label(m.player1Id, m.player1Name), label(m.player2Id, m.player2Name)].join(" · ")}
+                title={doubles ? `${sideLabels(m).side1} vs. ${sideLabels(m).side2}` : `${m.player1Name} vs. ${m.player2Name}`}
+                subtitle={
+                  doubles
+                    ? null
+                    : [label(m.player1Id, m.player1Name), label(m.player2Id, m.player2Name)].join(" · ")
+                }
                 trailing={m.locked ? "Locked" : null}
                 symbol={m.locked ? "lock.fill" : undefined}
                 onPress={() => matchMenu(round, m)}
-                accessibilityHint={m.locked ? "Unlock this match" : "Swap a player, give a bye, or lock this match"}
+                accessibilityHint={m.locked ? "Unlock this match" : doubles ? "Lock this match" : "Swap a player, give a bye, or lock this match"}
                 last={i === round.matches.length - 1}
               />
             ))
@@ -285,8 +303,8 @@ export default function RoundReviewScreen() {
                   key={b.playerId}
                   title={`Bye: ${b.playerName}`}
                   subtitle={b.setByAdmin ? "Set by an admin. Stays when you re-pair." : "Fewest byes so far this season."}
-                  onPress={() => byeMenu(round, { playerId: b.playerId, name: b.playerName })}
-                  accessibilityHint="Take away the bye or swap"
+                  onPress={doubles ? undefined : () => byeMenu(round, { playerId: b.playerId, name: b.playerName })}
+                  accessibilityHint={doubles ? undefined : "Take away the bye or swap"}
                   last={i === round.byes.length - 1}
                 />
               ))}
@@ -296,15 +314,15 @@ export default function RoundReviewScreen() {
 
         {round.unpaired.length > 0 ? (
           <>
-            <Heading>Needs an opponent</Heading>
+            <Heading>{doubles ? "Not in a match yet" : "Needs an opponent"}</Heading>
             <Card style={{ padding: 0, overflow: "hidden" }}>
               {round.unpaired.map((u, i) => (
                 <ListRow
                   key={u.playerId}
                   title={u.playerName}
                   subtitle="Paired automatically when the round goes out."
-                  onPress={() => unpairedMenu(round, { playerId: u.playerId, name: u.playerName })}
-                  accessibilityHint="Give a bye or swap"
+                  onPress={doubles ? undefined : () => unpairedMenu(round, { playerId: u.playerId, name: u.playerName })}
+                  accessibilityHint={doubles ? undefined : "Give a bye or swap"}
                   last={i === round.unpaired.length - 1}
                 />
               ))}
@@ -327,7 +345,7 @@ export default function RoundReviewScreen() {
       >
         <Button label={`Send Round ${round.roundNumber} to players`} loading={busy && publish.isPending} disabled={busy} onPress={() => confirmPublish(round)} />
         <Text variant="small" tone="inkMuted" style={{ textAlign: "center" }}>
-          Players get a notification with their opponent.
+          {doubles ? "Players get a notification with their partner and opponents." : "Players get a notification with their opponent."}
         </Text>
       </View>
     </View>

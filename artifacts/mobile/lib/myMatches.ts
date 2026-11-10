@@ -1,6 +1,6 @@
 import type { LeagueWeekSeason } from "@workspace/api-client-react";
 
-import { flipScore, isRetiredScore, readSet, WALKOVER_SCORE } from "./tennisScore";
+import { flipScore, isDoubleDefault, isRetiredScore, readSet, WALKOVER_SCORE } from "./tennisScore";
 
 // Match detail and the record screen's season line (findings 6, 7, 14; John,
 // Nov 6). Pure, so it's tested in lib/__tests__.
@@ -19,7 +19,7 @@ export interface SetRow {
 
 /** "6-4, 7-6(4) RET" from your side, as set rows for the score table. W/O has none. */
 export function setRows(score: string | null | undefined): SetRow[] {
-  if (!score || score.trim() === WALKOVER_SCORE) return [];
+  if (!score || score.trim() === WALKOVER_SCORE || isDoubleDefault(score)) return [];
   return score
     .replace(/\s*RET$/, "")
     .split(",")
@@ -35,6 +35,7 @@ export function winnerScore(score: string, youWon: boolean): string {
 
 /** How a result reads in words: "John Rapiel beat Ray Alvarez 6-4, 7-5". */
 export function resultSentence(input: { you: string; them: string; score: string; youWon: boolean }): string {
+  if (isDoubleDefault(input.score)) return `Double default: ${input.you} vs. ${input.them}`;
   const [winner, loser] = input.youWon ? [input.you, input.them] : [input.them, input.you];
   const retired = isRetiredScore(input.score);
   const score = winnerScore(input.score, input.youWon).replace(/\s*RET$/, "");

@@ -17,6 +17,7 @@ import { MatchTimeFields, hhmm, timeFromHHMM } from "@/components/league/MatchTi
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
 import { SheetBody, useSheetClose } from "@/components/Sheet";
 import { phoneTimeZone } from "@/lib/leagueSchedule";
+import { PARTNERS_HINT, type Partners } from "@/lib/doubles";
 import { MAX_WEEKS, MIN_WEEKS, readWeeks } from "@/lib/scoreEntry";
 import { Button, Card, Field, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
@@ -30,10 +31,13 @@ import { useProfile } from "@/hooks/useProfile";
 // drag down to close, and it asks before discarding). It's the standard iOS
 // page sheet (`fullSheetOptions` in app/_layout.tsx), not a formSheet, which
 // drew this form blank on iOS 26. Anyone can start one and becomes its admin.
-// Singles only for now (Q2). A season starts tomorrow at the earliest (Q7), so a
+// Singles or doubles (doubles flow review D1, D8, John, Nov 9): doubles picks
+// Fixed or Rotating partners, has no playoffs for now (decision 79) and needs
+// at least 4 players. A season starts tomorrow at the earliest (Q7), so a
 // friend who joins on the day it's made is in from round 1.
 
 type Format = "flex" | "round_robin";
+type Play = "singles" | "doubles";
 
 // Season length limits match the spec (Leagues > Setup: 1 to 24 weeks) and the API.
 const DEFAULT_WEEKS = 8;
@@ -209,6 +213,9 @@ export default function StartLeagueScreen() {
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
   const [format, setFormat] = useState<Format>("flex");
+  const [play, setPlay] = useState<Play>("singles");
+  const [partners, setPartners] = useState<Partners>("fixed");
+  const doubles = play === "doubles";
   const [start, setStart] = useState<Date>(nextMonday);
   const [weeksText, setWeeksText] = useState(String(DEFAULT_WEEKS));
   const lastWeeks = useRef(DEFAULT_WEEKS);
@@ -238,6 +245,7 @@ export default function StartLeagueScreen() {
     name.trim() !== "" ||
     location.trim() !== "" ||
     format !== "flex" ||
+    play !== "singles" ||
     weeks !== DEFAULT_WEEKS ||
     playoffs !== "0" ||
     !playing ||
@@ -270,9 +278,9 @@ export default function StartLeagueScreen() {
     const body: CreateLeagueBody = {
       name: name.trim(),
       format,
-      // Q2: doubles leagues come later.
-      leagueType: "singles",
-      partnerMode: null,
+      // D1, D8: doubles with Fixed or Rotating partners.
+      leagueType: play,
+      partnerMode: doubles ? partners : null,
       // Open leagues (listed in Discover, with join requests) come back once
       // Discover and join requests are built. Until then every league is private.
       visibility: "private",
@@ -281,7 +289,8 @@ export default function StartLeagueScreen() {
       rosterCap: null,
       startDate: dateKey(start),
       seasonWeeks: weeks,
-      playoffSize: Number(playoffs) as 0 | 4 | 8,
+      // Decision 79: no doubles playoffs for now.
+      playoffSize: doubles ? 0 : (Number(playoffs) as 0 | 4 | 8),
       location: location.trim() || null,
       playing,
       playerName: playing ? playerName || "Admin" : null,
@@ -333,6 +342,28 @@ export default function StartLeagueScreen() {
       </Section>
 
       <Section title="How it works">
+        <Choice<Play>
+          label="Play"
+          value={play}
+          onChange={setPlay}
+          options={[
+            { value: "singles", label: "Singles" },
+            { value: "doubles", label: "Doubles" },
+          ]}
+          hint={doubles ? "Doubles needs at least 4 players before the first round goes out." : undefined}
+        />
+        {doubles ? (
+          <Choice<Partners>
+            label="Partners"
+            value={partners}
+            onChange={setPartners}
+            options={[
+              { value: "fixed", label: "Fixed" },
+              { value: "rotating", label: "Rotating" },
+            ]}
+            hint={PARTNERS_HINT[partners]}
+          />
+        ) : null}
         <Choice<Format>
           label="Format"
           value={format}
@@ -343,8 +374,8 @@ export default function StartLeagueScreen() {
           ]}
           hint={
             format === "flex"
-              ? `Flex: we pair players every ${weekday(start)} by level and who hasn't played whom.`
-              : "Round robin: you play someone new each week."
+              ? `Flex: we pair ${doubles ? "teams" : "players"} every ${weekday(start)} by level and who hasn't played whom.`
+              : `Round robin: ${doubles ? "your team plays" : "you play"} someone new each week.`
           }
         />
         <Text variant="small" tone="inkMuted">
@@ -393,30 +424,37 @@ export default function StartLeagueScreen() {
           time={matchClock}
           onTimeChange={setMatchClock}
         />
-        <Choice<"0" | "4" | "8">
-          label="Playoffs"
-          value={playoffs}
-          onChange={setPlayoffs}
-          options={[
-            { value: "0", label: "None" },
-            { value: "4", label: "Top 4" },
-            { value: "8", label: "Top 8" },
-          ]}
-        />
+        {/* Decision 79: doubles leagues have no playoffs for now, so the choice isn't offered. */}
+        {doubles ? null : (
+          <Choice<"0" | "4" | "8">
+            label="Playoffs"
+            value={playoffs}
+            onChange={setPlayoffs}
+            options={[
+              { value: "0", label: "None" },
+              { value: "4", label: "Top 4" },
+              { value: "8", label: "Top 8" },
+            ]}
+          />
+        )}
       </Section>
 
       <Card style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3 }}>
         <View style={{ flex: 1, gap: 2 }}>
           <Text variant="bodyStrong">I'm playing in this league</Text>
           <Text variant="small" tone="inkMuted">
-            {playing ? "You'll be paired like everyone else." : "You'll run the league without playing."}
+            {playing
+              ? doubles && partners === "fixed"
+                ? "You'll team up like everyone else."
+                : "You'll be paired like everyone else."
+              : "You'll run the league without playing."}
           </Text>
         </View>
         <Toggle value={playing} onValueChange={setPlaying} accessibilityLabel="I'm playing in this league" />
       </Card>
 
       <Text variant="small" tone="inkMuted" style={{ paddingHorizontal: spacing.space1 }}>
-        Standings rank by wins. Next you'll get an invite code to share.
+        {doubles && partners === "fixed" ? "Standings rank teams by wins." : "Standings rank by wins."} Next you'll get an invite code to share.
       </Text>
     </SheetBody>
   );

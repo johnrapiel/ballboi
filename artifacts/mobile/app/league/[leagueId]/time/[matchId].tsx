@@ -17,7 +17,7 @@ import { SheetBody, useSheetClose } from "@/components/Sheet";
 import { Button, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors, useScheme } from "@/hooks/useColors";
-import { addDays, deadlineDate, matchWhen, opponentName, pickableDays, shortDate, zonedTime } from "@/lib/leagueSchedule";
+import { addDays, deadlineDate, isMine, matchWhen, opponentName, pickableDays, shortDate, zonedTime } from "@/lib/leagueSchedule";
 import { todaysMatchesKey } from "@/lib/recording/api";
 
 // Match time (PR 4). In a league with no weekly match time, either player sets
@@ -41,7 +41,7 @@ export default function MatchTimeScreen() {
   const timeZone = scheduleQ.data?.timeZone ?? "America/New_York";
   const round = scheduleQ.data?.rounds.find((r) => r.matches.some((m) => m.matchId === matchId));
   const match = round?.matches.find((m) => m.matchId === matchId);
-  const opponent = match ? (myPlayerId != null && (match.player1Id === myPlayerId || match.player2Id === myPlayerId) ? opponentName(match, myPlayerId) : null) : null;
+  const opponent = match ? (myPlayerId != null && isMine(match, myPlayerId) ? opponentName(match, myPlayerId) : null) : null;
   const title = match ? (opponent ? `You vs. ${opponent}` : `${match.player1Name} vs. ${match.player2Name}`) : null;
 
   // The match's week in the league's time zone; the grace week once the

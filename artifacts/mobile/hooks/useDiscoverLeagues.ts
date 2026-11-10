@@ -8,10 +8,10 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { discoverKeys } from "@/hooks/useDiscover";
 import { apiErrorMessage, apiFetch } from "@/lib/api";
 import { askForNotifications } from "@/lib/notifications";
-import { leaguesPath, type DiscoverLeague, type DiscoverLeagues } from "@/lib/discover";
+import { leaguesPath, type DiscoverLeague, type DiscoverLeagues, type PlayFilter } from "@/lib/discover";
 
 export const leagueKeys = {
-  list: (radius: number) => ["discover", "leagues", radius] as const,
+  list: (radius: number, play: PlayFilter = "all") => ["discover", "leagues", radius, play] as const,
   one: (leagueId: number) => ["discover", "league", leagueId] as const,
 };
 
@@ -20,11 +20,11 @@ async function json<T>(res: Response, fallback: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-export function useDiscoverLeagues(radius: number, enabled = true) {
+export function useDiscoverLeagues(radius: number, enabled = true, play: PlayFilter = "all") {
   const { getToken } = useAuth();
   return useQuery({
-    queryKey: leagueKeys.list(radius),
-    queryFn: async () => json<DiscoverLeagues>(await apiFetch(leaguesPath(radius), getToken), "Can't load Open leagues right now."),
+    queryKey: leagueKeys.list(radius, play),
+    queryFn: async () => json<DiscoverLeagues>(await apiFetch(leaguesPath(radius, play), getToken), "Can't load Open leagues right now."),
     placeholderData: keepPreviousData,
     enabled,
   });

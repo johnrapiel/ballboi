@@ -1,4 +1,4 @@
-import { flipScore, isRetiredScore, WALKOVER_SCORE } from "./tennisScore";
+import { DOUBLE_DEFAULT_SCORE, flipScore, isDoubleDefault, isRetiredScore, WALKOVER_SCORE } from "./tennisScore";
 
 // The winner mark (John, Nov 8, approved as drawn): wherever a finished match
 // shows both players, the winner's name is bold in ink with a brush underline,
@@ -61,6 +61,10 @@ export function winnerMark(input: WinnerMarkInput): WinnerMark {
     else if (isRetiredScore(score)) spoken = `${winnerName} won ${line.replace(/ · RET$/, "")}, ${loserName} retired`;
     else spoken = `${winnerName} won ${line}`;
     return { winner: input.winner, player1: p1Won ? "winner" : "loser", player2: p1Won ? "loser" : "winner", line, spoken };
+  }
+  // A doubles double default (John, Nov 9) has no winner: the words, plain.
+  if (isDoubleDefault(score)) {
+    return { winner: null, player1: "plain", player2: "plain", line: DOUBLE_DEFAULT_SCORE, spoken: `${DOUBLE_DEFAULT_SCORE}, no winner` };
   }
   const status = input.status ?? "Not played yet";
   const style: NameStyle = MUTED_STATUSES.has(status) ? "muted" : "plain";

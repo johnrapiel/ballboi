@@ -1,3 +1,4 @@
+import { andJoin, firstName, versusSpoken } from "@/lib/doubles";
 import React from "react";
 import { useWindowDimensions, View } from "react-native";
 
@@ -35,6 +36,8 @@ export function NextMatchCard({
   myPhoto,
   opponentPhoto,
   opponentName,
+  partnerName,
+  opponentNames,
   location,
   league,
   note,
@@ -54,6 +57,9 @@ export function NextMatchCard({
   opponentPhoto?: string | null;
   /** "Mike Okafor", or "Okafor & Lindqvist" in doubles. */
   opponentName: string;
+  /** Doubles (D8): your partner and the other team, for "You and Sam vs. Jo and Lee". */
+  partnerName?: string | null;
+  opponentNames?: string[];
   /** Court, e.g. "Beacon Courts · Court 3". */
   location?: string | null;
   /** League name, shown as the outline pill. */
@@ -72,7 +78,10 @@ export function NextMatchCard({
   const { fontScale } = useWindowDimensions();
   const face = Math.round(52 * Math.min(fontScale, 1.3));
   const stacked = fontScale >= 1.3;
-  const summary = [dateLabel, time, `You versus ${opponentName}`, location, league, note].filter(Boolean).join(". ");
+  const doubles = !!partnerName && !!opponentNames?.length;
+  const summary = [dateLabel, time, doubles ? versusSpoken(partnerName, opponentNames!) : `You versus ${opponentName}`, location, league, note]
+    .filter(Boolean)
+    .join(". ");
   // Message is primary unless Record leads on match day.
   const messageVariant = record ? "secondary" : "primary";
 
@@ -106,8 +115,16 @@ export function NextMatchCard({
           </View>
         </View>
         <Text variant="bodyStrong" style={{ marginTop: 10, marginBottom: spacing.space1, textAlign: "center" }}>
-          You{" "}
-          <Text tone="inkMuted">vs.</Text> {opponentName}
+          {doubles ? (
+            <>
+              {`You and ${firstName(partnerName)} `}
+              <Text tone="inkMuted">vs.</Text> {andJoin(opponentNames!.map(firstName))}
+            </>
+          ) : (
+            <>
+              You <Text tone="inkMuted">vs.</Text> {opponentName}
+            </>
+          )}
         </Text>
         {location ? (
           <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "center", gap: spacing.space2, maxWidth: "100%" }}>

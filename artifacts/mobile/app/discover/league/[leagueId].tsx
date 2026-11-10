@@ -180,7 +180,7 @@ function rows(l: DiscoverLeague): { label: string; value: string }[] {
   const out: { label: string; value: string }[] = [];
   const where = [l.location, l.distance].filter(Boolean).join(" · ");
   if (where) out.push({ label: "Where", value: where });
-  out.push({ label: "Format", value: `${l.format} · ${l.type}` });
+  out.push({ label: "Format", value: [l.format, l.type, l.partners].filter(Boolean).join(" · ") });
   out.push({
     label: "Level",
     value: l.myRating != null ? `${l.levelText.replace(/^Level /, "")} · You're ${l.myRating.toFixed(1)}` : l.levelText,

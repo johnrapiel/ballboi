@@ -26,7 +26,8 @@ import { discoverState, useDiscoverState } from "@/hooks/useDiscoverFilters";
 import { useDiscoverLeagues } from "@/hooks/useDiscoverLeagues";
 import { useOpenMatches } from "@/hooks/useDiscoverOpenMatches";
 import { isOfflineError } from "@/lib/api";
-import { RADIUS_STEPS, countFor, countLine, filtersSpoken, inviteMessage, type DiscoverTab } from "@/lib/discover";
+import { RADIUS_STEPS, countFor, countLine, filtersSpoken, inviteMessage, type DiscoverTab, type PlayFilter } from "@/lib/discover";
+import { SegmentedTabs } from "@/components/league/SegmentedTabs";
 
 export default function DiscoverScreen() {
   const c = useColors();
@@ -245,7 +246,9 @@ function LeaguesTab() {
   const router = useRouter();
   const { radius } = useDiscoverState();
   const me = useDiscoverMe();
-  const q = useDiscoverLeagues(radius, !!me.data);
+  // D8: the Format filter, All, Singles or Doubles.
+  const [play, setPlay] = React.useState<PlayFilter>("all");
+  const q = useDiscoverLeagues(radius, !!me.data, play);
   const saveRadius = useSaveRadius();
   const data = q.data;
   const counts = data?.counts ?? [];
@@ -263,8 +266,19 @@ function LeaguesTab() {
           ? `Finding Open leagues within ${radius} mi…`
           : q.isError && !data
             ? `Within ${radius} mi`
-            : countLine(data?.total ?? 0, radius, "Open league")}
+            : countLine(data?.total ?? 0, radius, play === "all" ? "Open league" : play === "singles" ? "Open singles league" : "Open doubles league")}
       </CountRow>
+      <SegmentedTabs
+        choice
+        label="Format"
+        value={play}
+        onChange={setPlay}
+        tabs={[
+          { value: "all", label: "All" },
+          { value: "singles", label: "Singles" },
+          { value: "doubles", label: "Doubles" },
+        ]}
+      />
       {loading ? (
         <SkeletonRows rows={3} />
       ) : q.isError && !data ? (
@@ -284,8 +298,12 @@ function LeaguesTab() {
         </EmptyBlock>
       ) : data && data.leagues.length === 0 ? (
         <EmptyBlock
-          title={`No Open leagues within ${radius} mi`}
-          body="Try a wider distance, or start your own league and make it Open so players near you can ask for a spot."
+          title={`No Open ${play === "all" ? "" : `${play} `}leagues within ${radius} mi`}
+          body={
+            play === "all"
+              ? "Try a wider distance, or start your own league and make it Open so players near you can ask for a spot."
+              : `Try a wider distance, or show All formats.`
+          }
         >
           {widenTo ? <Button label={`Widen to ${widenTo} mi`} onPress={() => pickRadius(widenTo)} /> : null}
           <Button label="Start a league" variant="secondary" onPress={() => router.push("/league/new")} />

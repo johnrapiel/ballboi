@@ -1,4 +1,5 @@
 import type { LeagueWeek, LeagueWeekItem, LeagueWeekPlayoff } from "@workspace/api-client-react";
+import { versusLine, versusSpoken } from "./doubles";
 
 import { deadlineDate, isToday, lateTime } from "./leagueSchedule";
 
@@ -47,6 +48,10 @@ export interface UpcomingItem {
   opponentName: string | null;
   /** League matches: the opponent's player id, for Message. */
   opponentPlayerId: number | null;
+  /** Doubles league matches (D8): your partner, for "You and Sam vs. Jo and Lee". */
+  partnerName: string | null;
+  /** Doubles league matches: the other team's names. Empty otherwise. */
+  opponentNames: string[];
   /** The singles opponent's photo ("/objects/..."), for the next-match card. */
   opponentPhoto: string | null;
   /** Discover matches: the other player's user id, for their chat. */
@@ -97,6 +102,8 @@ export function upcomingList(input: {
   const stage = input.stage ?? (() => "Playoffs");
   const base = {
     opponentPlayerId: null,
+    partnerName: null,
+    opponentNames: [] as string[],
     opponentPhoto: null,
     otherUserId: null,
     leagueId: null,
@@ -127,6 +134,8 @@ export function upcomingList(input: {
         starts: i.phase === "upcoming" ? deadlineDate(i.startDate, null) : null,
         opponentName: i.opponentName ?? "your opponent",
         opponentPlayerId: i.opponentPlayerId,
+        partnerName: i.partnerName ?? null,
+        opponentNames: i.opponentNames ?? [],
         opponentPhoto: i.opponentAvatarUrl ?? null,
         leagueId: i.leagueId,
         context: i.leagueName,
@@ -210,14 +219,19 @@ export function rowWhen(m: Pick<UpcomingItem, "scheduledAt" | "playBy" | "starts
 }
 
 /** A row's second line: "vs. Priya Shah · Discover", or "Open match · Doubles · 2 spots left". */
-export function rowSub(m: Pick<UpcomingItem, "kind" | "opponentName" | "context" | "singles" | "openStatus">): string {
+export function rowSub(
+  m: Pick<UpcomingItem, "kind" | "opponentName" | "context" | "singles" | "openStatus"> & Partial<Pick<UpcomingItem, "partnerName" | "opponentNames">>,
+): string {
   if (m.kind === "open") return ["Open match", m.singles ? "Singles" : "Doubles", m.openStatus].filter(Boolean).join(" · ");
+  // D8: "You and Sam vs. Jo and Lee · Thursday Doubles".
+  if (m.partnerName && m.opponentNames?.length) return `${versusLine(m.partnerName, m.opponentNames)} · ${m.context}`;
   return `vs. ${m.opponentName} · ${m.context}`;
 }
 
 /** The row as VoiceOver reads it, with words in place of dots and short days. */
 export function rowSpoken(
-  m: Pick<UpcomingItem, "kind" | "scheduledAt" | "playBy" | "starts" | "opponentName" | "context" | "singles" | "openStatus" | "location"> & { grace?: boolean },
+  m: Pick<UpcomingItem, "kind" | "scheduledAt" | "playBy" | "starts" | "opponentName" | "context" | "singles" | "openStatus" | "location"> &
+    Partial<Pick<UpcomingItem, "partnerName" | "opponentNames">> & { grace?: boolean },
   now: Date = new Date(),
 ): string {
   let when: string;
@@ -232,7 +246,9 @@ export function rowSpoken(
   const who =
     m.kind === "open"
       ? `Open match, ${m.singles ? "singles" : "doubles"}${m.openStatus ? `, ${m.openStatus.toLowerCase()}` : ""}`
-      : `Versus ${m.opponentName}${m.location ? ` at ${m.location}` : ""}`;
+      : m.partnerName && m.opponentNames?.length
+        ? `${versusSpoken(m.partnerName, m.opponentNames)}${m.location ? ` at ${m.location}` : ""}`
+        : `Versus ${m.opponentName}${m.location ? ` at ${m.location}` : ""}`;
   const context = m.kind === "open" ? null : m.kind === "discover" ? "Set up in Discover" : m.context.replace(/ · /g, ", ");
   return [when, who, context].filter(Boolean).join(". ");
 }
