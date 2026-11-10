@@ -5,6 +5,41 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+export type RecordingConditionsSetting =
+  | (typeof RecordingConditionsSetting)[keyof typeof RecordingConditionsSetting]
+  | null;
+
+export const RecordingConditionsSetting = {
+  indoor: "indoor",
+  outdoor: "outdoor",
+} as const;
+
+export type RecordingConditionsLight =
+  | (typeof RecordingConditionsLight)[keyof typeof RecordingConditionsLight]
+  | null;
+
+export const RecordingConditionsLight = {
+  day: "day",
+  night: "night",
+} as const;
+
+export type RecordingConditionsSurface =
+  | (typeof RecordingConditionsSurface)[keyof typeof RecordingConditionsSurface]
+  | null;
+
+export const RecordingConditionsSurface = {
+  hard: "hard",
+  clay: "clay",
+  grass: "grass",
+  other: "other",
+} as const;
+
+export interface RecordingConditions {
+  setting: RecordingConditionsSetting;
+  light: RecordingConditionsLight;
+  surface: RecordingConditionsSurface;
+}
+
 export type RecordingSidecarSidecarVersion =
   (typeof RecordingSidecarSidecarVersion)[keyof typeof RecordingSidecarSidecarVersion];
 
@@ -4870,6 +4905,15 @@ export type LogDoublesViewBody = {
 export type DiscardRecordingBody = {
   matchId: number;
   sessionId?: number;
+};
+
+export type PutRecordingConditionsBody = {
+  conditions: RecordingConditions | null;
+};
+
+export type PutRecordingConditions200 = {
+  saved: boolean;
+  recordings: number;
 };
 
 export type AbandonQuickMatch200 = {

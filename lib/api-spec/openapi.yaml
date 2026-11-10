@@ -7542,6 +7542,61 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /recording/matches/{matchId}/conditions:
+    put:
+      operationId: putRecordingConditions
+      tags: [recording]
+      summary: Conditions at stop from the score prompt (indoor or outdoor, day or night, surface). Optional; null clears them. Saved on the caller's recordings of this match and their stored sidecars.
+      parameters:
+      - name: matchId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conditions:
+                  allOf:
+                  - $ref: '#/components/schemas/RecordingConditions'
+                  nullable: true
+              required: [conditions]
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  saved:
+                    type: boolean
+                    enum: [true]
+                  recordings:
+                    type: integer
+                required: [saved, recordings]
+        '400':
+          description: Not valid conditions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't save them
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /recording/quick-matches/{matchId}/abandon:
     post:
       operationId: abandonQuickMatch
@@ -7914,6 +7969,22 @@ components:
       schema:
         type: integer
   schemas:
+    RecordingConditions:
+      type: object
+      properties:
+        setting:
+          type: string
+          enum: [indoor, outdoor]
+          nullable: true
+        light:
+          type: string
+          enum: [day, night]
+          nullable: true
+        surface:
+          type: string
+          enum: [hard, clay, grass, other]
+          nullable: true
+      required: [setting, light, surface]
     RecordingSidecar:
       type: object
       description: A recording's metadata sidecar. The phone's lib/recording/sidecar.ts has the full shape; the server checks the version, keeps only known sections, and drops anything that looks like a location or a name.

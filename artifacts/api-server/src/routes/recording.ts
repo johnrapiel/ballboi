@@ -26,7 +26,7 @@ import {
 import { planDiscard } from "../lib/recordingDiscard";
 import { ANALYSIS_MAX_RETRIES, failureReason, retryPending } from "../lib/analysisFailure";
 import { deleteSessionFiles } from "../lib/sessionFiles";
-import { checkSidecar, sidecarObjectPath } from "../lib/recordingSidecar";
+import { checkSidecar, cleanConditions, sidecarObjectPath, withConditions } from "../lib/recordingSidecar";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { shownStats } from "../lib/statGates";
 
@@ -533,10 +533,11 @@ router.post("/recording/discard", requireAuth, async (req: Request, res: Respons
   }
 });
 
-let sidecarStore: Pick<ObjectStorageService, "putObject"> | null = null;
+type SidecarStore = Pick<ObjectStorageService, "putObject" | "getObject">;
+let sidecarStore: SidecarStore | null = null;
 
 /** Tests swap the store. */
-export function setSidecarStoreForTests(store: Pick<ObjectStorageService, "putObject"> | null) {
+export function setSidecarStoreForTests(store: SidecarStore | null) {
   sidecarStore = store;
 }
 
@@ -573,6 +574,9 @@ router.put("/recording/sessions/:sessionId/sidecar", requireAuth, async (req: Re
     sidecarStore ??= new ObjectStorageService();
     await sidecarStore.putObject(objectPath, checked.json);
     const patch: Record<string, unknown> = { sidecarPath: objectPath, sidecarUpdatedAt: new Date().toISOString() };
+    // Conditions at stop go on the session too (test plan section 3).
+    const conditions = cleanConditions(checked.sidecar.conditions);
+    if (conditions !== undefined) patch.conditions = conditions;
     await db
       .update(ballBoiSessionsTable)
       .set({ metadata: sql`coalesce(${ballBoiSessionsTable.metadata}, '{}'::jsonb) || ${JSON.stringify(patch)}::jsonb` })
@@ -581,6 +585,56 @@ router.put("/recording/sessions/:sessionId/sidecar", requireAuth, async (req: Re
   } catch (err) {
     logger.error({ err, sessionId }, "Failed to save a recording sidecar");
     res.status(500).json({ error: "Couldn't save the sidecar." });
+  }
+});
+
+async function readStream(body: NodeJS.ReadableStream): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of body) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string));
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+/**
+ * PUT /recording/matches/:matchId/conditions { conditions }
+ * Conditions at stop from the score prompt (test plan section 3): indoor or
+ * outdoor, day or night, surface. Optional; null clears them. Saved on the
+ * recorder's sessions for this match and into their stored sidecars. The
+ * phone also writes them into its own sidecar, so a recording still on the
+ * phone sends them itself; this covers one that already uploaded.
+ */
+router.put("/recording/matches/:matchId/conditions", requireAuth, async (req: Request, res: Response) => {
+  const userId = getAuth(req).userId!;
+  const matchId = Number(req.params.matchId);
+  const conditions = cleanConditions(req.body?.conditions);
+  if (!Number.isInteger(matchId) || matchId <= 0 || conditions === undefined) {
+    res.status(400).json({ error: "Send conditions: setting (indoor or outdoor), light (day or night), surface (hard, clay, grass or other), or null." });
+    return;
+  }
+  try {
+    const sessions = await db
+      .select()
+      .from(ballBoiSessionsTable)
+      .where(and(eq(ballBoiSessionsTable.matchId, matchId), eq(ballBoiSessionsTable.recordedByClerkUserId, userId)));
+    sidecarStore ??= new ObjectStorageService();
+    for (const session of sessions) {
+      await db
+        .update(ballBoiSessionsTable)
+        .set({ metadata: sql`coalesce(${ballBoiSessionsTable.metadata}, '{}'::jsonb) || ${JSON.stringify({ conditions })}::jsonb` })
+        .where(eq(ballBoiSessionsTable.id, session.id));
+      const m = (session.metadata as Record<string, unknown> | null) ?? {};
+      if (typeof m.sidecarPath !== "string") continue;
+      try {
+        const stored = JSON.parse(await readStream((await sidecarStore.getObject(m.sidecarPath)).body)) as Record<string, unknown>;
+        await sidecarStore.putObject(m.sidecarPath, JSON.stringify(withConditions(stored, conditions)));
+      } catch (err) {
+        // The session has them; the phone's next sidecar copy (if any) carries them too.
+        logger.warn({ err, sessionId: session.id }, "Couldn't add conditions to a stored sidecar");
+      }
+    }
+    res.json({ saved: true, recordings: sessions.length });
+  } catch (err) {
+    logger.error({ err, matchId }, "Failed to save recording conditions");
+    res.status(500).json({ error: "Couldn't save the conditions." });
   }
 });
 

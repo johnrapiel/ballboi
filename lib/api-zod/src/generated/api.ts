@@ -8658,6 +8658,28 @@ export const PutRecordingSidecarResponse = zod.object({
 });
 
 /**
+ * @summary Conditions at stop from the score prompt (indoor or outdoor, day or night, surface). Optional; null clears them. Saved on the caller's recordings of this match and their stored sidecars.
+ */
+export const PutRecordingConditionsParams = zod.object({
+  matchId: zod.coerce.number(),
+});
+
+export const PutRecordingConditionsBody = zod.object({
+  conditions: zod
+    .object({
+      setting: zod.enum(["indoor", "outdoor"]).nullable(),
+      light: zod.enum(["day", "night"]).nullable(),
+      surface: zod.enum(["hard", "clay", "grass", "other"]).nullable(),
+    })
+    .nullable(),
+});
+
+export const PutRecordingConditionsResponse = zod.object({
+  saved: zod.literal(true),
+  recordings: zod.number(),
+});
+
+/**
  * @summary Remove a Quick match left before recording it, with its placeholder opponent and invite
  */
 export const AbandonQuickMatchParams = zod.object({
