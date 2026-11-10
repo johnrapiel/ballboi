@@ -60,3 +60,24 @@ export const SETUP_CHECKLIST: { title: string; detail: string }[] = [
 /** Text alternative for the setup graphic. */
 export const SETUP_GRAPHIC_LABEL =
   "Diagram of a tennis court from above. The phone is on the fence behind one baseline, centered, turned sideways, with its back camera facing the court so both baselines are in view.";
+
+/**
+ * What happens to audio, in the app's words (shot tracker test plan, T2 and
+ * T6). During the beta (the release is required) audio is held 30 days so
+ * test-set matches can be picked, and picked matches keep it until launch.
+ * After launch it's deleted once the match is analyzed. Must match the Beta
+ * Footage Release on ballboi.tennis/beta-release.
+ */
+export function audioCopy(beta: boolean): { carousel: string; cameraAccess: string } {
+  if (!beta) {
+    return {
+      carousel: "The microphone listens for the sound of the ball being hit. Audio is never played back and is deleted after your match is analyzed.",
+      cameraAccess: "Video is never played back, and audio is deleted after analysis.",
+    };
+  }
+  return {
+    carousel:
+      "The microphone listens for the sound of the ball being hit. Audio is never played back. During the beta, we keep it for up to 30 days while we choose matches for testing. If we pick yours, we keep its audio until Ball Boi launches, then delete it.",
+    cameraAccess: "Video is never played back. During the beta, audio is kept for up to 30 days, or until launch if we pick your match for testing.",
+  };
+}
