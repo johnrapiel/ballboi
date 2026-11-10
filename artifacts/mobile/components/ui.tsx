@@ -13,6 +13,8 @@ import {
   Text as RNText,
   TextInput,
   View,
+  useWindowDimensions,
+  type LayoutChangeEvent,
   type PressableProps,
   type ScrollViewProps,
   type StyleProp,
@@ -25,6 +27,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 
 import { useAccessibilitySettings } from "@/hooks/useAccessibilitySettings";
+import { BUTTON_PAD_X, buttonHeight, shouldStackButtons } from "@/lib/buttonSize";
 import { useColors, useScheme } from "@/hooks/useColors";
 import {
   MIN_TAP,
@@ -117,7 +120,22 @@ export interface ButtonProps extends Omit<PressableProps, "children"> {
   accessibilityLabel?: string;
 }
 
-/** Pill button with a 44pt minimum target. */
+/**
+ * The one button height (John, Nov 10): 48pt at the default text size,
+ * growing only with Dynamic Type. Hand-built buttons that can't be a Button
+ * (the camera's ChromeButton) use this too.
+ */
+export function useButtonHeight(): number {
+  const { fontScale } = useWindowDimensions();
+  return buttonHeight(fontScale);
+}
+
+/**
+ * Pill button. Every Button is one height (John, Nov 10): 48pt at the
+ * default text size, growing only with Dynamic Type, so side-by-side buttons
+ * always match. The label stays on one line. Put two or more side by side in
+ * a ButtonRow, which stacks them when a label wouldn't fit.
+ */
 export function Button({
   label,
   variant = "primary",
@@ -128,6 +146,7 @@ export function Button({
   ...rest
 }: ButtonProps) {
   const c = useColors();
+  const height = useButtonHeight();
   const fill = variant === "primary" ? c.ink : variant === "destructive" ? c.danger : "transparent";
   const textColor = variant === "secondary" ? c.ink : variant === "destructiveOutline" ? c.danger : c.onInk;
   const inactive = disabled || loading;
@@ -140,10 +159,9 @@ export function Button({
       accessibilityState={{ disabled: !!inactive, busy: loading }}
       style={(state) => [
         {
-          minHeight: MIN_TAP,
+          height,
           minWidth: MIN_TAP,
-          paddingHorizontal: spacing.space6,
-          paddingVertical: spacing.space3,
+          paddingHorizontal: BUTTON_PAD_X,
           borderRadius: radius.radiusPill,
           backgroundColor: fill,
           borderWidth: variant === "secondary" || variant === "destructiveOutline" ? 1 : 0,
@@ -158,11 +176,51 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={textColor} />
       ) : (
-        <Text variant="button" style={{ color: textColor }}>
+        // One line, always. A ButtonRow stacks before a label runs out of
+        // room; a lone full-width label too long for the largest text size
+        // shrinks a little to fit rather than being cut off.
+        <Text variant="button" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ color: textColor }}>
           {label}
         </Text>
       )}
     </Pressable>
+  );
+}
+
+export interface ButtonRowProps extends ViewProps {
+  children: React.ReactNode;
+}
+
+/**
+ * Buttons side by side, sharing the row equally and one height. When any
+ * label wouldn't fit its share on one line, as at the largest text sizes,
+ * the row stacks its buttons full width instead of wrapping a label.
+ * Children are Buttons; their `label` decides the fit.
+ */
+export function ButtonRow({ children, style, onLayout, ...rest }: ButtonRowProps) {
+  const { fontScale, width: windowWidth } = useWindowDimensions();
+  // Until the row is measured, guess a card inside the page gutters, so a row
+  // that will stack at large text sizes starts stacked instead of jumping.
+  const [width, setWidth] = React.useState(0);
+  const rowWidth = width || Math.max(0, windowWidth - 4 * spacing.space4);
+  const items = React.Children.toArray(children).filter(React.isValidElement) as React.ReactElement<{ label?: unknown }>[];
+  const labels = items.map((el) => (typeof el.props.label === "string" ? el.props.label : ""));
+  const stack = shouldStackButtons(labels, rowWidth, fontScale, spacing.space2);
+  return (
+    <View
+      {...rest}
+      onLayout={(e: LayoutChangeEvent) => {
+        setWidth(e.nativeEvent.layout.width);
+        onLayout?.(e);
+      }}
+      style={[{ flexDirection: stack ? "column" : "row", gap: spacing.space2 }, style]}
+    >
+      {items.map((el, i) => (
+        <View key={el.key ?? i} style={stack ? undefined : { flex: 1 }}>
+          {el}
+        </View>
+      ))}
+    </View>
   );
 }
 

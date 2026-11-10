@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import React from "react";
-import { AccessibilityInfo, Alert, View, useWindowDimensions } from "react-native";
+import { AccessibilityInfo, Alert, View } from "react-native";
 
 import {
   getGetLeagueTeamsQueryKey,
@@ -16,7 +16,7 @@ import {
 } from "@workspace/api-client-react";
 
 import { Icon } from "@/components/Icon";
-import { Button, Card, Text } from "@/components/ui";
+import { Button, ButtonRow, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { expiresLine } from "@/lib/doubles";
@@ -96,8 +96,6 @@ function StateLine({ icon, title, body }: { icon: "person.2" | "hourglass" | "in
 export function PartnerCard({ leagueId, joining = false }: { leagueId: number; joining?: boolean }) {
   const q = useGetMyPartner(leagueId);
   const act = usePartnerActions(leagueId);
-  const { fontScale } = useWindowDimensions();
-  const stack = fontScale >= 1.3;
   const v = q.data;
   // Harden: a failed load says so with a way back, rather than hiding the team-up step.
   if (q.isError && !v) {
@@ -111,8 +109,6 @@ export function PartnerCard({ leagueId, joining = false }: { leagueId: number; j
   if (!v || !v.fixedPartners || !v.member) return null;
 
   const openTeamUp = () => router.push({ pathname: "/league/[leagueId]/team-up", params: { leagueId: String(leagueId) } });
-  const row = { flexDirection: stack ? ("column" as const) : ("row" as const), gap: spacing.space2 };
-  const half = stack ? undefined : { flex: 1 };
 
   // A partner already: one quiet line on the league page, nothing after joining.
   if (v.partner) {
@@ -140,10 +136,10 @@ export function PartnerCard({ leagueId, joining = false }: { leagueId: number; j
       {v.incoming.map((r) => (
         <View key={r.requestId} style={{ gap: spacing.space2 }}>
           <StateLine icon="person.2" title={`${r.from.name} wants to team up`} body={expiresLine(r.expiresAt)} />
-          <View style={row}>
-            <Button label="Accept" onPress={() => void act.accept(r.requestId, r.from.name)} disabled={act.busy} accessibilityHint={`Team up with ${r.from.name} for the season`} style={half} />
-            <Button label="Decline" variant="secondary" onPress={() => act.decline(r.requestId, r.from.name)} disabled={act.busy} style={half} />
-          </View>
+          <ButtonRow>
+            <Button label="Accept" onPress={() => void act.accept(r.requestId, r.from.name)} disabled={act.busy} accessibilityHint={`Team up with ${r.from.name} for the season`} />
+            <Button label="Decline" variant="secondary" onPress={() => act.decline(r.requestId, r.from.name)} disabled={act.busy} />
+          </ButtonRow>
         </View>
       ))}
 
@@ -167,10 +163,10 @@ export function PartnerCard({ leagueId, joining = false }: { leagueId: number; j
               This league plays fixed partners. Ask someone to team up, or let your league admin find you a partner. Anyone without one when the first round goes out is teamed by level.
             </Text>
           )}
-          <View style={row}>
-            <Button label="Team up with someone" onPress={openTeamUp} disabled={act.busy} style={half} />
+          <ButtonRow>
+            <Button label="Team up with someone" onPress={openTeamUp} disabled={act.busy} />
             {v.looking ? (
-              <Button label="Leave the list" variant="secondary" onPress={() => void act.setLooking(false)} disabled={act.busy} style={half} />
+              <Button label="Leave the list" variant="secondary" onPress={() => void act.setLooking(false)} disabled={act.busy} />
             ) : (
               <Button
                 label="Find me a partner"
@@ -178,10 +174,9 @@ export function PartnerCard({ leagueId, joining = false }: { leagueId: number; j
                 onPress={() => void act.setLooking(true)}
                 disabled={act.busy}
                 accessibilityHint="Adds you to the list your league admin sees"
-                style={half}
               />
             )}
-          </View>
+          </ButtonRow>
         </View>
       ) : (
         <StateLine icon="info.circle" title="No partner yet" body="Teaming up closed when the first round went out. Your league admin can team you up in Manage." />

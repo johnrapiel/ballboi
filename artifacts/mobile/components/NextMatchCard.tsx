@@ -4,7 +4,7 @@ import { useWindowDimensions, View } from "react-native";
 
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
-import { Button, Pill, Text } from "@/components/ui";
+import { Button, ButtonRow, Pill, Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 
@@ -140,9 +140,9 @@ export function NextMatchCard({
         ) : null}
       </View>
 
-      <View style={{ width: "100%", marginTop: 20, gap: 10 }}>
+      <View style={{ width: "100%", marginTop: 20, gap: spacing.space2 }}>
         {record ? <Button label={record.label} accessibilityLabel={record.accessibilityLabel} accessibilityHint={record.hint} onPress={record.onPress} /> : null}
-        <View style={{ flexDirection: stacked ? "column" : "row", gap: 10 }}>
+        <ButtonRow>
           {message ? (
             <Button
               label={message.label}
@@ -150,7 +150,6 @@ export function NextMatchCard({
               accessibilityHint={message.hint}
               variant={messageVariant}
               onPress={message.onPress}
-              style={stacked ? undefined : { flex: 1 }}
             />
           ) : null}
           {details ? (
@@ -160,10 +159,9 @@ export function NextMatchCard({
               accessibilityHint={details.hint}
               variant={message || record ? "secondary" : "primary"}
               onPress={details.onPress}
-              style={stacked ? undefined : { flex: 1 }}
             />
           ) : null}
-        </View>
+        </ButtonRow>
       </View>
       {footer ? <View style={{ width: "100%", marginTop: spacing.space3 }}>{footer}</View> : null}
     </View>
