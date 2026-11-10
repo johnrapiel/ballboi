@@ -14,7 +14,8 @@
 // - No SF Symbols and no icon library (John, Nov 7): words only. Every state
 //   is in words, never color alone, and text uses Apple's text styles so it
 //   follows the reader's text size (acceptance 35).
-// - Start match and Stop open Ball Boi on that phone: Start sends it; Stop
+// - Start match and Stop open Ball Boi on that phone: Start sends it, and the
+//   mounted phone arms like Record and waits for the court (John, Nov 9); Stop
 //   asks "Stop recording?" there first (acceptance 32).
 // - Never mention holding the screen (X2).
 
@@ -109,7 +110,7 @@ const MatchActivity = (props: LiveProps, environment: LiveActivityEnvironment) =
   const buttons =
     props.canStart || props.canStop ? (
       <HStack spacing={10}>
-        {props.canStart ? button("Start match", props.startUrl, "Opens Ball Boi and starts recording on the mounted phone") : null}
+        {props.canStart ? button("Start match", props.startUrl, "Opens Ball Boi. The mounted phone starts once the court locks") : null}
         {props.canStop ? button("Stop", props.stopUrl, "Opens Ball Boi to confirm stopping the recording") : null}
         <Spacer />
       </HStack>

@@ -225,7 +225,7 @@ export default function LiveMatchScreen() {
 
       {sent ? (
         <Text tone="inkMuted" accessibilityLiveRegion="polite">
-          {sent === "start" ? "Starting on the mounted phone…" : "Stopping on the mounted phone…"}
+          {sent === "start" ? "Sending Start match to the mounted phone…" : "Stopping on the mounted phone…"}
         </Text>
       ) : null}
 
@@ -233,7 +233,7 @@ export default function LiveMatchScreen() {
         {props.canStart ? (
           <Button
             label="Start match"
-            accessibilityHint="Starts recording on the mounted phone now"
+            accessibilityHint="The mounted phone starts once the court locks"
             loading={sending === "start"}
             disabled={sent === "start"}
             onPress={() => void send("start")}

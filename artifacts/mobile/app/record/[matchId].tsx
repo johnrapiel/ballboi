@@ -101,6 +101,7 @@ import {
   onCourtLocked,
   onCourtLost,
   startAnyway,
+  startMatch,
   timeLeft,
   type ArmedStart,
 } from "@/lib/recording/armedStart";
@@ -481,8 +482,8 @@ export default function RecordScreen() {
 
   /**
    * Start or Stop from the other player's phone or a Lock Screen (acceptance
-   * 32). The other phone already confirmed a Stop. Start begins line 19 now,
-   * with or without a court lock (the lines are fixed after, as with Record anyway).
+   * 32). The other phone already confirmed a Stop. Start match arms exactly
+   * like Record (John, Nov 9) and does nothing new once armed.
    */
   async function remoteCommand(command: LiveCommand) {
     const p = phaseRef.current;
@@ -496,24 +497,15 @@ export default function RecordScreen() {
       doneAfterInterruption();
       return;
     }
-    if (action !== "startNow") return;
-    const now = Date.now();
-    if (p === "countdown") {
-      // Already counting: jump to line 19, unless it's already playing.
-      if (!armed.current || startAt.current - now <= COACH_LINES.go.ms) return;
-      armed.current = { ...armed.current, startAt: now + COACH_LINES.go.ms };
-      startAt.current = armed.current.startAt;
-      return;
-    }
-    if (p === "ready") {
-      if (!cameraReady || running.current) return;
-      if ((await batteryBlocksStart()) || !hasRoomToStart()) return;
-    }
-    stopVoice();
-    playedCues.current = new Set();
-    coachState.current = COACH_START;
-    beginCountdown(arm(0, now, COACH_LINES.go.ms, true));
-    AccessibilityInfo.announceForAccessibility("Started from the other phone");
+    if (action !== "arm") return;
+    // Start match arms exactly like Record (John, Nov 9): it waits for the
+    // court, or the Record anyway fallback, before line 19 and capture.
+    if (!cameraReady || running.current) return;
+    if ((await batteryBlocksStart()) || !hasRoomToStart()) return;
+    // Armed, paused or counting by now (Record was tapped meanwhile): nothing new.
+    const next = startMatch(phaseRef.current === "ready" ? null : armed.current ?? null, delay, Date.now(), COACH_LINES.go.ms, courtRef.current.lock.stage === "locked");
+    if (!next) return;
+    armFrom(next, "Started from the other phone. ");
   }
 
   /**
@@ -543,7 +535,8 @@ export default function RecordScreen() {
       busy: voiceBusy(),
       movedSinceLast: hasMoved(coachAttitude.current, attitude),
       // Armed and still no lock after about 20 seconds: line 12, then the countdown starts anyway.
-      recordAnywayDue: (p === "armed" || p === "paused") && fallbackDue(armed.current, now),
+      // The 20 seconds only run while the phone holds still (John, Nov 9).
+      recordAnywayDue: (p === "armed" || p === "paused") && fallbackDue(armed.current, now, courtRef.current.stillSince.current),
     });
     coachState.current = state;
     if (!cue) return;
@@ -697,18 +690,23 @@ export default function RecordScreen() {
     // Armed: the countdown runs once the court locks, or straight away if it
     // already has. Start Now is a countdown as long as line 19 ("Three. Two.
     // One. Recording has started."), so capture starts as it ends.
+    armFrom(arm(delay, Date.now(), COACH_LINES.go.ms, courtRef.current.lock.stage === "locked"));
+  }
+
+  /** Record, or Start match from a Lock Screen: counting if the court is already locked, otherwise armed and waiting. */
+  function armFrom(next: ArmedStart, spokenPrefix = "") {
     playedCues.current = new Set();
     coachState.current = COACH_START;
-    const next = arm(delay, Date.now(), COACH_LINES.go.ms, courtRef.current.lock.stage === "locked");
     if (next.stage === "counting") {
       beginCountdown(next);
+      if (spokenPrefix) AccessibilityInfo.announceForAccessibility(spokenPrefix.trim());
       return;
     }
     armed.current = next;
     countdownToken.current++;
     setSecondsLeft(Math.ceil(next.msLeft / 1000));
     setPhase("armed");
-    AccessibilityInfo.announceForAccessibility("Waiting for the court. Not recording yet. Mount your phone. It starts on its own.");
+    AccessibilityInfo.announceForAccessibility(`${spokenPrefix}Waiting for the court. Not recording yet. Mount your phone. It starts on its own.`);
   }
 
   /** Cancel while armed, counting or paused: back to where Record was tapped. */

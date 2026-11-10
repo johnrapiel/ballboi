@@ -15,12 +15,18 @@
 //    court locks again.
 // 5. Fallback: about 20 seconds waiting without a lock, after the coach's
 //    quiet, line 12 plays and the countdown starts anyway. The court lines are
-//    fixed after the match. The 20 seconds count from arming (or from the
-//    bump), not from opening the camera, so there's time to mount the phone.
+//    fixed after the match. The 20 seconds only run once the phone is mounted
+//    and holding still (John, Nov 9): they start at arming (or the bump) at
+//    the earliest, and start again whenever the phone moves before the court
+//    locks. "Moved" is the same motion test as line 13 (lib/court/motion.ts).
+//
+// Start match on either phone's Lock Screen arms exactly like Record (John,
+// Nov 9). Once armed, it does nothing new.
 //
 // Pure TypeScript, no React Native: tested in lib/__tests__/armedStart.test.ts.
 
 import { RECORD_ANYWAY_MS } from "@/lib/court/aim";
+import { hasMoved, type Attitude } from "@/lib/court/motion";
 
 export type ArmedStage = "waiting" | "counting" | "paused";
 
@@ -72,9 +78,46 @@ export function onCourtLost(s: ArmedStart, now: number, goMs: number, goStarted:
   return { ...s, stage: "paused", msLeft: left, startAt: 0, waitingSince: now, anyway: false };
 }
 
-/** About 20 seconds waiting for the court: line 12 is due, once the coach's quiet allows. */
-export function fallbackDue(s: ArmedStart | null, now: number): boolean {
-  return !!s && s.stage !== "counting" && now - s.waitingSince >= RECORD_ANYWAY_MS;
+/**
+ * About 20 seconds waiting for the court with the phone holding still: line
+ * 12 is due, once the coach's quiet allows. `stillSince` is when the phone
+ * last moved (see nextStillness); leave it out when there's no motion sensor.
+ */
+export function fallbackDue(s: ArmedStart | null, now: number, stillSince = -Infinity): boolean {
+  return !!s && s.stage !== "counting" && now - Math.max(s.waitingSince, stillSince) >= RECORD_ANYWAY_MS;
+}
+
+/** Holding still: where the phone settled, and since when. */
+export interface Stillness {
+  /** The attitude it's holding, or null before the first motion reading. */
+  ref: Attitude | null;
+  /** When it last moved (or the first reading came in). */
+  since: number;
+}
+
+export function startStillness(now: number): Stillness {
+  return { ref: null, since: now };
+}
+
+/**
+ * One motion reading. A move (the line 13 test: more than MOVED_DEGREES
+ * from where it was holding) starts the stillness again from now. Smaller
+ * wobble counts as still. No reading changes nothing.
+ */
+export function nextStillness(s: Stillness, attitude: Attitude | null, now: number): Stillness {
+  if (!attitude) return s;
+  if (!s.ref || hasMoved(s.ref, attitude)) return { ref: attitude, since: now };
+  return s;
+}
+
+/**
+ * Start match on a Lock Screen (John, Nov 9): arms and waits for the court
+ * exactly like Record. Returns the new armed start, or null when it's already
+ * armed, paused or counting (it does nothing new).
+ */
+export function startMatch(current: ArmedStart | null, delayMinutes: number, now: number, goMs: number, locked: boolean): ArmedStart | null {
+  if (current) return null;
+  return arm(delayMinutes, now, goMs, locked);
 }
 
 /** Line 12 has played: the countdown runs anyway, from what's left. */
