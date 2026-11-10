@@ -4,7 +4,8 @@ import { logger } from "../lib/logger";
 import { moderationRepo } from "./drizzleModeration";
 import { DrizzleMessagingRepo } from "./drizzleRepo";
 import { FirstMessageFilter } from "./filter";
-import { MemoryMessagingProvider } from "./memoryProvider";
+import { DrizzleMemoryStore } from "./drizzleMemoryStore";
+import { MemoryMessagingProvider, type MemoryStore } from "./memoryProvider";
 import { DrizzleLeagueChatSource } from "./drizzleLeagueChats";
 import { setLeagueChatEvents } from "./leagueChatEvents";
 import { LeagueChats } from "./leagueChats";
@@ -15,19 +16,32 @@ import { MessagingService } from "./service";
 
 let service: MessagingService | null = null;
 /**
- * Picks the provider from MESSAGING_PROVIDER. "memory" (the default) needs no
- * keys and saves messages to MESSAGING_MEMORY_FILE (a file in the system temp
- * folder by default), so chats keep their history when the API restarts.
+ * Picks the provider from MESSAGING_PROVIDER:
+ * - "stream": Stream Chat (needs STREAM_API_KEY and STREAM_API_SECRET).
+ * - "memory": keeps messages in the API's memory, no keys needed.
+ * - "auto" or unset: Stream when both keys are set, otherwise memory. Staging
+ *   uses this, so adding the two Stream secrets switches it over.
+ *
+ * Memory saves its messages so chats keep their history when the API
+ * restarts: to MESSAGING_MEMORY_FILE (a file in the system temp folder by
+ * default), or to the database with MESSAGING_MEMORY_STORE=database. Staging
+ * needs the database: its container's disk is wiped every time it sleeps or
+ * deploys, which emptied every chat (John, Nov 10).
  */
-export function createProvider(env: NodeJS.ProcessEnv = process.env): MessagingProvider {
-  const name = env.MESSAGING_PROVIDER ?? "memory";
+export function createProvider(env: NodeJS.ProcessEnv = process.env, store?: () => MemoryStore): MessagingProvider {
+  const hasKeys = !!(env.STREAM_API_KEY && env.STREAM_API_SECRET);
+  const asked = env.MESSAGING_PROVIDER || "auto";
+  const name = asked === "auto" ? (hasKeys ? "stream" : "memory") : asked;
   if (name === "stream") {
-    if (env.STREAM_API_KEY && env.STREAM_API_SECRET) return new StreamMessagingProvider(env.STREAM_API_KEY, env.STREAM_API_SECRET);
+    if (hasKeys) return new StreamMessagingProvider(env.STREAM_API_KEY!, env.STREAM_API_SECRET!);
     // In production a missing key is a deploy mistake: fail loudly rather than lose messages on restart.
     if (env.NODE_ENV === "production") throw new Error("MESSAGING_PROVIDER=stream needs STREAM_API_KEY and STREAM_API_SECRET");
     logger.warn("MESSAGING_PROVIDER=stream without STREAM_API_KEY and STREAM_API_SECRET, using memory");
   } else if (name !== "memory") {
     logger.warn({ provider: name }, "Unknown MESSAGING_PROVIDER, using memory");
+  }
+  if (env.MESSAGING_MEMORY_STORE === "database") {
+    return new MemoryMessagingProvider({ store: (store ?? (() => new DrizzleMemoryStore()))(), log: logger });
   }
   return new MemoryMessagingProvider({ file: env.MESSAGING_MEMORY_FILE || join(tmpdir(), "ballboi-messages.json") });
 }

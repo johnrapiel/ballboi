@@ -34,7 +34,11 @@
     "S3_REGION": "auto",
     "S3_ENDPOINT": "https://26c21786ac3cf2eb9f9f39bf18f0c0bb.r2.cloudflarestorage.com",
     "S3_BUCKET": "ballboi-staging",
-    "MESSAGING_PROVIDER": "memory",
+    // Stream once the STREAM_API_KEY and STREAM_API_SECRET secrets are set; until
+    // then messages stay in memory and are saved to the database, because the
+    // container's disk is wiped each time it sleeps or deploys (Nov 10).
+    "MESSAGING_PROVIDER": "auto",
+    "MESSAGING_MEMORY_STORE": "database",
     // Beta: testers must agree to the Beta Footage Release (ballboi.tennis/beta-release)
     // before recording. Bump the version when the release text changes. Staging only.
     "BETA_RELEASE_REQUIRED": "true",

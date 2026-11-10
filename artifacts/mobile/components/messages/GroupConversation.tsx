@@ -15,6 +15,7 @@ import {
   useGroupMembers,
   useGroupThread,
   useMessagesActions,
+  useFillScreen,
   useOlderMessages,
   type GroupMember,
   type GroupMessage,
@@ -91,6 +92,8 @@ export function GroupConversation({
   const insets = useSafeAreaInsets();
   const thread = useGroupThread(groupId);
   const history = useOlderMessages<GroupMessage>(groupId, thread.data, groupPage);
+  // Short chats: keep loading earlier pages until they fill the screen.
+  const fill = useFillScreen(history);
   const actions = useMessagesActions();
   const report = useReportBlock();
   const [draft, setDraft] = useState("");
@@ -476,6 +479,8 @@ export function GroupConversation({
           // Inverted: the end is the top, where earlier messages load.
           onEndReached={history.hasMore ? history.loadMore : undefined}
           onEndReachedThreshold={0.5}
+          onLayout={fill.onLayout}
+          onContentSizeChange={fill.onContentSizeChange}
           ListFooterComponent={
             history.loading ? (
               <ActivityIndicator style={{ paddingVertical: spacing.space4 }} color={c.ink} accessibilityLabel="Loading earlier messages" />
