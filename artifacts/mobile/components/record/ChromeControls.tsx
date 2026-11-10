@@ -4,8 +4,9 @@
 import React from "react";
 import { Pressable, View } from "react-native";
 
-import { Text } from "@/components/ui";
+import { Text, useButtonHeight } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
+import { BUTTON_PAD_X } from "@/lib/buttonSize";
 import { chrome } from "@/lib/recording/chrome";
 
 export function ChromeButton({
@@ -25,6 +26,8 @@ export function ChromeButton({
   disabled?: boolean;
 }) {
   const primary = variant === "primary";
+  // The one button height (John, Nov 10), same as every Button.
+  const height = useButtonHeight();
   return (
     <Pressable
       accessibilityRole="button"
@@ -34,7 +37,7 @@ export function ChromeButton({
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => ({
-        minHeight: MIN_TAP,
+        height,
         minWidth: MIN_TAP,
         borderRadius: radius.radiusPill,
         backgroundColor: primary ? chrome.button : chrome.scrim,
@@ -42,12 +45,17 @@ export function ChromeButton({
         borderColor: chrome.border,
         alignItems: "center",
         justifyContent: "center",
-        paddingHorizontal: spacing.space6,
-        paddingVertical: spacing.space3,
+        paddingHorizontal: BUTTON_PAD_X,
         opacity: disabled ? 0.5 : pressed ? 0.85 : 1,
       })}
     >
-      <Text variant="button" style={{ color: primary ? chrome.onButton : chrome.text, textAlign: "center" }}>
+      <Text
+        variant="button"
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+        style={{ color: primary ? chrome.onButton : chrome.text, textAlign: "center" }}
+      >
         {label}
       </Text>
     </Pressable>

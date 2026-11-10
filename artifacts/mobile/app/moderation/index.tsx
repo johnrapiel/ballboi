@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
 import { Segmented } from "@/components/moderation/Segmented";
-import { Button, Card, Text } from "@/components/ui";
+import { Button, ButtonRow, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import {
@@ -246,10 +246,10 @@ function DecisionRow({
           Report {decision.reportId} · {ago(decision.createdAt)}
         </Text>
       </Pressable>
-      <View style={{ flexDirection: "row", gap: spacing.space2 }}>
-        <Button label="Confirm" loading={busy} onPress={onConfirm} style={{ flex: 1 }} accessibilityLabel={`Confirm: ${agentActionLabel(decision.action)}`} />
-        <Button label="Undo" variant="secondary" disabled={busy} onPress={onUndo} style={{ flex: 1 }} accessibilityLabel={`Undo: ${agentActionLabel(decision.action)}`} />
-      </View>
+      <ButtonRow>
+        <Button label="Confirm" loading={busy} onPress={onConfirm} accessibilityLabel={`Confirm: ${agentActionLabel(decision.action)}`} />
+        <Button label="Undo" variant="secondary" disabled={busy} onPress={onUndo} accessibilityLabel={`Undo: ${agentActionLabel(decision.action)}`} />
+      </ButtonRow>
     </Card>
   );
 }
@@ -273,10 +273,10 @@ function AppealRow({ appeal, busy, onKeep, onOverturn }: { appeal: Appeal; busy:
           {ago(appeal.createdAt)}
         </Text>
       </View>
-      <View style={{ flexDirection: "row", gap: spacing.space2 }}>
-        <Button label={`Keep ${what}`} loading={busy} onPress={onKeep} style={{ flex: 1 }} />
-        <Button label="Overturn" variant="secondary" disabled={busy} onPress={onOverturn} style={{ flex: 1 }} />
-      </View>
+      <ButtonRow>
+        <Button label={`Keep ${what}`} loading={busy} onPress={onKeep} />
+        <Button label="Overturn" variant="secondary" disabled={busy} onPress={onOverturn} />
+      </ButtonRow>
     </Card>
   );
 }

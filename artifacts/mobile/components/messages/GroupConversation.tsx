@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, ActionSheetIOS, ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { HeaderIconButton } from "@/components/Choice";
+import { HeaderIconButton, PlainIconButton } from "@/components/Choice";
 import { Icon } from "@/components/Icon";
 import { MessageBubble, type BubbleStatus } from "@/components/messages/MessageBubble";
 import { Button, Text, useTypeStyle } from "@/components/ui";
@@ -665,27 +665,8 @@ export function GroupConversation({
                 },
               ]}
             />
-            <Pressable
-              onPress={send}
-              disabled={!draft.trim() || !group}
-              accessibilityRole="button"
-              accessibilityLabel="Send"
-              accessibilityState={{ disabled: !draft.trim() || !group }}
-              style={({ pressed }) => ({
-                minWidth: MIN_TAP,
-                minHeight: MIN_TAP,
-                paddingHorizontal: spacing.space4,
-                borderRadius: radius.radiusPill,
-                backgroundColor: c.ink,
-                alignItems: "center",
-                justifyContent: "center",
-                opacity: !draft.trim() || !group ? 0.5 : pressed ? 0.85 : 1,
-              })}
-            >
-              <Text variant="button" tone="onInk">
-                Send
-              </Text>
-            </Pressable>
+            {/* Send is a plain brush icon, like the direct chat (design system: Buttons and icons, kind 2). */}
+            <PlainIconButton symbol="arrow.up.circle" label="Send" onPress={send} disabled={!draft.trim() || !group} size={26} />
           </View>
         )}
       </View>

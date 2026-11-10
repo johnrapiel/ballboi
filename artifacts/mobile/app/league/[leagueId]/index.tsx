@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { Icon } from "@/components/Icon";
 import React, { useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -26,7 +26,7 @@ import { SegmentedTabs } from "@/components/league/SegmentedTabs";
 import { ListRow } from "@/components/league/ListRow";
 import { StandingsTable } from "@/components/league/StandingsTable";
 import { BracketView, myPlayoffMatch, ROUND_SINGULAR } from "@/components/league/Bracket";
-import { Button, Card, Text } from "@/components/ui";
+import { Button, ButtonRow, Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { RatingBadge } from "@/components/RatingBadge";
@@ -131,7 +131,6 @@ function YourWeek({
 }) {
   // C6: hooks before any early return, so a bye week turning into a match
   // doesn't change the hook order.
-  const { fontScale } = useWindowDimensions();
   const openChat = useOpenDoublesMatchChat();
   const { round, match, bye } = week;
   const label = `Round ${round.roundNumber} · ${dateRange(round.startDate, round.deadline)}`;
@@ -158,7 +157,6 @@ function YourWeek({
   const canMessage = isDoubles || (match.player1Id === myPlayerId ? match.player2HasAccount : match.player1HasAccount);
   const scoreable = canEnterScore(round, match, ended);
   const record = recordAction(round, match, ended, doubles);
-  const stack = fontScale >= 1.3;
   // C7: a direct chat with your opponent.
   const message = () => {
     if (!isDoubles) {
@@ -218,9 +216,11 @@ function YourWeek({
       ) : record === "doubles" ? (
         <DoublesRecordButton matchId={match.matchId} />
       ) : null}
-      {/* Side by side; stacked at large text sizes so neither label truncates. */}
+      {/* Side by side at one height; ButtonRow stacks them when a label
+          wouldn't fit on one line (John, Nov 10). The visible word is just
+          "Message" so the pair fits; VoiceOver still names who (option A). */}
       {scoreable || canMessage ? (
-        <View style={{ flexDirection: stack ? "column" : "row", gap: spacing.space2 }}>
+        <ButtonRow>
           {scoreable ? (
             <Button
               label="Enter score"
@@ -228,21 +228,19 @@ function YourWeek({
               // Under Record it steps back to secondary; on its own it stays primary.
               variant={record ? "secondary" : "primary"}
               onPress={() => router.push(`/league/${leagueId}/score/${match.matchId}`)}
-              style={stack ? undefined : { flex: 1 }}
             />
           ) : null}
           {canMessage ? (
             <Button
-              label={isDoubles ? "Message" : `Message ${opponent.split(" ")[0]}`}
+              label="Message"
               accessibilityLabel={isDoubles ? "Message all four players" : `Message ${opponent}`}
               accessibilityHint={isDoubles ? "Opens one group chat for the four of you" : "Opens a direct chat"}
               variant="secondary"
               loading={openChat.isPending}
               onPress={message}
-              style={stack ? undefined : { flex: 1 }}
             />
           ) : null}
-        </View>
+        </ButtonRow>
       ) : null}
       {!played && !match.voided && round.phase !== "closed" && !ended ? (
         <MatchTimeRow

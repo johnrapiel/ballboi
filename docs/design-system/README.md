@@ -132,6 +132,8 @@ One standard, three kinds, one look each (John, Nov 8):
 
 Steppers (− and +) and chips are controls, not icon buttons, and keep their outlines.
 
+**One button height** (John, Nov 10). Every Button is one height: 48pt at default text size, growing only with Dynamic Type; labels never wrap; side-by-side buttons match; at the largest sizes rows stack. The 48pt is the `button` type style's 22pt line height plus 13pt above and below, so every button grows by the same amount at each text size. Primary, secondary, destructive and destructive outline all share it, and so does the camera's `ChromeButton`. Put buttons side by side in a `ButtonRow`: they share the row equally, and when any label wouldn't fit on one line the row stacks them full width. Keep labels short enough to sit side by side ("Message", with VoiceOver saying "Message Marcus Hall"). Chips, time pills, segmented controls, steppers, icon buttons, text buttons and Apple's and Google's own sign-in buttons are not Buttons and keep their own sizes.
+
 ## Bottom sheets
 
 One rule for every bottom sheet (John, Nov 6), like the approved Enter score sheet:
