@@ -19,7 +19,7 @@ import { MessageBubble, type BubbleStatus } from "@/components/messages/MessageB
 import { Button, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { MessagesApiError, useMessagesActions, useOlderMessages, useThread, type Message } from "@/hooks/useMessages";
+import { MessagesApiError, useMessagesActions, useFillScreen, useOlderMessages, useThread, type Message } from "@/hooks/useMessages";
 import { useReportBlock } from "@/hooks/useReportBlock";
 import { MatchCard, useMatchCardActions, type MatchCardItem } from "@/components/chat/MatchCard";
 import { useMatchPlans } from "@/hooks/useDiscoverMatchPlans";
@@ -92,6 +92,8 @@ export default function ConversationScreen() {
   const [lookingUp, setLookingUp] = useState(params.id === "new" && startsNew);
   const thread = useThread(conversationId);
   const history = useOlderMessages(conversationId, thread.data);
+  // Short chats: keep loading earlier pages until they fill the screen.
+  const fill = useFillScreen(history);
   const actions = useMessagesActions();
 
   const conversation = thread.data?.conversation;
@@ -281,6 +283,8 @@ export default function ConversationScreen() {
           // Inverted: the end is the top, where earlier messages load.
           onEndReached={history.hasMore ? history.loadMore : undefined}
           onEndReachedThreshold={0.5}
+          onLayout={fill.onLayout}
+          onContentSizeChange={fill.onContentSizeChange}
           ListFooterComponent={
             history.loading ? (
               <ActivityIndicator style={{ paddingVertical: spacing.space4 }} color={c.ink} accessibilityLabel="Loading earlier messages" />

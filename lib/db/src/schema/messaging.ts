@@ -123,3 +123,16 @@ export const messageGroupMembersTable = pgTable(
 
 export type MessageGroup = typeof messageGroupsTable.$inferSelect;
 export type MessageGroupMember = typeof messageGroupMembersTable.$inferSelect;
+
+/**
+ * Staging only, until it has Stream keys: the in-memory messaging provider's
+ * messages, saved as one JSON snapshot so they survive the API container
+ * sleeping or redeploying (John, Nov 10: "My message history disappeared").
+ * Production keeps message text in Stream, never here.
+ */
+export const messagingMemorySnapshotTable = pgTable("messaging_memory_snapshot", {
+  /** One row per store; "default" today. */
+  key: text("key").primaryKey(),
+  data: jsonb("data").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiErrorMessage, apiFetch } from "@/lib/api";
+import { needsMoreToFill } from "@/lib/olderPaging";
 
 /** Always active: there are no Message Requests (finding 17, John, Nov 6). */
 export type ConversationState = "active";
@@ -300,6 +301,25 @@ export function useOlderMessages<M extends { id: string } = Message>(
   }, [call, id, before]);
 
   return { older, loadMore, loading, hasMore: before !== null, error };
+}
+
+/**
+ * Keeps loading earlier messages until they fill the screen or the history
+ * ends (lib/olderPaging). Without it, a chat whose latest page is shorter
+ * than the screen has nothing to scroll, so the list never asks for more.
+ * Spread the result onto the chat's FlatList.
+ */
+export function useFillScreen(history: { loadMore: () => void; loading: boolean; hasMore: boolean; error: string | null }) {
+  const [contentHeight, setContentHeight] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const { loadMore, loading, hasMore, error } = history;
+  useEffect(() => {
+    if (needsMoreToFill({ contentHeight, viewportHeight, hasMore, loading, failed: error !== null })) loadMore();
+  }, [contentHeight, viewportHeight, hasMore, loading, error, loadMore]);
+  return {
+    onContentSizeChange: (_w: number, h: number) => setContentHeight(h),
+    onLayout: (e: { nativeEvent: { layout: { height: number } } }) => setViewportHeight(e.nativeEvent.layout.height),
+  };
 }
 
 /** Everyone in a group chat, for @ suggestions and the league admin menu. */

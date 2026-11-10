@@ -14,7 +14,7 @@ Cloudflare Containers need the Workers Paid plan: $5/month, which includes enoug
 ## Known limits on staging
 
 - **Scheduled jobs only run while the API is awake.** Match reminders and other `node-cron` jobs skip while it sleeps. Fine for testing; production will need a different setup.
-- **Messages reset when the API sleeps**, because staging uses the in-memory messaging provider. Switching `MESSAGING_PROVIDER` to `stream` (with keys) fixes that.
+- **Messages are kept in the database until staging has Stream keys.** Staging runs the in-memory messaging provider, and the container's disk is wiped each time it sleeps or deploys. Until Nov 10 that emptied every chat; now the provider saves its messages to the `messaging_memory_snapshot` table (`MESSAGING_MEMORY_STORE=database`). Adding the `STREAM_API_KEY` and `STREAM_API_SECRET` secrets switches staging to Stream on the next deploy (`MESSAGING_PROVIDER=auto`). Messages saved in the snapshot don't move to Stream.
 - **No ML server yet.** Recording and upload work; Ball Boi analysis waits until the ML server is hosted.
 
 ## Test data
@@ -29,7 +29,7 @@ What you'll see in the app (sign in with the `ADMIN_EMAIL` account):
 - **Dutchess County Singles** (Private, you run it, so it isn't listed in Discover): full at 10 players, week 3, your match later this week at Spratt Park, and three players on the waitlist.
 - **Hudson Valley Summer Singles** (Past): final standings and a finished top-8 playoff.
 - **Discover**: no demo players and no demo Open leagues. Only real testers who left "Show me in Discover" on.
-- **Messages**: not seeded. Staging keeps messages in the API's memory, so they'd vanish when it sleeps.
+- **Messages**: not seeded.
 
 Every demo player in your leagues is a real Clerk Development account: sign in as one with `ballboi-demo-first-last+clerk_test@example.com` (for example `ballboi-demo-maya-chen+clerk_test@example.com`) and code 424242.
 
@@ -45,6 +45,7 @@ Set as GitHub repository secrets (Settings > Secrets and variables > Actions). T
 | `ADMIN_EMAIL` | The email that gets admin access |
 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | R2 API token scoped to `ballboi-staging` (Object Read & Write) |
 | `ANTHROPIC_API_KEY` | Optional; turns on the moderation agent |
+| `STREAM_API_KEY`, `STREAM_API_SECRET` | Optional. Stream > app > Overview. With both set, staging messages go through Stream |
 
 The account ID and R2 endpoint aren't secret, so they live in `artifacts/api-host/wrangler.jsonc`.
 

@@ -1,14 +1,19 @@
 import { Icon } from "@/components/Icon";
+import { useRouter, type Href } from "expo-router";
 import React from "react";
-import { Pressable, View, type AccessibilityActionEvent } from "react-native";
+import { Linking, Pressable, View, type AccessibilityActionEvent } from "react-native";
 
-import { Text } from "@/components/ui";
+import { Text, TextLink } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import type { Segment } from "@/lib/leagueChat";
+import { linkActionLabel, linkParts, linkTarget } from "@/lib/messageLinks";
 import { shortTime, spokenTime } from "@/lib/messages";
 
 export type BubbleStatus = "sent" | "sending" | "failed";
+
+/** A piece of a message: plain text, an @mention (bold) or a link. */
+type Part = { text: string; mention: boolean; url?: string };
 
 export interface BubbleProps {
   text: string;
@@ -35,6 +40,10 @@ export interface BubbleProps {
  * One message. VoiceOver reads sender, text and time in one swipe. Report is
  * a VoiceOver custom action as well as a long press, and a failed
  * send says so in words, not just with a red icon.
+ *
+ * Links (http, https and ballboi.tennis) are underlined and tappable: a Ball
+ * Boi link the app has a screen for opens in the app, anything else in
+ * Safari. VoiceOver hears "link" and gets an Open link action for each one.
  */
 export function MessageBubble({
   text,
@@ -50,8 +59,22 @@ export function MessageBubble({
   onMore,
 }: BubbleProps) {
   const c = useColors();
+  const router = useRouter();
   const failed = status === "failed";
   const sending = status === "sending";
+
+  // Mentions (league chats) first, then links inside the plain parts.
+  const parts: Part[] = (segments ?? [{ text, mention: false }]).flatMap((seg): Part[] =>
+    seg.mention ? [{ text: seg.text, mention: true }] : linkParts(seg.text).map((p) => ({ ...p, mention: false })),
+  );
+  // Links work once the message is sent; a pending one is still just text.
+  const links = failed || sending ? [] : parts.flatMap((p) => (p.url ? [p.url] : []));
+
+  const open = (url: string) => {
+    const target = linkTarget(url);
+    if (target.kind === "app") router.push(target.path as Href);
+    else void Linking.openURL(target.url).catch(() => undefined);
+  };
 
   const spoken = [
     spokenText ?? `${senderName}, ${text}`,
@@ -59,14 +82,25 @@ export function MessageBubble({
   ].join(". ");
 
   const actions = [
+    ...links.map((url, i) => ({ name: `link-${i}`, label: linkActionLabel(url) })),
     ...(onReport ? [{ name: "report", label: "Report message" }] : []),
     ...(onMore ? [{ name: "more", label: "More actions" }] : []),
   ];
+  // One link: the whole message reads as a link and a double-tap opens it.
+  const oneLink = links.length === 1 ? links[0] : null;
 
   const onAction = (e: AccessibilityActionEvent) => {
-    if (e.nativeEvent.actionName === "report") onReport?.();
-    if (e.nativeEvent.actionName === "more") onMore?.();
-    if (e.nativeEvent.actionName === "activate") onRetry?.();
+    const name = e.nativeEvent.actionName;
+    if (name === "report") onReport?.();
+    if (name === "more") onMore?.();
+    if (name === "activate") {
+      if (failed) onRetry?.();
+      else if (oneLink) open(oneLink);
+    }
+    if (name.startsWith("link-")) {
+      const url = links[Number(name.slice(5))];
+      if (url) open(url);
+    }
   };
 
   return (
@@ -74,8 +108,8 @@ export function MessageBubble({
       <Pressable
         accessible
         accessibilityLabel={spoken}
-        accessibilityRole={failed ? "button" : undefined}
-        accessibilityActions={failed ? [{ name: "activate" }] : actions}
+        accessibilityRole={failed ? "button" : oneLink ? "link" : undefined}
+        accessibilityActions={failed ? [{ name: "activate" }] : oneLink ? [{ name: "activate" }, ...actions] : actions}
         onAccessibilityAction={onAction}
         onPress={failed ? onRetry : undefined}
         onLongPress={!fromMe || onMore ? onLongPress : undefined}
@@ -94,18 +128,22 @@ export function MessageBubble({
             borderColor: c.hairline,
           }}
         >
-          <Text tone={fromMe ? "onInk" : "ink"} selectable={!failed}>
-            {segments
-              ? segments.map((seg, i) =>
-                  seg.mention ? (
-                    <Text key={i} variant="bodyStrong" tone={fromMe ? "onInk" : "ink"}>
-                      {seg.text}
-                    </Text>
-                  ) : (
-                    seg.text
-                  ),
-                )
-              : text}
+          {/* Selectable text on iOS swallows taps on links inside it, so a message with links isn't selectable. */}
+          <Text tone={fromMe ? "onInk" : "ink"} selectable={!failed && !links.length}>
+            {parts.map((part, i) =>
+              part.mention ? (
+                <Text key={i} variant="bodyStrong" tone={fromMe ? "onInk" : "ink"}>
+                  {part.text}
+                </Text>
+              ) : part.url && links.length ? (
+                // Underlined on both bubbles; on your own (ink) bubble the link stays on-ink for contrast.
+                <TextLink key={i} onPress={() => open(part.url!)} style={fromMe ? { color: c.onInk } : undefined}>
+                  {part.text}
+                </TextLink>
+              ) : (
+                part.text
+              ),
+            )}
           </Text>
         </View>
         {failed ? (
