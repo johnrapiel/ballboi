@@ -6,13 +6,13 @@ import { SheetBody, useSheetClose } from "@/components/Sheet";
 import { Button, Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { cleanCode } from "@/lib/leagueInvite";
+import { codeFromInput } from "@/lib/leagueInvite";
 
 // Join with an invite code (spec: Leagues, joining with a code; approved
 // Leagues: "Got an invite code?" opens this bottom sheet). The sheet rule:
 // brush title, no Cancel, drag down to close, asks before discarding a code.
 // The code opens the same join screen an invite link does (C1), so typed
-// codes and links behave the same way.
+// codes and links behave the same way. Pasting the copied link works too.
 
 export default function JoinWithCodeSheet() {
   const c = useColors();
@@ -21,7 +21,7 @@ export default function JoinWithCodeSheet() {
   const sheet = useSheetClose(code.trim() !== "");
 
   function lookUp() {
-    const cleaned = cleanCode(code);
+    const cleaned = codeFromInput(code);
     if (!cleaned) return;
     sheet.finish(() => router.replace({ pathname: "/join/[code]", params: { code: cleaned } }));
   }
@@ -67,7 +67,7 @@ export default function JoinWithCodeSheet() {
         />
       </View>
 
-      <Button label="Continue" onPress={lookUp} disabled={!cleanCode(code)} />
+      <Button label="Continue" onPress={lookUp} disabled={!codeFromInput(code)} />
     </SheetBody>
   );
 }

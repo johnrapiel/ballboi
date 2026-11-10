@@ -179,6 +179,7 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 - **Every league locks to new joins once the season starts,** Private and Open alike. The waitlist holds requests for next season
 - **Dropouts:** when a player leaves mid-season, their played matches stay, their remaining matches are voided, and they're removed from standings. A bracket player who leaves gives their opponent a walkover, shown as W/O
 - **Admins who leave stay admin:** they stop playing but still manage the league. A league's only admin who deletes their account picks the new admin first; Skip hands it to the longest-standing member, so deletion is never blocked
+- **Invite players:** the invite shows the code and its link, https://ballboi.tennis/join/CODE. Copy and Share both give the link, which opens the league's join screen in the app. Without the app, the web page shows the code and how to get Ball Boi. The code stays on the card for people who type it in (decision 173)
 - **Ended leagues:** an ended league's invite code shows "This league has ended" and sends no request
 
 **Doubles (decisions 160 to 169 and 170 to 172, John, Nov 9)**
@@ -573,3 +574,4 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 170 | Doubles walkovers in regular play: any of the four enters a W/O for the team that was complete, so the team that showed up gets the win; a team a player short loses by W/O. If both teams are a player short, it's a Double default: no winner, no standings points for either team, shown as "Double default". Both edit for 24 hours and correct like a score; RET stays as it is. Changes decision 166's W/O, which #212 had held back (John, Nov 9) |
 | 171 | Doubles kept as built: no admin swaps or byes in a doubles draft (lock and re-pair only); a team that breaks up leaves the standings; teaming up closes when the first round goes out; account deletion counts as dropping out (John, Nov 9) |
 | 172 | Backlog, not built: a one-time permanent replacement partner during the first three weeks of a season, as Ultimate Tennis allows (John, Nov 9) |
+| 173 | The invite's copy icon gives the join link (https://ballboi.tennis/join/CODE), not just the code, so a pasted invite opens the league; the code stays on the card (John, Nov 9) |
