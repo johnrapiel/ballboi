@@ -1,8 +1,9 @@
-import { db, leagueAdminsTable, leaguesTable, matchesTable, playersTable } from "@workspace/db";
+import { db, leagueAdminsTable, leagueTeamsTable, leaguesTable, matchesTable, playersTable } from "@workspace/db";
+import { isFixedDoubles } from "../lib/doublesTeams";
 import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { leagueHasEnded } from "../lib/leagueLifecycle";
 import { scoreFromSide } from "../lib/leagueScoring";
-import { computeStandings } from "../lib/leagueStandings";
+import { computeStandings, computeTeamStandings } from "../lib/leagueStandings";
 import { getPastSeasonNames } from "../services/seasonService";
 import type { LeagueChatMember, LeagueChatSource } from "./leagueChats";
 
@@ -69,7 +70,24 @@ export class DrizzleLeagueChatSource implements LeagueChatSource {
       db.select().from(matchesTable).where(eq(matchesTable.leagueId, leagueId)),
       getPastSeasonNames(leagueId),
     ]);
-    const rows = computeStandings(players, matches, (season) => season === null || !past.includes(season));
+    const include = (season: string | null) => season === null || !past.includes(season);
+    // D3: a fixed-partner doubles league ranks teams ("John Rapiel & Sam Lee").
+    const [league] = await db
+      .select({ leagueType: leaguesTable.leagueType, partnerMode: leaguesTable.partnerMode })
+      .from(leaguesTable)
+      .where(eq(leaguesTable.id, leagueId));
+    const rows =
+      league && isFixedDoubles(league)
+        ? computeTeamStandings(
+            (await db.select().from(leagueTeamsTable).where(and(eq(leagueTeamsTable.leagueId, leagueId), isNull(leagueTeamsTable.dissolvedAt)))).map((t) => ({
+              id: t.id,
+              playerIds: [t.player1Id, t.player2Id] as [number, number],
+            })),
+            new Map(players.map((p) => [p.id, p.name])),
+            matches,
+            include,
+          )
+        : computeStandings(players, matches, include);
     return rows.map((r) => ({ playerId: r.playerId, name: r.playerName, rank: r.rank }));
   }
 }

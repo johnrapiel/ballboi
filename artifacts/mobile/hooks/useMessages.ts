@@ -38,12 +38,14 @@ export interface Message {
  */
 export interface GroupConversation {
   id: number;
-  /** Older servers leave it out: an open match's chat. */
-  kind?: "match" | "league";
+  /** Older servers leave it out: an open match's chat. "doubles": a doubles league match's chat for all four (D6). */
+  kind?: "match" | "league" | "doubles";
   /** "Sat 9 AM doubles · Beacon Courts", or the league name */
   title: string;
   openMatchId: number | null;
   leagueId?: number | null;
+  /** Doubles match chats (D6): the league match, for its Match button. */
+  matchId?: number | null;
   memberCount: number;
   /** senderName null: a line from Ball Boi. */
   lastMessage: { text: string; fromMe: boolean; senderName: string | null; at: string } | null;

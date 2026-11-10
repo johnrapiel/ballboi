@@ -9,11 +9,17 @@ import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { ordinal } from "@/lib/leagues";
 
+/** D3: a fixed-partner team's row: yours when you're on it; VoiceOver reads "&" as "and". */
+const onRow = (s: Standing, me: number | null | undefined) => me != null && (s.playerId === me || !!s.teamPlayerIds?.includes(me));
+const spokenName = (s: Standing) => (s.teamId != null ? s.playerName.replace(/ & /g, " and ") : s.playerName);
+
 // Standings rank on wins, then head to head between players level on wins,
 // then share of sets and games won (John, Nov 6; spec: Leagues > Scores and
 // standings). Players share a rank only when all of those are level. The rank
 // and W–L sit in Cormorant, your rank in a brush ring, as on the approved
 // League detail · Standings screen. Each row reads as one VoiceOver element.
+// Doubles (D3): fixed-partner leagues list teams ("John Rapiel & Sam Lee"),
+// rotating leagues list players.
 
 // The approved table sets rank and W–L at 22pt Cormorant: scoreRow's face at a
 // row's size.
@@ -24,7 +30,7 @@ function Row({ s, isMe, tied, last }: { s: Standing; isMe: boolean; tied: boolea
   return (
     <View
       accessible
-      accessibilityLabel={`${tied ? "Tied " : ""}${ordinal(s.rank)}, ${s.playerName}${isMe ? ", you" : ""}. ${s.wins} ${
+      accessibilityLabel={`${tied ? "Tied " : ""}${ordinal(s.rank)}, ${spokenName(s)}${isMe ? (s.teamId != null ? ", your team" : ", you") : ""}. ${s.wins} ${
         s.wins === 1 ? "win" : "wins"
       }, ${s.losses} ${s.losses === 1 ? "loss" : "losses"}`}
       style={{
@@ -55,7 +61,7 @@ function Row({ s, isMe, tied, last }: { s: Standing; isMe: boolean; tied: boolea
       </View>
       <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.space2, flexWrap: "wrap" }}>
         <Text variant="bodyStrong">{s.playerName}</Text>
-        {isMe ? <Chip label="You" tone="ink" /> : null}
+        {isMe ? <Chip label={s.teamId != null ? "Your team" : "You"} tone="ink" /> : null}
       </View>
       <Text variant="scoreRow" style={[RANK, { minWidth: 56, textAlign: "right" }]} maxFontSizeMultiplier={1.5}>
         {`${s.wins}–${s.losses}`}
@@ -84,7 +90,7 @@ export function StandingsTable({ standings, myPlayerId }: { standings: Standing[
       >
         <View style={{ minWidth: 32 }} />
         <Text variant="label" tone="inkMuted" style={{ flex: 1 }}>
-          Player
+          {standings.some((s) => s.teamId != null) ? "Team" : "Player"}
         </Text>
         <Text variant="label" tone="inkMuted" style={{ minWidth: 56, textAlign: "right" }}>
           W–L
@@ -94,7 +100,7 @@ export function StandingsTable({ standings, myPlayerId }: { standings: Standing[
         <Row
           key={s.playerId}
           s={s}
-          isMe={s.playerId === myPlayerId}
+          isMe={onRow(s, myPlayerId)}
           tied={(counts.get(s.rank) ?? 0) > 1}
           last={i === standings.length - 1}
         />

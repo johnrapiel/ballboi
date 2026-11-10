@@ -43,6 +43,10 @@ export interface GroupRecord {
   channelId: string;
   openMatchId: number | null;
   leagueId: number | null;
+  /** A doubles league match's chat for all four players (D6). */
+  matchId?: number | null;
+  /** Doubles match chats: each member's own title ("You, Sam, Jo and Lee · Week 3"). */
+  memberTitles?: Record<string, string> | null;
   /** League chats: up to 3 pinned message ids, oldest pin first. */
   pinnedIds: string[];
   /** League chats: player id to standings rank, as of the last result. */
@@ -74,9 +78,12 @@ export interface GroupMember {
   joinedAt: Date;
 }
 
-export type NewGroup = Pick<GroupRecord, "channelId" | "openMatchId" | "title"> & { leagueId?: number | null };
+export type NewGroup = Pick<GroupRecord, "channelId" | "openMatchId" | "title"> & { leagueId?: number | null; matchId?: number | null };
 export type GroupPatch = Partial<
-  Pick<GroupRecord, "title" | "open" | "closedReason" | "lastMessageAt" | "lastMessageText" | "lastSender" | "pinnedIds" | "standings">
+  Pick<
+    GroupRecord,
+    "title" | "open" | "closedReason" | "lastMessageAt" | "lastMessageText" | "lastSender" | "pinnedIds" | "standings" | "memberTitles"
+  >
 >;
 export type GroupMemberPatch = Partial<Pick<GroupMember, "admin" | "mutedAt">>;
 
@@ -86,6 +93,8 @@ export interface GroupRepo {
   findGroupByChannel(channelId: string): Promise<GroupRecord | null>;
   findGroupByOpenMatch(openMatchId: number): Promise<GroupRecord | null>;
   findGroupByLeague(leagueId: number): Promise<GroupRecord | null>;
+  /** A doubles league match's chat (D6). */
+  findGroupByMatch(matchId: number): Promise<GroupRecord | null>;
   /** Creates the group, or returns the existing one for this channel. */
   createGroup(input: NewGroup): Promise<GroupRecord>;
   updateGroup(id: number, patch: GroupPatch): Promise<GroupRecord>;

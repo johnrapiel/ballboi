@@ -132,7 +132,11 @@ export function countFor(counts: { radius: number; count: number }[], radius: nu
 }
 
 /** "14 players within 10 mi". */
-export function countLine(n: number, radius: number, noun: "player" | "Open league" | "open match" = "player"): string {
+export function countLine(
+  n: number,
+  radius: number,
+  noun: "player" | "Open league" | "Open singles league" | "Open doubles league" | "open match" = "player",
+): string {
   const plural = noun === "open match" ? "open matches" : `${noun}s`;
   return `${n} ${n === 1 ? noun : plural} within ${radius} mi`;
 }
@@ -221,6 +225,8 @@ export interface DiscoverLeagueCard {
   joining: "request" | "waitlist";
   myRequest: LeagueRequest;
   spoken: string;
+  /** D8: a doubles league, shown with the Doubles pill. Older servers leave it out. */
+  doubles?: boolean;
 }
 
 export interface DiscoverLeagues {
@@ -239,6 +245,8 @@ export interface DiscoverLeague {
   distance: string | null;
   format: string;
   type: string;
+  /** Doubles (D1): "Fixed partners" or "Rotating partners"; null for singles. */
+  partners?: string | null;
   levelText: string;
   outsideLevel: boolean;
   myRating: number | null;
@@ -255,7 +263,11 @@ export interface DiscoverLeague {
   member: boolean;
 }
 
-export const leaguesPath = (radius: number) => `/api/discover/leagues?radius=${clampRadius(radius)}`;
+/** D8: Discover's Format filter for Open leagues. */
+export type PlayFilter = "all" | "singles" | "doubles";
+
+export const leaguesPath = (radius: number, play: PlayFilter = "all") =>
+  `/api/discover/leagues?radius=${clampRadius(radius)}${play === "all" ? "" : `&play=${play}`}`;
 
 /** A tag's words: always text with its icon, never color alone. */
 export function leagueTagLabel(t: LeagueTag): string {

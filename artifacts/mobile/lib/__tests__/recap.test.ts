@@ -44,7 +44,8 @@ describe("recap", () => {
 
   it("names teams in the same pattern for doubles", () => {
     const v = recapView({ ...base, side1: ["Sam Patel", "Priya Shah"], side2: ["John Rapiel", "Alex Kim"] });
-    expect(v.headline).toBe("John Rapiel & Alex Kim def. Sam P. & Priya S.");
+    // D7 (John, Nov 9): team names, every name short.
+    expect(v.headline).toBe("John R. & Alex K. def. Sam P. & Priya S.");
   });
 
   it("shows Discover and Quick matches, RET and W/O", () => {

@@ -17,7 +17,7 @@ import { useColors, useScheme } from "@/hooks/useColors";
 import { courtPick, usePickedCourt } from "@/hooks/useCourts";
 import { useSendMatchPlan } from "@/hooks/useDiscoverMatchPlans";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
-import { defaultPlanStart, planWhen } from "@/lib/discover";
+import { defaultPlanStart } from "@/lib/discover";
 
 export default function AddMatchCardSheet() {
   const c = useColors();
@@ -68,35 +68,39 @@ export default function AddMatchCardSheet() {
   return (
     <SheetBody title="Add a match" close={sheet.close}>
       <Text tone="inkMuted">{`${them} gets "Add this match?" in your chat. Once they're in, it goes on both your schedules.`}</Text>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: spacing.space2 }}>
+      <View style={{ gap: spacing.space2 }}>
         <Text variant="bodyStrong">Day and time</Text>
-        <View style={{ flexDirection: "row", gap: spacing.space2 }}>
-          <DateTimePicker
-            value={startsAt}
-            mode="date"
-            display="compact"
-            minimumDate={new Date()}
-            maximumDate={new Date(Date.now() + 60 * 86_400_000)}
-            themeVariant={scheme === "dark" ? "dark" : "light"}
-            accentColor={c.ink}
-            accessibilityLabel="Day"
-            onChange={change}
-          />
-          <DateTimePicker
-            value={startsAt}
-            mode="time"
-            display="compact"
-            minuteInterval={15}
-            themeVariant={scheme === "dark" ? "dark" : "light"}
-            accentColor={c.ink}
-            accessibilityLabel="Time"
-            onChange={change}
-          />
+        {/* The pills sit on their own line under the label and wrap at large
+            text sizes. Each gets a 44pt row so a pill never sits on the label
+            while iOS sizes it. */}
+        <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: spacing.space3, rowGap: spacing.space2 }}>
+          <View style={{ minHeight: 44, justifyContent: "center" }}>
+            <DateTimePicker
+              value={startsAt}
+              mode="date"
+              display="compact"
+              minimumDate={new Date()}
+              maximumDate={new Date(Date.now() + 60 * 86_400_000)}
+              themeVariant={scheme === "dark" ? "dark" : "light"}
+              accentColor={c.ink}
+              accessibilityLabel={`Day, ${startsAt.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}`}
+              onChange={change}
+            />
+          </View>
+          <View style={{ minHeight: 44, justifyContent: "center" }}>
+            <DateTimePicker
+              value={startsAt}
+              mode="time"
+              display="compact"
+              minuteInterval={15}
+              themeVariant={scheme === "dark" ? "dark" : "light"}
+              accentColor={c.ink}
+              accessibilityLabel={`Time, ${startsAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`}
+              onChange={change}
+            />
+          </View>
         </View>
       </View>
-      <Text variant="small" tone="inkMuted" accessibilityLiveRegion="polite">
-        {planWhen(startsAt.toISOString())}
-      </Text>
 
       <SettingsSection>
         <SettingsRow
@@ -112,7 +116,7 @@ export default function AddMatchCardSheet() {
       </SettingsSection>
 
       <View style={{ gap: spacing.space2 }}>
-        <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
+        <Text variant="section" tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
           Play
         </Text>
         <ChipRow label="Play">

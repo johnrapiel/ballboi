@@ -18,6 +18,11 @@ export interface DiscoverLeague {
   distance: string | null;
   format: string;
   type: string;
+  /**
+   * Doubles (D1), "Fixed partners" or "Rotating partners"; null for singles
+   * @nullable
+   */
+  partners?: string | null;
   levelText: string;
   outsideLevel: boolean;
   /** @nullable */

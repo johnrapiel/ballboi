@@ -1,7 +1,9 @@
 import { useRouter } from "expo-router";
 import React from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { useOpenDoublesMatchChat } from "@workspace/api-client-react";
 
 import { EmptyState } from "@/components/EmptyState";
 import { MatchCard } from "@/components/MatchCard";
@@ -49,6 +51,13 @@ export default function HomeScreen() {
   // See all opens your matches on Profile, scrolled to Upcoming matches (decision 138).
   const seeAll = () => router.navigate({ pathname: "/(tabs)/profile", params: { tab: "upcoming", at: String(Date.now()) } });
 
+  const openChat = useOpenDoublesMatchChat();
+  const openGroup = (leagueId: number, matchId: number) =>
+    openChat
+      .mutateAsync({ leagueId, matchId })
+      .then(({ groupId }) => router.push({ pathname: "/conversation/group/[id]", params: { id: String(groupId) } }))
+      .catch((e) => Alert.alert("Couldn't open the chat", (e as { data?: { error?: string } | null }).data?.error ?? "Try again in a moment."));
+
   const firstCard = (m: UpcomingItem) => {
     const opponent = m.opponentName ?? "your opponent";
     const when = cardWhen(m);
@@ -70,14 +79,23 @@ export default function HomeScreen() {
         : m.opponentPlayerId
           ? { id: "new", playerId: String(m.opponentPlayerId), name: opponent }
           : null;
-    const message: NextMatchAction | null = chatWith
+    // D6: a doubles league match's Message opens one chat for all four.
+    const doublesChat = m.kind === "league" && !!m.partnerName && m.leagueId != null && m.matchId != null;
+    const message: NextMatchAction | null = doublesChat
       ? {
           label: "Message",
-          accessibilityLabel: `Message ${opponent}`,
-          hint: "Opens a direct chat",
-          onPress: () => router.push({ pathname: "/conversation/[id]", params: chatWith }),
+          accessibilityLabel: "Message all four players",
+          hint: "Opens one group chat for the four of you",
+          onPress: () => void openGroup(m.leagueId!, m.matchId!),
         }
-      : null;
+      : chatWith
+        ? {
+            label: "Message",
+            accessibilityLabel: `Message ${opponent}`,
+            hint: "Opens a direct chat",
+            onPress: () => router.push({ pathname: "/conversation/[id]", params: chatWith }),
+          }
+        : null;
     // An upcoming Discover match's card lives in the chat (decision 151: Match
     // detail is for its result, from Profile's Results).
     const details: NextMatchAction | null =
@@ -99,6 +117,8 @@ export default function HomeScreen() {
         myPhoto={profile?.avatarUrl}
         opponentPhoto={m.opponentPhoto}
         opponentName={opponent}
+        partnerName={m.partnerName}
+        opponentNames={m.opponentNames}
         location={m.location}
         league={m.context}
         note={note}

@@ -10,7 +10,7 @@ import type { GroupViewLastMessage } from "./groupViewLastMessage";
 
 export interface GroupView {
   id: number;
-  /** An open match's chat, or a league's chat (decision 145) */
+  /** An open match's chat, a league's chat (decision 145), or a doubles league match's chat for all four (D6) */
   kind: GroupViewKind;
   /** Sat 9 AM doubles · Beacon Courts, or the league name */
   title: string;
@@ -18,6 +18,11 @@ export interface GroupView {
   openMatchId: number | null;
   /** @nullable */
   leagueId: number | null;
+  /**
+   * Doubles match chats, the league match (D6)
+   * @nullable
+   */
+  matchId: number | null;
   memberCount: number;
   lastMessage: GroupViewLastMessage;
   /** Every unread message; the row shows bold with this count */

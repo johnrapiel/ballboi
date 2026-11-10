@@ -42,6 +42,13 @@ const PAIRS = [
   ["hairline-strong", "linen", NON_TEXT, "input borders on cards"],
   ["focus", "paper", NON_TEXT, "focus ring on the page"],
   ["focus", "linen", NON_TEXT, "focus ring on cards"],
+  // The switch (components/Toggle.tsx, Nov 9): on is an ink track with an on-ink knob, off a hairline-strong border with an ink-muted knob.
+  ["ink", "linen", NON_TEXT, "switch track, on, on cards"],
+  ["ink", "paper", NON_TEXT, "switch track, on, on the page"],
+  ["on-ink", "ink", NON_TEXT, "switch knob, on"],
+  ["ink-muted", "linen", NON_TEXT, "switch knob, off, on cards"],
+  ["ink-muted", "paper", NON_TEXT, "switch knob, off, on the page"],
+  ["ink-muted-hc", "linen", NON_TEXT, "switch knob, off, on cards, Increase Contrast"],
   // Increase Contrast replacements (useColors swaps these in).
   ["ink-muted-hc", "paper", TEXT, "meta text on the page, Increase Contrast"],
   ["ink-muted-hc", "linen", TEXT, "meta text on cards, Increase Contrast"],

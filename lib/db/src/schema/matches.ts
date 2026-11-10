@@ -57,6 +57,11 @@ export const matchesTable = pgTable("matches", {
   scoreEditedAt: timestamp("score_edited_at", { withTimezone: true }),
   scoreEditedByClerkUserId: text("score_edited_by_clerk_user_id"),
   scoreEditedByName: text("score_edited_by_name"),
+  // Fixed-partner doubles (D3): the team on each side, for team standings.
+  // Side 1 is player1 + player3, side 2 is player2 + player4. Migration
+  // 20261109_x_doubles_partners.sql.
+  team1Id: integer("team1_id"),
+  team2Id: integer("team2_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

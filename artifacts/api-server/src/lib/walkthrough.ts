@@ -55,6 +55,8 @@ export type Command =
   | { kind: "report"; as: SeededLetter; about: Letter; reason: string }
   | { kind: "score"; as: SeededLetter; score: string; matchId: number | null }
   | { kind: "leave"; as: SeededLetter; leagueId: number | null }
+  | { kind: "team-up"; as: SeededLetter; to: Letter; leagueId: number }
+  | { kind: "answer"; as: SeededLetter; accept: boolean; leagueId: number }
   | { kind: "time"; league: "seeded" | number; action: string }
   | { kind: "pair-now"; league: "seeded" | number };
 
@@ -147,8 +149,22 @@ export function parseCommand(argv: string[]): Command | { error: string } {
         if (leagueId !== null && !Number.isInteger(leagueId)) return { error: "Usage: as <B|C|D> leave [leagueId]" };
         return { kind: "leave", as, leagueId };
       }
+      // Doubles partners (D9): send a team-up request, or answer the one waiting.
+      case "team-up": {
+        const to = letter(args[0], true);
+        const leagueId = Number(args[1]);
+        if (!to || !Number.isInteger(leagueId) || leagueId <= 0) return { error: "Usage: as <B|C|D> team-up <A|B|C|D> <leagueId>" };
+        if (to === as) return { error: "Pick someone else to team up with." };
+        return { kind: "team-up", as, to, leagueId };
+      }
+      case "accept":
+      case "decline": {
+        const leagueId = Number(args[0]);
+        if (!Number.isInteger(leagueId) || leagueId <= 0) return { error: `Usage: as <B|C|D> ${action} <leagueId>` };
+        return { kind: "answer", as, accept: action === "accept", leagueId };
+      }
       default:
-        return { error: "Actions: message, join, report, score, leave" };
+        return { error: "Actions: message, join, report, score, leave, team-up, accept, decline" };
     }
   }
   return { error: `Unknown command "${verb}". Run: pnpm walkthrough help` };
@@ -172,6 +188,8 @@ Act as B, C or D (needs the API running: pnpm dev)
   pnpm walkthrough as D report C           Report someone (their latest message to you, or their profile)
   pnpm walkthrough as B score "6-3, 6-4"   Enter a score for B's match against A (or --match <id>)
   pnpm walkthrough as B leave [leagueId]   Leave a league mid-season
+  pnpm walkthrough as B team-up A 12       Ask A to team up in doubles league 12
+  pnpm walkthrough as B accept 12          Accept the team-up request waiting for B (or decline)
 
 Time controls for a league (seeded league by default, or pass a league id)
   pnpm walkthrough time season-started     The season starts today

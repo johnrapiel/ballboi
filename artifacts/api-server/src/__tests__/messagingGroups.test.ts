@@ -270,3 +270,49 @@ describe("group message push", () => {
     expect(messagePushContent(e, false)).toEqual({ title: "", body: `New message from Theo Brandt in ${TITLE}`, link: "/conversation/group/5" });
   });
 });
+
+describe("doubles match chats (D6, John, Nov 9)", () => {
+  const sync = (extra: Record<string, unknown> = {}) =>
+    svc.syncMatchGroup({
+      matchId: 41,
+      title: "Doubles · Week 3",
+      titles: { dana: "You, Theo, Mia and Sam · Week 3", theo: "You, Dana, Mia and Sam · Week 3", mia: "You, Sam, Dana and Theo · Week 3", sam: "You, Mia, Dana and Theo · Week 3" },
+      members: ["dana", "theo", "mia", "sam"],
+      open: true,
+      create: true,
+      system: "Week 3 pairings are out. Work out a time here.",
+      ...extra,
+    });
+
+  it("opens one chat for all four, titled for each of them, listed in Messages", async () => {
+    const g = (await sync())!;
+    expect(await svc.groupForMatch(41)).toMatchObject({ id: g.id });
+    const [dana] = await svc.groups("dana");
+    expect(dana).toMatchObject({ kind: "doubles", matchId: 41, title: "You, Theo, Mia and Sam · Week 3", memberCount: 4, canSend: true });
+    expect((await svc.groups("mia"))[0].title).toBe("You, Sam, Dana and Theo · Week 3");
+    // Every member's message reaches the other three.
+    await svc.sendToGroup("dana", g.id, { text: "Thursday 6pm?", clientMessageId: mid() });
+    expect(pushed.map((p) => p.recipientId).sort()).toEqual(["mia", "sam", "theo"]);
+  });
+
+  it("holds Ball Boi's cards and goes read only once the score is in", async () => {
+    const g = (await sync())!;
+    await svc.postToMatch(41, "Still on for tomorrow at 6:00 PM? Say here if anything changes.");
+    await sync({ open: false, closedReason: "The score is in, so this chat is read only.", system: "Dana L. & Theo B. def. Mia K. & Sam W. 6-3, 6-4", create: false });
+    const thread = await svc.groupThread("sam", g.id);
+    expect(thread.messages.map((m) => m.text)).toEqual([
+      "Week 3 pairings are out. Work out a time here.",
+      "Still on for tomorrow at 6:00 PM? Say here if anything changes.",
+      "Dana L. & Theo B. def. Mia K. & Sam W. 6-3, 6-4",
+    ]);
+    expect(thread.group).toMatchObject({ canSend: false, sendBlockedReason: "The score is in, so this chat is read only." });
+    await expect(svc.sendToGroup("sam", g.id, { text: "gg", clientMessageId: mid() })).rejects.toBeInstanceOf(MessagingError);
+  });
+
+  it("isn't made without create, and drops a member who's no longer in the match", async () => {
+    expect(await sync({ create: false })).toBeNull();
+    const g = (await sync())!;
+    await sync({ members: ["dana", "theo", "mia"], create: false, system: undefined });
+    await expect(svc.groupThread("sam", g.id)).rejects.toBeInstanceOf(MessagingError);
+  });
+});

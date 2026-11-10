@@ -23,6 +23,13 @@ export interface LeagueWeekItem {
   /** @nullable */
   opponentName: string | null;
   /**
+   * Doubles (D8), your partner this match, for "You and Sam vs. Jo and Lee". Null in singles and byes
+   * @nullable
+   */
+  partnerName: string | null;
+  /** Doubles (D8), the other team's names. Empty in singles and byes */
+  opponentNames: string[];
+  /**
    * The singles opponent's player id, for Message on the Home card; null for doubles and byes
    * @nullable
    */

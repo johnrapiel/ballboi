@@ -6,6 +6,8 @@ import {
   getGetLeagueQueryKey,
   getGetLeagueScheduleQueryKey,
   getGetLeagueStandingsQueryKey,
+  getGetLeagueTeamsQueryKey,
+  getGetMyPartnerQueryKey,
   getGetLeaguesQueryKey,
   getGetMyLeagueWeekQueryKey,
   getGetMyPlayersQueryKey,
@@ -25,6 +27,9 @@ export function leagueQueryKeys(leagueId: number | null | undefined): readonly u
     [...getGetLeagueScheduleQueryKey(leagueId)],
     [...getGetLeagueBracketQueryKey(leagueId)],
     [...getGetLeagueStandingsQueryKey(leagueId)],
+    // Doubles partners (D2, D9): the team-up card and Manage > Teams.
+    [...getGetMyPartnerQueryKey(leagueId)],
+    [...getGetLeagueTeamsQueryKey(leagueId)],
     ...everywhere,
   ];
 }

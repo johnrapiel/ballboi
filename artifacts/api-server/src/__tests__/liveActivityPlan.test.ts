@@ -5,6 +5,9 @@ import { tokenIsDead } from "../services/push/apns";
 import {
   canControl,
   commandAllowed,
+  dismissAfterSeconds,
+  pickStartTokens,
+  startPlan,
   contentState,
   endPayload,
   liveViewers,
@@ -171,5 +174,59 @@ describe("Apple key", () => {
   it("drops tokens Apple says are gone", () => {
     expect(tokenIsDead({ ok: false, status: 410, reason: "Unregistered", env: "production" })).toBe(true);
     expect(tokenIsDead({ ok: false, status: 400, reason: "BadDeviceToken", env: "production" })).toBe(false);
+  });
+});
+
+describe("one Live Activity per match per phone (Nov 9)", () => {
+  const t = (id: number, user: string, installId: string | null, minutesAgo: number) => ({
+    id,
+    clerkUserId: user,
+    installId,
+    updatedAt: new Date(Date.UTC(2026, 10, 9, 12, 0) - minutesAgo * 60_000),
+  });
+
+  it("uses only the newest push-to-start token for each phone", () => {
+    const picked = pickStartTokens([t(1, "kristina", "phone-a", 30), t(2, "kristina", "phone-a", 1), t(3, "kristina", "phone-a", 10)]);
+    expect(picked.map((r) => r.id)).toEqual([2]);
+  });
+
+  it("keeps one token for each of an account's phones", () => {
+    const picked = pickStartTokens([t(1, "kristina", "phone-a", 5), t(2, "kristina", "ipad-b", 5)]);
+    expect(picked.map((r) => r.id).sort()).toEqual([1, 2]);
+  });
+
+  it("treats tokens saved before phones were told apart as one phone, and drops them once the phone is known", () => {
+    expect(pickStartTokens([t(1, "kristina", null, 60), t(2, "kristina", null, 2), t(3, "kristina", null, 30)]).map((r) => r.id)).toEqual([2]);
+    expect(pickStartTokens([t(1, "kristina", null, 1), t(2, "kristina", "phone-a", 5)]).map((r) => r.id)).toEqual([2]);
+  });
+
+  it("opens it with push-to-start the first time", () => {
+    expect(startPlan([])).toBe("start");
+  });
+
+  it("updates the one already there when Ball Boi can reach it", () => {
+    expect(startPlan([{ active: true, hasToken: true }])).toBe("adopt");
+  });
+
+  it("opens a fresh one when the earlier one was ended", () => {
+    expect(startPlan([{ active: false, hasToken: true }])).toBe("start");
+  });
+
+  it("never stacks a second card on one Ball Boi can't reach yet", () => {
+    expect(startPlan([{ active: false, hasToken: false }])).toBe("wait");
+    expect(startPlan([{ active: true, hasToken: false }, { active: false, hasToken: false }])).toBe("wait");
+  });
+
+  it("clears a setup that recorded nothing straight away, and leaves Recording stopped up for a few minutes", () => {
+    const p = parseLiveProps(12, body)!;
+    expect(dismissAfterSeconds({ ...p, stage: "stopped", status: "Setup ended" })).toBe(0);
+    expect(dismissAfterSeconds({ ...p, stage: "stopped", status: "Recording stopped" })).toBe(300);
+  });
+
+  it("keeps caption and status updates silent: only push-to-start carries an alert", () => {
+    const p = parseLiveProps(12, body)!;
+    expect(updatePayload(p, 1).aps).not.toHaveProperty("alert");
+    expect(updatePayload(p, 1).aps).not.toHaveProperty("sound");
+    expect(endPayload(p, 1).aps).not.toHaveProperty("alert");
   });
 });

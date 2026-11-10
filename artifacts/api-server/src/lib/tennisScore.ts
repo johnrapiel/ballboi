@@ -11,6 +11,8 @@
 // - "Opponent retired": the sets so far, where the last one can be unfinished.
 //   It counts as a win for the player who entered it, and shows as RET.
 // - A walkover (W/O) has no sets at all; the score string is just "W/O".
+// - A double default (doubles only) has no sets and no winner; the score
+//   string is "Double default".
 // - A Quick match is however many sets the players played, one to five
 //   (`quick`). Each set is still a real set, and the last one can be a match
 //   tiebreak. The winner has more sets; with sets level, more games (a match
@@ -18,6 +20,16 @@
 
 export const RETIRED_SUFFIX = " RET";
 export const WALKOVER_SCORE = "W/O";
+/**
+ * Doubles only (John, Nov 9): both teams were a player short. No winner, no
+ * standings points for either team. Stored as the words, the way W/O is.
+ */
+export const DOUBLE_DEFAULT_SCORE = "Double default";
+
+/** True for a doubles match that ended as a double default. */
+export function isDoubleDefault(score: string | null | undefined): boolean {
+  return !!score && score.trim() === DOUBLE_DEFAULT_SCORE;
+}
 
 const SET_HINT = "A set ends 6-0 to 6-4, 7-5 or 7-6.";
 const DECIDER_HINT = "A third set can also be a match tiebreak, like 10-7.";

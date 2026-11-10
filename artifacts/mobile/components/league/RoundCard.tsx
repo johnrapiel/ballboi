@@ -9,7 +9,7 @@ import { WinnerNames } from "@/components/WinnerNames";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { sideOf, winnerMark } from "@/lib/winnerMark";
-import { canEnterScore, correctionLine, dateRange, editedLine, isMine, isNotPlayed, LATE_ROUND_RESULT, phaseLabel, resultLine, roundPlayByLine, shortDate } from "@/lib/leagueSchedule";
+import { canEnterScore, correctionLine, dateRange, editedLine, isMine, isNotPlayed, LATE_ROUND_RESULT, opponentName, phaseLabel, resultLine, roundPlayByLine, shortDate, sideLabels } from "@/lib/leagueSchedule";
 
 // One week of a league season (spec: Leagues > Weekly loop). Every state is in
 // words: "This week", "Late matches", "Cancelled", "Not played yet", "Not played".
@@ -45,14 +45,17 @@ function MatchRow({
   const scoreable = mine && canEnterScore(round, m, ended);
   // Winner mark (John, Nov 8): the winner bold and underlined, the score from
   // their side; VoiceOver reads "[Winner] won [score]".
+  // Doubles (D7, D8): each side is a team, "John Rapiel & Sam Lee".
+  const { side1, side2 } = sideLabels(m);
   const mark = winnerMark({
-    player1Name: m.player1Name,
-    player2Name: m.player2Name,
+    player1Name: side1,
+    player2Name: side2,
     score: m.status === "completed" && !m.voided ? m.score : null,
     winner: m.status === "completed" && !m.voided ? sideOf(m.winnerId, m.player1Id, m.player2Id) : null,
     status: result,
   });
-  const summary = `${m.player1Name} versus ${m.player2Name}. ${mark.spoken}.${notes.map((n) => ` ${n}.`).join("")}`;
+  // VoiceOver reads team names in full, "&" as "and".
+  const summary = `${side1} versus ${side2}. ${mark.spoken}.${notes.map((n) => ` ${n}.`).join("")}`.replace(/ & /g, " and ");
 
   return (
     <View
@@ -67,8 +70,8 @@ function MatchRow({
     >
       <View accessible accessibilityLabel={`${mine ? "Your match. " : ""}${summary}`} style={{ flex: 1, gap: 2 }}>
         <WinnerNames
-          player1Name={m.player1Name}
-          player2Name={m.player2Name}
+          player1Name={side1}
+          player2Name={side2}
           mark={mark}
           line={
             notPlayed ? (
@@ -97,7 +100,7 @@ function MatchRow({
           onPress={() => onEnterScore(m)}
           accessibilityRole="button"
           accessibilityLabel="Enter score"
-          accessibilityHint={`For your match against ${m.player1Id === myPlayerId ? m.player2Name : m.player1Name}`}
+          accessibilityHint={`For your match against ${myPlayerId != null ? opponentName(m, myPlayerId) : ""}`}
           style={({ pressed }) => ({
             minHeight: MIN_TAP,
             minWidth: MIN_TAP,

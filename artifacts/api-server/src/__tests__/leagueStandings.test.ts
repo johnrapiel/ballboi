@@ -104,3 +104,73 @@ describe("computeStandings", () => {
     expect(rows.find((r) => r.playerId === 2)?.wins).toBe(0);
   });
 });
+
+import { computeTeamStandings, headToHead } from "../lib/leagueStandings.js";
+
+describe("doubles standings (D3)", () => {
+  const d = (s1: [number, number], s2: [number, number], side1Won: boolean, extra: Record<string, unknown> = {}) => ({
+    ...m(s1[0], s2[0], side1Won ? s1[0] : s2[0]),
+    player3Id: s1[1],
+    player4Id: s2[1],
+    ...extra,
+  });
+
+  it("rotating partners: ranks players, both partners credited", () => {
+    const four = [1, 2, 3, 5].map((id) => ({ id, name: `P${id}`, leftAt: null }));
+    const rows = computeStandings(four, [d([1, 2], [3, 5], true), d([1, 3], [2, 5], true)]);
+    expect(rows.map((r) => [r.playerName, r.wins, r.losses])).toEqual([
+      ["P1", 2, 0],
+      ["P2", 1, 1],
+      ["P3", 1, 1],
+      ["P5", 0, 2],
+    ]);
+  });
+
+  it("rotating ties go to head to head: a tied player who beat the other", () => {
+    const tied = [2, 3].map((id) => ({ playerId: id, playerName: `P${id}`, wins: 1, setsWon: 2, setsLost: 2, gamesWon: 10, gamesLost: 10 }));
+    // P3 was on the winning side against P2; P2's own win was against other players.
+    const h2h = headToHead(tied, [d([3, 4], [2, 5], true), d([2, 1], [4, 5], true)]);
+    expect(h2h.get(3)).toBe(1);
+    expect(h2h.get(2)).toBeUndefined();
+  });
+
+  it("fixed partners: ranks teams by name, ties on head to head then sets", () => {
+    const names = new Map([[1, "John Rapiel"], [2, "Sam Lee"], [3, "Jo Park"], [4, "Lee King"], [5, "Ana Diaz"], [6, "Bo Chen"]]);
+    const teams = [
+      { id: 10, playerIds: [1, 2] as [number, number] },
+      { id: 11, playerIds: [3, 4] as [number, number] },
+      { id: 12, playerIds: [5, 6] as [number, number] },
+    ];
+    const rows = computeTeamStandings(teams, names, [
+      d([3, 4], [1, 2], true, { team1Id: 11, team2Id: 10 }),
+      d([1, 2], [5, 6], true, { team1Id: 10, team2Id: 12 }),
+      d([5, 6], [3, 4], true, { team1Id: 12, team2Id: 11 }),
+    ]);
+    // All 1-1: sets and games level too, so they share a rank.
+    expect(rows.every((r) => r.wins === 1 && r.losses === 1)).toBe(true);
+    const more = computeTeamStandings(teams, names, [
+      d([3, 4], [1, 2], true, { team1Id: 11, team2Id: 10 }),
+      d([1, 2], [5, 6], true, { team1Id: 10, team2Id: 12 }),
+      d([3, 4], [5, 6], true, { team1Id: 11, team2Id: 12 }),
+    ]);
+    expect(more.map((r) => [r.rank, r.playerName, `${r.wins}-${r.losses}`, r.teamId, r.teamPlayerIds, r.playerId])).toEqual([
+      [1, "Jo Park & Lee King", "2-0", 11, [3, 4], 3],
+      [2, "John Rapiel & Sam Lee", "1-1", 10, [1, 2], 1],
+      [3, "Ana Diaz & Bo Chen", "0-2", 12, [5, 6], 5],
+    ]);
+  });
+
+  it("D4: a broken team leaves the standings; the re-teamed player's new team starts 0-0", () => {
+    const names = new Map([[1, "A One"], [2, "B Two"], [3, "C Three"], [4, "D Four"], [7, "E Five"]]);
+    const played = [d([1, 2], [3, 4], true, { team1Id: 10, team2Id: 11 })];
+    const now = [
+      { id: 11, playerIds: [3, 4] as [number, number] },
+      { id: 13, playerIds: [1, 7] as [number, number] },
+    ];
+    const rows = computeTeamStandings(now, names, played);
+    expect(rows.map((r) => [r.playerName, r.wins, r.losses])).toEqual([
+      ["A One & E Five", 0, 0],
+      ["C Three & D Four", 0, 1],
+    ]);
+  });
+});

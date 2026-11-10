@@ -1,6 +1,6 @@
 import type { LeagueSchedule, ScheduleMatch, ScheduleRound } from "@workspace/api-client-react";
 
-import { flipScore, WALKOVER_SCORE } from "./tennisScore";
+import { DOUBLE_DEFAULT_SCORE, flipScore, isDoubleDefault, WALKOVER_SCORE } from "./tennisScore";
 
 // Helpers for the league schedule (spec: Leagues > Weekly loop, Scores and
 // standings). Dates are YYYY-MM-DD in the league's time zone.
@@ -197,17 +197,34 @@ export function phaseLabel(phase: ScheduleRound["phase"]): string {
   }
 }
 
+/** The other side: one name in singles, "Jo Park and Lee King" in doubles (D8). */
 export function opponentName(m: ScheduleMatch, myPlayerId: number): string {
-  return m.player1Id === myPlayerId ? m.player2Name : m.player1Name;
+  const mine = onSide1(m, myPlayerId);
+  const names = (mine ? [m.player2Name, m.player4Name] : [m.player1Name, m.player3Name]).filter((n): n is string => !!n);
+  return names.join(" and ");
+}
+
+/** Doubles: side 1 is player1 + player3, side 2 is player2 + player4. */
+function onSide1(m: Pick<ScheduleMatch, "player1Id"> & { player3Id?: number | null }, playerId: number): boolean {
+  return m.player1Id === playerId || m.player3Id === playerId;
+}
+
+/** Each side's name: the player, or a doubles team ("John Rapiel & Sam Lee", D3). */
+export function sideLabels(m: ScheduleMatch): { side1: string; side2: string } {
+  const team = (a: string, b: string | null | undefined) => (b ? `${a} & ${b}` : a);
+  return { side1: team(m.player1Name, m.player3Name), side2: team(m.player2Name, m.player4Name) };
 }
 
 export function isMine(m: ScheduleMatch, myPlayerId: number | null | undefined): boolean {
-  return myPlayerId != null && (m.player1Id === myPlayerId || m.player2Id === myPlayerId);
+  return (
+    myPlayerId != null &&
+    (m.player1Id === myPlayerId || m.player2Id === myPlayerId || m.player3Id === myPlayerId || m.player4Id === myPlayerId)
+  );
 }
 
 /** A stored score (player 1's side) as the given player sees it: their games first. RET and W/O stay. */
-export function scoreForPlayer(score: string, m: Pick<ScheduleMatch, "player1Id">, playerId: number): string {
-  return m.player1Id === playerId ? score : flipScore(score);
+export function scoreForPlayer(score: string, m: Pick<ScheduleMatch, "player1Id"> & { player3Id?: number | null }, playerId: number): string {
+  return onSide1(m, playerId) ? score : flipScore(score);
 }
 
 /** "6-3, 6-4" from the winner's side, or "by W/O" for a walkover (C18, Q5). */
@@ -228,8 +245,11 @@ export function isNotPlayed(round: Pick<ScheduleRound, "phase">, m: ScheduleMatc
 export function resultLine(m: ScheduleMatch, round?: Pick<ScheduleRound, "phase">, ended = false): string {
   if (m.voided) return "Cancelled";
   if (round && isNotPlayed(round, m, ended)) return "Not played";
+  // Doubles (John, Nov 9): both teams a player short, so no winner.
+  if (m.status === "completed" && isDoubleDefault(m.score)) return DOUBLE_DEFAULT_SCORE;
   if (m.status !== "completed" || !m.score || m.winnerId == null) return ended ? "Not played" : "Not played yet";
-  const winner = m.winnerId === m.player1Id ? m.player1Name : m.player2Name;
+  const { side1, side2 } = sideLabels(m);
+  const winner = m.winnerId === m.player1Id || m.winnerId === m.player3Id ? side1 : side2;
   return `${winner} won ${winningScore(m.score, m, m.winnerId)}`;
 }
 

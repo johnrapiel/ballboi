@@ -21,7 +21,18 @@ import {
 } from "@/lib/court/aim";
 import { CONFIDENT_FIT } from "@/lib/court/calibration";
 import { COACH_START, nextCoachCue } from "@/lib/court/coach";
-import { detectCourt, houghLines, plausibleView, whiteLevel, YELLOW_MARGIN, type Line, type Pixels } from "@/lib/court/detect";
+import {
+  detectCourt,
+  houghLines,
+  isPaint,
+  lineMask,
+  plausibleView,
+  RETRY_BELOW,
+  whiteLevel,
+  YELLOW_MARGIN,
+  type Line,
+  type Pixels,
+} from "@/lib/court/detect";
 import { homography, isCourtShape, SINGLES_CORNERS_M, type Corners, type Point } from "@/lib/court/geometry";
 import { uprightTurn } from "@/lib/court/still";
 import LABELS from "./fixtures/court-frames/corners.json";
@@ -246,5 +257,83 @@ describe("the coach on the clip", () => {
     expect(coachClip(old)).toEqual(["noLock"]);
     // A single stray frame among good ones says nothing.
     expect(coachClip(["ok", "ok", "tiltUp", "ok", "ok", "none", "ok", "ok"])).toEqual([]);
+  });
+});
+
+describe("low light and shade", () => {
+  // The same frames as if filmed later in the day or with the court partly in
+  // shade. Before Nov 9 the paint rule wanted lines brighter than 120, so at
+  // 40% brightness, or with a shadow across the near court, it found nothing.
+
+  /** Every pixel scaled by `gain`, as a darker exposure would. */
+  function darker(px: Pixels, gain: number): Pixels {
+    const out = new Uint8Array(px.data.length);
+    for (let i = 0; i < out.length; i += 4) {
+      out[i] = px.data[i] * gain;
+      out[i + 1] = px.data[i + 1] * gain;
+      out[i + 2] = px.data[i + 2] * gain;
+      out[i + 3] = 255;
+    }
+    return { width: px.width, height: px.height, data: out };
+  }
+
+  /** A shadow (40% light) over the near court, its edge running down from left to right. */
+  function shaded(px: Pixels): Pixels {
+    const { width: w, height: h } = px;
+    const out = new Uint8Array(px.data);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (y < 140 + (x * 60) / w) continue;
+        const i = (y * w + x) * 4;
+        out[i] *= 0.4;
+        out[i + 1] *= 0.4;
+        out[i + 2] *= 0.4;
+      }
+    }
+    return { width: w, height: h, data: out };
+  }
+
+  const paintCount = (m: Uint8Array) => m.reduce((n, v) => n + v, 0);
+
+  it.each(FRAMES)("%s in shade: lands on the labeled corners and can lock", (name) => {
+    const fit = detectCourt(shaded(frames.get(name)!));
+    expect(fit).not.toBeNull();
+    expect(cornerError(fit!.corners, labeled(name))).toBeLessThan(0.035);
+    expect(lockable(fit)).toBe(true);
+  });
+
+  it("at 40% brightness, finds and locks the court on nearly every frame", () => {
+    let locked = 0;
+    for (const name of FRAMES) {
+      const fit = detectCourt(darker(frames.get(name)!, 0.4));
+      if (fit && lockable(fit) && cornerError(fit.corners, labeled(name)) < 0.035) locked++;
+    }
+    expect(locked).toBeGreaterThanOrEqual(10);
+  });
+
+  it("the usual rule sees almost no paint in the dark; the low-light rule sees the lines", () => {
+    const dim = darker(frames.get("video-05")!, 0.4);
+    expect(paintCount(lineMask(dim))).toBeLessThan(500);
+    expect(paintCount(lineMask(dim, true))).toBeGreaterThan(3000);
+  });
+
+  it("well-lit frames are left to the usual rule", () => {
+    for (const name of FRAMES) {
+      const fit = fits.get(name)!;
+      // Confident enough that the low-light pass never runs.
+      if (fit.confidence >= RETRY_BELOW) expect(detectCourt(frames.get(name)!)).toEqual(fit);
+    }
+  });
+
+  it("paint is judged against the court right beside it", () => {
+    // Bright court, as on Nov 8: the usual rule.
+    expect(isPaint(200, 160)).toBe(true);
+    expect(isPaint(180, 160)).toBe(false);
+    // The same line at 40% light: only the low-light rule sees it.
+    expect(isPaint(80, 64)).toBe(false);
+    expect(isPaint(80, 64, true)).toBe(true);
+    // Court texture a few levels up is not paint, and nothing in deep shade is.
+    expect(isPaint(70, 64, true)).toBe(false);
+    expect(isPaint(39, 20, true)).toBe(false);
   });
 });

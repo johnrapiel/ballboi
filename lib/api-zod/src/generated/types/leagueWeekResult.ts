@@ -18,6 +18,11 @@ export interface LeagueWeekResult {
   source: MatchSource;
   matchId: number;
   opponentName: string;
+  /**
+   * Doubles (D8), your partner. Absent or null in singles
+   * @nullable
+   */
+  partnerName?: string | null;
   /** From the viewer's side, their games first */
   score: string;
   won: boolean;

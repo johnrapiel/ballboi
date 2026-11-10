@@ -17,7 +17,7 @@ import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { correctionLine, LATE_NOTE, LATE_ROUND_RESULT, lateDateLine } from "@/lib/leagueSchedule";
 import { durationLabel, durationSpoken, matchSourceLine, resultSentence, scoreFootnote, setRows } from "@/lib/myMatches";
-import { isRetiredScore, WALKOVER_SCORE } from "@/lib/tennisScore";
+import { isDoubleDefault, isRetiredScore, WALKOVER_SCORE } from "@/lib/tennisScore";
 import { winnerMark } from "@/lib/winnerMark";
 
 // Match detail (finding 6, John, Nov 6; approved design audit, Match detail).
@@ -218,12 +218,15 @@ export default function MatchDetailScreen() {
   const themGames = rows.map((r) => r.them);
   const tbs = rows.map((r) => r.tiebreak);
   const walkover = d.score?.trim() === WALKOVER_SCORE;
+  // Doubles (John, Nov 9): both teams a player short, so no winner and no sets.
+  const doubleDefault = isDoubleDefault(d.score);
   const retired = isRetiredScore(d.score);
   const when = whenLine(d);
   const stage = stageLine(d);
   const notes = [
     d.voided ? "Cancelled when a player left the league." : null,
     walkover ? `${youWon ? you : them} won by walkover.` : null,
+    doubleDefault ? "Both teams were a player short, so neither team gets the win." : null,
     retired ? `${youWon ? them : you} retired.` : null,
     correctionLine(d),
     !d.correctedBy && d.editedBy ? `Score edited by ${d.editedBy}` : null,
@@ -237,7 +240,7 @@ export default function MatchDetailScreen() {
     player1Name: you,
     player2Name: them,
     score: d.played && !d.voided ? d.score : null,
-    winner: d.played && !d.voided && d.score ? (youWon ? 1 : 2) : null,
+    winner: d.played && !d.voided && d.score && !doubleDefault ? (youWon ? 1 : 2) : null,
     status: d.voided ? "Cancelled" : "Not played yet",
   });
   const scoreSpoken = d.played && !d.voided ? `Final score. ${mark.spoken}.` : `${you} versus ${them}. ${mark.spoken}.`;
@@ -285,7 +288,7 @@ export default function MatchDetailScreen() {
 
         <View style={{ height: 1, backgroundColor: c.hairline }} />
 
-        {d.played && !walkover ? (
+        {d.played && !walkover && !doubleDefault ? (
           <View>
             <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2, minHeight: MIN_TAP }}>
               <View style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
@@ -305,8 +308,14 @@ export default function MatchDetailScreen() {
             </View>
           </View>
         ) : (
-          <View accessible accessibilityLabel={scoreSpoken} style={{ alignItems: "center" }}>
-            <WinnerNames player1Name={you} player2Name={them} mark={mark} />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2 }}>
+            {/* A doubles W/O or double default can be edited for 24 hours too (John, Nov 9). */}
+            {d.editUntil ? <EditPencil onPress={editScore} /> : null}
+            <View accessible accessibilityLabel={scoreSpoken} style={{ flex: 1, alignItems: "center" }}>
+              <WinnerNames player1Name={you} player2Name={them} mark={mark} />
+            </View>
+            {/* Balances the pencil so the names stay centered. */}
+            {d.editUntil ? <View style={{ width: MIN_TAP - spacing.space3 }} /> : null}
           </View>
         )}
 
@@ -351,7 +360,7 @@ export default function MatchDetailScreen() {
       ) : null}
 
       {/* The match recap (decision 148): an image to share, once there's a score. */}
-      {d.played && !d.voided && d.score ? <RecapShareButton matchId={d.matchId} /> : null}
+      {d.played && !d.voided && d.score && !doubleDefault ? <RecapShareButton matchId={d.matchId} /> : null}
     </ScrollView>
   );
 }
