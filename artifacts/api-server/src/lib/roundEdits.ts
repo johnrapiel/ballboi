@@ -7,6 +7,9 @@ export interface DraftMatch {
   id: number;
   player1Id: number;
   player2Id: number;
+  /** Doubles: player1 + player3 against player2 + player4. */
+  player3Id?: number | null;
+  player4Id?: number | null;
   locked: boolean;
 }
 
@@ -25,7 +28,10 @@ export interface DraftRound {
 
 /** Active players with no match and no bye in this round yet. */
 export function unpairedPlayers(round: DraftRound): number[] {
-  const placed = new Set<number>([...round.matches.flatMap((m) => [m.player1Id, m.player2Id]), ...round.byes.map((b) => b.playerId)]);
+  const placed = new Set<number>([
+    ...round.matches.flatMap((m) => [m.player1Id, m.player2Id, m.player3Id, m.player4Id].filter((id): id is number => id != null)),
+    ...round.byes.map((b) => b.playerId),
+  ]);
   return round.activePlayerIds.filter((id) => !placed.has(id));
 }
 
@@ -50,8 +56,13 @@ export interface SwapPlan {
   byeMoves: { fromPlayerId: number; toPlayerId: number }[];
 }
 
+/** Doubles drafts (D10): swaps and byes are for singles; a doubles admin re-pairs, locks, or changes teams in Manage > Teams. */
+export const DOUBLES_EDITS = "In doubles, re-pair the round or lock matches. Change fixed teams in Teams.";
+
 function editable(round: DraftRound): string | null {
-  return round.published ? "This round has already gone out to players." : null;
+  if (round.published) return "This round has already gone out to players.";
+  if (round.matches.some((m) => m.player3Id != null || m.player4Id != null)) return DOUBLES_EDITS;
+  return null;
 }
 
 function place(match: DraftMatch, side: 1 | 2, playerId: number) {
@@ -102,7 +113,6 @@ export function planBye(round: DraftRound, playerId: number): { deleteMatchId: n
 
 /** Lock or unlock a pairing so a re-pair keeps it. */
 export function planLock(round: DraftRound, matchId: number): string | null {
-  const problem = editable(round);
-  if (problem) return problem;
+  if (round.published) return "This round has already gone out to players.";
   return round.matches.some((m) => m.id === matchId) ? null : "That match isn't in this round.";
 }

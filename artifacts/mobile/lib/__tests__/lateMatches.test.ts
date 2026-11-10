@@ -27,6 +27,8 @@ const lateItem = (o: Partial<LeagueWeekItem>): LeagueWeekItem => ({
   matchId: 100,
   myPlayerId: 1,
   opponentName: "Mike Okafor",
+  partnerName: null,
+  opponentNames: [],
   opponentPlayerId: 7,
   singles: true,
   scheduledAt: null,

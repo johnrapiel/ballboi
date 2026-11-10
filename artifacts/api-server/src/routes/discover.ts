@@ -3,7 +3,7 @@ import { getAuth } from "@clerk/express";
 import { freeSummary, hoursFree, parseFreeTimes } from "@workspace/free-times";
 import { parseSlots, timesOf } from "../lib/discoverAvailability.js";
 import { ZIP_NOT_FOUND, areaForZip, distanceLabel, milesBetween, parseRadius } from "../lib/discoverArea.js";
-import { formatLabel, leagueState, levelText, nearbyLeagues, outsideLevel, typeLabel } from "../lib/discoverLeagues.js";
+import { formatLabel, leagueState, levelText, nearbyLeagues, outsideLevel, parsePlay, partnersLabel, typeLabel } from "../lib/discoverLeagues.js";
 import { shortDate } from "../lib/leagueCalendar.js";
 import { isOneOf, nearbyPlayers, parseDiscoverSettings, parseFilters, PLAYS } from "../lib/discoverPlayers.js";
 import { DrizzleDiscoverRepo, reliabilityOrEmpty, type DiscoverMe, type DiscoverRepo } from "../lib/discoverRepo.js";
@@ -200,7 +200,8 @@ export function createDiscoverRouter(repo: DiscoverRepo = new DrizzleDiscoverRep
         return;
       }
       const candidates = await repo.openLeagues(me.clerkUserId, me.area.point, Math.max(30, radius));
-      const { leagues, counts } = nearbyLeagues(me.area.point, me.rating, candidates, radius);
+      const play = parsePlay((req.query as Record<string, unknown>).play);
+      const { leagues, counts } = nearbyLeagues(me.area.point, me.rating, candidates, radius, play);
       res.json({ leagues, counts, radius, total: leagues.length, needsArea: false });
     } catch (err) {
       fail(res, err, "Discover leagues failed", "Can't load Open leagues right now. Check your connection and try again.");
@@ -231,6 +232,7 @@ export function createDiscoverRouter(repo: DiscoverRepo = new DrizzleDiscoverRep
         distance: me.area ? distanceLabel(milesBetween(me.area.point, l.point)) : null,
         format: formatLabel(l.format),
         type: typeLabel(l.leagueType),
+        partners: partnersLabel(l.leagueType, l.partnerMode),
         levelText: levelText(l),
         outsideLevel: outsideLevel(l, me.rating),
         myRating: me.rating,

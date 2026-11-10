@@ -14,6 +14,8 @@ export interface OpenLeagueCandidate {
   name: string;
   format: string;
   leagueType: string;
+  /** Doubles: fixed | rotating (D1). */
+  partnerMode?: string | null;
   location: string | null;
   startDate: string | null;
   seasonWeeks: number | null;
@@ -43,10 +45,20 @@ export interface OpenLeagueCard {
   joining: "request" | "waitlist";
   myRequest: OpenLeagueCandidate["myRequest"];
   spoken: string;
+  /** D8: a doubles league, for the Doubles pill. */
+  doubles: boolean;
 }
 
 export const formatLabel = (f: string) => (f === "flex" ? "Flex" : "Round robin");
 export const typeLabel = (t: string) => (t === "doubles" ? "Doubles" : "Singles");
+/** D1: "Fixed partners" or "Rotating partners" for a doubles league; null for singles. */
+export const partnersLabel = (t: string, mode: string | null | undefined) =>
+  t === "doubles" ? (mode === "fixed" ? "Fixed partners" : "Rotating partners") : null;
+/** D8: Discover's Format filter. */
+export type PlayFilter = "singles" | "doubles";
+export function parsePlay(v: unknown): PlayFilter | null {
+  return v === "singles" || v === "doubles" ? v : null;
+}
 
 /** "Level 3.0 to 4.0", "Level 3.5 and up", "Level up to 4.0" or "All levels". */
 export function levelText(l: Pick<OpenLeagueCandidate, "minRating" | "maxRating">): string {
@@ -101,11 +113,12 @@ export function leagueCard(viewer: Point, myRating: number | null, l: OpenLeague
     joining,
     myRequest: l.myRequest,
     miles,
+    doubles: l.leagueType === "doubles",
     spoken: [
       l.name,
       ...tagWords,
       `about ${m} mile${m === 1 ? "" : "s"} away`,
-      `${formatLabel(l.format)}, ${typeLabel(l.leagueType).toLowerCase()}`,
+      [formatLabel(l.format), typeLabel(l.leagueType).toLowerCase(), partnersLabel(l.leagueType, l.partnerMode)?.toLowerCase()].filter(Boolean).join(", "),
       levelText(l).toLowerCase(),
       status.replace(/ · /g, ", "),
       l.myRequest?.status === "pending" ? (l.myRequest.kind === "waitlist" ? "you're on the waitlist" : "request sent") : null,
@@ -116,8 +129,10 @@ export function leagueCard(viewer: Point, myRating: number | null, l: OpenLeague
 }
 
 /** Leagues within `radius`, nearest first, then soonest start, with a count per distance chip. */
-export function nearbyLeagues(viewer: Point, myRating: number | null, candidates: OpenLeagueCandidate[], radius: number) {
-  const cards = candidates.map((l) => leagueCard(viewer, myRating, l));
+export function nearbyLeagues(viewer: Point, myRating: number | null, candidates: OpenLeagueCandidate[], radius: number, play: PlayFilter | null = null) {
+  // D8: the Format filter narrows the list and every distance count.
+  const shown = play ? candidates.filter((l) => (play === "doubles") === (l.leagueType === "doubles")) : candidates;
+  const cards = shown.map((l) => leagueCard(viewer, myRating, l));
   const steps = [...new Set<number>([...RADIUS_STEPS, radius])].sort((a, b) => a - b);
   const counts = steps.map((r) => ({ radius: r, count: cards.filter((c) => c.miles <= r).length }));
   const leagues = cards

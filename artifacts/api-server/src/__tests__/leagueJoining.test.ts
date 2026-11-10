@@ -117,3 +117,13 @@ describe("ratingRangeLabel", () => {
     expect(ratingRangeLabel({ minRating: "3.5", maxRating: null })).toBe("3.5 and up");
   });
 });
+
+describe("approveOutcome: D4 doubles let-in", () => {
+  const open = { startDate: "2026-11-05", visibility: "open", rosterCap: 8, minRating: null, maxRating: null };
+  it("lets a waitlisted player in mid-season when a fixed-partner team needs a partner, and only then", () => {
+    const request = { kind: "waitlist", status: "pending" };
+    expect(approveOutcome({ league: open, activePlayerCount: 7, today: "2026-11-20", request, letInForPartner: true })).toEqual({ ok: true });
+    expect(approveOutcome({ league: open, activePlayerCount: 7, today: "2026-11-20", request })).toMatchObject({ ok: false });
+    expect(approveOutcome({ league: open, activePlayerCount: 7, today: "2026-11-20", request: { ...request, status: "declined" }, letInForPartner: true })).toMatchObject({ ok: false });
+  });
+});

@@ -232,10 +232,15 @@ export class DrizzleMessagingRepo implements MessagingRepo {
     return row ?? null;
   }
 
+  async findGroupByMatch(matchId: number): Promise<GroupRecord | null> {
+    const [row] = await db.select().from(messageGroupsTable).where(eq(messageGroupsTable.matchId, matchId));
+    return row ?? null;
+  }
+
   async createGroup(input: NewGroup): Promise<GroupRecord> {
     const [row] = await db
       .insert(messageGroupsTable)
-      .values({ ...input, leagueId: input.leagueId ?? null })
+      .values({ ...input, leagueId: input.leagueId ?? null, matchId: input.matchId ?? null })
       .onConflictDoNothing()
       .returning();
     if (row) return row;

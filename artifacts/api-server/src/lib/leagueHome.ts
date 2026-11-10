@@ -67,6 +67,10 @@ export interface HomeWeekItem {
   matchId: number | null;
   myPlayerId: number;
   opponentName: string | null;
+  /** Doubles (D8): your partner this match, for "You and Sam vs. Jo and Lee". Null in singles and byes. */
+  partnerName: string | null;
+  /** Doubles (D8): the other team's names, in order. Empty in singles and byes. */
+  opponentNames: string[];
   /** The singles opponent, for Message on the Home card; null for doubles and byes. */
   opponentPlayerId: number | null;
   /** The singles opponent's photo ("/objects/..."); null for doubles, byes, placeholders and blocks. */
@@ -108,6 +112,8 @@ export interface HomeResult {
   source: MatchSource;
   matchId: number;
   opponentName: string;
+  /** Doubles (D8): your partner. Null in singles. */
+  partnerName?: string | null;
   /** From the viewer's side: their games first. */
   score: string;
   won: boolean;
@@ -164,6 +170,19 @@ function singlesOpponent(m: HomeMatch, side: 1 | 2): number | null {
   return ids.length === 1 ? ids[0] : null;
 }
 
+/** Your partner in a doubles match; null in singles. */
+function partnerOf(m: HomeMatch, playerId: number, names: Map<number, string>): string | null {
+  const side = sideOf(m, playerId);
+  if (side == null) return null;
+  const ids = (side === 1 ? [m.player1Id, m.player3Id] : [m.player2Id, m.player4Id]).filter((id): id is number => id != null && id !== playerId);
+  return ids.length ? (names.get(ids[0]) ?? "Player") : null;
+}
+
+function opponentNamesOf(m: HomeMatch, side: 1 | 2, names: Map<number, string>): string[] {
+  const ids = side === 1 ? [m.player2Id, m.player4Id] : [m.player1Id, m.player3Id];
+  return ids.filter((id): id is number => id != null).map((id) => names.get(id) ?? "Player");
+}
+
 function opponentOf(m: HomeMatch, side: 1 | 2, names: Map<number, string>): string {
   const ids = side === 1 ? [m.player2Id, m.player4Id] : [m.player1Id, m.player3Id];
   return ids
@@ -209,6 +228,8 @@ export function buildLeagueHome(input: HomeInput) {
           bye: false,
           matchId: match.id,
           opponentName: opponentOf(match, sideOf(match, me.id)!, input.names),
+          partnerName: partnerOf(match, me.id, input.names),
+          opponentNames: opponentNamesOf(match, sideOf(match, me.id)!, input.names),
           opponentPlayerId: singlesOpponent(match, sideOf(match, me.id)!),
           opponentAvatarUrl: photoOf(singlesOpponent(match, sideOf(match, me.id)!)),
           scheduledAt: match.scheduledAt,
@@ -216,7 +237,7 @@ export function buildLeagueHome(input: HomeInput) {
           played: match.status === "completed" || !!match.score,
         });
       } else if (input.byes.some((b) => b.roundId === r.id && b.playerId === me.id)) {
-        thisWeek.push({ ...base, bye: true, matchId: null, opponentName: null, opponentPlayerId: null, opponentAvatarUrl: null, scheduledAt: null, location: null, played: false });
+        thisWeek.push({ ...base, bye: true, matchId: null, opponentName: null, partnerName: null, opponentNames: [], opponentPlayerId: null, opponentAvatarUrl: null, scheduledAt: null, location: null, played: false });
       }
     }
   }
@@ -270,12 +291,14 @@ export function buildLeagueHome(input: HomeInput) {
     .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? "") || b.id - a.id)
     .map((m) => {
       const side = mySide(m)!;
+      const me = [...myIds].find((id) => sideOf(m, id) === side)!;
       return {
         leagueId: m.leagueId!,
         leagueName: leagueName(m.leagueId!),
         source: "league" as const,
         matchId: m.id,
         opponentName: opponentOf(m, side, input.names),
+        partnerName: partnerOf(m, me, input.names),
         score: side === 1 ? m.score! : flip(m.score!),
         won: (side === 1 ? m.player1Id : m.player2Id) === m.winnerId,
         inGrace: m.inGrace,

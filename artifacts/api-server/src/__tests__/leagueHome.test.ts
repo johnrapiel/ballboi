@@ -244,3 +244,27 @@ describe("casualResults (decision 151: Profile's Results tab)", () => {
     expect(home.season).toMatchObject({ wins: 1, losses: 0, played: 1 });
   });
 });
+
+describe("doubles on Home (D8: You and Sam vs. Jo and Lee)", () => {
+  it("names your partner and the other team for this week's match and your results", () => {
+    const names = new Map([[10, "Me"], [20, "Sam Lee"], [30, "Jo Park"], [40, "Lee King"]]);
+    const home = buildLeagueHome(
+      input({
+        leagues: [{ id: 1, name: "Thursday Doubles", leagueType: "doubles" }],
+        names,
+        matches: [
+          match(101, 2, 30, 10, { player3Id: 40, player4Id: 20 }),
+          match(100, 1, 10, 30, { player3Id: 20, player4Id: 40, status: "completed", score: "6-3, 6-4", winnerId: 10, completedAt: "2026-11-06T10:00:00Z" }),
+        ],
+      }),
+    );
+    const week = home.thisWeek.find((i) => i.roundNumber === 2)!;
+    expect(week).toMatchObject({ partnerName: "Sam Lee", opponentNames: ["Jo Park", "Lee King"], opponentName: "Jo Park & Lee King", singles: false, opponentPlayerId: null });
+    expect(home.results[0]).toMatchObject({ partnerName: "Sam Lee", won: true, opponentName: "Jo Park & Lee King" });
+  });
+
+  it("has no partner in singles or on a bye", () => {
+    const home = buildLeagueHome(input({ matches: [match(101, 2, 30, 10)], byes: [{ roundId: 1, playerId: 10 }] }));
+    expect(home.thisWeek.map((i) => [i.partnerName, i.opponentNames])).toEqual([[null, ["Blair"]]]);
+  });
+});

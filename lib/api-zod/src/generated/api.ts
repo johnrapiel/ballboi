@@ -787,6 +787,12 @@ export const ListDiscoverLeaguesQueryParams = zod.object({
     .min(1)
     .max(listDiscoverLeaguesQueryRadiusMax)
     .optional(),
+  play: zod
+    .enum(["singles", "doubles"])
+    .optional()
+    .describe(
+      "The Format filter (D8): only singles or only doubles leagues. Leave it out for all",
+    ),
 });
 
 export const ListDiscoverLeaguesResponse = zod.object({
@@ -806,6 +812,9 @@ export const ListDiscoverLeaguesResponse = zod.object({
         zod.null(),
       ]),
       spoken: zod.string(),
+      doubles: zod
+        .boolean()
+        .describe("A doubles league, for the Doubles pill (D8)"),
     }),
   ),
   counts: zod.array(
@@ -834,6 +843,12 @@ export const GetDiscoverLeagueResponse = zod.object({
   distance: zod.string().nullable(),
   format: zod.string(),
   type: zod.string(),
+  partners: zod
+    .string()
+    .nullish()
+    .describe(
+      'Doubles (D1), \"Fixed partners\" or \"Rotating partners\"; null for singles',
+    ),
   levelText: zod.string(),
   outsideLevel: zod.boolean(),
   myRating: zod.number().nullable(),
@@ -1763,6 +1778,16 @@ export const GetLeagueStandingsResponseItem = zod.object({
   setsLost: zod.number(),
   gamesWon: zod.number(),
   gamesLost: zod.number(),
+  teamId: zod
+    .number()
+    .nullish()
+    .describe(
+      'Fixed-partner doubles (D3), this row is a team; playerName is \"John Rapiel & Sam Lee\" and playerId is its first player',
+    ),
+  teamPlayerIds: zod
+    .array(zod.number())
+    .nullish()
+    .describe("Fixed-partner doubles, both players on the team"),
 });
 export const GetLeagueStandingsResponse = zod.array(
   GetLeagueStandingsResponseItem,
@@ -2557,6 +2582,16 @@ export const GetLeagueScheduleResponse = zod.object({
           ]),
           player1HasAccount: zod.boolean(),
           player2HasAccount: zod.boolean(),
+          player3Id: zod
+            .number()
+            .nullish()
+            .describe("Doubles (D8), player 1's partner. Null in singles"),
+          player3Name: zod.string().nullish(),
+          player4Id: zod
+            .number()
+            .nullish()
+            .describe("Doubles (D8), player 2's partner. Null in singles"),
+          player4Name: zod.string().nullish(),
           status: zod.string(),
           score: zod.string().nullable().describe("From player 1's side"),
           winnerId: zod.number().nullable(),
@@ -2741,6 +2776,17 @@ export const GetMyLeagueWeekResponse = zod.object({
       matchId: zod.number().nullable(),
       myPlayerId: zod.number(),
       opponentName: zod.string().nullable(),
+      partnerName: zod
+        .string()
+        .nullable()
+        .describe(
+          'Doubles (D8), your partner this match, for \"You and Sam vs. Jo and Lee\". Null in singles and byes',
+        ),
+      opponentNames: zod
+        .array(zod.string())
+        .describe(
+          "Doubles (D8), the other team's names. Empty in singles and byes",
+        ),
       opponentPlayerId: zod
         .number()
         .nullable()
@@ -2825,6 +2871,10 @@ export const GetMyLeagueWeekResponse = zod.object({
           .describe("Where a match came from"),
         matchId: zod.number(),
         opponentName: zod.string(),
+        partnerName: zod
+          .string()
+          .nullish()
+          .describe("Doubles (D8), your partner. Absent or null in singles"),
         score: zod
           .string()
           .describe("From the viewer's side, their games first"),
@@ -2850,6 +2900,10 @@ export const GetMyLeagueWeekResponse = zod.object({
           .describe("Where a match came from"),
         matchId: zod.number(),
         opponentName: zod.string(),
+        partnerName: zod
+          .string()
+          .nullish()
+          .describe("Doubles (D8), your partner. Absent or null in singles"),
         score: zod
           .string()
           .describe("From the viewer's side, their games first"),
@@ -3127,7 +3181,725 @@ export const DevPairLeagueNowResponse = zod.object({
 });
 
 /**
- * @summary Enter a league match score from your own side. Either player can edit it for 24 hours after.
+ * @summary Fixed-partner doubles (D9): your partner, your request out, requests to you, a notice in words, and who you can ask
+ */
+export const GetMyPartnerParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const GetMyPartnerResponse = zod
+  .object({
+    fixedPartners: zod
+      .boolean()
+      .describe("A fixed-partner doubles league, so teams apply"),
+    member: zod.boolean().describe("You play in this league"),
+    teamingOpen: zod
+      .boolean()
+      .describe(
+        "Requests and Find me a partner close when the first round goes out",
+      ),
+    partner: zod.union([
+      zod.object({
+        playerId: zod.number(),
+        name: zod.string(),
+        level: zod.number().describe("Their self-rated level"),
+      }),
+      zod.null(),
+    ]),
+    looking: zod.boolean().describe("On the Looking for a partner list"),
+    outgoing: zod.union([
+      zod.null(),
+      zod.object({
+        requestId: zod.number(),
+        to: zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+        expiresAt: zod.string(),
+      }),
+    ]),
+    incoming: zod.array(
+      zod.object({
+        requestId: zod.number(),
+        from: zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+        expiresAt: zod.string(),
+      }),
+    ),
+    notice: zod
+      .union([
+        zod.null(),
+        zod.object({
+          requestId: zod.number(),
+          text: zod.string(),
+        }),
+      ])
+      .describe(
+        "Why your request ended without a team, in words, until you dismiss it",
+      ),
+    candidates: zod
+      .array(
+        zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+      )
+      .describe("Members you can ask. Never someone you have a block with"),
+    needsPartner: zod
+      .boolean()
+      .describe(
+        "Your partner left; byes until your league admin teams you up (D4)",
+      ),
+  })
+  .describe(
+    "Fixed-partner doubles (D2, D4, D9): what you see about teaming up in a league",
+  );
+
+/**
+ * @summary Team up with someone (D9): a request with Accept and Decline, 48 hours to answer
+ */
+export const RequestPartnerParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const RequestPartnerBody = zod.object({
+  toPlayerId: zod.number(),
+});
+
+export const RequestPartnerResponse = zod
+  .object({
+    fixedPartners: zod
+      .boolean()
+      .describe("A fixed-partner doubles league, so teams apply"),
+    member: zod.boolean().describe("You play in this league"),
+    teamingOpen: zod
+      .boolean()
+      .describe(
+        "Requests and Find me a partner close when the first round goes out",
+      ),
+    partner: zod.union([
+      zod.object({
+        playerId: zod.number(),
+        name: zod.string(),
+        level: zod.number().describe("Their self-rated level"),
+      }),
+      zod.null(),
+    ]),
+    looking: zod.boolean().describe("On the Looking for a partner list"),
+    outgoing: zod.union([
+      zod.null(),
+      zod.object({
+        requestId: zod.number(),
+        to: zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+        expiresAt: zod.string(),
+      }),
+    ]),
+    incoming: zod.array(
+      zod.object({
+        requestId: zod.number(),
+        from: zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+        expiresAt: zod.string(),
+      }),
+    ),
+    notice: zod
+      .union([
+        zod.null(),
+        zod.object({
+          requestId: zod.number(),
+          text: zod.string(),
+        }),
+      ])
+      .describe(
+        "Why your request ended without a team, in words, until you dismiss it",
+      ),
+    candidates: zod
+      .array(
+        zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+      )
+      .describe("Members you can ask. Never someone you have a block with"),
+    needsPartner: zod
+      .boolean()
+      .describe(
+        "Your partner left; byes until your league admin teams you up (D4)",
+      ),
+  })
+  .describe(
+    "Fixed-partner doubles (D2, D4, D9): what you see about teaming up in a league",
+  );
+
+/**
+ * @summary Accept a request to team up, so you are partners for the season
+ */
+export const AcceptPartnerRequestParams = zod.object({
+  leagueId: zod.coerce.number(),
+  requestId: zod.coerce.number(),
+});
+
+export const AcceptPartnerRequestResponse = zod
+  .object({
+    fixedPartners: zod
+      .boolean()
+      .describe("A fixed-partner doubles league, so teams apply"),
+    member: zod.boolean().describe("You play in this league"),
+    teamingOpen: zod
+      .boolean()
+      .describe(
+        "Requests and Find me a partner close when the first round goes out",
+      ),
+    partner: zod.union([
+      zod.object({
+        playerId: zod.number(),
+        name: zod.string(),
+        level: zod.number().describe("Their self-rated level"),
+      }),
+      zod.null(),
+    ]),
+    looking: zod.boolean().describe("On the Looking for a partner list"),
+    outgoing: zod.union([
+      zod.null(),
+      zod.object({
+        requestId: zod.number(),
+        to: zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+        expiresAt: zod.string(),
+      }),
+    ]),
+    incoming: zod.array(
+      zod.object({
+        requestId: zod.number(),
+        from: zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+        expiresAt: zod.string(),
+      }),
+    ),
+    notice: zod
+      .union([
+        zod.null(),
+        zod.object({
+          requestId: zod.number(),
+          text: zod.string(),
+        }),
+      ])
+      .describe(
+        "Why your request ended without a team, in words, until you dismiss it",
+      ),
+    candidates: zod
+      .array(
+        zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+      )
+      .describe("Members you can ask. Never someone you have a block with"),
+    needsPartner: zod
+      .boolean()
+      .describe(
+        "Your partner left; byes until your league admin teams you up (D4)",
+      ),
+  })
+  .describe(
+    "Fixed-partner doubles (D2, D4, D9): what you see about teaming up in a league",
+  );
+
+/**
+ * @summary Decline a request to team up. The sender goes back on Looking for a partner with a notice
+ */
+export const DeclinePartnerRequestParams = zod.object({
+  leagueId: zod.coerce.number(),
+  requestId: zod.coerce.number(),
+});
+
+export const DeclinePartnerRequestResponse = zod
+  .object({
+    fixedPartners: zod
+      .boolean()
+      .describe("A fixed-partner doubles league, so teams apply"),
+    member: zod.boolean().describe("You play in this league"),
+    teamingOpen: zod
+      .boolean()
+      .describe(
+        "Requests and Find me a partner close when the first round goes out",
+      ),
+    partner: zod.union([
+      zod.object({
+        playerId: zod.number(),
+        name: zod.string(),
+        level: zod.number().describe("Their self-rated level"),
+      }),
+      zod.null(),
+    ]),
+    looking: zod.boolean().describe("On the Looking for a partner list"),
+    outgoing: zod.union([
+      zod.null(),
+      zod.object({
+        requestId: zod.number(),
+        to: zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+        expiresAt: zod.string(),
+      }),
+    ]),
+    incoming: zod.array(
+      zod.object({
+        requestId: zod.number(),
+        from: zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+        expiresAt: zod.string(),
+      }),
+    ),
+    notice: zod
+      .union([
+        zod.null(),
+        zod.object({
+          requestId: zod.number(),
+          text: zod.string(),
+        }),
+      ])
+      .describe(
+        "Why your request ended without a team, in words, until you dismiss it",
+      ),
+    candidates: zod
+      .array(
+        zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+      )
+      .describe("Members you can ask. Never someone you have a block with"),
+    needsPartner: zod
+      .boolean()
+      .describe(
+        "Your partner left; byes until your league admin teams you up (D4)",
+      ),
+  })
+  .describe(
+    "Fixed-partner doubles (D2, D4, D9): what you see about teaming up in a league",
+  );
+
+/**
+ * @summary Cancel your own request to team up
+ */
+export const CancelPartnerRequestParams = zod.object({
+  leagueId: zod.coerce.number(),
+  requestId: zod.coerce.number(),
+});
+
+export const CancelPartnerRequestResponse = zod
+  .object({
+    fixedPartners: zod
+      .boolean()
+      .describe("A fixed-partner doubles league, so teams apply"),
+    member: zod.boolean().describe("You play in this league"),
+    teamingOpen: zod
+      .boolean()
+      .describe(
+        "Requests and Find me a partner close when the first round goes out",
+      ),
+    partner: zod.union([
+      zod.object({
+        playerId: zod.number(),
+        name: zod.string(),
+        level: zod.number().describe("Their self-rated level"),
+      }),
+      zod.null(),
+    ]),
+    looking: zod.boolean().describe("On the Looking for a partner list"),
+    outgoing: zod.union([
+      zod.null(),
+      zod.object({
+        requestId: zod.number(),
+        to: zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+        expiresAt: zod.string(),
+      }),
+    ]),
+    incoming: zod.array(
+      zod.object({
+        requestId: zod.number(),
+        from: zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+        expiresAt: zod.string(),
+      }),
+    ),
+    notice: zod
+      .union([
+        zod.null(),
+        zod.object({
+          requestId: zod.number(),
+          text: zod.string(),
+        }),
+      ])
+      .describe(
+        "Why your request ended without a team, in words, until you dismiss it",
+      ),
+    candidates: zod
+      .array(
+        zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+      )
+      .describe("Members you can ask. Never someone you have a block with"),
+    needsPartner: zod
+      .boolean()
+      .describe(
+        "Your partner left; byes until your league admin teams you up (D4)",
+      ),
+  })
+  .describe(
+    "Fixed-partner doubles (D2, D4, D9): what you see about teaming up in a league",
+  );
+
+/**
+ * @summary Done with the notice about a declined or unanswered request
+ */
+export const DismissPartnerNoticeParams = zod.object({
+  leagueId: zod.coerce.number(),
+  requestId: zod.coerce.number(),
+});
+
+export const DismissPartnerNoticeResponse = zod
+  .object({
+    fixedPartners: zod
+      .boolean()
+      .describe("A fixed-partner doubles league, so teams apply"),
+    member: zod.boolean().describe("You play in this league"),
+    teamingOpen: zod
+      .boolean()
+      .describe(
+        "Requests and Find me a partner close when the first round goes out",
+      ),
+    partner: zod.union([
+      zod.object({
+        playerId: zod.number(),
+        name: zod.string(),
+        level: zod.number().describe("Their self-rated level"),
+      }),
+      zod.null(),
+    ]),
+    looking: zod.boolean().describe("On the Looking for a partner list"),
+    outgoing: zod.union([
+      zod.null(),
+      zod.object({
+        requestId: zod.number(),
+        to: zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+        expiresAt: zod.string(),
+      }),
+    ]),
+    incoming: zod.array(
+      zod.object({
+        requestId: zod.number(),
+        from: zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+        expiresAt: zod.string(),
+      }),
+    ),
+    notice: zod
+      .union([
+        zod.null(),
+        zod.object({
+          requestId: zod.number(),
+          text: zod.string(),
+        }),
+      ])
+      .describe(
+        "Why your request ended without a team, in words, until you dismiss it",
+      ),
+    candidates: zod
+      .array(
+        zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+      )
+      .describe("Members you can ask. Never someone you have a block with"),
+    needsPartner: zod
+      .boolean()
+      .describe(
+        "Your partner left; byes until your league admin teams you up (D4)",
+      ),
+  })
+  .describe(
+    "Fixed-partner doubles (D2, D4, D9): what you see about teaming up in a league",
+  );
+
+/**
+ * @summary Find me a partner (D9): on the list your league admin sees in Manage, by level
+ */
+export const SetLookingForPartnerParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const SetLookingForPartnerBody = zod.object({
+  on: zod.boolean(),
+});
+
+export const SetLookingForPartnerResponse = zod
+  .object({
+    fixedPartners: zod
+      .boolean()
+      .describe("A fixed-partner doubles league, so teams apply"),
+    member: zod.boolean().describe("You play in this league"),
+    teamingOpen: zod
+      .boolean()
+      .describe(
+        "Requests and Find me a partner close when the first round goes out",
+      ),
+    partner: zod.union([
+      zod.object({
+        playerId: zod.number(),
+        name: zod.string(),
+        level: zod.number().describe("Their self-rated level"),
+      }),
+      zod.null(),
+    ]),
+    looking: zod.boolean().describe("On the Looking for a partner list"),
+    outgoing: zod.union([
+      zod.null(),
+      zod.object({
+        requestId: zod.number(),
+        to: zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+        expiresAt: zod.string(),
+      }),
+    ]),
+    incoming: zod.array(
+      zod.object({
+        requestId: zod.number(),
+        from: zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+        expiresAt: zod.string(),
+      }),
+    ),
+    notice: zod
+      .union([
+        zod.null(),
+        zod.object({
+          requestId: zod.number(),
+          text: zod.string(),
+        }),
+      ])
+      .describe(
+        "Why your request ended without a team, in words, until you dismiss it",
+      ),
+    candidates: zod
+      .array(
+        zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number().describe("Their self-rated level"),
+        }),
+      )
+      .describe("Members you can ask. Never someone you have a block with"),
+    needsPartner: zod
+      .boolean()
+      .describe(
+        "Your partner left; byes until your league admin teams you up (D4)",
+      ),
+  })
+  .describe(
+    "Fixed-partner doubles (D2, D4, D9): what you see about teaming up in a league",
+  );
+
+/**
+ * @summary Manage > Teams (D2, D4, D9), for league admins: teams, and players without a partner (Needs a partner, Looking for a partner)
+ */
+export const GetLeagueTeamsParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const GetLeagueTeamsResponse = zod
+  .object({
+    fixedPartners: zod.boolean(),
+    firstRoundOut: zod.boolean(),
+    teams: zod.array(
+      zod.object({
+        teamId: zod.number(),
+        players: zod.array(
+          zod.object({
+            playerId: zod.number(),
+            name: zod.string(),
+            level: zod.number().describe("Their self-rated level"),
+          }),
+        ),
+      }),
+    ),
+    unpaired: zod
+      .array(
+        zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number(),
+          kind: zod.enum(["needs_partner", "looking", "no_partner"]),
+        }),
+      )
+      .describe("Players without a partner, highest level first"),
+    canLetInWaitlisted: zod
+      .boolean()
+      .describe(
+        "An Open league can let a waitlisted player in for a player who needs a partner (D4)",
+      ),
+  })
+  .describe("Manage > Teams (D2, D4, D9)");
+
+/**
+ * @summary League admins: team up two players without partners. A re-teamed player's new team starts 0-0 (D4)
+ */
+export const TeamUpPlayersParams = zod.object({
+  leagueId: zod.coerce.number(),
+});
+
+export const teamUpPlayersBodyPlayerIdsMin = 2;
+export const teamUpPlayersBodyPlayerIdsMax = 2;
+
+export const TeamUpPlayersBody = zod.object({
+  playerIds: zod
+    .array(zod.number())
+    .min(teamUpPlayersBodyPlayerIdsMin)
+    .max(teamUpPlayersBodyPlayerIdsMax),
+});
+
+export const TeamUpPlayersResponse = zod
+  .object({
+    fixedPartners: zod.boolean(),
+    firstRoundOut: zod.boolean(),
+    teams: zod.array(
+      zod.object({
+        teamId: zod.number(),
+        players: zod.array(
+          zod.object({
+            playerId: zod.number(),
+            name: zod.string(),
+            level: zod.number().describe("Their self-rated level"),
+          }),
+        ),
+      }),
+    ),
+    unpaired: zod
+      .array(
+        zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number(),
+          kind: zod.enum(["needs_partner", "looking", "no_partner"]),
+        }),
+      )
+      .describe("Players without a partner, highest level first"),
+    canLetInWaitlisted: zod
+      .boolean()
+      .describe(
+        "An Open league can let a waitlisted player in for a player who needs a partner (D4)",
+      ),
+  })
+  .describe("Manage > Teams (D2, D4, D9)");
+
+/**
+ * @summary League admins: split a team. Its unplayed matches are cancelled
+ */
+export const SplitLeagueTeamParams = zod.object({
+  leagueId: zod.coerce.number(),
+  teamId: zod.coerce.number(),
+});
+
+export const SplitLeagueTeamResponse = zod
+  .object({
+    fixedPartners: zod.boolean(),
+    firstRoundOut: zod.boolean(),
+    teams: zod.array(
+      zod.object({
+        teamId: zod.number(),
+        players: zod.array(
+          zod.object({
+            playerId: zod.number(),
+            name: zod.string(),
+            level: zod.number().describe("Their self-rated level"),
+          }),
+        ),
+      }),
+    ),
+    unpaired: zod
+      .array(
+        zod.object({
+          playerId: zod.number(),
+          name: zod.string(),
+          level: zod.number(),
+          kind: zod.enum(["needs_partner", "looking", "no_partner"]),
+        }),
+      )
+      .describe("Players without a partner, highest level first"),
+    canLetInWaitlisted: zod
+      .boolean()
+      .describe(
+        "An Open league can let a waitlisted player in for a player who needs a partner (D4)",
+      ),
+  })
+  .describe("Manage > Teams (D2, D4, D9)");
+
+/**
+ * @summary Message on a doubles league match (D6): one group chat for all four, made if needed
+ */
+export const OpenDoublesMatchChatParams = zod.object({
+  leagueId: zod.coerce.number(),
+  matchId: zod.coerce.number(),
+});
+
+export const OpenDoublesMatchChatResponse = zod.object({
+  groupId: zod.number(),
+});
+
+/**
+ * @summary Enter a league match score from your own side, or (doubles) a W/O or double default. Either player can edit it for 24 hours after.
  */
 export const EnterLeagueScoreParams = zod.object({
   leagueId: zod.coerce.number(),
@@ -3137,6 +3909,7 @@ export const EnterLeagueScoreParams = zod.object({
 export const EnterLeagueScoreBody = zod.object({
   score: zod
     .string()
+    .optional()
     .describe(
       'Sets from your own side, like \"6-3, 4-6, 10-7\". Your games first. Best of three; a set ends 6-0 to 6-4, 7-5 or 7-6, and a third set can be a match tiebreak (10-7).',
     ),
@@ -3145,6 +3918,18 @@ export const EnterLeagueScoreBody = zod.object({
     .optional()
     .describe(
       "The opponent retired. The score is the sets so far (the last can be unfinished), it counts as the caller's win, and it's stored with RET at the end, like \"6-3, 2-1 RET\". Admin corrections ignore it.",
+    ),
+  walkoverWinnerId: zod
+    .number()
+    .nullish()
+    .describe(
+      'Doubles in regular play only (John, Nov 9). The match is a walkover (W\/O) to the team that was complete, named by its first player (player1Id or player2Id). Stored as \"W\/O\"; it counts as a win in standings, with no sets or games. Send it instead of score.',
+    ),
+  doubleDefault: zod
+    .boolean()
+    .optional()
+    .describe(
+      'Doubles in regular play only (John, Nov 9). Both teams were a player short. Stored as \"Double default\" with no winner, and no standings points for either team. Send it instead of score.',
     ),
 });
 
@@ -3159,6 +3944,7 @@ export const CorrectLeagueScoreParams = zod.object({
 export const CorrectLeagueScoreBody = zod.object({
   score: zod
     .string()
+    .optional()
     .describe(
       'Sets from your own side, like \"6-3, 4-6, 10-7\". Your games first. Best of three; a set ends 6-0 to 6-4, 7-5 or 7-6, and a third set can be a match tiebreak (10-7).',
     ),
@@ -3167,6 +3953,18 @@ export const CorrectLeagueScoreBody = zod.object({
     .optional()
     .describe(
       "The opponent retired. The score is the sets so far (the last can be unfinished), it counts as the caller's win, and it's stored with RET at the end, like \"6-3, 2-1 RET\". Admin corrections ignore it.",
+    ),
+  walkoverWinnerId: zod
+    .number()
+    .nullish()
+    .describe(
+      'Doubles in regular play only (John, Nov 9). The match is a walkover (W\/O) to the team that was complete, named by its first player (player1Id or player2Id). Stored as \"W\/O\"; it counts as a win in standings, with no sets or games. Send it instead of score.',
+    ),
+  doubleDefault: zod
+    .boolean()
+    .optional()
+    .describe(
+      'Doubles in regular play only (John, Nov 9). Both teams were a player short. Stored as \"Double default\" with no winner, and no standings points for either team. Send it instead of score.',
     ),
 });
 
@@ -3267,6 +4065,7 @@ export const EditLeagueScoreParams = zod.object({
 export const EditLeagueScoreBody = zod.object({
   score: zod
     .string()
+    .optional()
     .describe(
       'Sets from your own side, like \"6-3, 4-6, 10-7\". Your games first. Best of three; a set ends 6-0 to 6-4, 7-5 or 7-6, and a third set can be a match tiebreak (10-7).',
     ),
@@ -3275,6 +4074,18 @@ export const EditLeagueScoreBody = zod.object({
     .optional()
     .describe(
       "The opponent retired. The score is the sets so far (the last can be unfinished), it counts as the caller's win, and it's stored with RET at the end, like \"6-3, 2-1 RET\". Admin corrections ignore it.",
+    ),
+  walkoverWinnerId: zod
+    .number()
+    .nullish()
+    .describe(
+      'Doubles in regular play only (John, Nov 9). The match is a walkover (W\/O) to the team that was complete, named by its first player (player1Id or player2Id). Stored as \"W\/O\"; it counts as a win in standings, with no sets or games. Send it instead of score.',
+    ),
+  doubleDefault: zod
+    .boolean()
+    .optional()
+    .describe(
+      'Doubles in regular play only (John, Nov 9). Both teams were a player short. Stored as \"Double default\" with no winner, and no standings points for either team. Send it instead of score.',
     ),
 });
 
@@ -3568,6 +4379,16 @@ export const DraftNextLeagueRoundResponse = zod.object({
       ]),
       player1HasAccount: zod.boolean(),
       player2HasAccount: zod.boolean(),
+      player3Id: zod
+        .number()
+        .nullish()
+        .describe("Doubles (D8), player 1's partner. Null in singles"),
+      player3Name: zod.string().nullish(),
+      player4Id: zod
+        .number()
+        .nullish()
+        .describe("Doubles (D8), player 2's partner. Null in singles"),
+      player4Name: zod.string().nullish(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -3666,6 +4487,16 @@ export const RepairLeagueRoundResponse = zod.object({
       ]),
       player1HasAccount: zod.boolean(),
       player2HasAccount: zod.boolean(),
+      player3Id: zod
+        .number()
+        .nullish()
+        .describe("Doubles (D8), player 1's partner. Null in singles"),
+      player3Name: zod.string().nullish(),
+      player4Id: zod
+        .number()
+        .nullish()
+        .describe("Doubles (D8), player 2's partner. Null in singles"),
+      player4Name: zod.string().nullish(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -3764,6 +4595,16 @@ export const PublishLeagueRoundResponse = zod.object({
       ]),
       player1HasAccount: zod.boolean(),
       player2HasAccount: zod.boolean(),
+      player3Id: zod
+        .number()
+        .nullish()
+        .describe("Doubles (D8), player 1's partner. Null in singles"),
+      player3Name: zod.string().nullish(),
+      player4Id: zod
+        .number()
+        .nullish()
+        .describe("Doubles (D8), player 2's partner. Null in singles"),
+      player4Name: zod.string().nullish(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -3867,6 +4708,16 @@ export const SwapLeagueRoundPlayersResponse = zod.object({
       ]),
       player1HasAccount: zod.boolean(),
       player2HasAccount: zod.boolean(),
+      player3Id: zod
+        .number()
+        .nullish()
+        .describe("Doubles (D8), player 1's partner. Null in singles"),
+      player3Name: zod.string().nullish(),
+      player4Id: zod
+        .number()
+        .nullish()
+        .describe("Doubles (D8), player 2's partner. Null in singles"),
+      player4Name: zod.string().nullish(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -3969,6 +4820,16 @@ export const AddLeagueRoundByeResponse = zod.object({
       ]),
       player1HasAccount: zod.boolean(),
       player2HasAccount: zod.boolean(),
+      player3Id: zod
+        .number()
+        .nullish()
+        .describe("Doubles (D8), player 1's partner. Null in singles"),
+      player3Name: zod.string().nullish(),
+      player4Id: zod
+        .number()
+        .nullish()
+        .describe("Doubles (D8), player 2's partner. Null in singles"),
+      player4Name: zod.string().nullish(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -4068,6 +4929,16 @@ export const RemoveLeagueRoundByeResponse = zod.object({
       ]),
       player1HasAccount: zod.boolean(),
       player2HasAccount: zod.boolean(),
+      player3Id: zod
+        .number()
+        .nullish()
+        .describe("Doubles (D8), player 1's partner. Null in singles"),
+      player3Name: zod.string().nullish(),
+      player4Id: zod
+        .number()
+        .nullish()
+        .describe("Doubles (D8), player 2's partner. Null in singles"),
+      player4Name: zod.string().nullish(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -4171,6 +5042,16 @@ export const LockLeagueRoundMatchResponse = zod.object({
       ]),
       player1HasAccount: zod.boolean(),
       player2HasAccount: zod.boolean(),
+      player3Id: zod
+        .number()
+        .nullish()
+        .describe("Doubles (D8), player 1's partner. Null in singles"),
+      player3Name: zod.string().nullish(),
+      player4Id: zod
+        .number()
+        .nullish()
+        .describe("Doubles (D8), player 2's partner. Null in singles"),
+      player4Name: zod.string().nullish(),
       status: zod.string(),
       score: zod.string().nullable().describe("From player 1's side"),
       winnerId: zod.number().nullable(),
@@ -6948,15 +7829,19 @@ export const GetConversationsResponse = zod
           zod.object({
             id: zod.number(),
             kind: zod
-              .enum(["match", "league"])
+              .enum(["match", "league", "doubles"])
               .describe(
-                "An open match's chat, or a league's chat (decision 145)",
+                "An open match's chat, a league's chat (decision 145), or a doubles league match's chat for all four (D6)",
               ),
             title: zod
               .string()
               .describe("Sat 9 AM doubles · Beacon Courts, or the league name"),
             openMatchId: zod.number().nullable(),
             leagueId: zod.number().nullable(),
+            matchId: zod
+              .number()
+              .nullable()
+              .describe("Doubles match chats, the league match (D6)"),
             memberCount: zod.number(),
             lastMessage: zod.union([
               zod.null(),
@@ -7166,13 +8051,19 @@ export const GetGroupThreadResponse = zod.object({
   group: zod.object({
     id: zod.number(),
     kind: zod
-      .enum(["match", "league"])
-      .describe("An open match's chat, or a league's chat (decision 145)"),
+      .enum(["match", "league", "doubles"])
+      .describe(
+        "An open match's chat, a league's chat (decision 145), or a doubles league match's chat for all four (D6)",
+      ),
     title: zod
       .string()
       .describe("Sat 9 AM doubles · Beacon Courts, or the league name"),
     openMatchId: zod.number().nullable(),
     leagueId: zod.number().nullable(),
+    matchId: zod
+      .number()
+      .nullable()
+      .describe("Doubles match chats, the league match (D6)"),
     memberCount: zod.number(),
     lastMessage: zod.union([
       zod.null(),

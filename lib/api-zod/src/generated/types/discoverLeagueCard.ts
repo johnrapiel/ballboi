@@ -18,4 +18,6 @@ export interface DiscoverLeagueCard {
   joining: DiscoverLeagueCardJoining;
   myRequest: DiscoverLeagueRequest;
   spoken: string;
+  /** A doubles league, for the Doubles pill (D8) */
+  doubles: boolean;
 }

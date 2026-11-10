@@ -19,4 +19,14 @@ export interface Standing {
   setsLost: number;
   gamesWon: number;
   gamesLost: number;
+  /**
+   * Fixed-partner doubles (D3), this row is a team; playerName is "John Rapiel & Sam Lee" and playerId is its first player
+   * @nullable
+   */
+  teamId?: number | null;
+  /**
+   * Fixed-partner doubles, both players on the team
+   * @nullable
+   */
+  teamPlayerIds?: number[] | null;
 }

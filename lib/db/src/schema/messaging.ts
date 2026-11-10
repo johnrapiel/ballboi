@@ -65,6 +65,13 @@ export const messageGroupsTable = pgTable(
      * Migration 20261108_h_league_chat.sql.
      */
     leagueId: integer("league_id"),
+    /**
+     * A doubles league match's chat for all four players (D6). One chat per
+     * match. Migration 20261109_x_doubles_partners.sql.
+     */
+    matchId: integer("match_id"),
+    /** Doubles match chats: each member's own title ("You, Sam, Jo and Lee · Week 3"), by account. */
+    memberTitles: jsonb("member_titles").$type<Record<string, string>>(),
     /** League chats: up to 3 message ids an admin pinned, oldest pin first. */
     pinnedIds: jsonb("pinned_ids").$type<string[]>().notNull().default([]),
     /** League chats: each player's standings rank (player id to rank) when last posted, to spot moves. */
@@ -85,6 +92,7 @@ export const messageGroupsTable = pgTable(
     uniqueIndex("uq_message_groups_channel").on(table.channelId),
     uniqueIndex("uq_message_groups_open_match").on(table.openMatchId),
     uniqueIndex("uq_message_groups_league").on(table.leagueId),
+    uniqueIndex("uq_message_groups_match").on(table.matchId),
   ],
 );
 

@@ -7,6 +7,7 @@ import {
   checkScoreEntry,
   matchParticipantIds,
   parseMatchScore,
+  resolveMatchResult,
   scoreFromSide,
   winnerIdFor,
 } from "../lib/leagueScoring.js";
@@ -21,6 +22,25 @@ import { sendPushToUsers } from "./notifications.js";
 import { logger } from "../lib/logger.js";
 import { awardMilestonesForMatch } from "../lib/milestoneRepo.js";
 import { leagueChat } from "../messaging/leagueChatEvents.js";
+import { closeChatForScore } from "../services/doublesChat.js";
+import { doublesDoubleDefaultLine, doublesResultLine } from "../lib/doublesTeams.js";
+
+/** D6, D7: a doubles match's chat gets the result in team names and goes read only. */
+async function doublesChatResult(match: { id: number; player1Id: number; player2Id: number; player3Id: number | null; player4Id: number | null }, storedScore: string, winnerSide: 1 | 2 | null, prefix = "") {
+  if (match.player3Id == null || match.player4Id == null) return;
+  const ids = [match.player1Id, match.player3Id, match.player2Id, match.player4Id];
+  const rows = await db.select({ id: playersTable.id, name: playersTable.name }).from(playersTable).where(inArray(playersTable.id, ids));
+  const name = (id: number) => rows.find((r) => r.id === id)?.name ?? "Player";
+  const side1 = [name(match.player1Id), name(match.player3Id)];
+  const side2 = [name(match.player2Id), name(match.player4Id)];
+  if (winnerSide == null) {
+    // Double default (John, Nov 9): no winner, so neither team comes first.
+    closeChatForScore(match.id, `${prefix}${doublesDoubleDefaultLine(side1, side2)}`);
+    return;
+  }
+  const [w, l] = winnerSide === 1 ? [side1, side2] : [side2, side1];
+  closeChatForScore(match.id, `${prefix}${doublesResultLine(w, l, scoreFromSide(storedScore, winnerSide))}`);
+}
 
 // Enter a league score (spec: Leagues > Scores and standings). Either player
 // enters it, from their own side ("6-3, 6-4" means they won both sets).
@@ -33,21 +53,25 @@ import { leagueChat } from "../messaging/leagueChatEvents.js";
 
 const router = Router();
 
+/** A score, or (doubles) a W/O or a double default. */
+function hasResult(body: unknown): boolean {
+  const b = body as { score?: unknown; walkoverWinnerId?: unknown; doubleDefault?: unknown } | undefined;
+  return typeof b?.score === "string" || (b?.walkoverWinnerId !== undefined && b?.walkoverWinnerId !== null) || b?.doubleDefault === true;
+}
+
 router.post("/leagues/:leagueId/matches/:matchId/score", async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
   const leagueId = parseInt(String(req.params.leagueId));
   const matchId = parseInt(String(req.params.matchId));
   if (isNaN(leagueId) || isNaN(matchId)) { res.status(400).json({ error: "Invalid id" }); return; }
-  if (typeof req.body?.score !== "string") { res.status(400).json({ error: "Enter the score for each set, like 6-4." }); return; }
+  if (!hasResult(req.body)) { res.status(400).json({ error: "Enter the score for each set, like 6-4." }); return; }
 
   const [match] = await db
     .select()
     .from(matchesTable)
     .where(and(eq(matchesTable.id, matchId), eq(matchesTable.leagueId, leagueId)));
   if (!match) { res.status(404).json({ error: "Match not found" }); return; }
-
-  const retired = req.body?.retired === true;
 
   // An ended league's standings are frozen (decision 31).
   const [owner] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, leagueId));
@@ -72,16 +96,15 @@ router.post("/leagues/:leagueId/matches/:matchId/score", async (req, res) => {
   });
   if (!check.ok) { res.status(check.status).json({ error: check.error }); return; }
 
-  // With "Opponent retired", the caller's side wins (Q6).
-  const parsed = parseMatchScore(req.body.score, { retired });
-  if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
-
   // The caller typed their own games first. Store it from player 1's side.
+  // With "Opponent retired", the caller's side wins (Q6). Doubles can also be
+  // a W/O to the complete team, or a double default (John, Nov 9).
   const caller = callerPlayers.find((p) => matchParticipantIds(match).includes(p.id))!;
   const callerSide: 1 | 2 = caller.id === match.player1Id || caller.id === match.player3Id ? 1 : 2;
-  const winnerSide: 1 | 2 = callerSide === 1 ? parsed.winnerSide : parsed.winnerSide === 1 ? 2 : 1;
-  const storedScore = scoreFromSide(parsed.score, callerSide);
-  const winnerId = winnerIdFor(match, winnerSide);
+  const result = resolveMatchResult(match, req.body, callerSide);
+  if (!result.ok) { res.status(400).json({ error: result.error }); return; }
+  const { score: storedScore, winnerSide } = result;
+  const winnerId = winnerSide == null ? null : winnerIdFor(match, winnerSide);
   const now = new Date().toISOString();
 
   // Only the first score lands: the update is skipped if one is already in.
@@ -111,14 +134,14 @@ router.post("/leagues/:leagueId/matches/:matchId/score", async (req, res) => {
   // League record on the player rows counts standings matches only.
   const team1 = [match.player1Id, match.player3Id].filter((id): id is number => id != null);
   const team2 = [match.player2Id, match.player4Id].filter((id): id is number => id != null);
-  const [winners, losers] = winnerSide === 1 ? [team1, team2] : [team2, team1];
-  if (!check.inGrace && !match.playoffBracketId) {
+  if (winnerSide != null && !check.inGrace && !match.playoffBracketId) {
+    const [winners, losers] = winnerSide === 1 ? [team1, team2] : [team2, team1];
     await db.transaction(async (tx) => {
       await tx.update(playersTable).set({ wins: sql`${playersTable.wins} + 1` }).where(inArray(playersTable.id, winners));
       await tx.update(playersTable).set({ losses: sql`${playersTable.losses} + 1` }).where(inArray(playersTable.id, losers));
     });
   }
-  if (match.playoffBracketId) {
+  if (match.playoffBracketId && winnerId != null) {
     const advance = owner && usesWeeklyRounds(owner) ? advancePlayoff : advancePlayoffWinner;
     await advance(saved, winnerId).catch((err) => logger.error({ err, matchId }, "Couldn't advance playoff winner"));
   }
@@ -151,6 +174,7 @@ router.post("/leagues/:leagueId/matches/:matchId/score", async (req, res) => {
   await awardMilestonesForMatch(matchId);
   // The result in the league chat, then any standings moves (decision 145).
   leagueChat.resultEntered(leagueId, saved.id);
+  await doublesChatResult(match, storedScore, winnerSide).catch((err) => logger.error({ err, matchId }, "Doubles chat result failed"));
 
   res.status(201).json({
     matchId: saved.id,
@@ -158,7 +182,7 @@ router.post("/leagues/:leagueId/matches/:matchId/score", async (req, res) => {
     score: saved.score,
     winnerId: saved.winnerId,
     inGrace: saved.inGrace,
-    countsForStandings: !saved.inGrace && !saved.playoffBracketId,
+    countsForStandings: !saved.inGrace && !saved.playoffBracketId && saved.winnerId != null,
   });
 });
 
@@ -222,7 +246,7 @@ router.post("/leagues/:leagueId/matches/:matchId/score/edit", async (req, res) =
   const leagueId = parseInt(String(req.params.leagueId));
   const matchId = parseInt(String(req.params.matchId));
   if (isNaN(leagueId) || isNaN(matchId)) { res.status(400).json({ error: "Invalid id" }); return; }
-  if (typeof req.body?.score !== "string") { res.status(400).json({ error: "Enter the score for each set, like 6-4." }); return; }
+  if (!hasResult(req.body)) { res.status(400).json({ error: "Enter the score for each set, like 6-4." }); return; }
 
   const [[match], [league]] = await Promise.all([
     db.select().from(matchesTable).where(and(eq(matchesTable.id, matchId), eq(matchesTable.leagueId, leagueId))),
@@ -239,13 +263,12 @@ router.post("/leagues/:leagueId/matches/:matchId/score/edit", async (req, res) =
   const check = checkEdit(match, userId, accounts, new Date(), { leagueEnded: leagueHasEnded(league), next: feeds });
   if (!check.ok) { res.status(check.status).json({ error: check.error }); return; }
 
-  const parsed = parseMatchScore(req.body.score, { retired: req.body?.retired === true });
-  if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
   const caller = playerRows.find((p) => p.clerkUserId === userId)!;
   const callerSide: 1 | 2 = caller.id === match.player1Id || caller.id === match.player3Id ? 1 : 2;
-  const winnerSide: 1 | 2 = callerSide === 1 ? parsed.winnerSide : parsed.winnerSide === 1 ? 2 : 1;
-  const storedScore = scoreFromSide(parsed.score, callerSide);
-  const winnerId = winnerIdFor(match, winnerSide);
+  const result = resolveMatchResult(match, req.body, callerSide);
+  if (!result.ok) { res.status(400).json({ error: result.error }); return; }
+  const { score: storedScore, winnerSide } = result;
+  const winnerId = winnerSide == null ? null : winnerIdFor(match, winnerSide);
 
   // Only lands on the score as the caller saw it, so two edits at once can't
   // both move standings. The first-entered time stays, so the 24 hours don't restart.
@@ -264,7 +287,7 @@ router.post("/leagues/:leagueId/matches/:matchId/score/edit", async (req, res) =
 
   if (match.playoffBracketId) {
     // The edited winner takes the spot in the next round.
-    if (feeds && match.winnerId !== winnerId && match.playoffSlot) {
+    if (feeds && winnerId != null && match.winnerId !== winnerId && match.playoffSlot) {
       const position = advanceTo(match.playoffSlot).position;
       await db.update(matchesTable).set(position === 1 ? { player1Id: winnerId } : { player2Id: winnerId }).where(eq(matchesTable.id, feeds.id));
     }
@@ -289,6 +312,7 @@ router.post("/leagues/:leagueId/matches/:matchId/score/edit", async (req, res) =
 
   await awardMilestonesForMatch(matchId);
   leagueChat.resultEntered(leagueId, saved.id, { edited: true });
+  await doublesChatResult(match, storedScore, winnerSide, `Score edited by ${caller.name}: `).catch((err) => logger.error({ err, matchId }, "Doubles chat result failed"));
   res.json({
     matchId: saved.id,
     score: saved.score!,
@@ -304,7 +328,7 @@ router.put("/leagues/:leagueId/matches/:matchId/score", requireLeagueAdmin, asyn
   const leagueId = res.locals.leagueId as number;
   const matchId = parseInt(String(req.params.matchId));
   if (isNaN(matchId)) { res.status(400).json({ error: "Invalid id" }); return; }
-  if (typeof req.body?.score !== "string") { res.status(400).json({ error: "Enter the score for each set, like 6-4." }); return; }
+  if (!hasResult(req.body)) { res.status(400).json({ error: "Enter the score for each set, like 6-4." }); return; }
 
   const [match] = await db
     .select()
@@ -320,10 +344,12 @@ router.put("/leagues/:leagueId/matches/:matchId/score", requireLeagueAdmin, asyn
   if (!check.ok) { res.status(check.status).json({ error: check.error }); return; }
 
   // The admin enters the score from player 1's side, as Manage shows it.
-  const parsed = parseMatchScore(req.body.score);
-  if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
-  const storedScore = scoreFromSide(parsed.score, 1);
-  const winnerId = winnerIdFor(match, parsed.winnerSide);
+  // Corrections ignore "retired"; doubles can be corrected to a W/O or a
+  // double default (John, Nov 9).
+  const result = resolveMatchResult(match, { ...req.body, retired: undefined }, 1);
+  if (!result.ok) { res.status(400).json({ error: result.error }); return; }
+  const { score: storedScore, winnerSide } = result;
+  const winnerId = winnerSide == null ? null : winnerIdFor(match, winnerSide);
 
   const [[player], [user]] = await Promise.all([
     db.select({ name: playersTable.name }).from(playersTable).where(and(eq(playersTable.leagueId, leagueId), eq(playersTable.clerkUserId, userId!))),
@@ -340,15 +366,16 @@ router.put("/leagues/:leagueId/matches/:matchId/score", requireLeagueAdmin, asyn
 
   if (match.playoffBracketId) {
     // The corrected winner takes the spot in the next round.
-    if (feeds && match.winnerId !== winnerId && match.playoffSlot) {
+    if (feeds && winnerId != null && match.winnerId !== winnerId && match.playoffSlot) {
       const position = advanceTo(match.playoffSlot).position;
       await db.update(matchesTable).set(position === 1 ? { player1Id: winnerId } : { player2Id: winnerId }).where(eq(matchesTable.id, feeds.id));
     }
   } else if (!match.inGrace) {
-    await applyRecordChanges(match, winnerSideOf(match), parsed.winnerSide);
+    await applyRecordChanges(match, winnerSideOf(match), winnerSide);
   }
   await awardMilestonesForMatch(matchId);
   leagueChat.resultEntered(leagueId, saved.id, { edited: true });
+  await doublesChatResult(match, storedScore, winnerSide, `Score corrected by ${adminName}: `).catch((err) => logger.error({ err, matchId }, "Doubles chat result failed"));
   res.json({
     matchId: saved.id,
     score: saved.score,

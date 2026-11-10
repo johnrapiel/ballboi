@@ -7,11 +7,12 @@
  */
 
 /**
- * An open match's chat, or a league's chat (decision 145)
+ * An open match's chat, a league's chat (decision 145), or a doubles league match's chat for all four (D6)
  */
 export type GroupViewKind = (typeof GroupViewKind)[keyof typeof GroupViewKind];
 
 export const GroupViewKind = {
   match: "match",
   league: "league",
+  doubles: "doubles",
 } as const;

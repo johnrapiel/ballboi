@@ -83,11 +83,17 @@ export function approveOutcome(input: {
   activePlayerCount: number;
   today: string;
   request: { kind: string; status: string };
+  /**
+   * D4 (John, Nov 9): a fixed-partner doubles team lost a partner, so an Open
+   * league's waitlisted player can be let in mid-season to be re-teamed.
+   */
+  letInForPartner?: boolean;
 }): { ok: true } | { ok: false; moveToWaitlist: boolean; status: number; error: string } {
   if (input.request.status !== "pending") {
     return { ok: false, moveToWaitlist: false, status: 409, error: "This request was already handled." };
   }
   if (input.league.visibility !== "open") return { ok: true };
+  if (input.letInForPartner) return { ok: true };
   if (input.request.kind === "waitlist" || hasSeasonStarted(input.league.startDate, input.today)) {
     return {
       ok: false,

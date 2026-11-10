@@ -146,6 +146,28 @@ async function leave(c: Extract<Command, { kind: "leave" }>) {
   console.log(`${c.as} left league ${leagueId}. ${result.voidedMatches} remaining match(es) cancelled.`);
 }
 
+// Doubles partners (D9): what a second phone would do.
+async function teamUp(c: Extract<Command, { kind: "team-up" }>) {
+  const from = await idFor(c.as);
+  const toAccount = await idFor(c.to);
+  const [to] = await db
+    .select({ id: playersTable.id })
+    .from(playersTable)
+    .where(and(eq(playersTable.clerkUserId, toAccount), eq(playersTable.leagueId, c.leagueId), isNull(playersTable.leftAt)));
+  if (!to) throw new Problem(`${c.to} isn't in league ${c.leagueId}.`);
+  await api(from, "POST", `/leagues/${c.leagueId}/partner/requests`, { toPlayerId: to.id });
+  console.log(`${c.as} asked ${c.to} to team up in league ${c.leagueId}. ${c.to} has 48 hours to answer.`);
+}
+
+async function answer(c: Extract<Command, { kind: "answer" }>) {
+  const as = await idFor(c.as);
+  const view = await api<{ incoming: { requestId: number; from: { name: string } }[] }>(as, "GET", `/leagues/${c.leagueId}/partner`);
+  const r = view.incoming[0];
+  if (!r) throw new Problem(`No team-up request is waiting for ${c.as} in league ${c.leagueId}.`);
+  await api(as, "POST", `/leagues/${c.leagueId}/partner/requests/${r.requestId}/${c.accept ? "accept" : "decline"}`);
+  console.log(`${c.as} ${c.accept ? "accepted" : "declined"} ${r.from.name}'s request.`);
+}
+
 // ─── Time controls ───────────────────────────────────────────────────────────
 
 async function leagueIdFrom(arg: "seeded" | number): Promise<number> {
@@ -298,6 +320,12 @@ Messages aren't seeded. Run it again any time to reset to this same data.
       return 0;
     case "leave":
       await leave(cmd);
+      return 0;
+    case "team-up":
+      await teamUp(cmd);
+      return 0;
+    case "answer":
+      await answer(cmd);
       return 0;
     case "time": {
       const result = await applyTimeAction(await leagueIdFrom(cmd.league), cmd.action as TimeAction);
