@@ -22,21 +22,34 @@
 // A held copy is for the labeled test set; it's only ever trained on when
 // matchIsTrainingEligible() says so.
 //
+// Beta audio (shot tracker test plan, T2 and T6): while BETA_RELEASE_REQUIRED
+// is on, the raw upload (and its pieces), the only copy with audio, is held
+// for a 30-day pick window from upload (metadata.audioHeldAt) instead of
+// being deleted after analysis. It stays where it is (videoObjectPath and
+// segmentPaths), so it stays protected like any Ball Boi video. If John flags
+// the match as test set (matches.ball_boi_test_set_at, from the admin
+// beta-footage route), it's kept until launch. Otherwise the hourly sweep
+// deletes it after 30 days and logs each deletion. Once the setting is off at
+// launch, the sweep deletes all held audio, test set included, and the
+// normal rule applies: audio deleted after processing.
+//
 // Withdrawal (spec decision 95, B12): when a player deletes their account,
 // every session in a match they played gets metadata.withdrawnAt. Its videos
 // are deleted at once, raw and copy, beta or not, and the sweep retries any
 // delete that failed, well within the 30 days the release promises.
 
-import { ballBoiSessionsTable, db } from "@workspace/db";
+import { ballBoiSessionsTable, db, matchesTable } from "@workspace/db";
 import { and, eq, isNotNull, lt, or, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { ObjectStorageService } from "./objectStorage";
 import { matchIsTrainingEligible } from "./trainingEligibility";
 import { segmentPathsOf } from "./mlDispatch";
 import { readBetaRelease } from "./betaRelease";
+import { audioDecision, type AudioDecision } from "./betaAudio";
 
 export const TRAINING_PREFIX = "/objects/training/";
 export const FAILED_ANALYSIS_GRACE_DAYS = 7;
+export { AUDIO_PICK_DAYS, audioDaysLeft, audioDecision, type AudioDecision } from "./betaAudio";
 
 type Session = typeof ballBoiSessionsTable.$inferSelect;
 
@@ -47,7 +60,12 @@ export interface RetentionDeps {
   now(): Date;
   /** Beta footage is kept until launch (B6). Defaults to off when left out. */
   betaHold?(): boolean;
+  /** John picked this match for the test set (T2). Defaults to no when left out. */
+  isTestSet?(matchId: number): Promise<boolean>;
+  /** The audio pick window, in days (tests shorten it). */
+  audioPickDays?: number;
 }
+
 
 export interface RetentionPlan {
   keepTrainingCopy: string | null;
@@ -90,6 +108,13 @@ const defaultDeps: RetentionDeps = {
   },
   now: () => new Date(),
   betaHold: () => readBetaRelease().required,
+  isTestSet: async (matchId) => {
+    const [row] = await db
+      .select({ at: matchesTable.ballBoiTestSetAt })
+      .from(matchesTable)
+      .where(eq(matchesTable.id, matchId));
+    return !!row?.at;
+  },
 };
 
 /** A player in this match withdrew (deleted their account): its video goes, beta or not. */
@@ -122,8 +147,28 @@ export async function settleSessionVideo(
       logger.warn({ err, sessionId: session.id }, "Video retention: couldn't check training; treating as off");
     }
   }
-  const held = !withdrawn && !eligible && !!deps.betaHold?.();
-  const plan = planRetention(session.videoObjectPath, candidate, eligible || held, otherRaw);
+  const beta = !withdrawn && !!deps.betaHold?.();
+  const held = beta && !eligible;
+
+  // The raw upload holds the audio: during the beta it waits out the pick window (T6).
+  const hasRaw = !!session.videoObjectPath || otherRaw.length > 0;
+  const heldAt = typeof metadata.audioHeldAt === "string" ? metadata.audioHeldAt : null;
+  let audio: AudioDecision = { hold: false, reason: "notBeta" };
+  if (hasRaw) {
+    let testSet = false;
+    if (beta) {
+      try {
+        testSet = !!(await deps.isTestSet?.(session.matchId));
+      } catch (err) {
+        // Not sure: keep it this hour, and check again on the next sweep.
+        logger.warn({ err, sessionId: session.id }, "Beta audio: couldn't check the test set; keeping the audio for now");
+        testSet = true;
+      }
+    }
+    audio = audioDecision({ beta, withdrawn, testSet, heldAt, now: deps.now(), days: deps.audioPickDays });
+  }
+  const holdAudio = audio.hold;
+  const plan = planRetention(holdAudio ? null : session.videoObjectPath, candidate, eligible || held, holdAudio ? [] : otherRaw);
   if (existingCopy && existingCopy !== candidate && !plan.remove.includes(existingCopy)) plan.remove.push(existingCopy);
 
   const failed = new Set<string>();
@@ -137,13 +182,29 @@ export async function settleSessionVideo(
   }
 
   const now = deps.now().toISOString();
-  const rawGone = session.videoObjectPath != null && !failed.has(session.videoObjectPath);
+  const rawGone = !holdAudio && session.videoObjectPath != null && !failed.has(session.videoObjectPath);
   const trainingLeft = plan.keepTrainingCopy ?? (candidate && failed.has(candidate) ? candidate : null);
   const next: Record<string, unknown> = { ...metadata, trainingVideoPath: trainingLeft };
-  const otherLeft = otherRaw.filter((p) => failed.has(p));
+  const otherLeft = holdAudio ? otherRaw : otherRaw.filter((p) => failed.has(p));
   if (otherLeft.length > 0) next.segmentPaths = otherLeft;
   else delete next.segmentPaths;
   if (rawGone && otherLeft.length === 0) next.rawVideoDeletedAt = now;
+  if (holdAudio) {
+    // The window runs from upload (analysis started once the upload finished).
+    next.audioHeldAt = heldAt ?? (typeof metadata.analysisStartedAt === "string" ? metadata.analysisStartedAt : now);
+  } else if (heldAt || audio.reason === "withdrawn") {
+    const rawPaths = [session.videoObjectPath, ...otherRaw].filter((p): p is string => !!p);
+    for (const path of rawPaths) {
+      if (failed.has(path)) continue;
+      // Each deletion is logged (T6), with why: the 30 days ran out, launch, or a withdrawal.
+      logger.info({ sessionId: session.id, matchId: session.matchId, path, reason: audio.reason, heldAt }, "Beta audio deleted");
+    }
+    const allGone = rawPaths.every((p) => !failed.has(p));
+    if (allGone) {
+      delete next.audioHeldAt;
+      if (heldAt) next.audioDeletedAt = now;
+    }
+  }
   if (plan.keepTrainingCopy && !held) next.keptForTrainingAt = metadata.keptForTrainingAt ?? now;
   else delete next.keptForTrainingAt;
   if (plan.keepTrainingCopy && held) next.heldForBeta = true;
@@ -198,6 +259,8 @@ export async function sweepSessionVideos(deps: RetentionDeps = defaultDeps): Pro
             sql`${ballBoiSessionsTable.metadata}->>'segmentPaths' is not null`,
           ),
         ),
+        // Beta audio waiting out its pick window, whatever the analysis did.
+        sql`${ballBoiSessionsTable.metadata}->>'audioHeldAt' is not null`,
         and(
           eq(ballBoiSessionsTable.status, "failed"),
           or(isNotNull(ballBoiSessionsTable.videoObjectPath), sql`${ballBoiSessionsTable.metadata}->>'segmentPaths' is not null`),

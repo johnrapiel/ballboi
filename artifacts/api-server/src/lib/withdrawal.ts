@@ -79,7 +79,7 @@ export function withdrawalEmail(clerkUserId: string, matches: WithdrawnMatch[], 
     text: [
       `A player deleted their account on ${at.toISOString().slice(0, 10)} (${clerkUserId}).`,
       "",
-      "Ball Boi has deleted the video of these recordings from its storage. Delete any copies of them in the labeled test set on your Mac within 30 days of that date. Hand-made shot labels can stay, with the player's name removed.",
+      "Ball Boi has deleted the video and audio of these recordings from its storage. Delete any copies of them in the labeled test set on your Mac, audio included, within 30 days of that date. Hand-made shot labels can stay, with the player's name removed.",
       "",
       ...lines,
     ].join("\n"),

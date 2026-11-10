@@ -62,6 +62,11 @@ export const matchesTable = pgTable("matches", {
   // 20261109_x_doubles_partners.sql.
   team1Id: integer("team1_id"),
   team2Id: integer("team2_id"),
+  // Ball Boi test set (shot tracker test plan, decisions T1, T2, T6): John
+  // picked this match for the frozen test set, from the admin beta-footage
+  // route. While the beta release is required, its recordings keep their
+  // audio until launch instead of 30 days. Migration 20261110_r_match_test_set.sql.
+  ballBoiTestSetAt: timestamp("ball_boi_test_set_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
