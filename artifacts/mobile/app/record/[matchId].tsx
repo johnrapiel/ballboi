@@ -106,12 +106,30 @@ import {
   type ArmedStart,
 } from "@/lib/recording/armedStart";
 import { countdownClock, START_DELAYS, type StartDelayMinutes } from "@/lib/recording/countdown";
-import { deleteRecording, keepRecording } from "@/lib/recording/files";
+import { deleteRecording, freeDiskBytes, keepRecording } from "@/lib/recording/files";
 import { formatElapsed, spokenDuration } from "@/lib/recording/format";
 import { LOW_BATTERY_START_MESSAGE } from "@/lib/recording/limits";
 import { firstRunPages, type FirstRunPage } from "@/lib/recording/firstRun";
 import { MIC_DENIED_BODY, MIC_DENIED_TITLE, micState } from "@/lib/recording/permissions";
 import { loadHideSetup } from "@/lib/recording/prefs";
+import {
+  cornersFor,
+  handlesMoved,
+  newSidecar,
+  onBatteryAtStart,
+  onCaptureStart,
+  onCorners,
+  onInterruption,
+  onLensesKnown,
+  onLock,
+  onMotion,
+  onSegment,
+  onStop,
+  type InterruptionKind,
+  type StartedBy,
+} from "@/lib/recording/sidecar";
+import { batteryNow, sidecarDevice } from "@/lib/recording/sidecarDevice";
+import { deleteSidecar, SidecarWriter } from "@/lib/recording/sidecarFile";
 import { enqueue, getQueue, updateQueued } from "@/lib/recording/queue";
 import {
   batteryBlocksStart,
@@ -134,7 +152,7 @@ import {
   remainingSeconds,
   type RecordedSegment,
 } from "@/lib/recording/segments";
-import { VIDEO_CODEC, VIDEO_QUALITY, VIDEO_STABILIZATION } from "@/lib/recording/settings";
+import { VIDEO_CODEC, VIDEO_QUALITY, VIDEO_STABILIZATION, VIDEO_TARGET_FPS } from "@/lib/recording/settings";
 import { drainQueue } from "@/lib/recording/uploader";
 import { tellOpponent } from "@/lib/notifications";
 import {
@@ -182,6 +200,14 @@ const FRAME_TIMEOUT_MS = 3000;
 
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+function safeFreeDisk(): number | null {
+  try {
+    return freeDiskBytes();
+  } catch {
+    return null;
+  }
+}
 
 /** Asks Keep or Discard with the native iOS action sheet. Dismissing it keeps the recording. */
 function askKeepOrDiscard(durationSeconds: number): Promise<"keep" | "discard"> {
@@ -281,6 +307,24 @@ export default function RecordScreen() {
   const fixAnswer = useRef<((c: CourtCalibration | null) => void) | null>(null);
   /** The setup frame saved as a still when recording started without a lock. */
   const setupStill = useRef<Promise<CourtStill | null> | null>(null);
+  /**
+   * The recording's sidecar (decision T5): device, capture settings, court
+   * locks, movement and interruptions, written to the phone as it records.
+   */
+  const sidecar = useRef<SidecarWriter | null>(null);
+  sidecar.current ??= new SidecarWriter(
+    newSidecar({
+      now: new Date(),
+      device: sidecarDevice(),
+      resolution: "1280x720",
+      targetFps: VIDEO_TARGET_FPS,
+      codec: VIDEO_CODEC,
+      stabilization: VIDEO_STABILIZATION,
+      lens: null,
+    }),
+  );
+  /** Who armed this start: the Record button, or Start match on a Lock Screen or the other phone. */
+  const startedBy = useRef<StartedBy>("recordButton");
 
   const setPhase = (p: Phase) => {
     phaseRef.current = p;
@@ -296,8 +340,9 @@ export default function RecordScreen() {
     {
       onFrame: (step, lock) => coachFrame(step, lock),
       // "Perfect. Court locked." then the chime. Armed: the countdown then runs by itself.
-      onLocked: () => {
+      onLocked: (fit) => {
         coachState.current = COACH_START;
+        sidecar.current?.apply((sc) => onLock(sc, new Date(), fit.confidence ?? null), true);
         const p = phaseRef.current;
         // Never once line 19 has started: capture follows it, and the voice must not land in the recording.
         if (lockLineAllowed(settingUp(p), p === "countdown" && playedCues.current.has("go"))) {
@@ -319,6 +364,11 @@ export default function RecordScreen() {
         setSecondsLeft(Math.ceil(next.msLeft / 1000));
         setPhase("paused");
         say("moved");
+      },
+      // Bumps and wind wobble go in the sidecar, only while the camera is capturing.
+      onMotion: (reading) => {
+        if (phaseRef.current !== "recording") return;
+        sidecar.current?.apply((sc) => onMotion(sc, { now: new Date(), ...reading }));
       },
     },
     orientation,
@@ -343,6 +393,7 @@ export default function RecordScreen() {
     return () => {
       mounted.current = false;
       releaseVoice();
+      sidecar.current?.close();
       // Leaving mid-fix: the match uploads without corners, and the server finds the court.
       fixAnswer.current?.(null);
     };
@@ -356,10 +407,14 @@ export default function RecordScreen() {
     const sub = AppState.addEventListener("change", (s) => {
       if (s === "background") {
         const p = phaseRef.current;
-        if (p === "recording" || p === "rejoining") backgrounded.current = true;
+        if (p === "recording" || p === "rejoining") {
+          backgrounded.current = true;
+          noteInterruption("background");
+        }
         if (p === "armed" || p === "countdown" || p === "paused") cancelCountdown(false);
       }
       if (s === "active") {
+        if (backgrounded.current || phaseRef.current === "interrupted") noteInterruption("foreground");
         getCamPerm().catch(() => {});
         getMicPerm().catch(() => {});
       }
@@ -505,6 +560,7 @@ export default function RecordScreen() {
     // Armed, paused or counting by now (Record was tapped meanwhile): nothing new.
     const next = startMatch(phaseRef.current === "ready" ? null : armed.current ?? null, delay, Date.now(), COACH_LINES.go.ms, courtRef.current.lock.stage === "locked");
     if (!next) return;
+    startedBy.current = "liveActivity";
     armFrom(next, "Started from the other phone. ");
   }
 
@@ -687,6 +743,7 @@ export default function RecordScreen() {
       await requestMic().catch(() => {});
     }
     setError(null);
+    startedBy.current = "recordButton";
     // Armed: the countdown runs once the court locks, or straight away if it
     // already has. Start Now is a countdown as long as line 19 ("Three. Two.
     // One. Recording has started."), so capture starts as it ends.
@@ -727,6 +784,8 @@ export default function RecordScreen() {
     const confirm = setTimeout(() => {
       if (pieceStart.current !== started || !mounted.current) return;
       setPhase("recording");
+      // A piece after a pause: the camera is going again.
+      if (segments.current.length > 0) noteInterruption("resume");
       // The other players hear Ball Boi is recording, or "Was that you?" (Session G, decision 124).
       tellOpponent(matchId);
       // No voice here: the camera is capturing (line 19 already said it).
@@ -752,15 +811,22 @@ export default function RecordScreen() {
       deleteRecording(saved.uri);
       return;
     }
-    segments.current = [
-      ...segments.current,
-      {
-        uri: saved.uri,
-        sizeBytes: saved.sizeBytes,
-        durationSeconds: Math.max(1, Math.round(piece.ms / 1000)),
-        startedAt: new Date(piece.startedAt).toISOString(),
-      },
-    ];
+    const seg = {
+      uri: saved.uri,
+      sizeBytes: saved.sizeBytes,
+      durationSeconds: Math.max(1, Math.round(piece.ms / 1000)),
+      startedAt: new Date(piece.startedAt).toISOString(),
+    };
+    segments.current = [...segments.current, seg];
+    sidecar.current?.apply(
+      (sc) => onSegment(sc, { startedAt: seg.startedAt, durationSeconds: seg.durationSeconds, sizeBytes: seg.sizeBytes }),
+      true,
+    );
+  }
+
+  /** A pause or resume, for the sidecar. Written at once: a pause may be followed by the app being closed. */
+  function noteInterruption(kind: InterruptionKind) {
+    sidecar.current?.apply((sc) => onInterruption(sc, kind, new Date()), true);
   }
 
   /**
@@ -816,6 +882,7 @@ export default function RecordScreen() {
         }
         // The app stayed open (a call rang): start again as soon as the camera's back.
         if (retryingSince === null) {
+          noteInterruption("ringingPause");
           retryingSince = Date.now();
           retryLimit = REJOIN_GIVE_UP_MS;
           setPhase("rejoining");
@@ -850,6 +917,27 @@ export default function RecordScreen() {
   function noteCourtAtStart() {
     const c = courtRef.current;
     lockedAtStart.current = c.lock.stage === "locked" ? calibrationFromFit(c.lock.lockedFit) : null;
+    // The sidecar's file is named now, so a crash during the first piece still leaves one.
+    const now = new Date();
+    recId.current ??= `match-${matchId}-${now.getTime()}`;
+    const writer = sidecar.current;
+    if (writer) {
+      writer.attach(recId.current);
+      writer.apply(
+        (sc) =>
+          onCaptureStart(sc, {
+            now,
+            startedBy: startedBy.current,
+            locked: c.lock.stage === "locked",
+            confidence: c.lock.lockedFit?.confidence ?? null,
+            recordAnyway: !!armed.current?.anyway,
+            battery: null,
+            freeStorageBytes: safeFreeDisk(),
+          }),
+        true,
+      );
+      batteryNow().then((b) => writer.apply((sc) => onBatteryAtStart(sc, b), true));
+    }
     const frame = c.latestFrame.current;
     if (!lockedAtStart.current && frame && !setupStill.current) {
       setupStill.current = keepStill(frame);
@@ -926,6 +1014,11 @@ export default function RecordScreen() {
     setStopReason(reason);
     setPhase("saving");
     const pieces = segments.current;
+    const writer = sidecar.current;
+    if (writer && pieces.length > 0) {
+      const battery = await batteryNow();
+      writer.apply((sc) => onStop(sc, { now: new Date(), reason, battery }), true);
+    }
     // Capture has ended: now the coach may speak. iOS left the audio set up
     // for the camera's microphone, so it's set back to the speaker first.
     if (pieces.length > 0) {
@@ -945,6 +1038,8 @@ export default function RecordScreen() {
       setPhase("deciding");
       if ((await askKeepOrDiscard(joined.durationSeconds)) === "discard") {
         for (const p of pieces) deleteRecording(p.uri);
+        writer?.close();
+        deleteSidecar(writer?.fileUri);
         segments.current = [];
         setupStill.current?.then((st) => discardStill(st?.uri));
         setupStill.current = null;
@@ -964,6 +1059,11 @@ export default function RecordScreen() {
     }
     // The court's corners: from the lock, a fresh look, or the player's fix.
     const settled = await settleCourt(reason);
+    const landscape = orientation === "landscapeLeft" || orientation === "landscapeRight";
+    const noteCorners = (cal: CourtCalibration | null, dragged: boolean | null) =>
+      writer?.apply((sc) => onCorners(sc, cal ? cornersFor(cal.points, landscape, cal.source) : null, dragged), true);
+    if (!settled.still) noteCorners(settled.calibration, null);
+    writer?.close();
     // Into the upload queue: Wi-Fi by default, kept on the phone until the
     // server confirms. Held while the court-line fix is open, so the corners
     // go with the match; saved first, so the match is safe either way.
@@ -980,9 +1080,12 @@ export default function RecordScreen() {
       ...(opponentAgreedAt ? { opponentAgreedAt } : {}),
       courtCalibration: settled.calibration,
       courtLinesPending: settled.still !== null,
+      ...(writer?.fileUri ? { sidecarUri: writer.fileUri, sidecarDirty: true } : {}),
     });
     if (settled.still) {
       const fixed = await askCourtFix(settled.still, settled.start);
+      noteCorners(fixed, fixed ? handlesMoved(settled.start, fixed.points) : false);
+      writer?.close();
       await updateQueued(id, { courtCalibration: fixed, courtLinesPending: false });
       discardStill(settled.still.uri);
     }
@@ -1076,6 +1179,12 @@ export default function RecordScreen() {
         style={StyleSheet.absoluteFill}
         facing="back"
         mode="video"
+        onAvailableLensesChanged={(e) => {
+          const lenses = (e as { lenses?: { deviceType: string }[]; nativeEvent?: { lenses?: { deviceType: string }[] } }).lenses
+            ?? (e as { nativeEvent?: { lenses?: { deviceType: string }[] } }).nativeEvent?.lenses
+            ?? [];
+          sidecar.current?.apply((sc) => onLensesKnown(sc, lenses.map((l) => l.deviceType)));
+        }}
         // 1280x720, 30 fps, H.264, no stabilization: what the analysis models read.
         videoQuality={VIDEO_QUALITY}
         videoStabilizationMode={VIDEO_STABILIZATION}

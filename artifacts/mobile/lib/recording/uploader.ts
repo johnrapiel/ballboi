@@ -18,11 +18,18 @@ import { deleteRecording, recordingExists } from "@/lib/recording/files";
 import { loadUploadOnCellular } from "@/lib/recording/prefs";
 import { clearQueue, getQueue, loadQueue, removeQueued, updateQueued, type QueuedRecording } from "@/lib/recording/queue";
 import { recordingFiles } from "@/lib/recording/segments";
-import { ensureSession, uploadRecording } from "@/lib/recording/upload";
+import { deleteSidecar } from "@/lib/recording/sidecarFile";
+import { ensureSession, uploadRecording, uploadSidecar } from "@/lib/recording/upload";
+
+/** Deletes a recording's sidecar from the phone. */
+function deleteSidecarOf(rec: Pick<QueuedRecording, "sidecarUri">) {
+  deleteSidecar(rec.sidecarUri);
+}
 
 /** Deletes every file of a recording from the phone. */
-export function deleteRecordingFiles(rec: Pick<QueuedRecording, "uri" | "segments">) {
+export function deleteRecordingFiles(rec: Pick<QueuedRecording, "uri" | "segments"> & { sidecarUri?: string }) {
   for (const uri of recordingFiles(rec)) deleteRecording(uri);
+  deleteSidecarOf(rec);
 }
 
 export type Connection = "wifi" | "cellular" | "none";
@@ -89,12 +96,34 @@ export async function drainQueue(): Promise<void> {
           continue;
         }
         const connection = await currentConnection();
+        // The sidecar is small: it goes on any connection, ahead of the video (decision T5).
+        if (connection !== "none" && rec.sidecarUri && rec.sidecarDirty) await sendSidecar(rec);
         if (!mayUpload(rec, connection, cellularOn)) continue;
-        await uploadOne(rec);
+        const latest = getQueue().find((r) => r.id === rec.id);
+        if (latest) await uploadOne(latest);
       }
     } while (again);
   } finally {
     running = false;
+  }
+}
+
+/**
+ * Sends a recording's sidecar: creates the server's session for it first if
+ * needed (the same session the video goes to). A failure never holds up the
+ * video; it's tried again on the next pass while the recording is queued.
+ */
+async function sendSidecar(rec: QueuedRecording) {
+  if (!rec.sidecarUri || discarding.has(rec.id)) return;
+  try {
+    const sessionId = await ensureSession(rec);
+    if (sessionId !== rec.sessionId) await updateQueued(rec.id, { sessionId });
+    // Marked clean first: a change made while it's sending marks it dirty again.
+    await updateQueued(rec.id, { sidecarDirty: false });
+    const sent = await uploadSidecar(sessionId, rec.sidecarUri);
+    if (!sent) return;
+  } catch {
+    if (getQueue().some((r) => r.id === rec.id)) await updateQueued(rec.id, { sidecarDirty: true });
   }
 }
 
@@ -116,6 +145,9 @@ async function uploadWith(rec: QueuedRecording, signal: AbortSignal) {
     if (sessionId !== rec.sessionId) await updateQueued(rec.id, { sessionId });
     if (signal.aborted) return;
     await uploadRecording({ ...rec, sessionId }, signal);
+    // The sidecar changed while the video went up (the score prompt's conditions): send the newest copy.
+    const latest = getQueue().find((r) => r.id === rec.id);
+    if (latest?.sidecarDirty) await sendSidecar({ ...latest, sessionId });
     // Refresh the server list first, so its card never shows a stale
     // "still waiting for the video" once the phone's card goes (D18).
     await onUploaded?.().catch(() => {});

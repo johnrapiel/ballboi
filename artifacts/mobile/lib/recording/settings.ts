@@ -18,3 +18,6 @@ import type { VideoCodec, VideoQuality, VideoStabilization } from "expo-camera";
 export const VIDEO_QUALITY: VideoQuality = "720p";
 export const VIDEO_CODEC: VideoCodec = "avc1";
 export const VIDEO_STABILIZATION: VideoStabilization = "off";
+
+/** The frame rate the 720p preset records at. The sidecar compares what the file really has against it. */
+export const VIDEO_TARGET_FPS = 30;

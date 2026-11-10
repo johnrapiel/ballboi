@@ -151,6 +151,13 @@ export class ObjectStorageService {
     }
   }
 
+  /** Writes a small object (a recording's sidecar JSON), replacing any earlier copy. */
+  async putObject(objectPath: string, body: string, contentType = "application/json"): Promise<void> {
+    const { client, bucket } = getConfig();
+    const key = objectKeyFromPath(objectPath);
+    await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }));
+  }
+
   /** Permanently deletes an object. A missing object is not an error (S3 delete is idempotent). */
   async deleteObject(objectPath: string): Promise<void> {
     const { client, bucket } = getConfig();

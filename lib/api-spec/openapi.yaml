@@ -7488,6 +7488,60 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /recording/sessions/{sessionId}/sidecar:
+    put:
+      operationId: putRecordingSidecar
+      tags: [recording]
+      summary: Save a recording's metadata sidecar (decision T5) next to its video. Recorder only. Sent again whenever it changes; the newest replaces the last.
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordingSidecar'
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordingSidecarSaved'
+        '400':
+          description: Not a version 1 sidecar, or too big
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Not the player who recorded it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No such recording
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Couldn't save it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /recording/quick-matches/{matchId}/abandon:
     post:
       operationId: abandonQuickMatch
@@ -7860,6 +7914,24 @@ components:
       schema:
         type: integer
   schemas:
+    RecordingSidecar:
+      type: object
+      description: A recording's metadata sidecar. The phone's lib/recording/sidecar.ts has the full shape; the server checks the version, keeps only known sections, and drops anything that looks like a location or a name.
+      properties:
+        sidecarVersion:
+          type: integer
+          enum: [1]
+      required: [sidecarVersion]
+      additionalProperties: true
+    RecordingSidecarSaved:
+      type: object
+      properties:
+        saved:
+          type: boolean
+          enum: [true]
+        objectPath:
+          type: string
+      required: [saved, objectPath]
     DeviceBan:
       type: object
       description: A phone ban from DeviceCheck (Session G)
