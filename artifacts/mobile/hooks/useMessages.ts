@@ -69,6 +69,8 @@ export interface GroupMessage {
   senderName: string | null;
   senderPlayerId: number | null;
   senderUserId: number | null;
+  /** The sender's photo ("/objects/..."); older servers leave it out. */
+  senderAvatarUrl?: string | null;
   /** League chats: an admin post, shown with the Admin label. */
   admin?: boolean;
   /** League chats: the names it @mentions ("You" for you). */

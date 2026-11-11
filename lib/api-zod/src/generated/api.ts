@@ -8103,6 +8103,12 @@ export const GetGroupThreadResponse = zod.object({
         .describe("Null for a line from Ball Boi"),
       senderPlayerId: zod.number().nullable(),
       senderUserId: zod.number().nullable(),
+      senderAvatarUrl: zod
+        .string()
+        .nullable()
+        .describe(
+          'The sender\'s photo (\"\/objects\/...\"), shown beside their messages. Null for you, Ball Boi, or no photo',
+        ),
       admin: zod
         .boolean()
         .describe("League chats, an admin post (shown with the Admin label)"),
@@ -8128,6 +8134,12 @@ export const GetGroupThreadResponse = zod.object({
           .describe("Null for a line from Ball Boi"),
         senderPlayerId: zod.number().nullable(),
         senderUserId: zod.number().nullable(),
+        senderAvatarUrl: zod
+          .string()
+          .nullable()
+          .describe(
+            'The sender\'s photo (\"\/objects\/...\"), shown beside their messages. Null for you, Ball Boi, or no photo',
+          ),
         admin: zod
           .boolean()
           .describe("League chats, an admin post (shown with the Admin label)"),

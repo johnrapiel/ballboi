@@ -1,3 +1,4 @@
+import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 import { useRouter, type Href } from "expo-router";
 import React from "react";
@@ -34,7 +35,16 @@ export interface BubbleProps {
   spoken?: string;
   /** League chats: the long-press menu as a VoiceOver action too, for admins' pins and moderation. */
   onMore?: () => void;
+  /**
+   * Group chats: the sender's photo beside their messages. Every message from
+   * someone else keeps the space; `show` draws the photo, on the first message
+   * of a run, next to their name. Decorative: VoiceOver already reads the name.
+   */
+  avatar?: { name: string; uri?: string | null; show: boolean };
 }
+
+/** Size of the sender photo in group chats, and the space it keeps. */
+export const BUBBLE_AVATAR = 28;
 
 /**
  * One message. VoiceOver reads sender, text and time in one swipe. Report is
@@ -57,6 +67,7 @@ export function MessageBubble({
   segments,
   spoken: spokenText,
   onMore,
+  avatar,
 }: BubbleProps) {
   const c = useColors();
   const router = useRouter();
@@ -104,7 +115,16 @@ export function MessageBubble({
   };
 
   return (
-    <View style={{ alignItems: fromMe ? "flex-end" : "flex-start", paddingHorizontal: spacing.space4, paddingVertical: 3 }}>
+    <View
+      style={
+        avatar && !fromMe
+          ? { flexDirection: "row", alignItems: "flex-start", gap: spacing.space2, paddingHorizontal: spacing.space4, paddingVertical: 3 }
+          : { alignItems: fromMe ? "flex-end" : "flex-start", paddingHorizontal: spacing.space4, paddingVertical: 3 }
+      }
+    >
+      {avatar && !fromMe ? (
+        avatar.show ? <Avatar name={avatar.name} uri={avatar.uri} size={BUBBLE_AVATAR} /> : <View style={{ width: BUBBLE_AVATAR }} />
+      ) : null}
       <Pressable
         accessible
         accessibilityLabel={spoken}

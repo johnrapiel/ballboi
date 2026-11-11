@@ -12485,6 +12485,9 @@ components:
           type: [integer, 'null']
         senderUserId:
           type: [integer, 'null']
+        senderAvatarUrl:
+          type: [string, 'null']
+          description: The sender's photo ("/objects/..."), shown beside their messages. Null for you, Ball Boi, or no photo
         admin:
           type: boolean
           description: League chats, an admin post (shown with the Admin label)
@@ -12495,7 +12498,7 @@ components:
             type: string
         mentionsMe:
           type: boolean
-      required: [id, text, fromMe, at, senderName, senderPlayerId, senderUserId, admin, mentions, mentionsMe]
+      required: [id, text, fromMe, at, senderName, senderPlayerId, senderUserId, senderAvatarUrl, admin, mentions, mentionsMe]
     GroupThread:
       type: object
       properties:
