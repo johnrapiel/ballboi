@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import {
   ANALYSIS_TIMEOUT_ERROR,
+  analysisServerConfigured,
   analysisStartedAt,
   failureReason,
   isStuck,
@@ -33,6 +34,22 @@ describe("failed analysis reasons (Q16)", () => {
     );
     expect(failureReason("boom")).toBe("Something went wrong on our side.");
     expect(failureReason(null)).toBe("Something went wrong on our side.");
+  });
+
+  it("says the beta has no analysis yet when no analysis server is set up (decision 178)", () => {
+    const down = "Analysis service is unavailable. Automatic retry attempts have been exhausted";
+    expect(failureReason(down, false)).toBe("Analysis isn't available in the beta yet.");
+    expect(failureReason(down, true)).toBe("Our analysis service was down.");
+    // Real failures keep their real reasons, server or not.
+    expect(failureReason("Video is too short", false)).toBe("The recording is too short.");
+    expect(failureReason(ANALYSIS_TIMEOUT_ERROR, false)).toBe("The analysis didn't finish.");
+    expect(failureReason("boom", false)).toBe("Something went wrong on our side.");
+  });
+
+  it("treats a missing or blank ML_SERVICE_URL as no analysis server", () => {
+    expect(analysisServerConfigured({})).toBe(false);
+    expect(analysisServerConfigured({ ML_SERVICE_URL: "  " })).toBe(false);
+    expect(analysisServerConfigured({ ML_SERVICE_URL: "https://ml.example.com" })).toBe(true);
   });
 
   it("never says Ball Boi keeps trying", () => {
