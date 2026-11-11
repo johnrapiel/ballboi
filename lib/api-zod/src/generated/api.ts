@@ -1957,14 +1957,23 @@ export const GetMyCareerResponse = zod
           played: zod.number(),
         }),
       )
-      .describe("Newest first, only seasons you played in"),
+      .describe(
+        "Newest first, only seasons with a result in `results`. The record counts by decision 121",
+      ),
     results: zod
       .array(
         zod.object({
           matchId: zod.number(),
           seasonKey: zod.string(),
           opponentName: zod.string(),
-          won: zod.boolean(),
+          partnerName: zod
+            .string()
+            .nullable()
+            .describe("Your partner in doubles"),
+          won: zod
+            .boolean()
+            .nullable()
+            .describe("Null when no winner was recorded"),
           score: zod.string().describe("From your side, your games first"),
           context: zod
             .string()
@@ -1972,11 +1981,15 @@ export const GetMyCareerResponse = zod
           playoff: zod.boolean(),
           league: zod
             .boolean()
-            .describe("A league match, which opens Match detail"),
+            .describe(
+              "A league match. Every result opens Match detail (decision 151)",
+            ),
           completedAt: zod.string().nullable(),
         }),
       )
-      .describe("Newest first"),
+      .describe(
+        "Newest first. Every match you played, the same list as Profile's Results (league, Discover and Quick match, placeholders by name, none against someone blocked with you); a double default stays out (decision 170)",
+      ),
     headToHead: zod
       .array(
         zod.object({
@@ -2008,6 +2021,89 @@ export const GetMyCareerResponse = zod
   .describe(
     "Scored matches against real Ball Boi players (league, Discover, confirmed Quick matches). Walkovers count in the record, never in sets or games",
   );
+
+/**
+ * @summary Your own Upcoming matches and Results, for Profile. Results list every match you played, league, Discover and Quick match, each with `yours` (John, Nov 10)
+ */
+export const GetMyPlayerMatchesResponse = zod.object({
+  upcoming: zod.array(
+    zod.object({
+      key: zod.string(),
+      kind: zod.enum(["league", "playoff", "discover"]),
+      matchId: zod.number().nullable(),
+      scheduledAt: zod.string().nullable(),
+      playBy: zod
+        .string()
+        .nullable()
+        .describe("Last day to play (YYYY-MM-DD) when no time is set"),
+      opponentName: zod.string(),
+      opponentUserId: zod
+        .number()
+        .nullable()
+        .describe(
+          "Null for a placeholder opponent, who shows by name with no link",
+        ),
+      context: zod.string(),
+      location: zod
+        .string()
+        .nullable()
+        .describe("Only for a league match in a league you're in"),
+      mine: zod.boolean(),
+    }),
+  ),
+  results: zod.array(
+    zod.object({
+      matchId: zod.number(),
+      player1Name: zod.string(),
+      player2Name: zod.string(),
+      player1UserId: zod.number().nullable(),
+      player2UserId: zod.number().nullable(),
+      score: zod.string().describe("As stored, from player 1's side"),
+      winner: zod
+        .union([zod.literal(1), zod.literal(2), zod.literal(null)])
+        .nullable(),
+      context: zod
+        .string()
+        .describe(
+          'League name (\"League\" for a private league you\'re not in), Discover or Quick match',
+        ),
+      playoff: zod.boolean(),
+      inGrace: zod
+        .boolean()
+        .describe("Scored in the week after its round's deadline"),
+      completedAt: zod.string().nullable(),
+      mine: zod.boolean(),
+      yours: zod
+        .object({
+          won: zod
+            .boolean()
+            .nullable()
+            .describe("Null when there's no winner (a double default)"),
+          score: zod
+            .string()
+            .describe(
+              "From your side, your games first. W\/O, RET and Double default stay as they are",
+            ),
+          opponentName: zod.string(),
+          partnerName: zod
+            .string()
+            .nullable()
+            .describe("Your partner in doubles"),
+        })
+        .nullable()
+        .describe("The result from your side, when you played in it"),
+    }),
+  ),
+  headToHead: zod
+    .object({
+      you: zod.number(),
+      them: zod.number(),
+    })
+    .nullable()
+    .describe(
+      "Your wins and theirs against each other, or null when you haven't played",
+    ),
+});
 
 /**
  * @summary Milestones whose moment hasn't played yet (decision 149)
@@ -2198,9 +2294,36 @@ export const GetPlayerMatchesResponse = zod.object({
       winner: zod
         .union([zod.literal(1), zod.literal(2), zod.literal(null)])
         .nullable(),
-      context: zod.string(),
+      context: zod
+        .string()
+        .describe(
+          'League name (\"League\" for a private league you\'re not in), Discover or Quick match',
+        ),
+      playoff: zod.boolean(),
+      inGrace: zod
+        .boolean()
+        .describe("Scored in the week after its round's deadline"),
       completedAt: zod.string().nullable(),
       mine: zod.boolean(),
+      yours: zod
+        .object({
+          won: zod
+            .boolean()
+            .nullable()
+            .describe("Null when there's no winner (a double default)"),
+          score: zod
+            .string()
+            .describe(
+              "From your side, your games first. W\/O, RET and Double default stay as they are",
+            ),
+          opponentName: zod.string(),
+          partnerName: zod
+            .string()
+            .nullable()
+            .describe("Your partner in doubles"),
+        })
+        .nullable()
+        .describe("The result from your side, when you played in it"),
     }),
   ),
   headToHead: zod
@@ -2961,41 +3084,6 @@ export const GetMyLeagueWeekResponse = zod.object({
       "Leagues you play in that are still running, with where you stand",
     ),
 });
-
-/**
- * @summary What the shareable match recap shows (decision 148). Players in the match only, once it has a score
- */
-export const GetMatchRecapParams = zod.object({
-  matchId: zod.coerce.number(),
-});
-
-export const GetMatchRecapResponse = zod
-  .object({
-    matchId: zod.number(),
-    you: zod
-      .union([zod.literal(1), zod.literal(2)])
-      .describe("The side you're on"),
-    side1: zod.array(zod.string()).describe("Full names on side 1"),
-    side2: zod.array(zod.string()),
-    score: zod.string().describe("As stored, from side 1's side"),
-    winner: zod
-      .union([zod.literal(1), zod.literal(2), zod.literal(null)])
-      .nullable(),
-    playedAt: zod.string().nullable(),
-    court: zod.string().nullable(),
-    context: zod.string().describe("League name, Discover or Quick match"),
-    season: zod
-      .object({
-        name: zod.string(),
-        wins: zod.number(),
-        losses: zod.number(),
-      })
-      .nullable()
-      .describe("Your record for that match's season, after it"),
-  })
-  .describe(
-    "The shareable match recap's facts (decision 148). Aces and winners join once they pass their accuracy bars",
-  );
 
 /**
  * @summary Match detail for any match you played (league, Discover or Quick match, decision 151) - details, where it came from, the score from your side, who entered or changed it, and the Ball Boi Replay once it exists

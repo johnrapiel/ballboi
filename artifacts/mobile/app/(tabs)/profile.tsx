@@ -1,9 +1,9 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useGetMyPlayerCard } from "@workspace/api-client-react";
+import { useGetMyPlayerCard, useGetMyPlayerMatches } from "@workspace/api-client-react";
 
 import { EmptyTab, MatchTabs } from "@/components/card/MatchTabs";
 import { PlayerCard } from "@/components/card/PlayerCard";
@@ -19,6 +19,7 @@ import { useColors } from "@/hooks/useColors";
 import { upcomingHint, useOpenUpcoming, useUpcomingMatches } from "@/hooks/useUpcomingMatches";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { recordedLine, recordedThisSeason, tabFromParam, type MatchTab } from "@/lib/playerCard";
+import { myResultRows } from "@/lib/resultRow";
 import { useServerRecordings } from "@/lib/recording/api";
 
 // Profile is your player card with your matches below it (spec decisions 138
@@ -33,7 +34,9 @@ import { useServerRecordings } from "@/lib/recording/api";
 //    accuracy bar yet (G1), so it shows how many matches you recorded. Hidden
 //    with no recordings this season.
 // 5. Your matches: Upcoming matches and Results tabs, with no heading. Home's
-//    See all and /matches open these, scrolled to the right tab.
+//    See all and /matches open these, scrolled to the right tab. Results
+//    lists every match you played, newest first: league, Discover and Quick
+//    match (John, Nov 10), from the same list other players' cards use.
 // Sign out lives in Settings.
 
 export default function ProfileScreen() {
@@ -43,22 +46,25 @@ export default function ProfileScreen() {
   const params = useLocalSearchParams<{ tab?: string; at?: string }>();
   const cardQ = useGetMyPlayerCard();
   const card = cardQ.data;
+  const resultsQ = useGetMyPlayerMatches();
   const upcoming = useUpcomingMatches();
   const openUpcoming = useOpenUpcoming();
   const recordings = useServerRecordings();
   const [tab, setTab] = useState<MatchTab>(tabFromParam(params.tab) ?? "upcoming");
 
   const refetchCard = cardQ.refetch;
+  const refetchResults = resultsQ.refetch;
   const firstFocus = useRef(true);
   useFocusEffect(
     useCallback(() => {
-      // Back from Edit profile or Free times: show what was just saved.
+      // Back from Edit profile, Free times or a score you just entered: show what was just saved.
       if (firstFocus.current) {
         firstFocus.current = false;
         return;
       }
       void refetchCard();
-    }, [refetchCard]),
+      void refetchResults();
+    }, [refetchCard, refetchResults]),
   );
 
   // Home's See all and /matches land on the tabs, scrolled to them.
@@ -73,11 +79,12 @@ export default function ProfileScreen() {
 
   const refresh = () => {
     void cardQ.refetch();
+    void resultsQ.refetch();
     upcoming.refetch();
     void recordings.refetch();
   };
 
-  const results = upcoming.week?.results ?? [];
+  const results = useMemo(() => myResultRows(resultsQ.data?.results ?? []), [resultsQ.data]);
   const seasonRecordings = card ? recordedThisSeason(recordings.data ?? [], card.season) : [];
 
   return (
@@ -96,7 +103,7 @@ export default function ProfileScreen() {
         ref={scroll}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space2, paddingBottom: insets.bottom + 96, gap: spacing.space6 }}
-        refreshControl={<RefreshControl refreshing={cardQ.isRefetching || upcoming.isRefetching} onRefresh={refresh} tintColor={c.ink} />}
+        refreshControl={<RefreshControl refreshing={cardQ.isRefetching || upcoming.isRefetching || resultsQ.isRefetching} onRefresh={refresh} tintColor={c.ink} />}
       >
         {cardQ.isLoading ? (
           <View accessible accessibilityLabel="Loading your player card" style={{ height: 320, borderRadius: radius.radiusCard, backgroundColor: c.sand }} />
@@ -139,21 +146,20 @@ export default function ProfileScreen() {
 
         <View onLayout={(e) => setTabsY(e.nativeEvent.layout.y)} style={{ gap: spacing.space2 }}>
           <MatchTabs tab={tab} onChange={setTab} counts={{ upcoming: upcoming.items.length, results: results.length }} />
-          {upcoming.isLoading ? (
-            <ActivityIndicator color={c.ink} accessibilityLabel="Loading your matches" style={{ marginTop: spacing.space4 }} />
-          ) : upcoming.isError && !upcoming.week ? (
-            <Card style={{ gap: spacing.space2 }}>
-              <Text variant="bodyStrong">Couldn't load your matches</Text>
-              <Text variant="small" tone="inkMuted">
-                Pull down to try again.
-              </Text>
-            </Card>
-          ) : tab === "upcoming" ? (
-            upcoming.items.length === 0 ? (
+          {tab === "upcoming" ? (
+            upcoming.isLoading ? (
+              <ActivityIndicator color={c.ink} accessibilityLabel="Loading your matches" style={{ marginTop: spacing.space4 }} />
+            ) : upcoming.isError && !upcoming.week ? (
+              <LoadError title="Couldn't load your matches" />
+            ) : upcoming.items.length === 0 ? (
               <EmptyTab title="No upcoming matches" message="Your next league match or a match you set up in Discover shows up here." />
             ) : (
               <UpcomingRows items={upcoming.items} onOpen={openUpcoming} hint={upcomingHint} />
             )
+          ) : resultsQ.isLoading ? (
+            <ActivityIndicator color={c.ink} accessibilityLabel="Loading your results" style={{ marginTop: spacing.space4 }} />
+          ) : resultsQ.isError && !resultsQ.data ? (
+            <LoadError title={isOfflineError(resultsQ.error) ? OFFLINE_MESSAGE : "Couldn't load your results"} />
           ) : results.length === 0 ? (
             <EmptyTab title="No results yet" message="Once you or your opponent enters a score, the result shows up here." />
           ) : (
@@ -167,5 +173,19 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
     </TabScreen>
+  );
+}
+
+/** A list that didn't load. Pull to refresh tries again. */
+function LoadError({ title }: { title: string }) {
+  return (
+    <Card style={{ gap: spacing.space2 }}>
+      <Text variant="bodyStrong" accessibilityRole="alert">
+        {title}
+      </Text>
+      <Text variant="small" tone="inkMuted">
+        Pull down to try again.
+      </Text>
+    </Card>
   );
 }

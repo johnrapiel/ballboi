@@ -162,7 +162,6 @@ import type {
   MatchPlan,
   MatchPlanShiftInput,
   MatchPlansWithUser,
-  MatchRecap,
   MatchRemindersRunInput,
   MatchShot,
   MatchStatistics,
@@ -4282,6 +4281,81 @@ export function useGetMyCareer<
 }
 
 /**
+ * @summary Your own Upcoming matches and Results, for Profile. Results list every match you played, league, Discover and Quick match, each with `yours` (John, Nov 10)
+ */
+export const getGetMyPlayerMatchesUrl = () => {
+  return `/api/player-cards/me/matches`;
+};
+
+export const getMyPlayerMatches = async (
+  options?: RequestInit,
+): Promise<PlayerMatches> => {
+  return customFetch<PlayerMatches>(getGetMyPlayerMatchesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyPlayerMatchesQueryKey = () => {
+  return [`/api/player-cards/me/matches`] as const;
+};
+
+export const getGetMyPlayerMatchesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyPlayerMatches>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyPlayerMatches>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyPlayerMatchesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMyPlayerMatches>>
+  > = ({ signal }) => getMyPlayerMatches({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyPlayerMatches>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyPlayerMatchesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyPlayerMatches>>
+>;
+export type GetMyPlayerMatchesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Your own Upcoming matches and Results, for Profile. Results list every match you played, league, Discover and Quick match, each with `yours` (John, Nov 10)
+ */
+
+export function useGetMyPlayerMatches<
+  TData = Awaited<ReturnType<typeof getMyPlayerMatches>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyPlayerMatches>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyPlayerMatchesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Milestones whose moment hasn't played yet (decision 149)
  */
 export const getGetMyNewMilestonesUrl = () => {
@@ -5974,93 +6048,6 @@ export function useGetMyLeagueWeek<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetMyLeagueWeekQueryOptions(options);
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-/**
- * @summary What the shareable match recap shows (decision 148). Players in the match only, once it has a score
- */
-export const getGetMatchRecapUrl = (matchId: number) => {
-  return `/api/me/matches/${matchId}/recap`;
-};
-
-export const getMatchRecap = async (
-  matchId: number,
-  options?: RequestInit,
-): Promise<MatchRecap> => {
-  return customFetch<MatchRecap>(getGetMatchRecapUrl(matchId), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getGetMatchRecapQueryKey = (matchId: number) => {
-  return [`/api/me/matches/${matchId}/recap`] as const;
-};
-
-export const getGetMatchRecapQueryOptions = <
-  TData = Awaited<ReturnType<typeof getMatchRecap>>,
-  TError = ErrorType<ErrorResponse>,
->(
-  matchId: number,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getMatchRecap>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey = queryOptions?.queryKey ?? getGetMatchRecapQueryKey(matchId);
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMatchRecap>>> = ({
-    signal,
-  }) => getMatchRecap(matchId, { signal, ...requestOptions });
-
-  return {
-    queryKey,
-    queryFn,
-    enabled: !!matchId,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getMatchRecap>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type GetMatchRecapQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getMatchRecap>>
->;
-export type GetMatchRecapQueryError = ErrorType<ErrorResponse>;
-
-/**
- * @summary What the shareable match recap shows (decision 148). Players in the match only, once it has a score
- */
-
-export function useGetMatchRecap<
-  TData = Awaited<ReturnType<typeof getMatchRecap>>,
-  TError = ErrorType<ErrorResponse>,
->(
-  matchId: number,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getMatchRecap>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetMatchRecapQueryOptions(matchId, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

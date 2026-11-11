@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
 
 import { cardSpoken } from "@/lib/playerCard";
-import { earnedLine, knownMilestones, MILESTONE_ICONS, MILESTONE_TITLES, milestoneAnnouncement, milestonesSpoken, scoreEnteredAnnouncement } from "@/lib/milestones";
+import {
+  earnedLine,
+  knownMilestones,
+  MILESTONE_HOW,
+  MILESTONE_ICONS,
+  MILESTONE_SHORT,
+  MILESTONE_TITLES,
+  milestoneAnnouncement,
+  milestoneBadgeLabel,
+  milestonesSpoken,
+  scoreEnteredAnnouncement,
+} from "@/lib/milestones";
 import { BRUSH_PATHS } from "@/components/icons/brushPaths";
 
 // Milestones (decisions 149 and 150) and the score-entered moment's words.
@@ -31,6 +42,46 @@ describe("milestones", () => {
     expect(earnedLine("2026-10-03T18:00:00Z")).toBe("Earned Oct 3, 2026");
     expect(milestoneAnnouncement("first_win")).toBe("Milestone: First win");
     expect(milestoneAnnouncement("win_streak_10")).toBe("Milestone: 10-match win streak");
+  });
+});
+
+describe("milestone labels", () => {
+  it("gives every badge a short label under it", () => {
+    expect(MILESTONE_SHORT).toEqual({
+      first_win: "First win",
+      first_ball_boi: "First Ball Boi",
+      win_streak_5: "5 wins in a row",
+      win_streak_10: "10 wins in a row",
+    });
+    // Short labels fit under a small badge: never longer than the full title.
+    for (const [kind, short] of Object.entries(MILESTONE_SHORT)) {
+      expect(short.length).toBeLessThanOrEqual(MILESTONE_TITLES[kind as keyof typeof MILESTONE_TITLES].length);
+      expect(short).not.toMatch(/[\u2013\u2014]/);
+    }
+  });
+
+  it("says how each milestone is earned in one plain line", () => {
+    expect(MILESTONE_HOW).toEqual({
+      first_win: "Win a league, Discover or confirmed Quick match.",
+      first_ball_boi: "Record a match with Ball Boi and save the recording.",
+      win_streak_5: "Win 5 league, Discover or confirmed Quick matches in a row.",
+      win_streak_10: "Win 10 league, Discover or confirmed Quick matches in a row.",
+    });
+    for (const line of Object.values(MILESTONE_HOW)) {
+      expect(line.split(". ").length).toBe(1);
+      expect(line).not.toMatch(/[\u2013\u2014]/);
+    }
+  });
+
+  it("covers the same milestones as the titles", () => {
+    const kinds = Object.keys(MILESTONE_TITLES).sort();
+    expect(Object.keys(MILESTONE_SHORT).sort()).toEqual(kinds);
+    expect(Object.keys(MILESTONE_HOW).sort()).toEqual(kinds);
+  });
+
+  it("reads a badge button as the full title and the date", () => {
+    expect(milestoneBadgeLabel({ kind: "first_ball_boi", earnedAt: "2026-10-03T18:00:00Z" })).toBe("First Ball Boi match, earned Oct 3, 2026");
+    expect(milestoneBadgeLabel({ kind: "win_streak_5", earnedAt: "not a date" })).toBe("5-match win streak, earned");
   });
 });
 

@@ -2,32 +2,23 @@ import { Icon } from "@/components/Icon";
 import React from "react";
 import { Pressable, View } from "react-native";
 
-import type { LeagueWeekResult } from "@workspace/api-client-react";
-
 import { ResultTag, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { versusLine, versusSpoken } from "@/lib/doubles";
-import { LATE_RESULT } from "@/lib/leagueSchedule";
+import { resultRowText, type ResultRowData } from "@/lib/resultRow";
+
+export type { ResultRowData } from "@/lib/resultRow";
 
 // A result on Profile's Results and Career's seasons: W in green or L in red with the letter,
 // never color alone (John, Nov 6), then the score from your side and who it
-// was against. The whole row is one VoiceOver button that opens Match detail.
-
-/** What a row needs: your results from the league week, or a career result. */
-export type ResultRowData = Pick<LeagueWeekResult, "won" | "score" | "opponentName" | "leagueName" | "playoff" | "inGrace"> &
-  Partial<Pick<LeagueWeekResult, "partnerName">>;
+// was against. A double default has no winner, so no tag; its score reads
+// "Double default". The whole row is one VoiceOver button that opens Match detail.
 
 /** With no onPress, the row is plain text with no chevron. Every result opens Match detail today (decision 151). */
 export function ResultRow({ r, last, onPress }: { r: ResultRowData; last: boolean; onPress?: () => void }) {
   const c = useColors();
-  const outcome = r.won ? "Won" : "Lost";
   // D8: a doubles result reads "You and Sam vs. Jo and Lee"; VoiceOver hears the names in full.
-  const others = r.opponentName.split(" & ");
-  const who = r.partnerName ? versusLine(r.partnerName, others) : `vs. ${r.opponentName}`;
-  const sub = [who, r.leagueName, r.playoff ? "Playoffs" : null, r.inGrace ? LATE_RESULT : null]
-    .filter(Boolean)
-    .join(" · ");
+  const { sub, label } = resultRowText(r);
   const row = {
     minHeight: 56,
     flexDirection: "row" as const,
@@ -40,7 +31,12 @@ export function ResultRow({ r, last, onPress }: { r: ResultRowData; last: boolea
   };
   const body = (
     <>
-      <ResultTag won={r.won} />
+      {/* No winner: a hidden tag keeps the scores lined up at every text size. */}
+      {r.won == null ? (
+        <ResultTag won={false} style={{ opacity: 0 }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
+      ) : (
+        <ResultTag won={r.won} />
+      )}
       <View style={{ flex: 1, gap: 2 }}>
         <Text variant="bodyStrong" style={{ fontVariant: ["lining-nums", "tabular-nums"] }}>
           {r.score}
@@ -52,7 +48,6 @@ export function ResultRow({ r, last, onPress }: { r: ResultRowData; last: boolea
       {onPress ? <Icon name="chevron.right" size={13} tintColor={c.inkMuted} /> : null}
     </>
   );
-  const label = `${outcome} ${r.score}. ${r.partnerName ? sub.replace(who, versusSpoken(r.partnerName, others)) : sub}`;
   if (!onPress) {
     return (
       <View accessible accessibilityLabel={label} style={row}>

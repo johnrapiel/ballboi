@@ -9,7 +9,6 @@ import {
   opponentNames,
   partnerName,
   PARTNERS_HINT,
-  recapTeams,
   shortName,
   sideOf,
   teamName,
@@ -60,8 +59,8 @@ describe("D8: four names on a match", () => {
     expect(andJoin(["A", "B", "C"])).toBe("A, B and C");
   });
 
-  it("D7: the recap line in short team names", () => {
-    expect(recapTeams(["John Rapiel", "Sam Lee"], ["Jo Park", "Lee King"])).toBe("John R. & Sam L. def. Jo P. & Lee K.");
+  it("D7: short names and a fallback first name", () => {
+    expect(shortName("Sam Lee")).toBe("Sam L.");
     expect(shortName("Cher")).toBe("Cher");
     expect(firstName("")).toBe("Player");
   });

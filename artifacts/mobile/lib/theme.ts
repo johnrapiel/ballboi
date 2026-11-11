@@ -6,21 +6,15 @@ import colors from "@/constants/colors";
  * navy ink); Dark Mode is Night (warm charcoal, ivory ink). It switches live
  * when the phone switches.
  *
- * One exception: a shareable recap always uses the Day look, whatever the
- * phone is set to. Code that renders one wraps it in `<DayLook>`
- * (components/DayLook.tsx), which `useColors` respects.
- *
  * Pure, so it's unit tested in Node (lib/__tests__/theme.test.ts).
  */
 export type Scheme = "light" | "dark";
 
 /**
- * The scheme a part of the app draws in: an override (a recap's Day look)
- * wins, otherwise the iPhone's appearance. Anything the phone reports other
+ * The scheme the app draws in: the iPhone's appearance. Anything the phone reports other
  * than "dark" (light, or unknown before the first read) is Day.
  */
-export function resolveScheme(system: string | null | undefined, override?: Scheme | null): Scheme {
-  if (override) return override;
+export function resolveScheme(system: string | null | undefined): Scheme {
   return system === "dark" ? "dark" : "light";
 }
 

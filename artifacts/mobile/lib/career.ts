@@ -60,6 +60,4 @@ export function seasonResults(c: Pick<Career, "results">, key: string): Career["
 }
 
 /** A career result as Profile's Results row reads it. */
-export function careerResultRow(r: Career["results"][number]): { won: boolean; score: string; opponentName: string; leagueName: string; playoff: boolean; inGrace: boolean } {
-  return { won: r.won, score: r.score, opponentName: r.opponentName, leagueName: r.context, playoff: r.playoff, inGrace: false };
-}
+export { careerResultRow } from "@/lib/resultRow";

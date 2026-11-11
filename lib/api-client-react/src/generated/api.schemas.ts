@@ -651,13 +651,22 @@ export type CareerResultsItem = {
   matchId: number;
   seasonKey: string;
   opponentName: string;
-  won: boolean;
+  /**
+   * Your partner in doubles
+   * @nullable
+   */
+  partnerName: string | null;
+  /**
+   * Null when no winner was recorded
+   * @nullable
+   */
+  won: boolean | null;
   /** From your side, your games first */
   score: string;
   /** League name, Discover or Quick match */
   context: string;
   playoff: boolean;
-  /** A league match, which opens Match detail */
+  /** A league match. Every result opens Match detail (decision 151) */
   league: boolean;
   /** @nullable */
   completedAt: string | null;
@@ -705,73 +714,14 @@ export interface Career {
   sets: CareerWonLost;
   games: CareerWonLost;
   tiebreaks: CareerWonLost;
-  /** Newest first, only seasons you played in */
+  /** Newest first, only seasons with a result in `results`. The record counts by decision 121 */
   seasons: CareerSeasonsItem[];
-  /** Newest first */
+  /** Newest first. Every match you played, the same list as Profile's Results (league, Discover and Quick match, placeholders by name, none against someone blocked with you); a double default stays out (decision 170) */
   results: CareerResultsItem[];
   /** Most played first; never a player blocked with you */
   headToHead: CareerHeadToHeadItem[];
   /** Milestones you earned, oldest first (decision 150) */
   milestones: Milestone[];
-}
-
-/**
- * The side you're on
- */
-export type MatchRecapYou = (typeof MatchRecapYou)[keyof typeof MatchRecapYou];
-
-export const MatchRecapYou = {
-  NUMBER_1: 1,
-  NUMBER_2: 2,
-} as const;
-
-/**
- * @nullable
- */
-export type MatchRecapWinner =
-  | (typeof MatchRecapWinner)[keyof typeof MatchRecapWinner]
-  | null;
-
-export const MatchRecapWinner = {
-  NUMBER_1: 1,
-  NUMBER_2: 2,
-} as const;
-
-/**
- * Your record for that match's season, after it
- * @nullable
- */
-export type MatchRecapSeason = {
-  name: string;
-  wins: number;
-  losses: number;
-} | null;
-
-/**
- * The shareable match recap's facts (decision 148). Aces and winners join once they pass their accuracy bars
- */
-export interface MatchRecap {
-  matchId: number;
-  /** The side you're on */
-  you: MatchRecapYou;
-  /** Full names on side 1 */
-  side1: string[];
-  side2: string[];
-  /** As stored, from side 1's side */
-  score: string;
-  /** @nullable */
-  winner: MatchRecapWinner;
-  /** @nullable */
-  playedAt: string | null;
-  /** @nullable */
-  court: string | null;
-  /** League name, Discover or Quick match */
-  context: string;
-  /**
-   * Your record for that match's season, after it
-   * @nullable
-   */
-  season: MatchRecapSeason;
 }
 
 /**
@@ -886,6 +836,26 @@ export const PlayerMatchesResultsItemWinner = {
   NUMBER_2: 2,
 } as const;
 
+/**
+ * The result from your side, when you played in it
+ * @nullable
+ */
+export type PlayerMatchesResultsItemYours = {
+  /**
+   * Null when there's no winner (a double default)
+   * @nullable
+   */
+  won: boolean | null;
+  /** From your side, your games first. W/O, RET and Double default stay as they are */
+  score: string;
+  opponentName: string;
+  /**
+   * Your partner in doubles
+   * @nullable
+   */
+  partnerName: string | null;
+} | null | null;
+
 export type PlayerMatchesResultsItem = {
   matchId: number;
   player1Name: string;
@@ -898,10 +868,19 @@ export type PlayerMatchesResultsItem = {
   score: string;
   /** @nullable */
   winner: PlayerMatchesResultsItemWinner;
+  /** League name ("League" for a private league you're not in), Discover or Quick match */
   context: string;
+  playoff: boolean;
+  /** Scored in the week after its round's deadline */
+  inGrace: boolean;
   /** @nullable */
   completedAt: string | null;
   mine: boolean;
+  /**
+   * The result from your side, when you played in it
+   * @nullable
+   */
+  yours: PlayerMatchesResultsItemYours;
 };
 
 /**
