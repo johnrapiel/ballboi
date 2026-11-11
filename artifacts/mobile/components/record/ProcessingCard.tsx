@@ -12,6 +12,13 @@
 // - D18: a recording the server is still waiting for, whose video isn't on
 //   this phone any more (a reinstall), says it didn't upload and offers Remove.
 // - D6: a Quick match with no score offers Enter score.
+//
+// Card actions (John, Nov 10, option B, decision 178): the card shows only
+// the opponent, the date, the status and its reason. Report a problem and
+// Remove (or Discard, while the video is still on the phone) live behind a
+// More button at the top right, in the native action sheet, like Match
+// detail's More options. Steps that move the match on (Try again, Upload now
+// on cellular, Enter score) stay on the card as buttons.
 
 import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
@@ -19,11 +26,11 @@ import { useNetworkState, NetworkStateType } from "expo-network";
 import { useRouter } from "expo-router";
 import { Icon, type IconName } from "@/components/Icon";
 import React, { useState } from "react";
-import { AccessibilityInfo, Alert, Pressable, View } from "react-native";
+import { AccessibilityInfo, ActionSheetIOS, ActivityIndicator, Alert, Platform, Pressable, View } from "react-native";
 
-import { DestructiveTextButton } from "@/components/record/DestructiveTextButton";
-import { Button, Card, Text, TextButton } from "@/components/ui";
-import { spacing } from "@/constants/tokens";
+import { PlainIconButton } from "@/components/Choice";
+import { Button, Card, Text } from "@/components/ui";
+import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import {
   recordedDay,
@@ -114,22 +121,29 @@ function CardBody({
   status,
   onPress,
   pressHint,
+  more,
   children,
 }: {
   opponentName: string;
   when: string;
   status: Status;
+  /**
+   * The More button's sheet. `busy` names what's running ("Removing"): the
+   * button turns into a spinner with that label until it finishes.
+   */
+  more: { onPress: () => void; hint: string; busy?: string };
   /** Makes the top of the card a button, like opening the replay. */
   onPress?: () => void;
   pressHint?: string;
-  /** Extra controls under the status, like Discard. */
+  /** Extra buttons under the status, like Enter score. */
   children?: React.ReactNode;
 }) {
   const c = useColors();
   const spoken = [`Match vs ${opponentName}`, when, status.text, status.detail].filter(Boolean).join(". ");
   const summary = (
     <>
-      <View>
+      {/* Leaves room for the More button at the top right. */}
+      <View style={{ paddingEnd: MIN_TAP }}>
         <Text variant="bodyStrong">vs {opponentName}</Text>
         <Text variant="small" tone="inkMuted">
           {when}
@@ -150,7 +164,7 @@ function CardBody({
     </>
   );
   return (
-    <Card style={{ gap: spacing.space3 }}>
+    <Card style={{ gap: spacing.space3, position: "relative" }}>
       {onPress ? (
         <Pressable
           onPress={onPress}
@@ -166,25 +180,74 @@ function CardBody({
           {summary}
         </View>
       )}
+      {/* After the summary, so VoiceOver reaches it right after the card's details. */}
+      <View style={{ position: "absolute", top: MORE_INSET, end: MORE_INSET }}>
+        {more.busy ? (
+          <View
+            accessible
+            accessibilityLabel={more.busy}
+            accessibilityState={{ busy: true }}
+            style={{ width: MIN_TAP, height: MIN_TAP, alignItems: "center", justifyContent: "center" }}
+          >
+            <ActivityIndicator color={c.ink} />
+          </View>
+        ) : (
+          <PlainIconButton
+            symbol="ellipsis"
+            size={MORE_ICON}
+            label={`More options for your match with ${opponentName}`}
+            hint={more.hint}
+            onPress={more.onPress}
+          />
+        )}
+      </View>
       {status.action ? <Button variant="secondary" label={status.action.label} onPress={status.action.onPress} /> : null}
       {children}
     </Card>
   );
 }
 
-/** "Something not working?" on a card (B3), with the match attached. */
-function ReportProblem({ matchId, opponentName }: { matchId: number; opponentName: string }) {
+/** The brush ellipsis, drawn at the plain icon button's default size. */
+const MORE_ICON = 22;
+/** Sits the icon inside the card's padding while keeping the full 44pt target. */
+const MORE_INSET = spacing.space4 - (MIN_TAP - MORE_ICON) / 2;
+
+/** Report a problem on a card (was "Something not working?", B3), with the match attached. */
+function useReportProblem() {
   const router = useRouter();
-  return (
-    <TextButton
-      label="Something not working?"
-      accessibilityLabel={`Something not working? Match vs ${opponentName}`}
-      accessibilityHint="Tell us what went wrong. It goes to Ball Boi support."
-      onPress={() =>
-        router.push({ pathname: "/feedback", params: { source: "processing", matchId: String(matchId) } })
-      }
-    />
-  );
+  return (matchId: number) =>
+    router.push({ pathname: "/feedback", params: { source: "processing", matchId: String(matchId) } });
+}
+
+/**
+ * The card's More options: Report a problem, then the red remove action if
+ * there is one, then Cancel. The native action sheet on iOS, an alert elsewhere.
+ */
+function showMoreOptions(report: () => void, destructive?: { label: string; run: () => void }) {
+  const options = [{ label: "Report a problem", run: report }];
+  if (destructive) options.push(destructive);
+  const labels = options.map((o) => o.label);
+  if (Platform.OS === "ios") {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: [...labels, "Cancel"],
+        cancelButtonIndex: labels.length,
+        destructiveButtonIndex: destructive ? labels.length - 1 : undefined,
+      },
+      (i) => {
+        if (i < options.length) options[i].run();
+      },
+    );
+    return;
+  }
+  Alert.alert("More options", undefined, [
+    ...options.map((o) => ({
+      text: o.label,
+      onPress: o.run,
+      style: o === destructive ? ("destructive" as const) : ("default" as const),
+    })),
+    { text: "Cancel", style: "cancel" as const },
+  ]);
 }
 
 /** Opens the score prompt from a card, for a Quick match whose score is still missing (D6). */
@@ -216,6 +279,7 @@ export function LocalProcessingCard({
   const cellularOn = useUploadOnCellular();
   const { getToken } = useAuth();
   const enterScore = useEnterScore();
+  const report = useReportProblem();
   const [discarding, setDiscarding] = useState(false);
 
   const discard = async () => {
@@ -244,6 +308,11 @@ export function LocalProcessingCard({
       opponentName={rec.opponentName}
       when={recordedDay(rec.recordedAt)}
       status={localStatus(rec, onWifi, cellularOn)}
+      more={{
+        busy: discarding ? "Discarding" : undefined,
+        hint: "Report a problem or discard this recording.",
+        onPress: () => showMoreOptions(() => report(rec.matchId), { label: "Discard recording", run: confirm }),
+      }}
     >
       {needsScore ? (
         <Button
@@ -253,14 +322,6 @@ export function LocalProcessingCard({
           onPress={() => enterScore({ matchId: rec.matchId, opponentName: rec.opponentName, recId: rec.id })}
         />
       ) : null}
-      <DestructiveTextButton
-        label="Discard"
-        accessibilityLabel={`Discard recording, match vs ${rec.opponentName}`}
-        accessibilityHint="Asks before deleting it from this phone. It won't be analyzed."
-        loading={discarding}
-        onPress={confirm}
-      />
-      <ReportProblem matchId={rec.matchId} opponentName={rec.opponentName} />
     </CardBody>
   );
 }
@@ -274,6 +335,7 @@ export function ServerProcessingCard({ rec, lost = false }: { rec: ServerRecordi
   const queryClient = useQueryClient();
   const { getToken } = useAuth();
   const enterScore = useEnterScore();
+  const report = useReportProblem();
   const [removing, setRemoving] = useState(false);
   const status = serverStatus(rec, lost);
   const canRemove = lost || rec.stage === "failed";
@@ -314,6 +376,12 @@ export function ServerProcessingCard({ rec, lost = false }: { rec: ServerRecordi
         ready ? () => router.push({ pathname: "/replay/[matchId]", params: { matchId: String(rec.matchId) } }) : undefined
       }
       pressHint={ready ? "Opens the replay" : undefined}
+      more={{
+        busy: removing ? "Removing" : undefined,
+        hint: canRemove ? "Report a problem or remove this recording." : "Report a problem with this recording.",
+        onPress: () =>
+          showMoreOptions(() => report(rec.matchId), canRemove ? { label: "Remove recording", run: confirm } : undefined),
+      }}
     >
       {needsScore ? (
         <Button
@@ -323,16 +391,6 @@ export function ServerProcessingCard({ rec, lost = false }: { rec: ServerRecordi
           onPress={() => enterScore({ matchId: rec.matchId, opponentName: rec.opponentName })}
         />
       ) : null}
-      {canRemove ? (
-        <DestructiveTextButton
-          label="Remove"
-          accessibilityLabel={`Remove recording, match vs ${rec.opponentName}`}
-          accessibilityHint="Asks before removing it."
-          loading={removing}
-          onPress={confirm}
-        />
-      ) : null}
-      <ReportProblem matchId={rec.matchId} opponentName={rec.opponentName} />
     </CardBody>
   );
 }
