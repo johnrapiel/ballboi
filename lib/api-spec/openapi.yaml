@@ -1381,6 +1381,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Career'
+  /player-cards/me/matches:
+    get:
+      operationId: getMyPlayerMatches
+      tags: [players]
+      summary: Your own Upcoming matches and Results, for Profile. Results list every match you played, league, Discover and Quick match, each with `yours` (John, Nov 10)
+      responses:
+        '200':
+          description: Your matches
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerMatches'
   /player-cards/me/milestones/new:
     get:
       operationId: getMyNewMilestones
@@ -8609,7 +8621,7 @@ components:
           $ref: '#/components/schemas/CareerWonLost'
         seasons:
           type: array
-          description: Newest first, only seasons you played in
+          description: Newest first, only seasons with a result in `results`. The record counts by decision 121
           items:
             type: object
             properties:
@@ -8630,7 +8642,7 @@ components:
             required: [key, name, from, to, wins, losses, played]
         results:
           type: array
-          description: Newest first
+          description: Newest first. Every match you played, the same list as Profile's Results (league, Discover and Quick match, placeholders by name, none against someone blocked with you); a double default stays out (decision 170)
           items:
             type: object
             properties:
@@ -8640,8 +8652,12 @@ components:
                 type: string
               opponentName:
                 type: string
+              partnerName:
+                type: [string, 'null']
+                description: Your partner in doubles
               won:
-                type: boolean
+                type: [boolean, 'null']
+                description: Null when no winner was recorded
               score:
                 type: string
                 description: From your side, your games first
@@ -8652,10 +8668,10 @@ components:
                 type: boolean
               league:
                 type: boolean
-                description: A league match, which opens Match detail
+                description: A league match. Every result opens Match detail (decision 151)
               completedAt:
                 type: [string, 'null']
-            required: [matchId, seasonKey, opponentName, won, score, context, playoff, league, completedAt]
+            required: [matchId, seasonKey, opponentName, partnerName, won, score, context, playoff, league, completedAt]
         headToHead:
           type: array
           description: Most played first; never a player blocked with you
@@ -8866,11 +8882,33 @@ components:
                 enum: [1, 2, null]
               context:
                 type: string
+                description: League name ("League" for a private league you're not in), Discover or Quick match
+              playoff:
+                type: boolean
+              inGrace:
+                type: boolean
+                description: Scored in the week after its round's deadline
               completedAt:
                 type: [string, 'null']
               mine:
                 type: boolean
-            required: [matchId, player1Name, player2Name, player1UserId, player2UserId, score, winner, context, completedAt, mine]
+              yours:
+                type: [object, 'null']
+                description: The result from your side, when you played in it
+                properties:
+                  won:
+                    type: [boolean, 'null']
+                    description: Null when there's no winner (a double default)
+                  score:
+                    type: string
+                    description: From your side, your games first. W/O, RET and Double default stay as they are
+                  opponentName:
+                    type: string
+                  partnerName:
+                    type: [string, 'null']
+                    description: Your partner in doubles
+                required: [won, score, opponentName, partnerName]
+            required: [matchId, player1Name, player2Name, player1UserId, player2UserId, score, winner, context, playoff, inGrace, completedAt, mine, yours]
         headToHead:
           type: [object, 'null']
           description: Your wins and theirs against each other, or null when you haven't played

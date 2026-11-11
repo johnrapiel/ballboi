@@ -6,10 +6,12 @@
 // 2b. Milestones (decision 150): each earned badge with its title and the
 //    date it was earned.
 // 3. Seasons: each season you played in with its record; a row opens that
-//    season's results.
+//    season's results. They list every match you played, the same as
+//    Profile's Results (John, Nov 10), so placeholders and unconfirmed Quick
+//    matches show there even though they don't count in the numbers.
 // 4. Head-to-head: everyone you've played, "Sam Patel · 2-1", opening their
 //    card. Blocked players never show.
-// League, Discover and confirmed Quick matches count; unconfirmed Quick
+// In the numbers, league, Discover and confirmed Quick matches count; unconfirmed Quick
 // matches (G2), cancelled matches and walkovers' games don't. Ball Boi
 // career stats aren't here yet: they join once they pass their accuracy
 // bars (G1), as their own section under the numbers (see lib/career.ts).
@@ -67,7 +69,7 @@ export default function CareerScreen() {
             </Text>
             <Button label="Try again" variant="secondary" loading={q.isRefetching} onPress={() => void q.refetch()} />
           </Card>
-        ) : career.played === 0 && !milestones.length ? (
+        ) : career.played === 0 && !career.results.length && !milestones.length ? (
           <EmptyTab
             title="No results yet"
             message="Once you play a league, Discover or Quick match and a score is entered, your career starts here."

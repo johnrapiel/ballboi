@@ -16,8 +16,14 @@
 // - A private league's name shows only to its members; others see "League".
 // - A court shows only where your own list would show it: a league match in
 //   a league you're in. Never a Discover match's court.
+//
+// Your own Profile > Results uses this too (GET /player-cards/me/matches,
+// John, Nov 10): every match you played, league, Discover and Quick match,
+// with `yours` read from your side. Your own Quick match against someone who
+// hasn't answered "Was that you?" is yours, against the name you typed.
 
 import { roundPhase, todayFor } from "./leagueCalendar.js";
+import { flipScore } from "./tennisScore.js";
 
 export interface PMMatch {
   id: number;
@@ -35,6 +41,10 @@ export interface PMMatch {
   completedAt: string | null;
   location: string | null;
   voidedAt: Date | null;
+  /** "discover" or "discover_open_match" for a Discover match. */
+  generatedFrom: string | null;
+  /** Scored in the week after its round's deadline. */
+  inGrace: boolean;
 }
 
 export interface PMPlayer {
@@ -112,8 +122,25 @@ export interface PMResult {
   score: string;
   winner: 1 | 2 | null;
   context: string;
+  playoff: boolean;
+  /** Scored in the week after its round's deadline. */
+  inGrace: boolean;
   completedAt: string | null;
   mine: boolean;
+  /** The result from the viewer's side, when the viewer played in it. */
+  yours: PMYours | null;
+}
+
+/** A result as the viewer reads it on their own Results: their games first. */
+export interface PMYours {
+  /** Null when there's no winner: a double default. */
+  won: boolean | null;
+  /** From your side. W/O, RET and Double default stay as they are. */
+  score: string;
+  /** The other side: "Sam Lee", or "Jo Park & Lee Kim" in doubles. */
+  opponentName: string;
+  /** Your partner in doubles, else null. */
+  partnerName: string | null;
 }
 
 export interface PMHeadToHead {
@@ -140,13 +167,23 @@ export function playerMatches(input: PMInput): { upcoming: PMUpcoming[]; results
     return o != null && input.blocked.has(o);
   });
   const context = (m: PMMatch) => {
-    if (m.leagueId == null) return "Quick match";
+    if (m.leagueId == null) return m.generatedFrom === "discover" || m.generatedFrom === "discover_open_match" ? "Discover" : "Quick match";
     const l = input.leagues.get(m.leagueId);
     if (!l) return "League";
     return l.visibility === "open" || input.viewerLeagueIds.has(l.id) ? l.name : "League";
   };
   const teamName = (m: PMMatch, side: 1 | 2) => team(m, side).map(name).join(" & ");
   const singleUser = (m: PMMatch, side: 1 | 2) => (team(m, side).length === 1 ? userIdOf(team(m, side)[0]) : null);
+
+  const yoursFor = (m: PMMatch, side: 1 | 2, winner: 1 | 2 | null): PMYours => {
+    const partner = team(m, side).filter((id) => owner(id) !== input.viewer);
+    return {
+      won: winner == null ? null : winner === side,
+      score: side === 1 ? m.score! : flipScore(m.score!),
+      opponentName: teamName(m, side === 1 ? 2 : 1),
+      partnerName: team(m, side).length > 1 && partner.length ? partner.map(name).join(" & ") : null,
+    };
+  };
 
   const upcoming: PMUpcoming[] = [];
   const results: PMResult[] = [];
@@ -168,6 +205,7 @@ export function playerMatches(input: PMInput): { upcoming: PMUpcoming[]; results
     if (scored) {
       const winner: 1 | 2 | null =
         m.winnerId == null ? null : team(m, 1).includes(m.winnerId) ? 1 : team(m, 2).includes(m.winnerId) ? 2 : null;
+      const viewerSide = sideOf(m, input.viewer);
       results.push({
         matchId: m.id,
         player1Name: teamName(m, 1),
@@ -177,10 +215,12 @@ export function playerMatches(input: PMInput): { upcoming: PMUpcoming[]; results
         score: m.score!,
         winner,
         context: context(m),
+        playoff: m.playoffBracketId != null,
+        inGrace: m.inGrace,
         completedAt: m.completedAt,
         mine,
+        yours: viewerSide == null ? null : yoursFor(m, viewerSide, winner),
       });
-      const viewerSide = sideOf(m, input.viewer);
       if (viewerSide === them && winner != null) {
         if (winner === viewerSide) h2h = { ...h2h, you: h2h.you + 1 };
         else h2h = { ...h2h, them: h2h.them + 1 };

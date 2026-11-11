@@ -355,6 +355,7 @@ export * from "./playerMatches";
 export * from "./playerMatchesHeadToHead";
 export * from "./playerMatchesResultsItem";
 export * from "./playerMatchesResultsItemWinner";
+export * from "./playerMatchesResultsItemYours";
 export * from "./playerMatchesUpcomingItem";
 export * from "./playerMatchesUpcomingItemKind";
 export * from "./playerSearchResponse";
