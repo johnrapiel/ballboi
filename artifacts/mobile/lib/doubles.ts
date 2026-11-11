@@ -103,11 +103,6 @@ export function matchupLine(m: FourPlayers): string {
   return `${andJoin(sideNames(m, 1))} vs. ${andJoin(sideNames(m, 2))}`;
 }
 
-/** The recap line in team names (D7, decision 148): "John R. & Sam L. def. Jo P. & Lee K." */
-export function recapTeams(winners: string[], losers: string[]): string {
-  return `${winners.map(shortName).join(" & ")} def. ${losers.map(shortName).join(" & ")}`;
-}
-
 /** Manage > Teams: how each player without a partner shows (D2, D4, D9). */
 export function unpairedLabel(kind: "needs_partner" | "looking" | "no_partner"): string {
   return kind === "needs_partner" ? "Needs a partner" : kind === "looking" ? "Looking for a partner" : "No partner yet";

@@ -2,7 +2,7 @@ import { Image } from "expo-image";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Icon } from "@/components/Icon";
 import React, { useCallback, useRef } from "react";
-import { ActionSheetIOS, ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollView, Share, View, useWindowDimensions } from "react-native";
+import { ActionSheetIOS, ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollView, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useGetMyMatch, type MatchDetail } from "@workspace/api-client-react";
@@ -11,12 +11,11 @@ import { Avatar } from "@/components/Avatar";
 import { HeaderIconButton } from "@/components/Choice";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
 import { Button, Card, Text } from "@/components/ui";
-import { RecapShareButton } from "@/components/RecapShareButton";
 import { MarkedName, WinnerNames } from "@/components/WinnerNames";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { correctionLine, LATE_NOTE, LATE_ROUND_RESULT, lateDateLine } from "@/lib/leagueSchedule";
-import { durationLabel, durationSpoken, matchSourceLine, resultSentence, scoreFootnote, setRows } from "@/lib/myMatches";
+import { durationLabel, durationSpoken, matchSourceLine, scoreFootnote, setRows } from "@/lib/myMatches";
 import { isDoubleDefault, isRetiredScore, WALKOVER_SCORE } from "@/lib/tennisScore";
 import { winnerMark } from "@/lib/winnerMark";
 
@@ -27,7 +26,9 @@ import { winnerMark } from "@/lib/winnerMark";
 // details like Home's card (date and time, the court, and where it came
 // from: the league, "Discover" or "Quick match"), the score alone with the
 // winner's name marked by the brush underline (John, Nov 8), and Ball Boi Replay once an analysis has finished
-// (Wave 2 fills the replay in). More options holds Share and Report only.
+// (Wave 2 fills the replay in). More options holds Report only (match results
+// aren't shared outside the app, John, Nov 10). With no one to report, there's
+// no More options button.
 //
 // Finding 7: for 24 hours after the score is entered, either player sees a
 // small pencil next to the score ("Edit score", 44pt). It opens Enter score
@@ -141,19 +142,10 @@ export default function MatchDetailScreen() {
   const them = d ? sideName(d.opponents) : "";
   const you = d ? sideName(d.you) : "";
   const youWon = !!d?.you.won;
-  const sentence = d?.played && d.score ? resultSentence({ you, them, score: d.score, youWon }) : null;
 
   function moreOptions() {
     if (!d) return;
-    const options: { label: string; run: () => void }[] = [
-      {
-        label: "Share",
-        run: () =>
-          void Share.share({
-            message: sentence ? `${sentence} · ${d.context}` : `${you} vs. ${them} · ${d.context}`,
-          }).catch(() => {}),
-      },
-    ];
+    const options: { label: string; run: () => void }[] = [];
     if (opponent?.hasAccount) {
       options.push({
         label: `Report ${opponent.name}`,
@@ -176,7 +168,7 @@ export default function MatchDetailScreen() {
   const header = (
     <Stack.Screen
       options={{
-        headerRight: d ? () => <HeaderIconButton symbol="ellipsis" label="More options" onPress={moreOptions} /> : undefined,
+        headerRight: d && opponent?.hasAccount ? () => <HeaderIconButton symbol="ellipsis" label="More options" onPress={moreOptions} /> : undefined,
       }}
     />
   );
@@ -359,8 +351,6 @@ export default function MatchDetailScreen() {
         </View>
       ) : null}
 
-      {/* The match recap (decision 148): an image to share, once there's a score. */}
-      {d.played && !d.voided && d.score && !doubleDefault ? <RecapShareButton matchId={d.matchId} /> : null}
     </ScrollView>
   );
 }
