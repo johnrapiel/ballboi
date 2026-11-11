@@ -242,6 +242,7 @@ function RootLayoutNav() {
         <Stack.Screen name="feedback" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="notifications" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="free-times" options={sheetOptions(colors.linen)} />
+        <Stack.Screen name="milestone" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="replay/[matchId]" options={{ ...pushedHeader, title: "Replay" }} />
         <Stack.Screen name="match/[matchId]" options={{ ...pushedHeader, title: "" }} />
         {/* Live match: the second phone, opened from the Live Activity (Session G). */}

@@ -12,7 +12,7 @@ import { MILESTONE_ICONS } from "@/lib/milestones";
 // A milestone badge (decisions 149 and 150): the design system's brush ring
 // (the same strokes as BrushRing) around the milestone's brush icon, in ink.
 // No canvas design exists; John reviews them in the PR. Decorative: the title
-// beside it, or the card's summary, carries the meaning for VoiceOver.
+// beside it, the label under it, or the button around it carries the meaning for VoiceOver.
 //
 // With `draw` (0 to 1), the ring draws itself around the icon: the
 // milestone moment.
