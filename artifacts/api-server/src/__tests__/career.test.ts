@@ -132,7 +132,51 @@ describe("career stats", () => {
         m({ status: "scheduled", score: null }),
       ]),
     );
-    expect(c).toMatchObject({ wins: 0, losses: 0, played: 0, results: [], headToHead: [], seasons: [] });
+    expect(c).toMatchObject({ wins: 0, losses: 0, played: 0, headToHead: [] });
+  });
+
+  it("lists every match you played in Results and Seasons, the same as Profile (John, Nov 10)", () => {
+    const c = careerStats(
+      input(
+        [
+          m({ completedAt: "2026-10-01T18:00:00Z" }),
+          // Discover, with me as player 2.
+          m({ completedAt: "2026-10-02T18:00:00Z", player1Id: 3, player2Id: 1, winnerId: 1, score: "4-6, 2-6", leagueId: null, generatedFrom: "discover" }),
+          // An unconfirmed Quick match and a placeholder: listed by the name you typed, not counted.
+          m({ completedAt: "2026-10-03T18:00:00Z", player2Id: 8, leagueId: null, generatedFrom: "quick_match" }),
+          m({ completedAt: "2026-06-03T18:00:00Z", player2Id: 9, winnerId: 9, score: "3-6, 3-6" }),
+          // Blocked with me: counted, never listed.
+          m({ completedAt: "2026-10-04T18:00:00Z", player2Id: 4 }),
+          // Not played: never listed.
+          m({ status: "cancelled" }),
+          m({ voidedAt: new Date("2026-10-02T00:00:00Z") }),
+        ],
+        ["theo"],
+      ),
+    );
+    expect(c.results.map((r) => [r.context, r.opponentName, r.won, r.score])).toEqual([
+      ["Quick match", "Sam", true, "6-3, 6-4"],
+      ["Discover", "Priya Shah", true, "6-4, 6-2"],
+      ["Tuesday Flex 3.5", "Sam Patel", true, "6-3, 6-4"],
+      ["Tuesday Flex 3.5", "Uncle Bob", false, "3-6, 3-6"],
+    ]);
+    // Every season with a listed result, its record by decision 121.
+    expect(c.seasons.map((s) => [s.name, s.wins, s.losses, s.played])).toEqual([
+      ["Fall 2026", 3, 0, 3],
+      ["Summer 2026", 0, 0, 0],
+    ]);
+    expect(c.played).toBe(3);
+  });
+
+  it("lists doubles with your partner, and keeps a double default out (decision 170)", () => {
+    const c = careerStats(
+      input([
+        m({ player3Id: 9, player2Id: 2, player4Id: 3, winnerId: 2, score: "4-6, 4-6" }),
+        m({ player3Id: 9, player2Id: 2, player4Id: 3, winnerId: null, score: "Double default", completedAt: "2026-10-02T18:00:00Z" }),
+      ]),
+    );
+    expect(c.results).toHaveLength(1);
+    expect(c.results[0]).toMatchObject({ opponentName: "Sam Patel & Priya Shah", partnerName: "Uncle Bob", won: false, score: "4-6, 4-6" });
   });
 
   it("counts a walkover in the record but not its games", () => {
@@ -188,7 +232,9 @@ describe("career stats", () => {
     ]);
     // Theo's match still counts in the totals.
     expect(c.wins).toBe(4);
-    expect(c.results[0].opponentName).toBe("Sam Patel & Priya Shah");
+    expect(c.results.find((r) => r.partnerName)?.opponentName).toBe("Sam Patel & Priya Shah");
+    // A match with someone blocked with you stays off your list, as on Profile.
+    expect(c.results).toHaveLength(5);
   });
 
   it("names where a match was played", () => {

@@ -8,6 +8,8 @@ import { DrizzlePlayerCardRepo, type PlayerCardRepo } from "../lib/playerCardRep
 // The player card (spec decisions 138 to 140, John, Nov 8): the same card
 // everywhere. Free, never Pro.
 // - GET /player-cards/me                your own card and This season, for Profile
+// - GET /player-cards/me/matches        your own Results: every match you played,
+//                                       league, Discover and Quick match (John, Nov 10)
 // - GET /player-cards/:userId           another player's card, from Discover (decision 139)
 // - GET /player-cards/:userId/matches   their Upcoming matches, Results and your
 //                                       head-to-head (decision 143)
@@ -47,6 +49,20 @@ export function createPlayerCardsRouter(repo: PlayerCardRepo = new DrizzlePlayer
     } catch (err) {
       logger.error({ err }, "Player card failed");
       res.status(500).json({ error: "Can't load your player card right now." });
+    }
+  });
+
+  // Your own matches, the same list other players' cards use, read from your
+  // side. A match against someone blocked with you stays off it, as there.
+  router.get("/player-cards/me/matches", requireAuth, async (req, res) => {
+    const me = getAuth(req).userId!;
+    try {
+      const now = clock();
+      const [data, blocked] = await Promise.all([repo.matchData(me, me, now), repo.blocked(me)]);
+      res.json(playerMatches({ ...data, target: me, viewer: me, now, blocked }));
+    } catch (err) {
+      logger.error({ err }, "My matches failed");
+      res.status(500).json({ error: "Can't load your matches right now." });
     }
   });
 

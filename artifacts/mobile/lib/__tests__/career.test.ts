@@ -50,9 +50,9 @@ describe("career", () => {
   });
 
   it("picks one season's results and reads them like Profile's Results", () => {
-    const r = { matchId: 1, seasonKey: "s:2026-09-01:2026-12-31", opponentName: "Sam Patel", won: true, score: "6-3, 6-4", context: "Discover", playoff: false, league: false, completedAt: null };
+    const r = { matchId: 1, seasonKey: "s:2026-09-01:2026-12-31", opponentName: "Sam Patel", partnerName: null, won: true, score: "6-3, 6-4", context: "Discover", playoff: false, league: false, completedAt: null };
     const results = [r, { ...r, matchId: 2, seasonKey: "y:2026" }];
     expect(seasonResults({ results }, "y:2026").map((x) => x.matchId)).toEqual([2]);
-    expect(careerResultRow(r)).toEqual({ won: true, score: "6-3, 6-4", opponentName: "Sam Patel", leagueName: "Discover", playoff: false, inGrace: false });
+    expect(careerResultRow(r)).toEqual({ matchId: 1, won: true, partnerName: null, score: "6-3, 6-4", opponentName: "Sam Patel", leagueName: "Discover", playoff: false, inGrace: false });
   });
 });

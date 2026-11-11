@@ -12,7 +12,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
   return { ...actual, db: { select: () => { throw new Error("No database in this test"); } } };
 });
 
-import { GetPlayerCardResponse, GetPlayerMatchesResponse } from "@workspace/api-zod";
+import { GetMyPlayerMatchesResponse, GetPlayerCardResponse, GetPlayerMatchesResponse } from "@workspace/api-zod";
 import type { CardPerson } from "../lib/playerCard";
 import type { MatchData, PlayerCardRepo } from "../lib/playerCardRepo";
 import { playerMatches, type PMMatch, type PMPlayer } from "../lib/playerMatches";
@@ -52,6 +52,8 @@ const match = (id: number, o: Partial<PMMatch>): PMMatch => ({
   completedAt: "2026-11-01T18:00:00Z",
   location: "Beacon Courts · Court 3",
   voidedAt: null,
+  generatedFrom: "round",
+  inGrace: false,
   ...o,
 });
 
@@ -133,8 +135,8 @@ describe("privacy", () => {
     const before = run(data([match(5, { leagueId: null, roundId: null, player1Id: 5, player2Id: 6, winnerId: 5 })]));
     expect(before.results).toEqual([]);
     // After Yes, the row is theirs (1), and it shows as a Quick match.
-    const after = run(data([match(5, { leagueId: null, roundId: null, player1Id: 5, player2Id: 1, winnerId: 5 })]));
-    expect(after.results[0]).toMatchObject({ context: "Quick match", player1Name: "Mike Okafor", winner: 1 });
+    const after = run(data([match(5, { leagueId: null, roundId: null, player1Id: 5, player2Id: 1, winnerId: 5, generatedFrom: "quick_match" })]));
+    expect(after.results[0]).toMatchObject({ context: "Quick match", player1Name: "Mike Okafor", winner: 1, yours: null });
   });
 
   it("shows a placeholder opponent by name with no link", () => {
@@ -164,6 +166,75 @@ describe("privacy", () => {
   });
 });
 
+describe("your own results (John, Nov 10)", () => {
+  // "me" looking at my own list: player row 2 is mine.
+  const mine = (d: MatchData, blocked: string[] = []) => playerMatches({ ...d, target: "me", viewer: "me", now: T0, blocked: new Set(blocked) });
+
+  it("lists league, Discover and Quick match results, newest first, each from your side", () => {
+    const out = mine(
+      data([
+        match(1, { player2Id: 2, winnerId: 1, score: "6-4, 6-3", completedAt: "2026-11-01T18:00:00Z" }),
+        match(2, { leagueId: null, roundId: null, player1Id: 2, player2Id: 5, winnerId: 2, score: "7-5, 6-2", generatedFrom: "discover", completedAt: "2026-11-03T18:00:00Z" }),
+        match(3, { leagueId: null, roundId: null, player1Id: 2, player2Id: 3, winnerId: 3, score: "3-6, 4-6", generatedFrom: "quick_match", completedAt: "2026-11-05T18:00:00Z" }),
+        match(4, { leagueId: null, roundId: null, player1Id: 7, player2Id: 2, winnerId: 2, score: "4-6, 6-1, 10-8", generatedFrom: "discover_open_match", completedAt: "2026-11-07T18:00:00Z" }),
+      ]),
+    );
+    expect(out.results.map((r) => [r.matchId, r.context, r.yours])).toEqual([
+      [4, "Discover", { won: true, score: "6-4, 1-6, 8-10", opponentName: "Dana Lindqvist", partnerName: null }],
+      [3, "Quick match", { won: false, score: "3-6, 4-6", opponentName: "Theo Brandt", partnerName: null }],
+      [2, "Discover", { won: true, score: "7-5, 6-2", opponentName: "Mike Okafor", partnerName: null }],
+      [1, "Tuesday Flex 3.5", { won: false, score: "4-6, 3-6", opponentName: "Priya Shah", partnerName: null }],
+    ]);
+    expect(out.results.every((r) => r.mine)).toBe(true);
+    expect(out.headToHead).toBeNull();
+  });
+
+  it("keeps your Quick match against a placeholder or an unconfirmed stranger, by the name you typed", () => {
+    const out = mine(
+      data([
+        match(1, { leagueId: null, roundId: null, player1Id: 2, player2Id: 4, winnerId: 2, generatedFrom: "quick_match" }),
+        match(2, { leagueId: null, roundId: null, player1Id: 2, player2Id: 6, winnerId: 6, generatedFrom: "quick_match", completedAt: "2026-11-02T18:00:00Z" }),
+      ]),
+    );
+    expect(out.results.map((r) => [r.matchId, r.yours?.opponentName, r.yours?.won])).toEqual([
+      [2, "Priya Shah", false],
+      [1, "Sam Lee", true],
+    ]);
+  });
+
+  it("leaves off a match against someone blocked with you", () => {
+    const out = mine(data([match(1, { player2Id: 2 }), match(2, { player1Id: 2, player2Id: 7, leagueId: null, roundId: null, generatedFrom: "quick_match" })]), ["dana"]);
+    expect(out.results.map((r) => r.matchId)).toEqual([1]);
+  });
+
+  it("shows doubles with team names and your partner", () => {
+    const out = mine(data([match(1, { player1Id: 1, player3Id: 5, player2Id: 2, player4Id: 4, winnerId: 1, score: "6-3, 6-4" })]));
+    expect(out.results[0]).toMatchObject({
+      player1Name: "Priya Shah & Mike Okafor",
+      player2Name: "John Rapiel & Sam Lee",
+      yours: { won: false, score: "3-6, 4-6", opponentName: "Priya Shah & Mike Okafor", partnerName: "Sam Lee" },
+    });
+  });
+
+  it("keeps a walkover and a double default, in their words", () => {
+    const out = mine(
+      data([
+        match(1, { player1Id: 2, player2Id: 3, winnerId: 2, score: "W/O", playoffBracketId: 5, roundId: null }),
+        match(2, { player1Id: 1, player3Id: 5, player2Id: 2, player4Id: 4, winnerId: null, score: "Double default", completedAt: "2026-11-02T18:00:00Z" }),
+      ]),
+    );
+    expect(out.results.map((r) => [r.matchId, r.yours?.score, r.yours?.won, r.playoff])).toEqual([
+      [2, "Double default", null, false],
+      [1, "W/O", true, true],
+    ]);
+  });
+
+  it("says when a result came in late", () => {
+    const out = mine(data([match(1, { player2Id: 2, inGrace: true })]));
+    expect(out.results[0].inGrace).toBe(true);
+  });
+});
+
 class MemoryCards implements PlayerCardRepo {
   people = new Map<number, CardPerson & { clerkUserId: string; hidden?: boolean }>();
   blocks: [string, string][] = [];
@@ -187,7 +258,9 @@ class MemoryCards implements PlayerCardRepo {
   async blocked(who: string) {
     return new Set(this.blocks.flatMap(([a, b]) => (a === who ? [b] : b === who ? [a] : [])));
   }
-  async matchData() {
+  targets: string[] = [];
+  async matchData(target: string) {
+    this.targets.push(target);
     return data(this.matches);
   }
   async milestones() {
@@ -245,6 +318,32 @@ describe("player card routes", () => {
     const res = await as("me").get("/api/player-cards/21/matches").expect(404);
     expect(res.body.error).toBe("This player isn't in Discover right now.");
     await as("me").get("/api/player-cards/99").expect(404);
+  });
+
+  it("sends your own matches, every kind, and none with someone blocked with you", async () => {
+    repo.matches = [
+      match(1, { player2Id: 2, winnerId: 2 }),
+      match(2, { leagueId: null, roundId: null, player1Id: 2, player2Id: 4, winnerId: 2, generatedFrom: "quick_match", completedAt: "2026-11-02T18:00:00Z" }),
+      match(3, { leagueId: null, roundId: null, player1Id: 2, player2Id: 7, winnerId: 2, generatedFrom: "discover", completedAt: "2026-11-03T18:00:00Z" }),
+    ];
+    const res = await as("me").get("/api/player-cards/me/matches").expect(200);
+    expect(GetMyPlayerMatchesResponse.safeParse(res.body).success).toBe(true);
+    expect(repo.targets).toEqual(["me"]);
+    expect(res.body.results.map((r: { matchId: number; context: string }) => [r.matchId, r.context])).toEqual([
+      [3, "Discover"],
+      [2, "Quick match"],
+      [1, "Tuesday Flex 3.5"],
+    ]);
+    repo.blocks = [["dana", "me"]];
+    const blocked = await as("me").get("/api/player-cards/me/matches").expect(200);
+    expect(blocked.body.results.map((r: { matchId: number }) => r.matchId)).toEqual([2, 1]);
+  });
+
+  it("asks for sign-in before your own matches", async () => {
+    mockUserId = null;
+    const a = express();
+    a.use("/api", createPlayerCardsRouter(repo, () => T0));
+    await supertest(a).get("/api/player-cards/me/matches").expect(401);
   });
 
   it("turns away a bad id", async () => {
