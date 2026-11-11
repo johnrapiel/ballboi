@@ -58,8 +58,21 @@ export class StreamApiError extends Error {
     message: string,
   ) {
     super(message);
+    this.name = "StreamApiError";
+  }
+
+  /**
+   * Stream says the thing asked for isn't there: a 404, or code 16
+   * ("does not exist"). Querying a channel that was never made, with no
+   * creator, comes back as code 4 asking for created_by: that means missing too.
+   */
+  get missing(): boolean {
+    return this.status === 404 || this.code === 16 || (this.code === 4 && /created_by/i.test(this.message));
   }
 }
+
+/** Stream's upsert users call takes at most 100 users at a time. */
+const USERS_PER_CALL = 100;
 
 type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -89,7 +102,15 @@ export class StreamMessagingProvider implements MessagingProvider {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const json = (await res.json().catch(() => ({}))) as { code?: number; message?: string } & T;
-    if (!res.ok) throw new StreamApiError(res.status, json.code, json.message ?? `Stream request failed (${res.status})`);
+    if (!res.ok) {
+      // Says which call failed and Stream's own reason, so the API logs explain it. Never the keys.
+      const reason = json.message ?? "no reason given";
+      throw new StreamApiError(
+        res.status,
+        json.code,
+        `Stream ${method} ${path} failed (HTTP ${res.status}${json.code !== undefined ? `, code ${json.code}` : ""}): ${reason}`,
+      );
+    }
     return json;
   }
 
@@ -108,18 +129,35 @@ export class StreamMessagingProvider implements MessagingProvider {
     };
   }
 
-  /** Stream users are just ids here; names and photos stay in Ball Boi. */
-  private async ensureUsers(ids: string[]) {
-    const missing = ids.filter((id) => !this.knownUsers.has(id));
-    if (!missing.length) return;
-    await this.call("POST", "/users", { users: Object.fromEntries(missing.map((id) => [id, { id }])) });
-    missing.forEach((id) => this.knownUsers.add(id));
+  /**
+   * Checks the keys at startup with Stream's get app settings call, so a wrong
+   * key or secret shows in the API logs right away, not on someone's first chat.
+   */
+  async check(): Promise<void> {
+    await this.call("GET", "/app");
   }
 
+  /** Stream users are just ids here; names and photos stay in Ball Boi. */
+  private async ensureUsers(ids: string[]) {
+    const missing = [...new Set(ids)].filter((id) => !this.knownUsers.has(id));
+    for (let i = 0; i < missing.length; i += USERS_PER_CALL) {
+      const batch = missing.slice(i, i + USERS_PER_CALL);
+      await this.call("POST", "/users", { users: Object.fromEntries(batch.map((id) => [id, { id }])) });
+      batch.forEach((id) => this.knownUsers.add(id));
+    }
+  }
+
+  /**
+   * Makes the Stream users, then gets or creates the channel with them in it.
+   * A channel needs a creator when the server makes it; with no members yet
+   * (a chat everyone left) Ball Boi's own user makes it.
+   */
   async ensureChannel(channelId: string, members: string[]): Promise<void> {
-    await this.ensureUsers(members);
+    const unique = [...new Set(members)];
+    const creator = unique[0] ?? SYSTEM_SENDER;
+    await this.ensureUsers(unique.length ? unique : [SYSTEM_SENDER]);
     await this.call("POST", `/channels/${CHANNEL_TYPE}/${channelId}/query`, {
-      data: { members, created_by_id: members[0] },
+      data: { members: unique, created_by_id: creator },
       state: false,
     });
   }
@@ -136,7 +174,7 @@ export class StreamMessagingProvider implements MessagingProvider {
     try {
       await this.call("POST", `/channels/${CHANNEL_TYPE}/${channelId}`, { remove_members: userIds });
     } catch (e) {
-      if (e instanceof StreamApiError && e.status === 404) return; // channel already gone
+      if (e instanceof StreamApiError && e.missing) return; // channel already gone
       throw e;
     }
   }
@@ -161,12 +199,18 @@ export class StreamMessagingProvider implements MessagingProvider {
     return this.toMessage(res.message, input.channelId);
   }
 
+  /** A channel Stream doesn't have yet has no messages, so it reads as empty instead of failing. */
   async listMessages(channelId: string, opts: { limit?: number; before?: string } = {}): Promise<ProviderMessage[]> {
-    const res = await this.call<{ messages?: StreamMessage[] }>("POST", `/channels/${CHANNEL_TYPE}/${channelId}/query`, {
-      state: true,
-      messages: { limit: opts.limit ?? 50, ...(opts.before ? { id_lt: opts.before } : {}) },
-    });
-    return (res.messages ?? []).map((m) => this.toMessage(m, channelId));
+    try {
+      const res = await this.call<{ messages?: StreamMessage[] }>("POST", `/channels/${CHANNEL_TYPE}/${channelId}/query`, {
+        state: true,
+        messages: { limit: opts.limit ?? 50, ...(opts.before ? { id_lt: opts.before } : {}) },
+      });
+      return (res.messages ?? []).map((m) => this.toMessage(m, channelId));
+    } catch (e) {
+      if (e instanceof StreamApiError && e.missing) return [];
+      throw e;
+    }
   }
 
   async getMessage(messageId: string): Promise<ProviderMessage | null> {
@@ -174,7 +218,7 @@ export class StreamMessagingProvider implements MessagingProvider {
       const res = await this.call<{ message: StreamMessage }>("GET", `/messages/${encodeURIComponent(messageId)}`);
       return this.toMessage(res.message);
     } catch (e) {
-      if (e instanceof StreamApiError && e.status === 404) return null;
+      if (e instanceof StreamApiError && e.missing) return null;
       throw e;
     }
   }
@@ -194,7 +238,7 @@ export class StreamMessagingProvider implements MessagingProvider {
         mark_messages_deleted: "true",
       });
     } catch (e) {
-      if (e instanceof StreamApiError && e.status === 404) return; // never messaged
+      if (e instanceof StreamApiError && e.missing) return; // never messaged
       throw e;
     }
     this.knownUsers.delete(userId);
