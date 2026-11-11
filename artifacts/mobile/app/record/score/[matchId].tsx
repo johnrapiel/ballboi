@@ -36,7 +36,6 @@ import {
 import { ScoreGrid, ScoreResult, displayScore } from "@/components/league/ScoreGrid";
 import { ConditionsRow } from "@/components/record/ConditionsRow";
 import { LocalProcessingCard } from "@/components/record/ProcessingCard";
-import { RecapShareButton } from "@/components/RecapShareButton";
 import { ScoreEnteredMoment, type Record as SeasonRecord } from "@/components/ScoreEnteredMoment";
 import { SheetBody, useSheetClose } from "@/components/Sheet";
 import { Button, Card, Text } from "@/components/ui";
@@ -286,7 +285,6 @@ export default function ScorePromptScreen() {
         </Text>
       )}
 
-      {done === "saved" && !matchGone ? <RecapShareButton matchId={matchId} /> : null}
       {done || matchGone ? (
         <Button label="Done" onPress={() => sheet.finish()} />
       ) : (
