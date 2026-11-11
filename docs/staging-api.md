@@ -14,7 +14,7 @@ Cloudflare Containers need the Workers Paid plan: $5/month, which includes enoug
 ## Known limits on staging
 
 - **Scheduled jobs only run while the API is awake.** Match reminders and other `node-cron` jobs skip while it sleeps. Fine for testing; production will need a different setup.
-- **Messages are kept in the database until staging has Stream keys.** Staging runs the in-memory messaging provider, and the container's disk is wiped each time it sleeps or deploys. Until Nov 10 that emptied every chat; now the provider saves its messages to the `messaging_memory_snapshot` table (`MESSAGING_MEMORY_STORE=database`). Adding the `STREAM_API_KEY` and `STREAM_API_SECRET` secrets switches staging to Stream on the next deploy (`MESSAGING_PROVIDER=auto`). Messages saved in the snapshot don't move to Stream.
+- **Messages are kept in the database until staging has Stream keys.** Staging runs the in-memory messaging provider, and the container's disk is wiped each time it sleeps or deploys. Until Nov 10 that emptied every chat; now the provider saves its messages to the `messaging_memory_snapshot` table (`MESSAGING_MEMORY_STORE=database`). The `STREAM_API_KEY` and `STREAM_API_SECRET` secrets are set, but staging stays on the database (`MESSAGING_PROVIDER=memory`) until chat on Stream is fixed and tested (Nov 11). Switching to Stream is then a one-line change to `MESSAGING_PROVIDER` in `artifacts/api-host/wrangler.jsonc`. Messages saved in the snapshot don't move to Stream.
 - **No ML server yet.** Recording and upload work; Ball Boi analysis waits until the ML server is hosted.
 
 ## Test data
@@ -45,7 +45,7 @@ Set as GitHub repository secrets (Settings > Secrets and variables > Actions). T
 | `ADMIN_EMAIL` | The email that gets admin access |
 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | R2 API token scoped to `ballboi-staging` (Object Read & Write) |
 | `ANTHROPIC_API_KEY` | Optional; turns on the moderation agent |
-| `STREAM_API_KEY`, `STREAM_API_SECRET` | Optional. Stream > app > Overview. With both set, staging messages go through Stream |
+| `STREAM_API_KEY`, `STREAM_API_SECRET` | Optional. Stream > app > Overview. Used only when `MESSAGING_PROVIDER` in wrangler.jsonc is `auto` or `stream` |
 
 The account ID and R2 endpoint aren't secret, so they live in `artifacts/api-host/wrangler.jsonc`.
 
