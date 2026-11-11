@@ -78,7 +78,7 @@ jobs:
           APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_PRIVATE_KEY: ${{ secrets.APPLE_PRIVATE_KEY }}
-          # Optional: with both set, staging messages move to Stream (MESSAGING_PROVIDER=auto).
+          # Optional. Used only when MESSAGING_PROVIDER in wrangler.jsonc is "auto" or "stream".
           STREAM_API_KEY: ${{ secrets.STREAM_API_KEY }}
           STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
         run: |
