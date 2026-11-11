@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HeaderIconButton, PlainIconButton } from "@/components/Choice";
 import { Icon } from "@/components/Icon";
-import { MessageBubble, type BubbleStatus } from "@/components/messages/MessageBubble";
+import { BUBBLE_AVATAR, MessageBubble, type BubbleStatus } from "@/components/messages/MessageBubble";
 import { Button, Text, useTypeStyle } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -533,7 +533,9 @@ export function GroupConversation({
                       alignItems: "center",
                       alignSelf: item.fromMe ? "flex-end" : "flex-start",
                       gap: spacing.space1,
-                      paddingHorizontal: spacing.space4 + 4,
+                      // Others' names line up with their bubbles, past the photo column.
+                      paddingLeft: item.fromMe ? spacing.space4 + 4 : spacing.space4 + BUBBLE_AVATAR + spacing.space2 + 4,
+                      paddingRight: spacing.space4 + 4,
                       marginTop: spacing.space2,
                     }}
                     importantForAccessibility="no-hide-descendants"
@@ -571,6 +573,8 @@ export function GroupConversation({
                   onMore={league && isAdmin && more.length ? () => leagueMenu(m!) : undefined}
                   segments={league && m?.mentions?.length ? mentionSegments(item.text, m.mentions, myName) : undefined}
                   spoken={league && m ? spokenGroupMessage({ ...m, senderName }) : undefined}
+                  // Their photo beside the first message of each run, next to their name.
+                  avatar={item.fromMe ? undefined : { name: item.senderName ?? "Player", uri: m?.senderAvatarUrl, show: !before || before.senderName === null || who(before) !== who(item) }}
                 />
               </View>
             );

@@ -118,6 +118,8 @@ export interface GroupMessageView {
   /** For Report: the sender's league player, else their account. */
   senderPlayerId: number | null;
   senderUserId: number | null;
+  /** The sender's photo ("/objects/..."), shown beside their messages. Null for you, Ball Boi, or no photo. */
+  senderAvatarUrl: string | null;
   /** League chats: sent by a league admin, shown with the Admin label. */
   admin: boolean;
   /** League chats: names this message @mentions, for highlighting and VoiceOver. */
@@ -853,6 +855,7 @@ export class MessagingService {
       senderName: m.system ? null : m.senderId === me ? "You" : (p?.name ?? "Player"),
       senderPlayerId: p?.playerId ?? null,
       senderUserId: p?.userId ?? null,
+      senderAvatarUrl: p?.avatarUrl ?? null,
       admin: !m.system && m.admin === true,
       mentions: mentions.map((u) => (u === me ? "You" : (people.get(u)?.name ?? "Player"))),
       mentionsMe: mentions.includes(me),

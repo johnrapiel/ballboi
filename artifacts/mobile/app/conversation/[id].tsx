@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Avatar } from "@/components/Avatar";
 import { HeaderIconButton, PlainIconButton } from "@/components/Choice";
 import { MessageBubble, type BubbleStatus } from "@/components/messages/MessageBubble";
 import { Button, Text } from "@/components/ui";
@@ -255,6 +256,22 @@ export default function ConversationScreen() {
         options={{
           headerShown: true,
           title: name,
+          // Their photo beside their name, as in Messages (John, Nov 11). Tapping it opens their player card.
+          headerTitle: () => (
+            <Pressable
+              onPress={userId ? () => router.push({ pathname: "/discover/player/[userId]", params: { userId: String(userId) } }) : undefined}
+              disabled={!userId}
+              accessibilityRole={userId ? "button" : "header"}
+              accessibilityLabel={name}
+              accessibilityHint={userId ? "Opens their player card" : undefined}
+              style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: spacing.space2, minHeight: MIN_TAP, maxWidth: 240, opacity: pressed ? 0.6 : 1 })}
+            >
+              <Avatar name={name} uri={conversation?.other.avatarUrl} size={28} />
+              <Text variant="bodyStrong" numberOfLines={1} maxFontSizeMultiplier={1.4} style={{ flexShrink: 1 }}>
+                {name}
+              </Text>
+            </Pressable>
+          ),
           headerBackButtonDisplayMode: "minimal",
           headerShadowVisible: false,
           headerTintColor: c.ink,

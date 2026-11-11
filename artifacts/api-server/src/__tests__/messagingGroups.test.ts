@@ -100,6 +100,19 @@ describe("group channels", () => {
     expect((await svc.groups("theo"))[0].unread).toBe(1); // only Ball Boi's line
   });
 
+  it("gives each sender's photo for their messages (John, Nov 11), and none for you or Ball Boi", async () => {
+    repo.names.set("theo", { name: "Theo Brandt", playerId: 2, userId: 12, avatarUrl: "/objects/avatars/theo.jpg" });
+    const g = (await svc.syncGroup(fill(["dana", "theo", "mia"])))!;
+    await svc.sendToGroup("theo", g.id, { text: "See you Saturday", clientMessageId: mid() });
+    await svc.sendToGroup("mia", g.id, { text: "Same", clientMessageId: mid() });
+    const thread = await svc.groupThread("mia", g.id);
+    expect(thread.messages.map((m) => [m.text, m.senderAvatarUrl])).toEqual([
+      ["All 3 spots filled.", null],
+      ["See you Saturday", "/objects/avatars/theo.jpg"],
+      ["Same", null],
+    ]);
+  });
+
   it("never sends twice for a retried client id", async () => {
     const g = (await svc.syncGroup(fill(["dana", "theo"])))!;
     const id = mid();
