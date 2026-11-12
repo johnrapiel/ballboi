@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LeagueInviteJoinAction } from "./leagueInviteJoinAction";
+import type { LeagueInviteMember } from "./leagueInviteMember";
 
 export interface LeagueInvite {
   id: number;
@@ -38,6 +39,10 @@ export interface LeagueInvite {
   waitlistOnly?: boolean;
   /** @nullable */
   waitlistReason?: string | null;
+  /** A doubles league with fixed partners. Joining keeps the You're in sheet with the partner choices (finding 33); singles and rotating doubles open the league page */
+  fixedPartners?: boolean;
+  /** Who's in (finding 34): the league's active members for the join screen, organizer first, then by name. Every member shows whatever their Discover setting; anyone with a block with the viewer, either way, and the viewer's own row are left out. Empty when signed out. */
+  members?: LeagueInviteMember[];
   createdByClerkUserId: string;
   /** @nullable */
   expiresAt?: string | null;

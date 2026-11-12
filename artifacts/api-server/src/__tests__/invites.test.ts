@@ -51,6 +51,10 @@ vi.mock("@workspace/db", () => ({
 
 vi.mock("../lib/leagueAccess.js", () => ({ isLeagueAdmin: vi.fn().mockResolvedValue(true) }));
 
+// Accounts with a block with the signed-in person, either way.
+const mockBlocked = new Set<string>();
+vi.mock("../lib/blocks.js", () => ({ blockedAccountsFor: async () => mockBlocked }));
+
 // The signed-in person's profile (users row), read by the route through lib/playerProfile.
 const mockProfiles = new Map<string, { displayName: string | null; avatarUrl: string | null; rating: number | null; ratingSource: string | null }>();
 vi.mock("../lib/playerProfile.js", async (importOriginal) => ({
@@ -118,6 +122,7 @@ const samplePlayer = {
 beforeEach(async () => {
   vi.clearAllMocks();
   mockProfiles.clear();
+  mockBlocked.clear();
   mockGetAuth = () => ({ userId: mockUserId });
   app = await buildApp();
 });
@@ -471,5 +476,63 @@ describe("an ended league's invite (PR 5)", () => {
     expect(res.body).toMatchObject({ error: "This league has ended", code: "league_ended" });
     expect(insert).not.toHaveBeenCalled();
     expect(mockDb.insert).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/invites/:code, Who's in (finding 34) and fixed partners (finding 33)", () => {
+  const roster = [
+    { id: 1, clerkUserId: "creator_user", name: "Org Row", leagueId: 42, skillLevel: "3.5", leftAt: null },
+    { id: 2, clerkUserId: "hidden_user", name: "Hidden", leagueId: 42, skillLevel: "4.0", leftAt: null },
+    { id: 3, clerkUserId: "blocked_user", name: "Blocked", leagueId: 42, skillLevel: "3.0", leftAt: null },
+    { id: 4, clerkUserId: null, name: "Placeholder Pat", leagueId: 42, skillLevel: "3.0", leftAt: null },
+    { id: 5, clerkUserId: "gone_user", name: "Gone", leagueId: 42, skillLevel: "3.0", leftAt: new Date() },
+  ];
+  const openInvite = (league: object, players: object[]) =>
+    mockDb.select
+      .mockReturnValueOnce(mockChain([sampleInvite]))
+      .mockReturnValueOnce(mockChain([league]))
+      .mockReturnValueOnce(mockChain(players))
+      .mockReturnValue(mockChain([]));
+
+  it("lists every member, organizer first, leaving out blocked and departed players", async () => {
+    mockProfiles.set("creator_user", { displayName: "Olivia Organizer", avatarUrl: "/objects/o.jpg", rating: 3.5, ratingSource: "self" });
+    mockProfiles.set("hidden_user", { displayName: "Hana Hidden", avatarUrl: null, rating: 4, ratingSource: "verified" });
+    mockBlocked.add("blocked_user");
+    openInvite(sampleLeague, roster);
+    const res = await supertest(app).get("/api/invites/test-invite-code");
+    expect(res.status).toBe(200);
+    expect(res.body.members).toEqual([
+      { playerId: 1, name: "Olivia Organizer", photoUrl: "/objects/o.jpg", level: 3.5, levelSource: "self", organizer: true },
+      { playerId: 2, name: "Hana Hidden", photoUrl: null, level: 4, levelSource: "verified", organizer: false },
+      { playerId: 4, name: "Placeholder Pat", photoUrl: null, level: 3, levelSource: "self", organizer: false },
+    ]);
+    expect(res.body.fixedPartners).toBe(false);
+  });
+
+  it("says when the league plays fixed partners", async () => {
+    openInvite({ ...sampleLeague, leagueType: "doubles", partnerMode: "fixed" }, []);
+    const res = await supertest(app).get("/api/invites/test-invite-code");
+    expect(res.body.fixedPartners).toBe(true);
+    expect(res.body.members).toEqual([]);
+  });
+
+  it("treats rotating-partner doubles like singles", async () => {
+    openInvite({ ...sampleLeague, leagueType: "doubles", partnerMode: "rotating" }, []);
+    const res = await supertest(app).get("/api/invites/test-invite-code");
+    expect(res.body.fixedPartners).toBe(false);
+  });
+
+  it("shows no members to someone signed out", async () => {
+    mockGetAuth = () => ({ userId: null });
+    openInvite(sampleLeague, roster);
+    const res = await supertest(app).get("/api/invites/test-invite-code");
+    expect(res.status).toBe(200);
+    expect(res.body.members).toEqual([]);
+  });
+
+  it("leaves the viewer's own row out", async () => {
+    openInvite(sampleLeague, [{ id: 9, clerkUserId: mockUserId, name: "Me", leagueId: 42, skillLevel: "3.0", leftAt: null }]);
+    const res = await supertest(app).get("/api/invites/test-invite-code");
+    expect(res.body.members).toEqual([]);
   });
 });

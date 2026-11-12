@@ -13,6 +13,9 @@ import { leagueChat } from "../messaging/leagueChatEvents.js";
 /** Q8: an ended league's code just says so. No join, and no request for the admin. */
 const LEAGUE_ENDED = { error: ENDED_MESSAGE, code: "league_ended" } as const;
 import { loadProfiles, playerLevelText } from "../lib/playerProfile.js";
+import { blockedAccountsFor } from "../lib/blocks.js";
+import { isFixedDoubles } from "../lib/doublesTeams.js";
+import { inviteMembers } from "../lib/inviteMembers.js";
 
 const router = Router();
 
@@ -117,6 +120,18 @@ router.get("/invites/:code", async (req, res) => {
           eq(leagueJoinRequestsTable.status, "pending"),
         ))
     : [];
+  // Who's in (finding 34): the league's members for the join screen, to a
+  // signed-in viewer only. Discover visibility doesn't hide anyone here;
+  // blocks, either way, do.
+  const members = userId && league
+    ? inviteMembers({
+        players,
+        profiles: await loadProfiles(players.map((p) => p.clerkUserId)),
+        blocked: await blockedAccountsFor(userId),
+        organizerClerkUserId: league.createdByClerkUserId ?? null,
+        viewerClerkUserId: userId,
+      })
+    : [];
 
   return res.json({
     ...invite,
@@ -132,6 +147,10 @@ router.get("/invites/:code", async (req, res) => {
     // Kept for older app builds.
     waitlistOnly: outcome?.kind === "waitlist",
     waitlistReason: outcome?.kind === "waitlist" ? outcome.reason : null,
+    // Finding 33: joining a fixed-partner doubles league keeps the You're in
+    // sheet, where the player picks or asks for a partner.
+    fixedPartners: league ? isFixedDoubles(league) : false,
+    members,
   });
 });
 
