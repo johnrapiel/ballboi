@@ -4,6 +4,7 @@ import { useWindowDimensions, View } from "react-native";
 
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
+import { MatchTimeLink } from "@/components/MatchTimeLink";
 import { Button, ButtonRow, Pill, Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -19,7 +20,8 @@ import { useColors } from "@/hooks/useColors";
 // - Any other match: Message (primary) and Details side by side.
 // Enter score lives on Details (Match detail) and the league, not on Home's card.
 // Match detail shows this same card for a match not played yet (finding 9),
-// with Enter score in the Details slot and Match time under the row.
+// with Enter score in the Details slot. Match time is link text right under
+// the date line, not a button (Wave 2 finding 25, John, Nov 12).
 //
 // The audit overrides anything built that doesn't match it (John, Nov 7).
 
@@ -46,7 +48,7 @@ export function NextMatchCard({
   record,
   message,
   details,
-  extra,
+  timeLink,
   footer,
 }: {
   /** "Today", "Saturday, Oct 17", or "No time set yet". */
@@ -74,8 +76,8 @@ export function NextMatchCard({
   message?: NextMatchAction | null;
   /** Opens Match detail. Left off for a Discover match, whose Message opens the chat its card lives in. */
   details?: NextMatchAction | null;
-  /** Match detail: Match time, full width under Message and Enter score. */
-  extra?: NextMatchAction | null;
+  /** Match detail: "Set a match time" or "Change time", link text under the date line. */
+  timeLink?: { hasTime: boolean; onPress: () => void } | null;
   /** Under the buttons, e.g. the doubles Ball Boi note. */
   footer?: React.ReactNode;
 }) {
@@ -84,9 +86,11 @@ export function NextMatchCard({
   const face = Math.round(52 * Math.min(fontScale, 1.3));
   const stacked = fontScale >= 1.3;
   const doubles = !!partnerName && !!opponentNames?.length;
-  const summary = [dateLabel, time, doubles ? versusSpoken(partnerName, opponentNames!) : `You versus ${opponentName}`, location, league, note]
+  const whenSummary = [dateLabel, time].join(". ");
+  const restSummary = [doubles ? versusSpoken(partnerName, opponentNames!) : `You versus ${opponentName}`, location, league, note]
     .filter(Boolean)
     .join(". ");
+  const summary = `${whenSummary}. ${restSummary}`;
   // Message is primary unless Record leads on match day.
   const messageVariant = record ? "secondary" : "primary";
 
@@ -104,45 +108,53 @@ export function NextMatchCard({
         borderColor: c.hairline,
       }}
     >
-      <View accessible accessibilityLabel={summary} style={{ alignItems: "center", width: "100%" }}>
-        <Text variant="bodyStrong" tone="inkMuted" style={{ fontSize: 15, lineHeight: 20, textAlign: "center" }}>
-          {dateLabel}
-        </Text>
-        <Text variant="displayL" style={{ marginTop: spacing.space1, marginBottom: spacing.space4, textAlign: "center", fontVariant: ["lining-nums", "tabular-nums"] }}>
-          {time}
-        </Text>
-        <View style={{ flexDirection: "row" }}>
-          <View style={{ borderRadius: radius.radiusPill, borderWidth: 2, borderColor: c.linen }}>
-            <Avatar name={myName} uri={myPhoto} size={face} />
-          </View>
-          <View style={{ marginLeft: -10, borderRadius: radius.radiusPill, borderWidth: 2, borderColor: c.linen }}>
-            <Avatar name={opponentName} uri={opponentPhoto} size={face} />
-          </View>
-        </View>
-        <Text variant="bodyStrong" style={{ marginTop: 10, marginBottom: spacing.space1, textAlign: "center" }}>
-          {doubles ? (
-            <>
-              {`You and ${firstName(partnerName)} `}
-              <Text tone="inkMuted">vs.</Text> {andJoin(opponentNames!.map(firstName))}
-            </>
-          ) : (
-            <>
-              You <Text tone="inkMuted">vs.</Text> {opponentName}
-            </>
-          )}
-        </Text>
-        {location ? (
-          <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "center", gap: spacing.space2, maxWidth: "100%" }}>
-            <Icon name="mappin.and.ellipse" size={20} tintColor={c.inkMuted} style={{ marginTop: 1 }} />
-            <Text style={{ flexShrink: 1, textAlign: stacked ? "left" : "center" }}>{location}</Text>
-          </View>
-        ) : null}
-        <Pill label={league} style={{ alignSelf: "center", marginTop: spacing.space3 }} />
-        {note ? (
-          <Text variant="small" tone="inkMuted" style={{ marginTop: spacing.space2, textAlign: "center" }}>
-            {note}
+      {/* With the time link, VoiceOver reads the date, then the link, then the rest. */}
+      <View accessible={!timeLink} accessibilityLabel={summary} style={{ alignItems: "center", width: "100%" }}>
+        <View accessible={!!timeLink} accessibilityLabel={whenSummary} style={{ alignItems: "center", width: "100%" }}>
+          <Text variant="bodyStrong" tone="inkMuted" style={{ fontSize: 15, lineHeight: 20, textAlign: "center" }}>
+            {dateLabel}
           </Text>
+          <Text variant="displayL" style={{ marginTop: spacing.space1, marginBottom: timeLink ? 0 : spacing.space4, textAlign: "center", fontVariant: ["lining-nums", "tabular-nums"] }}>
+            {time}
+          </Text>
+        </View>
+        {timeLink ? (
+          <MatchTimeLink hasTime={timeLink.hasTime} opponent={opponentName} onPress={timeLink.onPress} style={{ marginBottom: spacing.space2 }} />
         ) : null}
+        <View accessible={!!timeLink} accessibilityLabel={restSummary} style={{ alignItems: "center", width: "100%" }}>
+          <View style={{ flexDirection: "row" }}>
+            <View style={{ borderRadius: radius.radiusPill, borderWidth: 2, borderColor: c.linen }}>
+              <Avatar name={myName} uri={myPhoto} size={face} />
+            </View>
+            <View style={{ marginLeft: -10, borderRadius: radius.radiusPill, borderWidth: 2, borderColor: c.linen }}>
+              <Avatar name={opponentName} uri={opponentPhoto} size={face} />
+            </View>
+          </View>
+          <Text variant="bodyStrong" style={{ marginTop: 10, marginBottom: spacing.space1, textAlign: "center" }}>
+            {doubles ? (
+              <>
+                {`You and ${firstName(partnerName)} `}
+                <Text tone="inkMuted">vs.</Text> {andJoin(opponentNames!.map(firstName))}
+              </>
+            ) : (
+              <>
+                You <Text tone="inkMuted">vs.</Text> {opponentName}
+              </>
+            )}
+          </Text>
+          {location ? (
+            <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "center", gap: spacing.space2, maxWidth: "100%" }}>
+              <Icon name="mappin.and.ellipse" size={20} tintColor={c.inkMuted} style={{ marginTop: 1 }} />
+              <Text style={{ flexShrink: 1, textAlign: stacked ? "left" : "center" }}>{location}</Text>
+            </View>
+          ) : null}
+          <Pill label={league} style={{ alignSelf: "center", marginTop: spacing.space3 }} />
+          {note ? (
+            <Text variant="small" tone="inkMuted" style={{ marginTop: spacing.space2, textAlign: "center" }}>
+              {note}
+            </Text>
+          ) : null}
+        </View>
       </View>
 
       <View style={{ width: "100%", marginTop: 20, gap: spacing.space2 }}>
@@ -167,9 +179,6 @@ export function NextMatchCard({
             />
           ) : null}
         </ButtonRow>
-        {extra ? (
-          <Button label={extra.label} accessibilityLabel={extra.accessibilityLabel} accessibilityHint={extra.hint} variant="secondary" onPress={extra.onPress} />
-        ) : null}
       </View>
       {footer ? <View style={{ width: "100%", marginTop: spacing.space3 }}>{footer}</View> : null}
     </View>
