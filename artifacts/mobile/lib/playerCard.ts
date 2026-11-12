@@ -44,19 +44,18 @@ export const ADD_PLAYS = "Add how you play";
 
 /**
  * The card's bottom row. "split": something on the left (the court or your
- * Add home court link) and Free times on the right. "start": one item alone,
- * left-aligned so it reads as a footer, not a gap (someone else's card with
- * no home court). null: no row at all.
+ * Add home court link) and Free times on the right. "start": Free times
+ * alone, left-aligned so it reads as a footer, not a gap (someone else's
+ * card with no home court). Free times shows on every card, even with none
+ * added: its sheet then says so (finding 13, John, Nov 11).
  */
-export function bottomRow(card: Pick<PlayerCard, "you" | "homeCourt" | "plays" | "freeTimes">): {
+export function bottomRow(card: Pick<PlayerCard, "you" | "homeCourt" | "plays">): {
   left: "court" | "prompt" | null;
   free: boolean;
   align: "split" | "start";
-} | null {
+} {
   const left = card.homeCourt ? "court" : cardPrompts(card).homeCourt ? "prompt" : null;
-  const free = card.you || card.freeTimes.length > 0;
-  if (!left && !free) return null;
-  return { left, free, align: left && free ? "split" : "start" };
+  return { left, free: true, align: left ? "split" : "start" };
 }
 
 /** The town, with the distance on someone else's card: "Fishkill · ~4 mi away". */
