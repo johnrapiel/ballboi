@@ -423,9 +423,6 @@ export class MessagingService {
     if (c.userB === me && c.bUnread > 0) c = await this.repo.update(c.id, { bUnread: 0 });
     await this.openChannel(c.channelId, [c.userA, c.userB]);
     const messages = await this.provider.listMessages(c.channelId, { limit: THREAD_PAGE, before: opts.before });
-    // A chat with messages that come back empty lost its channel (the
-    // in-memory provider, restarted). Make it again so replies still send.
-    if (!messages.length && c.lastMessageAt && !opts.before) await this.provider.ensureChannel(c.channelId, [c.userA, c.userB]);
     // The latest page is also what the list preview is checked against.
     const known = opts.before ? undefined : new Map([[c.channelId, messages.slice(-PREVIEW_WINDOW)]]);
     const [conversation] = await this.views(me, [{ ...found, c }], known);
