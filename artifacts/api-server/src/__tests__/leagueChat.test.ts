@@ -133,6 +133,17 @@ describe("membership", () => {
     expect((await svc.groups("john"))[0].isAdmin).toBe(true);
   });
 
+  it("shows the chat's real last message, never a stored preview the chat can't load (finding 1)", async () => {
+    const g = await chat();
+    await svc.sendToGroup("sam", g.id, { text: "Courts are wet", clientMessageId: mid() });
+    await repo.updateGroup(g.id, { lastMessageText: "Lost before #231", lastSender: "ana" });
+    expect((await svc.groups("john"))[0].lastMessage).toMatchObject({ text: "Courts are wet", senderName: "Sam Patel" });
+    // The chat's messages are gone (in-memory provider restarted): no preview at all.
+    const after = new MessagingService({ repo, provider: new MemoryMessagingProvider({ now: () => now }), filter: new FirstMessageFilter(), now: () => now });
+    expect((await after.groups("john"))[0]).toMatchObject({ id: g.id, lastMessage: null });
+    expect((await repo.findGroup(g.id))?.lastMessageText).toBeNull();
+  });
+
   it("adds a player who joins, and they see the history", async () => {
     const g = await chat();
     await svc.sendToGroup("sam", g.id, { text: "Courts are wet", clientMessageId: mid() });
