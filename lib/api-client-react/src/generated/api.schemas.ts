@@ -2159,8 +2159,13 @@ export interface League {
   startDate?: string | null;
   /** @nullable */
   endDate?: string | null;
-  /** @nullable */
+  /**
+   * Usual courts, free text (optional, decision 182).
+   * @nullable
+   */
   location?: string | null;
+  /** The league's area (decision 182): the town or ZIP Discover measures distance from. Null for leagues made before Nov 12, 2026. */
+  area?: DiscoverArea | null;
   /** @nullable */
   createdByClerkUserId?: string | null;
   visibility: LeagueVisibility;
@@ -2310,8 +2315,13 @@ export interface CreateLeagueBody {
    * @deprecated
    */
   unplayedRule?: CreateLeagueBodyUnplayedRule;
-  /** @nullable */
+  /**
+   * Usual courts, free text (optional).
+   * @nullable
+   */
   location?: string | null;
+  /** Required (decision 182): the league's town or ZIP, for example 12590 or "Wappingers Falls, NY". A place we can't find returns 400 with a plain error. */
+  area?: string;
   /** The admin plays in the league too (default true) */
   playing?: boolean;
   /**
@@ -4567,6 +4577,13 @@ export type ListOpenMatchesParams = {
    * @maximum 30
    */
   radius?: number;
+};
+
+export type LookupAreaParams = {
+  /**
+   * A US ZIP or town, for example 12590 or "Wappingers Falls, NY"
+   */
+  q: string;
 };
 
 export type ListDiscoverLeaguesParams = {

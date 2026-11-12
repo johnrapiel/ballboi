@@ -53,8 +53,13 @@ export interface CreateLeagueBody {
    * @deprecated
    */
   unplayedRule?: CreateLeagueBodyUnplayedRule;
-  /** @nullable */
+  /**
+   * Usual courts, free text (optional).
+   * @nullable
+   */
   location?: string | null;
+  /** Required (decision 182): the league's town or ZIP, for example 12590 or "Wappingers Falls, NY". A place we can't find returns 400 with a plain error. */
+  area?: string;
   /** The admin plays in the league too (default true) */
   playing?: boolean;
   /**

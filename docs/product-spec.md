@@ -151,6 +151,7 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 
 **Setup (admin)**
 
+- **Name and area (required):** the area is a town or ZIP, prefilled from the admin's home area. Discover uses it to show the league to nearby players and to work out distance. Usual courts is optional free text, since rec league players use different courts. Create league stays off until both are filled (decision 182)
 - **Visibility:** Private (default, invite link or code) or Open (listed in Discover, request to join)
 - **Eligibility:** level range and roster cap for Open leagues
 - **Format:** Flex or Round robin ("Pairs you with someone new each week"); Ladder comes later
@@ -580,3 +581,4 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 176 | One button height across the app: every Button is 48pt at the default text size and grows only with Dynamic Type; labels never wrap; side-by-side buttons match; at the largest sizes a row that can't fit its labels stacks full width. The match card's message button says "Message" (VoiceOver: "Message" and the name), so it sits beside Enter score at the primary button's height (John, Nov 10) |
 | 177 | No sharing match results outside the app: no recap image and no Share option on Match detail or after entering a score. Sharing invites stays. Replaces decision 148 and the recap parts of decisions 144, 151 and 166 (John, Nov 10) |
 | 178 | Recording card actions move into More: the card shows only the opponent, the date, the status and its reason. A More button at the top right opens the native action sheet with Report a problem (was "Something not working?"), Remove recording (red, keeps its confirm) and Cancel, on every recording card state. Discard recording stands in for Remove while the video is still on the phone. Try again, Upload now on cellular and Enter score stay on the card. When analysis fails only because no analysis server is set up, the reason reads "Analysis isn't available in the beta yet." Real failures keep their real reasons. Updates decisions 66 and 86 (John, Nov 10) |
+| 182 | New league requires a name and an area (town or ZIP, prefilled from the admin's home area); Usual courts is optional because rec league players use different courts; Create league stays off until both are filled (John, Nov 11) |

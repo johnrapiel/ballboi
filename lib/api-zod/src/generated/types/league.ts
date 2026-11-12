@@ -5,6 +5,7 @@
  * Tennis League Manager API
  * OpenAPI spec version: 0.1.0
  */
+import type { DiscoverArea } from "./discoverArea";
 import type { LeagueFormat } from "./leagueFormat";
 import type { LeaguePartnerMode } from "./leaguePartnerMode";
 import type { LeaguePlayoffSize } from "./leaguePlayoffSize";
@@ -24,8 +25,13 @@ export interface League {
   startDate?: string | null;
   /** @nullable */
   endDate?: string | null;
-  /** @nullable */
+  /**
+   * Usual courts, free text (optional, decision 182).
+   * @nullable
+   */
   location?: string | null;
+  /** The league's area (decision 182): the town or ZIP Discover measures distance from. Null for leagues made before Nov 12, 2026. */
+  area?: DiscoverArea | null;
   /** @nullable */
   createdByClerkUserId?: string | null;
   visibility: LeagueVisibility;

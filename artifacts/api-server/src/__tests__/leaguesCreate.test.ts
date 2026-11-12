@@ -104,6 +104,7 @@ const valid = {
   playoffSize: 4,
   unplayedRule: "forfeit",
   location: "Beacon Courts",
+  area: "12590",
   playing: true,
   playerName: "John Rapiel",
 };
@@ -197,6 +198,29 @@ describe("POST /api/leagues", () => {
       .send({ ...valid, visibility: "open", minRating: "3.0", maxRating: "4.0", rosterCap: 16 });
     const league = inserted.find((i) => i.table === "leagues");
     expect(league?.values).toMatchObject({ visibility: "open", minRating: "3.0", maxRating: "4.0", rosterCap: 16 });
+  });
+
+  it("needs a name and an area, with a plain error for each (decision 182)", async () => {
+    const noName = await supertest(app).post("/api/leagues").send({ ...valid, name: "  " });
+    expect(noName.status).toBe(400);
+    expect(noName.body.error).toBe("Give your league a name.");
+    const noArea = await supertest(app).post("/api/leagues").send({ ...valid, area: undefined });
+    expect(noArea.status).toBe(400);
+    expect(noArea.body.error).toBe("Add the league's area: a town or ZIP.");
+    const unknown = await supertest(app).post("/api/leagues").send({ ...valid, area: "Nowhereville Zzz" });
+    expect(unknown.status).toBe(400);
+    expect(unknown.body.error).toBe("We couldn't find that town or ZIP. Check it and try again.");
+    expect(inserted).toHaveLength(0);
+  });
+
+  it("stores the area's town, state and center, and returns it (decision 182)", async () => {
+    const res = await supertest(app).post("/api/leagues").send({ ...valid, area: "Wappingers Falls, NY" });
+    expect(res.status).toBe(201);
+    const league = inserted.find((i) => i.table === "leagues")!.values;
+    expect(league).toMatchObject({ areaZip: "12590", areaTown: "Wappingers Falls", areaState: "NY", location: "Beacon Courts" });
+    expect(typeof league.areaLatitude).toBe("number");
+    expect(res.body.area).toEqual({ zip: "12590", town: "Wappingers Falls", state: "NY" });
+    expect(res.body.areaLatitude).toBeUndefined();
   });
 
   it("returns 400 with a plain message for a setup the spec doesn't allow", async () => {

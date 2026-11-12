@@ -8,6 +8,7 @@ import { shortDate } from "../lib/leagueCalendar.js";
 import { isOneOf, nearbyPlayers, parseDiscoverSettings, parseFilters, PLAYS } from "../lib/discoverPlayers.js";
 import { DrizzleDiscoverRepo, reliabilityOrEmpty, type DiscoverMe, type DiscoverRepo } from "../lib/discoverRepo.js";
 import { logger } from "../lib/logger.js";
+import { areaForPlace } from "../lib/leagueArea.js";
 import { REPORT_REASONS, type ReportReason } from "@workspace/db";
 
 // Discover, Players near you (spec: Discover; Wave 2 Session F, F1 to F14).
@@ -68,6 +69,21 @@ export function createDiscoverRouter(repo: DiscoverRepo = new DrizzleDiscoverRep
       if (me) res.json(meView(me));
     } catch (err) {
       fail(res, err, "Discover me failed", "Couldn't load Discover. Try again.");
+    }
+  });
+
+  /** A league's area (decision 182): a typed town or ZIP, nearest your own area when a town name repeats. */
+  router.get("/areas/lookup", requireAuth, async (req, res) => {
+    try {
+      const me = await repo.me(getAuth(req).userId!);
+      const found = areaForPlace(req.query.q, me?.area?.point ?? null);
+      if (!found.ok) {
+        res.status(400).json({ error: found.error });
+        return;
+      }
+      res.json({ zip: found.area.zip, town: found.area.town, state: found.area.state });
+    } catch (err) {
+      fail(res, err, "Area lookup failed", "Couldn't check that place. Try again.");
     }
   });
 

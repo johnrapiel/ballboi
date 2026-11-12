@@ -248,6 +248,7 @@ export * from "./liveActivityPropsStage";
 export * from "./lockMatchBody";
 export * from "./logDoublesViewBody";
 export * from "./lookingForPartnerBody";
+export * from "./lookupAreaParams";
 export * from "./match";
 export * from "./matchBallBoiShotCallbackBody";
 export * from "./matchDetail";

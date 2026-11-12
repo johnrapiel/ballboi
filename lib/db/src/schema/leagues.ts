@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -11,7 +11,16 @@ export const leaguesTable = pgTable("leagues", {
   leagueType: text("league_type").notNull().default("singles"),
   startDate: text("start_date"),
   endDate: text("end_date"),
+  // "Usual courts" in the app: optional free text (decision 182).
   location: text("location"),
+  // The league's area (decision 182, migration 20261112_league_area.sql): a US
+  // ZIP's town, state and center, which Discover measures distance from. Null
+  // for leagues made before Nov 12; Discover then uses the organizer's area.
+  areaZip: text("area_zip"),
+  areaTown: text("area_town"),
+  areaState: text("area_state"),
+  areaLatitude: real("area_latitude"),
+  areaLongitude: real("area_longitude"),
   createdByClerkUserId: text("created_by_clerk_user_id"),
   // Setup options (spec: Leagues > Setup). Migration 20261021_league_setup.sql.
   visibility: text("visibility").notNull().default("private"), // private | open

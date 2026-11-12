@@ -648,6 +648,27 @@ export const SetDiscoverAreaResponse = zod.object({
 });
 
 /**
+ * @summary Find a town or ZIP for a league's area (decision 182). A town in more than one state picks the one nearest your home area, or asks for the state.
+ */
+export const LookupAreaQueryParams = zod.object({
+  q: zod.coerce
+    .string()
+    .describe(
+      'A US ZIP or town, for example 12590 or \"Wappingers Falls, NY\"',
+    ),
+});
+
+export const LookupAreaResponse = zod
+  .object({
+    zip: zod.string(),
+    town: zod.string(),
+    state: zod.string(),
+  })
+  .describe(
+    "Your home ZIP and its town. Others only ever see the town and an approximate distance.",
+  );
+
+/**
  * @summary Save your free times (decision 156). Old app versions send the hour grid instead
  */
 export const saveDiscoverAvailabilityBodyFreeTimesItemDayMin = 0;
@@ -1205,7 +1226,27 @@ export const GetLeaguesResponseItem = zod.object({
   leagueType: zod.string().nullish(),
   startDate: zod.string().nullish(),
   endDate: zod.string().nullish(),
-  location: zod.string().nullish(),
+  location: zod
+    .string()
+    .nullish()
+    .describe("Usual courts, free text (optional, decision 182)."),
+  area: zod
+    .union([
+      zod
+        .object({
+          zip: zod.string(),
+          town: zod.string(),
+          state: zod.string(),
+        })
+        .describe(
+          "Your home ZIP and its town. Others only ever see the town and an approximate distance.",
+        ),
+      zod.null(),
+    ])
+    .optional()
+    .describe(
+      "The league's area (decision 182): the town or ZIP Discover measures distance from. Null for leagues made before Nov 12, 2026.",
+    ),
   createdByClerkUserId: zod.string().nullish(),
   visibility: zod.enum(["private", "open"]),
   partnerMode: zod
@@ -1294,7 +1335,16 @@ export const CreateLeagueBody = zod
       .describe(
         "Ignored. Every league has a fixed 1-week grace period (decision 25).",
       ),
-    location: zod.string().nullish(),
+    location: zod
+      .string()
+      .nullish()
+      .describe("Usual courts, free text (optional)."),
+    area: zod
+      .string()
+      .optional()
+      .describe(
+        "Required (decision 182): the league's town or ZIP, for example 12590 or \"Wappingers Falls, NY\". A place we can't find returns 400 with a plain error.",
+      ),
     playing: zod
       .boolean()
       .optional()
@@ -1346,7 +1396,27 @@ export const GetLeagueResponse = zod.object({
   leagueType: zod.string().nullish(),
   startDate: zod.string().nullish(),
   endDate: zod.string().nullish(),
-  location: zod.string().nullish(),
+  location: zod
+    .string()
+    .nullish()
+    .describe("Usual courts, free text (optional, decision 182)."),
+  area: zod
+    .union([
+      zod
+        .object({
+          zip: zod.string(),
+          town: zod.string(),
+          state: zod.string(),
+        })
+        .describe(
+          "Your home ZIP and its town. Others only ever see the town and an approximate distance.",
+        ),
+      zod.null(),
+    ])
+    .optional()
+    .describe(
+      "The league's area (decision 182): the town or ZIP Discover measures distance from. Null for leagues made before Nov 12, 2026.",
+    ),
   createdByClerkUserId: zod.string().nullish(),
   visibility: zod.enum(["private", "open"]),
   partnerMode: zod
@@ -1436,7 +1506,27 @@ export const UpdateLeagueResponse = zod.object({
   leagueType: zod.string().nullish(),
   startDate: zod.string().nullish(),
   endDate: zod.string().nullish(),
-  location: zod.string().nullish(),
+  location: zod
+    .string()
+    .nullish()
+    .describe("Usual courts, free text (optional, decision 182)."),
+  area: zod
+    .union([
+      zod
+        .object({
+          zip: zod.string(),
+          town: zod.string(),
+          state: zod.string(),
+        })
+        .describe(
+          "Your home ZIP and its town. Others only ever see the town and an approximate distance.",
+        ),
+      zod.null(),
+    ])
+    .optional()
+    .describe(
+      "The league's area (decision 182): the town or ZIP Discover measures distance from. Null for leagues made before Nov 12, 2026.",
+    ),
   createdByClerkUserId: zod.string().nullish(),
   visibility: zod.enum(["private", "open"]),
   partnerMode: zod
