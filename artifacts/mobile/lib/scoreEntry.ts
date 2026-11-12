@@ -178,6 +178,38 @@ export function setsFromScore(score: string, count: number): SetEntry[] {
   return sets;
 }
 
+/**
+ * A score in one spelling, so two ways of writing the same score match:
+ * spaces, en dashes and a lowercase "ret" don't count as a change.
+ */
+export function normalizeScore(score: string): string {
+  return score
+    .toUpperCase()
+    .replace(/[–—]/g, "-")
+    .replace(/\s+/g, " ")
+    .replace(/\s*-\s*/g, "-")
+    .replace(/\s*\(\s*/g, "(")
+    .replace(/\s*\)/g, ")")
+    .replace(/\s*,\s*/g, ", ")
+    .trim();
+}
+
+/** The spoken reason an edit's Save is off (finding 14, John, Nov 11). */
+export const NO_CHANGES = "No changes to save";
+
+/**
+ * Whether an edit or correction has something to save (finding 14, John,
+ * Nov 11): the boxes read as a real score and it differs from the saved one.
+ * Typing 6-4 back in over 6-4 is no change, so the other player isn't told
+ * about an edit that changed nothing. With no saved score, any real score is
+ * a change.
+ */
+export function hasScoreChange(draft: ScoreDraft, saved: string | null | undefined): boolean {
+  if (!draft.ok) return false;
+  if (saved == null || saved.trim() === "") return true;
+  return normalizeScore(draft.score) !== normalizeScore(saved);
+}
+
 // Season length (spec: Leagues > Setup: 1 to 24 weeks), as the admin types it (C8).
 export const MIN_WEEKS = 1;
 export const MAX_WEEKS = 24;

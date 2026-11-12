@@ -36,7 +36,7 @@ import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { careerCells, careerSpoken, headToHeadRow, seasonRecord } from "@/lib/career";
-import { earnedLine, knownMilestones, milestoneBadgeLabel, MILESTONE_TITLES } from "@/lib/milestones";
+import { earnedLine, visibleMilestones, milestoneBadgeLabel, MILESTONE_TITLES } from "@/lib/milestones";
 
 export default function CareerScreen() {
   const c = useColors();
@@ -46,7 +46,8 @@ export default function CareerScreen() {
   const q = useGetMyCareer();
   const pull = usePullToRefresh(() => q.refetch());
   const career = q.data;
-  const milestones = knownMilestones(career?.milestones);
+  // Hidden until after all waves (decision 179).
+  const milestones = visibleMilestones(career?.milestones);
   const openMilestone = useOpenMilestone();
 
   return (

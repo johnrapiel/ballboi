@@ -5,19 +5,27 @@ import React, { useCallback, useRef } from "react";
 import { ActionSheetIOS, ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollView, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useGetMyMatch, type MatchDetail } from "@workspace/api-client-react";
+import { getGetLeagueQueryKey, useGetLeague, useGetMyMatch, type MatchDetail } from "@workspace/api-client-react";
 
 import { Avatar } from "@/components/Avatar";
 import { HeaderIconButton } from "@/components/Choice";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
+import { NextMatchCard } from "@/components/NextMatchCard";
+import { DoublesNote } from "@/components/record/DoublesMatchCard";
 import { Button, Card, Text } from "@/components/ui";
 import { MarkedName, WinnerNames } from "@/components/WinnerNames";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useProfile } from "@/hooks/useProfile";
+import { useUpcomingMatches } from "@/hooks/useUpcomingMatches";
+import { useUpcomingMessage } from "@/hooks/useUpcomingMessage";
 import { correctionLine, LATE_NOTE, LATE_ROUND_RESULT, lateDateLine } from "@/lib/leagueSchedule";
 import { durationLabel, durationSpoken, matchSourceLine, scoreFootnote, setRows } from "@/lib/myMatches";
 import { isDoubleDefault, isRetiredScore, WALKOVER_SCORE } from "@/lib/tennisScore";
+import { openRecorder } from "@/lib/recording/start";
+import { cardWhen } from "@/lib/upcoming";
+import { upcomingActions, upcomingFromDetail } from "@/lib/upcomingDetail";
 import { winnerMark } from "@/lib/winnerMark";
 
 // Match detail (finding 6, John, Nov 6; approved design audit, Match detail).
@@ -42,6 +50,13 @@ import { winnerMark } from "@/lib/winnerMark";
 // light hairline border (Nov 7), and
 // holds only the details and the score. Notes such as "Score edited by" sit
 // below it with the footnote, not inside the card.
+//
+// Finding 9 (John, Nov 11): a match not played yet shows Home's next-match
+// card instead (NextMatchCard): when, where, both photos, "You vs. Marcus",
+// the league pill, then Record with Ball Boi (singles), Message, Enter score
+// and Match time where the league lets players set it. A doubles match keeps
+// the note on why Ball Boi can't record it. A Discover or Quick match gets
+// Record on match day and Message. Played matches are unchanged.
 
 const BALL = {
   day: require("@/assets/images/tabs/tab-ballboi-on.png"),
@@ -139,6 +154,15 @@ export default function MatchDetailScreen() {
       void refetch();
     }, [refetch]),
   );
+
+  // Finding 9: the same card and actions as Home for a match not played yet.
+  const upcomingQ = useUpcomingMatches();
+  const pullUpcoming = usePullToRefresh(() => [refetch(), upcomingQ.refetch()]);
+  const { profile } = useProfile();
+  const { message: upcomingMessage } = useUpcomingMessage();
+  const upcoming = !!d && !d.played && !d.voided;
+  const leagueId = d?.leagueId ?? 0;
+  const leagueQ = useGetLeague(leagueId, { query: { enabled: upcoming && d?.leagueId != null, queryKey: getGetLeagueQueryKey(leagueId) } });
 
   const opponent = d?.opponents.players[0];
   const them = d ? sideName(d.opponents) : "";
@@ -250,6 +274,83 @@ export default function MatchDetailScreen() {
     d.leagueId != null
       ? router.push({ pathname: "/league/[leagueId]/score/[matchId]", params: { leagueId: String(d.leagueId), matchId: String(d.matchId), edit: "1" } })
       : router.push({ pathname: "/match/edit-score/[matchId]", params: { matchId: String(d.matchId) } });
+
+  if (upcoming) {
+    // Home's own item knows the Play by date; otherwise build it from this match.
+    const item =
+      upcomingQ.items.find((i) => i.matchId === d.matchId && i.kind !== "open") ??
+      upcomingFromDetail(d, stage);
+    // Match time: only in a league with no fixed weekly time (as on the league page).
+    const actions = upcomingActions(item, { matchTimeAllowed: !!leagueQ.data && leagueQ.data.matchDay == null });
+    const cardOpponent = item.opponentName ?? them;
+    const cardWhenLabel = cardWhen(item);
+    const leagueIdForActions = d.leagueId;
+    // The late note is on the card; any other note sits under it.
+    const upcomingNotes = shownNotes.filter((n) => n !== LATE_NOTE);
+    return (
+      <ScrollView
+        style={{ flex: 1, backgroundColor: c.paper }}
+        contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={pullUpcoming.refreshing}
+            onRefresh={pullUpcoming.onRefresh}
+            tintColor={c.ink}
+          />
+        }
+      >
+        {header}
+        <View accessible accessibilityRole="header" accessibilityLabel={`Match against ${cardOpponent}`} style={{ position: "absolute", width: 1, height: 1 }} />
+        <NextMatchCard
+          dateLabel={cardWhenLabel.dateLabel}
+          time={cardWhenLabel.time}
+          myName={profile?.displayName ?? "You"}
+          myPhoto={profile?.avatarUrl ?? sidePhoto(d.you)}
+          opponentPhoto={item.opponentPhoto}
+          opponentName={cardOpponent}
+          partnerName={item.partnerName}
+          opponentNames={item.opponentNames}
+          location={item.location ?? d.location}
+          league={item.context}
+          note={item.grace ? LATE_NOTE : null}
+          record={
+            actions.record
+              ? {
+                  label: "Record with Ball Boi",
+                  hint: `Records your match against ${cardOpponent}`,
+                  onPress: () => openRecorder(router, { matchId: d.matchId, opponentName: cardOpponent, leagueId: d.leagueId }),
+                }
+              : null
+          }
+          message={upcomingMessage(item)}
+          details={
+            actions.enterScore && leagueIdForActions != null
+              ? {
+                  label: "Enter score",
+                  hint: `For your match against ${cardOpponent}`,
+                  onPress: () => router.push({ pathname: "/league/[leagueId]/score/[matchId]", params: { leagueId: String(leagueIdForActions), matchId: String(d.matchId) } }),
+                }
+              : null
+          }
+          extra={
+            actions.matchTime && leagueIdForActions != null
+              ? {
+                  label: "Match time",
+                  hint: item.scheduledAt ? "Change the day and time" : "Pick a day and time this week",
+                  onPress: () => router.push({ pathname: "/league/[leagueId]/time/[matchId]", params: { leagueId: String(leagueIdForActions), matchId: String(d.matchId) } }),
+                }
+              : null
+          }
+          footer={actions.doublesNote ? <DoublesNote matchId={d.matchId} /> : null}
+        />
+        {upcomingNotes.map((n) => (
+          <Text key={n} variant="small" tone="inkMuted" style={{ paddingHorizontal: spacing.space1 }}>
+            {n}
+          </Text>
+        ))}
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView

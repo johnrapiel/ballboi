@@ -95,6 +95,8 @@ export interface GroupRepo {
   findGroupByLeague(leagueId: number): Promise<GroupRecord | null>;
   /** A doubles league match's chat (D6). */
   findGroupByMatch(matchId: number): Promise<GroupRecord | null>;
+  /** Every league that has a chat, including leagues since deleted (so their chats can be emptied). */
+  leagueIdsWithGroups(): Promise<number[]>;
   /** Creates the group, or returns the existing one for this channel. */
   createGroup(input: NewGroup): Promise<GroupRecord>;
   updateGroup(id: number, patch: GroupPatch): Promise<GroupRecord>;
