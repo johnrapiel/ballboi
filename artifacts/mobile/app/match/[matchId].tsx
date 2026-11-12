@@ -17,6 +17,7 @@ import { useColors } from "@/hooks/useColors";
 import { correctionLine, LATE_NOTE, LATE_ROUND_RESULT, lateDateLine } from "@/lib/leagueSchedule";
 import { durationLabel, durationSpoken, matchSourceLine, scoreFootnote, setRows } from "@/lib/myMatches";
 import { isDoubleDefault, isRetiredScore, WALKOVER_SCORE } from "@/lib/tennisScore";
+import { clockTime } from "@/lib/timeFormat";
 import { winnerMark } from "@/lib/winnerMark";
 
 // Match detail (finding 6, John, Nov 6; approved design audit, Match detail).
@@ -55,7 +56,7 @@ function whenLine(d: MatchDetail): string | null {
   const at = new Date(iso);
   if (Number.isNaN(at.getTime())) return null;
   const day = at.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
-  return d.scheduledAt ? `${day} · ${at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}` : day;
+  return d.scheduledAt ? `${day} · ${clockTime(at)}` : day;
 }
 
 function stageLine(d: MatchDetail): string {
