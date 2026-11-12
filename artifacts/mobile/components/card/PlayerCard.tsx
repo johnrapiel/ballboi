@@ -26,7 +26,8 @@ import { ADD_HOME_COURT, ADD_PLAYS, bottomRow, cardPrompts, cardSpoken, levelPil
 // Prompts in place (John, Nov 9): on your own card, an unset home court or
 // Plays shows a light link in its spot ("Add home court", "Add how you
 // play") that opens the same editor Edit profile uses. Someone else's card
-// leaves those spots out, and Free times alone sits left-aligned.
+// leaves those spots out, and Free times alone sits left-aligned. Free
+// times shows on every card, even with none added (finding 13).
 //
 // VoiceOver reads the card as one element, then the prompts, the milestone
 // badges, Free times and the pencil (your own card) as their own buttons.
@@ -89,7 +90,7 @@ export function PlayerCard({
   card: Card;
   /** Your own card: the pencil, which opens Edit profile. */
   onEdit?: () => void;
-  /** Opens the Free times sheet. Hidden on someone else's card with no free times. */
+  /** Opens the Free times sheet. On every card; with none added, the sheet says so (finding 13). */
   onFreeTimes: () => void;
   /** Your own card with no home court: opens the home court picker. */
   onAddHomeCourt?: () => void;

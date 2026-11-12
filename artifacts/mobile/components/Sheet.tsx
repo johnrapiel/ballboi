@@ -74,8 +74,11 @@ export function SheetBody({
   children,
   contentStyle,
   scrollRef,
+  titleAction,
 }: {
   title: string;
+  /** A small icon button at the right end of the title line, like Free times' pencil. */
+  titleAction?: React.ReactNode;
   /** Something was typed or picked: closing asks first. Ignored when `close` is passed. */
   dirty?: boolean;
   /** The sheet's own close, from `useSheetClose`, when the screen also needs `finish`. */
@@ -128,9 +131,18 @@ export function SheetBody({
   ];
   const content = (
     <>
-      <Text variant="headingM" accessibilityRole="header">
-        {title}
-      </Text>
+      {titleAction ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3 }}>
+          <Text variant="headingM" accessibilityRole="header" style={{ flex: 1 }}>
+            {title}
+          </Text>
+          {titleAction}
+        </View>
+      ) : (
+        <Text variant="headingM" accessibilityRole="header">
+          {title}
+        </Text>
+      )}
       {children}
     </>
   );
