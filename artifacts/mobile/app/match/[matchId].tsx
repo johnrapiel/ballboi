@@ -14,6 +14,7 @@ import { Button, Card, Text } from "@/components/ui";
 import { MarkedName, WinnerNames } from "@/components/WinnerNames";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { correctionLine, LATE_NOTE, LATE_ROUND_RESULT, lateDateLine } from "@/lib/leagueSchedule";
 import { durationLabel, durationSpoken, matchSourceLine, scoreFootnote, setRows } from "@/lib/myMatches";
 import { isDoubleDefault, isRetiredScore, WALKOVER_SCORE } from "@/lib/tennisScore";
@@ -126,6 +127,7 @@ export default function MatchDetailScreen() {
   const q = useGetMyMatch(matchId);
   const d = q.data;
   const { refetch } = q;
+  const pull = usePullToRefresh(() => refetch());
   const firstFocus = useRef(true);
   // Back from Enter score after an edit: show the new score.
   useFocusEffect(
@@ -253,7 +255,7 @@ export default function MatchDetailScreen() {
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
       contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
-      refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void refetch()} tintColor={c.ink} />}
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
       {header}
       {/* The screen's name for VoiceOver; the nav bar title stays empty, as designed. */}

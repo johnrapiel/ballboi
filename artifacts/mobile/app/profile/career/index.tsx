@@ -33,6 +33,7 @@ import { SettingsRow, SettingsSection } from "@/components/SettingsList";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { careerCells, careerSpoken, headToHeadRow, seasonRecord } from "@/lib/career";
 import { earnedLine, knownMilestones, milestoneBadgeLabel, MILESTONE_TITLES } from "@/lib/milestones";
@@ -43,6 +44,7 @@ export default function CareerScreen() {
   const insets = useSafeAreaInsets();
   const header = useEditHeader("");
   const q = useGetMyCareer();
+  const pull = usePullToRefresh(() => q.refetch());
   const career = q.data;
   const milestones = knownMilestones(career?.milestones);
   const openMilestone = useOpenMilestone();
@@ -57,7 +59,7 @@ export default function CareerScreen() {
           paddingBottom: insets.bottom + spacing.space8,
           gap: spacing.space6,
         }}
-        refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void q.refetch()} tintColor={c.ink} />}
+        refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
       >
         <Text variant="headingL" accessibilityRole="header">
           Career
