@@ -14,7 +14,6 @@ import {
   BLOCKS,
   CUSTOM_HINT,
   DAY_NAMES,
-  blockHours,
   blockSpoken,
   customSpoken,
   dayTimes,
@@ -86,7 +85,7 @@ export function DayRow({
           <TimePill
             key={b.key}
             label={b.name}
-            detail={blockHours(b)}
+            detail={rangeText(b)}
             selected={on[b.key]}
             onPress={() => onToggle(b)}
             accessibilityLabel={blockSpoken(b, day)}
@@ -205,7 +204,7 @@ export function TimePill({
         {label}
         {detail ? (
           <Text variant="body" tone={selected ? "onInk" : "inkMuted"}>
-            {` ${detail}`}
+            {`, ${detail}`}
           </Text>
         ) : null}
       </Text>
