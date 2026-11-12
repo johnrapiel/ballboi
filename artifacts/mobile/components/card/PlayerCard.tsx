@@ -11,7 +11,7 @@ import { Pill, Text, TextLink } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { photoUrl } from "@/lib/photos";
-import { knownMilestones } from "@/lib/milestones";
+import { visibleMilestones } from "@/lib/milestones";
 import { ADD_HOME_COURT, ADD_PLAYS, bottomRow, cardPrompts, cardSpoken, levelPill, playsPill, townLine } from "@/lib/playerCard";
 
 // The player card, design D "Portrait" (spec decision 139, John, Nov 8;
@@ -105,7 +105,8 @@ export function PlayerCard({
   const row = bottomRow(card);
   const askCourt = row?.left === "prompt" && !!onAddHomeCourt;
   const first = card.name.split(" ")[0] || card.name;
-  const badges = knownMilestones(card.milestones);
+  // Hidden until after all waves (decision 179); VoiceOver skips them too.
+  const badges = visibleMilestones(card.milestones);
 
   return (
     <View
@@ -120,7 +121,7 @@ export function PlayerCard({
         paddingBottom: row ? spacing.space1 : spacing.space4,
       }}
     >
-      <View accessible accessibilityLabel={cardSpoken(card)} style={{ alignItems: "center", width: "100%" }}>
+      <View accessible accessibilityLabel={cardSpoken({ ...card, milestones: badges })} style={{ alignItems: "center", width: "100%" }}>
         <CourtDrawing />
         <View style={{ marginTop: -56, borderRadius: radius.radiusPill, borderWidth: 4, borderColor: c.linen, backgroundColor: c.linen }}>
           <Avatar name={card.name} uri={photoUrl(card.avatarUrl)} size={96} />
