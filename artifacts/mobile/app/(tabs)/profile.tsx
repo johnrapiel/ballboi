@@ -17,6 +17,7 @@ import { UpcomingRows } from "@/components/UpcomingRows";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { upcomingHint, useOpenUpcoming, useUpcomingMatches } from "@/hooks/useUpcomingMatches";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { recordedLine, recordedThisSeason, tabFromParam, type MatchTab } from "@/lib/playerCard";
 import { myResultRows } from "@/lib/resultRow";
@@ -77,12 +78,7 @@ export default function ProfileScreen() {
     if (tabsY != null) scroll.current?.scrollTo({ y: Math.max(0, tabsY - spacing.space4), animated: true });
   }, [wanted, params.at, tabsY]);
 
-  const refresh = () => {
-    void cardQ.refetch();
-    void resultsQ.refetch();
-    upcoming.refetch();
-    void recordings.refetch();
-  };
+  const pull = usePullToRefresh(() => [cardQ.refetch(), resultsQ.refetch(), upcoming.refetch(), recordings.refetch()]);
 
   const results = useMemo(() => myResultRows(resultsQ.data?.results ?? []), [resultsQ.data]);
   const seasonRecordings = card ? recordedThisSeason(recordings.data ?? [], card.season) : [];
@@ -103,7 +99,7 @@ export default function ProfileScreen() {
         ref={scroll}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space2, paddingBottom: insets.bottom + 96, gap: spacing.space6 }}
-        refreshControl={<RefreshControl refreshing={cardQ.isRefetching || upcoming.isRefetching || resultsQ.isRefetching} onRefresh={refresh} tintColor={c.ink} />}
+        refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
       >
         {cardQ.isLoading ? (
           <View accessible accessibilityLabel="Loading your player card" style={{ height: 320, borderRadius: radius.radiusCard, backgroundColor: c.sand }} />

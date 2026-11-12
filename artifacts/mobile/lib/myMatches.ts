@@ -1,6 +1,7 @@
 import type { LeagueWeekSeason } from "@workspace/api-client-react";
 
 import { flipScore, isDoubleDefault, isRetiredScore, readSet, WALKOVER_SCORE } from "./tennisScore";
+import { clockTime } from "./timeFormat";
 
 // Match detail and the record screen's season line (findings 6, 7, 14; John,
 // Nov 6). Pure, so it's tested in lib/__tests__.
@@ -66,7 +67,7 @@ export function dayAndTime(iso: string | null | undefined): string | null {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
   const day = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const time = clockTime(d);
   return `${day} at ${time}`;
 }
 

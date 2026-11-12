@@ -17,7 +17,9 @@ import { useColors } from "@/hooks/useColors";
 // - Match day, singles: Record with Ball Boi on its own row, then Message and
 //   Details side by side.
 // - Any other match: Message (primary) and Details side by side.
-// Enter score lives on Details (Match detail) and the league, not on this card.
+// Enter score lives on Details (Match detail) and the league, not on Home's card.
+// Match detail shows this same card for a match not played yet (finding 9),
+// with Enter score in the Details slot and Match time under the row.
 //
 // The audit overrides anything built that doesn't match it (John, Nov 7).
 
@@ -44,6 +46,7 @@ export function NextMatchCard({
   record,
   message,
   details,
+  extra,
   footer,
 }: {
   /** "Today", "Saturday, Oct 17", or "No time set yet". */
@@ -71,6 +74,8 @@ export function NextMatchCard({
   message?: NextMatchAction | null;
   /** Opens Match detail. Left off for a Discover match, whose Message opens the chat its card lives in. */
   details?: NextMatchAction | null;
+  /** Match detail: Match time, full width under Message and Enter score. */
+  extra?: NextMatchAction | null;
   /** Under the buttons, e.g. the doubles Ball Boi note. */
   footer?: React.ReactNode;
 }) {
@@ -162,6 +167,9 @@ export function NextMatchCard({
             />
           ) : null}
         </ButtonRow>
+        {extra ? (
+          <Button label={extra.label} accessibilityLabel={extra.accessibilityLabel} accessibilityHint={extra.hint} variant="secondary" onPress={extra.onPress} />
+        ) : null}
       </View>
       {footer ? <View style={{ width: "100%", marginTop: spacing.space3 }}>{footer}</View> : null}
     </View>

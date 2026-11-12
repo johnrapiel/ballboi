@@ -11,6 +11,7 @@ import { Button, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useConversations, useMessagesActions, type Conversation, type GroupConversation } from "@/hooks/useMessages";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 
 // Messages (spec: Messaging and moderation; approved canvas: Messages, opened
 // from the Messages button in the top corner of every tab). A brush title and
@@ -29,6 +30,7 @@ export default function MessagesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const query = useConversations();
+  const pull = usePullToRefresh(() => query.refetch());
   const actions = useMessagesActions();
   const [addingSamples, setAddingSamples] = useState(false);
 
@@ -93,7 +95,7 @@ export default function MessagesScreen() {
               <ConversationRow conversation={i.item} onPress={() => open(i.item.id)} />
             )
           }
-          refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={c.ink} />}
+          refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
           contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + spacing.space6 }}
           ListHeaderComponent={header}
           ListEmptyComponent={

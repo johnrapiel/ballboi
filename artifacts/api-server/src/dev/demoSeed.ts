@@ -37,6 +37,8 @@ import {
   leagueRoundsTable,
   leaguesTable,
   matchesTable,
+  messageGroupMembersTable,
+  messageGroupsTable,
   playersTable,
   playoffBracketsTable,
   usersTable,
@@ -46,6 +48,7 @@ import {
 import { and, desc, eq, ilike, inArray, isNull } from "drizzle-orm";
 import { customAlphabet } from "nanoid";
 import { deleteAccount } from "../lib/accountDeletion.js";
+import { LEAGUE_ENDED } from "../messaging/service.js";
 import {
   DEMO_AREAS,
   DEMO_COURTS,
@@ -200,6 +203,15 @@ async function reset(leagueId: number | null, johnId: string, demoIds: string[])
     await db.delete(matchesTable).where(inArray(matchesTable.leagueId, demoLeagueIds));
     await db.delete(playersTable).where(inArray(playersTable.leagueId, demoLeagueIds));
     await db.delete(leaguesTable).where(inArray(leaguesTable.id, demoLeagueIds));
+    // Their league chats empty out and close, as when a league is deleted in the app.
+    // Otherwise John keeps the old chat and sees each demo league's chat twice in
+    // Messages after a re-seed (Wave 2 finding 2). Messages and the chat row stay.
+    const chats = await db.select({ id: messageGroupsTable.id }).from(messageGroupsTable).where(inArray(messageGroupsTable.leagueId, demoLeagueIds));
+    if (chats.length) {
+      const chatIds = chats.map((c) => c.id);
+      await db.delete(messageGroupMembersTable).where(inArray(messageGroupMembersTable.groupId, chatIds));
+      await db.update(messageGroupsTable).set({ open: false, closedReason: LEAGUE_ENDED }).where(inArray(messageGroupsTable.id, chatIds));
+    }
   }
 
   if (leagueId) {

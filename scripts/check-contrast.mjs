@@ -49,6 +49,11 @@ const PAIRS = [
   ["ink-muted", "linen", NON_TEXT, "switch knob, off, on cards"],
   ["ink-muted", "paper", NON_TEXT, "switch knob, off, on the page"],
   ["ink-muted-hc", "linen", NON_TEXT, "switch knob, off, on cards, Increase Contrast"],
+  // The grabber bar on page sheets and swipe-down modals (components/Sheet.tsx, decision 181).
+  ["hairline-strong", "linen", NON_TEXT, "grabber bar on a page sheet"],
+  ["hairline-strong", "paper", NON_TEXT, "grabber bar on a swipe-down modal"],
+  ["hairline-strong-hc", "linen", NON_TEXT, "grabber bar on a page sheet, Increase Contrast"],
+  ["hairline-strong-hc", "paper", NON_TEXT, "grabber bar on a swipe-down modal, Increase Contrast"],
   // Increase Contrast replacements (useColors swaps these in).
   ["ink-muted-hc", "paper", TEXT, "meta text on the page, Increase Contrast"],
   ["ink-muted-hc", "linen", TEXT, "meta text on cards, Increase Contrast"],

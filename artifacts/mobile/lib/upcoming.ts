@@ -2,6 +2,7 @@ import type { LeagueWeek, LeagueWeekItem, LeagueWeekPlayoff } from "@workspace/a
 import { versusLine, versusSpoken } from "./doubles";
 
 import { deadlineDate, isToday, lateTime } from "./leagueSchedule";
+import { clockTime } from "./timeFormat";
 
 // Upcoming matches (spec decision 137, John, Nov 8): one list of every match
 // still to play, league, playoff and Discover, in date order. Home shows the
@@ -201,12 +202,12 @@ export function upcomingList(input: {
 
 const dayShort = (d: Date) => d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 const dayLong = (d: Date) => d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-const clock = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+const clock = clockTime;
 /** "9 AM" or "6:30 PM", as VoiceOver says a time. */
-const clockSpoken = (d: Date) => clock(d).replace(":00", "");
+const clockSpoken = clockTime;
 
 /**
- * A row's top line: "Sat, Nov 14 · 9:00 AM", "Today · 6:30 PM", or
+ * A row's top line: "Sat, Nov 14 · 9 AM", "Today · 6:30 PM", or
  * "Play by Sun, Nov 15" when no time is set.
  */
 export function rowWhen(m: Pick<UpcomingItem, "scheduledAt" | "playBy" | "starts">, now: Date = new Date()): string {

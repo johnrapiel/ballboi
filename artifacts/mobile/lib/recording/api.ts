@@ -5,6 +5,7 @@ import { useAuth } from "@clerk/expo";
 import { useQuery } from "@tanstack/react-query";
 
 import { apiErrorMessage, apiFetch } from "@/lib/api";
+import { clockTime } from "../timeFormat";
 
 export interface RecordableMatch {
   id: number;
@@ -49,12 +50,12 @@ export function useTodaysMatches() {
   });
 }
 
-/** "6:00 PM" today, "Thu 6:00 PM" another day, or null when there's no time. */
+/** "6 PM" today, "Thu 6:30 PM" another day, or null when there's no time. */
 export function matchTime(scheduledAt: string | null, now: Date = new Date()): string | null {
   if (!scheduledAt) return null;
   const d = new Date(scheduledAt);
   if (Number.isNaN(d.getTime())) return null;
-  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const time = clockTime(d);
   if (d.toDateString() === now.toDateString()) return time;
   return `${d.toLocaleDateString("en-US", { weekday: "short" })} ${time}`;
 }

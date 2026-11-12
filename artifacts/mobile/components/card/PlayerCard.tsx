@@ -11,7 +11,7 @@ import { Pill, Text, TextLink } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { photoUrl } from "@/lib/photos";
-import { knownMilestones } from "@/lib/milestones";
+import { visibleMilestones } from "@/lib/milestones";
 import { ADD_HOME_COURT, ADD_PLAYS, bottomRow, cardPrompts, cardSpoken, levelPill, playsPill, townLine } from "@/lib/playerCard";
 
 // The player card, design D "Portrait" (spec decision 139, John, Nov 8;
@@ -26,7 +26,8 @@ import { ADD_HOME_COURT, ADD_PLAYS, bottomRow, cardPrompts, cardSpoken, levelPil
 // Prompts in place (John, Nov 9): on your own card, an unset home court or
 // Plays shows a light link in its spot ("Add home court", "Add how you
 // play") that opens the same editor Edit profile uses. Someone else's card
-// leaves those spots out, and Free times alone sits left-aligned.
+// leaves those spots out, and Free times alone sits left-aligned. Free
+// times shows on every card, even with none added (finding 13).
 //
 // VoiceOver reads the card as one element, then the prompts, the milestone
 // badges, Free times and the pencil (your own card) as their own buttons.
@@ -89,7 +90,7 @@ export function PlayerCard({
   card: Card;
   /** Your own card: the pencil, which opens Edit profile. */
   onEdit?: () => void;
-  /** Opens the Free times sheet. Hidden on someone else's card with no free times. */
+  /** Opens the Free times sheet. On every card; with none added, the sheet says so (finding 13). */
   onFreeTimes: () => void;
   /** Your own card with no home court: opens the home court picker. */
   onAddHomeCourt?: () => void;
@@ -105,7 +106,8 @@ export function PlayerCard({
   const row = bottomRow(card);
   const askCourt = row?.left === "prompt" && !!onAddHomeCourt;
   const first = card.name.split(" ")[0] || card.name;
-  const badges = knownMilestones(card.milestones);
+  // Hidden until after all waves (decision 179); VoiceOver skips them too.
+  const badges = visibleMilestones(card.milestones);
 
   return (
     <View
@@ -120,7 +122,7 @@ export function PlayerCard({
         paddingBottom: row ? spacing.space1 : spacing.space4,
       }}
     >
-      <View accessible accessibilityLabel={cardSpoken(card)} style={{ alignItems: "center", width: "100%" }}>
+      <View accessible accessibilityLabel={cardSpoken({ ...card, milestones: badges })} style={{ alignItems: "center", width: "100%" }}>
         <CourtDrawing />
         <View style={{ marginTop: -56, borderRadius: radius.radiusPill, borderWidth: 4, borderColor: c.linen, backgroundColor: c.linen }}>
           <Avatar name={card.name} uri={photoUrl(card.avatarUrl)} size={96} />

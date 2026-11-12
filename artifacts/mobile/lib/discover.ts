@@ -2,6 +2,7 @@
 // so they're testable in Node; the data hooks are hooks/useDiscover*.ts.
 
 import type { FreeRange } from "@workspace/free-times";
+import { clockTime } from "./timeFormat";
 
 export type Plays = "singles" | "doubles" | "both";
 export type LevelRange = "close" | "wider" | "any";
@@ -367,17 +368,17 @@ export interface MatchPlan {
   events: PlanEvent[];
 }
 
-/** "Thu, Nov 12 at 6:00 PM", in this phone's time zone. */
+/** "Thu, Nov 12 at 6 PM", in this phone's time zone. */
 export function planWhen(iso: string): string {
   const d = new Date(iso);
   const day = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const time = clockTime(d);
   return `${day} at ${time}`;
 }
 
 /** "6 PM" or "6:30 PM". */
 export function planTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).replace(":00", "");
+  return clockTime(new Date(iso));
 }
 
 export const kindLabel = (k: MatchPlan["kind"]) => (k === "practice" ? "Practice hit" : "Singles");

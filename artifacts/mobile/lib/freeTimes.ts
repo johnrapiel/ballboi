@@ -5,6 +5,7 @@
 
 import {
   DAY_NAMES,
+  DAY_SHORT,
   blockOf,
   normalize,
   parseCustom,
@@ -118,4 +119,46 @@ export function freeTimesLine(summary: string | null | undefined, you: boolean):
   const first = summary.split(" ")[0];
   const day = (DAY_NAMES as readonly string[]).includes(first);
   return `Free ${day ? summary : summary.charAt(0).toLowerCase() + summary.slice(1)}`;
+}
+
+/** One day on the Free times sheet (finding 17, layout A): "Tue" and its times, one per line. */
+export interface SheetDay {
+  day: number;
+  /** "Tue", bold in the left column. */
+  short: string;
+  /** "7 AM to 12 PM", "5 to 9 PM": each on its own line, earliest first. */
+  times: string[];
+  /** VoiceOver: "Saturday, 7 AM to 12 PM and 5 to 9 PM". */
+  spoken: string;
+}
+
+/**
+ * The Free times sheet (John, Nov 11, layout A): one row per day with free
+ * time, Monday first. Each day's times are sorted by start, and times that
+ * overlap or touch become one (Sat 7 to 11 AM and 10 AM to 12 PM read
+ * 7 AM to 12 PM). No Morning, Afternoon or Evening words. Days with nothing
+ * free are left out.
+ */
+export function sheetDays(ranges: readonly FreeRange[]): SheetDay[] {
+  const out: SheetDay[] = [];
+  for (let d = 0; d < 7; d++) {
+    const merged: { start: number; end: number }[] = [];
+    for (const r of normalize(ranges).filter((x) => x.day === d)) {
+      const last = merged[merged.length - 1];
+      if (last && r.start <= last.end) last.end = Math.max(last.end, r.end);
+      else merged.push({ start: r.start, end: r.end });
+    }
+    if (!merged.length) continue;
+    const times = merged.map(rangeText);
+    const list = times.length > 1 ? `${times.slice(0, -1).join(", ")} and ${times[times.length - 1]}` : times[0];
+    out.push({ day: d, short: DAY_SHORT[d], times, spoken: `${DAY_NAMES[d]}, ${list}` });
+  }
+  return out;
+}
+
+/** The sheet with nothing added: "Ross hasn't added free times yet." or "You haven't added free times yet." */
+export function noFreeTimesLine(name: string, you: boolean): string {
+  if (you) return "You haven't added free times yet.";
+  const first = name.trim().split(" ")[0];
+  return `${first || "This player"} hasn't added free times yet.`;
 }

@@ -52,11 +52,9 @@ describe("prompts in place (John, Nov 9)", () => {
     expect(bottomRow({ ...bare, homeCourt: "Beacon Courts" })).toEqual({ left: "court", free: true, align: "split" });
   });
 
-  it("left-aligns Free times alone on someone else's card with no home court", () => {
-    expect(bottomRow({ ...bare, you: false, freeTimes: [{ day: 0, start: 1080, end: 1140 }] })).toEqual({ left: null, free: true, align: "start" });
-    expect(bottomRow({ ...bare, you: false, homeCourt: "Beacon Courts" })).toEqual({ left: "court", free: false, align: "start" });
-    expect(bottomRow({ ...bare, you: false, homeCourt: "Beacon Courts", freeTimes: [{ day: 0, start: 1080, end: 1140 }] })).toEqual({ left: "court", free: true, align: "split" });
-    expect(bottomRow({ ...bare, you: false })).toBeNull();
+  it("shows Free times on every card, even with none added, left-aligned alone with no home court (finding 13)", () => {
+    expect(bottomRow({ ...bare, you: false })).toEqual({ left: null, free: true, align: "start" });
+    expect(bottomRow({ ...bare, you: false, homeCourt: "Beacon Courts" })).toEqual({ left: "court", free: true, align: "split" });
   });
 });
 

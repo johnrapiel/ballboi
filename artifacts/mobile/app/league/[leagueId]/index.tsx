@@ -29,6 +29,7 @@ import { BracketView, myPlayoffMatch, ROUND_SINGULAR } from "@/components/league
 import { Button, ButtonRow, Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { RatingBadge } from "@/components/RatingBadge";
 import { DoublesRecordButton } from "@/components/record/DoublesMatchCard";
 import { levelSpoken } from "@/lib/onboarding";
@@ -278,14 +279,7 @@ export default function LeagueScreen() {
   const playoff = myPlayoffMatch(bracket, myPlayerId);
   const rounds = (schedule?.rounds ?? []).filter((r) => r.phase !== "draft").slice().reverse();
 
-  const refreshing = leagueQ.isRefetching || standingsQ.isRefetching || scheduleQ.isRefetching;
-  const refresh = () => {
-    void leagueQ.refetch();
-    void membershipQ.refetch();
-    void standingsQ.refetch();
-    void scheduleQ.refetch();
-    void bracketQ.refetch();
-  };
+  const pull = usePullToRefresh(() => [leagueQ.refetch(), membershipQ.refetch(), standingsQ.refetch(), scheduleQ.refetch(), bracketQ.refetch()]);
 
   const enterScore = (m: ScheduleMatch) => router.push(`/league/${leagueId}/score/${m.matchId}`);
 
@@ -377,7 +371,7 @@ export default function LeagueScreen() {
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
       contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.ink} />}
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
       {leagueQ.isError || !league ? (
         <Card style={{ gap: spacing.space2 }}>

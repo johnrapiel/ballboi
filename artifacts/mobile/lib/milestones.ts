@@ -52,6 +52,22 @@ export function knownMilestones<T extends Pick<Milestone, "kind">>(list: readonl
   return (list ?? []).filter((m) => m.kind in MILESTONE_TITLES);
 }
 
+/**
+ * Milestone badges are hidden in the app until after all waves (decision 179,
+ * John, Nov 11): no badges on player cards, no Milestones section on Career,
+ * no new-badge pop-up after a score. The server keeps earning and saving them.
+ * Set to true to bring everything back exactly as before.
+ */
+export const SHOW_MILESTONES = false;
+
+/** The milestones to show: the known ones when badges are on, none while they're hidden. */
+export function visibleMilestones<T extends Pick<Milestone, "kind">>(
+  list: readonly T[] | null | undefined,
+  show: boolean = SHOW_MILESTONES,
+): T[] {
+  return show ? knownMilestones(list) : [];
+}
+
 /** On the card's VoiceOver summary: "milestones: first win, 5-match win streak", or null with none. */
 export function milestonesSpoken(list: readonly Pick<Milestone, "kind">[] | null | undefined): string | null {
   const known = knownMilestones(list);
