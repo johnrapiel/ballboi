@@ -112,7 +112,7 @@ export default function AvailabilityScreen() {
     if (added.length) AccessibilityInfo.announceForAccessibility(`Added ${added.map(rangeText).join(", ")} on ${DAY_NAMES[day]}`);
   };
 
-  // A time you typed: Edit or Remove, in a bottom sheet (decision 186).
+  // A time you typed: Edit or Remove, in a bottom sheet (decision 193).
   const customMenu = (r: FreeRange) => {
     const when = `${rangeText(r)}, ${DAY_NAMES[r.day]}`;
     sheet.show({

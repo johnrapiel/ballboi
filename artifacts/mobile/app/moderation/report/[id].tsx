@@ -124,7 +124,7 @@ export default function ReportScreen() {
       ],
     );
 
-  // How long: a picker in a bottom sheet (decision 186), then the native confirm.
+  // How long: a picker in a bottom sheet (decision 193), then the native confirm.
   const suspend = () =>
     sheet.show({
       title: `Suspend ${who} for how long?`,

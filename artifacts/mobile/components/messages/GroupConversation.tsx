@@ -328,7 +328,7 @@ export function GroupConversation({
   };
 
   // A league chat's long press: Report for everyone, plus pins and moderation
-  // for admins. A bottom sheet (decision 186); Delete and Remove still confirm.
+  // for admins. A bottom sheet (decision 193); Delete and Remove still confirm.
   const sheet = useActionSheet();
   const actionIcon: Record<LeagueMessageAction, IconName> = {
     pin: "pin",

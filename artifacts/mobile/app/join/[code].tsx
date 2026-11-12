@@ -9,8 +9,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   getGetMyJoinRequestsQueryKey,
+  getGetMyPartnerQueryKey,
   getInvite,
+  getMyPartner,
   joinLeagueViaInvite,
+  type LeagueInviteMember,
 } from "@workspace/api-client-react";
 
 import { Avatar } from "@/components/Avatar";
@@ -24,6 +27,7 @@ import { cleanCode, savePendingJoinCode } from "@/lib/leagueInvite";
 import { askForNotifications } from "@/lib/notifications";
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { shortDate } from "@/lib/leagueSchedule";
+import { levelSpoken } from "@/lib/onboarding";
 import { photoUrl } from "@/lib/photos";
 
 // Join a league (decision C1, Oct 31 review). Opened by an invite link
@@ -33,10 +37,21 @@ import { photoUrl } from "@/lib/photos";
 // - Join league: before the season starts, the player is in.
 // - Ask to join: a Private league that started or is full asks the organizer.
 // - Join waitlist: an Open league that started or is full holds a spot for next season.
+// Finding 33 (Wave 2, option A, refined by John, Nov 12, 2:14 PM): joining a
+// singles or rotating-partner doubles league closes this sheet and opens the
+// league page, which says "You're in" for a moment. Joining a fixed-partner
+// doubles league opens the You're in sheet instead (league/[leagueId]/joined),
+// sized to its content, where the player picks or asks for a partner.
+// Request sent, waitlist, Already in and the problem states stay here, centered.
 // Approved canvas: Join league invite. The invite as a card with a brush
-// title, Where, Players and Starts as a list, "You'll join as" from your
-// profile, and the one button pinned at the bottom. Cancel at the top left,
-// like any iOS modal.
+// title, Where, Players and Starts as a list, then Who's in (finding 34):
+// everyone in the league, organizer first, up to 8 and "and N more". Players
+// hidden from Discover still show; anyone with a block with you doesn't.
+// The one button is pinned at the bottom. Cancel at the top left, like any
+// iOS modal.
+
+/** Who's in shows this many members, then "and N more". */
+const WHOS_IN_LIMIT = 8;
 
 /** A label and value row in the invite's list. */
 function DetailRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
@@ -64,6 +79,69 @@ function DetailRow({ label, value, last }: { label: string; value: string; last?
   );
 }
 
+/** One member in Who's in: photo or initials, name, level, and Organizer for the league's organizer. */
+function MemberRow({ member, last }: { member: LeagueInviteMember; last: boolean }) {
+  const c = useColors();
+  return (
+    <View
+      accessible
+      accessibilityLabel={[member.name, levelSpoken(member.level, member.levelSource), member.organizer ? "Organizer" : null]
+        .filter(Boolean)
+        .join(", ")}
+      style={{
+        minHeight: 52,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.space3,
+        paddingHorizontal: spacing.space4,
+        paddingVertical: spacing.space2,
+        borderBottomWidth: last ? 0 : 1,
+        borderBottomColor: c.hairline,
+      }}
+    >
+      <Avatar name={member.name} uri={photoUrl(member.photoUrl)} size={36} />
+      <View style={{ flex: 1, flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: spacing.space2, rowGap: spacing.space1 }}>
+        <Text variant="bodyStrong">{member.name}</Text>
+        <RatingBadge rating={member.level} source={member.levelSource} />
+        {member.organizer ? (
+          <Text variant="small" tone="inkMuted">
+            Organizer
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+/** Who's in (finding 34): every member, up to 8, then "and N more". */
+function WhosIn({ members }: { members: LeagueInviteMember[] }) {
+  const shown = members.slice(0, WHOS_IN_LIMIT);
+  const more = members.length - shown.length;
+  return (
+    <View style={{ gap: spacing.space2 }}>
+      <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ paddingHorizontal: spacing.space1 }}>
+        Who's in
+      </Text>
+      {members.length === 0 ? (
+        <Card>
+          <Text tone="inkMuted">No one's joined yet. You'll be the first.</Text>
+        </Card>
+      ) : (
+        <Card style={{ padding: 0, overflow: "hidden" }}>
+          {shown.map((m, i) => (
+            <MemberRow key={m.playerId} member={m} last={i === shown.length - 1 && more === 0} />
+          ))}
+          {more > 0 ? (
+            <View style={{ minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.space4, paddingVertical: spacing.space2 }}>
+              <Text tone="inkMuted">{`and ${more} more`}</Text>
+            </View>
+          ) : null}
+        </Card>
+      )}
+    </View>
+  );
+}
+
 /** Centered at default sizes; scrolls at the largest text sizes. */
 function Page({ children }: { children: React.ReactNode }) {
   const c = useColors();
@@ -71,11 +149,15 @@ function Page({ children }: { children: React.ReactNode }) {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
+      // The sheet's header is transparent (it only draws the grabber), so
+      // don't let iOS add its own top inset: that pushed results to the bottom.
+      contentInsetAdjustmentBehavior="never"
+      automaticallyAdjustContentInsets={false}
       contentContainerStyle={{
         flexGrow: 1,
         justifyContent: "center",
         paddingHorizontal: spacing.space6,
-        paddingTop: insets.top + spacing.space6,
+        paddingTop: spacing.space8,
         paddingBottom: insets.bottom + spacing.space6,
         gap: spacing.space6,
       }}
@@ -89,7 +171,7 @@ function errorText(e: unknown, fallback: string): string {
   return (e as { data?: { error?: string } | null }).data?.error ?? fallback;
 }
 
-type Done = { kind: "joined" | "requested" | "waitlisted"; leagueId: number | null; message: string };
+type Done = { kind: "requested" | "waitlisted"; leagueId: number | null; message: string };
 
 const ACTION_LABEL = { join: "Join the league", request: "Ask to join", waitlist: "Join waitlist" } as const;
 
@@ -143,7 +225,9 @@ export default function JoinLeagueScreen() {
   const leagueEnded = (inviteQ.error as { data?: { code?: string } | null } | null)?.data?.code === "league_ended";
 
   const close = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)/leagues"));
-  const openLeague = (leagueId: number) => router.replace({ pathname: "/league/[leagueId]", params: { leagueId: String(leagueId) } });
+  // Replaces the sheet, so Back from the league goes where you came from.
+  const openLeague = (leagueId: number, joined = false) =>
+    router.replace({ pathname: "/league/[leagueId]", params: joined ? { leagueId: String(leagueId), joined: "1" } : { leagueId: String(leagueId) } });
 
   // A1: the league shows the profile name, never any part of the email. The
   // API uses the saved profile too; this is only its fallback.
@@ -160,15 +244,32 @@ export default function JoinLeagueScreen() {
         refreshLeague(queryClient, result.league.id ?? null),
         queryClient.invalidateQueries({ queryKey: getGetMyJoinRequestsQueryKey() }),
       ]);
-      const next: Done = result.requested
-        ? { kind: "requested", leagueId: result.league.id ?? null, message: result.message }
-        : result.waitlisted
-          ? { kind: "waitlisted", leagueId: result.league.id ?? null, message: result.message }
-          : { kind: "joined", leagueId: result.league.id ?? null, message: `You joined ${result.league.name ?? "the league"}.` };
-      setDone(next);
-      AccessibilityInfo.announceForAccessibility(next.message);
+      const leagueId = result.league.id ?? null;
       // Joining a league: the notifications prompt, the first time (decision 125).
       void askForNotifications("joinedLeague");
+      if (!result.requested && !result.waitlisted && leagueId != null) {
+        if (invite?.fixedPartners) {
+          // Fixed-partner doubles: the You're in sheet, with the partner
+          // choices. Load them first so the sheet opens at its full size.
+          await queryClient
+            .prefetchQuery({ queryKey: getGetMyPartnerQueryKey(leagueId), queryFn: () => getMyPartner(leagueId) })
+            .catch(() => undefined);
+          router.replace({
+            pathname: "/league/[leagueId]/joined",
+            params: { leagueId: String(leagueId), name: result.league.name ?? invite.leagueName ?? "" },
+          });
+          return;
+        }
+        // Singles and rotating doubles: straight to the league page. It says
+        // "You're in" and VoiceOver hears "You joined [league]" there.
+        openLeague(leagueId, true);
+        return;
+      }
+      const next: Done = result.requested
+        ? { kind: "requested", leagueId, message: result.message }
+        : { kind: "waitlisted", leagueId, message: result.message };
+      setDone(next);
+      AccessibilityInfo.announceForAccessibility(next.message);
     } catch (e) {
       const s = (e as { status?: number }).status;
       const code = (e as { data?: { code?: string } | null }).data?.code;
@@ -256,7 +357,7 @@ export default function JoinLeagueScreen() {
 
   // ── After joining ─────────────────────────────────────────────────────────
   if (done || invite.alreadyMember || invite.pendingRequest) {
-    const state: Done = done ?? {
+    const state: { kind: "joined" | Done["kind"]; leagueId: number | null; message: string } = done ?? {
       kind: invite.alreadyMember ? "joined" : invite.pendingRequest === "waitlist" ? "waitlisted" : "requested",
       leagueId: invite.leagueId,
       message: invite.alreadyMember
@@ -269,9 +370,6 @@ export default function JoinLeagueScreen() {
     return (
       <Page>
         <View accessible style={{ gap: spacing.space2 }}>
-          <Text variant="label" tone="inkMuted">
-            {leagueName}
-          </Text>
           <Text variant="title" accessibilityRole="header">
             {title}
           </Text>
@@ -330,21 +428,7 @@ export default function JoinLeagueScreen() {
           </Card>
         ) : null}
 
-        <View style={{ gap: spacing.space2 }}>
-          <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ paddingHorizontal: spacing.space1 }}>
-            You'll join as
-          </Text>
-          <Card style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3 }}>
-            <Avatar name={playerName} uri={photoUrl(profile?.avatarUrl)} size={44} />
-            <View style={{ flex: 1, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.space2 }}>
-              <Text variant="bodyStrong">{playerName}</Text>
-              {profile?.rating != null ? <RatingBadge rating={profile.rating} source={profile.ratingSource ?? "self"} /> : null}
-            </View>
-          </Card>
-          <Text variant="small" tone="inkMuted" style={{ paddingHorizontal: spacing.space1 }}>
-            From your profile. Change it anytime in Profile.
-          </Text>
-        </View>
+        <WhosIn members={invite.members ?? []} />
       </ScrollView>
 
       {/* The one button, pinned at the bottom (approved canvas). */}

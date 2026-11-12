@@ -58,7 +58,7 @@ export default function PlayerCardScreen() {
   const p = cardQ.data;
   const first = p ? p.name.split(" ")[0] || p.name : "";
 
-  // More: a bottom sheet (decision 186).
+  // More: a bottom sheet (decision 193).
   const sheet = useActionSheet();
   function more() {
     if (!p) return;

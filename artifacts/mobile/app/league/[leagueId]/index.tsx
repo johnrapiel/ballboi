@@ -24,6 +24,7 @@ import { LeagueChatButton } from "@/components/league/LeagueChatButton";
 import { MatchTimeLink } from "@/components/MatchTimeLink";
 import { TeamUpRequestCards } from "@/components/league/PartnerCard";
 import { PairingsLine, PartnerLine } from "@/components/league/LeagueLines";
+import { JoinedNote } from "@/components/league/JoinedNote";
 import { CornerButton } from "@/components/CornerButton";
 import { LeaveAction } from "@/components/LeaveAction";
 import { andJoin, isDoublesMatch, manageLeagueLabel, opponentNames, partnerName, versusLine, versusSpoken } from "@/lib/doubles";
@@ -238,8 +239,10 @@ function YourWeek({
 export default function LeagueScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
-  const { leagueId: raw } = useLocalSearchParams<{ leagueId: string }>();
+  const { leagueId: raw, joined } = useLocalSearchParams<{ leagueId: string; joined?: string }>();
   const leagueId = Number(raw);
+  // Opened straight from the join sheet (finding 33): "You're in" at the top.
+  const justJoined = joined === "1";
   const [tab, setTab] = useState<Tab>("standings");
   const queryClient = useQueryClient();
   const sheet = useActionSheet();
@@ -343,7 +346,7 @@ export default function LeagueScreen() {
         .catch((e) =>
           Alert.alert("Couldn't enter the result", (e as { data?: { error?: string } | null }).data?.error ?? "Try again in a moment."),
         );
-    // A menu, so a bottom sheet (decision 186).
+    // A menu, so a bottom sheet (decision 193).
     sheet.show({
       people: [{ name: slot.player1.playerName }, { name: slot.player2.playerName }],
       message: "The play-by date has passed. Enter the score, or give one player a walkover (W/O).",
@@ -371,6 +374,7 @@ export default function LeagueScreen() {
         </Card>
       ) : (
         <>
+          {justJoined ? <JoinedNote leagueName={league.name ?? null} /> : null}
           <View style={{ gap: spacing.space1 }}>
             {/* Chat in the top-right corner (decision 145): the league's chat, also in Messages. */}
             <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.space3 }}>

@@ -214,7 +214,7 @@ export default function ConversationScreen() {
   };
 
   // Long press: Report is the only action (finding 20).
-  // Menus open in a bottom sheet (decision 186).
+  // Menus open in a bottom sheet (decision 193).
   const sheet = useActionSheet();
   const who = { name, photo: conversation?.other.avatarUrl };
   const messageMenu = (messageId: string) =>

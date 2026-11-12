@@ -1,4 +1,4 @@
-// The one menu (Wave 2 finding 35, decision 186): menus and pickers open in a
+// The one menu (Wave 2 finding 35, decision 193): menus and pickers open in a
 // bottom sheet. Native alerts are only for confirming destructive actions
 // (delete, remove, leave, ban, discard) and for errors.
 //

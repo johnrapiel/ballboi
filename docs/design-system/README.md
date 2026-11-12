@@ -152,7 +152,7 @@ In the app, `components/Sheet.tsx` (`SheetBody`) does all of this; sheet routes 
 
 ### Menus and pickers
 
-Menus and pickers open in a bottom sheet, never the native action sheet (decision 186, John, Nov 12). Native alerts are only for confirming destructive actions (delete, remove, leave, ban, discard) and for errors.
+Menus and pickers open in a bottom sheet, never the native action sheet (decision 193, John, Nov 12). Native alerts are only for confirming destructive actions (delete, remove, leave, ban, discard) and for errors.
 
 - Same sheet rules as above: `linen`, `radius-lg` top corners, the grabber, hugs its content and scrolls only when it's taller than the screen. Swipe down or tap the dimmed backdrop to close; no Cancel row. The VoiceOver escape gesture closes it (or goes back a step).
 - Optional header: a `heading-m` title (or `title` at full ink when it holds a name), the people it's about with their photo or initials (a match shows both players, "vs." between), and a short muted message.

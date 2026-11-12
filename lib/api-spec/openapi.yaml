@@ -11343,6 +11343,17 @@ components:
           description: Joining now puts the player on the waitlist (season started or league full)
         waitlistReason:
           type: ["string", "null"]
+        fixedPartners:
+          type: boolean
+          description: A doubles league with fixed partners. Joining keeps the You're in sheet with the partner choices (finding 33); singles and rotating doubles open the league page
+        members:
+          type: array
+          description: >-
+            Who's in (finding 34): the league's active members for the join screen, organizer first, then by name.
+            Every member shows whatever their Discover setting; anyone with a block with the viewer, either way,
+            and the viewer's own row are left out. Empty when signed out.
+          items:
+            $ref: "#/components/schemas/LeagueInviteMember"
         createdByClerkUserId:
           type: string
         expiresAt:
@@ -11363,6 +11374,32 @@ components:
         - usageCount
         - isActive
         - createdAt
+
+    LeagueInviteMember:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        name:
+          type: string
+        photoUrl:
+          type: ["string", "null"]
+        level:
+          type: number
+          description: Profile level for a signed-up player, else the level the admin set
+        levelSource:
+          type: string
+          enum: [self, verified]
+        organizer:
+          type: boolean
+          description: The league's creator, who runs it
+      required:
+        - playerId
+        - name
+        - photoUrl
+        - level
+        - levelSource
+        - organizer
 
     CreateLeagueInviteBody:
       type: object

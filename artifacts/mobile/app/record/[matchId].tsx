@@ -224,7 +224,7 @@ function safeFreeDisk(): number | null {
 
 /**
  * Asks Keep or Discard with a native alert: it confirms a destructive choice,
- * which is what alerts are for (decision 186). Keep is the cancel button, so
+ * which is what alerts are for (decision 193). Keep is the cancel button, so
  * anything but Discard keeps the recording.
  */
 function askKeepOrDiscard(durationSeconds: number): Promise<"keep" | "discard"> {

@@ -16,7 +16,7 @@
 // Card actions (John, Nov 10, option B, decision 178): the card shows only
 // the opponent, the date, the status and its reason. Report a problem and
 // Remove (or Discard, while the video is still on the phone) live behind a
-// More button at the top right, in a bottom sheet (decision 186).
+// More button at the top right, in a bottom sheet (decision 193).
 // Steps that move the match on (Try again, Upload now
 // on cellular, Enter score) stay on the card as buttons.
 
@@ -221,7 +221,7 @@ function useReportProblem() {
 }
 
 /**
- * The card's More options in a bottom sheet (decision 186): Report a problem,
+ * The card's More options in a bottom sheet (decision 193): Report a problem,
  * then the red remove action if there is one, which confirms with an alert.
  * Render `element` with the card.
  */
