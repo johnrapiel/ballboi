@@ -33,6 +33,9 @@ import { photoUrl } from "@/lib/photos";
 // - Join league: before the season starts, the player is in.
 // - Ask to join: a Private league that started or is full asks the organizer.
 // - Join waitlist: an Open league that started or is full holds a spot for next season.
+// Finding 33 (Wave 2, option A): joining closes this sheet and opens the
+// league page, which says "You're in" for a moment. Request sent, waitlist,
+// Already in and the problem states stay here, centered.
 // Approved canvas: Join league invite. The invite as a card with a brush
 // title, Where, Players and Starts as a list, "You'll join as" from your
 // profile, and the one button pinned at the bottom. Cancel at the top left,
@@ -71,11 +74,15 @@ function Page({ children }: { children: React.ReactNode }) {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
+      // The sheet's header is transparent (it only draws the grabber), so
+      // don't let iOS add its own top inset: that pushed results to the bottom.
+      contentInsetAdjustmentBehavior="never"
+      automaticallyAdjustContentInsets={false}
       contentContainerStyle={{
         flexGrow: 1,
         justifyContent: "center",
         paddingHorizontal: spacing.space6,
-        paddingTop: insets.top + spacing.space6,
+        paddingTop: spacing.space8,
         paddingBottom: insets.bottom + spacing.space6,
         gap: spacing.space6,
       }}
@@ -89,7 +96,7 @@ function errorText(e: unknown, fallback: string): string {
   return (e as { data?: { error?: string } | null }).data?.error ?? fallback;
 }
 
-type Done = { kind: "joined" | "requested" | "waitlisted"; leagueId: number | null; message: string };
+type Done = { kind: "requested" | "waitlisted"; leagueId: number | null; message: string };
 
 const ACTION_LABEL = { join: "Join the league", request: "Ask to join", waitlist: "Join waitlist" } as const;
 
@@ -143,7 +150,9 @@ export default function JoinLeagueScreen() {
   const leagueEnded = (inviteQ.error as { data?: { code?: string } | null } | null)?.data?.code === "league_ended";
 
   const close = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)/leagues"));
-  const openLeague = (leagueId: number) => router.replace({ pathname: "/league/[leagueId]", params: { leagueId: String(leagueId) } });
+  // Replaces the sheet, so Back from the league goes where you came from.
+  const openLeague = (leagueId: number, joined = false) =>
+    router.replace({ pathname: "/league/[leagueId]", params: joined ? { leagueId: String(leagueId), joined: "1" } : { leagueId: String(leagueId) } });
 
   // A1: the league shows the profile name, never any part of the email. The
   // API uses the saved profile too; this is only its fallback.
@@ -160,15 +169,21 @@ export default function JoinLeagueScreen() {
         refreshLeague(queryClient, result.league.id ?? null),
         queryClient.invalidateQueries({ queryKey: getGetMyJoinRequestsQueryKey() }),
       ]);
-      const next: Done = result.requested
-        ? { kind: "requested", leagueId: result.league.id ?? null, message: result.message }
-        : result.waitlisted
-          ? { kind: "waitlisted", leagueId: result.league.id ?? null, message: result.message }
-          : { kind: "joined", leagueId: result.league.id ?? null, message: `You joined ${result.league.name ?? "the league"}.` };
-      setDone(next);
-      AccessibilityInfo.announceForAccessibility(next.message);
+      const leagueId = result.league.id ?? null;
       // Joining a league: the notifications prompt, the first time (decision 125).
       void askForNotifications("joinedLeague");
+      if (!result.requested && !result.waitlisted && leagueId != null) {
+        // Finding 33: straight to the league page. It says "You're in" and
+        // VoiceOver hears "You joined [league]" there. A fixed-partner doubles
+        // league's next step is the page's "No partner yet · Team up" line.
+        openLeague(leagueId, true);
+        return;
+      }
+      const next: Done = result.requested
+        ? { kind: "requested", leagueId, message: result.message }
+        : { kind: "waitlisted", leagueId, message: result.message };
+      setDone(next);
+      AccessibilityInfo.announceForAccessibility(next.message);
     } catch (e) {
       const s = (e as { status?: number }).status;
       const code = (e as { data?: { code?: string } | null }).data?.code;
@@ -256,7 +271,7 @@ export default function JoinLeagueScreen() {
 
   // ── After joining ─────────────────────────────────────────────────────────
   if (done || invite.alreadyMember || invite.pendingRequest) {
-    const state: Done = done ?? {
+    const state: { kind: "joined" | Done["kind"]; leagueId: number | null; message: string } = done ?? {
       kind: invite.alreadyMember ? "joined" : invite.pendingRequest === "waitlist" ? "waitlisted" : "requested",
       leagueId: invite.leagueId,
       message: invite.alreadyMember
@@ -269,9 +284,6 @@ export default function JoinLeagueScreen() {
     return (
       <Page>
         <View accessible style={{ gap: spacing.space2 }}>
-          <Text variant="label" tone="inkMuted">
-            {leagueName}
-          </Text>
           <Text variant="title" accessibilityRole="header">
             {title}
           </Text>
@@ -342,7 +354,7 @@ export default function JoinLeagueScreen() {
             </View>
           </Card>
           <Text variant="small" tone="inkMuted" style={{ paddingHorizontal: spacing.space1 }}>
-            From your profile. Change it anytime in Profile.
+            Change how you appear in Profile.
           </Text>
         </View>
       </ScrollView>
