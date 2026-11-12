@@ -151,6 +151,7 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 
 **Setup (admin)**
 
+- **Name and area (required):** the area is a town or ZIP, prefilled from the admin's home area. Discover uses it to show the league to nearby players and to work out distance. Usual courts is optional free text, since rec league players use different courts. Create league stays off until both are filled (decision 182)
 - **Visibility:** Private (default, invite link or code) or Open (listed in Discover, request to join)
 - **Eligibility:** level range and roster cap for Open leagues
 - **Format:** Flex or Round robin ("Pairs you with someone new each week"); Ladder comes later
@@ -583,3 +584,4 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 179 | Milestone badges are hidden in the app until after all waves: no badges on player cards (yours or others'), no Milestones section on Career, no new-badge pop-up after a score. Badges keep being earned and saved behind the scenes. The score-saved moment stays (John, Nov 11) |
 | 180 | Every time shows AM or PM: single times as 7 AM or 6:30 PM (no :00, a space before AM/PM, capitals); ranges as 7 to 11 AM, or 10 AM to 12 PM when they cross noon; free time pills read Morning, 7 to 11 AM; pairings go out at 7 AM (John, Nov 11) |
 | 181 | Every sheet that can be swiped down shows the grabber bar at the top, full-height page sheets included, so people know they can swipe it away (John, Nov 11) |
+| 182 | New league requires a name and an area (town or ZIP, prefilled from the admin's home area); Usual courts is optional because rec league players use different courts; Create league stays off until both are filled (John, Nov 11) |

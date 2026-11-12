@@ -398,6 +398,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /areas/lookup:
+    get:
+      operationId: lookupArea
+      tags: [discover]
+      summary: >-
+        Find a town or ZIP for a league's area (decision 182). A town in more than one
+        state picks the one nearest your home area, or asks for the state.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: A US ZIP or town, for example 12590 or "Wappingers Falls, NY"
+      responses:
+        '200':
+          description: The place's ZIP, town and state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverArea'
+        '400':
+          description: "We couldn't find that town or ZIP"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /discover/availability:
     put:
       operationId: saveDiscoverAvailability
@@ -10262,6 +10289,14 @@ components:
           type: ["string", "null"]
         location:
           type: ["string", "null"]
+          description: Usual courts, free text (optional, decision 182).
+        area:
+          description: >-
+            The league's area (decision 182): the town or ZIP Discover measures distance from.
+            Null for leagues made before Nov 12, 2026.
+          oneOf:
+            - $ref: '#/components/schemas/DiscoverArea'
+            - type: "null"
         createdByClerkUserId:
           type: ["string", "null"]
         visibility:
@@ -10371,6 +10406,12 @@ components:
           description: Ignored. Every league has a fixed 1-week grace period (decision 25).
         location:
           type: ["string", "null"]
+          description: Usual courts, free text (optional).
+        area:
+          type: string
+          description: >-
+            Required (decision 182): the league's town or ZIP, for example 12590 or
+            "Wappingers Falls, NY". A place we can't find returns 400 with a plain error.
         playing:
           type: boolean
           description: The admin plays in the league too (default true)

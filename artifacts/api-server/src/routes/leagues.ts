@@ -18,6 +18,7 @@ import { SKILL_LEVELS, checkStartDate, seasonDates, validateLeagueSetup } from "
 import { loadProfiles, playerDisplayName, playerLevelText } from "../lib/playerProfile.js";
 import { DEFAULT_LEAGUE_TIME_ZONE, isTimeZone } from "../lib/leagueCalendar.js";
 import { checkLeagueMatchTime } from "../lib/matchTimes.js";
+import { AREA_MISSING, NAME_MISSING, areaColumns, areaForPlace, withoutAreaColumns } from "../lib/leagueArea.js";
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   const { userId } = getAuth(req);
@@ -76,7 +77,7 @@ router.get("/leagues", requireAuth, async (req, res) => {
 
   { res.json(
     leagues.map((l) => ({
-      ...l,
+      ...withoutAreaColumns(l),
       startDate: l.startDate ?? null,
       endDate: l.endDate ?? null,
       location: l.location ?? null,
@@ -97,6 +98,12 @@ router.get("/leagues", requireAuth, async (req, res) => {
 // its admin. With `playing` (the default), the admin also joins as a player.
 router.post("/leagues", requireAuth, async (req, res) => {
   const { userId } = getAuth(req);
+  // Decision 182: a new league needs a name and an area, with a plain error.
+  const raw = (req.body ?? {}) as { name?: unknown; area?: unknown };
+  if (typeof raw.name !== "string" || !raw.name.trim()) { res.status(400).json({ error: NAME_MISSING }); return; }
+  if (typeof raw.area !== "string" || !raw.area.trim()) { res.status(400).json({ error: AREA_MISSING }); return; }
+  const place = areaForPlace(raw.area);
+  if (!place.ok) { res.status(400).json({ error: place.error }); return; }
   const parsed = CreateLeagueBody.safeParse(req.body);
   if (!parsed.success) {
     { res.status(400).json({ error: parsed.error.message }); return; }
@@ -143,6 +150,7 @@ router.post("/leagues", requireAuth, async (req, res) => {
         // Unplayed matches follow the fixed 1-week grace period (decision 25); the
         // old per-league rule is no longer set.
         location: body.location?.trim() || undefined,
+        ...areaColumns(place.area),
         timeZone,
         matchDay: matchTime.matchDay,
         matchTime: matchTime.matchTime,
@@ -173,7 +181,7 @@ router.post("/leagues", requireAuth, async (req, res) => {
   runLeagueDay(league).catch((err) => logger.error({ err, leagueId: league.id }, "First league day failed"));
 
   { res.status(201).json({
-    ...league,
+    ...withoutAreaColumns(league),
     startDate: league.startDate ?? null,
     endDate: league.endDate ?? null,
     location: league.location ?? null,
@@ -199,7 +207,7 @@ router.get("/leagues/:leagueId", requireAuth, async (req, res) => {
   const [mc] = await db.select({ count: count() }).from(matchesTable).where(eq(matchesTable.leagueId, leagueId));
 
   { res.json({
-    ...league,
+    ...withoutAreaColumns(league),
     startDate: league.startDate ?? null,
     endDate: league.endDate ?? null,
     location: league.location ?? null,
@@ -240,7 +248,7 @@ router.patch("/leagues/:leagueId", requireAdmin, async (req, res) => {
   const [mc] = await db.select({ count: count() }).from(matchesTable).where(eq(matchesTable.leagueId, leagueId));
 
   { res.json({
-    ...league,
+    ...withoutAreaColumns(league),
     startDate: league.startDate ?? null,
     endDate: league.endDate ?? null,
     location: league.location ?? null,

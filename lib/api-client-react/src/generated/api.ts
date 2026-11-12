@@ -77,6 +77,7 @@ import type {
   DeviceCheckInBody,
   DiscardRecordingBody,
   DiscardResult,
+  DiscoverArea,
   DiscoverAreaInput,
   DiscoverAvailabilityInput,
   DiscoverLeague,
@@ -155,6 +156,7 @@ import type {
   LockMatchBody,
   LogDoublesViewBody,
   LookingForPartnerBody,
+  LookupAreaParams,
   Match,
   MatchBallBoiShotCallbackBody,
   MatchDetail,
@@ -1551,6 +1553,100 @@ export const useSetDiscoverArea = <
 > => {
   return useMutation(getSetDiscoverAreaMutationOptions(options));
 };
+
+/**
+ * @summary Find a town or ZIP for a league's area (decision 182). A town in more than one state picks the one nearest your home area, or asks for the state.
+ */
+export const getLookupAreaUrl = (params: LookupAreaParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/areas/lookup?${stringifiedParams}`
+    : `/api/areas/lookup`;
+};
+
+export const lookupArea = async (
+  params: LookupAreaParams,
+  options?: RequestInit,
+): Promise<DiscoverArea> => {
+  return customFetch<DiscoverArea>(getLookupAreaUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLookupAreaQueryKey = (params?: LookupAreaParams) => {
+  return [`/api/areas/lookup`, ...(params ? [params] : [])] as const;
+};
+
+export const getLookupAreaQueryOptions = <
+  TData = Awaited<ReturnType<typeof lookupArea>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params: LookupAreaParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof lookupArea>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLookupAreaQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof lookupArea>>> = ({
+    signal,
+  }) => lookupArea(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof lookupArea>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type LookupAreaQueryResult = NonNullable<
+  Awaited<ReturnType<typeof lookupArea>>
+>;
+export type LookupAreaQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Find a town or ZIP for a league's area (decision 182). A town in more than one state picks the one nearest your home area, or asks for the state.
+ */
+
+export function useLookupArea<
+  TData = Awaited<ReturnType<typeof lookupArea>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params: LookupAreaParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof lookupArea>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getLookupAreaQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Save your free times (decision 156). Old app versions send the hour grid instead
