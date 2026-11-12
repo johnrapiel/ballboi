@@ -145,6 +145,7 @@ One rule for every bottom sheet (John, Nov 6), like the approved Enter score she
 - A left-aligned `heading-m` title (Cormorant at 50% ink) sits under the grabber, read by VoiceOver as the header.
 - The primary action is the last thing in the sheet, full width.
 - Sheets sit on `linen` with the `radius-lg` corner and the system grabber.
+- **Every sheet you can swipe down shows the grabber bar at the top**, full-height page sheets and swipe-down modals included, so people know they can swipe it away (decision 181, John, Nov 11). iOS draws it on the hugging sheets. Page sheets (New league, Join league, Quick match, Post an open match, a recorded match's invite) get `Grabber` from `components/Sheet.tsx`, drawn to match: 36 by 5pt, fully round, 5pt from the top, centred, in `hairline-strong` (3:1 or better on `paper` and `linen` in Day and Night, `-hc` with Increase Contrast). It's decorative, so VoiceOver skips it; each of these screens also has a button that closes it. A modal that can't be swiped down (Invite players after creating a league, the recording camera) has no grabber.
 
 In the app, `components/Sheet.tsx` (`SheetBody`) does all of this; sheet routes use the `sheet` options in `app/_layout.tsx`.
 

@@ -3,6 +3,9 @@
 // - hugs its content and grows with larger text, scrolling only when it's
 //   taller than the screen (the route uses `sheetOptions` from here). The
 //   one exception is New league, a full-height page sheet (`fullSheetOptions`),
+// - shows the grabber bar at the top (decision 181). Hugging sheets get the
+//   system one; full-height page sheets and the other swipe-down modals get
+//   `Grabber`, drawn to match it,
 // - has no Cancel: drag down to close, and if something changed it asks
 //   before discarding it. The VoiceOver escape gesture closes it the same way,
 // - has a left-aligned brush title under the grabber, read as the header,
@@ -46,9 +49,72 @@ export function sheetOptions(linen: string) {
  */
 export function fullSheetOptions(linen: string) {
   return {
-    headerShown: false,
+    ...grabberOptions(),
     presentation: "modal" as const,
     contentStyle: { backgroundColor: linen },
+  };
+}
+
+// The grabber bar (decision 181, John, Nov 11): every sheet you can swipe down
+// shows it, so people know they can. iOS draws it only on the hugging
+// formSheets; a page sheet ("modal") has none, so it's drawn here to match
+// the system one: 36 by 5pt, fully round, 5pt from the top edge, centred.
+// It's `hairline-strong` (3:1 or better on paper and linen, Day and Night,
+// and stronger with Increase Contrast), a little firmer than the system gray
+// so it clears the non-text contrast bar. VoiceOver skips it: every one of
+// these screens has a button that closes it, and swipe down isn't the only way.
+const GRABBER = { width: 36, height: 5, top: 5 } as const;
+
+/** The grabber bar itself, centred in a strip at the top of the sheet. */
+export function Grabber() {
+  const c = useColors();
+  return (
+    <View
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={{ height: GRABBER.top + GRABBER.height, alignItems: "center" }}
+    >
+      <View
+        style={{
+          marginTop: GRABBER.top,
+          width: GRABBER.width,
+          height: GRABBER.height,
+          borderRadius: radius.radiusPill,
+          backgroundColor: c.hairlineStrong,
+        }}
+      />
+    </View>
+  );
+}
+
+/**
+ * Stack options that add the grabber to a swipe-down modal with no navigation
+ * bar (New league, Join league, a recorded match's invite). It floats over the
+ * top of the screen like the system grabber, in the top 10pt, above where any
+ * of these screens starts its content, so it never covers a title or a button.
+ */
+export function grabberOptions() {
+  return {
+    headerShown: true,
+    headerTransparent: true,
+    header: () => <Grabber />,
+  };
+}
+
+/**
+ * Stack options that add the grabber to a swipe-down modal that keeps its
+ * navigation bar (Quick match, Post an open match). The bar goes transparent
+ * and draws on a `paper` background with the grabber above the title.
+ */
+export function grabberBarOptions(paper: string) {
+  return {
+    headerStyle: { backgroundColor: "transparent" },
+    headerBackground: () => (
+      <View style={{ flex: 1, backgroundColor: paper }}>
+        <Grabber />
+      </View>
+    ),
   };
 }
 
