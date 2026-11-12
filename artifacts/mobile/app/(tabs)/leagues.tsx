@@ -17,7 +17,6 @@ import {
   useGetMyPlayers,
   type League,
   type MyJoinRequest,
-  type Standing,
 } from "@workspace/api-client-react";
 
 import { IconButton } from "@/components/Choice";
@@ -28,7 +27,7 @@ import { Button, Card, Chip, Pill, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
-import { formatLabel, isPastLeague, leagueCardText, ordinal, pastLabel } from "@/lib/leagues";
+import { formatLabel, isPastLeague, leagueCardText, myStanding, ordinal, pastLabel, type MyStanding } from "@/lib/leagues";
 
 // Leagues tab (spec: Leagues; approved canvas: Leagues, John, Nov 5). Notes
 // about deleted leagues, your current leagues as soft cards with your season
@@ -37,18 +36,6 @@ import { formatLabel, isPastLeague, leagueCardText, ordinal, pastLabel } from "@
 // invite code?" text link that opens the invite code sheet (app/league/join.tsx).
 // Open leagues are found in Discover, not here. Start a league opens from the
 // + button and from the empty state.
-
-// Standings rank on wins, then head to head (John, Nov 6), so "behind" counts wins.
-type MyStanding = { rank: number; wins: number; losses: number; behind: number; lead: number } | null;
-
-function myStanding(standings: Standing[] | undefined, myPlayerId: number | undefined): MyStanding {
-  if (!standings || myPlayerId === undefined) return null;
-  const mine = standings.find((s) => s.playerId === myPlayerId);
-  if (!mine) return null;
-  const leader = standings.reduce((max, s) => Math.max(max, s.wins), 0);
-  const nextBest = standings.filter((s) => s.playerId !== myPlayerId).reduce((max, s) => Math.max(max, s.wins), 0);
-  return { rank: mine.rank, wins: mine.wins, losses: mine.losses, behind: leader - mine.wins, lead: mine.wins - nextBest };
-}
 
 const wins = (n: number) => `${n} ${n === 1 ? "win" : "wins"}`;
 
@@ -81,12 +68,16 @@ function Stat({ label, value, first }: { label: string; value: string; first?: b
 function LeagueCard({ league, standing, onPress }: { league: League; standing: MyStanding; onPress: () => void }) {
   const c = useColors();
   // Finding 27, decision 183: Singles or Doubles in the pill, no "Active", and
-  // a league that hasn't started shows its start date and no stats row.
+  // a league that hasn't started shows its start date. Finding 28: the stats
+  // row always shows, with a dash for each value until there's one.
   const card = leagueCardText(league, areaLabel(league.area) ?? league.location);
-  const stats = card.showStats ? standing : null;
+  const stats = card.started ? standing : null;
+  const dash = "–";
   const spoken = [
     card.spoken,
-    stats
+    !card.started
+      ? "Not started yet"
+      : stats
       ? `You're ranked ${ordinal(stats.rank)} at ${stats.wins} and ${stats.losses}, ${
           stats.lead > 0 ? `${wins(stats.lead)} ahead` : stats.behind > 0 ? `${wins(stats.behind)} behind 1st` : "level with 1st"
         }`
@@ -122,19 +113,17 @@ function LeagueCard({ league, standing, onPress }: { league: League; standing: M
             </Text>
           </View>
         ) : null}
-        {stats ? (
-          <View
-            style={{ flexDirection: "row", borderTopWidth: 1, borderTopColor: c.hairline, paddingTop: spacing.space3, marginTop: spacing.space1 }}
-          >
-            <Stat first label="Your rank" value={ordinal(stats.rank)} />
-            <Stat label="Record" value={`${stats.wins}–${stats.losses}`} />
-            {stats.lead > 0 ? (
-              <Stat label="Ahead by" value={wins(stats.lead)} />
-            ) : (
-              <Stat label="Behind 1st" value={wins(stats.behind)} />
-            )}
-          </View>
-        ) : null}
+        <View
+          style={{ flexDirection: "row", borderTopWidth: 1, borderTopColor: c.hairline, paddingTop: spacing.space3, marginTop: spacing.space1 }}
+        >
+          <Stat first label="Your rank" value={stats ? ordinal(stats.rank) : dash} />
+          <Stat label="Record" value={stats ? `${stats.wins}–${stats.losses}` : dash} />
+          {stats && stats.lead > 0 ? (
+            <Stat label="Ahead by" value={wins(stats.lead)} />
+          ) : (
+            <Stat label="Behind 1st" value={stats ? wins(stats.behind) : dash} />
+          )}
+        </View>
       </Card>
     </Pressable>
   );
