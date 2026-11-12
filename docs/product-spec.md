@@ -585,3 +585,4 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 180 | Every time shows AM or PM: single times as 7 AM or 6:30 PM (no :00, a space before AM/PM, capitals); ranges as 7 to 11 AM, or 10 AM to 12 PM when they cross noon; free time pills read Morning, 7 to 11 AM; pairings go out at 7 AM (John, Nov 11) |
 | 181 | Every sheet that can be swiped down shows the grabber bar at the top, full-height page sheets included, so people know they can swipe it away (John, Nov 11) |
 | 182 | New league requires a name and an area (town or ZIP, prefilled from the admin's home area); Usual courts is optional because rec league players use different courts; Create league stays off until both are filled (John, Nov 11) |
+| 183 | League cards show Singles or Doubles in the pill; no Active label; a league that hasn't started shows a calendar icon and Starts [date] in its info line and no stats row (John, Nov 12) |
