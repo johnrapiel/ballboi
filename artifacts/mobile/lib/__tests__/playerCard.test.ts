@@ -18,6 +18,9 @@ import {
   seasonCells,
   seasonSpoken,
   tabFromParam,
+  resultSideNames,
+  OWN_TABS,
+  THEIR_TABS,
   townLine,
 } from "@/lib/playerCard";
 import { signOutConfirm } from "@/lib/signOutWarning";
@@ -164,5 +167,47 @@ describe("other players' cards (decision 143)", () => {
   it("puts the league and day under a result", () => {
     expect(resultMeta({ context: "Quick match", completedAt: new Date(2026, 10, 3, 18).toISOString() })).toBe("Quick match · Nov 3");
     expect(resultMeta({ context: "League", completedAt: null })).toBe("League");
+  });
+});
+
+describe("another player's page (Wave 2 finding 37)", () => {
+  it("leads with Results; your own Profile leads with Upcoming matches", () => {
+    expect(THEIR_TABS).toEqual(["results", "upcoming"]);
+    expect(OWN_TABS).toEqual(["upcoming", "results"]);
+  });
+
+  const base = { player1Name: "John Rapiel", player2Name: "Kristina Rapiel", winner: 1 as const };
+
+  it("reads You for the viewer and keeps the winner on the same side", () => {
+    const r = { ...base, yours: { won: true, score: "6-3, 6-4", opponentName: "Kristina Rapiel", partnerName: null } };
+    expect(resultSideNames(r)).toEqual({ player1: "You", player2: "Kristina Rapiel", player1Spoken: "You", player2Spoken: "Kristina Rapiel" });
+  });
+
+  it("finds you on player 2's side when you lost", () => {
+    const r = { player1Name: "Kristina Rapiel", player2Name: "John Rapiel", winner: 1 as const, yours: { won: false, score: "3-6, 4-6", opponentName: "Kristina Rapiel", partnerName: null } };
+    expect(resultSideNames(r).player2).toBe("You");
+    expect(resultSideNames(r).player1).toBe("Kristina Rapiel");
+  });
+
+  it("reads You and your partner's first name in doubles", () => {
+    const r = {
+      player1Name: "Jo Park & Lee Kim",
+      player2Name: "John Rapiel & Sam Lee",
+      winner: null,
+      yours: { won: null, score: "Double default", opponentName: "Jo Park & Lee Kim", partnerName: "Sam Lee" },
+    };
+    const n = resultSideNames(r);
+    expect(n.player2).toBe("You and Sam");
+    expect(n.player2Spoken).toBe("You and Sam Lee");
+    expect(n.player1).toBe("Jo Park & Lee Kim");
+  });
+
+  it("keeps both names when you didn't play", () => {
+    expect(resultSideNames({ ...base, player1Name: "Sam Lee", yours: null })).toEqual({
+      player1: "Sam Lee",
+      player2: "Kristina Rapiel",
+      player1Spoken: "Sam Lee",
+      player2Spoken: "Kristina Rapiel",
+    });
   });
 });

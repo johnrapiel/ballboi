@@ -2,9 +2,10 @@
 // Discover included; decision 143: their matches below it, John, Nov 8).
 // Card D with the distance beside the town; no pencil, and Free times has no
 // Edit. This season's Record, Played, Streak and No-shows sit under it, then
-// the head-to-head line when you've played them, then the same Upcoming
-// matches and Results tabs as your own Profile. Results show both names with
-// the winner mark and the score from the winner's side. More (•••) opens
+// the head-to-head line when you've played them, then Results and Upcoming
+// matches tabs. Results comes first and is selected when the page opens
+// (Wave 2 finding 37). Results show both names, "You" for you (as on Home and
+// Match detail), with the winner mark and the score from the winner's side. More (•••) opens
 // Report, as before, and "Set up a match" stays pinned at the bottom.
 //
 // Blocked either way, or a hidden profile: "isn't in Discover right now".
@@ -36,7 +37,7 @@ import { useColors } from "@/hooks/useColors";
 import { useReportBlock } from "@/hooks/useReportBlock";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { isOfflineError } from "@/lib/api";
-import { headToHeadLine, otherUpcomingItem, resultMeta, type MatchTab } from "@/lib/playerCard";
+import { headToHeadLine, otherUpcomingItem, resultMeta, resultSideNames, THEIR_TABS, type MatchTab } from "@/lib/playerCard";
 import { winnerMark } from "@/lib/winnerMark";
 
 const notFound = (e: unknown) => (e as { status?: number } | null)?.status === 404;
@@ -53,7 +54,7 @@ export default function PlayerCardScreen() {
     query: { enabled: valid, queryKey: getGetPlayerMatchesQueryKey(userId), retry: (n, e) => n < 2 && !notFound(e) },
   });
   const report = useReportBlock();
-  const [tab, setTab] = useState<MatchTab>("upcoming");
+  const [tab, setTab] = useState<MatchTab>("results");
   const p = cardQ.data;
   const first = p ? p.name.split(" ")[0] || p.name : "";
 
@@ -142,7 +143,7 @@ export default function PlayerCardScreen() {
   );
 }
 
-/** Head-to-head, then their Upcoming matches and Results tabs. */
+/** Head-to-head, then their Results and Upcoming matches tabs. */
 function TheirMatches({
   name,
   q,
@@ -169,7 +170,7 @@ function TheirMatches({
           {h2h.text}
         </Text>
       ) : null}
-      <MatchTabs tab={tab} onChange={onTab} counts={{ upcoming: upcoming.length, results: results.length }} />
+      <MatchTabs tab={tab} order={THEIR_TABS} onChange={onTab} counts={{ upcoming: upcoming.length, results: results.length }} />
       {q.isLoading ? (
         <Text tone="inkMuted" style={{ paddingHorizontal: spacing.space1 }}>
           Loading matches…
@@ -196,9 +197,12 @@ function TheirMatches({
       ) : (
         <Card style={{ padding: 0, overflow: "hidden" }}>
           {results.map((r, n) => {
-            const mark = winnerMark({ player1Name: r.player1Name, player2Name: r.player2Name, score: r.score, winner: r.winner === 1 || r.winner === 2 ? r.winner : null });
+            const names = resultSideNames(r);
+            const winner = r.winner === 1 || r.winner === 2 ? r.winner : null;
+            const mark = winnerMark({ player1Name: names.player1, player2Name: names.player2, score: r.score, winner });
+            const spokenMark = winnerMark({ player1Name: names.player1Spoken, player2Name: names.player2Spoken, score: r.score, winner });
             const meta = resultMeta(r);
-            const spoken = `${mark.spoken}. ${r.player1Name} versus ${r.player2Name}. ${meta.replace(/ · /g, ", ")}`;
+            const spoken = `${spokenMark.spoken}. ${names.player1Spoken} versus ${names.player2Spoken}. ${meta.replace(/ · /g, ", ")}`;
             // Only your own matches open Match detail, whatever the type (decision 151).
             const opens = r.mine;
             const row = {
@@ -214,7 +218,7 @@ function TheirMatches({
             const body = (
               <>
                 <View style={{ flex: 1, gap: spacing.space1 }}>
-                  <WinnerNames player1Name={r.player1Name} player2Name={r.player2Name} mark={mark} />
+                  <WinnerNames player1Name={names.player1} player2Name={names.player2} mark={mark} />
                   <Text variant="small" tone="inkMuted">
                     {meta}
                   </Text>
