@@ -586,3 +586,4 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 181 | Every sheet that can be swiped down shows the grabber bar at the top, full-height page sheets included, so people know they can swipe it away (John, Nov 11) |
 | 182 | New league requires a name and an area (town or ZIP, prefilled from the admin's home area); Usual courts is optional because rec league players use different courts; Create league stays off until both are filled (John, Nov 11) |
 | 183 | League cards show Singles or Doubles in the pill; no Active label; a league that hasn't started shows a calendar icon and Starts [date] in its info line and no stats row (John, Nov 12) |
+| 184 | Leaving (a league, today) is a quiet danger-colored text action with a door icon at the bottom of the page, confirmed by an alert, not a filled button (John, Nov 12) |

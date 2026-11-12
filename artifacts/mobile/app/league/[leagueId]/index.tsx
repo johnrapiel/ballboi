@@ -22,6 +22,7 @@ import {
 import { LeagueChatButton } from "@/components/league/LeagueChatButton";
 import { MatchTimeLink } from "@/components/MatchTimeLink";
 import { PartnerCard } from "@/components/league/PartnerCard";
+import { LeaveAction } from "@/components/LeaveAction";
 import { andJoin, isDoublesMatch, opponentNames, partnerName, versusLine, versusSpoken } from "@/lib/doubles";
 import { RoundCard, UpcomingWeekRow } from "@/components/league/RoundCard";
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
@@ -578,13 +579,8 @@ export default function LeagueScreen() {
           ) : null}
 
           {membershipQ.data?.isPlaying && !ended ? (
-            <Button
-              label="Leave league"
-              variant="destructive"
-              loading={leave.isPending}
-              onPress={confirmLeave}
-              style={{ marginTop: spacing.space6 }}
-            />
+            // Decision 184: a quiet red text action with a door icon, still confirmed.
+            <LeaveAction label="Leave league" busy={leave.isPending} onPress={confirmLeave} />
           ) : null}
         </>
       )}

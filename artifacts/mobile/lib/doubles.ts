@@ -111,13 +111,27 @@ export function unpairedLabel(kind: "needs_partner" | "looking" | "no_partner"):
 }
 
 /** "Expires Thu 3 PM" for a team-up request (48 hours, D9). */
-export function expiresLine(iso: string, now: Date = new Date()): string {
+export function expiresLine(iso: string, now: Date = new Date(), weekday: "short" | "long" = "short"): string {
   const at = new Date(iso);
   const ms = at.getTime() - now.getTime();
   if (ms < 3_600_000) return "Expires within the hour";
   const hours = Math.round(ms / 3_600_000);
   if (hours < 24) return `Expires in ${hours} ${hours === 1 ? "hour" : "hours"}`;
-  return `Expires ${at.toLocaleDateString("en-US", { weekday: "short" })} ${clockTime(at)}`;
+  return `Expires ${at.toLocaleDateString("en-US", { weekday })} ${clockTime(at)}`;
+}
+
+/**
+ * What VoiceOver reads for a team-up request (finding 29): "Ryan O'Connor
+ * wants to team up, expires Saturday 7:13 AM". The weekday is spelled out.
+ */
+export function teamUpRequestLabel(name: string, expiresAt: string, now: Date = new Date()): string {
+  const line = expiresLine(expiresAt, now, "long");
+  return `${name} wants to team up, ${line.charAt(0).toLowerCase()}${line.slice(1)}`;
+}
+
+/** Team-up requests to you, newest first (the latest to expire was sent last). */
+export function newestRequestsFirst<T extends { expiresAt: string }>(requests: readonly T[]): T[] {
+  return [...requests].sort((a, b) => new Date(b.expiresAt).getTime() - new Date(a.expiresAt).getTime());
 }
 
 /** What a doubles score entry sends instead of sets (John, Nov 9). */

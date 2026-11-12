@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   andJoin,
   expiresLine,
+  newestRequestsFirst,
+  teamUpRequestLabel,
   firstName,
   isDoublesMatch,
   matchupLine,
@@ -138,5 +140,19 @@ describe("partners copy", () => {
     expect(expiresLine("2026-11-10T12:30:00Z", now)).toBe("Expires within the hour");
     expect(expiresLine("2026-11-10T17:00:00Z", now)).toBe("Expires in 5 hours");
     expect(expiresLine("2026-11-12T12:00:00Z", now)).toMatch(/^Expires [A-Z][a-z]{2} /);
+  });
+
+  it("reads a team-up request with the weekday spelled out (finding 29)", () => {
+    const now = new Date("2026-11-10T12:00:00Z");
+    expect(teamUpRequestLabel("Ryan O'Connor", "2026-11-14T12:00:00Z", now)).toMatch(
+      /^Ryan O'Connor wants to team up, expires (Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday) \d/,
+    );
+    expect(teamUpRequestLabel("Sam Lee", "2026-11-10T17:00:00Z", now)).toBe("Sam Lee wants to team up, expires in 5 hours");
+  });
+
+  it("lists team-up requests newest first", () => {
+    const older = { requestId: 1, expiresAt: "2026-11-11T09:00:00Z" };
+    const newer = { requestId: 2, expiresAt: "2026-11-12T09:00:00Z" };
+    expect(newestRequestsFirst([older, newer]).map((r) => r.requestId)).toEqual([2, 1]);
   });
 });

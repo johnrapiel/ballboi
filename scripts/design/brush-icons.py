@@ -583,6 +583,13 @@ def _(p):
     p.stroke(L(8, 14.8, 9.6, 19.8), 0.9)
     p.stroke(A(16.4, 12, 4.6, -38, 38), 0.8)
 
+@icon("door.leave")
+def _(p):
+    # Leave (a league, today): a doorway open on the right, an arrow walking out (decision 184).
+    p.stroke(poly((13.4, 7.8), (13.4, 4.2), (4.4, 4.2), (4.4, 19.8), (13.4, 19.8), (13.4, 16.2)))
+    p.stroke(L(8.8, 12, 20.2, 12))
+    p.stroke(L(16.4, 8.2, 20.4, 12), 0.95); p.stroke(L(16.4, 15.8, 20.4, 12), 0.95)
+
 # ---------- milestone badges (decisions 149 and 150) ----------
 #
 # One icon per launch milestone, drawn to sit inside the design system's brush

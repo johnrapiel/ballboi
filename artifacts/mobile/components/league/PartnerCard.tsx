@@ -15,18 +15,20 @@ import {
   type MyPartner,
 } from "@workspace/api-client-react";
 
+import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 import { Button, ButtonRow, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { expiresLine } from "@/lib/doubles";
+import { expiresLine, newestRequestsFirst, teamUpRequestLabel } from "@/lib/doubles";
 import { refreshLeague } from "@/lib/leagueRefresh";
 
 // Teaming up in a fixed-partner doubles league (doubles flow review D2, D4,
 // D9, John, Nov 9). One card on the league page, and the step after joining:
 // - No partner yet, before the first round: "Team up with someone" (a
 //   request) or "Find me a partner" (the list your admin sees in Manage).
-// - A request to you: Accept or Decline, with the 48 hours left.
+// - A request to you: its own card above this one (finding 29, Nov 12), with
+//   Accept and Decline and the time left. One card per request, newest first.
 // - Your request out: who, the time left, and Cancel.
 // - Declined or unanswered: the notice in words, with OK.
 // - Your partner left mid-season: byes until your admin teams you up (D4).
@@ -120,67 +122,84 @@ export function PartnerCard({ leagueId, joining = false }: { leagueId: number; j
     );
   }
 
+  // A request to you gets its own card above (finding 29). While one waits,
+  // its Accept is the one primary, so Team up with someone steps back.
+  const waiting = v.incoming.length > 0;
+
   return (
-    <Card style={{ gap: spacing.space4 }}>
-      <Text variant="section" tone="inkMuted" accessibilityRole="header">
-        {joining ? "Next, team up" : "Your partner"}
-      </Text>
-
-      {v.notice ? (
-        <View style={{ gap: spacing.space2 }}>
-          <StateLine icon="info.circle" title="Your request didn't go through" body={v.notice.text} />
-          <Button label="OK" variant="secondary" onPress={() => void act.dismiss(v.notice!.requestId)} disabled={act.busy} />
-        </View>
-      ) : null}
-
-      {v.incoming.map((r) => (
-        <View key={r.requestId} style={{ gap: spacing.space2 }}>
-          <StateLine icon="person.2" title={`${r.from.name} wants to team up`} body={expiresLine(r.expiresAt)} />
+    <>
+      {newestRequestsFirst(v.incoming).map((r) => (
+        <Card key={r.requestId} style={{ gap: spacing.space4 }}>
+          <View
+            accessible
+            accessibilityLabel={teamUpRequestLabel(r.from.name, r.expiresAt)}
+            style={{ flexDirection: "row", gap: spacing.space3, alignItems: "center" }}
+          >
+            <Avatar name={r.from.name} size={44} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text variant="bodyStrong">{`${r.from.name} wants to team up`}</Text>
+              <Text variant="small" tone="inkMuted">
+                {expiresLine(r.expiresAt)}
+              </Text>
+            </View>
+          </View>
           <ButtonRow>
             <Button label="Accept" onPress={() => void act.accept(r.requestId, r.from.name)} disabled={act.busy} accessibilityHint={`Team up with ${r.from.name} for the season`} />
             <Button label="Decline" variant="secondary" onPress={() => act.decline(r.requestId, r.from.name)} disabled={act.busy} />
           </ButtonRow>
-        </View>
+        </Card>
       ))}
+      <Card style={{ gap: spacing.space4 }}>
+        <Text variant="section" tone="inkMuted" accessibilityRole="header">
+          {joining ? "Next, team up" : "Your partner"}
+        </Text>
 
-      {v.needsPartner ? (
-        <StateLine
-          icon="hourglass"
-          title="You need a partner"
-          body="Your partner left the league. Your played results stay. You'll have byes until your league admin teams you up with someone new."
-        />
-      ) : v.outgoing ? (
-        <View style={{ gap: spacing.space2 }}>
-          <StateLine icon="hourglass" title={`Waiting on ${v.outgoing.to.name}`} body={`You asked to team up. ${expiresLine(v.outgoing.expiresAt)}.`} />
-          <Button label="Cancel request" variant="secondary" onPress={() => act.cancel(v.outgoing!.requestId, v.outgoing!.to.name)} disabled={act.busy} />
-        </View>
-      ) : v.teamingOpen ? (
-        <View style={{ gap: spacing.space3 }}>
-          {v.looking ? (
-            <StateLine icon="checkmark.circle" title="You're on Looking for a partner" body="Your league admin sees the list and can team you up. You can still ask someone yourself." />
-          ) : (
-            <Text tone="inkMuted">
-              This league plays fixed partners. Ask someone to team up, or let your league admin find you a partner. Anyone without one when the first round goes out is teamed by level.
-            </Text>
-          )}
-          <ButtonRow>
-            <Button label="Team up with someone" onPress={openTeamUp} disabled={act.busy} />
+        {v.notice ? (
+          <View style={{ gap: spacing.space2 }}>
+            <StateLine icon="info.circle" title="Your request didn't go through" body={v.notice.text} />
+            <Button label="OK" variant="secondary" onPress={() => void act.dismiss(v.notice!.requestId)} disabled={act.busy} />
+          </View>
+        ) : null}
+
+        {v.needsPartner ? (
+          <StateLine
+            icon="hourglass"
+            title="You need a partner"
+            body="Your partner left the league. Your played results stay. You'll have byes until your league admin teams you up with someone new."
+          />
+        ) : v.outgoing ? (
+          <View style={{ gap: spacing.space2 }}>
+            <StateLine icon="hourglass" title={`Waiting on ${v.outgoing.to.name}`} body={`You asked to team up. ${expiresLine(v.outgoing.expiresAt)}.`} />
+            <Button label="Cancel request" variant="secondary" onPress={() => act.cancel(v.outgoing!.requestId, v.outgoing!.to.name)} disabled={act.busy} />
+          </View>
+        ) : v.teamingOpen ? (
+          <View style={{ gap: spacing.space3 }}>
             {v.looking ? (
-              <Button label="Leave the list" variant="secondary" onPress={() => void act.setLooking(false)} disabled={act.busy} />
+              <StateLine icon="checkmark.circle" title="You're on Looking for a partner" body="Your league admin sees the list and can team you up. You can still ask someone yourself." />
             ) : (
-              <Button
-                label="Find me a partner"
-                variant="secondary"
-                onPress={() => void act.setLooking(true)}
-                disabled={act.busy}
-                accessibilityHint="Adds you to the list your league admin sees"
-              />
+              <Text tone="inkMuted">
+                This league plays fixed partners. Ask someone to team up, or let your league admin find you a partner. Anyone without one when the first round goes out is teamed by level.
+              </Text>
             )}
-          </ButtonRow>
-        </View>
-      ) : (
-        <StateLine icon="info.circle" title="No partner yet" body="Teaming up closed when the first round went out. Your league admin can team you up in Manage." />
-      )}
-    </Card>
+            <ButtonRow>
+              <Button label="Team up with someone" variant={waiting ? "secondary" : "primary"} onPress={openTeamUp} disabled={act.busy} />
+              {v.looking ? (
+                <Button label="Leave the list" variant="secondary" onPress={() => void act.setLooking(false)} disabled={act.busy} />
+              ) : (
+                <Button
+                  label="Find me a partner"
+                  variant="secondary"
+                  onPress={() => void act.setLooking(true)}
+                  disabled={act.busy}
+                  accessibilityHint="Adds you to the list your league admin sees"
+                />
+              )}
+            </ButtonRow>
+          </View>
+        ) : (
+          <StateLine icon="info.circle" title="No partner yet" body="Teaming up closed when the first round went out. Your league admin can team you up in Manage." />
+        )}
+      </Card>
+    </>
   );
 }
