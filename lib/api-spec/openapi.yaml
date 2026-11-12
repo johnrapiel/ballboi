@@ -9800,7 +9800,13 @@ components:
         level:
           type: number
           description: Their self-rated level
-      required: [playerId, name, level]
+        userId:
+          type: ["integer", "null"]
+          description: Their account id for the player card; null for a player not on Ball Boi yet
+        photoUrl:
+          type: ["string", "null"]
+          description: Profile photo, if they have one
+      required: [playerId, name, level, userId, photoUrl]
 
     MyPartner:
       type: object

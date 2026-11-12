@@ -34,6 +34,7 @@ const PAIRS = [
   ["court", "linen", TEXT, "links, wins and live on cards"],
   ["court", "sand", TEXT, "court text in wells"],
   ["danger", "paper", TEXT, "error text on the page"],
+  ["danger", "paper", NON_TEXT, "door icon on Leave league (decision 184)"],
   ["danger", "linen", TEXT, "error text on cards"],
   ["danger", "sand", TEXT, "error text in wells"],
   ["on-ink", "court", TEXT, "label on the live chip"],

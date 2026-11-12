@@ -203,6 +203,7 @@ function RootLayoutNav() {
         <Stack.Screen name="league/[leagueId]/score/[matchId]" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="league/[leagueId]/time/[matchId]" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="league/[leagueId]/match-time" options={sheetOptions(colors.linen)} />
+        <Stack.Screen name="league/[leagueId]/partner" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="league/[leagueId]/team-up" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="league/[leagueId]/teams" options={{ ...pushedHeader, title: "" }} />
         <Stack.Screen name="league/[leagueId]/manage" options={{ ...pushedHeader, title: "" }} />

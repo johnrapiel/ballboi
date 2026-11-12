@@ -1809,6 +1809,16 @@ export interface PartnerPerson {
   name: string;
   /** Their self-rated level */
   level: number;
+  /**
+   * Their account id for the player card; null for a player not on Ball Boi yet
+   * @nullable
+   */
+  userId: number | null;
+  /**
+   * Profile photo, if they have one
+   * @nullable
+   */
+  photoUrl: string | null;
 }
 
 export type MyPartnerOutgoing = null | {

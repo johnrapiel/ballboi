@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   andJoin,
   expiresLine,
+  manageLeagueLabel,
+  partnerLine,
+  newestRequestsFirst,
+  teamUpRequestLabel,
   firstName,
   isDoublesMatch,
   matchupLine,
@@ -138,5 +142,40 @@ describe("partners copy", () => {
     expect(expiresLine("2026-11-10T12:30:00Z", now)).toBe("Expires within the hour");
     expect(expiresLine("2026-11-10T17:00:00Z", now)).toBe("Expires in 5 hours");
     expect(expiresLine("2026-11-12T12:00:00Z", now)).toMatch(/^Expires [A-Z][a-z]{2} /);
+  });
+
+  it("reads a team-up request with the weekday spelled out (finding 29)", () => {
+    const now = new Date("2026-11-10T12:00:00Z");
+    expect(teamUpRequestLabel("Ryan O'Connor", "2026-11-14T12:00:00Z", now)).toMatch(
+      /^Ryan O'Connor wants to team up, expires (Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday) \d/,
+    );
+    expect(teamUpRequestLabel("Sam Lee", "2026-11-10T17:00:00Z", now)).toBe("Sam Lee wants to team up, expires in 5 hours");
+  });
+
+  it("lists team-up requests newest first", () => {
+    const older = { requestId: 1, expiresAt: "2026-11-11T09:00:00Z" };
+    const newer = { requestId: 2, expiresAt: "2026-11-12T09:00:00Z" };
+    expect(newestRequestsFirst([older, newer]).map((r) => r.requestId)).toEqual([2, 1]);
+  });
+});
+
+describe("finding 31: the partner line and the Manage gear", () => {
+  const base = { fixedPartners: true, member: true, partner: null, needsPartner: false, outgoing: null, notice: null };
+  it("names your partner", () => {
+    expect(partnerLine({ ...base, partner: { name: "Ryan O'Connor" } })).toEqual({ kind: "partner", name: "Ryan O'Connor" });
+  });
+  it("says what's missing, with Team up", () => {
+    expect(partnerLine(base)).toEqual({ kind: "none", lead: "No partner yet" });
+    expect(partnerLine({ ...base, outgoing: { to: { name: "Ryan O'Connor" } } })).toEqual({ kind: "none", lead: "Waiting on Ryan O'Connor" });
+    expect(partnerLine({ ...base, needsPartner: true })).toEqual({ kind: "none", lead: "Your partner left" });
+    expect(partnerLine({ ...base, notice: { requestId: 1, text: "x" } })).toEqual({ kind: "none", lead: "Your request didn't go through" });
+  });
+  it("hides the line for rotating partners and non-members", () => {
+    expect(partnerLine({ ...base, fixedPartners: false })).toBeNull();
+    expect(partnerLine({ ...base, member: false })).toBeNull();
+  });
+  it("labels the gear, with pairings to review", () => {
+    expect(manageLeagueLabel(false)).toBe("Manage league");
+    expect(manageLeagueLabel(true)).toBe("Manage league, pairings to review");
   });
 });

@@ -514,7 +514,7 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 104 | A set entered as 6-6 opens tiebreak boxes; the tiebreak points are required, decide the set, and save as 7-6(x) (John, Nov 6) |
 | 105 | Quick match opponents and New message can find any Ball Boi player who hasn't hidden their profile, never a blocked one. New message lists "In your leagues" first, then "All Ball Boi players" (John, Nov 6) |
 | 106 | Levels run 2.5 to 5.0; 5.0 is "Expert" (John, Nov 6) |
-| 107 | League admin tools sit behind a "Manage league" row on League detail; the invite (code, copy, share) lives at the top of Manage (John, Nov 6) |
+| 107 | League admin tools sit behind a "Manage league" row on League detail; the invite (code, copy, share) lives at the top of Manage (John, Nov 6). **Updated Nov 12 (decision 185):** the row is now a gear corner button next to the league chat |
 | 108 | Every bottom sheet hugs its content, has no Cancel (drag down to close, confirm before discarding changes) and a left-aligned brush title (John, Nov 6) |
 | 109 | Discover has three tabs at the top (Players, Open leagues, Open matches), your area with Change, and distance chips with counts on each tab, as drawn on the canvas (John, Nov 7, F1) |
 | 110 | Setting up a match happens in chat: "Set up a match" opens a chat with an "Add this match?" card, Undo, "Still on for tomorrow?", "Can't make it", "Did it happen?" 3 hours after, and a no-show report with 48 hours to dispute. A new card replaces the old one. Replaces the structured request with accept, counter and decline (John, Nov 7, F2) |
@@ -586,3 +586,5 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 181 | Every sheet that can be swiped down shows the grabber bar at the top, full-height page sheets included, so people know they can swipe it away (John, Nov 11) |
 | 182 | New league requires a name and an area (town or ZIP, prefilled from the admin's home area); Usual courts is optional because rec league players use different courts; Create league stays off until both are filled (John, Nov 11) |
 | 183 | League cards show Singles or Doubles in the pill; no Active label; a league that hasn't started shows a calendar icon and Starts [date] in its info line; the stats row always shows, with a dash for each value until there's one (John, Nov 12) |
+| 184 | Leaving (a league, today) is a quiet danger-colored text action with a door icon at the bottom of the page, confirmed by an alert, not a filled button (John, Nov 12) |
+| 185 | League page: one main card (your match); Manage league is a gear corner button next to the chat for admins, with a dot when pairings need review; your partner is a line under the league name (No partner yet · Team up opens a sheet); pairings to review is one line with a Review link; a team-up request is a card only while it waits (John, Nov 12) |

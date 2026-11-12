@@ -69,6 +69,15 @@ describe("D9: Team up with someone", () => {
     expect(theirs.incoming[0].from.name).toBe("John Rapiel");
   });
 
+  it("each person carries their player card id and photo for the league page (finding 31)", async () => {
+    Object.assign(repo.people[1], { userId: 22, avatarUrl: "/objects/sam.jpg" });
+    await svc.request(1, "u1", 2);
+    const john = await svc.mine(1, "u1");
+    expect(john.outgoing!.to).toEqual({ playerId: 2, name: "Sam Lee", level: 3.5, userId: 22, photoUrl: "/objects/sam.jpg" });
+    // A player not on Ball Boi yet has neither.
+    expect((await svc.mine(1, "u2")).incoming[0].from).toMatchObject({ userId: null, photoUrl: null });
+  });
+
   it("Accept makes the team, takes both off the list and ends other requests to them with a notice", async () => {
     await svc.setLooking(1, "u3", true);
     await svc.request(1, "u3", 2);

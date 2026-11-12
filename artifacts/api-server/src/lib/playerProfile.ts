@@ -14,6 +14,8 @@ import { ratingValue } from "./pairing.js";
 // ratingSource is for.
 
 export type PlayerProfile = {
+  /** users.id, for the player card link. */
+  userId?: number;
   displayName: string | null;
   avatarUrl: string | null;
   rating: number | null;
@@ -32,6 +34,7 @@ export async function loadProfiles(clerkUserIds: (string | null | undefined)[]):
   if (ids.length === 0) return new Map();
   const rows = await db
     .select({
+      userId: usersTable.id,
       clerkUserId: usersTable.clerkUserId,
       displayName: usersTable.displayName,
       avatarUrl: usersTable.avatarUrl,
@@ -44,6 +47,7 @@ export async function loadProfiles(clerkUserIds: (string | null | undefined)[]):
     rows.map((r) => [
       r.clerkUserId,
       {
+        userId: r.userId,
         displayName: r.displayName ?? null,
         avatarUrl: r.avatarUrl ?? null,
         rating: r.rating == null ? null : Number(r.rating),
@@ -65,6 +69,11 @@ export function playerDisplayName(p: Linkable & { name: string }, profiles: Prof
 /** The profile photo for a signed-up player. Placeholders have none. */
 export function playerAvatarUrl(p: Linkable, profiles: ProfileMap): string | null {
   return profileOf(p, profiles)?.avatarUrl ?? null;
+}
+
+/** A signed-up player's account id (users.id), for their player card. Placeholders have none. */
+export function playerUserId(p: Linkable, profiles: ProfileMap): number | null {
+  return profileOf(p, profiles)?.userId ?? null;
 }
 
 /** A signed-up player's profile level and its source, or null if they haven't set one. */
