@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_FILTERS,
+  activeFilters,
+  filteredEmptyBody,
+  filtersButtonLabel,
   areaLine,
   clampRadius,
   countLine,
@@ -207,5 +210,27 @@ describe("open matches", () => {
     expect(waitingLine(1)).toBe("1 spot left. We'll open a group chat when it fills, and let you know.");
     expect(openMatchesPath(12)).toBe("/api/open-matches?radius=12");
     expect(windowEnd(new Date("2026-11-14T14:00:00Z"), 2).toISOString()).toBe("2026-11-14T16:00:00.000Z");
+  });
+});
+
+describe("filter-aware empty state (decision 190)", () => {
+  it("counts only filters that narrow the list", () => {
+    expect(activeFilters(DEFAULT_FILTERS)).toEqual([]);
+    expect(activeFilters({ ...DEFAULT_FILTERS, levels: [] })).toEqual([]);
+    expect(activeFilters({ ...DEFAULT_FILTERS, free: true })).toEqual(["free"]);
+    expect(activeFilters({ levels: [3.5], plays: "singles", free: true })).toEqual(["free", "levels", "plays"]);
+  });
+
+  it("names the filters in plain words", () => {
+    expect(filteredEmptyBody({ ...DEFAULT_FILTERS, free: true })).toBe("Nobody nearby is free when you are.");
+    expect(filteredEmptyBody({ ...DEFAULT_FILTERS, plays: "singles" })).toBe("Nobody nearby plays singles.");
+    expect(filteredEmptyBody({ levels: [3.0, 3.5, 4.0], plays: "doubles", free: true })).toBe(
+      "Nobody nearby is free when you are, is at levels 3.0, 3.5 or 4.0 and plays doubles.",
+    );
+  });
+
+  it("says how many filters are on for VoiceOver", () => {
+    expect(filtersButtonLabel(DEFAULT_FILTERS, 10)).toMatch(/^Filters: distance 10 miles/);
+    expect(filtersButtonLabel({ ...DEFAULT_FILTERS, free: true }, 5)).toMatch(/^Filters, 1 on: distance 5 miles/);
   });
 });

@@ -131,6 +131,10 @@ One standard, three kinds, one look each (John, Nov 8):
 2. **Icons inside the page: a plain brush icon.** Ink, no circle, no border, no fill, still a 44pt tap area (`PlainIconButton`). A small ink dot marks something that's on, like active filters, and the label says so too. Used for Filters, the card's pencil and free-times grid, the chat's Add a match (calendar) and Send, and the invite code's Copy and Share.
 3. **Actions with words: a `Button`.** Anything that does the screen's job gets words: Record with Ball Boi, Enter score, Set up a match, Send report. Primary is ink filled, secondary is outlined. Never an icon alone.
 
+**Button hierarchy** (decision 189, John, Nov 12). An empty state, card or screen has at most one primary and at most one secondary (outline) Button. Never stack secondaries. Any further action is a tertiary text link (`TextLinkButton`: a centered, underlined `TextLink` padded to a 44pt tap area) below the buttons.
+
+**Empty states** (decisions 188 to 190). The roundel at 50% or a brush symbol, a title, one line, then the ways forward under the button hierarchy above. Discover > Players: Widen to N mi (primary, when a wider distance exists), Post an open match (secondary), Invite a friend (link). When filters emptied the list, say so: "No players match your filters", a line naming them in plain words ("Nobody nearby is free when you are."), then Clear filters (primary), Widen (secondary, if any) and Post an open match (link). Never blame the area ("Ball Boi is new near you") when filters caused it. The Filters icon shows its dot whenever a filter is on, and VoiceOver says how many ("Filters, 1 on").
+
 Steppers (− and +) and chips are controls, not icon buttons, and keep their outlines.
 
 Copy buttons confirm by turning into a check for about 2 seconds, with no separate "Copied" text (John, Nov 11, finding 22). In the app this is `CopyButton`.
@@ -150,6 +154,19 @@ One rule for every bottom sheet (John, Nov 6), like the approved Enter score she
 
 In the app, `components/Sheet.tsx` (`SheetBody`) does all of this; sheet routes use the `sheet` options in `app/_layout.tsx`.
 
+### Menus and pickers
+
+Menus and pickers open in a bottom sheet, never the native action sheet (decision 193, John, Nov 12). Native alerts are only for confirming destructive actions (delete, remove, leave, ban, discard) and for errors.
+
+- Same sheet rules as above: `linen`, `radius-lg` top corners, the grabber, hugs its content and scrolls only when it's taller than the screen. Swipe down or tap the dimmed backdrop to close; no Cancel row. The VoiceOver escape gesture closes it (or goes back a step).
+- Optional header: a `heading-m` title (or `title` at full ink when it holds a name), the people it's about with their photo or initials (a match shows both players, "vs." between), and a short muted message.
+- Rows are at least 52pt tall: a brush icon (or a player's photo), the label in DM Sans 600, an optional muted second line. A row that opens a second step ends in a chevron.
+- Destructive rows are `danger` text and icon, and confirm with a native alert after the sheet closes.
+- A second step (Swap Maya Chen with: a player list) opens inside the same sheet, with Back at the top left.
+- Reduce Motion: it fades instead of sliding.
+
+In the app, `components/ActionSheet.tsx` (`useActionSheet`) does all of this.
+
 ## Iconography
 
 The tab bar uses the custom brush icon set John approved (Nov 5): hand-drawn Home, Leagues, Discover and Profile in `ink-muted`, with the selected tab filled with the painted ball's paint under an `ink` outline. Ball Boi keeps the logo ball and follows the same rule (Nov 6): its strokes in `ink-muted` with no fill when unselected, filled with its paint under `ink` strokes only when selected. Sources are in `docs/design-system/icons`, and `scripts/design/tab-icons.py` draws the app's Day and Night PNGs from them. **Every icon is hand-drawn (John, Nov 7).** Outside the tab bar, every icon in the app comes from the same brush set: tapered, rounded strokes with a little wobble, and circles left with a small open gap, like the tab icons. They're drawn in one color (`ink` by default, `ink-muted` for chevrons and quiet meta icons, `danger` for destructive rows). Never use SF Symbols, Lucide or any other icon set, and never a thin line icon. In the app, use `<Icon name="..." />` (`components/Icon.tsx`); names follow SF Symbols so meanings stay familiar (`chevron.right`, `calendar.badge.plus`). A new icon is drawn in `scripts/design/brush-icons.py` (one function per icon, centre-line strokes on a 24 grid) and the script writes the app's paths and the sources in `docs/design-system/icons/ui`. A check (`scripts/check-brush-icons.mjs`, part of `pnpm test`) fails if any screen imports SF Symbols or an icon library. The native iOS back chevron and system sheets, alerts and share sheet stay as iOS draws them. No duotone icons, no emoji in UI.
@@ -165,7 +182,7 @@ The roundel is the wordmark. `assets/Logos/ball-boi-roundel.png` is the painted 
 Where it appears:
 - Splash, Welcome, the marketing site and App Store screenshots
 - At 52px in place of the Home tab header's title, left aligned on the row with Messages, with no date or greeting, once Home has something to show. The brushstroke in ink by day; at night the brushstroke alone in white, with no paper fill (John, Nov 6)
-- Player-facing empty states on the main tabs (Home, Leagues, Discover), at 120px in place of the symbol. On Home it appears here only while there's nothing to show yet, and the header then has no roundel, so it's never on screen twice (John, Nov 6, finding 27)
+- Player-facing empty states on the main tabs (Home, Leagues, Discover), at 120px in place of the symbol. On Home it appears here only while there's nothing to show yet, and the header then has no roundel, so it's never on screen twice (John, Nov 6, finding 27). In every empty, error or "nothing yet" state it shows at 50% opacity (`<Roundel emptyState />`, `EMPTY_STATE_ROUNDEL_OPACITY`; decision 188, John, Nov 12): the ink trace measures 3.16:1 on Day `paper` and the white trace 5.09:1 on the Night ground. It stays decorative (hidden from VoiceOver). Headers, Settings and Welcome keep it at full strength
 - Behind the badge in milestone moments (first win, first Ball Boi match, 5- and 10-match win streaks)
 - Stamped on every shareable match recap
 - An About footer at the bottom of Profile

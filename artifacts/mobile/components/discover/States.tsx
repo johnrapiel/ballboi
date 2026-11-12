@@ -106,12 +106,16 @@ export function ProblemCard({ title, body, onRetry, retrying }: { title: string;
   );
 }
 
-/** The roundel, a title, a line, and the ways forward. */
+/**
+ * The roundel (at the empty-state opacity), a title, a line, and the ways
+ * forward: at most one primary and one secondary Button, then any further
+ * actions as TextLinkButtons (decision 189).
+ */
 export function EmptyBlock({ title, body, children }: { title: string; body: string; children?: React.ReactNode }) {
   return (
     <View style={{ alignItems: "center", gap: spacing.space2, paddingTop: spacing.space4, paddingHorizontal: spacing.space2 }}>
-      <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-        <Roundel size={120} />
+      <View accessible={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+        <Roundel size={120} emptyState />
       </View>
       <View accessible accessibilityLabel={`${title}. ${body}`} style={{ gap: spacing.space2, alignItems: "center" }}>
         <Text variant="title" accessibilityRole="header" style={{ textAlign: "center", marginTop: spacing.space2 }}>

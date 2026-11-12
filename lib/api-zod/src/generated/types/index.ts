@@ -210,6 +210,8 @@ export * from "./leagueHandoffLeaguesItem";
 export * from "./leagueHandoffLeaguesItemMembersItem";
 export * from "./leagueInvite";
 export * from "./leagueInviteJoinAction";
+export * from "./leagueInviteMember";
+export * from "./leagueInviteMemberLevelSource";
 export * from "./leagueMatchTime";
 export * from "./leagueMatchTimeBody";
 export * from "./leagueMembership";
