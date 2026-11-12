@@ -11,7 +11,8 @@
 
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
-import { ActionSheetIOS, Alert, Platform, Pressable, RefreshControl, ScrollView, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, View } from "react-native";
+import { useActionSheet } from "@/components/ActionSheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -57,20 +58,14 @@ export default function PlayerCardScreen() {
   const p = cardQ.data;
   const first = p ? p.name.split(" ")[0] || p.name : "";
 
+  // More: a bottom sheet (decision 193).
+  const sheet = useActionSheet();
   function more() {
     if (!p) return;
-    const title = `Report ${first}`;
-    const go = () => report.open({ id: null, userId: p.userId, name: p.name });
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions({ options: [title, "Cancel"], cancelButtonIndex: 1 }, (i) => {
-        if (i === 0) go();
-      });
-    } else {
-      Alert.alert(p.name, undefined, [
-        { text: title, onPress: go },
-        { text: "Cancel", style: "cancel" },
-      ]);
-    }
+    sheet.show({
+      people: [{ name: p.name, photo: p.avatarUrl }],
+      rows: [{ label: `Report ${first}`, icon: "exclamationmark.circle", onPress: () => report.open({ id: null, userId: p.userId, name: p.name }) }],
+    });
   }
 
   // Setting up a match happens in chat (F2): open your chat with them.
@@ -83,6 +78,7 @@ export default function PlayerCardScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.paper }}>
+      {sheet.element}
       <Stack.Screen
         options={{
           title: "",

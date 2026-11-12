@@ -154,6 +154,19 @@ One rule for every bottom sheet (John, Nov 6), like the approved Enter score she
 
 In the app, `components/Sheet.tsx` (`SheetBody`) does all of this; sheet routes use the `sheet` options in `app/_layout.tsx`.
 
+### Menus and pickers
+
+Menus and pickers open in a bottom sheet, never the native action sheet (decision 193, John, Nov 12). Native alerts are only for confirming destructive actions (delete, remove, leave, ban, discard) and for errors.
+
+- Same sheet rules as above: `linen`, `radius-lg` top corners, the grabber, hugs its content and scrolls only when it's taller than the screen. Swipe down or tap the dimmed backdrop to close; no Cancel row. The VoiceOver escape gesture closes it (or goes back a step).
+- Optional header: a `heading-m` title (or `title` at full ink when it holds a name), the people it's about with their photo or initials (a match shows both players, "vs." between), and a short muted message.
+- Rows are at least 52pt tall: a brush icon (or a player's photo), the label in DM Sans 600, an optional muted second line. A row that opens a second step ends in a chevron.
+- Destructive rows are `danger` text and icon, and confirm with a native alert after the sheet closes.
+- A second step (Swap Maya Chen with: a player list) opens inside the same sheet, with Back at the top left.
+- Reduce Motion: it fades instead of sliding.
+
+In the app, `components/ActionSheet.tsx` (`useActionSheet`) does all of this.
+
 ## Iconography
 
 The tab bar uses the custom brush icon set John approved (Nov 5): hand-drawn Home, Leagues, Discover and Profile in `ink-muted`, with the selected tab filled with the painted ball's paint under an `ink` outline. Ball Boi keeps the logo ball and follows the same rule (Nov 6): its strokes in `ink-muted` with no fill when unselected, filled with its paint under `ink` strokes only when selected. Sources are in `docs/design-system/icons`, and `scripts/design/tab-icons.py` draws the app's Day and Night PNGs from them. **Every icon is hand-drawn (John, Nov 7).** Outside the tab bar, every icon in the app comes from the same brush set: tapered, rounded strokes with a little wobble, and circles left with a small open gap, like the tab icons. They're drawn in one color (`ink` by default, `ink-muted` for chevrons and quiet meta icons, `danger` for destructive rows). Never use SF Symbols, Lucide or any other icon set, and never a thin line icon. In the app, use `<Icon name="..." />` (`components/Icon.tsx`); names follow SF Symbols so meanings stay familiar (`chevron.right`, `calendar.badge.plus`). A new icon is drawn in `scripts/design/brush-icons.py` (one function per icon, centre-line strokes on a 24 grid) and the script writes the app's paths and the sources in `docs/design-system/icons/ui`. A check (`scripts/check-brush-icons.mjs`, part of `pnpm test`) fails if any screen imports SF Symbols or an icon library. The native iOS back chevron and system sheets, alerts and share sheet stay as iOS draws them. No duotone icons, no emoji in UI.

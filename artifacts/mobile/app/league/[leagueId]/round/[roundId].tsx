@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
-import { AccessibilityInfo, ActionSheetIOS, ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -19,18 +19,21 @@ import {
   type ScheduleRound,
 } from "@workspace/api-client-react";
 
+import { useActionSheet, type SheetPage, type SheetPerson, type SheetRow } from "@/components/ActionSheet";
 import { ListRow } from "@/components/league/ListRow";
 import { Button, Card, Text, TextButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { dateRange, pairingTime, shortDate, sideLabels } from "@/lib/leagueSchedule";
+import { swapCandidates } from "@/lib/swapCandidates";
 
 // Review a round before it goes out (spec: Leagues > Weekly loop, step 2;
 // approved canvas: Admin · Schedule review). A brush title, the matches as
 // rows, Re-pair at the top right and Send at the bottom. Tap any row for its
-// actions: swap a player, give a bye, lock the match. Action sheets, not
-// gestures, so every action works with VoiceOver and Switch Control.
+// actions: swap a player, give a bye, lock the match. A bottom sheet, not
+// gestures, so every action works with VoiceOver and Switch Control (decision
+// 186: menus and pickers open in a bottom sheet; alerts only confirm).
 
 function Heading({ children }: { children: string }) {
   return (
@@ -79,9 +82,14 @@ export default function RoundReviewScreen() {
   const lock = useLockLeagueRoundMatch();
   const repair = useRepairLeagueRound();
   const publish = usePublishLeagueRound();
+  const sheet = useActionSheet();
 
   const round = scheduleQ.data?.rounds.find((r) => r.roundId === roundId);
   const rating = (id: number) => rosterQ.data?.find((p) => p.playerId === id)?.skillLevel;
+  const levelText = (id: number) => {
+    const r = rating(id);
+    return r ? `Level ${r}` : null;
+  };
 
   /** Runs an edit, then shows the updated round and says what changed. */
   async function run(action: () => Promise<unknown>, done: string): Promise<boolean> {
@@ -100,20 +108,28 @@ export default function RoundReviewScreen() {
     }
   }
 
-  function swapWith(r: ScheduleRound, p: Person) {
-    const others = everyone(r).filter((o) => o.playerId !== p.playerId);
-    const options = [...others.map((o) => o.name), "Cancel"];
-    ActionSheetIOS.showActionSheetWithOptions(
-      { title: `Swap ${p.name} with`, options, cancelButtonIndex: options.length - 1 },
-      (i) => {
-        const other = others[i];
-        if (!other) return;
-        void run(
-          () => swap.mutateAsync({ leagueId, roundId, data: { playerAId: p.playerId, playerBId: other.playerId } }),
-          `Swapped ${p.name} and ${other.name}`,
-        );
-      },
-    );
+  const rosterOf = (id: number) => rosterQ.data?.find((p) => p.playerId === id);
+  const person = (p: Person): SheetPerson => ({ name: p.name, photo: rosterOf(p.playerId)?.avatarUrl, detail: levelText(p.playerId) });
+
+  /** "Swap Maya Chen with": everyone else in the round, closest level first, never their current opponent. */
+  function swapPage(r: ScheduleRound, p: Person, opponentId: number | null): SheetPage {
+    const others = swapCandidates(everyone(r), p, opponentId, rating);
+    return {
+      title: `Swap ${p.name} with`,
+      titleHasName: true,
+      rows: others.map((o) => ({
+        label: o.name,
+        detail: levelText(o.playerId),
+        person: { name: o.name, photo: rosterOf(o.playerId)?.avatarUrl },
+        accessibilityLabel: [`Swap with ${o.name}`, levelText(o.playerId)].filter(Boolean).join(", "),
+        onPress: () =>
+          void run(
+            () => swap.mutateAsync({ leagueId, roundId, data: { playerAId: p.playerId, playerBId: o.playerId } }),
+            `Swapped ${p.name} and ${o.name}`,
+          ),
+      })),
+      empty: "No one else to swap with.",
+    };
   }
 
   function giveBye(p: Person) {
@@ -123,67 +139,53 @@ export default function RoundReviewScreen() {
   function matchMenu(r: ScheduleRound, m: ScheduleMatch) {
     const a = { playerId: m.player1Id, name: doubles ? sideLabels(m).side1 : m.player1Name };
     const b = { playerId: m.player2Id, name: doubles ? sideLabels(m).side2 : m.player2Name };
-    const lockOnly = [
-      {
-        label: m.locked ? "Unlock match" : "Lock match",
-        go: () =>
-          void run(() => lock.mutateAsync({ leagueId, roundId, matchId: m.matchId, data: { locked: !m.locked } }), m.locked ? "Match unlocked" : "Match locked"),
-      },
-    ];
-    const actions: { label: string; go: () => void }[] = doubles
-      ? lockOnly
-      : m.locked
-      ? [
-          {
-            label: "Unlock match",
-            go: () => void run(() => lock.mutateAsync({ leagueId, roundId, matchId: m.matchId, data: { locked: false } }), "Match unlocked"),
-          },
-        ]
-      : [
-          { label: `Swap ${a.name} with…`, go: () => swapWith(r, a) },
-          { label: `Swap ${b.name} with…`, go: () => swapWith(r, b) },
-          { label: `Give ${a.name} a bye`, go: () => giveBye(a) },
-          { label: `Give ${b.name} a bye`, go: () => giveBye(b) },
-          {
-            label: "Lock match",
-            go: () => void run(() => lock.mutateAsync({ leagueId, roundId, matchId: m.matchId, data: { locked: true } }), "Match locked"),
-          },
-        ];
-    const options = [...actions.map((x) => x.label), "Cancel"];
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        title: `${a.name} vs. ${b.name}`,
-        message: m.locked ? "Locked matches stay as they are when you re-pair." : undefined,
-        options,
-        cancelButtonIndex: options.length - 1,
-      },
-      (i) => actions[i]?.go(),
-    );
+    const lockRow: SheetRow = {
+      label: m.locked ? "Unlock match" : "Lock match",
+      icon: m.locked ? "lock" : "lock.fill",
+      onPress: () =>
+        void run(() => lock.mutateAsync({ leagueId, roundId, matchId: m.matchId, data: { locked: !m.locked } }), m.locked ? "Match unlocked" : "Match locked"),
+    };
+    const rows: SheetRow[] =
+      doubles || m.locked
+        ? [lockRow]
+        : [
+            { label: `Swap ${a.name} with…`, icon: "arrow.up.arrow.down", next: swapPage(r, a, b.playerId) },
+            { label: `Swap ${b.name} with…`, icon: "arrow.up.arrow.down", next: swapPage(r, b, a.playerId) },
+            { label: `Give ${a.name} a bye`, icon: "pause.circle", onPress: () => giveBye(a) },
+            { label: `Give ${b.name} a bye`, icon: "pause.circle", onPress: () => giveBye(b) },
+            lockRow,
+          ];
+    sheet.show({
+      people: doubles ? [{ name: a.name }, { name: b.name }] : [person(a), person(b)],
+      message: m.locked ? "Locked matches stay as they are when you re-pair." : undefined,
+      rows,
+    });
   }
 
   function byeMenu(r: ScheduleRound, p: Person) {
-    const actions = [
-      {
-        label: `Take away ${p.name}'s bye`,
-        go: () => void run(() => removeBye.mutateAsync({ leagueId, roundId, playerId: p.playerId }), `${p.name} needs an opponent`),
-      },
-      { label: `Swap ${p.name} with…`, go: () => swapWith(r, p) },
-    ];
-    const options = [...actions.map((x) => x.label), "Cancel"];
-    ActionSheetIOS.showActionSheetWithOptions({ title: `Bye: ${p.name}`, options, cancelButtonIndex: options.length - 1 }, (i) =>
-      actions[i]?.go(),
-    );
+    sheet.show({
+      people: [person(p)],
+      message: "Has a bye this round.",
+      rows: [
+        {
+          label: `Take away ${p.name}'s bye`,
+          icon: "minus.circle",
+          onPress: () => void run(() => removeBye.mutateAsync({ leagueId, roundId, playerId: p.playerId }), `${p.name} needs an opponent`),
+        },
+        { label: `Swap ${p.name} with…`, icon: "arrow.up.arrow.down", next: swapPage(r, p, null) },
+      ],
+    });
   }
 
   function unpairedMenu(r: ScheduleRound, p: Person) {
-    const actions = [
-      { label: `Give ${p.name} a bye`, go: () => giveBye(p) },
-      { label: `Swap ${p.name} with…`, go: () => swapWith(r, p) },
-    ];
-    const options = [...actions.map((x) => x.label), "Cancel"];
-    ActionSheetIOS.showActionSheetWithOptions({ title: p.name, options, cancelButtonIndex: options.length - 1 }, (i) =>
-      actions[i]?.go(),
-    );
+    sheet.show({
+      people: [person(p)],
+      message: "Needs an opponent.",
+      rows: [
+        { label: `Give ${p.name} a bye`, icon: "pause.circle", onPress: () => giveBye(p) },
+        { label: `Swap ${p.name} with…`, icon: "arrow.up.arrow.down", next: swapPage(r, p, null) },
+      ],
+    });
   }
 
   function confirmRepair() {
@@ -249,6 +251,7 @@ export default function RoundReviewScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.paper }}>
+      {sheet.element}
       <Stack.Screen
         options={{
           headerRight: () => (
