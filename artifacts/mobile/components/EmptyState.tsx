@@ -44,8 +44,8 @@ export function EmptyState({ symbol, roundel, title, message }: EmptyStateProps)
       }}
     >
       {roundel ? (
-        <View style={{ marginBottom: spacing.space3 }}>
-          <Roundel size={120} />
+        <View style={{ marginBottom: spacing.space3 }} accessible={false}>
+          <Roundel size={120} emptyState />
         </View>
       ) : (
         <Icon name={symbol} size={40} tintColor={c.inkMuted} style={{ marginBottom: spacing.space2 }} />

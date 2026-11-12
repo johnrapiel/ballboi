@@ -200,6 +200,55 @@ export function filtersSpoken(f: PlayerFilters, radius: number): string {
   return `distance ${radius} miles, ${level}, plays ${PLAYS_WORDS[f.plays]}, free when I'm free ${f.free ? "on" : "off"}`;
 }
 
+/** Which Players filters are narrowing the list, compared with the defaults. */
+export type FilterKey = "free" | "levels" | "plays";
+
+/**
+ * The filters that are on (decision 190). Distance isn't one: it has its own
+ * Widen. "Your level" is the default, and "every level" is wider than it, so
+ * only a level list you picked counts.
+ */
+export function activeFilters(f: PlayerFilters): FilterKey[] {
+  const on: FilterKey[] = [];
+  if (f.free) on.push("free");
+  if (f.levels !== "mine" && f.levels.length > 0) on.push("levels");
+  if (f.plays !== "either") on.push("plays");
+  return on;
+}
+
+/** The Filters button for VoiceOver: "Filters, 1 on: distance 10 miles, …"; with none on, "Filters: …". */
+export function filtersButtonLabel(f: PlayerFilters, radius: number): string {
+  const n = activeFilters(f).length;
+  return `Filters${n > 0 ? `, ${n} on` : ""}: ${filtersSpoken(f, radius)}`;
+}
+
+function listWords(items: string[], joiner: string): string {
+  if (items.length <= 1) return items[0] ?? "";
+  return `${items.slice(0, -1).join(", ")} ${joiner} ${items[items.length - 1]}`;
+}
+
+/**
+ * The filtered empty state's body, naming the filters in plain words:
+ * "Nobody nearby is free when you are." or "Nobody nearby plays singles and
+ * is free when you are."
+ */
+export function filteredEmptyBody(f: PlayerFilters): string {
+  const parts: string[] = [];
+  for (const key of activeFilters(f)) {
+    if (key === "plays") parts.push(`plays ${PLAYS_WORDS[f.plays]}`);
+    if (key === "levels" && f.levels !== "mine") {
+      const levels = f.levels.map((l) => l.toFixed(1));
+      parts.push(`is ${levels.length === 1 ? "level" : "at levels"} ${listWords(levels, "or")}`);
+    }
+    if (key === "free") parts.push("is free when you are");
+  }
+  if (parts.length === 0) return "Nobody nearby matches your filters.";
+  return `Nobody nearby ${listWords(parts, "and")}.`;
+}
+
+/** Filters with the narrowing ones cleared; distance stays as it is. */
+export const clearedFilters = (): PlayerFilters => ({ ...DEFAULT_FILTERS });
+
 const levelsKey = (p: LevelPick) => (p === "mine" ? "mine" : p.join(","));
 export const sameFilters = (a: PlayerFilters, b: PlayerFilters) =>
   levelsKey(a.levels) === levelsKey(b.levels) && a.plays === b.plays && a.free === b.free;
