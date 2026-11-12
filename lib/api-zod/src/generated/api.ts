@@ -2724,6 +2724,12 @@ export const GetLeagueRosterResponseItem = zod.object({
     .describe(
       "A signed-up player's profile level and its source, for the level badge. Null for placeholders and players who haven't set one",
     ),
+  avatarUrl: zod
+    .string()
+    .nullable()
+    .describe(
+      "A signed-up player's profile photo path. Null for placeholders, players with no photo, and anyone with a block either way",
+    ),
   hasAccount: zod
     .boolean()
     .describe(

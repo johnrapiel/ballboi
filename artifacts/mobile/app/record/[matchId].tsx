@@ -52,12 +52,10 @@ import { Icon } from "@/components/Icon";
 import React, { useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
-  ActionSheetIOS,
   ActivityIndicator,
   Alert,
   AppState,
   Linking,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -224,22 +222,24 @@ function safeFreeDisk(): number | null {
   }
 }
 
-/** Asks Keep or Discard with the native iOS action sheet. Dismissing it keeps the recording. */
+/**
+ * Asks Keep or Discard with a native alert: it confirms a destructive choice,
+ * which is what alerts are for (decision 186). Keep is the cancel button, so
+ * anything but Discard keeps the recording.
+ */
 function askKeepOrDiscard(durationSeconds: number): Promise<"keep" | "discard"> {
   const title = "Keep this recording?";
   const message = `It's ${spokenDuration(durationSeconds)} long.`;
   return new Promise((resolve) => {
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { title, message, options: ["Discard", "Keep"], destructiveButtonIndex: 0, cancelButtonIndex: 1 },
-        (i) => resolve(i === 0 ? "discard" : "keep"),
-      );
-    } else {
-      Alert.alert(title, message, [
+    Alert.alert(
+      title,
+      message,
+      [
         { text: "Discard", style: "destructive", onPress: () => resolve("discard") },
         { text: "Keep", style: "cancel", onPress: () => resolve("keep") },
-      ], { cancelable: true, onDismiss: () => resolve("keep") });
-    }
+      ],
+      { cancelable: true, onDismiss: () => resolve("keep") },
+    );
   });
 }
 

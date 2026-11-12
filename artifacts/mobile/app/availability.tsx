@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { freeSummary } from "@workspace/free-times";
 
+import { useActionSheet } from "@/components/ActionSheet";
 import { DayRow } from "@/components/card/FreeTimesDayRow";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { ProblemCard } from "@/components/discover/States";
@@ -61,6 +62,7 @@ export default function AvailabilityScreen() {
   // so half-typed text ("6-") isn't called unreadable mid-word.
   const [checked, setChecked] = useState<Record<number, boolean>>({});
   const [loaded, setLoaded] = useState(false);
+  const sheet = useActionSheet();
   useEffect(() => {
     if (me.data && !loaded) {
       setRanges(me.data.freeTimes);
@@ -110,19 +112,25 @@ export default function AvailabilityScreen() {
     if (added.length) AccessibilityInfo.announceForAccessibility(`Added ${added.map(rangeText).join(", ")} on ${DAY_NAMES[day]}`);
   };
 
+  // A time you typed: Edit or Remove, in a bottom sheet (decision 186).
   const customMenu = (r: FreeRange) => {
-    Alert.alert(`${rangeText(r)}, ${DAY_NAMES[r.day]}`, undefined, [
-      { text: "Edit", onPress: () => openField(r.day, r) },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: () => {
-          setRanges((x) => removeTime(x, r));
-          AccessibilityInfo.announceForAccessibility(`Removed ${rangeText(r)} on ${DAY_NAMES[r.day]}`);
+    const when = `${rangeText(r)}, ${DAY_NAMES[r.day]}`;
+    sheet.show({
+      title: when,
+      rows: [
+        { label: "Edit", icon: "pencil", onPress: () => openField(r.day, r) },
+        {
+          label: "Remove",
+          icon: "trash",
+          destructive: true,
+          confirm: { title: `Remove ${when}?`, action: "Remove" },
+          onPress: () => {
+            setRanges((x) => removeTime(x, r));
+            AccessibilityInfo.announceForAccessibility(`Removed ${rangeText(r)} on ${DAY_NAMES[r.day]}`);
+          },
         },
-      },
-      { text: "Cancel", style: "cancel" },
-    ]);
+      ],
+    });
   };
 
   async function onSave() {
@@ -157,6 +165,7 @@ export default function AvailabilityScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.paper }}>
+      {sheet.element}
       <KeyboardAwareScrollViewCompat
         bottomOffset={spacing.space6}
         contentContainerStyle={{ padding: spacing.space4, paddingBottom: 120 + insets.bottom, gap: spacing.space4 }}

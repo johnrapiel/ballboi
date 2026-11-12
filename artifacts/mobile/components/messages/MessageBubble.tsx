@@ -25,7 +25,7 @@ export interface BubbleProps {
   status?: BubbleStatus;
   /** Their messages: Report, from a long press or a VoiceOver action. Block is inside Report (finding 20). */
   onReport?: () => void;
-  /** Long press on their message: the action sheet with Report message. */
+  /** Long press on their message: the menu sheet with Report message. */
   onLongPress?: () => void;
   /** Your failed message: send it again. */
   onRetry?: () => void;

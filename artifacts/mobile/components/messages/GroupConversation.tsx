@@ -1,6 +1,8 @@
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, ActionSheetIOS, ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from "react-native";
+import { useActionSheet } from "@/components/ActionSheet";
+import type { IconName } from "@/components/Icon";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HeaderIconButton, PlainIconButton } from "@/components/Choice";
@@ -325,26 +327,30 @@ export function GroupConversation({
     }).filter((a) => a !== "report" || canReport(m));
   };
 
-  // A league chat's long press: Report for everyone, plus pins and moderation for admins.
+  // A league chat's long press: Report for everyone, plus pins and moderation
+  // for admins. A bottom sheet (decision 186); Delete and Remove still confirm.
+  const sheet = useActionSheet();
+  const actionIcon: Record<LeagueMessageAction, IconName> = {
+    pin: "pin",
+    unpin: "pin.fill",
+    report: "exclamationmark.circle",
+    delete: "trash",
+    mute: "speaker.slash.fill",
+    unmute: "speaker.wave.2.fill",
+    remove: "minus.circle",
+  };
   const leagueMenu = (m: GroupMessage) => {
     const list = leagueActions(m);
     if (!list.length) return;
-    const labels = list.map((a) => actionLabel(m, a));
-    const destructive = list.map((a, i) => (a === "delete" || a === "remove" ? i : -1)).filter((i) => i >= 0);
-    const title = m.senderName ?? "Ball Boi";
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { title, options: [...labels, "Cancel"], cancelButtonIndex: labels.length, destructiveButtonIndex: destructive },
-        (i) => {
-          if (i < list.length) runLeagueAction(m, list[i]);
-        },
-      );
-      return;
-    }
-    Alert.alert(title, undefined, [
-      ...list.map((a, i) => ({ text: labels[i], style: destructive.includes(i) ? ("destructive" as const) : undefined, onPress: () => runLeagueAction(m, a) })),
-      { text: "Cancel", style: "cancel" as const },
-    ]);
+    sheet.show({
+      people: [{ name: m.senderName ?? "Ball Boi", photo: m.senderAvatarUrl }],
+      rows: list.map((a) => ({
+        label: actionLabel(m, a),
+        icon: actionIcon[a],
+        destructive: a === "delete" || a === "remove",
+        onPress: () => runLeagueAction(m, a),
+      })),
+    });
   };
 
   const pickMention = (name: string) => {
@@ -356,19 +362,11 @@ export function GroupConversation({
   };
 
   // Long press: Report is the only action (finding 20).
-  const messageMenu = (m: GroupMessage) => {
-    const name = m.senderName ?? "Player";
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions({ title: name, options: ["Report message", "Cancel"], cancelButtonIndex: 1 }, (i) => {
-        if (i === 0) reportMessage(m);
-      });
-      return;
-    }
-    Alert.alert(name, undefined, [
-      { text: "Report message", onPress: () => reportMessage(m) },
-      { text: "Cancel", style: "cancel" },
-    ]);
-  };
+  const messageMenu = (m: GroupMessage) =>
+    sheet.show({
+      people: [{ name: m.senderName ?? "Player", photo: m.senderAvatarUrl }],
+      rows: [{ label: "Report message", icon: "exclamationmark.circle", onPress: () => reportMessage(m) }],
+    });
 
   const canSend = group?.canSend ?? false;
   const loading = groupId === null || thread.isPending;
@@ -379,6 +377,7 @@ export function GroupConversation({
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={insets.top + 44}
     >
+      {sheet.element}
       <Stack.Screen
         options={{
           headerShown: true,
