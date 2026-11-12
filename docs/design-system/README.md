@@ -132,6 +132,8 @@ One standard, three kinds, one look each (John, Nov 8):
 
 Steppers (− and +) and chips are controls, not icon buttons, and keep their outlines.
 
+**Pinning in league chats** (finding 24, John, Nov 11). Pinning has a visible pin control on the admin's own league posts: a plain brush pin beside the message, outline (`pin`) when not pinned and filled (`pin.fill`) when pinned, with a 44pt tap area, "Pin post" or "Unpin post" for VoiceOver, and selected when pinned. Every pinned post shows the filled pin to everyone, and VoiceOver says "Pinned", so pinned is never color alone. Long-press (and VoiceOver's More actions) stays for other actions: pinning members' posts, Report, Delete, Mute and Remove. With 3 posts pinned, tapping an outline pin says only 3 posts can be pinned and to unpin one first.
+
 **One button height** (John, Nov 10). Every Button is one height: 48pt at default text size, growing only with Dynamic Type; labels never wrap; side-by-side buttons match; at the largest sizes rows stack. The 48pt is the `button` type style's 22pt line height plus 13pt above and below, so every button grows by the same amount at each text size. Primary, secondary, destructive and destructive outline all share it, and so does the camera's `ChromeButton`. Put buttons side by side in a `ButtonRow`: they share the row equally, and when any label wouldn't fit on one line the row stacks them full width. Keep labels short enough to sit side by side ("Message", with VoiceOver saying "Message Marcus Hall"). Chips, time pills, segmented controls, steppers, icon buttons, text buttons and Apple's and Google's own sign-in buttons are not Buttons and keep their own sizes.
 
 ## Bottom sheets
