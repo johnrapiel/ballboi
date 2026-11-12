@@ -110,6 +110,13 @@ describe("rosters and Manage read the current profile", () => {
     expect(JSON.stringify(alex)).not.toContain("akim");
   });
 
+  it("carries the profile photo for Round review's swap list, none for a placeholder", async () => {
+    const list = await roster();
+    expect(byId(list, 11)).toMatchObject({ avatarUrl: "/objects/alex.jpg" });
+    expect(byId(list, 10)).toMatchObject({ avatarUrl: null });
+    expect(byId(list, 12)).toMatchObject({ avatarUrl: null });
+  });
+
   it("shows a placeholder's admin-set level with no source", async () => {
     expect(byId(await roster(), 12)).toMatchObject({ name: "Una Placeholder", skillLevel: "3.0", rating: null, hasAccount: false });
   });

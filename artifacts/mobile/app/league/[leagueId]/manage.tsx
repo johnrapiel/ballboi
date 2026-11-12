@@ -1,7 +1,7 @@
 import { useAuth } from "@clerk/expo";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
-import { AccessibilityInfo, ActionSheetIOS, ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -33,6 +33,7 @@ import {
   type RosterPlayer,
 } from "@workspace/api-client-react";
 
+import { useActionSheet, type SheetRow } from "@/components/ActionSheet";
 import { InviteCard } from "@/components/league/InviteCard";
 import { ListRow, SectionLabel } from "@/components/league/ListRow";
 import { TestingTools } from "@/components/league/TestingTools";
@@ -97,6 +98,7 @@ export default function ManageLeagueScreen() {
   const promote = usePromoteLeagueAdmin();
   const removeAdmin = useRemoveLeagueAdmin();
   const removePlayer = useRemoveLeaguePlayer();
+  const sheet = useActionSheet();
   const approve = useApproveLeagueJoinRequest();
   const decline = useDeclineLeagueJoinRequest();
   const createInvite = useCreateLeagueInvite();
@@ -224,38 +226,37 @@ export default function ManageLeagueScreen() {
     const canPromote = p.hasAccount && !p.role;
     // C26: you leave from the league's page, so your own row has no Remove.
     const isMe = myPlayerId != null && p.playerId === myPlayerId;
-    const options = [...(canPromote ? ["Make co-admin"] : []), ...(isMe ? [] : ["Remove from league"]), "Cancel"];
-    if (options.length === 1) return;
-    const destructive = options.indexOf("Remove from league");
-    ActionSheetIOS.showActionSheetWithOptions(
-      { title: p.name, options, destructiveButtonIndex: destructive >= 0 ? destructive : undefined, cancelButtonIndex: options.length - 1 },
-      (i) => {
-        if (options[i] === "Make co-admin") {
-          promote
+    const rows: SheetRow[] = [];
+    if (canPromote) {
+      rows.push({
+        label: "Make co-admin",
+        icon: "checkmark.shield",
+        onPress: () =>
+          void promote
             .mutateAsync({ leagueId, data: { playerId: p.playerId } })
             .then(refreshAll)
-            .catch((e) => Alert.alert("Couldn't make co-admin", errorText(e, "Try again in a moment.")));
-        }
-        if (options[i] === "Remove from league") {
-          Alert.alert(
-            `Remove ${p.name}?`,
-            "Their played matches stay. Their remaining matches are cancelled, their opponents are told, and they leave the standings.",
-            [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "Remove",
-                style: "destructive",
-                onPress: () =>
-                  removePlayer
-                    .mutateAsync({ leagueId, playerId: p.playerId, data: {} })
-                    .then(refreshAll)
-                    .catch((e) => Alert.alert("Couldn't remove player", errorText(e, "Try again in a moment."))),
-              },
-            ],
-          );
-        }
-      },
-    );
+            .catch((e) => Alert.alert("Couldn't make co-admin", errorText(e, "Try again in a moment."))),
+      });
+    }
+    if (!isMe) {
+      rows.push({
+        label: "Remove from league",
+        icon: "minus.circle",
+        destructive: true,
+        confirm: {
+          title: `Remove ${p.name}?`,
+          message: "Their played matches stay. Their remaining matches are cancelled, their opponents are told, and they leave the standings.",
+          action: "Remove",
+        },
+        onPress: () =>
+          void removePlayer
+            .mutateAsync({ leagueId, playerId: p.playerId, data: {} })
+            .then(refreshAll)
+            .catch((e) => Alert.alert("Couldn't remove player", errorText(e, "Try again in a moment."))),
+      });
+    }
+    if (rows.length === 0) return;
+    sheet.show({ people: [{ name: p.name, detail: p.skillLevel ? `Level ${p.skillLevel}` : null, photo: p.avatarUrl }], rows });
   }
 
   function adminMenu(a: { clerkUserId: string; name: string; role: string }) {
@@ -281,33 +282,40 @@ export default function ManageLeagueScreen() {
   }
 
   function requestMenu(r: JoinRequest) {
+    const who = { name: r.playerName, detail: leagueLevelLabel(r) };
     if (r.kind === "waitlist") {
+      const removeRow: SheetRow = {
+        label: "Remove from waitlist",
+        icon: "minus.circle",
+        destructive: true,
+        confirm: { title: `Remove ${r.playerName} from the waitlist?`, action: "Remove" },
+        onPress: () => void declineRequest(r),
+      };
       // D4: an Open fixed-partner league can let a waitlisted player in for a player who needs a partner.
       if (teamsQ.data?.canLetInWaitlisted) {
-        ActionSheetIOS.showActionSheetWithOptions(
-          {
-            title: `${r.playerName} · ${leagueLevelLabel(r)}`,
-            message: "A player needs a partner, so you can let someone in from the waitlist now. Then team them up in Teams.",
-            options: ["Let in now", "Remove from waitlist", "Cancel"],
-            destructiveButtonIndex: 1,
-            cancelButtonIndex: 2,
-          },
-          (i) => {
-            if (i === 0) {
-              approve
-                .mutateAsync({ leagueId, requestId: r.id })
-                .then(refreshAll)
-                .then(() => AccessibilityInfo.announceForAccessibility(`${r.playerName} is in. Team them up in Teams.`))
-                .catch(async (e) => {
-                  await refreshAll();
-                  Alert.alert("Couldn't let them in", errorText(e, "Try again in a moment."));
-                });
-            }
-            if (i === 1) void declineRequest(r);
-          },
-        );
+        sheet.show({
+          people: [who],
+          message: "A player needs a partner, so you can let someone in from the waitlist now. Then team them up in Teams.",
+          rows: [
+            {
+              label: "Let in now",
+              icon: "checkmark.circle",
+              onPress: () =>
+                void approve
+                  .mutateAsync({ leagueId, requestId: r.id })
+                  .then(refreshAll)
+                  .then(() => AccessibilityInfo.announceForAccessibility(`${r.playerName} is in. Team them up in Teams.`))
+                  .catch(async (e) => {
+                    await refreshAll();
+                    Alert.alert("Couldn't let them in", errorText(e, "Try again in a moment."));
+                  }),
+            },
+            removeRow,
+          ],
+        });
         return;
       }
+      // One destructive choice: the confirm alert is the whole menu.
       Alert.alert(`Remove ${r.playerName} from the waitlist?`, undefined, [
         { text: "Cancel", style: "cancel" },
         {
@@ -318,22 +326,30 @@ export default function ManageLeagueScreen() {
       ]);
       return;
     }
-    const options = ["Approve", "Decline", "Cancel"];
-    ActionSheetIOS.showActionSheetWithOptions(
-      { title: `${r.playerName} · ${leagueLevelLabel(r)}`, options, destructiveButtonIndex: 1, cancelButtonIndex: 2 },
-      (i) => {
-        if (i === 0) {
-          approve
-            .mutateAsync({ leagueId, requestId: r.id })
-            .then(refreshAll)
-            .catch(async (e) => {
-              await refreshAll();
-              Alert.alert("Couldn't approve", errorText(e, "Try again in a moment."));
-            });
-        }
-        if (i === 1) void declineRequest(r);
-      },
-    );
+    sheet.show({
+      people: [who],
+      rows: [
+        {
+          label: "Approve",
+          icon: "checkmark.circle",
+          onPress: () =>
+            void approve
+              .mutateAsync({ leagueId, requestId: r.id })
+              .then(refreshAll)
+              .catch(async (e) => {
+                await refreshAll();
+                Alert.alert("Couldn't approve", errorText(e, "Try again in a moment."));
+              }),
+        },
+        {
+          label: "Decline",
+          icon: "xmark.circle",
+          destructive: true,
+          confirm: { title: `Decline ${r.playerName}'s request?`, message: "They'll see a note that it was declined on their Leagues tab.", action: "Decline" },
+          onPress: () => void declineRequest(r),
+        },
+      ],
+    });
   }
 
   // Leagues made before codes were automatic may have none: make one here.
@@ -575,6 +591,7 @@ export default function ManageLeagueScreen() {
       </Card>
 
       {!ended ? <TestingTools leagueId={leagueId} onChanged={refreshAll} /> : null}
+      {sheet.element}
     </ScrollView>
   );
 }

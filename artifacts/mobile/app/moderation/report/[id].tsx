@@ -1,8 +1,9 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
-import { ActionSheetIOS, ActivityIndicator, Alert, Platform, ScrollView, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useActionSheet } from "@/components/ActionSheet";
 import { Button, Card, Chip, Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -31,6 +32,7 @@ export default function ReportScreen() {
   const q = useReport(isAdmin && Number.isInteger(id) ? id : null);
   const actions = useModerationActions();
   const [busy, setBusy] = useState<string | null>(null);
+  const sheet = useActionSheet();
 
   const header = (
     <Stack.Screen
@@ -122,22 +124,13 @@ export default function ReportScreen() {
       ],
     );
 
-  const suspend = () => {
-    const options = SUSPEND_DAYS.map((d) => (d === 1 ? "1 day" : `${d} days`));
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { title: `Suspend ${who} for how long?`, options: [...options, "Cancel"], cancelButtonIndex: options.length },
-        (i) => {
-          if (i < options.length) suspendFor(SUSPEND_DAYS[i]);
-        },
-      );
-      return;
-    }
-    Alert.alert(`Suspend ${who} for how long?`, undefined, [
-      ...SUSPEND_DAYS.map((d, i) => ({ text: options[i], onPress: () => suspendFor(d) })),
-      { text: "Cancel", style: "cancel" as const },
-    ]);
-  };
+  // How long: a picker in a bottom sheet (decision 193), then the native confirm.
+  const suspend = () =>
+    sheet.show({
+      title: `Suspend ${who} for how long?`,
+      titleHasName: !!r.subjectName,
+      rows: SUSPEND_DAYS.map((d) => ({ label: d === 1 ? "1 day" : `${d} days`, icon: "clock", onPress: () => suspendFor(d) })),
+    });
 
   const ban = () =>
     Alert.alert(
@@ -160,6 +153,7 @@ export default function ReportScreen() {
       style={{ flex: 1, backgroundColor: c.paper }}
       contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space6 }}
     >
+      {sheet.element}
       {header}
 
       <View style={{ gap: spacing.space2 }}>

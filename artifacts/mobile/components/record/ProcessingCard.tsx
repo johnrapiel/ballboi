@@ -16,8 +16,8 @@
 // Card actions (John, Nov 10, option B, decision 178): the card shows only
 // the opponent, the date, the status and its reason. Report a problem and
 // Remove (or Discard, while the video is still on the phone) live behind a
-// More button at the top right, in the native action sheet, like Match
-// detail's More options. Steps that move the match on (Try again, Upload now
+// More button at the top right, in a bottom sheet (decision 193).
+// Steps that move the match on (Try again, Upload now
 // on cellular, Enter score) stay on the card as buttons.
 
 import { useAuth } from "@clerk/expo";
@@ -26,8 +26,9 @@ import { useNetworkState, NetworkStateType } from "expo-network";
 import { useRouter } from "expo-router";
 import { Icon, type IconName } from "@/components/Icon";
 import React, { useState } from "react";
-import { AccessibilityInfo, ActionSheetIOS, ActivityIndicator, Alert, Platform, Pressable, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, Pressable, View } from "react-native";
 
+import { useActionSheet, type SheetRow } from "@/components/ActionSheet";
 import { PlainIconButton } from "@/components/Choice";
 import { Button, Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
@@ -220,34 +221,18 @@ function useReportProblem() {
 }
 
 /**
- * The card's More options: Report a problem, then the red remove action if
- * there is one, then Cancel. The native action sheet on iOS, an alert elsewhere.
+ * The card's More options in a bottom sheet (decision 193): Report a problem,
+ * then the red remove action if there is one, which confirms with an alert.
+ * Render `element` with the card.
  */
-function showMoreOptions(report: () => void, destructive?: { label: string; run: () => void }) {
-  const options = [{ label: "Report a problem", run: report }];
-  if (destructive) options.push(destructive);
-  const labels = options.map((o) => o.label);
-  if (Platform.OS === "ios") {
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        options: [...labels, "Cancel"],
-        cancelButtonIndex: labels.length,
-        destructiveButtonIndex: destructive ? labels.length - 1 : undefined,
-      },
-      (i) => {
-        if (i < options.length) options[i].run();
-      },
-    );
-    return;
-  }
-  Alert.alert("More options", undefined, [
-    ...options.map((o) => ({
-      text: o.label,
-      onPress: o.run,
-      style: o === destructive ? ("destructive" as const) : ("default" as const),
-    })),
-    { text: "Cancel", style: "cancel" as const },
-  ]);
+function useMoreOptions(opponentName: string) {
+  const sheet = useActionSheet();
+  const open = (report: () => void, destructive?: { label: string; run: () => void }) => {
+    const rows: SheetRow[] = [{ label: "Report a problem", icon: "exclamationmark.circle", onPress: report }];
+    if (destructive) rows.push({ label: destructive.label, icon: "trash", destructive: true, onPress: destructive.run });
+    sheet.show({ title: `Recording vs. ${opponentName}`, titleHasName: true, rows });
+  };
+  return { open, element: sheet.element };
 }
 
 /** Opens the score prompt from a card, for a Quick match whose score is still missing (D6). */
@@ -280,6 +265,7 @@ export function LocalProcessingCard({
   const { getToken } = useAuth();
   const enterScore = useEnterScore();
   const report = useReportProblem();
+  const more = useMoreOptions(rec.opponentName);
   const [discarding, setDiscarding] = useState(false);
 
   const discard = async () => {
@@ -304,25 +290,28 @@ export function LocalProcessingCard({
   const needsScore = showEnterScore && rec.leagueId === null && !rec.scoreEntered;
 
   return (
-    <CardBody
-      opponentName={rec.opponentName}
-      when={recordedDay(rec.recordedAt)}
-      status={localStatus(rec, onWifi, cellularOn)}
-      more={{
-        busy: discarding ? "Discarding" : undefined,
-        hint: "Report a problem or discard this recording.",
-        onPress: () => showMoreOptions(() => report(rec.matchId), { label: "Discard recording", run: confirm }),
-      }}
-    >
-      {needsScore ? (
-        <Button
-          variant="secondary"
-          label="Enter score"
-          accessibilityLabel={`Enter score, match vs ${rec.opponentName}`}
-          onPress={() => enterScore({ matchId: rec.matchId, opponentName: rec.opponentName, recId: rec.id })}
-        />
-      ) : null}
-    </CardBody>
+    <>
+      {more.element}
+      <CardBody
+        opponentName={rec.opponentName}
+        when={recordedDay(rec.recordedAt)}
+        status={localStatus(rec, onWifi, cellularOn)}
+        more={{
+          busy: discarding ? "Discarding" : undefined,
+          hint: "Report a problem or discard this recording.",
+          onPress: () => more.open(() => report(rec.matchId), { label: "Discard recording", run: confirm }),
+        }}
+      >
+        {needsScore ? (
+          <Button
+            variant="secondary"
+            label="Enter score"
+            accessibilityLabel={`Enter score, match vs ${rec.opponentName}`}
+            onPress={() => enterScore({ matchId: rec.matchId, opponentName: rec.opponentName, recId: rec.id })}
+          />
+        ) : null}
+      </CardBody>
+    </>
   );
 }
 
@@ -336,6 +325,7 @@ export function ServerProcessingCard({ rec, lost = false }: { rec: ServerRecordi
   const { getToken } = useAuth();
   const enterScore = useEnterScore();
   const report = useReportProblem();
+  const more = useMoreOptions(rec.opponentName);
   const [removing, setRemoving] = useState(false);
   const status = serverStatus(rec, lost);
   const canRemove = lost || rec.stage === "failed";
@@ -368,29 +358,31 @@ export function ServerProcessingCard({ rec, lost = false }: { rec: ServerRecordi
     );
 
   return (
-    <CardBody
-      opponentName={rec.opponentName}
-      when={recordedDay(rec.recordedAt)}
-      status={status}
-      onPress={
-        ready ? () => router.push({ pathname: "/replay/[matchId]", params: { matchId: String(rec.matchId) } }) : undefined
-      }
-      pressHint={ready ? "Opens the replay" : undefined}
-      more={{
-        busy: removing ? "Removing" : undefined,
-        hint: canRemove ? "Report a problem or remove this recording." : "Report a problem with this recording.",
-        onPress: () =>
-          showMoreOptions(() => report(rec.matchId), canRemove ? { label: "Remove recording", run: confirm } : undefined),
-      }}
-    >
-      {needsScore ? (
-        <Button
-          variant="secondary"
-          label="Enter score"
-          accessibilityLabel={`Enter score, match vs ${rec.opponentName}`}
-          onPress={() => enterScore({ matchId: rec.matchId, opponentName: rec.opponentName })}
-        />
-      ) : null}
-    </CardBody>
+    <>
+      {more.element}
+      <CardBody
+        opponentName={rec.opponentName}
+        when={recordedDay(rec.recordedAt)}
+        status={status}
+        onPress={
+          ready ? () => router.push({ pathname: "/replay/[matchId]", params: { matchId: String(rec.matchId) } }) : undefined
+        }
+        pressHint={ready ? "Opens the replay" : undefined}
+        more={{
+          busy: removing ? "Removing" : undefined,
+          hint: canRemove ? "Report a problem or remove this recording." : "Report a problem with this recording.",
+          onPress: () => more.open(() => report(rec.matchId), canRemove ? { label: "Remove recording", run: confirm } : undefined),
+        }}
+      >
+        {needsScore ? (
+          <Button
+            variant="secondary"
+            label="Enter score"
+            accessibilityLabel={`Enter score, match vs ${rec.opponentName}`}
+            onPress={() => enterScore({ matchId: rec.matchId, opponentName: rec.opponentName })}
+          />
+        ) : null}
+      </CardBody>
+    </>
   );
 }

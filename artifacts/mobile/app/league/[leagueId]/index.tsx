@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
+import { useActionSheet } from "@/components/ActionSheet";
 import { Icon } from "@/components/Icon";
 import { areaLabel } from "@/lib/leagueArea";
 import React, { useState } from "react";
@@ -244,6 +245,7 @@ export default function LeagueScreen() {
   const justJoined = joined === "1";
   const [tab, setTab] = useState<Tab>("standings");
   const queryClient = useQueryClient();
+  const sheet = useActionSheet();
   const leave = useLeaveLeague();
   const settle = useSettlePlayoffMatch();
 
@@ -344,12 +346,16 @@ export default function LeagueScreen() {
         .catch((e) =>
           Alert.alert("Couldn't enter the result", (e as { data?: { error?: string } | null }).data?.error ?? "Try again in a moment."),
         );
-    Alert.alert(`${slot.player1.playerName} vs. ${slot.player2.playerName}`, "The play-by date has passed. Enter the score, or give one player a walkover (W/O).", [
-      { text: "Enter score", onPress: () => router.push(`/league/${leagueId}/score/${matchId}?settle=1`) },
-      { text: `Walkover to ${slot.player1.playerName}`, onPress: () => void walkover(slot.player1!) },
-      { text: `Walkover to ${slot.player2.playerName}`, onPress: () => void walkover(slot.player2!) },
-      { text: "Cancel", style: "cancel" },
-    ]);
+    // A menu, so a bottom sheet (decision 193).
+    sheet.show({
+      people: [{ name: slot.player1.playerName }, { name: slot.player2.playerName }],
+      message: "The play-by date has passed. Enter the score, or give one player a walkover (W/O).",
+      rows: [
+        { label: "Enter score", icon: "square.and.pencil", onPress: () => router.push(`/league/${leagueId}/score/${matchId}?settle=1`) },
+        { label: `Walkover to ${slot.player1.playerName}`, icon: "flag.checkered", onPress: () => void walkover(slot.player1!) },
+        { label: `Walkover to ${slot.player2.playerName}`, icon: "flag.checkered", onPress: () => void walkover(slot.player2!) },
+      ],
+    });
   }
 
   return (
@@ -358,6 +364,7 @@ export default function LeagueScreen() {
       contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
+      {sheet.element}
       {leagueQ.isError || !league ? (
         <Card style={{ gap: spacing.space2 }}>
           <Text variant="bodyStrong">Couldn't load this league</Text>

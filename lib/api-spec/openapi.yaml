@@ -9141,13 +9141,16 @@ components:
           oneOf:
             - $ref: "#/components/schemas/MatchPlayerRating"
             - type: "null"
+        avatarUrl:
+          type: ["string", "null"]
+          description: A signed-up player's profile photo path. Null for placeholders, players with no photo, and anyone with a block either way
         hasAccount:
           type: boolean
           description: False for players an admin added by name; they can't be co-admins
         role:
           type: ["string", "null"]
           enum: [owner, co_admin, null]
-      required: [playerId, name, skillLevel, rating, hasAccount, role]
+      required: [playerId, name, skillLevel, rating, avatarUrl, hasAccount, role]
 
     PlayerIdBody:
       type: object

@@ -2,9 +2,7 @@ import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-rou
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AccessibilityInfo,
-  ActionSheetIOS,
   ActivityIndicator,
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -14,6 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useActionSheet } from "@/components/ActionSheet";
 import { Avatar } from "@/components/Avatar";
 import { HeaderIconButton, PlainIconButton } from "@/components/Choice";
 import { MessageBubble, type BubbleStatus } from "@/components/messages/MessageBubble";
@@ -60,22 +59,6 @@ type Row = {
   /** A match card step (Discover, F2), shown in time order with the messages. */
   card?: MatchCardItem;
 };
-
-function chooseIOS(title: string, options: string[], destructiveIndex: number | undefined, onPick: (i: number) => void) {
-  if (Platform.OS === "ios") {
-    ActionSheetIOS.showActionSheetWithOptions(
-      { title, options: [...options, "Cancel"], cancelButtonIndex: options.length, destructiveButtonIndex: destructiveIndex },
-      (i) => {
-        if (i < options.length) onPick(i);
-      },
-    );
-    return;
-  }
-  Alert.alert(title, undefined, [
-    ...options.map((o, i) => ({ text: o, onPress: () => onPick(i), style: i === destructiveIndex ? ("destructive" as const) : undefined })),
-    { text: "Cancel", style: "cancel" as const },
-  ]);
-}
 
 export default function ConversationScreen() {
   const c = useColors();
@@ -231,9 +214,14 @@ export default function ConversationScreen() {
   };
 
   // Long press: Report is the only action (finding 20).
-  const messageMenu = (messageId: string) => chooseIOS(name, ["Report message"], undefined, () => reportMessage(messageId));
+  // Menus open in a bottom sheet (decision 193).
+  const sheet = useActionSheet();
+  const who = { name, photo: conversation?.other.avatarUrl };
+  const messageMenu = (messageId: string) =>
+    sheet.show({ people: [who], rows: [{ label: "Report message", icon: "exclamationmark.circle", onPress: () => reportMessage(messageId) }] });
   const playerMenu = () => {
-    if (reportable) chooseIOS(name, [`Report ${name}`], undefined, () => reportBlock.open(reportable));
+    if (!reportable) return;
+    sheet.show({ people: [who], rows: [{ label: `Report ${name}`, icon: "exclamationmark.circle", onPress: () => reportBlock.open(reportable) }] });
   };
 
   const blocked = !!conversation?.blocked;
@@ -252,6 +240,7 @@ export default function ConversationScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={insets.top + 44}
     >
+      {sheet.element}
       <Stack.Screen
         options={{
           headerShown: true,
