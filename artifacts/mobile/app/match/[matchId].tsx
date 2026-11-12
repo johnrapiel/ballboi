@@ -16,6 +16,7 @@ import { Button, Card, Text } from "@/components/ui";
 import { MarkedName, WinnerNames } from "@/components/WinnerNames";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useProfile } from "@/hooks/useProfile";
 import { useUpcomingMatches } from "@/hooks/useUpcomingMatches";
 import { useUpcomingMessage } from "@/hooks/useUpcomingMessage";
@@ -141,6 +142,7 @@ export default function MatchDetailScreen() {
   const q = useGetMyMatch(matchId);
   const d = q.data;
   const { refetch } = q;
+  const pull = usePullToRefresh(() => refetch());
   const firstFocus = useRef(true);
   // Back from Enter score after an edit: show the new score.
   useFocusEffect(
@@ -155,6 +157,7 @@ export default function MatchDetailScreen() {
 
   // Finding 9: the same card and actions as Home for a match not played yet.
   const upcomingQ = useUpcomingMatches();
+  const pullUpcoming = usePullToRefresh(() => [refetch(), upcomingQ.refetch()]);
   const { profile } = useProfile();
   const { message: upcomingMessage } = useUpcomingMessage();
   const upcoming = !!d && !d.played && !d.voided;
@@ -290,11 +293,8 @@ export default function MatchDetailScreen() {
         contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
         refreshControl={
           <RefreshControl
-            refreshing={q.isRefetching}
-            onRefresh={() => {
-              void refetch();
-              upcomingQ.refetch();
-            }}
+            refreshing={pullUpcoming.refreshing}
+            onRefresh={pullUpcoming.onRefresh}
             tintColor={c.ink}
           />
         }
@@ -356,7 +356,7 @@ export default function MatchDetailScreen() {
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
       contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
-      refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void refetch()} tintColor={c.ink} />}
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
       {header}
       {/* The screen's name for VoiceOver; the nav bar title stays empty, as designed. */}

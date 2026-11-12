@@ -34,6 +34,7 @@ import { WinnerNames } from "@/components/WinnerNames";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useReportBlock } from "@/hooks/useReportBlock";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { isOfflineError } from "@/lib/api";
 import { headToHeadLine, otherUpcomingItem, resultMeta, type MatchTab } from "@/lib/playerCard";
 import { winnerMark } from "@/lib/winnerMark";
@@ -78,10 +79,7 @@ export default function PlayerCardScreen() {
     router.push({ pathname: "/conversation/[id]", params: { id: "new", userId: String(p.userId), name: p.name } });
   }
 
-  const refresh = () => {
-    void cardQ.refetch();
-    void matchesQ.refetch();
-  };
+  const pull = usePullToRefresh(() => [cardQ.refetch(), matchesQ.refetch()]);
 
   return (
     <View style={{ flex: 1, backgroundColor: c.paper }}>
@@ -116,7 +114,7 @@ export default function PlayerCardScreen() {
         <>
           <ScrollView
             contentContainerStyle={{ padding: spacing.space4, paddingBottom: 120 + insets.bottom, gap: spacing.space6 }}
-            refreshControl={<RefreshControl refreshing={cardQ.isRefetching || matchesQ.isRefetching} onRefresh={refresh} tintColor={c.ink} />}
+            refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
           >
             <PlayerCard card={p} onFreeTimes={() => router.push({ pathname: "/free-times", params: { userId: String(p.userId) } })} />
             <SeasonRow season={p.season} />

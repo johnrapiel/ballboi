@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { apiErrorMessage, apiFetch, isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { liveAction, STOP_CONFIRM_BODY, STOP_CONFIRM_TITLE, type LiveCommand, type LiveProps } from "@/lib/liveActivity/props";
 import { liveClock, liveClockSpoken } from "@/lib/liveActivity/clock";
@@ -58,6 +59,7 @@ export default function LiveMatchScreen() {
     },
     refetchInterval: (query) => (query.state.data?.live ? REFRESH_MS : 10_000),
   });
+  const pull = usePullToRefresh(() => q.refetch());
 
   const [sending, setSending] = useState<LiveCommand | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -170,7 +172,7 @@ export default function LiveMatchScreen() {
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
       contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
-      refreshControl={<RefreshControl refreshing={q.isRefetching && !q.isLoading} onRefresh={() => void q.refetch()} tintColor={c.ink} />}
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
       <View style={{ gap: spacing.space1 }}>
         <Text variant="headingL" accessibilityRole="header">

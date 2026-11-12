@@ -19,6 +19,7 @@ import { ListRow, SectionLabel } from "@/components/league/ListRow";
 import { Button, Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { teamName, teamSpoken, unpairedLabel } from "@/lib/doubles";
 import { refreshLeague } from "@/lib/leagueRefresh";
 
@@ -78,6 +79,7 @@ export default function TeamsScreen() {
   const { leagueId: raw } = useLocalSearchParams<{ leagueId: string }>();
   const leagueId = Number(raw);
   const q = useGetLeagueTeams(leagueId);
+  const pull = usePullToRefresh(() => q.refetch());
   const teamUp = useTeamUpPlayers();
   const split = useSplitLeagueTeam();
   const [picked, setPicked] = useState<number[]>([]);
@@ -145,7 +147,7 @@ export default function TeamsScreen() {
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: spacing.space4, paddingBottom: spacing.space8, gap: spacing.space2 }}
-        refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void q.refetch()} tintColor={c.ink} />}
+        refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
       >
         <View style={{ gap: spacing.space1, marginBottom: spacing.space2 }}>
           <Text variant="headingM" accessibilityRole="header">

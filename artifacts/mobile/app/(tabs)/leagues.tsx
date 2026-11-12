@@ -26,6 +26,7 @@ import { TabScreen } from "@/components/TabHeader";
 import { Button, Card, Chip, Pill, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { formatLabel, isPastLeague, ordinal, pastLabel, playersLabel, playTypeLabel, statusLabel } from "@/lib/leagues";
 
 // Leagues tab (spec: Leagues; approved canvas: Leagues, John, Nov 5). Notes
@@ -298,14 +299,13 @@ export default function LeaguesScreen() {
   const current = indexed.filter(({ league }) => !isPastLeague(league));
   const past = indexed.filter(({ league }) => isPastLeague(league));
 
-  const refreshing = leaguesQ.isRefetching;
-  const refresh = () => {
-    void leaguesQ.refetch();
-    void playersQ.refetch();
-    void noticesQ.refetch();
-    void requestsQ.refetch();
-    standingsQs.forEach((q) => void q.refetch());
-  };
+  const pull = usePullToRefresh(() => [
+    leaguesQ.refetch(),
+    playersQ.refetch(),
+    noticesQ.refetch(),
+    requestsQ.refetch(),
+    ...standingsQs.map((q) => q.refetch()),
+  ]);
 
   const startLeague = () => router.push("/league/new");
   // Discover's Open leagues tab (Wave 2, Session F).
@@ -328,7 +328,7 @@ export default function LeaguesScreen() {
             gap: spacing.space6,
             flexGrow: 1,
           }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.ink} />}
+          refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
         >
           {leaguesQ.isError ? (
             <Card style={{ gap: spacing.space2 }}>

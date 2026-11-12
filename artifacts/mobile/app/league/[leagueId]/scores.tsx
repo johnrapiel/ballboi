@@ -12,6 +12,7 @@ import { Card, Text } from "@/components/ui";
 import { WinnerNames } from "@/components/WinnerNames";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { correctionLine, dateRange, resultLine } from "@/lib/leagueSchedule";
 import { sideOf, winnerMark } from "@/lib/winnerMark";
 
@@ -30,6 +31,7 @@ export default function CorrectScoresScreen() {
   const leagueQ = useGetLeague(leagueId);
   const ended = !!leagueQ.data?.endedAt || leagueQ.data?.status === "completed";
   const scheduleQ = useGetLeagueSchedule(leagueId);
+  const pull = usePullToRefresh(() => scheduleQ.refetch());
   const bracketQ = useGetLeagueBracket(leagueId);
   const playoffRounds = (bracketQ.data?.rounds ?? [])
     .map((r) => ({ round: r.round, played: r.slots.filter((s) => s.status === "completed" && !!s.score && s.matchId != null) }))
@@ -45,7 +47,7 @@ export default function CorrectScoresScreen() {
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
       contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space2 }}
-      refreshControl={<RefreshControl refreshing={scheduleQ.isRefetching} onRefresh={() => void scheduleQ.refetch()} tintColor={c.ink} />}
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
       <View style={{ gap: spacing.space1, marginBottom: spacing.space2 }}>
         <Text variant="headingM" accessibilityRole="header">

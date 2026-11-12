@@ -23,6 +23,7 @@ import { ListRow } from "@/components/league/ListRow";
 import { Button, Card, Text, TextButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { dateRange, pairingTime, shortDate, sideLabels } from "@/lib/leagueSchedule";
 
 // Review a round before it goes out (spec: Leagues > Weekly loop, step 2;
@@ -69,6 +70,7 @@ export default function RoundReviewScreen() {
   // Doubles drafts (D10): lock or re-pair; fixed teams change in Manage > Teams.
   const doubles = useGetLeague(leagueId).data?.leagueType === "doubles";
   const rosterQ = useGetLeagueRoster(leagueId);
+  const pull = usePullToRefresh(() => scheduleQ.refetch());
   const [busy, setBusy] = useState(false);
 
   const swap = useSwapLeagueRoundPlayers();
@@ -257,7 +259,7 @@ export default function RoundReviewScreen() {
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: spacing.space4, paddingBottom: spacing.space8, gap: spacing.space2 }}
-        refreshControl={<RefreshControl refreshing={scheduleQ.isRefetching} onRefresh={() => void scheduleQ.refetch()} tintColor={c.ink} />}
+        refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
       >
         <View style={{ gap: spacing.space1, marginBottom: spacing.space2 }}>
           <Text variant="headingM" accessibilityRole="header">

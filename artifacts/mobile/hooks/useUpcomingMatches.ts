@@ -26,11 +26,7 @@ export function useUpcomingMatches() {
   const refetchWeek = weekQ.refetch;
   const refetchPlans = plansQ.refetch;
   const refetchOpen = openQ.refetch;
-  const refetch = useCallback(() => {
-    void refetchWeek();
-    void refetchPlans();
-    void refetchOpen();
-  }, [refetchWeek, refetchPlans, refetchOpen]);
+  const refetch = useCallback(() => Promise.all([refetchWeek(), refetchPlans(), refetchOpen()]), [refetchWeek, refetchPlans, refetchOpen]);
 
   const firstFocus = useRef(true);
   useFocusEffect(

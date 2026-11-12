@@ -17,6 +17,7 @@ import { useColors } from "@/hooks/useColors";
 import { useProfile } from "@/hooks/useProfile";
 import { useUpcomingMessage } from "@/hooks/useUpcomingMessage";
 import { upcomingHint, useOpenUpcoming, useUpcomingMatches } from "@/hooks/useUpcomingMatches";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { dateRange, LATE_NOTE, pairingTime, shortDate } from "@/lib/leagueSchedule";
 import { openRecorder } from "@/lib/recording/start";
 import { cardWhen, isMatchDay, type UpcomingItem } from "@/lib/upcoming";
@@ -41,7 +42,8 @@ export default function HomeScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { items, week, isLoading, isError, isRefetching, refetch } = useUpcomingMatches();
+  const { items, week, isLoading, isError, refetch } = useUpcomingMatches();
+  const pull = usePullToRefresh(refetch);
   const openUpcoming = useOpenUpcoming();
   const { profile } = useProfile();
   const myName = profile?.displayName ?? "You";
@@ -119,7 +121,7 @@ export default function HomeScreen() {
       ) : nothing ? (
         <ScrollView
           contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom }}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={c.ink} />}
+          refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
         >
           <View style={{ padding: spacing.space4, gap: spacing.space3 }}>
             {/* Notifications off: one line to iOS Settings (decision 125). */}
@@ -138,7 +140,7 @@ export default function HomeScreen() {
       ) : (
         <ScrollView
           contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space3 }}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={c.ink} />}
+          refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
         >
           {isError ? (
             <Card style={{ gap: spacing.space2 }}>
