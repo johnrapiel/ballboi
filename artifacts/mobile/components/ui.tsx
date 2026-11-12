@@ -380,6 +380,8 @@ export interface FieldProps extends React.ComponentProps<typeof TextInput> {
   /** Helper or error text under the field. */
   hint?: string;
   error?: boolean;
+  /** "label" (11px caps, the default) or "bodyStrong" for sentence case labels inside a form card (New league, decision 182). */
+  labelVariant?: "label" | "bodyStrong";
 }
 
 /** Check: the cue for wins and confirmations. Errors use a hollow cross. */
@@ -405,12 +407,12 @@ const styles = StyleSheet.create({
 });
 
 /** Labeled text input: linen well, hairline-strong border (3:1), 48pt tall. */
-export function Field({ label, hint, error = false, style, ...rest }: FieldProps) {
+export function Field({ label, hint, error = false, labelVariant = "label", style, ...rest }: FieldProps) {
   const c = useColors();
   const body = useTypeStyle("body");
   return (
     <View style={{ gap: spacing.space2 }}>
-      <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
+      <Text variant={labelVariant} importantForAccessibility="no" accessibilityElementsHidden>
         {label}
       </Text>
       <TextInput

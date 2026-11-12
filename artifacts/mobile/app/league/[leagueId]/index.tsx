@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { Icon } from "@/components/Icon";
+import { areaLabel } from "@/lib/leagueArea";
 import React, { useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
@@ -298,7 +299,7 @@ export default function LeagueScreen() {
   }
 
   const meta = league
-    ? [formatLabel(league.format), playTypeLabel(league.leagueType), league.location].filter(Boolean).join(" · ")
+    ? [formatLabel(league.format), playTypeLabel(league.leagueType), areaLabel(league.area), league.location].filter(Boolean).join(" · ")
     : "";
   const season =
     league?.startDate && league.endDate ? `Season ${dateRange(league.startDate, league.endDate)}` : null;
