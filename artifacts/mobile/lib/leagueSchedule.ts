@@ -1,6 +1,7 @@
 import type { LeagueSchedule, ScheduleMatch, ScheduleRound } from "@workspace/api-client-react";
 
 import { DOUBLE_DEFAULT_SCORE, flipScore, isDoubleDefault, WALKOVER_SCORE } from "./tennisScore";
+import { clockTime, hhmmTime, timeText } from "./timeFormat";
 
 // Helpers for the league schedule (spec: Leagues > Weekly loop, Scores and
 // standings). Dates are YYYY-MM-DD in the league's time zone.
@@ -60,9 +61,9 @@ export function deadlineDate(date: string, timeZone: string | null | undefined):
   return `${shortDate(date)}${zoneSuffix(timeZone)}`;
 }
 
-/** "7am" plus the league's time zone when it isn't the viewer's: when pairings go out. */
+/** "7 AM" plus the league's time zone when it isn't the viewer's: when pairings go out. */
 export function pairingTime(timeZone: string | null | undefined): string {
-  return `7am${zoneSuffix(timeZone)}`;
+  return `${timeText(7 * 60)}${zoneSuffix(timeZone)}`;
 }
 
 /** True when an ISO time falls on the phone's today. */
@@ -72,12 +73,12 @@ export function isToday(iso: string | null | undefined, now: Date = new Date()):
   return !Number.isNaN(d.getTime()) && d.toDateString() === now.toDateString();
 }
 
-/** "Today at 6:00 PM" or "Thu, Nov 5 at 6:00 PM", on the phone's clock. */
+/** "Today at 6 PM" or "Thu, Nov 5 at 6:30 PM", on the phone's clock. */
 export function matchWhen(iso: string | null | undefined, now: Date = new Date()): string | null {
   if (!iso) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
-  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const time = clockTime(d);
   if (isToday(iso, now)) return `Today at ${time}`;
   return `${d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} at ${time}`;
 }
@@ -87,8 +88,8 @@ const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", 
 /** "Tuesdays at 6:30 PM" for a league's weekly match day and "HH:MM" time, or null. */
 export function weeklyMatchTime(matchDay: number | null | undefined, matchTime: string | null | undefined, timeZone?: string | null): string | null {
   if (matchDay == null || !matchTime) return null;
-  const [h, m] = matchTime.split(":").map(Number);
-  const clock = new Date(2000, 0, 1, h, m).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const clock = hhmmTime(matchTime);
+  if (!clock) return null;
   return `${DAYS[matchDay]}s at ${clock}${zoneSuffix(timeZone)}`;
 }
 

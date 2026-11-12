@@ -15,6 +15,30 @@ export const MILESTONE_TITLES: Record<MilestoneKind, string> = {
   win_streak_10: "10-match win streak",
 };
 
+/**
+ * The short label under each badge on the player card (John, Nov 10: "What do
+ * these icons mean?"). The full titles stay for the sheet, Career and VoiceOver.
+ */
+export const MILESTONE_SHORT: Record<MilestoneKind, string> = {
+  first_win: "First win",
+  first_ball_boi: "First Ball Boi",
+  win_streak_5: "5 wins in a row",
+  win_streak_10: "10 wins in a row",
+};
+
+/**
+ * One plain line on how each milestone is earned, for the milestone sheet.
+ * The server's rules (api-server lib/milestones.ts): wins and streaks count
+ * league, Discover and confirmed Quick matches; Ball Boi counts once the
+ * recording is saved.
+ */
+export const MILESTONE_HOW: Record<MilestoneKind, string> = {
+  first_win: "Win a league, Discover or confirmed Quick match.",
+  first_ball_boi: "Record a match with Ball Boi and save the recording.",
+  win_streak_5: "Win 5 league, Discover or confirmed Quick matches in a row.",
+  win_streak_10: "Win 10 league, Discover or confirmed Quick matches in a row.",
+};
+
 /** The brush icon inside each badge's ring (scripts/design/brush-icons.py). */
 export const MILESTONE_ICONS: Record<MilestoneKind, IconName> = {
   first_win: "milestone.firstwin",
@@ -26,6 +50,22 @@ export const MILESTONE_ICONS: Record<MilestoneKind, IconName> = {
 /** Kinds this version of the app knows, so a newer server's milestone never breaks the card. */
 export function knownMilestones<T extends Pick<Milestone, "kind">>(list: readonly T[] | null | undefined): T[] {
   return (list ?? []).filter((m) => m.kind in MILESTONE_TITLES);
+}
+
+/**
+ * Milestone badges are hidden in the app until after all waves (decision 179,
+ * John, Nov 11): no badges on player cards, no Milestones section on Career,
+ * no new-badge pop-up after a score. The server keeps earning and saving them.
+ * Set to true to bring everything back exactly as before.
+ */
+export const SHOW_MILESTONES = false;
+
+/** The milestones to show: the known ones when badges are on, none while they're hidden. */
+export function visibleMilestones<T extends Pick<Milestone, "kind">>(
+  list: readonly T[] | null | undefined,
+  show: boolean = SHOW_MILESTONES,
+): T[] {
+  return show ? knownMilestones(list) : [];
 }
 
 /** On the card's VoiceOver summary: "milestones: first win, 5-match win streak", or null with none. */
@@ -40,6 +80,12 @@ export function earnedLine(earnedAt: string): string {
   const d = new Date(earnedAt);
   if (Number.isNaN(d.getTime())) return "Earned";
   return `Earned ${d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+}
+
+/** A badge button's VoiceOver label: "First win, earned Oct 3, 2026". */
+export function milestoneBadgeLabel(m: Pick<Milestone, "kind" | "earnedAt">): string {
+  const earned = earnedLine(m.earnedAt);
+  return `${MILESTONE_TITLES[m.kind]}, ${earned.charAt(0).toLowerCase()}${earned.slice(1)}`;
 }
 
 /** What VoiceOver says when the moment plays: "Milestone: First win". */

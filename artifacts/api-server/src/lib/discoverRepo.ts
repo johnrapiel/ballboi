@@ -96,12 +96,14 @@ type LeagueRow = {
 
 const leagueSelect = (viewer: string) => sql`
   SELECT l.id, l.name, l.format, l.league_type, l.partner_mode, l.location, l.start_date, l.season_weeks, l.min_rating, l.max_rating,
-    l.roster_cap, l.time_zone, u.display_name AS organizer_name, d.area_latitude, d.area_longitude,
+    l.roster_cap, l.time_zone, u.display_name AS organizer_name,
+    -- Decision 182: a league's own area when it has one; older leagues fall back to the organizer's.
+    COALESCE(l.area_latitude, d.area_latitude) AS area_latitude, COALESCE(l.area_longitude, d.area_longitude) AS area_longitude,
     (SELECT count(*) FROM players p WHERE p.league_id = l.id AND p.left_at IS NULL) AS active,
     EXISTS (SELECT 1 FROM players p WHERE p.league_id = l.id AND p.clerk_user_id = ${viewer} AND p.left_at IS NULL) AS member,
     r.kind AS my_kind, r.status AS my_status
   FROM leagues l
-  JOIN discover_profiles d ON d.clerk_user_id = l.created_by_clerk_user_id
+  LEFT JOIN discover_profiles d ON d.clerk_user_id = l.created_by_clerk_user_id
   LEFT JOIN users u ON u.clerk_user_id = l.created_by_clerk_user_id
   LEFT JOIN LATERAL (
     SELECT q.kind, q.status FROM league_join_requests q
@@ -111,7 +113,7 @@ const leagueSelect = (viewer: string) => sql`
 
 const leagueWhere = (viewer: string) => sql`
   l.visibility = 'open' AND l.ended_at IS NULL AND l.status <> 'completed'
-  AND d.area_latitude IS NOT NULL AND d.area_longitude IS NOT NULL
+  AND COALESCE(l.area_latitude, d.area_latitude) IS NOT NULL AND COALESCE(l.area_longitude, d.area_longitude) IS NOT NULL
   AND NOT EXISTS (
     SELECT 1 FROM user_blocks b
     WHERE (b.blocker_clerk_user_id = ${viewer} AND b.blocked_clerk_user_id = l.created_by_clerk_user_id)
@@ -399,8 +401,8 @@ export class DrizzleDiscoverRepo implements DiscoverRepo {
     const box = boundingBox(point, miles);
     const result = await db.execute(sql`${leagueSelect(viewer)}
       WHERE ${leagueWhere(viewer)}
-        AND d.area_latitude BETWEEN ${box.minLat} AND ${box.maxLat}
-        AND d.area_longitude BETWEEN ${box.minLon} AND ${box.maxLon}`);
+        AND COALESCE(l.area_latitude, d.area_latitude) BETWEEN ${box.minLat} AND ${box.maxLat}
+        AND COALESCE(l.area_longitude, d.area_longitude) BETWEEN ${box.minLon} AND ${box.maxLon}`);
     return (result.rows as LeagueRow[]).map(toLeague).filter((l) => !l.member);
   }
 

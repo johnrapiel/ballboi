@@ -133,6 +133,17 @@ describe("membership", () => {
     expect((await svc.groups("john"))[0].isAdmin).toBe(true);
   });
 
+  it("shows the chat's real last message, never a stored preview the chat can't load (finding 1)", async () => {
+    const g = await chat();
+    await svc.sendToGroup("sam", g.id, { text: "Courts are wet", clientMessageId: mid() });
+    await repo.updateGroup(g.id, { lastMessageText: "Lost before #231", lastSender: "ana" });
+    expect((await svc.groups("john"))[0].lastMessage).toMatchObject({ text: "Courts are wet", senderName: "Sam Patel" });
+    // The chat's messages are gone (in-memory provider restarted): no preview at all.
+    const after = new MessagingService({ repo, provider: new MemoryMessagingProvider({ now: () => now }), filter: new FirstMessageFilter(), now: () => now });
+    expect((await after.groups("john"))[0]).toMatchObject({ id: g.id, lastMessage: null });
+    expect((await repo.findGroup(g.id))?.lastMessageText).toBeNull();
+  });
+
   it("adds a player who joins, and they see the history", async () => {
     const g = await chat();
     await svc.sendToGroup("sam", g.id, { text: "Courts are wet", clientMessageId: mid() });
@@ -191,6 +202,30 @@ describe("membership", () => {
     await chats.sync(1);
     expect(await repo.groupMembers(g.id)).toEqual([]);
     expect(await svc.groups("sam")).toEqual([]);
+  });
+
+  it("at startup, empties the chat of a league deleted outside the app, so a re-made league shows once (finding 2)", async () => {
+    // The demo seed deletes its leagues directly and makes them again with new ids.
+    const old = await chat();
+    source.leagues.delete(1);
+    source.roster.delete(1);
+    source.leagues.set(7, { id: 7, name: LEAGUE, ended: false });
+    source.join(7, "john", 1, true);
+    source.join(7, "sam", 2);
+    expect(await chats.syncAll()).toEqual({ synced: 2, failed: 0 });
+    const rows = await svc.groups("john");
+    expect(rows.map((r) => [r.title, r.leagueId])).toEqual([[LEAGUE, 7]]);
+    expect(await repo.groupMembers(old.id)).toEqual([]);
+    expect((await repo.findGroup(old.id))?.open).toBe(false);
+    // Running it again changes nothing.
+    expect(await chats.syncAll()).toEqual({ synced: 2, failed: 0 });
+    expect(repo.groups).toHaveLength(2);
+  });
+
+  it("one league never gets a second chat, however often it syncs", async () => {
+    await Promise.all([chats.sync(1), chats.sync(1), chats.syncAll(), chats.chatFor(1, "john")]);
+    expect(repo.groups.filter((g) => g.leagueId === 1)).toHaveLength(1);
+    expect(await svc.groups("john")).toHaveLength(1);
   });
 });
 

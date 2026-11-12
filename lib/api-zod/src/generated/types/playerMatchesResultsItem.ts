@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { PlayerMatchesResultsItemWinner } from "./playerMatchesResultsItemWinner";
+import type { PlayerMatchesResultsItemYours } from "./playerMatchesResultsItemYours";
 
 export type PlayerMatchesResultsItem = {
   matchId: number;
@@ -19,8 +20,17 @@ export type PlayerMatchesResultsItem = {
   score: string;
   /** @nullable */
   winner: PlayerMatchesResultsItemWinner;
+  /** League name ("League" for a private league you're not in), Discover or Quick match */
   context: string;
+  playoff: boolean;
+  /** Scored in the week after its round's deadline */
+  inGrace: boolean;
   /** @nullable */
   completedAt: string | null;
   mine: boolean;
+  /**
+   * The result from your side, when you played in it
+   * @nullable
+   */
+  yours: PlayerMatchesResultsItemYours;
 };

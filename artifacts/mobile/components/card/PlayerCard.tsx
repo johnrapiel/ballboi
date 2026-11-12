@@ -5,30 +5,32 @@ import Svg, { Line, Rect } from "react-native-svg";
 import type { PlayerCard as Card } from "@workspace/api-client-react";
 
 import { Avatar } from "@/components/Avatar";
+import { MilestoneButtons } from "@/components/card/MilestoneButtons";
 import { Icon } from "@/components/Icon";
-import { MilestoneBadge } from "@/components/MilestoneBadge";
 import { Pill, Text, TextLink } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { photoUrl } from "@/lib/photos";
-import { knownMilestones } from "@/lib/milestones";
+import { visibleMilestones } from "@/lib/milestones";
 import { ADD_HOME_COURT, ADD_PLAYS, bottomRow, cardPrompts, cardSpoken, levelPill, playsPill, townLine } from "@/lib/playerCard";
 
 // The player card, design D "Portrait" (spec decision 139, John, Nov 8;
 // canvas W2_ProfileCard). The same card everywhere: Profile and Discover.
 // A court drawing across the top with the photo (initials fallback) over it,
 // the name in full ink Cormorant (#181), Level and Plays pills, the town,
-// a small row of earned milestone badges (decision 150), then the home court
+// a small row of earned milestone badges, each with a short label and a tap
+// that opens its sheet (decision 150; John, Nov 10), then the home court
 // on the left and Free times on the right. Besides the badges, it holds only
 // what the player entered.
 //
 // Prompts in place (John, Nov 9): on your own card, an unset home court or
 // Plays shows a light link in its spot ("Add home court", "Add how you
 // play") that opens the same editor Edit profile uses. Someone else's card
-// leaves those spots out, and Free times alone sits left-aligned.
+// leaves those spots out, and Free times alone sits left-aligned. Free
+// times shows on every card, even with none added (finding 13).
 //
-// VoiceOver reads the card as one element, then the prompts, Free times and
-// the pencil (your own card) as their own buttons.
+// VoiceOver reads the card as one element, then the prompts, the milestone
+// badges, Free times and the pencil (your own card) as their own buttons.
 
 /** A light link that's a button: 44pt target, words not color alone. */
 function Prompt({ label, hint, onPress, icon, small }: { label: string; hint: string; onPress: () => void; icon?: boolean; small?: boolean }) {
@@ -88,7 +90,7 @@ export function PlayerCard({
   card: Card;
   /** Your own card: the pencil, which opens Edit profile. */
   onEdit?: () => void;
-  /** Opens the Free times sheet. Hidden on someone else's card with no free times. */
+  /** Opens the Free times sheet. On every card; with none added, the sheet says so (finding 13). */
   onFreeTimes: () => void;
   /** Your own card with no home court: opens the home court picker. */
   onAddHomeCourt?: () => void;
@@ -104,7 +106,8 @@ export function PlayerCard({
   const row = bottomRow(card);
   const askCourt = row?.left === "prompt" && !!onAddHomeCourt;
   const first = card.name.split(" ")[0] || card.name;
-  const badges = knownMilestones(card.milestones);
+  // Hidden until after all waves (decision 179); VoiceOver skips them too.
+  const badges = visibleMilestones(card.milestones);
 
   return (
     <View
@@ -119,7 +122,7 @@ export function PlayerCard({
         paddingBottom: row ? spacing.space1 : spacing.space4,
       }}
     >
-      <View accessible accessibilityLabel={cardSpoken(card)} style={{ alignItems: "center", width: "100%" }}>
+      <View accessible accessibilityLabel={cardSpoken({ ...card, milestones: badges })} style={{ alignItems: "center", width: "100%" }}>
         <CourtDrawing />
         <View style={{ marginTop: -56, borderRadius: radius.radiusPill, borderWidth: 4, borderColor: c.linen, backgroundColor: c.linen }}>
           <Avatar name={card.name} uri={photoUrl(card.avatarUrl)} size={96} />
@@ -151,15 +154,10 @@ export function PlayerCard({
             </Text>
           </View>
         ) : null}
-        {/* Earned milestones (decision 150): read with the card's summary, so decorative here. */}
-        {badges.length ? (
-          <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: spacing.space2, marginTop: spacing.space3, paddingHorizontal: spacing.space4 }}>
-            {badges.map((m) => (
-              <MilestoneBadge key={m.kind} kind={m.kind} size={32} />
-            ))}
-          </View>
-        ) : null}
       </View>
+
+      {/* Earned milestones (decision 150), each labelled and a button that opens its sheet (John, Nov 10). */}
+      {badges.length ? <MilestoneButtons milestones={badges} /> : null}
 
       {row ? (
         <View style={{ width: "100%", paddingHorizontal: 20, marginTop: spacing.space4 }}>

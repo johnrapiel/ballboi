@@ -1,10 +1,11 @@
+import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 import { useRouter, type Href } from "expo-router";
 import React from "react";
 import { Linking, Pressable, View, type AccessibilityActionEvent } from "react-native";
 
 import { Text, TextLink } from "@/components/ui";
-import { radius, spacing } from "@/constants/tokens";
+import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import type { Segment } from "@/lib/leagueChat";
 import { linkActionLabel, linkParts, linkTarget } from "@/lib/messageLinks";
@@ -34,7 +35,22 @@ export interface BubbleProps {
   spoken?: string;
   /** League chats: the long-press menu as a VoiceOver action too, for admins' pins and moderation. */
   onMore?: () => void;
+  /**
+   * Group chats: the sender's photo beside their messages. Every message from
+   * someone else keeps the space; `show` draws the photo, on the first message
+   * of a run, next to their name. Decorative: VoiceOver already reads the name.
+   */
+  avatar?: { name: string; uri?: string | null; show: boolean };
+  /**
+   * League chats (finding 24): the pin beside a message. A pinned message
+   * shows a filled pin to everyone. With `onToggle` (an admin's own post) it's
+   * a button: outline to pin, filled to unpin.
+   */
+  pin?: { pinned: boolean; onToggle?: () => void; busy?: boolean };
 }
+
+/** Size of the sender photo in group chats, and the space it keeps. */
+export const BUBBLE_AVATAR = 28;
 
 /**
  * One message. VoiceOver reads sender, text and time in one swipe. Report is
@@ -57,6 +73,8 @@ export function MessageBubble({
   segments,
   spoken: spokenText,
   onMore,
+  avatar,
+  pin,
 }: BubbleProps) {
   const c = useColors();
   const router = useRouter();
@@ -78,6 +96,8 @@ export function MessageBubble({
 
   const spoken = [
     spokenText ?? `${senderName}, ${text}`,
+    // Pinned is said in words, not only shown by the filled pin.
+    ...(pin?.pinned ? ["Pinned"] : []),
     sending ? "Sending" : failed ? "Not sent. Tap to retry" : spokenTime(at),
   ].join(". ");
 
@@ -103,8 +123,54 @@ export function MessageBubble({
     }
   };
 
+  // The pin sits beside the bubble, on the side toward the middle of the screen.
+  const pinMark = pin ? (
+    pin.onToggle ? (
+      <Pressable
+        onPress={pin.onToggle}
+        disabled={pin.busy}
+        accessibilityRole="button"
+        accessibilityLabel={pin.pinned ? "Unpin post" : "Pin post"}
+        accessibilityHint={pin.pinned ? "Removes it from the pinned posts" : "Shows it in the pinned posts at the top"}
+        accessibilityState={{ selected: pin.pinned, disabled: !!pin.busy }}
+        hitSlop={4}
+        style={({ pressed }) => ({
+          width: MIN_TAP,
+          height: MIN_TAP,
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          opacity: pressed || pin.busy ? 0.6 : 1,
+        })}
+      >
+        <Icon name={pin.pinned ? "pin.fill" : "pin"} size={18} tintColor={c.ink} />
+      </Pressable>
+    ) : pin.pinned ? (
+      // Shown to everyone; VoiceOver hears "Pinned" with the message instead.
+      <View
+        importantForAccessibility="no-hide-descendants"
+        accessibilityElementsHidden
+        style={{ width: 24, height: 24, marginTop: spacing.space2, alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+      >
+        <Icon name="pin.fill" size={16} tintColor={c.ink} />
+      </View>
+    ) : null
+  ) : null;
+
   return (
-    <View style={{ alignItems: fromMe ? "flex-end" : "flex-start", paddingHorizontal: spacing.space4, paddingVertical: 3 }}>
+    <View
+      style={
+        avatar && !fromMe
+          ? { flexDirection: "row", alignItems: "flex-start", gap: spacing.space2, paddingHorizontal: spacing.space4, paddingVertical: 3 }
+          : pinMark
+          ? { flexDirection: "row", alignItems: "flex-start", justifyContent: fromMe ? "flex-end" : "flex-start", gap: spacing.space1, paddingHorizontal: spacing.space4, paddingVertical: 3 }
+          : { alignItems: fromMe ? "flex-end" : "flex-start", paddingHorizontal: spacing.space4, paddingVertical: 3 }
+      }
+    >
+      {fromMe ? pinMark : null}
+      {avatar && !fromMe ? (
+        avatar.show ? <Avatar name={avatar.name} uri={avatar.uri} size={BUBBLE_AVATAR} /> : <View style={{ width: BUBBLE_AVATAR }} />
+      ) : null}
       <Pressable
         accessible
         accessibilityLabel={spoken}
@@ -114,7 +180,7 @@ export function MessageBubble({
         onPress={failed ? onRetry : undefined}
         onLongPress={!fromMe || onMore ? onLongPress : undefined}
         delayLongPress={350}
-        style={({ pressed }) => ({ maxWidth: "82%", opacity: pressed ? 0.8 : sending ? 0.7 : 1 })}
+        style={({ pressed }) => ({ maxWidth: "82%", flexShrink: 1, opacity: pressed ? 0.8 : sending ? 0.7 : 1 })}
       >
         <View
           style={{
@@ -159,6 +225,7 @@ export function MessageBubble({
           </Text>
         )}
       </Pressable>
+      {fromMe ? null : pinMark}
     </View>
   );
 }

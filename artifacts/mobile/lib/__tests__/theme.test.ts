@@ -16,40 +16,9 @@ describe("resolveScheme: the app follows the iPhone", () => {
   });
 });
 
-describe("the Day look for shareable recaps", () => {
-  it("wins over Dark Mode", () => {
-    expect(resolveScheme("dark", "light")).toBe("light");
-    expect(resolveScheme("light", "light")).toBe("light");
-  });
-
-  it("renders Day colors inside a Dark Mode app", () => {
-    const recap = paletteFor(resolveScheme("dark", "light"), false);
-    expect(recap.scheme).toBe("light");
-    expect(recap.paper).toBe(color.light.paper);
-    expect(recap.linen).toBe(color.light.linen);
-    expect(recap.ink).toBe(color.light.ink);
-    expect(recap.heat5).toBe(color.light.heat5);
-  });
-
-  it("makes a recap in Dark Mode identical to one in Light Mode", () => {
-    for (const increaseContrast of [false, true]) {
-      const inDark = paletteFor(resolveScheme("dark", "light"), increaseContrast);
-      const inLight = paletteFor(resolveScheme("light", "light"), increaseContrast);
-      expect(inDark).toEqual(inLight);
-      expect(inDark).toEqual(paletteFor("light", increaseContrast));
-    }
-  });
-
-  it("keeps Increase Contrast inside the Day look", () => {
-    const recap = paletteFor(resolveScheme("dark", "light"), true);
-    expect(recap.inkMuted).toBe(color.light.inkMutedHc);
-    expect(recap.hairline).toBe(color.light.hairlineHc);
-  });
-});
-
 describe("paletteFor", () => {
-  it("gives Night colors in Dark Mode with no override", () => {
-    const night = paletteFor(resolveScheme("dark", null), false);
+  it("gives Night colors in Dark Mode", () => {
+    const night = paletteFor(resolveScheme("dark"), false);
     expect(night.scheme).toBe("dark");
     expect(night.paper).toBe(color.dark.paper);
     expect(night.ink).toBe(color.dark.ink);

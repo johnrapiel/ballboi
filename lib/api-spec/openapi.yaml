@@ -398,6 +398,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /areas/lookup:
+    get:
+      operationId: lookupArea
+      tags: [discover]
+      summary: >-
+        Find a town or ZIP for a league's area (decision 182). A town in more than one
+        state picks the one nearest your home area, or asks for the state.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: A US ZIP or town, for example 12590 or "Wappingers Falls, NY"
+      responses:
+        '200':
+          description: The place's ZIP, town and state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverArea'
+        '400':
+          description: "We couldn't find that town or ZIP"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /discover/availability:
     put:
       operationId: saveDiscoverAvailability
@@ -1381,6 +1408,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Career'
+  /player-cards/me/matches:
+    get:
+      operationId: getMyPlayerMatches
+      tags: [players]
+      summary: Your own Upcoming matches and Results, for Profile. Results list every match you played, league, Discover and Quick match, each with `yours` (John, Nov 10)
+      responses:
+        '200':
+          description: Your matches
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerMatches'
   /player-cards/me/milestones/new:
     get:
       operationId: getMyNewMilestones
@@ -1939,42 +1978,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/LeagueWeek"
 
-  /me/matches/{matchId}/recap:
-    get:
-      operationId: getMatchRecap
-      tags: [matches]
-      summary: What the shareable match recap shows (decision 148). Players in the match only, once it has a score
-      parameters:
-        - name: matchId
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: The recap
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MatchRecap'
-        '403':
-          description: Not your match
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: No such match
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '409':
-          description: No score yet
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
   /me/matches/{matchId}:
     get:
       operationId: getMyMatch
@@ -8609,7 +8612,7 @@ components:
           $ref: '#/components/schemas/CareerWonLost'
         seasons:
           type: array
-          description: Newest first, only seasons you played in
+          description: Newest first, only seasons with a result in `results`. The record counts by decision 121
           items:
             type: object
             properties:
@@ -8630,7 +8633,7 @@ components:
             required: [key, name, from, to, wins, losses, played]
         results:
           type: array
-          description: Newest first
+          description: Newest first. Every match you played, the same list as Profile's Results (league, Discover and Quick match, placeholders by name, none against someone blocked with you); a double default stays out (decision 170)
           items:
             type: object
             properties:
@@ -8640,8 +8643,12 @@ components:
                 type: string
               opponentName:
                 type: string
+              partnerName:
+                type: [string, 'null']
+                description: Your partner in doubles
               won:
-                type: boolean
+                type: [boolean, 'null']
+                description: Null when no winner was recorded
               score:
                 type: string
                 description: From your side, your games first
@@ -8652,10 +8659,10 @@ components:
                 type: boolean
               league:
                 type: boolean
-                description: A league match, which opens Match detail
+                description: A league match. Every result opens Match detail (decision 151)
               completedAt:
                 type: [string, 'null']
-            required: [matchId, seasonKey, opponentName, won, score, context, playoff, league, completedAt]
+            required: [matchId, seasonKey, opponentName, partnerName, won, score, context, playoff, league, completedAt]
         headToHead:
           type: array
           description: Most played first; never a player blocked with you
@@ -8685,50 +8692,6 @@ components:
         lost:
           type: integer
       required: [won, lost]
-    MatchRecap:
-      type: object
-      description: The shareable match recap's facts (decision 148). Aces and winners join once they pass their accuracy bars
-      properties:
-        matchId:
-          type: integer
-        you:
-          type: integer
-          enum: [1, 2]
-          description: The side you're on
-        side1:
-          type: array
-          items:
-            type: string
-          description: Full names on side 1
-        side2:
-          type: array
-          items:
-            type: string
-        score:
-          type: string
-          description: As stored, from side 1's side
-        winner:
-          type: [integer, 'null']
-          enum: [1, 2, null]
-        playedAt:
-          type: [string, 'null']
-        court:
-          type: [string, 'null']
-        context:
-          type: string
-          description: League name, Discover or Quick match
-        season:
-          type: ['object', 'null']
-          description: Your record for that match's season, after it
-          properties:
-            name:
-              type: string
-            wins:
-              type: integer
-            losses:
-              type: integer
-          required: [name, wins, losses]
-      required: [matchId, you, side1, side2, score, winner, playedAt, court, context, season]
     PlayerCard:
       type: object
       description: The player card (design D). Holds only what the player entered.
@@ -8866,11 +8829,33 @@ components:
                 enum: [1, 2, null]
               context:
                 type: string
+                description: League name ("League" for a private league you're not in), Discover or Quick match
+              playoff:
+                type: boolean
+              inGrace:
+                type: boolean
+                description: Scored in the week after its round's deadline
               completedAt:
                 type: [string, 'null']
               mine:
                 type: boolean
-            required: [matchId, player1Name, player2Name, player1UserId, player2UserId, score, winner, context, completedAt, mine]
+              yours:
+                type: [object, 'null']
+                description: The result from your side, when you played in it
+                properties:
+                  won:
+                    type: [boolean, 'null']
+                    description: Null when there's no winner (a double default)
+                  score:
+                    type: string
+                    description: From your side, your games first. W/O, RET and Double default stay as they are
+                  opponentName:
+                    type: string
+                  partnerName:
+                    type: [string, 'null']
+                    description: Your partner in doubles
+                required: [won, score, opponentName, partnerName]
+            required: [matchId, player1Name, player2Name, player1UserId, player2UserId, score, winner, context, playoff, inGrace, completedAt, mine, yours]
         headToHead:
           type: [object, 'null']
           description: Your wins and theirs against each other, or null when you haven't played
@@ -10304,6 +10289,14 @@ components:
           type: ["string", "null"]
         location:
           type: ["string", "null"]
+          description: Usual courts, free text (optional, decision 182).
+        area:
+          description: >-
+            The league's area (decision 182): the town or ZIP Discover measures distance from.
+            Null for leagues made before Nov 12, 2026.
+          oneOf:
+            - $ref: '#/components/schemas/DiscoverArea'
+            - type: "null"
         createdByClerkUserId:
           type: ["string", "null"]
         visibility:
@@ -10413,6 +10406,12 @@ components:
           description: Ignored. Every league has a fixed 1-week grace period (decision 25).
         location:
           type: ["string", "null"]
+          description: Usual courts, free text (optional).
+        area:
+          type: string
+          description: >-
+            Required (decision 182): the league's town or ZIP, for example 12590 or
+            "Wappingers Falls, NY". A place we can't find returns 400 with a plain error.
         playing:
           type: boolean
           description: The admin plays in the league too (default true)
@@ -12485,6 +12484,9 @@ components:
           type: [integer, 'null']
         senderUserId:
           type: [integer, 'null']
+        senderAvatarUrl:
+          type: [string, 'null']
+          description: The sender's photo ("/objects/..."), shown beside their messages. Null for you, Ball Boi, or no photo
         admin:
           type: boolean
           description: League chats, an admin post (shown with the Admin label)
@@ -12495,7 +12497,7 @@ components:
             type: string
         mentionsMe:
           type: boolean
-      required: [id, text, fromMe, at, senderName, senderPlayerId, senderUserId, admin, mentions, mentionsMe]
+      required: [id, text, fromMe, at, senderName, senderPlayerId, senderUserId, senderAvatarUrl, admin, mentions, mentionsMe]
     GroupThread:
       type: object
       properties:

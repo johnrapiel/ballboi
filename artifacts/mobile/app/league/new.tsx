@@ -8,6 +8,7 @@ import { Alert, Pressable, ScrollView, TextInput, View } from "react-native";
 import {
   createLeague,
   createLeagueInvite,
+  lookupArea,
   getGetLeaguesQueryKey,
   getGetMyPlayersQueryKey,
   type CreateLeagueBody,
@@ -24,6 +25,8 @@ import { MIN_TAP, radius, spacing, type } from "@/constants/tokens";
 import { Toggle } from "@/components/Toggle";
 import { useColors, useScheme } from "@/hooks/useColors";
 import { useProfile } from "@/hooks/useProfile";
+import { useDiscoverMe } from "@/hooks/useDiscover";
+import { areaLabel, createLeagueBlocker, prefillArea, type AreaCheck } from "@/lib/leagueArea";
 
 // Start a league (spec: Leagues > Setup and Onboarding > Run a league;
 // approved canvas: Admin · Create league, a full-height sheet with a serif
@@ -35,6 +38,10 @@ import { useProfile } from "@/hooks/useProfile";
 // Fixed or Rotating partners, has no playoffs for now (decision 79) and needs
 // at least 4 players. A season starts tomorrow at the earliest (Q7), so a
 // friend who joins on the day it's made is in from round 1.
+// Name and Area are required (finding 19, decision 182): Area is a town or
+// ZIP, prefilled from your home area, and Discover measures distance from it.
+// Usual courts is optional, since rec league players use different courts.
+// Create league stays off until both are filled.
 
 type Format = "flex" | "round_robin";
 type Play = "singles" | "doubles";
@@ -200,6 +207,38 @@ function Choice<T extends string>({
   );
 }
 
+/** The line under Area: what it found, what's wrong, or what Area is for. */
+function areaHint(check: AreaCheck): string {
+  if (check.state === "found") return `${areaLabel(check.area)} ${check.area.zip}. Discover shows your league to players near it.`;
+  if (check.state === "error") return check.message;
+  if (check.state === "checking") return "Checking the area";
+  return "A town or ZIP. Discover shows your league to players near it.";
+}
+
+/** Looks up the typed town or ZIP a moment after typing stops. */
+function useAreaCheck(text: string): AreaCheck {
+  const q = text.trim();
+  const [check, setCheck] = useState<{ q: string; result: AreaCheck } | null>(null);
+  useEffect(() => {
+    if (!q) return;
+    let live = true;
+    const timer = setTimeout(() => {
+      lookupArea({ q })
+        .then((area) => live && setCheck({ q, result: { state: "found", area } }))
+        .catch((e: unknown) => {
+          const message = (e as { data?: { error?: string } }).data?.error ?? "Can't check that place right now. Check your connection and try again.";
+          if (live) setCheck({ q, result: { state: "error", message } });
+        });
+    }, 400);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [q]);
+  if (!q) return { state: "empty" };
+  return check && check.q === q ? check.result : { state: "checking" };
+}
+
 export default function StartLeagueScreen() {
   const c = useColors();
   const router = useRouter();
@@ -212,6 +251,12 @@ export default function StartLeagueScreen() {
 
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
+  // Area starts as your home area once it loads, unless you've typed in it.
+  const me = useDiscoverMe();
+  const homeArea = prefillArea(me.data);
+  const [areaText, setAreaText] = useState<string | null>(null);
+  const area = areaText ?? homeArea;
+  const areaCheck = useAreaCheck(area);
   const [format, setFormat] = useState<Format>("flex");
   const [play, setPlay] = useState<Play>("singles");
   const [partners, setPartners] = useState<Partners>("fixed");
@@ -239,11 +284,11 @@ export default function StartLeagueScreen() {
   const [matchDay, setMatchDay] = useState<number>(() => nextMonday().getDay());
   const [matchClock, setMatchClock] = useState<Date>(() => timeFromHHMM(null));
   const [saving, setSaving] = useState(false);
-  const [nameMissing, setNameMissing] = useState(false);
   // Anything typed or changed: closing the sheet asks first.
   const dirty =
     name.trim() !== "" ||
     location.trim() !== "" ||
+    area.trim() !== homeArea.trim() ||
     format !== "flex" ||
     play !== "singles" ||
     weeks !== DEFAULT_WEEKS ||
@@ -264,16 +309,13 @@ export default function StartLeagueScreen() {
   const { profile } = useProfile();
   const playerName = profile?.displayName?.trim() || user?.fullName?.trim() || "";
 
+  const blocker = createLeagueBlocker(name, areaCheck);
+
   const end = new Date(start);
   end.setDate(end.getDate() + weeks * 7 - 1);
 
   async function create() {
-    if (saving) return;
-    if (!name.trim()) {
-      setNameMissing(true);
-      scrollRef.current?.scrollTo({ y: 0, animated: true });
-      return;
-    }
+    if (saving || blocker || areaCheck.state !== "found") return;
     setSaving(true);
     const body: CreateLeagueBody = {
       name: name.trim(),
@@ -292,6 +334,8 @@ export default function StartLeagueScreen() {
       // Decision 79: no doubles playoffs for now.
       playoffSize: doubles ? 0 : (Number(playoffs) as 0 | 4 | 8),
       location: location.trim() || null,
+      // Decision 182: the ZIP the area check found, so the server lands on the same place.
+      area: areaCheck.area.zip,
       playing,
       playerName: playing ? playerName || "Admin" : null,
       // The league runs on this phone's time zone (PR 4).
@@ -322,23 +366,47 @@ export default function StartLeagueScreen() {
       fill
       scrollRef={scrollRef}
       contentStyle={{ gap: spacing.space6 }}
-      footer={<Button label="Create league" onPress={create} loading={saving} />}
+      footer={
+        <Button
+          label="Create league"
+          onPress={create}
+          loading={saving}
+          disabled={!!blocker}
+          accessibilityLabel={blocker && !saving ? `Create league. ${blocker}` : "Create league"}
+        />
+      }
     >
       <Section title="League">
         <Field
           label="Name"
+          labelVariant="bodyStrong"
           value={name}
-          onChangeText={(t) => {
-            setName(t);
-            if (t.trim()) setNameMissing(false);
-          }}
+          onChangeText={setName}
           placeholder="Tuesday Night 3.5"
           maxLength={60}
           autoFocus
-          error={nameMissing}
-          hint={nameMissing ? "Give your league a name to create it." : undefined}
         />
-        <Field label="Where you play (optional)" value={location} onChangeText={setLocation} placeholder="Beacon Courts" />
+        <Field
+          label="Area"
+          labelVariant="bodyStrong"
+          value={area}
+          onChangeText={setAreaText}
+          placeholder="Town or ZIP"
+          autoCapitalize="words"
+          autoCorrect={false}
+          maxLength={60}
+          returnKeyType="next"
+          error={areaCheck.state === "error"}
+          hint={areaHint(areaCheck)}
+        />
+        <Field
+          label="Usual courts (optional)"
+          labelVariant="bodyStrong"
+          value={location}
+          onChangeText={setLocation}
+          placeholder="Beacon Courts"
+          maxLength={80}
+        />
       </Section>
 
       <Section title="How it works">

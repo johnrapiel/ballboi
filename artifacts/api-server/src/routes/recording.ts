@@ -24,7 +24,7 @@ import {
   type RecordContext,
 } from "../lib/recordableMatches";
 import { planDiscard } from "../lib/recordingDiscard";
-import { ANALYSIS_MAX_RETRIES, failureReason, retryPending } from "../lib/analysisFailure";
+import { ANALYSIS_MAX_RETRIES, analysisServerConfigured, failureReason, retryPending } from "../lib/analysisFailure";
 import { deleteSessionFiles } from "../lib/sessionFiles";
 import { checkSidecar, cleanConditions, sidecarObjectPath, withConditions } from "../lib/recordingSidecar";
 import { ObjectStorageService } from "../lib/objectStorage";
@@ -285,7 +285,7 @@ router.get("/recording/sessions", requireAuth, async (req: Request, res: Respons
           stage,
           scoreEntered: !!m?.score,
           recordedByYou: s.recordedByClerkUserId === userId,
-          failedReason: stage === "failed" ? failureReason(s.processingError) : null,
+          failedReason: stage === "failed" ? failureReason(s.processingError, analysisServerConfigured()) : null,
           stillLearning: stillLearning(stage, s.metadata, latest),
         };
       }),

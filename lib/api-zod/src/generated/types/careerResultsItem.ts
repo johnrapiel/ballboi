@@ -10,13 +10,22 @@ export type CareerResultsItem = {
   matchId: number;
   seasonKey: string;
   opponentName: string;
-  won: boolean;
+  /**
+   * Your partner in doubles
+   * @nullable
+   */
+  partnerName: string | null;
+  /**
+   * Null when no winner was recorded
+   * @nullable
+   */
+  won: boolean | null;
   /** From your side, your games first */
   score: string;
   /** League name, Discover or Quick match */
   context: string;
   playoff: boolean;
-  /** A league match, which opens Match detail */
+  /** A league match. Every result opens Match detail (decision 151) */
   league: boolean;
   /** @nullable */
   completedAt: string | null;

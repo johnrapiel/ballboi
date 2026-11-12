@@ -16,6 +16,18 @@ export const FAILURE_REASONS: Record<FailureKind, string> = {
   other: "Something went wrong on our side.",
 };
 
+/**
+ * The reason when the service "was down" only because no analysis server is
+ * set up, as on the beta's staging API (John, Nov 10, decision 178). Real
+ * outages keep "Our analysis service was down."
+ */
+export const NOT_IN_BETA_REASON = "Analysis isn't available in the beta yet.";
+
+/** True when ML_SERVICE_URL names an analysis server. Unset or blank means none is set up. */
+export function analysisServerConfigured(env: Record<string, string | undefined> = process.env): boolean {
+  return (env.ML_SERVICE_URL ?? "").trim() !== "";
+}
+
 /** Written by the stuck-analysis sweep when the ML server never answered. */
 export const ANALYSIS_TIMEOUT_ERROR = "Analysis timed out: the analysis service never sent a result.";
 
@@ -35,9 +47,15 @@ export function failureKind(processingError: string | null | undefined): Failure
   return "other";
 }
 
-/** The short reason shown on the failed card. */
-export function failureReason(processingError: string | null | undefined): string {
-  return FAILURE_REASONS[failureKind(processingError)];
+/**
+ * The short reason shown on the failed card. `serverConfigured` false: no
+ * analysis server is set up, so "the service was down" says the beta has no
+ * analysis yet instead.
+ */
+export function failureReason(processingError: string | null | undefined, serverConfigured = true): string {
+  const kind = failureKind(processingError);
+  if (kind === "unavailable" && !serverConfigured) return NOT_IN_BETA_REASON;
+  return FAILURE_REASONS[kind];
 }
 
 /**

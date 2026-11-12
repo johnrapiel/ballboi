@@ -21,6 +21,8 @@ import {
   toggleBlock,
   withFields,
   type FreeRange,
+  noFreeTimesLine,
+  sheetDays,
 } from "../freeTimes";
 
 const h = (n: number) => n * 60;
@@ -169,5 +171,53 @@ describe("the editor", () => {
   it("names each pill for VoiceOver with its day", () => {
     expect(blockSpoken(morning, 1)).toBe("Morning, 7 to 11 AM, Tuesday");
     expect(customSpoken({ day: 2, start: h(18), end: h(20) })).toBe("6 to 8 PM, Wednesday");
+  });
+});
+
+describe("the Free times sheet, layout A (findings 13 and 17, John, Nov 11)", () => {
+  const h = (n: number) => n * 60;
+
+  it("lists only free days, Monday first, short day and each time on its own line", () => {
+    const days = sheetDays([
+      { day: 5, start: h(13), end: h(15) },
+      { day: 1, start: h(17), end: h(21) },
+    ]);
+    expect(days.map((d) => d.short)).toEqual(["Tue", "Sat"]);
+    expect(days[0].times).toEqual(["5 to 9 PM"]);
+    expect(days[1].times).toEqual(["1 to 3 PM"]);
+  });
+
+  it("merges overlapping times: Sat 7 to 11 AM and 10 AM to 12 PM read 7 AM to 12 PM", () => {
+    const [sat] = sheetDays([
+      { day: 5, start: h(10), end: h(12) },
+      { day: 5, start: h(7), end: h(11) },
+    ]);
+    expect(sat.times).toEqual(["7 AM to 12 PM"]);
+  });
+
+  it("merges touching times and keeps separate ones apart, sorted by start", () => {
+    const [mon] = sheetDays([
+      { day: 0, start: h(17), end: h(21) },
+      { day: 0, start: h(12), end: h(16) },
+      { day: 0, start: h(7), end: h(11) },
+      { day: 0, start: h(11), end: h(12) },
+    ]);
+    expect(mon.times).toEqual(["7 AM to 4 PM", "5 to 9 PM"]);
+    expect(mon.spoken).toBe("Monday, 7 AM to 4 PM and 5 to 9 PM");
+  });
+
+  it("never says Morning, Afternoon or Evening", () => {
+    const days = sheetDays(BLOCKS.map((b) => ({ day: 2, start: b.start, end: b.end })));
+    expect(days[0].times).toEqual(["7 to 11 AM", "12 to 4 PM", "5 to 9 PM"]);
+    expect(days[0].spoken).not.toMatch(/Morning|Afternoon|Evening/);
+  });
+
+  it("is empty with nothing free", () => {
+    expect(sheetDays([])).toEqual([]);
+  });
+
+  it("says when someone hasn't added any, by first name", () => {
+    expect(noFreeTimesLine("Ross Barker", false)).toBe("Ross hasn't added free times yet.");
+    expect(noFreeTimesLine("John Rapiel", true)).toBe("You haven't added free times yet.");
   });
 });

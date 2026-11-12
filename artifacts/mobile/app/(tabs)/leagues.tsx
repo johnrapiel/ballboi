@@ -2,6 +2,7 @@ import { useUser } from "@clerk/expo";
 import { useQueries } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { Icon } from "@/components/Icon";
+import { areaLabel } from "@/lib/leagueArea";
 import React from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,7 +17,6 @@ import {
   useGetMyPlayers,
   type League,
   type MyJoinRequest,
-  type Standing,
 } from "@workspace/api-client-react";
 
 import { IconButton } from "@/components/Choice";
@@ -26,7 +26,8 @@ import { TabScreen } from "@/components/TabHeader";
 import { Button, Card, Chip, Pill, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { formatLabel, isPastLeague, ordinal, pastLabel, playersLabel, playTypeLabel, statusLabel } from "@/lib/leagues";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { formatLabel, isPastLeague, leagueCardText, myStanding, ordinal, pastLabel, type MyStanding } from "@/lib/leagues";
 
 // Leagues tab (spec: Leagues; approved canvas: Leagues, John, Nov 5). Notes
 // about deleted leagues, your current leagues as soft cards with your season
@@ -35,18 +36,6 @@ import { formatLabel, isPastLeague, ordinal, pastLabel, playersLabel, playTypeLa
 // invite code?" text link that opens the invite code sheet (app/league/join.tsx).
 // Open leagues are found in Discover, not here. Start a league opens from the
 // + button and from the empty state.
-
-// Standings rank on wins, then head to head (John, Nov 6), so "behind" counts wins.
-type MyStanding = { rank: number; wins: number; losses: number; behind: number; lead: number } | null;
-
-function myStanding(standings: Standing[] | undefined, myPlayerId: number | undefined): MyStanding {
-  if (!standings || myPlayerId === undefined) return null;
-  const mine = standings.find((s) => s.playerId === myPlayerId);
-  if (!mine) return null;
-  const leader = standings.reduce((max, s) => Math.max(max, s.wins), 0);
-  const nextBest = standings.filter((s) => s.playerId !== myPlayerId).reduce((max, s) => Math.max(max, s.wins), 0);
-  return { rank: mine.rank, wins: mine.wins, losses: mine.losses, behind: leader - mine.wins, lead: mine.wins - nextBest };
-}
 
 const wins = (n: number) => `${n} ${n === 1 ? "win" : "wins"}`;
 
@@ -78,15 +67,19 @@ function Stat({ label, value, first }: { label: string; value: string; first?: b
 
 function LeagueCard({ league, standing, onPress }: { league: League; standing: MyStanding; onPress: () => void }) {
   const c = useColors();
-  const details = [league.location, playersLabel(league.playerCount), formatLabel(league.format)].filter(Boolean).join(" · ");
+  // Finding 27, decision 183: Singles or Doubles in the pill, no "Active", and
+  // a league that hasn't started shows its start date. Finding 28: the stats
+  // row always shows, with a dash for each value until there's one.
+  const card = leagueCardText(league, areaLabel(league.area) ?? league.location);
+  const stats = card.started ? standing : null;
+  const dash = "–";
   const spoken = [
-    league.name,
-    statusLabel(league.status),
-    details,
-    playTypeLabel(league.leagueType),
-    standing
-      ? `You're ranked ${ordinal(standing.rank)} at ${standing.wins} and ${standing.losses}, ${
-          standing.lead > 0 ? `${wins(standing.lead)} ahead` : standing.behind > 0 ? `${wins(standing.behind)} behind 1st` : "level with 1st"
+    card.spoken,
+    !card.started
+      ? "Not started yet"
+      : stats
+      ? `You're ranked ${ordinal(stats.rank)} at ${stats.wins} and ${stats.losses}, ${
+          stats.lead > 0 ? `${wins(stats.lead)} ahead` : stats.behind > 0 ? `${wins(stats.behind)} behind 1st` : "level with 1st"
         }`
       : null,
   ]
@@ -102,30 +95,35 @@ function LeagueCard({ league, standing, onPress }: { league: League; standing: M
       style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
     >
       <Card style={{ gap: spacing.space3 }}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.space2 }}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: spacing.space2 }}>
           <Text variant="title" style={{ flexShrink: 1 }}>
             {league.name}
           </Text>
-          <Pill label={statusLabel(league.status)} />
+          <Pill label={card.pill} />
         </View>
-        {details ? (
-          <Text variant="small" tone="inkMuted">
-            {details}
-          </Text>
-        ) : null}
-        {standing ? (
-          <View
-            style={{ flexDirection: "row", borderTopWidth: 1, borderTopColor: c.hairline, paddingTop: spacing.space3, marginTop: spacing.space1 }}
-          >
-            <Stat first label="Your rank" value={ordinal(standing.rank)} />
-            <Stat label="Record" value={`${standing.wins}–${standing.losses}`} />
-            {standing.lead > 0 ? (
-              <Stat label="Ahead by" value={wins(standing.lead)} />
-            ) : (
-              <Stat label="Behind 1st" value={wins(standing.behind)} />
-            )}
+        {card.info ? (
+          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: spacing.space1 }}>
+            {card.starts ? (
+              <View style={{ paddingTop: 2 }}>
+                <Icon name="calendar" size={14} tintColor={c.inkMuted} />
+              </View>
+            ) : null}
+            <Text variant="small" tone="inkMuted" style={{ flex: 1 }}>
+              {card.info}
+            </Text>
           </View>
         ) : null}
+        <View
+          style={{ flexDirection: "row", borderTopWidth: 1, borderTopColor: c.hairline, paddingTop: spacing.space3, marginTop: spacing.space1 }}
+        >
+          <Stat first label="Your rank" value={stats ? ordinal(stats.rank) : dash} />
+          <Stat label="Record" value={stats ? `${stats.wins}–${stats.losses}` : dash} />
+          {stats && stats.lead > 0 ? (
+            <Stat label="Ahead by" value={wins(stats.lead)} />
+          ) : (
+            <Stat label="Behind 1st" value={stats ? wins(stats.behind) : dash} />
+          )}
+        </View>
       </Card>
     </Pressable>
   );
@@ -133,7 +131,7 @@ function LeagueCard({ league, standing, onPress }: { league: League; standing: M
 
 function PastLeagueRow({ league, standing, onPress, last }: { league: League; standing: MyStanding; onPress: () => void; last: boolean }) {
   const c = useColors();
-  const sub = [league.location, formatLabel(league.format), standing ? `Finished ${ordinal(standing.rank)}` : pastLabel(league)]
+  const sub = [areaLabel(league.area) ?? league.location, formatLabel(league.format), standing ? `Finished ${ordinal(standing.rank)}` : pastLabel(league)]
     .filter(Boolean)
     .join(" · ");
   return (
@@ -298,14 +296,13 @@ export default function LeaguesScreen() {
   const current = indexed.filter(({ league }) => !isPastLeague(league));
   const past = indexed.filter(({ league }) => isPastLeague(league));
 
-  const refreshing = leaguesQ.isRefetching;
-  const refresh = () => {
-    void leaguesQ.refetch();
-    void playersQ.refetch();
-    void noticesQ.refetch();
-    void requestsQ.refetch();
-    standingsQs.forEach((q) => void q.refetch());
-  };
+  const pull = usePullToRefresh(() => [
+    leaguesQ.refetch(),
+    playersQ.refetch(),
+    noticesQ.refetch(),
+    requestsQ.refetch(),
+    ...standingsQs.map((q) => q.refetch()),
+  ]);
 
   const startLeague = () => router.push("/league/new");
   // Discover's Open leagues tab (Wave 2, Session F).
@@ -328,7 +325,7 @@ export default function LeaguesScreen() {
             gap: spacing.space6,
             flexGrow: 1,
           }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.ink} />}
+          refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
         >
           {leaguesQ.isError ? (
             <Card style={{ gap: spacing.space2 }}>

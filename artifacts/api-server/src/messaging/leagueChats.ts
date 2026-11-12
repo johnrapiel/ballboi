@@ -86,11 +86,17 @@ export class LeagueChats {
     return group;
   }
 
-  /** Startup: every league's chat, so existing leagues have one. Idempotent. */
+  /**
+   * Startup: every league's chat, so existing leagues have one. Idempotent.
+   * Also chats whose league was deleted outside the app (the demo seed deletes
+   * its leagues directly), so they empty out and close instead of showing in
+   * Messages next to the new league's chat with the same name (Wave 2 finding 2).
+   */
   async syncAll(): Promise<{ synced: number; failed: number }> {
     let synced = 0;
     let failed = 0;
-    for (const id of await this.deps.source.allLeagueIds()) {
+    const [leagues, chatted] = await Promise.all([this.deps.source.allLeagueIds(), this.svc.repo.leagueIdsWithGroups()]);
+    for (const id of new Set([...leagues, ...chatted])) {
       try {
         await this.sync(id);
         synced += 1;

@@ -1,23 +1,31 @@
 import { Image } from "expo-image";
-import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Icon } from "@/components/Icon";
 import React, { useCallback, useRef } from "react";
-import { ActionSheetIOS, ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollView, Share, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useGetMyMatch, type MatchDetail } from "@workspace/api-client-react";
+import { getGetLeagueQueryKey, useGetLeague, useGetMyMatch, type MatchDetail } from "@workspace/api-client-react";
 
 import { Avatar } from "@/components/Avatar";
-import { HeaderIconButton } from "@/components/Choice";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
+import { NextMatchCard } from "@/components/NextMatchCard";
+import { DoublesNote } from "@/components/record/DoublesMatchCard";
 import { Button, Card, Text } from "@/components/ui";
-import { RecapShareButton } from "@/components/RecapShareButton";
 import { MarkedName, WinnerNames } from "@/components/WinnerNames";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useProfile } from "@/hooks/useProfile";
+import { useUpcomingMatches } from "@/hooks/useUpcomingMatches";
+import { useUpcomingMessage } from "@/hooks/useUpcomingMessage";
 import { correctionLine, LATE_NOTE, LATE_ROUND_RESULT, lateDateLine } from "@/lib/leagueSchedule";
-import { durationLabel, durationSpoken, matchSourceLine, resultSentence, scoreFootnote, setRows } from "@/lib/myMatches";
+import { durationLabel, durationSpoken, matchSourceLine, scoreFootnote, setRows } from "@/lib/myMatches";
 import { isDoubleDefault, isRetiredScore, WALKOVER_SCORE } from "@/lib/tennisScore";
+import { clockTime } from "@/lib/timeFormat";
+import { openRecorder } from "@/lib/recording/start";
+import { cardWhen } from "@/lib/upcoming";
+import { upcomingActions, upcomingFromDetail } from "@/lib/upcomingDetail";
 import { winnerMark } from "@/lib/winnerMark";
 
 // Match detail (finding 6, John, Nov 6; approved design audit, Match detail).
@@ -27,7 +35,10 @@ import { winnerMark } from "@/lib/winnerMark";
 // details like Home's card (date and time, the court, and where it came
 // from: the league, "Discover" or "Quick match"), the score alone with the
 // winner's name marked by the brush underline (John, Nov 8), and Ball Boi Replay once an analysis has finished
-// (Wave 2 fills the replay in). More options holds Share and Report only.
+// (Wave 2 fills the replay in). No More options button (Wave 2 finding 26,
+// John, Nov 12): match results aren't shared outside the app (decision 177),
+// and Report lives on the player card and in chats, so the header has only
+// back.
 //
 // Finding 7: for 24 hours after the score is entered, either player sees a
 // small pencil next to the score ("Edit score", 44pt). It opens Enter score
@@ -40,6 +51,14 @@ import { winnerMark } from "@/lib/winnerMark";
 // light hairline border (Nov 7), and
 // holds only the details and the score. Notes such as "Score edited by" sit
 // below it with the footnote, not inside the card.
+//
+// Finding 9 (John, Nov 11): a match not played yet shows Home's next-match
+// card instead (NextMatchCard): when, where, both photos, "You vs. Marcus",
+// the league pill, then Record with Ball Boi (singles), Message and Enter
+// score. Where the league lets players set the time, "Set a match time" or
+// "Change time" is link text under the date line (Wave 2 finding 25). A doubles match keeps
+// the note on why Ball Boi can't record it. A Discover or Quick match gets
+// Record on match day and Message. Played matches are unchanged.
 
 const BALL = {
   day: require("@/assets/images/tabs/tab-ballboi-on.png"),
@@ -54,7 +73,7 @@ function whenLine(d: MatchDetail): string | null {
   const at = new Date(iso);
   if (Number.isNaN(at.getTime())) return null;
   const day = at.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
-  return d.scheduledAt ? `${day} · ${at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}` : day;
+  return d.scheduledAt ? `${day} · ${clockTime(at)}` : day;
 }
 
 function stageLine(d: MatchDetail): string {
@@ -125,6 +144,7 @@ export default function MatchDetailScreen() {
   const q = useGetMyMatch(matchId);
   const d = q.data;
   const { refetch } = q;
+  const pull = usePullToRefresh(() => refetch());
   const firstFocus = useRef(true);
   // Back from Enter score after an edit: show the new score.
   useFocusEffect(
@@ -137,54 +157,22 @@ export default function MatchDetailScreen() {
     }, [refetch]),
   );
 
-  const opponent = d?.opponents.players[0];
+  // Finding 9: the same card and actions as Home for a match not played yet.
+  const upcomingQ = useUpcomingMatches();
+  const pullUpcoming = usePullToRefresh(() => [refetch(), upcomingQ.refetch()]);
+  const { profile } = useProfile();
+  const { message: upcomingMessage } = useUpcomingMessage();
+  const upcoming = !!d && !d.played && !d.voided;
+  const leagueId = d?.leagueId ?? 0;
+  const leagueQ = useGetLeague(leagueId, { query: { enabled: upcoming && d?.leagueId != null, queryKey: getGetLeagueQueryKey(leagueId) } });
+
   const them = d ? sideName(d.opponents) : "";
   const you = d ? sideName(d.you) : "";
   const youWon = !!d?.you.won;
-  const sentence = d?.played && d.score ? resultSentence({ you, them, score: d.score, youWon }) : null;
-
-  function moreOptions() {
-    if (!d) return;
-    const options: { label: string; run: () => void }[] = [
-      {
-        label: "Share",
-        run: () =>
-          void Share.share({
-            message: sentence ? `${sentence} · ${d.context}` : `${you} vs. ${them} · ${d.context}`,
-          }).catch(() => {}),
-      },
-    ];
-    if (opponent?.hasAccount) {
-      options.push({
-        label: `Report ${opponent.name}`,
-        run: () => router.push({ pathname: "/report/[playerId]", params: { playerId: String(opponent.playerId), name: opponent.name } }),
-      });
-    }
-    const labels = options.map((o) => o.label);
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options: [...labels, "Cancel"], cancelButtonIndex: labels.length },
-        (i) => {
-          if (i < options.length) options[i].run();
-        },
-      );
-      return;
-    }
-    Alert.alert("More options", undefined, [...options.map((o) => ({ text: o.label, onPress: o.run })), { text: "Cancel", style: "cancel" as const }]);
-  }
-
-  const header = (
-    <Stack.Screen
-      options={{
-        headerRight: d ? () => <HeaderIconButton symbol="ellipsis" label="More options" onPress={moreOptions} /> : undefined,
-      }}
-    />
-  );
 
   if (q.isLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: c.paper, alignItems: "center", justifyContent: "center" }}>
-        {header}
         <ActivityIndicator color={c.ink} accessibilityLabel="Loading match" />
       </View>
     );
@@ -194,7 +182,6 @@ export default function MatchDetailScreen() {
     const status = (q.error as { status?: number } | null)?.status;
     return (
       <View style={{ flex: 1, backgroundColor: c.paper, padding: spacing.space4, paddingBottom: insets.bottom + spacing.space4 }}>
-        {header}
         <Card style={{ gap: spacing.space3 }}>
           <Text variant="bodyStrong" accessibilityRole="header">
             Couldn't load this match
@@ -257,13 +244,87 @@ export default function MatchDetailScreen() {
       ? router.push({ pathname: "/league/[leagueId]/score/[matchId]", params: { leagueId: String(d.leagueId), matchId: String(d.matchId), edit: "1" } })
       : router.push({ pathname: "/match/edit-score/[matchId]", params: { matchId: String(d.matchId) } });
 
+  if (upcoming) {
+    // Home's own item knows the Play by date; otherwise build it from this match.
+    const item =
+      upcomingQ.items.find((i) => i.matchId === d.matchId && i.kind !== "open") ??
+      upcomingFromDetail(d, stage);
+    // Match time: only in a league with no fixed weekly time (as on the league page).
+    const actions = upcomingActions(item, { matchTimeAllowed: !!leagueQ.data && leagueQ.data.matchDay == null });
+    const cardOpponent = item.opponentName ?? them;
+    const cardWhenLabel = cardWhen(item);
+    const leagueIdForActions = d.leagueId;
+    // The late note is on the card; any other note sits under it.
+    const upcomingNotes = shownNotes.filter((n) => n !== LATE_NOTE);
+    return (
+      <ScrollView
+        style={{ flex: 1, backgroundColor: c.paper }}
+        contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={pullUpcoming.refreshing}
+            onRefresh={pullUpcoming.onRefresh}
+            tintColor={c.ink}
+          />
+        }
+      >
+        <View accessible accessibilityRole="header" accessibilityLabel={`Match against ${cardOpponent}`} style={{ position: "absolute", width: 1, height: 1 }} />
+        <NextMatchCard
+          dateLabel={cardWhenLabel.dateLabel}
+          time={cardWhenLabel.time}
+          myName={profile?.displayName ?? "You"}
+          myPhoto={profile?.avatarUrl ?? sidePhoto(d.you)}
+          opponentPhoto={item.opponentPhoto}
+          opponentName={cardOpponent}
+          partnerName={item.partnerName}
+          opponentNames={item.opponentNames}
+          location={item.location ?? d.location}
+          league={item.context}
+          note={item.grace ? LATE_NOTE : null}
+          record={
+            actions.record
+              ? {
+                  label: "Record with Ball Boi",
+                  hint: `Records your match against ${cardOpponent}`,
+                  onPress: () => openRecorder(router, { matchId: d.matchId, opponentName: cardOpponent, leagueId: d.leagueId }),
+                }
+              : null
+          }
+          message={upcomingMessage(item)}
+          details={
+            actions.enterScore && leagueIdForActions != null
+              ? {
+                  label: "Enter score",
+                  hint: `For your match against ${cardOpponent}`,
+                  onPress: () => router.push({ pathname: "/league/[leagueId]/score/[matchId]", params: { leagueId: String(leagueIdForActions), matchId: String(d.matchId) } }),
+                }
+              : null
+          }
+          timeLink={
+            actions.matchTime && leagueIdForActions != null
+              ? {
+                  hasTime: !!item.scheduledAt,
+                  onPress: () => router.push({ pathname: "/league/[leagueId]/time/[matchId]", params: { leagueId: String(leagueIdForActions), matchId: String(d.matchId) } }),
+                }
+              : null
+          }
+          footer={actions.doublesNote ? <DoublesNote matchId={d.matchId} /> : null}
+        />
+        {upcomingNotes.map((n) => (
+          <Text key={n} variant="small" tone="inkMuted" style={{ paddingHorizontal: spacing.space1 }}>
+            {n}
+          </Text>
+        ))}
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
       contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
-      refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void refetch()} tintColor={c.ink} />}
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
-      {header}
       {/* The screen's name for VoiceOver; the nav bar title stays empty, as designed. */}
       <View accessible accessibilityRole="header" accessibilityLabel={`Match against ${them}`} style={{ position: "absolute", width: 1, height: 1 }} />
 
@@ -359,8 +420,6 @@ export default function MatchDetailScreen() {
         </View>
       ) : null}
 
-      {/* The match recap (decision 148): an image to share, once there's a score. */}
-      {d.played && !d.voided && d.score && !doubleDefault ? <RecapShareButton matchId={d.matchId} /> : null}
     </ScrollView>
   );
 }

@@ -5,6 +5,8 @@
 // screen use first names ("You and Sam vs. Jo and Lee", D8); VoiceOver hears
 // full names ("You and Sam Lee versus Jo Park and Lee King").
 
+import { clockTime } from "./timeFormat";
+
 export type Partners = "fixed" | "rotating";
 
 /** One line under the Partners choice in Start a league (D1). */
@@ -103,24 +105,19 @@ export function matchupLine(m: FourPlayers): string {
   return `${andJoin(sideNames(m, 1))} vs. ${andJoin(sideNames(m, 2))}`;
 }
 
-/** The recap line in team names (D7, decision 148): "John R. & Sam L. def. Jo P. & Lee K." */
-export function recapTeams(winners: string[], losers: string[]): string {
-  return `${winners.map(shortName).join(" & ")} def. ${losers.map(shortName).join(" & ")}`;
-}
-
 /** Manage > Teams: how each player without a partner shows (D2, D4, D9). */
 export function unpairedLabel(kind: "needs_partner" | "looking" | "no_partner"): string {
   return kind === "needs_partner" ? "Needs a partner" : kind === "looking" ? "Looking for a partner" : "No partner yet";
 }
 
-/** "Expires Thu 3:00 PM" for a team-up request (48 hours, D9). */
+/** "Expires Thu 3 PM" for a team-up request (48 hours, D9). */
 export function expiresLine(iso: string, now: Date = new Date()): string {
   const at = new Date(iso);
   const ms = at.getTime() - now.getTime();
   if (ms < 3_600_000) return "Expires within the hour";
   const hours = Math.round(ms / 3_600_000);
   if (hours < 24) return `Expires in ${hours} ${hours === 1 ? "hour" : "hours"}`;
-  return `Expires ${at.toLocaleDateString("en-US", { weekday: "short" })} ${at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+  return `Expires ${at.toLocaleDateString("en-US", { weekday: "short" })} ${clockTime(at)}`;
 }
 
 /** What a doubles score entry sends instead of sets (John, Nov 9). */

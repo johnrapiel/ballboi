@@ -77,6 +77,7 @@ import type {
   DeviceCheckInBody,
   DiscardRecordingBody,
   DiscardResult,
+  DiscoverArea,
   DiscoverAreaInput,
   DiscoverAvailabilityInput,
   DiscoverLeague,
@@ -155,6 +156,7 @@ import type {
   LockMatchBody,
   LogDoublesViewBody,
   LookingForPartnerBody,
+  LookupAreaParams,
   Match,
   MatchBallBoiShotCallbackBody,
   MatchDetail,
@@ -162,7 +164,6 @@ import type {
   MatchPlan,
   MatchPlanShiftInput,
   MatchPlansWithUser,
-  MatchRecap,
   MatchRemindersRunInput,
   MatchShot,
   MatchStatistics,
@@ -1552,6 +1553,100 @@ export const useSetDiscoverArea = <
 > => {
   return useMutation(getSetDiscoverAreaMutationOptions(options));
 };
+
+/**
+ * @summary Find a town or ZIP for a league's area (decision 182). A town in more than one state picks the one nearest your home area, or asks for the state.
+ */
+export const getLookupAreaUrl = (params: LookupAreaParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/areas/lookup?${stringifiedParams}`
+    : `/api/areas/lookup`;
+};
+
+export const lookupArea = async (
+  params: LookupAreaParams,
+  options?: RequestInit,
+): Promise<DiscoverArea> => {
+  return customFetch<DiscoverArea>(getLookupAreaUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLookupAreaQueryKey = (params?: LookupAreaParams) => {
+  return [`/api/areas/lookup`, ...(params ? [params] : [])] as const;
+};
+
+export const getLookupAreaQueryOptions = <
+  TData = Awaited<ReturnType<typeof lookupArea>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params: LookupAreaParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof lookupArea>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLookupAreaQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof lookupArea>>> = ({
+    signal,
+  }) => lookupArea(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof lookupArea>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type LookupAreaQueryResult = NonNullable<
+  Awaited<ReturnType<typeof lookupArea>>
+>;
+export type LookupAreaQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Find a town or ZIP for a league's area (decision 182). A town in more than one state picks the one nearest your home area, or asks for the state.
+ */
+
+export function useLookupArea<
+  TData = Awaited<ReturnType<typeof lookupArea>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params: LookupAreaParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof lookupArea>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getLookupAreaQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Save your free times (decision 156). Old app versions send the hour grid instead
@@ -4282,6 +4377,81 @@ export function useGetMyCareer<
 }
 
 /**
+ * @summary Your own Upcoming matches and Results, for Profile. Results list every match you played, league, Discover and Quick match, each with `yours` (John, Nov 10)
+ */
+export const getGetMyPlayerMatchesUrl = () => {
+  return `/api/player-cards/me/matches`;
+};
+
+export const getMyPlayerMatches = async (
+  options?: RequestInit,
+): Promise<PlayerMatches> => {
+  return customFetch<PlayerMatches>(getGetMyPlayerMatchesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyPlayerMatchesQueryKey = () => {
+  return [`/api/player-cards/me/matches`] as const;
+};
+
+export const getGetMyPlayerMatchesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyPlayerMatches>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyPlayerMatches>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyPlayerMatchesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMyPlayerMatches>>
+  > = ({ signal }) => getMyPlayerMatches({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyPlayerMatches>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyPlayerMatchesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyPlayerMatches>>
+>;
+export type GetMyPlayerMatchesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Your own Upcoming matches and Results, for Profile. Results list every match you played, league, Discover and Quick match, each with `yours` (John, Nov 10)
+ */
+
+export function useGetMyPlayerMatches<
+  TData = Awaited<ReturnType<typeof getMyPlayerMatches>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyPlayerMatches>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyPlayerMatchesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Milestones whose moment hasn't played yet (decision 149)
  */
 export const getGetMyNewMilestonesUrl = () => {
@@ -5974,93 +6144,6 @@ export function useGetMyLeagueWeek<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetMyLeagueWeekQueryOptions(options);
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-/**
- * @summary What the shareable match recap shows (decision 148). Players in the match only, once it has a score
- */
-export const getGetMatchRecapUrl = (matchId: number) => {
-  return `/api/me/matches/${matchId}/recap`;
-};
-
-export const getMatchRecap = async (
-  matchId: number,
-  options?: RequestInit,
-): Promise<MatchRecap> => {
-  return customFetch<MatchRecap>(getGetMatchRecapUrl(matchId), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getGetMatchRecapQueryKey = (matchId: number) => {
-  return [`/api/me/matches/${matchId}/recap`] as const;
-};
-
-export const getGetMatchRecapQueryOptions = <
-  TData = Awaited<ReturnType<typeof getMatchRecap>>,
-  TError = ErrorType<ErrorResponse>,
->(
-  matchId: number,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getMatchRecap>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey = queryOptions?.queryKey ?? getGetMatchRecapQueryKey(matchId);
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMatchRecap>>> = ({
-    signal,
-  }) => getMatchRecap(matchId, { signal, ...requestOptions });
-
-  return {
-    queryKey,
-    queryFn,
-    enabled: !!matchId,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getMatchRecap>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type GetMatchRecapQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getMatchRecap>>
->;
-export type GetMatchRecapQueryError = ErrorType<ErrorResponse>;
-
-/**
- * @summary What the shareable match recap shows (decision 148). Players in the match only, once it has a score
- */
-
-export function useGetMatchRecap<
-  TData = Awaited<ReturnType<typeof getMatchRecap>>,
-  TError = ErrorType<ErrorResponse>,
->(
-  matchId: number,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getMatchRecap>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetMatchRecapQueryOptions(matchId, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

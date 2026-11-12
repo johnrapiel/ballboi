@@ -1,7 +1,8 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { Icon } from "@/components/Icon";
+import { areaLabel } from "@/lib/leagueArea";
 import React, { useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -19,16 +20,18 @@ import {
 } from "@workspace/api-client-react";
 
 import { LeagueChatButton } from "@/components/league/LeagueChatButton";
+import { MatchTimeLink } from "@/components/MatchTimeLink";
 import { PartnerCard } from "@/components/league/PartnerCard";
-import { isDoublesMatch, opponentNames, partnerName, versusLine, versusSpoken } from "@/lib/doubles";
+import { andJoin, isDoublesMatch, opponentNames, partnerName, versusLine, versusSpoken } from "@/lib/doubles";
 import { RoundCard, UpcomingWeekRow } from "@/components/league/RoundCard";
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
 import { ListRow } from "@/components/league/ListRow";
 import { StandingsTable } from "@/components/league/StandingsTable";
 import { BracketView, myPlayoffMatch, ROUND_SINGULAR } from "@/components/league/Bracket";
 import { Button, ButtonRow, Card, Text } from "@/components/ui";
-import { MIN_TAP, spacing } from "@/constants/tokens";
+import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { RatingBadge } from "@/components/RatingBadge";
 import { DoublesRecordButton } from "@/components/record/DoublesMatchCard";
 import { levelSpoken } from "@/lib/onboarding";
@@ -65,52 +68,6 @@ import { openRecorder } from "@/lib/recording/start";
 
 type Tab = "standings" | "rounds" | "playoffs";
 
-/**
- * PR 4: the match's date and time. A row that opens the Match time sheet when
- * you can set it (leagues with no weekly time, or admins); plain text otherwise.
- */
-function MatchTimeRow({ when, canSet, onPress }: { when: string | null; canSet: boolean; onPress: () => void }) {
-  const c = useColors();
-  const value = when ?? "Not set";
-  if (!canSet) {
-    return when ? (
-      <View accessible accessibilityLabel={`Match time, ${when}`} style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2 }}>
-        <Icon name="calendar" size={16} tintColor={c.inkMuted} />
-        <Text variant="small" tone="inkMuted">
-          {when}
-        </Text>
-      </View>
-    ) : null;
-  }
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`Match time, ${value}`}
-      accessibilityHint={when ? "Change the day and time" : "Pick a day and time this week"}
-      style={({ pressed }) => ({
-        minHeight: MIN_TAP,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.space3,
-        borderTopWidth: 1,
-        borderTopColor: c.hairline,
-        paddingTop: spacing.space2,
-        opacity: pressed ? 0.7 : 1,
-      })}
-    >
-      <Icon name="calendar" size={18} tintColor={c.ink} />
-      <Text variant="bodyStrong" style={{ flex: 1 }}>
-        Match time
-      </Text>
-      <Text variant="small" tone="inkMuted">
-        {when ? value : "Set a time"}
-      </Text>
-      <Icon name="chevron.right" size={13} tintColor={c.inkMuted} />
-    </Pressable>
-  );
-}
-
 function YourWeek({
   leagueId,
   week,
@@ -131,6 +88,7 @@ function YourWeek({
 }) {
   // C6: hooks before any early return, so a bye week turning into a match
   // doesn't change the hook order.
+  const c = useColors();
   const openChat = useOpenDoublesMatchChat();
   const { round, match, bye } = week;
   const label = `Round ${round.roundNumber} · ${dateRange(round.startDate, round.deadline)}`;
@@ -182,6 +140,12 @@ function YourWeek({
         : `Play by ${deadlineDate(round.deadline, timeZone)}.`);
   // A late match keeps its saved time only while that's still ahead (decision 152).
   const matchTime = matchWhen(round.phase === "grace" ? lateTime(match.scheduledAt) : match.scheduledAt);
+  // Wave 2 finding 25 (John, Nov 12): the time sits under the date line, and
+  // "Set a match time" or "Change time" is link text right below it, as on
+  // Match detail. No Match time row under the buttons.
+  const timeOpen = !played && !match.voided && round.phase !== "closed" && !ended;
+  const shownTime = timeOpen ? matchTime : null;
+  const canSetThisTime = timeOpen && canSetTime && scoreable;
 
   return (
     <Card style={{ gap: spacing.space3 }}>
@@ -189,7 +153,7 @@ function YourWeek({
         accessible
         accessibilityLabel={`Your match. ${label}. ${isDoubles ? versusSpoken(partner, others) : `You versus ${opponent}`}${
           opponentRating ? `, ${levelSpoken(opponentRating.rating, opponentRating.source)}` : ""
-        }. ${when}`.replace(/ & /g, " and ")}
+        }. ${when}${shownTime ? ` Match time, ${shownTime}.` : ""}`.replace(/ & /g, " and ")}
         style={{ gap: spacing.space1 }}
       >
         <Text variant="section" tone="inkMuted">
@@ -202,7 +166,25 @@ function YourWeek({
         <Text variant="small" tone="inkMuted">
           {when}
         </Text>
+        {shownTime ? (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2 }}>
+            <Icon name="calendar" size={16} tintColor={c.inkMuted} />
+            <Text variant="small" tone="inkMuted" style={{ flexShrink: 1 }}>
+              {shownTime}
+            </Text>
+          </View>
+        ) : null}
       </View>
+      {canSetThisTime ? (
+        <MatchTimeLink
+          align="left"
+          hasTime={!!matchTime}
+          opponent={isDoubles ? andJoin(others) : opponent}
+          onPress={() => router.push(`/league/${leagueId}/time/${match.matchId}`)}
+          // Sits right under the date line; the 44pt target keeps its height.
+          style={{ marginTop: -spacing.space3 }}
+        />
+      ) : null}
       {/* John, Nov 8 (option A): Record with Ball Boi is the one primary
           action any day of the match's week, with Enter score and Message
           under it (spec: Ball Boi > Recording, "Every recording starts from
@@ -242,13 +224,6 @@ function YourWeek({
           ) : null}
         </ButtonRow>
       ) : null}
-      {!played && !match.voided && round.phase !== "closed" && !ended ? (
-        <MatchTimeRow
-          when={matchTime}
-          canSet={canSetTime && scoreable}
-          onPress={() => router.push(`/league/${leagueId}/time/${match.matchId}`)}
-        />
-      ) : null}
     </Card>
   );
 }
@@ -278,14 +253,7 @@ export default function LeagueScreen() {
   const playoff = myPlayoffMatch(bracket, myPlayerId);
   const rounds = (schedule?.rounds ?? []).filter((r) => r.phase !== "draft").slice().reverse();
 
-  const refreshing = leagueQ.isRefetching || standingsQ.isRefetching || scheduleQ.isRefetching;
-  const refresh = () => {
-    void leagueQ.refetch();
-    void membershipQ.refetch();
-    void standingsQ.refetch();
-    void scheduleQ.refetch();
-    void bracketQ.refetch();
-  };
+  const pull = usePullToRefresh(() => [leagueQ.refetch(), membershipQ.refetch(), standingsQ.refetch(), scheduleQ.refetch(), bracketQ.refetch()]);
 
   const enterScore = (m: ScheduleMatch) => router.push(`/league/${leagueId}/score/${m.matchId}`);
 
@@ -298,7 +266,7 @@ export default function LeagueScreen() {
   }
 
   const meta = league
-    ? [formatLabel(league.format), playTypeLabel(league.leagueType), league.location].filter(Boolean).join(" · ")
+    ? [formatLabel(league.format), playTypeLabel(league.leagueType), areaLabel(league.area), league.location].filter(Boolean).join(" · ")
     : "";
   const season =
     league?.startDate && league.endDate ? `Season ${dateRange(league.startDate, league.endDate)}` : null;
@@ -377,7 +345,7 @@ export default function LeagueScreen() {
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
       contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.ink} />}
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
       {leagueQ.isError || !league ? (
         <Card style={{ gap: spacing.space2 }}>

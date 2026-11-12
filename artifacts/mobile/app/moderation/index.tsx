@@ -9,6 +9,7 @@ import { Segmented } from "@/components/moderation/Segmented";
 import { Button, ButtonRow, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import {
   useDeviceBans,
   useIsAdmin,
@@ -57,6 +58,7 @@ export default function ModerationScreen() {
   const phones = useDeviceBans(isAdmin);
   const actions = useModerationActions();
   const [busy, setBusy] = useState<string | null>(null);
+  const pull = usePullToRefresh(() => (box === "reports" ? reports : box === "agent" ? decisions : box === "appeals" ? appeals : phones).refetch());
 
   if (checkingAdmin) {
     return (
@@ -116,7 +118,6 @@ export default function ModerationScreen() {
     );
 
   const active = box === "reports" ? reports : box === "agent" ? decisions : box === "appeals" ? appeals : phones;
-  const refreshing = active.isRefetching;
 
   return (
     <View style={{ flex: 1, backgroundColor: c.paper }}>
@@ -147,7 +148,7 @@ export default function ModerationScreen() {
         <FlatList<Report | AgentDecision | Appeal | DeviceBan>
           data={(active.data ?? []) as (Report | AgentDecision | Appeal | DeviceBan)[]}
           keyExtractor={(item) => String(item.id)}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void active.refetch()} tintColor={c.ink} />}
+          refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
           contentContainerStyle={{ flexGrow: 1, gap: spacing.space3, paddingHorizontal: spacing.space4, paddingBottom: insets.bottom + spacing.space6 }}
           renderItem={({ item }) =>
             box === "reports" ? (

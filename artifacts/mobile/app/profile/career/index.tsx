@@ -4,24 +4,28 @@
 // 2. All-time numbers, one VoiceOver group: Record, Played, Best streak,
 //    Sets won, Games won, Tiebreaks.
 // 2b. Milestones (decision 150): each earned badge with its title and the
-//    date it was earned.
+//    date it was earned. A row opens the milestone sheet (John, Nov 10).
 // 3. Seasons: each season you played in with its record; a row opens that
-//    season's results.
+//    season's results. They list every match you played, the same as
+//    Profile's Results (John, Nov 10), so placeholders and unconfirmed Quick
+//    matches show there even though they don't count in the numbers.
 // 4. Head-to-head: everyone you've played, "Sam Patel · 2-1", opening their
 //    card. Blocked players never show.
-// League, Discover and confirmed Quick matches count; unconfirmed Quick
+// In the numbers, league, Discover and confirmed Quick matches count; unconfirmed Quick
 // matches (G2), cancelled matches and walkovers' games don't. Ball Boi
 // career stats aren't here yet: they join once they pass their accuracy
 // bars (G1), as their own section under the numbers (see lib/career.ts).
 
 import { Stack, useRouter } from "expo-router";
 import React from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useGetMyCareer } from "@workspace/api-client-react";
 
 import { EmptyTab } from "@/components/card/MatchTabs";
+import { useOpenMilestone } from "@/components/card/MilestoneButtons";
+import { Icon } from "@/components/Icon";
 import { MilestoneBadge } from "@/components/MilestoneBadge";
 import { StatGrid } from "@/components/card/StatGrid";
 import { useEditHeader } from "@/components/profile/editHeader";
@@ -29,9 +33,10 @@ import { SettingsRow, SettingsSection } from "@/components/SettingsList";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { careerCells, careerSpoken, headToHeadRow, seasonRecord } from "@/lib/career";
-import { earnedLine, knownMilestones, MILESTONE_TITLES } from "@/lib/milestones";
+import { earnedLine, visibleMilestones, milestoneBadgeLabel, MILESTONE_TITLES } from "@/lib/milestones";
 
 export default function CareerScreen() {
   const c = useColors();
@@ -39,8 +44,11 @@ export default function CareerScreen() {
   const insets = useSafeAreaInsets();
   const header = useEditHeader("");
   const q = useGetMyCareer();
+  const pull = usePullToRefresh(() => q.refetch());
   const career = q.data;
-  const milestones = knownMilestones(career?.milestones);
+  // Hidden until after all waves (decision 179).
+  const milestones = visibleMilestones(career?.milestones);
+  const openMilestone = useOpenMilestone();
 
   return (
     <>
@@ -52,7 +60,7 @@ export default function CareerScreen() {
           paddingBottom: insets.bottom + spacing.space8,
           gap: spacing.space6,
         }}
-        refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void q.refetch()} tintColor={c.ink} />}
+        refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
       >
         <Text variant="headingL" accessibilityRole="header">
           Career
@@ -67,7 +75,7 @@ export default function CareerScreen() {
             </Text>
             <Button label="Try again" variant="secondary" loading={q.isRefetching} onPress={() => void q.refetch()} />
           </Card>
-        ) : career.played === 0 && !milestones.length ? (
+        ) : career.played === 0 && !career.results.length && !milestones.length ? (
           <EmptyTab
             title="No results yet"
             message="Once you play a league, Discover or Quick match and a score is entered, your career starts here."
@@ -81,11 +89,14 @@ export default function CareerScreen() {
             {milestones.length ? (
               <SettingsSection title="Milestones">
                 {milestones.map((m, i) => (
-                  <View
+                  <Pressable
                     key={m.kind}
-                    accessible
-                    accessibilityLabel={`${MILESTONE_TITLES[m.kind]}, ${earnedLine(m.earnedAt).toLowerCase()}`}
-                    style={{
+                    onPress={() => openMilestone(m)}
+                    accessibilityRole="button"
+                    accessibilityLabel={milestoneBadgeLabel(m)}
+                    accessibilityHint="Shows details"
+                    style={({ pressed }) => ({
+                      opacity: pressed ? 0.6 : 1,
                       flexDirection: "row",
                       alignItems: "center",
                       gap: spacing.space3,
@@ -94,7 +105,7 @@ export default function CareerScreen() {
                       paddingVertical: spacing.space2,
                       borderBottomWidth: i === milestones.length - 1 ? 0 : 1,
                       borderBottomColor: c.hairline,
-                    }}
+                    })}
                   >
                     <MilestoneBadge kind={m.kind} size={44} />
                     <View style={{ flex: 1, gap: 2 }}>
@@ -103,7 +114,8 @@ export default function CareerScreen() {
                         {earnedLine(m.earnedAt)}
                       </Text>
                     </View>
-                  </View>
+                    <Icon name="chevron.right" size={13} tintColor={c.inkMuted} />
+                  </Pressable>
                 ))}
               </SettingsSection>
             ) : null}

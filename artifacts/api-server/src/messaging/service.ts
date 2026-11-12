@@ -118,6 +118,8 @@ export interface GroupMessageView {
   /** For Report: the sender's league player, else their account. */
   senderPlayerId: number | null;
   senderUserId: number | null;
+  /** The sender's photo ("/objects/..."), shown beside their messages. Null for you, Ball Boi, or no photo. */
+  senderAvatarUrl: string | null;
   /** League chats: sent by a league admin, shown with the Admin label. */
   admin: boolean;
   /** League chats: names this message @mentions, for highlighting and VoiceOver. */
@@ -201,6 +203,8 @@ export const SNAPSHOT_CONTEXT = 19;
 
 /** Messages per page when opening or scrolling back through a conversation. */
 export const THREAD_PAGE = 50;
+/** How many recent messages the Messages list reads per chat to build its preview. */
+const PREVIEW_WINDOW = 20;
 
 export const DEV_SAMPLE_PREFIX = "dev_sample_";
 
@@ -305,7 +309,49 @@ export class MessagingService {
     return out.sort((x, y) => (y.c.lastMessageAt?.getTime() ?? 0) - (x.c.lastMessageAt?.getTime() ?? 0));
   }
 
-  private async views(me: string, rows: Visible[]): Promise<ConversationView[]> {
+  /**
+   * The newest messages the provider holds for each channel, oldest first, or
+   * undefined when it couldn't say (an error). `known` skips channels the
+   * caller already read.
+   */
+  private async recentFor(channelIds: string[], known?: Map<string, ProviderMessage[]>): Promise<Map<string, ProviderMessage[] | undefined>> {
+    const out = new Map<string, ProviderMessage[] | undefined>();
+    await Promise.all(
+      [...new Set(channelIds)].map(async (id) => {
+        const got = known?.get(id) ?? (await this.provider.listMessages(id, { limit: PREVIEW_WINDOW }).catch(() => undefined));
+        out.set(id, got);
+      }),
+    );
+    return out;
+  }
+
+  /**
+   * The Messages list preview comes from the chat's own messages, so it never
+   * shows text the chat can't load (Wave 2 walkthrough, finding 1: staging
+   * lost message text before #231 but kept the stored preview). When the two
+   * disagree, the stored preview is corrected to match. If the provider can't
+   * be read, or the window holds only hidden messages, the stored preview stands.
+   */
+  private async reconcileConversation(c: ConversationRecord, recent: ProviderMessage[] | undefined): Promise<ConversationRecord> {
+    if (!recent || !c.lastMessageAt) return c;
+    const shown = recent.filter((m) => !m.hidden);
+    const last = shown[shown.length - 1];
+    if (!last) {
+      if (recent.length) return c; // Only hidden ones in the window: can't tell, keep what's stored.
+      if (c.lastMessageText === null && c.aUnread === 0 && c.bUnread === 0) return c;
+      // The chat holds nothing: no preview, and nothing to read. The time stays so the row keeps its place.
+      return this.repo.update(c.id, { lastMessageText: null, lastSender: null, aUnread: 0, bUnread: 0 });
+    }
+    if (c.lastMessageText === last.text && c.lastSender === last.senderId && c.lastMessageAt.getTime() === last.createdAt.getTime()) return c;
+    return this.repo.update(c.id, { lastMessageText: last.text, lastSender: last.senderId, lastMessageAt: last.createdAt });
+  }
+
+  private async views(me: string, rows: Visible[], known?: Map<string, ProviderMessage[]>): Promise<ConversationView[]> {
+    const recent = await this.recentFor(
+      rows.map((r) => r.c.channelId),
+      known,
+    );
+    rows = await Promise.all(rows.map(async (r) => ({ ...r, c: await this.reconcileConversation(r.c, recent.get(r.c.channelId)) })));
     const people = await this.repo.people(rows.map((r) => this.otherOf(r.c, me)));
     return rows.map(({ c, state, blocked }) => {
       const person = people.get(this.otherOf(c, me)) ?? { name: "Player", playerId: null };
@@ -377,7 +423,12 @@ export class MessagingService {
     if (c.userB === me && c.bUnread > 0) c = await this.repo.update(c.id, { bUnread: 0 });
     await this.openChannel(c.channelId, [c.userA, c.userB]);
     const messages = await this.provider.listMessages(c.channelId, { limit: THREAD_PAGE, before: opts.before });
-    const [conversation] = await this.views(me, [{ ...found, c }]);
+    // A chat with messages that come back empty lost its channel (the
+    // in-memory provider, restarted). Make it again so replies still send.
+    if (!messages.length && c.lastMessageAt && !opts.before) await this.provider.ensureChannel(c.channelId, [c.userA, c.userB]);
+    // The latest page is also what the list preview is checked against.
+    const known = opts.before ? undefined : new Map([[c.channelId, messages.slice(-PREVIEW_WINDOW)]]);
+    const [conversation] = await this.views(me, [{ ...found, c }], known);
     return {
       conversation,
       messages: messages.filter((m) => !m.hidden).map((m) => this.messageView(m, me)),
@@ -701,15 +752,30 @@ export class MessagingService {
     return { group, member, members };
   }
 
+  /** Group chats: the stored preview corrected to the chat's own messages, like `reconcileConversation`. */
+  private async reconcileGroup(group: GroupRecord, recent: ProviderMessage[] | undefined): Promise<GroupRecord> {
+    if (!recent || !group.lastMessageAt) return group;
+    const shown = recent.filter((m) => !m.hidden);
+    const last = shown[shown.length - 1];
+    if (!last) {
+      if (recent.length || group.lastMessageText === null) return group;
+      return this.repo.updateGroup(group.id, { lastMessageText: null, lastSender: null });
+    }
+    const sender = last.system ? null : last.senderId;
+    if (group.lastMessageText === last.text && group.lastSender === sender && group.lastMessageAt.getTime() === last.createdAt.getTime()) return group;
+    return this.repo.updateGroup(group.id, { lastMessageText: last.text, lastSender: sender, lastMessageAt: last.createdAt });
+  }
+
   private async groupView(me: string, group: GroupRecord, member: GroupMember, memberCount: number, blocked: Set<string>): Promise<GroupView> {
+    const recent = (await this.recentFor([group.channelId])).get(group.channelId);
+    group = await this.reconcileGroup(group, recent);
     let last: GroupView["lastMessage"] = null;
     if (group.lastMessageAt && group.lastMessageText !== null) {
       if (group.lastSender && blocked.has(group.lastSender)) {
         // The latest is from someone you have a block with: show the one before it you can see.
-        const recent = (await this.provider.listMessages(group.channelId, { limit: 20 })).filter(
-          (m) => !m.hidden && (m.system || !blocked.has(m.senderId)),
-        );
-        const seen = recent[recent.length - 1];
+        const seen = (recent ?? (await this.provider.listMessages(group.channelId, { limit: PREVIEW_WINDOW })))
+          .filter((m) => !m.hidden && (m.system || !blocked.has(m.senderId)))
+          .at(-1);
         if (seen) last = await this.lastFrom(me, seen.system ? null : seen.senderId, seen.text, seen.createdAt);
       } else {
         last = await this.lastFrom(me, group.lastSender, group.lastMessageText, group.lastMessageAt);
@@ -871,6 +937,7 @@ export class MessagingService {
       senderName: m.system ? null : m.senderId === me ? "You" : (p?.name ?? "Player"),
       senderPlayerId: p?.playerId ?? null,
       senderUserId: p?.userId ?? null,
+      senderAvatarUrl: p?.avatarUrl ?? null,
       admin: !m.system && m.admin === true,
       mentions: mentions.map((u) => (u === me ? "You" : (people.get(u)?.name ?? "Player"))),
       mentionsMe: mentions.includes(me),

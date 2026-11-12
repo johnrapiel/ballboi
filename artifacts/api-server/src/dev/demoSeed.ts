@@ -9,6 +9,10 @@
 //   of week 3, John's match later this week, and three players on the waitlist.
 // - Hudson Valley Summer Singles (Private, ended): final standings and a
 //   finished top-8 playoff, with a walkover.
+// - Three doubles leagues run by John (demoDoubles.ts): Tuesday Doubles (fixed
+//   partners, mid-season), Rotating Doubles Night (rotating partners,
+//   mid-season) and Winter Doubles (fixed partners, before its season, with a
+//   team-up request to John).
 // - Only with --discover (local development, never staging): about 30 more
 //   nearby players for Discover (3 far away who shouldn't show), and two Open
 //   leagues starting soon.
@@ -24,7 +28,8 @@
 // it the same way. It never touches other people's data or the schema.
 //
 // Messages aren't seeded: staging keeps messages in the API's memory, so
-// anything written from here would never reach the app.
+// anything written from here would never reach the app. That includes the
+// doubles match chats (D6): the API opens them itself (see demoDoubles.ts).
 
 import { clerkClient } from "@clerk/express";
 import {
@@ -33,10 +38,13 @@ import {
   leagueAdminsTable,
   leagueInvitesTable,
   leagueJoinRequestsTable,
+  leagueMatchChatCardsTable,
   leagueRoundByesTable,
   leagueRoundsTable,
   leaguesTable,
   matchesTable,
+  messageGroupMembersTable,
+  messageGroupsTable,
   playersTable,
   playoffBracketsTable,
   usersTable,
@@ -46,6 +54,8 @@ import {
 import { and, desc, eq, ilike, inArray, isNull } from "drizzle-orm";
 import { customAlphabet } from "nanoid";
 import { deleteAccount } from "../lib/accountDeletion.js";
+import { LEAGUE_ENDED } from "../messaging/service.js";
+import { CHAT_CANCELLED } from "../lib/doublesTeams.js";
 import {
   DEMO_AREAS,
   DEMO_COURTS,
@@ -78,6 +88,7 @@ import { advanceTo, bracketRounds, firstRoundSeeds, playoffRoundWindow, seedOrde
 import { WALKOVER_SCORE } from "../lib/tennisScore.js";
 import { ensureDraft, usesWeeklyRounds } from "../services/leagueRounds.js";
 import { johnsAccount, Problem } from "./walkthroughData.js";
+import { seedDoublesDemo, type DoublesSummary } from "./demoDoubles.js";
 
 const quiet = { warn: () => {}, info: () => {} };
 const newInviteCode = customAlphabet("23456789ABCDEFGHJKMNPQRSTUVWXYZ", 8);
@@ -101,6 +112,8 @@ export interface DemoSummary {
   league: LeagueCounts & { startDate: string; weeks: number; inviteCode: string | null };
   second: LeagueCounts & { waitlist: number };
   past: LeagueCounts & { playoffMatches: number; champion: string; johnSeed: number | null };
+  /** The three doubles leagues (Wave 2 walkthrough, section 4). */
+  doubles: DoublesSummary;
   /** Whether the Discover extras were made (--discover). */
   discover: boolean;
   /** Demo accounts this run made profiles for. */
@@ -196,10 +209,32 @@ async function reset(leagueId: number | null, johnId: string, demoIds: string[])
   const demoLeagues = await db.select({ id: leaguesTable.id }).from(leaguesTable).where(eq(leaguesTable.description, DEMO_LEAGUE_MARKER));
   const demoLeagueIds = demoLeagues.map((l) => l.id);
   if (demoLeagueIds.length) {
-    // Rounds, byes, invites, admins, join requests and brackets go with the league.
+    // Doubles match chats (D6) belong to a match, not the league: they close the
+    // same way, so John doesn't keep last run's chats in Messages.
+    const demoMatches = await db.select({ id: matchesTable.id }).from(matchesTable).where(inArray(matchesTable.leagueId, demoLeagueIds));
+    const matchIds = demoMatches.map((m) => m.id);
+    if (matchIds.length) {
+      const matchChats = await db.select({ id: messageGroupsTable.id }).from(messageGroupsTable).where(inArray(messageGroupsTable.matchId, matchIds));
+      if (matchChats.length) {
+        const ids = matchChats.map((c) => c.id);
+        await db.delete(messageGroupMembersTable).where(inArray(messageGroupMembersTable.groupId, ids));
+        await db.update(messageGroupsTable).set({ open: false, closedReason: CHAT_CANCELLED }).where(inArray(messageGroupsTable.id, ids));
+      }
+      await db.delete(leagueMatchChatCardsTable).where(inArray(leagueMatchChatCardsTable.matchId, matchIds));
+    }
+    // Rounds, byes, invites, admins, join requests, brackets, teams and team-up requests go with the league.
     await db.delete(matchesTable).where(inArray(matchesTable.leagueId, demoLeagueIds));
     await db.delete(playersTable).where(inArray(playersTable.leagueId, demoLeagueIds));
     await db.delete(leaguesTable).where(inArray(leaguesTable.id, demoLeagueIds));
+    // Their league chats empty out and close, as when a league is deleted in the app.
+    // Otherwise John keeps the old chat and sees each demo league's chat twice in
+    // Messages after a re-seed (Wave 2 finding 2). Messages and the chat row stay.
+    const chats = await db.select({ id: messageGroupsTable.id }).from(messageGroupsTable).where(inArray(messageGroupsTable.leagueId, demoLeagueIds));
+    if (chats.length) {
+      const chatIds = chats.map((c) => c.id);
+      await db.delete(messageGroupMembersTable).where(inArray(messageGroupMembersTable.groupId, chatIds));
+      await db.update(messageGroupsTable).set({ open: false, closedReason: LEAGUE_ENDED }).where(inArray(messageGroupsTable.id, chatIds));
+    }
   }
 
   if (leagueId) {
@@ -792,6 +827,18 @@ export async function seedDemo(opts: { me: string | null; leagueId: number | nul
     );
   }
 
+  // ── Three doubles leagues run by John (Wave 2 walkthrough, section 4).
+  const johnMember = { name: johnName, clerkUserId: john.id, rating: johnRating, hand: johnUser?.dominantHand ?? "right", bio: null };
+  const doubles = await seedDoublesDemo({
+    today,
+    rand: seededRandom(11),
+    john: ctx.john,
+    johnMember,
+    memberOf: (n) => memberOf(ctx, n),
+    createLeague,
+    marker: DEMO_LEAGUE_MARKER,
+  });
+
   const [invite] = await db
     .select({ code: leagueInvitesTable.code })
     .from(leagueInvitesTable)
@@ -835,6 +882,7 @@ export async function seedDemo(opts: { me: string | null; leagueId: number | nul
       champion: playoffs.champion,
       johnSeed: playoffs.johnSeed,
     },
+    doubles,
     discover,
     accounts: everyone.length,
     accountsCreated,

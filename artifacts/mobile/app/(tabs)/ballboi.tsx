@@ -9,6 +9,7 @@ import { TabScreen } from "@/components/TabHeader";
 import { Button, Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { useServerRecordings, useTodaysMatches } from "@/lib/recording/api";
 import { useQueue, useQueueLoaded } from "@/lib/recording/queue";
@@ -42,19 +43,14 @@ export default function BallBoiScreen() {
   // Still waiting for its video, recorded by you, and not on this phone: it
   // can't upload any more, as after a reinstall (D18).
   const lost = (r: (typeof onServer)[number]) => queueLoaded && r.recordedByYou && r.stage === "uploading";
-  const refreshing = today.isRefetching || server.isRefetching;
-
-  const refresh = () => {
-    today.refetch();
-    server.refetch();
-  };
+  const pull = usePullToRefresh(() => [today.refetch(), server.refetch()]);
 
   return (
     <TabScreen title="Ball Boi">
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingBottom: spacing.space12, gap: spacing.space6 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.ink} />
+          <RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />
         }
       >
         <View style={{ gap: spacing.space3 }}>

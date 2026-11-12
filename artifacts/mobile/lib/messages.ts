@@ -1,11 +1,13 @@
 // Small helpers for Messages screens.
 
+import { clockTime } from "./timeFormat";
+
 /** "5:02 PM" today, "Yesterday", "Mon" this week, then "Oct 12". */
 export function shortTime(iso: string, now = new Date()): string {
   const d = new Date(iso);
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const t = d.getTime();
-  if (t >= startOfToday) return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  if (t >= startOfToday) return clockTime(d);
   if (t >= startOfToday - 86_400_000) return "Yesterday";
   if (t >= startOfToday - 6 * 86_400_000) return d.toLocaleDateString(undefined, { weekday: "short" });
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -14,7 +16,7 @@ export function shortTime(iso: string, now = new Date()): string {
 /** Spoken time for VoiceOver: "5:02 PM", "yesterday at 5:02 PM", "October 12 at 5:02 PM". */
 export function spokenTime(iso: string, now = new Date()): string {
   const d = new Date(iso);
-  const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const time = clockTime(d);
   const short = shortTime(iso, now);
   if (short === time) return time;
   if (short === "Yesterday") return `yesterday at ${time}`;

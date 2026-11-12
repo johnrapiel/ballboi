@@ -39,6 +39,7 @@ import { TestingTools } from "@/components/league/TestingTools";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { shortDate, weeklyMatchTime } from "@/lib/leagueSchedule";
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { leagueLevelLabel } from "@/lib/onboarding";
@@ -138,6 +139,7 @@ export default function ManageLeagueScreen() {
       ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
       refreshLeague(queryClient, leagueId),
     ]);
+  const pull = usePullToRefresh(refreshAll);
 
   // C19: a decline that didn't go through says so, and the request stays.
   const declineRequest = (r: JoinRequest) =>
@@ -363,13 +365,12 @@ export default function ManageLeagueScreen() {
     );
   }
 
-  const refreshing = rosterQ.isRefetching || scheduleQ.isRefetching || requestsQ.isRefetching || invitesQ.isRefetching;
 
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
       contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space2 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refreshAll()} tintColor={c.ink} />}
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
       <View style={{ gap: spacing.space1, marginBottom: spacing.space2 }}>
         {/* Page title in the heading style (Cormorant at 50% ink), the league under it. */}

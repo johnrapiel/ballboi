@@ -30,7 +30,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { discoverScreens } from "@/components/discover/routes";
-import { fullSheetOptions, sheetOptions } from "@/components/Sheet";
+import { fullSheetOptions, grabberBarOptions, grabberOptions, sheetOptions } from "@/components/Sheet";
 import { Button, ScrollScreen, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { accountStatusKey } from "@/hooks/useAccountStatus";
@@ -231,23 +231,24 @@ function RootLayoutNav() {
             title: "Quick match",
             headerShadowVisible: false,
             headerTintColor: colors.ink,
-            headerStyle: { backgroundColor: colors.paper },
             headerTitleStyle: { fontFamily: "DMSans_600SemiBold", color: colors.ink },
+            ...grabberBarOptions(colors.paper),
           }}
         />
-        <Stack.Screen name="join/[code]" options={{ headerShown: false, presentation: "modal" }} />
-        <Stack.Screen name="record/invite/[code]" options={{ headerShown: false, presentation: "modal" }} />
+        <Stack.Screen name="join/[code]" options={{ ...grabberOptions(), presentation: "modal" }} />
+        <Stack.Screen name="record/invite/[code]" options={{ ...grabberOptions(), presentation: "modal" }} />
         <Stack.Screen name="record/score/[matchId]" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="report/[playerId]" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="feedback" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="notifications" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="free-times" options={sheetOptions(colors.linen)} />
+        <Stack.Screen name="milestone" options={sheetOptions(colors.linen)} />
         <Stack.Screen name="replay/[matchId]" options={{ ...pushedHeader, title: "Replay" }} />
         <Stack.Screen name="match/[matchId]" options={{ ...pushedHeader, title: "" }} />
         {/* Live match: the second phone, opened from the Live Activity (Session G). */}
         <Stack.Screen name="live/[matchId]" options={{ ...pushedHeader, title: "" }} />
         <Stack.Screen name="match/edit-score/[matchId]" options={sheetOptions(colors.linen)} />
-        {discoverScreens(colors.linen, pushedHeader)}
+        {discoverScreens(colors.linen, pushedHeader, colors.paper)}
       </Stack>
       {covered ? <Cover /> : null}
     </View>

@@ -6,7 +6,7 @@
 // W2_Discover and its states.
 
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect } from "react";
 import { RefreshControl, ScrollView, Share, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -25,6 +25,7 @@ import { useDiscoverMe, useDiscoverPlayers, useSaveRadius } from "@/hooks/useDis
 import { discoverState, useDiscoverState } from "@/hooks/useDiscoverFilters";
 import { useDiscoverLeagues } from "@/hooks/useDiscoverLeagues";
 import { useOpenMatches } from "@/hooks/useDiscoverOpenMatches";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { isOfflineError } from "@/lib/api";
 import { RADIUS_STEPS, countFor, countLine, filtersSpoken, inviteMessage, type DiscoverTab, type PlayFilter } from "@/lib/discover";
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
@@ -47,21 +48,15 @@ export default function DiscoverScreen() {
     }, []),
   );
 
-  const [refreshing, setRefreshing] = useState(false);
   const players = useDiscoverPlayers(radius, filters, !!me.data && tab === "players");
   const leagues = useDiscoverLeagues(radius, !!me.data && tab === "leagues");
   const matches = useOpenMatches(radius, !!me.data && tab === "matches");
 
   // Pull to refresh reloads your area and the list on the tab you're on.
-  async function refresh() {
-    setRefreshing(true);
+  const pull = usePullToRefresh(() => {
     const list = tab === "players" ? players : tab === "leagues" ? leagues : matches;
-    try {
-      await Promise.all([me.refetch(), list.refetch()]);
-    } finally {
-      setRefreshing(false);
-    }
-  }
+    return [me.refetch(), list.refetch()];
+  });
 
   const area = me.data?.area ?? null;
   const changeArea = () => router.push("/discover/area");
@@ -87,7 +82,7 @@ export default function DiscoverScreen() {
           paddingBottom: insets.bottom + 96,
           gap: spacing.space3,
         }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.ink} />}
+        refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
       >
         <AreaRow area={area} onPress={changeArea} />
         <DiscoverTabs value={tab} onChange={(t: DiscoverTab) => discoverState.setTab(t)} />

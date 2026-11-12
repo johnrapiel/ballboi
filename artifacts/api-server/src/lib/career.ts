@@ -12,6 +12,12 @@
 // - a retirement's games count; its unfinished last set doesn't.
 // - a match tiebreak (first to 10) counts as one game and one tiebreak.
 //
+// Results and Seasons list every match you played, the same rule as
+// Profile's Results (John, Nov 10): league, Discover and Quick match,
+// placeholders and unconfirmed Quick matches by the name you typed, and never
+// a match against someone blocked with you. A double default stays out of
+// Career (decision 170). The numbers above still count by decision 121.
+//
 // Head-to-head lists every real opponent you've played, singles and doubles,
 // counting each person on the other side. A player blocked with you, either
 // way, never shows there (their matches still count in your totals).
@@ -74,13 +80,16 @@ export interface CareerResult {
   matchId: number;
   seasonKey: string;
   opponentName: string;
-  won: boolean;
+  /** Your partner in doubles, else null. */
+  partnerName: string | null;
+  /** Null when no winner was recorded. */
+  won: boolean | null;
   /** From your side, your games first. RET and W/O carry over. */
   score: string;
   /** League name, "Discover" or "Quick match". */
   context: string;
   playoff: boolean;
-  /** A league match, which opens Match detail. */
+  /** A league match. Every result opens Match detail (decision 151). */
   league: boolean;
   completedAt: string | null;
 }
@@ -200,16 +209,48 @@ export function countedMatches(input: Pick<CareerInput, "account" | "matches" | 
   return counted.sort((a, b) => a.at.localeCompare(b.at) || a.m.id - b.m.id);
 }
 
+/** A match on your Results and Seasons lists, from your side. */
+interface ListedMatch {
+  m: CareerMatch;
+  side: 1 | 2;
+  won: boolean | null;
+  at: string;
+}
+
+/**
+ * Every match you played, for Results and Seasons, newest first: the same
+ * rule as Profile's Results. Wider than countedMatches: a placeholder or an
+ * unconfirmed Quick match lists, by the name you typed.
+ */
+export function listedMatches(input: Pick<CareerInput, "account" | "matches" | "players" | "blocked">): ListedMatch[] {
+  const owner = (id: number) => input.players.get(id)?.clerkUserId ?? null;
+  const listed: ListedMatch[] = [];
+  for (const m of input.matches) {
+    if (m.status !== "completed" || !m.score || m.voidedAt || NOT_PLAYED.has(m.status)) continue;
+    if (isDoubleDefault(m.score)) continue;
+    const one = team(m, 1).some((id) => owner(id) === input.account);
+    const two = team(m, 2).some((id) => owner(id) === input.account);
+    if (one === two) continue;
+    const touchesBlocked = [...team(m, 1), ...team(m, 2)].some((id) => {
+      const o = owner(id);
+      return o != null && input.blocked.has(o);
+    });
+    if (touchesBlocked) continue;
+    const side: 1 | 2 = one ? 1 : 2;
+    const won = m.winnerId == null ? null : team(m, side).includes(m.winnerId) ? true : team(m, side === 1 ? 2 : 1).includes(m.winnerId) ? false : null;
+    listed.push({ m, side, won, at: m.completedAt ?? "" });
+  }
+  return listed.sort((a, b) => b.at.localeCompare(a.at) || b.m.id - a.m.id);
+}
+
 export function careerStats(input: CareerInput): CareerStats {
   const owner = (id: number) => input.players.get(id)?.clerkUserId ?? null;
   const counted = countedMatches(input);
 
   const totals = { sets: { won: 0, lost: 0 }, games: { won: 0, lost: 0 }, tiebreaks: { won: 0, lost: 0 } };
-  const seasons = new Map<string, CareerSeason>();
+  /** Each season's record, by decision 121. */
+  const records = new Map<string, { wins: number; losses: number; played: number }>();
   const h2h = new Map<string, CareerHeadToHead>();
-  const results: CareerResult[] = [];
-  /** Each season's latest match, so they list newest first. */
-  const lastAt = new Map<string, string>();
   let wins = 0;
   let losses = 0;
   let best = 0;
@@ -222,23 +263,22 @@ export function careerStats(input: CareerInput): CareerStats {
       totals[k].won += t[k].won;
       totals[k].lost += t[k].lost;
     }
-    const s = seasonFor(c.at.slice(0, 10) || "1970-01-01", input.seasons);
-    const season = seasons.get(s.key) ?? { ...s, wins: 0, losses: 0, played: 0 };
-    season.played++;
-    seasons.set(s.key, season);
-    lastAt.set(s.key, c.at);
+    const key = seasonFor(c.at.slice(0, 10) || "1970-01-01", input.seasons).key;
+    const record = records.get(key) ?? { wins: 0, losses: 0, played: 0 };
+    record.played++;
+    records.set(key, record);
     if (c.won == null) {
       run = 0;
       continue;
     }
     if (c.won) {
       wins++;
-      season.wins++;
+      record.wins++;
       run++;
       best = Math.max(best, run);
     } else {
       losses++;
-      season.losses++;
+      record.losses++;
       run = 0;
     }
     for (const o of c.opponents) {
@@ -249,32 +289,42 @@ export function careerStats(input: CareerInput): CareerStats {
       else row.losses++;
       h2h.set(o, row);
     }
-    const them = team(c.m, c.side === 1 ? 2 : 1);
-    const themName = them.map((id) => {
-      const o = owner(id);
-      return (o ? input.users.get(o)?.name : undefined) ?? input.players.get(id)?.name ?? "Player";
-    });
+  }
+
+  // Results and Seasons: every match you played, newest first.
+  const nameOf = (id: number) => {
+    const o = owner(id);
+    return (o ? input.users.get(o)?.name : undefined) ?? input.players.get(id)?.name ?? "Player";
+  };
+  const seasons = new Map<string, CareerSeason>();
+  const results: CareerResult[] = [];
+  for (const l of listedMatches(input)) {
+    const s = seasonFor(l.at.slice(0, 10) || "1970-01-01", input.seasons);
+    // Newest first, so a season's first row sets its place in the list.
+    if (!seasons.has(s.key)) seasons.set(s.key, { ...s, ...(records.get(s.key) ?? { wins: 0, losses: 0, played: 0 }) });
+    const ours = team(l.m, l.side);
+    const partner = ours.filter((id) => owner(id) !== input.account);
     results.push({
-      matchId: c.m.id,
+      matchId: l.m.id,
       seasonKey: s.key,
-      opponentName: themName.join(" & "),
-      won: c.won,
-      score: mine,
-      context: contextFor(c.m, input.leagues),
-      playoff: c.m.playoffBracketId != null,
-      league: c.m.leagueId != null,
-      completedAt: c.m.completedAt,
+      opponentName: team(l.m, l.side === 1 ? 2 : 1).map(nameOf).join(" & "),
+      partnerName: ours.length > 1 && partner.length ? partner.map(nameOf).join(" & ") : null,
+      won: l.won,
+      score: l.side === 1 ? l.m.score! : flipScore(l.m.score!),
+      context: contextFor(l.m, input.leagues),
+      playoff: l.m.playoffBracketId != null,
+      league: l.m.leagueId != null,
+      completedAt: l.m.completedAt,
     });
   }
 
-  results.reverse();
   return {
     wins,
     losses,
     played: counted.length,
     bestWinStreak: best,
     ...totals,
-    seasons: [...seasons.values()].sort((a, b) => (lastAt.get(b.key) ?? "").localeCompare(lastAt.get(a.key) ?? "")),
+    seasons: [...seasons.values()],
     results,
     headToHead: [...h2h.values()].sort((a, b) => b.wins + b.losses - (a.wins + a.losses) || a.name.localeCompare(b.name)),
   };

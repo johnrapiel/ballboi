@@ -22,9 +22,9 @@ export interface Career {
   sets: CareerWonLost;
   games: CareerWonLost;
   tiebreaks: CareerWonLost;
-  /** Newest first, only seasons you played in */
+  /** Newest first, only seasons with a result in `results`. The record counts by decision 121 */
   seasons: CareerSeasonsItem[];
-  /** Newest first */
+  /** Newest first. Every match you played, the same list as Profile's Results (league, Discover and Quick match, placeholders by name, none against someone blocked with you); a double default stays out (decision 170) */
   results: CareerResultsItem[];
   /** Most played first; never a player blocked with you */
   headToHead: CareerHeadToHeadItem[];
