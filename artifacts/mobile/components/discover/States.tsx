@@ -52,7 +52,7 @@ export function SkeletonRows({ rows = 4 }: { rows?: number }) {
 export function NoteCard({ symbol, title, body, action }: { symbol: IconName; title?: string; body: string; action?: React.ReactNode }) {
   const c = useColors();
   return (
-    <Card style={{ flexDirection: "row", gap: spacing.space3, alignItems: "flex-start", paddingVertical: spacing.space3 }}>
+    <Card style={{ flexDirection: "row", gap: spacing.space3, alignItems: "flex-start" }}>
       <View style={{ paddingTop: 2 }}>
         <Icon name={symbol} size={20} tintColor={c.ink} />
       </View>
@@ -74,7 +74,7 @@ export function ProblemCard({ title, body, onRetry, retrying }: { title: string;
     AccessibilityInfo.announceForAccessibility(`${title}. ${body}`);
   }, [title, body]);
   return (
-    <Card style={{ alignItems: "center", gap: spacing.space2, paddingVertical: spacing.space6 }}>
+    <Card style={{ alignItems: "center", gap: spacing.space2 }}>
       <View
         style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: c.sand, alignItems: "center", justifyContent: "center" }}
         importantForAccessibility="no-hide-descendants"

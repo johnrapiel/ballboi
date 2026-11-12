@@ -60,7 +60,8 @@ export function MatchCard({
     </View>
   );
   return (
-    <Card style={{ gap: spacing.space4, paddingVertical: spacing.space6 }}>
+    // Sits in Home's match slot, so it keeps the Next match card's padding, equal on every side (decision 192).
+    <Card style={{ gap: spacing.space4, padding: spacing.space6 }}>
       {onOpen ? (
         <Pressable
           onPress={onOpen}

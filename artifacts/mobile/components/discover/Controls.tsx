@@ -12,6 +12,7 @@ import { Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { RADIUS_STEPS, areaLine, countFor, isCustomRadius, radiusChipSpoken, type DiscoverArea, type DiscoverTab } from "@/lib/discover";
+import { textTapSlop } from "@/lib/tapTarget";
 
 /** Text sizes at which rows of controls stack instead of sitting side by side. */
 export function useLargeText(threshold = 1.35): boolean {
@@ -237,7 +238,10 @@ export function DistanceChips({
   );
 }
 
-/** An underlined text button with a 44pt target, for "Set times", "Change in Settings". */
+/**
+ * An underlined text button for "Set times", "Change in Settings". Its 44pt
+ * target comes from hitSlop, so it adds no space inside a card (decision 192).
+ */
 export function LinkButton({
   label,
   onPress,
@@ -254,9 +258,9 @@ export function LinkButton({
       onPress={onPress}
       accessibilityRole="link"
       accessibilityLabel={accessibilityLabel ?? label}
-      hitSlop={4}
+      hitSlop={textTapSlop("bodyStrong")}
       style={({ pressed }) => [
-        { minHeight: MIN_TAP, justifyContent: "center", alignSelf: "flex-start", opacity: pressed ? 0.6 : 1 },
+        { justifyContent: "center", alignSelf: "flex-start", opacity: pressed ? 0.6 : 1 },
         style,
       ]}
     >

@@ -189,8 +189,7 @@ function YourWeek({
           hasTime={!!matchTime}
           opponent={isDoubles ? andJoin(others) : opponent}
           onPress={() => router.push(`/league/${leagueId}/time/${match.matchId}`)}
-          // Sits right under the date line; the 44pt target keeps its height.
-          style={{ marginTop: -spacing.space3 }}
+          // Sits right under the date line; its 44pt target is hitSlop (decision 192).
         />
       ) : null}
       {/* John, Nov 8 (option A): Record with Ball Boi is the one primary

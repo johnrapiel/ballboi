@@ -99,9 +99,8 @@ export function NextMatchCard({
       style={{
         backgroundColor: c.linen,
         borderRadius: radius.radiusCard,
-        paddingTop: 22,
-        paddingHorizontal: 20,
-        paddingBottom: 20,
+        // The hero card keeps more padding (design system), equal on every side (decision 192).
+        padding: spacing.space6,
         alignItems: "center",
         // One rule for every card (John, Nov 7): the light hairline border, no shadow.
         borderWidth: 1,
@@ -119,7 +118,7 @@ export function NextMatchCard({
           </Text>
         </View>
         {timeLink ? (
-          <MatchTimeLink hasTime={timeLink.hasTime} opponent={opponentName} onPress={timeLink.onPress} style={{ marginBottom: spacing.space2 }} />
+          <MatchTimeLink hasTime={timeLink.hasTime} opponent={opponentName} onPress={timeLink.onPress} style={{ marginTop: spacing.space2, marginBottom: spacing.space4 }} />
         ) : null}
         <View accessible={!!timeLink} accessibilityLabel={restSummary} style={{ alignItems: "center", width: "100%" }}>
           <View style={{ flexDirection: "row" }}>

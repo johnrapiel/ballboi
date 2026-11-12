@@ -120,6 +120,8 @@ One rule wherever a finished match shows both players (John, Nov 8): the league 
 
 - Radius: `radius-pill` (999px) for buttons, chips, pills and avatars. `radius-card` (16px) for every card. `radius-md` (10px) for wells, inputs and small panels, `radius-lg` for sheets.
 - Spacing steps: 4, 8, 12, 16, 24, 32, 48. Page gutter `space-4` on phones, `space-6` up.
+- **Card padding: one token, equal on all sides** (decision 192, John, Nov 12). Cards, banners and notices use `space-4` on every side, so the space above the first line matches the space below the last. The hero cards in Home's match slot (Next match, bye week, pairings to review) keep `space-6`, also equal on every side. Cards whose rows run edge to edge (lists, settings groups) set padding to 0 and let each row pad itself. No last child adds bottom margin inside a card.
+- **Touch targets grow with hitSlop, not layout.** A text link or text button (Change in Settings, Set a match time, Enter score, Clear) keeps its 44pt target through `hitSlop` (`textTapSlop` in `lib/tapTarget.ts`), never `minHeight` or padding, so it doesn't add visible space in a card. Filled buttons and chips show their full target and keep their size; anything smaller than 44pt that you can tap (a pill, an icon) gets the rest from hitSlop too.
 - Touch targets: 44px minimum.
 - Buttons in the native header are plain brush icons; iOS draws their background.
 
