@@ -200,10 +200,32 @@ export function demoCounts(d: DemoSummary): string {
     `Test League 1: ${d.league.players} players, ${d.league.played} played, ${d.league.inGrace} in grace week, ${d.league.notPlayed} not played; match today: ${d.johnsMatchToday ? "yes" : "no"}; round ${d.draftRound ?? "-"} draft for review; ${d.joinRequests} join request`,
     `Second league: ${d.second.players} players, ${d.second.played} played, ${d.second.inGrace} in grace week, ${d.second.notPlayed} not played; match later this week: ${d.johnsMatchLater ? "yes" : "no"}; ${d.second.waitlist} on the waitlist`,
     `Past league: ${d.past.players} players, ${d.past.played} played, ${d.past.playoffMatches} playoff matches`,
+    `Fixed doubles league: ${d.doubles.fixed.players} players, ${d.doubles.fixed.teams} teams, ${d.doubles.fixed.looking} looking for a partner, ${d.doubles.fixed.played} played; your team's match this week: ${d.doubles.fixed.johnsMatch ? "yes" : "no"}`,
+    `Rotating doubles league: ${d.doubles.rotating.players} players, ${d.doubles.rotating.played} played, ${d.doubles.rotating.byesThisWeek} bye this week; your match this week: ${d.doubles.rotating.johnsMatch ? "yes" : "no"}`,
+    `Upcoming doubles league: ${d.doubles.upcoming.players} players, ${d.doubles.upcoming.teams} team, ${d.doubles.upcoming.withoutPartner} without a partner (you included), ${d.doubles.upcoming.looking} looking for a partner, ${d.doubles.upcoming.requestsToJohn} team-up request to you`,
     d.discover
       ? `Discover: ${d.nearby} nearby, ${d.farAway} far away; ${d.openLeagues.length} Open leagues starting soon`
       : "Discover: no demo players or Open leagues",
   ].join("\n");
+}
+
+/** The doubles leagues, for the local seed's summary. */
+function doublesText(d: DemoSummary): string {
+  const { fixed, rotating, upcoming } = d.doubles;
+  const time = (at: string | null) =>
+    at ? new Date(at).toLocaleString("en-US", { timeZone: "America/New_York", weekday: "long", hour: "numeric", minute: "2-digit" }) : "no time set yet";
+  const match = (m: DemoSummary["doubles"]["fixed"]["johnsMatch"]) =>
+    m ? `  This week: you and ${m.partner} vs. ${m.opponents.join(" and ")}, ${time(m.at)}${m.location ? ` at ${m.location}` : ""}.\n` : "";
+  const rec = (r: { wins: number; losses: number }) => `${r.wins} and ${r.losses}`;
+  return `${fixed.name} (id ${fixed.id}): Private doubles, fixed partners, you run it
+  ${fixed.players} players in ${fixed.teams} teams, ${fixed.looking} on Find me a partner. ${fixed.played} matches played, your team ${rec(fixed.johnsTeamRecord)}.
+${match(fixed.johnsMatch)}
+${rotating.name} (id ${rotating.id}): Private doubles, rotating partners, you run it
+  ${rotating.players} players, ${rotating.byesThisWeek} bye this week. ${rotating.played} matches played, your record ${rec(rotating.johnRecord)}.
+${match(rotating.johnsMatch)}
+${upcoming.name} (id ${upcoming.id}): Private doubles, fixed partners, you run it, starts ${shortDate(upcoming.startDate)}
+  ${upcoming.teams} team, ${upcoming.withoutPartner} without a partner (you included), ${upcoming.requestsToJohn} team-up request waiting for you.
+`;
 }
 
 // ─── Main ────────────────────────────────────────────────────────────────────
@@ -280,6 +302,7 @@ ${d.johnsMatchLater ? `  ${day(d.johnsMatchLater.at)}: you vs ${d.johnsMatchLate
 ${d.past.name} (id ${d.past.id}): ended
   ${d.past.players} players, ${d.past.played} matches, your record ${rec(d.past.johnRecord)}${d.past.johnSeed ? `, playoff seed ${d.past.johnSeed}` : ""}. Champion: ${d.past.champion}.
 
+${doublesText(d)}
 ${
         d.discover
           ? `Not in your leagues
