@@ -355,20 +355,31 @@ def _(p):
     p.stroke(E(12, 11, 8.8, 7.2, 152, 487))
     p.stroke(L(7.1, 17, 3.8, 20.6), 0.9); p.stroke(L(3.8, 20.6, 4.6, 14.5), 0.9)
 
+def pin_tilt(x, y):
+    """The pin's 35 degree tilt (league chat pins, decision 145)."""
+    a = math.radians(35)
+    dx, dy = x - 12, y - 12
+    return (12 + dx * math.cos(a) - dy * math.sin(a), 12.6 + dx * math.sin(a) + dy * math.cos(a))
+
+def pin_line(p, x0, y0, x1, y1, w=1.0):
+    (ax, ay), (bx, by) = pin_tilt(x0, y0), pin_tilt(x1, y1)
+    p.stroke(L(ax, ay, bx, by), w)
+
 @icon("pin")
 def _(p):
     # A push pin, tilted (league chat pins, decision 145): cap, body, collar, then the point.
-    a = math.radians(35)
-    def r(x, y):
-        dx, dy = x - 12, y - 12
-        return (12 + dx * math.cos(a) - dy * math.sin(a), 12.6 + dx * math.sin(a) + dy * math.cos(a))
-    def line(x0, y0, x1, y1, w=1.0):
-        (ax, ay), (bx, by) = r(x0, y0), r(x1, y1)
-        p.stroke(L(ax, ay, bx, by), w)
-    line(9, 3.6, 15, 3.6, 0.9)
-    line(10.2, 3.8, 10.2, 10, 0.85); line(13.8, 3.8, 13.8, 10, 0.85)
-    line(7, 10.4, 17, 10.4, 0.95)
-    line(12, 10.8, 12, 20.6, 0.8)
+    pin_line(p, 9, 3.6, 15, 3.6, 0.9)
+    pin_line(p, 10.2, 3.8, 10.2, 10, 0.85); pin_line(p, 13.8, 3.8, 13.8, 10, 0.85)
+    pin_line(p, 7, 10.4, 17, 10.4, 0.95)
+    pin_line(p, 12, 10.8, 12, 20.6, 0.8)
+
+@icon("pin.fill")
+def _(p):
+    # Pinned (finding 24, John, Nov 11): the same pin with its head painted in, then the point.
+    p.blob([pin_tilt(x, y) for x, y in ((9.6, 3.6), (14.4, 3.6), (14.4, 10.4), (9.6, 10.4))])
+    pin_line(p, 9, 3.6, 15, 3.6, 0.9)
+    pin_line(p, 7, 10.4, 17, 10.4, 0.95)
+    pin_line(p, 12, 10.8, 12, 20.6, 0.8)
 
 @icon("magnifyingglass")
 def _(p): p.stroke(RING(10.4, 10.4, 6.6, start=60)); p.stroke(L(15.2, 15.2, 20.6, 20.6), 1.1)

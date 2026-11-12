@@ -28,7 +28,7 @@ import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { CASUAL_LOCKED } from "@/lib/myMatches";
-import { emptySet, readScore, setsFromScore, type SetEntry } from "@/lib/scoreEntry";
+import { emptySet, hasScoreChange, NO_CHANGES, readScore, setsFromScore, type SetEntry } from "@/lib/scoreEntry";
 import { QUICK_MAX_SETS } from "@/lib/tennisScore";
 
 export default function EditMatchScoreScreen() {
@@ -46,6 +46,9 @@ export default function EditMatchScoreScreen() {
   const [error, setError] = useState<string | null>(null);
   const sheet = useSheetClose(touched && !change.isPending);
   const draft = readScore(sets, { quick: true });
+  // Save edit stays off until the score differs from the saved one (finding 14).
+  const changed = hasScoreChange(draft, d?.score);
+  const unchanged = draft.ok && !changed;
 
   // Start from the score as it stands, from your side.
   useEffect(() => {
@@ -66,7 +69,7 @@ export default function EditMatchScoreScreen() {
   }
 
   async function save() {
-    if (!draft.ok || change.isPending) return;
+    if (!draft.ok || !changed || change.isPending) return;
     try {
       await change.mutateAsync({ matchId, data: { score: draft.score } });
       void queryClient.invalidateQueries({ queryKey: getGetMyMatchQueryKey(matchId) });
@@ -148,9 +151,10 @@ export default function EditMatchScoreScreen() {
       <Button
         label="Save edit"
         onPress={() => void save()}
-        disabled={locked || !draft.ok}
+        disabled={locked || !changed}
         loading={change.isPending}
-        accessibilityHint={`Saves the new score. ${themShort} sees that you edited it.`}
+        accessibilityLabel={!locked && unchanged ? `Save edit. ${NO_CHANGES}` : undefined}
+        accessibilityHint={!locked && unchanged ? undefined : `Saves the new score. ${themShort} sees that you edited it.`}
       />
     </SheetBody>
   );

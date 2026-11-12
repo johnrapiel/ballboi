@@ -18,6 +18,7 @@ import { courtPick, usePickedCourt } from "@/hooks/useCourts";
 import { useSendMatchPlan } from "@/hooks/useDiscoverMatchPlans";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { defaultPlanStart } from "@/lib/discover";
+import { clockTime } from "@/lib/timeFormat";
 
 export default function AddMatchCardSheet() {
   const c = useColors();
@@ -95,7 +96,7 @@ export default function AddMatchCardSheet() {
               minuteInterval={15}
               themeVariant={scheme === "dark" ? "dark" : "light"}
               accentColor={c.ink}
-              accessibilityLabel={`Time, ${startsAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`}
+              accessibilityLabel={`Time, ${clockTime(startsAt)}`}
               onChange={change}
             />
           </View>

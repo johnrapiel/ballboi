@@ -10,7 +10,7 @@ import {
   type DmStatus,
   type MessageGroupMember,
 } from "@workspace/db";
-import { and, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { accountsBlockedBy, blockedAccountsFor } from "../lib/blocks";
 import { moderationRepo } from "./drizzleModeration";
 import type {
@@ -230,6 +230,11 @@ export class DrizzleMessagingRepo implements MessagingRepo {
   async findGroupByLeague(leagueId: number): Promise<GroupRecord | null> {
     const [row] = await db.select().from(messageGroupsTable).where(eq(messageGroupsTable.leagueId, leagueId));
     return row ?? null;
+  }
+
+  async leagueIdsWithGroups(): Promise<number[]> {
+    const rows = await db.select({ leagueId: messageGroupsTable.leagueId }).from(messageGroupsTable).where(isNotNull(messageGroupsTable.leagueId));
+    return rows.flatMap((r) => (r.leagueId != null ? [r.leagueId] : []));
   }
 
   async findGroupByMatch(matchId: number): Promise<GroupRecord | null> {

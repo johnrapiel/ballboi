@@ -87,7 +87,7 @@ describe("the upcoming list", () => {
     const [today, open, discover, noTime, semi] = list;
     expect(rowWhen(today, now)).toBe("Today · 6:30 PM");
     expect(rowSub(today)).toBe("vs. Sam Patel · Tuesday Flex 3.5");
-    expect(rowWhen(discover, now)).toBe("Sat, Nov 14 · 9:00 AM");
+    expect(rowWhen(discover, now)).toBe("Sat, Nov 14 · 9 AM");
     expect(rowSub(discover)).toBe("vs. Priya Shah · Discover");
     expect(rowWhen(noTime, now)).toBe("Play by Sun, Nov 15");
     expect(rowSub(noTime)).toBe("vs. Mike Okafor · Tuesday Flex 3.5");

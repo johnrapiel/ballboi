@@ -12,6 +12,8 @@ import {
   milestoneBadgeLabel,
   milestonesSpoken,
   scoreEnteredAnnouncement,
+  SHOW_MILESTONES,
+  visibleMilestones,
 } from "@/lib/milestones";
 import { BRUSH_PATHS } from "@/components/icons/brushPaths";
 
@@ -94,5 +96,24 @@ describe("score entered", () => {
   it("just says the score was saved when the record didn't change", () => {
     expect(scoreEnteredAnnouncement(true, { wins: 3, losses: 1 }, { wins: 3, losses: 1 })).toBe("Score saved");
     expect(scoreEnteredAnnouncement(true, null, null)).toBe("Score saved");
+  });
+});
+
+describe("visibleMilestones (decision 179)", () => {
+  const at = "2026-10-03T18:00:00Z";
+  const list = [{ kind: "first_win" as const, earnedAt: at }, { kind: "made_up" as never, earnedAt: at }, { kind: "win_streak_5" as const, earnedAt: at }];
+
+  it("is hidden in the app until after all waves", () => {
+    expect(SHOW_MILESTONES).toBe(false);
+    expect(visibleMilestones(list)).toEqual([]);
+  });
+
+  it("shows the known ones, as before, when the flag is on", () => {
+    expect(visibleMilestones(list, true)).toEqual([{ kind: "first_win", earnedAt: at }, { kind: "win_streak_5", earnedAt: at }]);
+    expect(visibleMilestones(null, true)).toEqual([]);
+  });
+
+  it("leaves nothing for VoiceOver to read while hidden", () => {
+    expect(cardSpoken({ name: "Sam Lee", rating: null, plays: null, town: null, distance: null, homeCourt: null, you: false, milestones: visibleMilestones(list) })).not.toMatch(/milestone/);
   });
 });
