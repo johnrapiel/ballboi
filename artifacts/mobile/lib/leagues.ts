@@ -1,4 +1,4 @@
-import type { League } from "@workspace/api-client-react";
+import type { League, Standing } from "@workspace/api-client-react";
 
 /** Plain-English label for a league's format. */
 export function formatLabel(format: League["format"]): string {
@@ -45,14 +45,15 @@ export function startDay(startDate: string | null | undefined, month: "short" | 
 /**
  * The Leagues tab card's words (finding 27, decision 183). The pill says
  * Singles or Doubles; a running league has no status. A league that hasn't
- * started leads its info line with "Starts Nov 18" (next to a calendar icon)
- * and has no stats row. VoiceOver hears one sentence:
+ * started leads its info line with "Starts Nov 18" (next to a calendar icon).
+ * The stats row always shows; before the league starts each value is a dash
+ * (finding 28, John, Nov 12). VoiceOver hears one sentence:
  * "Beta Testers, Singles, starts November 18, 3 players, round robin".
  */
 export function leagueCardText(
   league: Pick<League, "name" | "status" | "leagueType" | "partnerMode" | "startDate" | "playerCount" | "format">,
   place: string | null | undefined,
-): { pill: string; starts: string | null; info: string; spoken: string; showStats: boolean } {
+): { pill: string; starts: string | null; info: string; spoken: string; started: boolean } {
   const pill = playTypeLabel(league.leagueType);
   const upcoming = notStarted(league);
   const day = startDay(league.startDate);
@@ -65,7 +66,7 @@ export function leagueCardText(
   const spoken = [league.name, pill, spokenStart, ...rest.map((x, i) => (i === 0 && x === place ? x : x.toLowerCase()))]
     .filter(Boolean)
     .join(", ");
-  return { pill, starts, info, spoken, showStats: !upcoming };
+  return { pill, starts, info, spoken, started: !upcoming };
 }
 
 /** 1 → "1st", 2 → "2nd", 11 → "11th". */
@@ -100,4 +101,26 @@ export function isPastLeague(league: Pick<League, "status" | "endedAt" | "youLef
 /** The chip on a Past row: "Left", "Ended" or "Done". */
 export function pastLabel(league: Pick<League, "endedAt" | "youLeft">): string {
   return league.youLeft ? "Left" : league.endedAt ? "Ended" : "Done";
+}
+
+// Standings rank on wins, then head to head (John, Nov 6), so "behind" counts wins.
+export type MyStanding = { rank: number; wins: number; losses: number; behind: number; lead: number } | null;
+
+/**
+ * Your row in a league's standings for the Leagues tab card. Singles and
+ * rotating doubles rank players, so it's the row with your player id.
+ * Fixed-partner doubles rank teams (D3), so it's the row for the team you're
+ * on, and rank, record and behind 1st are the team's (finding 28).
+ */
+export function myStanding(
+  standings: Pick<Standing, "playerId" | "rank" | "wins" | "losses" | "teamPlayerIds">[] | undefined,
+  myPlayerId: number | undefined,
+): MyStanding {
+  if (!standings || myPlayerId === undefined) return null;
+  const mine =
+    standings.find((s) => s.playerId === myPlayerId) ?? standings.find((s) => s.teamPlayerIds?.includes(myPlayerId));
+  if (!mine) return null;
+  const leader = standings.reduce((max, s) => Math.max(max, s.wins), 0);
+  const nextBest = standings.filter((s) => s !== mine).reduce((max, s) => Math.max(max, s.wins), 0);
+  return { rank: mine.rank, wins: mine.wins, losses: mine.losses, behind: leader - mine.wins, lead: mine.wins - nextBest };
 }
