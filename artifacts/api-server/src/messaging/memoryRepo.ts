@@ -173,12 +173,19 @@ export class MemoryMessagingRepo implements MessagingRepo {
     return this.groups.find((g) => g.leagueId === leagueId) ?? null;
   }
 
+  async leagueIdsWithGroups() {
+    return this.groups.flatMap((g) => (g.leagueId != null ? [g.leagueId] : []));
+  }
+
   async findGroupByMatch(matchId: number) {
     return this.groups.find((g) => g.matchId === matchId) ?? null;
   }
 
   async createGroup(input: NewGroup) {
-    const existing = await this.findGroupByChannel(input.channelId);
+    // Checked and added in one step, like the database's unique indexes, so two syncs at once still make one chat.
+    const existing = this.groups.find(
+      (g) => g.channelId === input.channelId || (input.leagueId != null && g.leagueId === input.leagueId),
+    );
     if (existing) return existing;
     const g: GroupRecord = {
       ...input,

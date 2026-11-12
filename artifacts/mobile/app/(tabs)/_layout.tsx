@@ -6,6 +6,7 @@ import React, { useEffect } from "react";
 import { Image, Platform, StyleSheet, View, type ImageSourcePropType } from "react-native";
 
 import { MilestoneMoment } from "@/components/MilestoneMoment";
+import { SHOW_MILESTONES } from "@/lib/milestones";
 import { useColors, useScheme } from "@/hooks/useColors";
 import { useGate } from "@/hooks/useGate";
 import { usePushSetup } from "@/hooks/useNotificationAccess";
@@ -169,10 +170,11 @@ export default function TabLayout() {
   if (!ready) return null;
 
   // The milestone moment plays over the tabs, never blocking them (decision 149).
+  // Hidden until after all waves (decision 179); the score-saved moment still plays.
   return (
     <View style={{ flex: 1 }}>
       {isLiquidGlassAvailable() ? <NativeTabLayout /> : <ClassicTabLayout />}
-      <MilestoneMoment ready={ready} />
+      {SHOW_MILESTONES ? <MilestoneMoment ready={ready} /> : null}
     </View>
   );
 }

@@ -48,7 +48,10 @@ import { newClientMessageId } from "@/lib/messages";
 //
 // A league's chat (decisions 145 and 146) is the same screen, titled with the
 // league name, plus:
-// - Up to 3 posts admins pinned, in a collapsible bar at the top.
+// - Up to 3 posts admins pinned, in a collapsible bar at the top. A pinned
+//   post shows a filled pin to everyone, and an admin's own posts carry a pin
+//   button beside them: outline to pin, filled to unpin (finding 24). Members'
+//   posts are pinned from the long-press menu.
 // - Admin posts carry the Admin label (brush shield icon and the word).
 // - Typing @ suggests league members, the way iOS Messages does; mentions
 //   show in bold and VoiceOver reads them.
@@ -111,6 +114,9 @@ export function GroupConversation({
   const isAdmin = league && !!group?.isAdmin;
   const pins = thread.data?.pins ?? [];
   const [pinsOpen, setPinsOpen] = useState(false);
+  // The pin button's tap, shown straight away until the chat reloads (finding 24).
+  const [pinFlip, setPinFlip] = useState<Record<string, boolean>>({});
+  const isPinned = (id: string) => pinFlip[id] ?? pins.some((p) => p.id === id);
   const membersQ = useGroupMembers(league ? groupId : null);
   const members = membersQ.data ?? [];
   const myName = members.find((m) => m.me)?.name;
@@ -281,13 +287,39 @@ export function GroupConversation({
     }[action];
   };
 
+  // The pin button on an admin's own post (finding 24). Long press keeps Pin and Unpin too.
+  const togglePin = (m: GroupMessage) => {
+    if (!groupId || m.id in pinFlip) return;
+    const pinned = isPinned(m.id);
+    if (!pinned && pins.length >= 3) {
+      Alert.alert("Only 3 posts can be pinned", "Unpin one first, then pin this one.");
+      return;
+    }
+    setPinFlip((f) => ({ ...f, [m.id]: !pinned }));
+    const clear = () =>
+      setPinFlip((f) => {
+        const { [m.id]: _gone, ...rest } = f;
+        return rest;
+      });
+    (pinned ? actions.unpin(groupId, m.id) : actions.pin(groupId, m.id))
+      .then(async () => {
+        AccessibilityInfo.announceForAccessibility(pinned ? "Unpinned" : "Pinned");
+        await thread.refetch();
+        clear();
+      })
+      .catch((e) => {
+        clear();
+        failed(e);
+      });
+  };
+
   const leagueActions = (m: GroupMessage): LeagueMessageAction[] => {
     const sender = senderOf(m);
     return leagueMessageActions({
       isAdmin,
       fromMe: m.fromMe,
       system: m.senderName === null,
-      pinned: pins.some((p) => p.id === m.id),
+      pinned: isPinned(m.id),
       pinsFull: pins.length >= 3,
       sender: sender ? { admin: sender.admin, muted: sender.muted, playerId: sender.playerId } : null,
     }).filter((a) => a !== "report" || canReport(m));
@@ -573,6 +605,12 @@ export function GroupConversation({
                   onMore={league && isAdmin && more.length ? () => leagueMenu(m!) : undefined}
                   segments={league && m?.mentions?.length ? mentionSegments(item.text, m.mentions, myName) : undefined}
                   spoken={league && m ? spokenGroupMessage({ ...m, senderName }) : undefined}
+                  // The pin beside the message (finding 24): a button on an admin's own post, a filled pin on any pinned post.
+                  pin={
+                    league && m && item.status === "sent"
+                      ? { pinned: isPinned(m.id), onToggle: isAdmin && item.fromMe ? () => togglePin(m) : undefined, busy: m.id in pinFlip }
+                      : undefined
+                  }
                   // Their photo beside the first message of each run, next to their name.
                   avatar={item.fromMe ? undefined : { name: item.senderName ?? "Player", uri: m?.senderAvatarUrl, show: !before || before.senderName === null || who(before) !== who(item) }}
                 />
