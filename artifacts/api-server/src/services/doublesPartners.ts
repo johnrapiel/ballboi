@@ -36,6 +36,9 @@ export interface PersonView {
   playerId: number;
   name: string;
   level: number;
+  /** users.id for their player card; null for a player not on Ball Boi yet. */
+  userId: number | null;
+  photoUrl: string | null;
 }
 
 /** What a member sees in a fixed-partner league: the team-up step and the request notice (D9). */
@@ -71,7 +74,13 @@ export interface TeamsView {
   canLetInWaitlisted: boolean;
 }
 
-const person = (m: Member): PersonView => ({ playerId: m.id, name: m.name, level: m.level });
+const person = (m: Member): PersonView => ({
+  playerId: m.id,
+  name: m.name,
+  level: m.level,
+  userId: m.userId ?? null,
+  photoUrl: m.avatarUrl ?? null,
+});
 const activeTeams = (teams: TeamRow[]) => teams.filter((t) => !t.dissolvedAt);
 const teamOf = (teams: TeamRow[], playerId: number) =>
   activeTeams(teams).find((t) => t.player1Id === playerId || t.player2Id === playerId) ?? null;
@@ -152,7 +161,7 @@ export class DoublesPartnersService {
       .filter((r) => r.fromPlayerId === self.id && !r.noticeSeenAt && noticeText(r.status, "") !== null)
       .sort((a, b) => (b.respondedAt?.getTime() ?? 0) - (a.respondedAt?.getTime() ?? 0))[0];
     const kind = unpairedMembers(members, teams).find((u) => u.member.id === self.id)?.kind ?? null;
-    const view = (id: number) => (byId.has(id) ? person(byId.get(id)!) : { playerId: id, name: "Player", level: 3 });
+    const view = (id: number) => (byId.has(id) ? person(byId.get(id)!) : { playerId: id, name: "Player", level: 3, userId: null, photoUrl: null });
 
     return {
       ...base,

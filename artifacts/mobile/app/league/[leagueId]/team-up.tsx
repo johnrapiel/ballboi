@@ -12,7 +12,8 @@ import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { levelSpoken } from "@/lib/onboarding";
 
-// Team up with someone (doubles flow review D9, John, Nov 9): members of this
+// Team up with someone (doubles flow review D9, John, Nov 9; titled to match
+// its button in the Team up sheet, finding 31): members of this
 // fixed-partner league without a partner, by name, with their level. Tap one
 // to ask; they get Accept and Decline and 48 hours to answer. Someone you
 // have a block with is never listed, either way. Nothing is typed here, so
@@ -56,15 +57,15 @@ export default function TeamUpSheet() {
       </View>
     );
   } else if (!v.teamingOpen) {
-    body = <Text tone="inkMuted">Teaming up closed when the first round went out. Your league admin can team you up in Manage.</Text>;
+    body = <Text tone="inkMuted">Teaming up closed when the first round went out. Your league admin can team you up in Manage league.</Text>;
   } else if (v.partner) {
     body = <Text tone="inkMuted">{`You're already teamed up with ${v.partner.name}.`}</Text>;
   } else if (v.outgoing) {
-    body = <Text tone="inkMuted">{`You already asked ${v.outgoing.to.name}. Cancel that request on the league page to ask someone else.`}</Text>;
+    body = <Text tone="inkMuted">{`You already asked ${v.outgoing.to.name}. To ask someone else, cancel that request in Team up on the league page.`}</Text>;
   } else if (v.candidates.length === 0) {
     body = (
       <Text tone="inkMuted">
-        Everyone else has a partner, or nobody else has joined yet. Use Find me a partner on the league page and your league admin can team you up.
+        Everyone else has a partner, or nobody else has joined yet. Use Find me a partner in Team up on the league page and your league admin can team you up.
       </Text>
     );
   } else {
@@ -86,7 +87,7 @@ export default function TeamUpSheet() {
   }
 
   return (
-    <SheetBody title="Team up" close={sheet.close} contentStyle={{ gap: spacing.space4 }}>
+    <SheetBody title="Team up with someone" close={sheet.close} contentStyle={{ gap: spacing.space4 }}>
       <Text tone="inkMuted">Pick someone without a partner. You'll play every round together this season.</Text>
       {body}
     </SheetBody>

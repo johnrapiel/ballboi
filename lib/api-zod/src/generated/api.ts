@@ -3381,6 +3381,16 @@ export const GetMyPartnerResponse = zod
         playerId: zod.number(),
         name: zod.string(),
         level: zod.number().describe("Their self-rated level"),
+        userId: zod
+          .number()
+          .nullable()
+          .describe(
+            "Their account id for the player card; null for a player not on Ball Boi yet",
+          ),
+        photoUrl: zod
+          .string()
+          .nullable()
+          .describe("Profile photo, if they have one"),
       }),
       zod.null(),
     ]),
@@ -3393,6 +3403,16 @@ export const GetMyPartnerResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
         expiresAt: zod.string(),
       }),
@@ -3404,6 +3424,16 @@ export const GetMyPartnerResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
         expiresAt: zod.string(),
       }),
@@ -3425,6 +3455,16 @@ export const GetMyPartnerResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
       )
       .describe("Members you can ask. Never someone you have a block with"),
@@ -3465,6 +3505,16 @@ export const RequestPartnerResponse = zod
         playerId: zod.number(),
         name: zod.string(),
         level: zod.number().describe("Their self-rated level"),
+        userId: zod
+          .number()
+          .nullable()
+          .describe(
+            "Their account id for the player card; null for a player not on Ball Boi yet",
+          ),
+        photoUrl: zod
+          .string()
+          .nullable()
+          .describe("Profile photo, if they have one"),
       }),
       zod.null(),
     ]),
@@ -3477,6 +3527,16 @@ export const RequestPartnerResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
         expiresAt: zod.string(),
       }),
@@ -3488,6 +3548,16 @@ export const RequestPartnerResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
         expiresAt: zod.string(),
       }),
@@ -3509,6 +3579,16 @@ export const RequestPartnerResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
       )
       .describe("Members you can ask. Never someone you have a block with"),
@@ -3546,6 +3626,16 @@ export const AcceptPartnerRequestResponse = zod
         playerId: zod.number(),
         name: zod.string(),
         level: zod.number().describe("Their self-rated level"),
+        userId: zod
+          .number()
+          .nullable()
+          .describe(
+            "Their account id for the player card; null for a player not on Ball Boi yet",
+          ),
+        photoUrl: zod
+          .string()
+          .nullable()
+          .describe("Profile photo, if they have one"),
       }),
       zod.null(),
     ]),
@@ -3558,6 +3648,16 @@ export const AcceptPartnerRequestResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
         expiresAt: zod.string(),
       }),
@@ -3569,6 +3669,16 @@ export const AcceptPartnerRequestResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
         expiresAt: zod.string(),
       }),
@@ -3590,6 +3700,16 @@ export const AcceptPartnerRequestResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
       )
       .describe("Members you can ask. Never someone you have a block with"),
@@ -3627,6 +3747,16 @@ export const DeclinePartnerRequestResponse = zod
         playerId: zod.number(),
         name: zod.string(),
         level: zod.number().describe("Their self-rated level"),
+        userId: zod
+          .number()
+          .nullable()
+          .describe(
+            "Their account id for the player card; null for a player not on Ball Boi yet",
+          ),
+        photoUrl: zod
+          .string()
+          .nullable()
+          .describe("Profile photo, if they have one"),
       }),
       zod.null(),
     ]),
@@ -3639,6 +3769,16 @@ export const DeclinePartnerRequestResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
         expiresAt: zod.string(),
       }),
@@ -3650,6 +3790,16 @@ export const DeclinePartnerRequestResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
         expiresAt: zod.string(),
       }),
@@ -3671,6 +3821,16 @@ export const DeclinePartnerRequestResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
       )
       .describe("Members you can ask. Never someone you have a block with"),
@@ -3708,6 +3868,16 @@ export const CancelPartnerRequestResponse = zod
         playerId: zod.number(),
         name: zod.string(),
         level: zod.number().describe("Their self-rated level"),
+        userId: zod
+          .number()
+          .nullable()
+          .describe(
+            "Their account id for the player card; null for a player not on Ball Boi yet",
+          ),
+        photoUrl: zod
+          .string()
+          .nullable()
+          .describe("Profile photo, if they have one"),
       }),
       zod.null(),
     ]),
@@ -3720,6 +3890,16 @@ export const CancelPartnerRequestResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
         expiresAt: zod.string(),
       }),
@@ -3731,6 +3911,16 @@ export const CancelPartnerRequestResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
         expiresAt: zod.string(),
       }),
@@ -3752,6 +3942,16 @@ export const CancelPartnerRequestResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
       )
       .describe("Members you can ask. Never someone you have a block with"),
@@ -3789,6 +3989,16 @@ export const DismissPartnerNoticeResponse = zod
         playerId: zod.number(),
         name: zod.string(),
         level: zod.number().describe("Their self-rated level"),
+        userId: zod
+          .number()
+          .nullable()
+          .describe(
+            "Their account id for the player card; null for a player not on Ball Boi yet",
+          ),
+        photoUrl: zod
+          .string()
+          .nullable()
+          .describe("Profile photo, if they have one"),
       }),
       zod.null(),
     ]),
@@ -3801,6 +4011,16 @@ export const DismissPartnerNoticeResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
         expiresAt: zod.string(),
       }),
@@ -3812,6 +4032,16 @@ export const DismissPartnerNoticeResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
         expiresAt: zod.string(),
       }),
@@ -3833,6 +4063,16 @@ export const DismissPartnerNoticeResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
       )
       .describe("Members you can ask. Never someone you have a block with"),
@@ -3873,6 +4113,16 @@ export const SetLookingForPartnerResponse = zod
         playerId: zod.number(),
         name: zod.string(),
         level: zod.number().describe("Their self-rated level"),
+        userId: zod
+          .number()
+          .nullable()
+          .describe(
+            "Their account id for the player card; null for a player not on Ball Boi yet",
+          ),
+        photoUrl: zod
+          .string()
+          .nullable()
+          .describe("Profile photo, if they have one"),
       }),
       zod.null(),
     ]),
@@ -3885,6 +4135,16 @@ export const SetLookingForPartnerResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
         expiresAt: zod.string(),
       }),
@@ -3896,6 +4156,16 @@ export const SetLookingForPartnerResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
         expiresAt: zod.string(),
       }),
@@ -3917,6 +4187,16 @@ export const SetLookingForPartnerResponse = zod
           playerId: zod.number(),
           name: zod.string(),
           level: zod.number().describe("Their self-rated level"),
+          userId: zod
+            .number()
+            .nullable()
+            .describe(
+              "Their account id for the player card; null for a player not on Ball Boi yet",
+            ),
+          photoUrl: zod
+            .string()
+            .nullable()
+            .describe("Profile photo, if they have one"),
         }),
       )
       .describe("Members you can ask. Never someone you have a block with"),
@@ -3949,6 +4229,16 @@ export const GetLeagueTeamsResponse = zod
             playerId: zod.number(),
             name: zod.string(),
             level: zod.number().describe("Their self-rated level"),
+            userId: zod
+              .number()
+              .nullable()
+              .describe(
+                "Their account id for the player card; null for a player not on Ball Boi yet",
+              ),
+            photoUrl: zod
+              .string()
+              .nullable()
+              .describe("Profile photo, if they have one"),
           }),
         ),
       }),
@@ -4000,6 +4290,16 @@ export const TeamUpPlayersResponse = zod
             playerId: zod.number(),
             name: zod.string(),
             level: zod.number().describe("Their self-rated level"),
+            userId: zod
+              .number()
+              .nullable()
+              .describe(
+                "Their account id for the player card; null for a player not on Ball Boi yet",
+              ),
+            photoUrl: zod
+              .string()
+              .nullable()
+              .describe("Profile photo, if they have one"),
           }),
         ),
       }),
@@ -4042,6 +4342,16 @@ export const SplitLeagueTeamResponse = zod
             playerId: zod.number(),
             name: zod.string(),
             level: zod.number().describe("Their self-rated level"),
+            userId: zod
+              .number()
+              .nullable()
+              .describe(
+                "Their account id for the player card; null for a player not on Ball Boi yet",
+              ),
+            photoUrl: zod
+              .string()
+              .nullable()
+              .describe("Profile photo, if they have one"),
           }),
         ),
       }),

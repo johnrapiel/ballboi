@@ -103,7 +103,7 @@ function JoinedActions({ leagueId, onOpen }: { leagueId: number; onOpen: () => v
   const step = !!q.data?.fixedPartners && q.data.member && !q.data.partner && q.data.teamingOpen;
   return (
     <>
-      {step ? <PartnerCard leagueId={leagueId} joining /> : null}
+      {step ? <PartnerCard leagueId={leagueId} /> : null}
       <Button label="Open league" variant={step ? "secondary" : "primary"} onPress={onOpen} />
     </>
   );

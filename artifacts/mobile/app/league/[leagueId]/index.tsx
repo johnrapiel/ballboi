@@ -21,16 +21,17 @@ import {
 
 import { LeagueChatButton } from "@/components/league/LeagueChatButton";
 import { MatchTimeLink } from "@/components/MatchTimeLink";
-import { PartnerCard } from "@/components/league/PartnerCard";
+import { TeamUpRequestCards } from "@/components/league/PartnerCard";
+import { PairingsLine, PartnerLine } from "@/components/league/LeagueLines";
+import { CornerButton } from "@/components/CornerButton";
 import { LeaveAction } from "@/components/LeaveAction";
-import { andJoin, isDoublesMatch, opponentNames, partnerName, versusLine, versusSpoken } from "@/lib/doubles";
+import { andJoin, isDoublesMatch, manageLeagueLabel, opponentNames, partnerName, versusLine, versusSpoken } from "@/lib/doubles";
 import { RoundCard, UpcomingWeekRow } from "@/components/league/RoundCard";
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
-import { ListRow } from "@/components/league/ListRow";
 import { StandingsTable } from "@/components/league/StandingsTable";
 import { BracketView, myPlayoffMatch, ROUND_SINGULAR } from "@/components/league/Bracket";
 import { Button, ButtonRow, Card, Text } from "@/components/ui";
-import { spacing } from "@/constants/tokens";
+import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { RatingBadge } from "@/components/RatingBadge";
@@ -45,7 +46,6 @@ import {
   matchWhen,
   myWeek,
   opponentName,
-  pairingTime,
   playoffLine,
   recordAction,
   resultLine,
@@ -59,13 +59,18 @@ import { refreshLeague } from "@/lib/leagueRefresh";
 import { formatLabel, playersLabel, playTypeLabel } from "@/lib/leagues";
 import { openRecorder } from "@/lib/recording/start";
 
-// League (spec: Leagues; approved canvas: League detail · Standings). A brush
-// title and one meta line, then your match this week, then Standings, Matches
-// and Playoffs. Admins get a visible Manage league row (John, Nov 6, finding
-// 8) instead of a header icon, with the "Round N pairings are ready to
-// review" card directly under it, above your match (finding 29). The invite
-// (code, copy, share) lives in Manage league now (finding 29). Players see
-// neither.
+// League (spec: Leagues; approved canvas: League detail · Standings). One
+// main card, your match (finding 31, decision 185, John, Nov 12). Top to
+// bottom:
+// - The name and info lines, with the chat corner button and, for admins, a
+//   gear corner button just left of it that opens Manage league. The gear
+//   has an ink dot while a round's pairings wait for review.
+// - Fixed-partner doubles: your partner as one line, or "No partner yet ·
+//   Team up" (opens the Team up sheet).
+// - Admins, when pairings wait: "Round N pairings are ready." and Review.
+// - A team-up request to you, as a card only while it waits.
+// - Your match this week, then Standings, Matches and Playoffs.
+// - Leave league, quiet text at the bottom (decision 184).
 
 type Tab = "standings" | "rounds" | "playoffs";
 
@@ -277,6 +282,8 @@ export default function LeagueScreen() {
   const ended = !!league?.endedAt || league?.status === "completed";
   const started = !!league?.startDate && !!schedule && schedule.today >= league.startDate;
   const isAdmin = !!membershipQ.data?.isAdmin;
+  // A round's pairings wait for an admin's review: the gear's dot and the Review line.
+  const pairingsWaiting = !!draft && isAdmin && !ended;
   // Decision 79: doubles leagues have no playoffs for now, so no Playoffs tab.
   const doubles = league?.leagueType === "doubles";
   const playoffsNote = league ? playoffLine(league.playoffSize, league.playerCount) : null;
@@ -363,7 +370,28 @@ export default function LeagueScreen() {
               <Text variant="headingM" accessibilityRole="header" style={{ flexShrink: 1 }}>
                 {league.name}
               </Text>
-              <LeagueChatButton leagueId={leagueId} />
+              <View style={{ flexDirection: "row", gap: spacing.space2 }}>
+                {/* Decision 185: Manage league is the gear, just left of the chat, for admins. */}
+                {isAdmin ? (
+                  <CornerButton
+                    symbol="gearshape"
+                    label={manageLeagueLabel(pairingsWaiting)}
+                    hint="Opens the admin tools for this league"
+                    onPress={() => router.push(`/league/${leagueId}/manage`)}
+                  >
+                    {pairingsWaiting ? (
+                      // The label says it too, so the dot is never the only signal.
+                      <View
+                        importantForAccessibility="no-hide-descendants"
+                        accessibilityElementsHidden
+                        pointerEvents="none"
+                        style={{ position: "absolute", top: 4, right: 4, width: 10, height: 10, borderRadius: radius.radiusPill, backgroundColor: c.ink }}
+                      />
+                    ) : null}
+                  </CornerButton>
+                ) : null}
+                <LeagueChatButton leagueId={leagueId} />
+              </View>
             </View>
             {meta ? (
               <Text variant="small" tone="inkMuted">
@@ -384,37 +412,16 @@ export default function LeagueScreen() {
                 {`You joined in week ${membershipQ.data.joinedWeek} of ${membershipQ.data.seasonWeeks}.`}
               </Text>
             ) : null}
+            {/* Decision 185: your partner is a line here, not a card. Fixed partners only. */}
+            {!ended ? <PartnerLine leagueId={leagueId} /> : null}
+            {/* Decision 185: pairings to review is one line with a Review link. */}
+            {draft && pairingsWaiting ? (
+              <PairingsLine roundNumber={draft.roundNumber} onReview={() => router.push(`/league/${leagueId}/round/${draft.roundId}`)} />
+            ) : null}
           </View>
 
-          {isAdmin ? (
-            // Admin tools in context only (spec: Roles), as a visible row (finding 8).
-            <Card style={{ padding: 0, overflow: "hidden" }}>
-              <ListRow
-                title="Manage league"
-                subtitle="Invite code, pairings, players and admins"
-                symbol="slider.horizontal.3"
-                onPress={() => router.push(`/league/${leagueId}/manage`)}
-                accessibilityHint="Opens the admin tools for this league"
-                last
-              />
-            </Card>
-          ) : null}
-
-          {/* Finding 29: right under Manage league, above your match. */}
-          {draft && isAdmin && !ended ? (
-            <Card style={{ gap: spacing.space3 }}>
-              <View accessible style={{ gap: spacing.space1 }}>
-                <Text variant="section" tone="inkMuted">
-                  Admin
-                </Text>
-                <Text variant="bodyStrong">{`Round ${draft.roundNumber} pairings are ready to review`}</Text>
-                <Text variant="small" tone="inkMuted">
-                  {`They go out to players ${shortDate(draft.startDate)} at ${pairingTime(schedule?.timeZone)}.`}
-                </Text>
-              </View>
-              <Button label="Review pairings" variant="secondary" onPress={() => router.push(`/league/${leagueId}/round/${draft.roundId}`)} />
-            </Card>
-          ) : null}
+          {/* A team-up request to you is a card only while it waits (decision 185). */}
+          {!ended ? <TeamUpRequestCards leagueId={leagueId} /> : null}
 
           {ended ? (
             // Decision 31: an admin ended the league, or the season finished. Standings are final.
@@ -475,14 +482,11 @@ export default function LeagueScreen() {
               <View style={{ flex: 1, gap: 2 }}>
                 <Text variant="bodyStrong">{`Doubles needs at least 4 players`}</Text>
                 <Text variant="small" tone="inkMuted">
-                  {`${playersLabel(league.playerCount)} so far. Pairings start once 4 have joined.${isAdmin ? " Share the invite code in Manage." : ""}`}
+                  {`${playersLabel(league.playerCount)} so far. Pairings start once 4 have joined.${isAdmin ? " Share the invite code in Manage league." : ""}`}
                 </Text>
               </View>
             </Card>
           ) : null}
-
-          {/* D2, D9: teaming up in a fixed-partner doubles league. Shows nothing otherwise. */}
-          {!ended ? <PartnerCard leagueId={leagueId} /> : null}
 
           <SegmentedTabs
             label="League sections"

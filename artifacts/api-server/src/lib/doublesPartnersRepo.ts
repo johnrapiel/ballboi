@@ -13,7 +13,7 @@ import {
 } from "@workspace/db";
 import { and, eq, inArray, isNotNull, isNull, ne, or } from "drizzle-orm";
 import { blockedPlayerPairs } from "./blocks.js";
-import { loadProfiles, playerDisplayName, playerLevelValue } from "./playerProfile.js";
+import { loadProfiles, playerAvatarUrl, playerDisplayName, playerLevelValue, playerUserId } from "./playerProfile.js";
 import type { MemberRow, PartnerRequest, TeamRow } from "./doublesTeams.js";
 
 export interface PartnersLeague {
@@ -27,6 +27,10 @@ export interface PartnersLeague {
 
 export interface Member extends MemberRow {
   clerkUserId: string | null;
+  /** users.id for a signed-up player, for the player card link (finding 31). */
+  userId?: number | null;
+  /** Profile photo, if they have one. */
+  avatarUrl?: string | null;
 }
 
 export interface DoublesPartnersRepo {
@@ -94,6 +98,8 @@ export class DrizzleDoublesPartnersRepo implements DoublesPartnersRepo {
       level: playerLevelValue(r, profiles),
       lookingForPartnerAt: r.lookingForPartnerAt ?? null,
       clerkUserId: r.clerkUserId,
+      userId: playerUserId(r, profiles),
+      avatarUrl: playerAvatarUrl(r, profiles),
     }));
   }
 
