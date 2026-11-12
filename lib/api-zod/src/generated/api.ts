@@ -6064,6 +6064,31 @@ export const GetLeagueInvitesResponseItem = zod.object({
       "Joining now puts the player on the waitlist (season started or league full)",
     ),
   waitlistReason: zod.string().nullish(),
+  fixedPartners: zod
+    .boolean()
+    .optional()
+    .describe(
+      "A doubles league with fixed partners. Joining keeps the You're in sheet with the partner choices (finding 33); singles and rotating doubles open the league page",
+    ),
+  members: zod
+    .array(
+      zod.object({
+        playerId: zod.number(),
+        name: zod.string(),
+        photoUrl: zod.string().nullable(),
+        level: zod
+          .number()
+          .describe(
+            "Profile level for a signed-up player, else the level the admin set",
+          ),
+        levelSource: zod.enum(["self", "verified"]),
+        organizer: zod.boolean().describe("The league's creator, who runs it"),
+      }),
+    )
+    .optional()
+    .describe(
+      "Who's in (finding 34): the league's active members for the join screen, organizer first, then by name. Every member shows whatever their Discover setting; anyone with a block with the viewer, either way, and the viewer's own row are left out. Empty when signed out.",
+    ),
   createdByClerkUserId: zod.string(),
   expiresAt: zod.string().nullish(),
   maxUses: zod.number().nullish(),
@@ -6125,6 +6150,31 @@ export const GetInviteResponse = zod.object({
       "Joining now puts the player on the waitlist (season started or league full)",
     ),
   waitlistReason: zod.string().nullish(),
+  fixedPartners: zod
+    .boolean()
+    .optional()
+    .describe(
+      "A doubles league with fixed partners. Joining keeps the You're in sheet with the partner choices (finding 33); singles and rotating doubles open the league page",
+    ),
+  members: zod
+    .array(
+      zod.object({
+        playerId: zod.number(),
+        name: zod.string(),
+        photoUrl: zod.string().nullable(),
+        level: zod
+          .number()
+          .describe(
+            "Profile level for a signed-up player, else the level the admin set",
+          ),
+        levelSource: zod.enum(["self", "verified"]),
+        organizer: zod.boolean().describe("The league's creator, who runs it"),
+      }),
+    )
+    .optional()
+    .describe(
+      "Who's in (finding 34): the league's active members for the join screen, organizer first, then by name. Every member shows whatever their Discover setting; anyone with a block with the viewer, either way, and the viewer's own row are left out. Empty when signed out.",
+    ),
   createdByClerkUserId: zod.string(),
   expiresAt: zod.string().nullish(),
   maxUses: zod.number().nullish(),

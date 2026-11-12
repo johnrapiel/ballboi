@@ -182,6 +182,8 @@ Leagues launch with Flex as the default format and Round robin as the alternativ
 - **Admins who leave stay admin:** they stop playing but still manage the league. A league's only admin who deletes their account picks the new admin first; Skip hands it to the longest-standing member, so deletion is never blocked
 - **Invite players:** the invite shows the code and its link, https://ballboi.tennis/join/CODE. Copy and Share both give the link, which opens the league's join screen in the app. Without the app, the web page shows the code and how to get Ball Boi. The code stays on the card for people who type it in (decision 175)
 - **Ended leagues:** an ended league's invite code shows "This league has ended" and sends no request
+- **Join screen, Who's in:** under the league's details, everyone in the league: photo or initials, name, level, and Organizer beside the organizer (listed first), up to 8 and then "and N more". Players hidden from Discover still show; anyone with a block with you, either way, doesn't. With no members yet: "No one's joined yet. You'll be the first." (decision 186)
+- **After joining:** a singles or rotating-partner doubles league opens straight to the league page with a short "You're in" note. A fixed-partner doubles league opens the You're in sheet, sized to its content, with the partner choices: accept a waiting request, Team up with someone, or Find me a partner (decision 187)
 
 **Doubles (decisions 160 to 169 and 170 to 172, John, Nov 9)**
 
@@ -588,3 +590,5 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 183 | League cards show Singles or Doubles in the pill; no Active label; a league that hasn't started shows a calendar icon and Starts [date] in its info line; the stats row always shows, with a dash for each value until there's one (John, Nov 12) |
 | 184 | Leaving (a league, today) is a quiet danger-colored text action with a door icon at the bottom of the page, confirmed by an alert, not a filled button (John, Nov 12) |
 | 185 | League page: one main card (your match); Manage league is a gear corner button next to the chat for admins, with a dot when pairings need review; your partner is a line under the league name (No partner yet · Team up opens a sheet); pairings to review is one line with a Review link; a team-up request is a card only while it waits (John, Nov 12) |
+| 186 | Join confirmation lists every league member, including players hidden from Discover; blocked players stay off (John, Nov 12, finding 34) |
+| 187 | After joining: singles and rotating doubles go straight to the league page with a You're in note; fixed-partner doubles keeps a content-sized You're in sheet with the partner choices (John, Nov 12, finding 33) |
