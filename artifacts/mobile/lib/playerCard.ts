@@ -1,5 +1,6 @@
 import type { PlayerCard, PlayerCardSeason, PlayerMatches } from "@workspace/api-client-react";
 
+import { firstName } from "./doubles";
 import { deadlineDate } from "./leagueSchedule";
 import { milestonesSpoken } from "./milestones";
 import type { UpcomingItem } from "./upcoming";
@@ -126,6 +127,40 @@ export function tabFromParam(tab: unknown): MatchTab | null {
 }
 
 export const TAB_LABELS: Record<MatchTab, string> = { upcoming: "Upcoming matches", results: "Results" };
+
+/**
+ * Tab order. Your own Profile leads with Upcoming matches; another player's
+ * page leads with Results and opens on it, to see how and who they've played
+ * (Wave 2 finding 37, John, Nov 12).
+ */
+export const OWN_TABS: MatchTab[] = ["upcoming", "results"];
+export const THEIR_TABS: MatchTab[] = ["results", "upcoming"];
+
+type ResultNames = Pick<PlayerMatches["results"][number], "player1Name" | "player2Name" | "winner" | "yours">;
+
+/**
+ * Both sides of a result on another player's page, with "You" for the viewer
+ * as Home and Match detail read (versusLine in lib/doubles): "You" in singles,
+ * "You and Sam" in doubles (spoken "You and Sam Lee"). A match you didn't play
+ * keeps both names. Player 1 stays on the left, so the winner mark still
+ * follows `winner`.
+ */
+export function resultSideNames(r: ResultNames): { player1: string; player2: string; player1Spoken: string; player2Spoken: string } {
+  const plain = { player1: r.player1Name, player2: r.player2Name, player1Spoken: r.player1Name, player2Spoken: r.player2Name };
+  const y = r.yours;
+  if (!y) return plain;
+  // Your side: from who won when there's a winner, otherwise by the other side's name.
+  let side: 1 | 2 | null = null;
+  if ((r.winner === 1 || r.winner === 2) && y.won != null) side = y.won ? r.winner : r.winner === 1 ? 2 : 1;
+  else if (r.player2Name === y.opponentName && r.player1Name !== y.opponentName) side = 1;
+  else if (r.player1Name === y.opponentName && r.player2Name !== y.opponentName) side = 2;
+  if (side == null) return plain;
+  const you = y.partnerName ? `You and ${firstName(y.partnerName)}` : "You";
+  const youSpoken = y.partnerName ? `You and ${y.partnerName}` : "You";
+  return side === 1
+    ? { ...plain, player1: you, player1Spoken: youSpoken }
+    : { ...plain, player2: you, player2Spoken: youSpoken };
+}
 
 /** Head-to-head above their tabs: "You and Priya: 2-1", from your side. */
 export function headToHeadLine(name: string, h: { you: number; them: number }): { text: string; spoken: string } {
