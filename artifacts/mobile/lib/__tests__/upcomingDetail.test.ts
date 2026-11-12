@@ -59,7 +59,7 @@ describe("upcomingFromDetail", () => {
       matchId: 55,
       leagueId: 3,
     });
-    expect(cardWhen(m, now)).toEqual({ dateLabel: "Sunday, Nov 15", time: "10:00 AM" });
+    expect(cardWhen(m, now)).toEqual({ dateLabel: "Sunday, Nov 15", time: "10 AM" });
   });
 
   it("names both teams in doubles and has no single face", () => {
