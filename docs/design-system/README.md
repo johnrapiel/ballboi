@@ -154,6 +154,8 @@ The tab bar uses the custom brush icon set John approved (Nov 5): hand-drawn Hom
 
 **Filters** (John, Nov 7; restyled Nov 8) is the `slider.horizontal.2` icon alone (two sliders, each with a knob), plain in ink with no circle (an in-page icon, see Buttons and icons), beside a list's count line. VoiceOver reads "Filters" and what's set; a small ink dot marks filters that are on.
 
+**Pinning in league chats** (finding 24, John, Nov 11). Pinning has a visible pin control on the admin's own league posts: a plain brush pin beside the message, outline (`pin`) when not pinned and filled (`pin.fill`) when pinned, with a 44pt tap area, "Pin post" or "Unpin post" for VoiceOver, and selected when pinned. Every pinned post shows the filled pin to everyone, and VoiceOver says "Pinned", so pinned is never color alone. Long-press (and VoiceOver's More actions) stays for other actions: pinning members' posts, Report, Delete, Mute and Remove. With 3 posts pinned, tapping an outline pin says only 3 posts can be pinned and to unpin one first.
+
 ## Logo
 
 The roundel is the wordmark. `assets/Logos/ball-boi-roundel.png` is the painted original on paper, for print and marketing. In the app use the transparent traces: `ball-boi-roundel-ink.svg` by day, `ball-boi-roundel-white.svg` at night. Show it at 40px minimum. Do not recolor, outline or place it on photos.
