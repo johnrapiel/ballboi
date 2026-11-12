@@ -203,6 +203,30 @@ describe("membership", () => {
     expect(await repo.groupMembers(g.id)).toEqual([]);
     expect(await svc.groups("sam")).toEqual([]);
   });
+
+  it("at startup, empties the chat of a league deleted outside the app, so a re-made league shows once (finding 2)", async () => {
+    // The demo seed deletes its leagues directly and makes them again with new ids.
+    const old = await chat();
+    source.leagues.delete(1);
+    source.roster.delete(1);
+    source.leagues.set(7, { id: 7, name: LEAGUE, ended: false });
+    source.join(7, "john", 1, true);
+    source.join(7, "sam", 2);
+    expect(await chats.syncAll()).toEqual({ synced: 2, failed: 0 });
+    const rows = await svc.groups("john");
+    expect(rows.map((r) => [r.title, r.leagueId])).toEqual([[LEAGUE, 7]]);
+    expect(await repo.groupMembers(old.id)).toEqual([]);
+    expect((await repo.findGroup(old.id))?.open).toBe(false);
+    // Running it again changes nothing.
+    expect(await chats.syncAll()).toEqual({ synced: 2, failed: 0 });
+    expect(repo.groups).toHaveLength(2);
+  });
+
+  it("one league never gets a second chat, however often it syncs", async () => {
+    await Promise.all([chats.sync(1), chats.sync(1), chats.syncAll(), chats.chatFor(1, "john")]);
+    expect(repo.groups.filter((g) => g.leagueId === 1)).toHaveLength(1);
+    expect(await svc.groups("john")).toHaveLength(1);
+  });
 });
 
 describe("unread and push (decision 146)", () => {
