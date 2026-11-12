@@ -1,14 +1,13 @@
 import { Image } from "expo-image";
-import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Icon } from "@/components/Icon";
 import React, { useCallback, useRef } from "react";
-import { ActionSheetIOS, ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollView, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getGetLeagueQueryKey, useGetLeague, useGetMyMatch, type MatchDetail } from "@workspace/api-client-react";
 
 import { Avatar } from "@/components/Avatar";
-import { HeaderIconButton } from "@/components/Choice";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
 import { NextMatchCard } from "@/components/NextMatchCard";
 import { DoublesNote } from "@/components/record/DoublesMatchCard";
@@ -36,9 +35,10 @@ import { winnerMark } from "@/lib/winnerMark";
 // details like Home's card (date and time, the court, and where it came
 // from: the league, "Discover" or "Quick match"), the score alone with the
 // winner's name marked by the brush underline (John, Nov 8), and Ball Boi Replay once an analysis has finished
-// (Wave 2 fills the replay in). More options holds Report only (match results
-// aren't shared outside the app, John, Nov 10). With no one to report, there's
-// no More options button.
+// (Wave 2 fills the replay in). No More options button (Wave 2 finding 26,
+// John, Nov 12): match results aren't shared outside the app (decision 177),
+// and Report lives on the player card and in chats, so the header has only
+// back.
 //
 // Finding 7: for 24 hours after the score is entered, either player sees a
 // small pencil next to the score ("Edit score", 44pt). It opens Enter score
@@ -54,8 +54,9 @@ import { winnerMark } from "@/lib/winnerMark";
 //
 // Finding 9 (John, Nov 11): a match not played yet shows Home's next-match
 // card instead (NextMatchCard): when, where, both photos, "You vs. Marcus",
-// the league pill, then Record with Ball Boi (singles), Message, Enter score
-// and Match time where the league lets players set it. A doubles match keeps
+// the league pill, then Record with Ball Boi (singles), Message and Enter
+// score. Where the league lets players set the time, "Set a match time" or
+// "Change time" is link text under the date line (Wave 2 finding 25). A doubles match keeps
 // the note on why Ball Boi can't record it. A Discover or Quick match gets
 // Record on match day and Message. Played matches are unchanged.
 
@@ -165,45 +166,13 @@ export default function MatchDetailScreen() {
   const leagueId = d?.leagueId ?? 0;
   const leagueQ = useGetLeague(leagueId, { query: { enabled: upcoming && d?.leagueId != null, queryKey: getGetLeagueQueryKey(leagueId) } });
 
-  const opponent = d?.opponents.players[0];
   const them = d ? sideName(d.opponents) : "";
   const you = d ? sideName(d.you) : "";
   const youWon = !!d?.you.won;
 
-  function moreOptions() {
-    if (!d) return;
-    const options: { label: string; run: () => void }[] = [];
-    if (opponent?.hasAccount) {
-      options.push({
-        label: `Report ${opponent.name}`,
-        run: () => router.push({ pathname: "/report/[playerId]", params: { playerId: String(opponent.playerId), name: opponent.name } }),
-      });
-    }
-    const labels = options.map((o) => o.label);
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options: [...labels, "Cancel"], cancelButtonIndex: labels.length },
-        (i) => {
-          if (i < options.length) options[i].run();
-        },
-      );
-      return;
-    }
-    Alert.alert("More options", undefined, [...options.map((o) => ({ text: o.label, onPress: o.run })), { text: "Cancel", style: "cancel" as const }]);
-  }
-
-  const header = (
-    <Stack.Screen
-      options={{
-        headerRight: d && opponent?.hasAccount ? () => <HeaderIconButton symbol="ellipsis" label="More options" onPress={moreOptions} /> : undefined,
-      }}
-    />
-  );
-
   if (q.isLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: c.paper, alignItems: "center", justifyContent: "center" }}>
-        {header}
         <ActivityIndicator color={c.ink} accessibilityLabel="Loading match" />
       </View>
     );
@@ -213,7 +182,6 @@ export default function MatchDetailScreen() {
     const status = (q.error as { status?: number } | null)?.status;
     return (
       <View style={{ flex: 1, backgroundColor: c.paper, padding: spacing.space4, paddingBottom: insets.bottom + spacing.space4 }}>
-        {header}
         <Card style={{ gap: spacing.space3 }}>
           <Text variant="bodyStrong" accessibilityRole="header">
             Couldn't load this match
@@ -300,7 +268,6 @@ export default function MatchDetailScreen() {
           />
         }
       >
-        {header}
         <View accessible accessibilityRole="header" accessibilityLabel={`Match against ${cardOpponent}`} style={{ position: "absolute", width: 1, height: 1 }} />
         <NextMatchCard
           dateLabel={cardWhenLabel.dateLabel}
@@ -333,11 +300,10 @@ export default function MatchDetailScreen() {
                 }
               : null
           }
-          extra={
+          timeLink={
             actions.matchTime && leagueIdForActions != null
               ? {
-                  label: "Match time",
-                  hint: item.scheduledAt ? "Change the day and time" : "Pick a day and time this week",
+                  hasTime: !!item.scheduledAt,
                   onPress: () => router.push({ pathname: "/league/[leagueId]/time/[matchId]", params: { leagueId: String(leagueIdForActions), matchId: String(d.matchId) } }),
                 }
               : null
@@ -359,7 +325,6 @@ export default function MatchDetailScreen() {
       contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
-      {header}
       {/* The screen's name for VoiceOver; the nav bar title stays empty, as designed. */}
       <View accessible accessibilityRole="header" accessibilityLabel={`Match against ${them}`} style={{ position: "absolute", width: 1, height: 1 }} />
 
