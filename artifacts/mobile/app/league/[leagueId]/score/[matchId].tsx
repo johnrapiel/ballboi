@@ -30,7 +30,7 @@ import { correctionLine, deadlineDate, LATE_NOTE, opponentName } from "@/lib/lea
 import { andJoin, firstName as firstNameOf, isDoublesMatch, opponentNames, partnerName, shortTeamChoices, sideNames, type ShortTeamResult } from "@/lib/doubles";
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
-import { emptySet, readScore, setRowsToShow, setsFromScore, type SetEntry } from "@/lib/scoreEntry";
+import { emptySet, hasScoreChange, NO_CHANGES, readScore, setRowsToShow, setsFromScore, type SetEntry } from "@/lib/scoreEntry";
 import { scoreNote } from "@/lib/playoffView";
 import { flipScore, isRetiredScore } from "@/lib/tennisScore";
 
@@ -349,7 +349,10 @@ export default function EnterScoreScreen() {
         : pastPlayBy && playoffRound?.playBy
       ? `The play-by date for this match was ${deadlineDate(playoffRound.playBy, scheduleQ.data?.timeZone)}. Your league admin can enter the result.`
       : null;
-  const canSave = draft.ok && !closedNote;
+  // An edit or a correction saves only a different score (finding 14).
+  const savedScore = editing ? myCurrentScore : correcting ? currentScore : null;
+  const unchanged = (editing || correcting) && draft.ok && !hasScoreChange(draft, savedScore);
+  const canSave = draft.ok && !closedNote && !unchanged;
   const note = scoreNote({ correcting, settling, editing, playoffRound: playoffSlot?.round ?? null });
   const leagueName = leagueQ.data?.name;
   const meta = [
@@ -471,7 +474,8 @@ export default function EnterScoreScreen() {
         onPress={onSave}
         disabled={!canSave}
         loading={busy}
-        accessibilityHint={asAdmin ? "Asks you to confirm" : note.hint}
+        accessibilityLabel={unchanged && !closedNote ? `${correcting ? "Correct score" : "Save edit"}. ${NO_CHANGES}` : undefined}
+        accessibilityHint={unchanged && !closedNote ? undefined : asAdmin ? "Asks you to confirm" : note.hint}
       />
     </SheetBody>
   );
