@@ -1,19 +1,18 @@
-import * as Haptics from "expo-haptics";
-import { Icon, type IconName } from "@/components/Icon";
-import React, { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Share, View } from "react-native";
+import { type IconName } from "@/components/Icon";
+import React from "react";
+import { ActivityIndicator, Share, View } from "react-native";
 
 import { PlainIconButton } from "@/components/Choice";
+import { CopyButton } from "@/components/CopyButton";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { copyText } from "@/lib/copy";
 import { inviteMessage, joinUrl } from "@/lib/leagueInvite";
 
 // The invite: the code, a copy icon and a share icon (approved canvas: Invite
 // players; findings 11 and 12). Copy puts the join link on the clipboard
-// (John, Nov 9), so a pasted invite opens the league, and says "Copied", out
-// loud for VoiceOver too. Share sends the link with a line of text. The code
+// (John, Nov 9), so a pasted invite opens the league; the copy icon turns
+// into a check for about 2 seconds (CopyButton, finding 22). Share sends the link with a line of text. The code
 // stays on the card for people who type it in. It lives at
 // the top of Manage league (finding 29) and on the invite screen after Create.
 // A league with no code yet (one made before codes were automatic) gets a
@@ -44,30 +43,9 @@ export function InviteCard({
   note?: string;
 }) {
   const c = useColors();
-  const [copied, setCopied] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-  }, []);
-
   async function share() {
     if (!code) return;
     await Share.share({ message: inviteMessage(leagueName, code) }).catch(() => undefined);
-  }
-
-  async function copy() {
-    if (!code) return;
-    const ok = await copyText(joinUrl(code));
-    if (!ok) {
-      // An older development build without the clipboard: Share has Copy too.
-      void share();
-      return;
-    }
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setCopied(true);
-    AccessibilityInfo.announceForAccessibility("Copied invite link");
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setCopied(false), 2500);
   }
 
   return (
@@ -93,16 +71,18 @@ export function InviteCard({
               </Text>
             </View>
             <View style={{ flexDirection: "row", gap: spacing.space2 }}>
-              <IconAction symbol="doc.on.doc" label="Copy invite link" hint="Copies a link that opens the league" onPress={copy} />
+              <CopyButton
+                text={joinUrl(code)}
+                label="Copy invite link"
+                copiedLabel="Copied invite link"
+                hint="Copies a link that opens the league"
+                // An older development build without the clipboard: Share has Copy too.
+                onFail={() => void share()}
+              />
               <IconAction symbol="square.and.arrow.up" label="Share invite link" hint="Opens the share sheet" onPress={share} />
             </View>
           </View>
-          {copied ? (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space1 }}>
-              <Icon name="checkmark" size={14} tintColor={c.ink} />
-              <Text variant="small">Copied</Text>
-            </View>
-          ) : note ? (
+          {note ? (
             <Text variant="small" tone="inkMuted">
               {note}
             </Text>
