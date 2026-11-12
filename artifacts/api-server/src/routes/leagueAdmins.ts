@@ -5,6 +5,7 @@ import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { getLeagueRole, leagueAdminCount } from "../lib/leagueAccess.js";
 import { leagueToday, leagueZone } from "../lib/leagueCalendar.js";
 import { joinedWeek } from "../lib/leagueJoining.js";
+import { blockedAccountsFor } from "../lib/blocks.js";
 import { loadProfiles, playerDisplayName, playerLevelText, playerProfileLevel } from "../lib/playerProfile.js";
 import { promoteProblem, removeAdminProblem, type LeagueRole } from "../lib/leagueRoles.js";
 import { requireLeagueAdmin } from "../middlewares/requireLeagueAdmin.js";
@@ -107,15 +108,17 @@ router.get("/leagues/:leagueId/admins", requireLeagueViewer, async (req, res) =>
 });
 
 /** Admins: everyone playing this season, with their role, for Manage. */
-router.get("/leagues/:leagueId/roster", requireLeagueAdmin, async (_req, res) => {
+router.get("/leagues/:leagueId/roster", requireLeagueAdmin, async (req, res) => {
   const leagueId = res.locals.leagueId as number;
-  const [players, admins] = await Promise.all([
+  const { userId } = getAuth(req);
+  const [players, admins, hidden] = await Promise.all([
     db
       .select()
       .from(playersTable)
       .where(and(eq(playersTable.leagueId, leagueId), isNull(playersTable.leftAt)))
       .orderBy(asc(playersTable.name)),
     db.select().from(leagueAdminsTable).where(eq(leagueAdminsTable.leagueId, leagueId)),
+    userId ? blockedAccountsFor(userId) : Promise.resolve(new Set<string>()),
   ]);
   // A1, S6: signed-up players show their current profile name and level.
   const profiles = await loadProfiles(players.map((p) => p.clerkUserId));
@@ -124,6 +127,9 @@ router.get("/leagues/:leagueId/roster", requireLeagueAdmin, async (_req, res) =>
     name: playerDisplayName(p, profiles),
     skillLevel: playerLevelText(p, profiles),
     rating: playerProfileLevel(p, profiles),
+    // Photo or initials in Round review's swap list (Wave 2 finding 35). Never
+    // for a placeholder or someone with a block either way (#199).
+    avatarUrl: p.clerkUserId && !hidden.has(p.clerkUserId) ? (profiles.get(p.clerkUserId)?.avatarUrl ?? null) : null,
     hasAccount: !!p.clerkUserId,
     role: admins.find((a) => p.clerkUserId && a.clerkUserId === p.clerkUserId)?.role ?? null,
   }));

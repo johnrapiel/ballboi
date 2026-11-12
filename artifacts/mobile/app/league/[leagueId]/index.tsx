@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
+import { useActionSheet } from "@/components/ActionSheet";
 import { Icon } from "@/components/Icon";
 import { areaLabel } from "@/lib/leagueArea";
 import React, { useState } from "react";
@@ -23,6 +24,7 @@ import { LeagueChatButton } from "@/components/league/LeagueChatButton";
 import { MatchTimeLink } from "@/components/MatchTimeLink";
 import { TeamUpRequestCards } from "@/components/league/PartnerCard";
 import { PairingsLine, PartnerLine } from "@/components/league/LeagueLines";
+import { JoinedNote } from "@/components/league/JoinedNote";
 import { CornerButton } from "@/components/CornerButton";
 import { LeaveAction } from "@/components/LeaveAction";
 import { andJoin, isDoublesMatch, manageLeagueLabel, opponentNames, partnerName, versusLine, versusSpoken } from "@/lib/doubles";
@@ -236,10 +238,13 @@ function YourWeek({
 export default function LeagueScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
-  const { leagueId: raw } = useLocalSearchParams<{ leagueId: string }>();
+  const { leagueId: raw, joined } = useLocalSearchParams<{ leagueId: string; joined?: string }>();
   const leagueId = Number(raw);
+  // Opened straight from the join sheet (finding 33): "You're in" at the top.
+  const justJoined = joined === "1";
   const [tab, setTab] = useState<Tab>("standings");
   const queryClient = useQueryClient();
+  const sheet = useActionSheet();
   const leave = useLeaveLeague();
   const settle = useSettlePlayoffMatch();
 
@@ -340,12 +345,16 @@ export default function LeagueScreen() {
         .catch((e) =>
           Alert.alert("Couldn't enter the result", (e as { data?: { error?: string } | null }).data?.error ?? "Try again in a moment."),
         );
-    Alert.alert(`${slot.player1.playerName} vs. ${slot.player2.playerName}`, "The play-by date has passed. Enter the score, or give one player a walkover (W/O).", [
-      { text: "Enter score", onPress: () => router.push(`/league/${leagueId}/score/${matchId}?settle=1`) },
-      { text: `Walkover to ${slot.player1.playerName}`, onPress: () => void walkover(slot.player1!) },
-      { text: `Walkover to ${slot.player2.playerName}`, onPress: () => void walkover(slot.player2!) },
-      { text: "Cancel", style: "cancel" },
-    ]);
+    // A menu, so a bottom sheet (decision 193).
+    sheet.show({
+      people: [{ name: slot.player1.playerName }, { name: slot.player2.playerName }],
+      message: "The play-by date has passed. Enter the score, or give one player a walkover (W/O).",
+      rows: [
+        { label: "Enter score", icon: "square.and.pencil", onPress: () => router.push(`/league/${leagueId}/score/${matchId}?settle=1`) },
+        { label: `Walkover to ${slot.player1.playerName}`, icon: "flag.checkered", onPress: () => void walkover(slot.player1!) },
+        { label: `Walkover to ${slot.player2.playerName}`, icon: "flag.checkered", onPress: () => void walkover(slot.player2!) },
+      ],
+    });
   }
 
   return (
@@ -354,6 +363,7 @@ export default function LeagueScreen() {
       contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
+      {sheet.element}
       {leagueQ.isError || !league ? (
         <Card style={{ gap: spacing.space2 }}>
           <Text variant="bodyStrong">Couldn't load this league</Text>
@@ -363,6 +373,7 @@ export default function LeagueScreen() {
         </Card>
       ) : (
         <>
+          {justJoined ? <JoinedNote leagueName={league.name ?? null} /> : null}
           <View style={{ gap: spacing.space1 }}>
             {/* Chat in the top-right corner (decision 145): the league's chat, also in Messages. */}
             <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.space3 }}>

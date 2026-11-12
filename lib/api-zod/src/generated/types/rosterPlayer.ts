@@ -16,6 +16,11 @@ export interface RosterPlayer {
   skillLevel: string;
   /** A signed-up player's profile level and its source, for the level badge. Null for placeholders and players who haven't set one */
   rating: MatchPlayerRating | null;
+  /**
+   * A signed-up player's profile photo path. Null for placeholders, players with no photo, and anyone with a block either way
+   * @nullable
+   */
+  avatarUrl: string | null;
   /** False for players an admin added by name; they can't be co-admins */
   hasAccount: boolean;
   /** @nullable */

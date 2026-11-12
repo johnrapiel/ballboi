@@ -109,6 +109,46 @@ export function TextLink({ style, ...rest }: TextLinkProps) {
   );
 }
 
+/**
+ * A tertiary action on its own line: a centered TextLink padded to a 44pt
+ * tap area. Used under a primary and a secondary Button when a card,
+ * screen or empty state has more to offer (decision 189: at most one
+ * primary and one secondary Button; anything else is one of these).
+ */
+export function TextLinkButton({
+  label,
+  onPress,
+  accessibilityLabel,
+  accessibilityHint,
+}: {
+  label: string;
+  onPress: () => void;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="link"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityHint={accessibilityHint}
+      style={({ pressed }) => ({
+        alignSelf: "center",
+        minHeight: MIN_TAP,
+        minWidth: MIN_TAP,
+        paddingHorizontal: spacing.space4,
+        alignItems: "center",
+        justifyContent: "center",
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <TextLink variant="bodyStrong" onPress={onPress} accessible={false} style={{ textAlign: "center" }}>
+        {label}
+      </TextLink>
+    </Pressable>
+  );
+}
+
 export interface ButtonProps extends Omit<PressableProps, "children"> {
   label: string;
   /**
