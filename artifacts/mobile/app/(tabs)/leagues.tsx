@@ -2,6 +2,7 @@ import { useUser } from "@clerk/expo";
 import { useQueries } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { Icon } from "@/components/Icon";
+import { areaLabel } from "@/lib/leagueArea";
 import React from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -79,7 +80,7 @@ function Stat({ label, value, first }: { label: string; value: string; first?: b
 
 function LeagueCard({ league, standing, onPress }: { league: League; standing: MyStanding; onPress: () => void }) {
   const c = useColors();
-  const details = [league.location, playersLabel(league.playerCount), formatLabel(league.format)].filter(Boolean).join(" · ");
+  const details = [areaLabel(league.area) ?? league.location, playersLabel(league.playerCount), formatLabel(league.format)].filter(Boolean).join(" · ");
   const spoken = [
     league.name,
     statusLabel(league.status),
@@ -134,7 +135,7 @@ function LeagueCard({ league, standing, onPress }: { league: League; standing: M
 
 function PastLeagueRow({ league, standing, onPress, last }: { league: League; standing: MyStanding; onPress: () => void; last: boolean }) {
   const c = useColors();
-  const sub = [league.location, formatLabel(league.format), standing ? `Finished ${ordinal(standing.rank)}` : pastLabel(league)]
+  const sub = [areaLabel(league.area) ?? league.location, formatLabel(league.format), standing ? `Finished ${ordinal(standing.rank)}` : pastLabel(league)]
     .filter(Boolean)
     .join(" · ");
   return (
