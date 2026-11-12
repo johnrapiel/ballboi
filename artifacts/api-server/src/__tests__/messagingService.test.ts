@@ -401,9 +401,57 @@ describe("after the API restarts (in-memory provider)", () => {
     const after = restart();
     const thread = await after.thread("blair", conversationId);
     expect(thread.messages).toEqual([]);
-    expect(thread.conversation.lastMessage?.text).toBe("Hit Saturday?");
+    // The preview follows the chat: nothing to show (finding 1).
+    expect(thread.conversation.lastMessage).toBeNull();
     await after.send("blair", conversationId, { text: "Yes, 9am", clientMessageId: mid() });
     await after.send("alex", conversationId, { text: "Great", clientMessageId: mid() });
     expect((await after.thread("alex", conversationId)).messages.map((m) => m.text)).toEqual(["Yes, 9am", "Great"]);
+  });
+});
+
+describe("the Messages list preview matches the chat (Wave 2 finding 1)", () => {
+  // Staging, Nov 10: the list showed "Are you around this weekend?" for a chat
+  // with Ross whose messages were lost, because the preview is stored separately.
+  const restart = () => new MessagingService({ repo, provider: new MemoryMessagingProvider({ now: () => now }), filter: new FirstMessageFilter(), now: () => now });
+
+  it("shows no preview, and nothing unread, for a chat whose messages are gone", async () => {
+    const { conversationId } = await svc.start("alex", { playerId: 2, text: "Are you around this weekend?", clientMessageId: mid() });
+    const after = restart();
+    const [row] = await after.list("blair");
+    expect(row.id).toBe(conversationId);
+    expect(row.lastMessage).toBeNull();
+    expect(row.unread).toBe(0);
+    expect(await after.summary("blair")).toEqual({ unread: 0 });
+    // The stored preview is corrected too, so the other player's list agrees.
+    expect((await repo.findById(conversationId))?.lastMessageText).toBeNull();
+    expect((await after.list("alex"))[0].lastMessage).toBeNull();
+  });
+
+  it("shows the chat's real last message when the stored preview disagrees", async () => {
+    const { conversationId } = await svc.start("alex", { playerId: 2, text: "Hit Saturday?", clientMessageId: mid() });
+    await svc.send("blair", conversationId, { text: "Yes, 9am", clientMessageId: mid() });
+    await repo.update(conversationId, { lastMessageText: "Are you around this weekend?", lastSender: "alex" });
+    const [row] = await svc.list("alex");
+    expect(row.lastMessage).toMatchObject({ text: "Yes, 9am", fromMe: false });
+    const thread = await svc.thread("alex", conversationId);
+    expect(thread.conversation.lastMessage?.text).toBe(thread.messages.at(-1)?.text);
+  });
+
+  it("agrees after sending, leaving and coming back", async () => {
+    const { conversationId } = await svc.start("alex", { playerId: 2, text: "Hit Saturday?", clientMessageId: mid() });
+    await svc.thread("alex", conversationId);
+    await svc.send("alex", conversationId, { text: "Court 3 at 9", clientMessageId: mid() });
+    const [row] = await svc.list("alex");
+    const thread = await svc.thread("alex", conversationId);
+    expect(row.lastMessage).toMatchObject({ text: "Court 3 at 9", fromMe: true });
+    expect(thread.messages.at(-1)?.text).toBe("Court 3 at 9");
+  });
+
+  it("keeps the stored preview when the chat can't be read", async () => {
+    const { conversationId } = await svc.start("alex", { playerId: 2, text: "Hit Saturday?", clientMessageId: mid() });
+    vi.spyOn(provider, "listMessages").mockRejectedValue(new Error("provider down"));
+    const [row] = await svc.list("blair");
+    expect(row.lastMessage?.text).toBe("Hit Saturday?");
+    expect((await repo.findById(conversationId))?.lastMessageText).toBe("Hit Saturday?");
   });
 });
