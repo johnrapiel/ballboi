@@ -99,7 +99,7 @@ Three tabs at the top: Players, Open leagues, Open matches (decision 109).
 - **Open leagues:** distance, level range, format, start date, spots left. Doubles leagues carry a Doubles pill, and a Format filter (All, Singles, Doubles) narrows the list and its distance counts (decision 167)
 - **Open matches:** post date, time window, court, skill range, and format; nearby matching players get notified
 - **Need 1 / Need 2:** a tag on doubles open matches; taking a spot works like joining any open match, and the group chat opens when the last spot fills (decision 114)
-- **Empty state:** widen radius, post an open match, or invite a friend by link
+- **Empty state:** Widen to N mi (primary, when a wider distance exists), Post an open match (secondary) and Invite a friend (a text link); at 30 mi, Post an open match and the link (decision 189). When filters emptied the list, it says "No players match your filters" with a line naming them ("Nobody nearby is free when you are."), Clear filters first, Widen second, and Post an open match as a link; it never says Ball Boi is new near you (decision 190). The Filters button shows a dot and VoiceOver says how many are on ("Filters, 1 on"). The roundel in every empty state shows at 50% (decision 188)
 
 **From found to playing**
 
@@ -588,3 +588,6 @@ Coaching tips return only once a coach-authored library exists, and doubles anal
 | 183 | League cards show Singles or Doubles in the pill; no Active label; a league that hasn't started shows a calendar icon and Starts [date] in its info line; the stats row always shows, with a dash for each value until there's one (John, Nov 12) |
 | 184 | Leaving (a league, today) is a quiet danger-colored text action with a door icon at the bottom of the page, confirmed by an alert, not a filled button (John, Nov 12) |
 | 185 | League page: one main card (your match); Manage league is a gear corner button next to the chat for admins, with a dot when pairings need review; your partner is a line under the league name (No partner yet · Team up opens a sheet); pairings to review is one line with a Review link; a team-up request is a card only while it waits (John, Nov 12) |
+| 188 | Empty-state roundel shows at 50% opacity: wherever the roundel illustrates an empty, error or "nothing yet" state. Headers, Settings and Welcome keep it at full strength (John, Nov 12, Wave 2 finding 36) |
+| 189 | At most one primary and one secondary button per empty state, card or screen; other actions are tertiary text links (John, Nov 12, Wave 2 finding 36) |
+| 190 | An empty list caused by filters says so and offers Clear filters first (John, Nov 12, Wave 2 finding 36) |

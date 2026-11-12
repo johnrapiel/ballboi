@@ -18,7 +18,7 @@ import { OpenMatchCard } from "@/components/discover/OpenMatchCard";
 import { PlayerRow } from "@/components/discover/PlayerRow";
 import { EmptyBlock, NoteCard, ProblemCard, SkeletonRows } from "@/components/discover/States";
 import { TabScreen } from "@/components/TabHeader";
-import { Button, Card, Text } from "@/components/ui";
+import { Button, Card, Text, TextLinkButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useDiscoverMe, useDiscoverPlayers, useSaveRadius } from "@/hooks/useDiscover";
@@ -27,7 +27,18 @@ import { useDiscoverLeagues } from "@/hooks/useDiscoverLeagues";
 import { useOpenMatches } from "@/hooks/useDiscoverOpenMatches";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { isOfflineError } from "@/lib/api";
-import { RADIUS_STEPS, countFor, countLine, filtersSpoken, inviteMessage, type DiscoverTab, type PlayFilter } from "@/lib/discover";
+import {
+  RADIUS_STEPS,
+  activeFilters,
+  clearedFilters,
+  countFor,
+  countLine,
+  filteredEmptyBody,
+  filtersButtonLabel,
+  inviteMessage,
+  type DiscoverTab,
+  type PlayFilter,
+} from "@/lib/discover";
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
 
 export default function DiscoverScreen() {
@@ -123,6 +134,8 @@ function PlayersTab() {
     saveRadius.mutate(r);
   };
   const openFilters = () => router.push("/discover/filters");
+  const filtersOn = activeFilters(filters).length > 0;
+  const postMatch = () => router.push("/discover/match/new");
   const setTimes = () => router.push("/availability");
 
   const widenTo = RADIUS_STEPS.find((r) => r > radius && (countFor(counts, r) ?? 0) > 0) ?? RADIUS_STEPS.find((r) => r > radius);
@@ -162,7 +175,7 @@ function PlayersTab() {
               ? `Within ${radius} mi`
               : countLine(n, radius)}
         </Text>
-        <FiltersButton onPress={openFilters} accessibilityLabel={`Filters: ${filtersSpoken(filters, radius)}`} />
+        <FiltersButton onPress={openFilters} active={filtersOn} accessibilityLabel={filtersButtonLabel(filters, radius)} />
       </View>
 
       {noTimes ? (
@@ -193,16 +206,22 @@ function PlayersTab() {
         >
           <Button label="Add your ZIP" onPress={() => router.push("/discover/area")} />
         </EmptyBlock>
+      ) : data && data.players.length === 0 && filtersOn ? (
+        // Decision 190: the filters emptied the list, so say so and offer Clear filters first.
+        <EmptyBlock title="No players match your filters" body={filteredEmptyBody(filters)}>
+          <Button label="Clear filters" onPress={() => discoverState.setFilters(clearedFilters())} />
+          {widenTo ? <Button label={`Widen to ${widenTo} mi`} variant="secondary" onPress={() => pickRadius(widenTo)} /> : null}
+          <TextLinkButton label="Post an open match" onPress={postMatch} />
+        </EmptyBlock>
       ) : data && data.players.length === 0 ? (
         <EmptyBlock
           title={`No players within ${radius} mi`}
           body={`Ball Boi is new${me.data?.area ? ` near ${me.data.area.zip}` : " here"}. Try a wider distance, post an open match, or invite friends who play.`}
         >
           {widenTo ? <Button label={`Widen to ${widenTo} mi`} onPress={() => pickRadius(widenTo)} /> : null}
-          <Button label="Post an open match" variant="secondary" onPress={() => router.push("/discover/match/new")} />
-          <Button
+          <Button label="Post an open match" variant="secondary" onPress={postMatch} />
+          <TextLinkButton
             label="Invite a friend"
-            variant="secondary"
             onPress={() => void invite()}
             accessibilityHint="Opens the share sheet with your invite link"
           />
@@ -382,11 +401,10 @@ function MatchesTab() {
       ) : data && data.matches.length === 0 ? (
         <>
           <EmptyBlock title={`No open matches within ${radius} mi`} body="Post one and players nearby can join with one tap.">
-            <Button label="Post an open match" variant="secondary" onPress={post} />
+            <Button label="Post an open match" onPress={post} />
             {widenTo ? <Button label={`Widen to ${widenTo} mi`} variant="secondary" onPress={() => pickRadius(widenTo)} /> : null}
-            <Button
-              label="Invite friends"
-              variant="secondary"
+            <TextLinkButton
+              label="Invite a friend"
               onPress={() => void invite()}
               accessibilityHint="Opens the share sheet with your invite link"
             />
