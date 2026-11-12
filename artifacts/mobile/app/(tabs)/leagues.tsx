@@ -3,6 +3,7 @@ import { useQueries } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { Icon } from "@/components/Icon";
 import { areaLabel } from "@/lib/leagueArea";
+import { textTapSlop } from "@/lib/tapTarget";
 import React from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -165,7 +166,7 @@ function PastLeagueRow({ league, standing, onPress, last }: { league: League; st
 // "Tuesday Flex was deleted by its organizer" (C10). One line; the player clears it.
 function NoticeRow({ message, onClear, clearing }: { message: string; onClear: () => void; clearing: boolean }) {
   return (
-    <Card style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3, paddingVertical: spacing.space2 }}>
+    <Card style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3 }}>
       <Text variant="body" style={{ flex: 1 }}>
         {message}
       </Text>
@@ -176,7 +177,9 @@ function NoticeRow({ message, onClear, clearing }: { message: string; onClear: (
         accessibilityLabel="Clear"
         accessibilityHint={message}
         accessibilityState={{ disabled: clearing, busy: clearing }}
-        style={({ pressed }) => ({ minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center", opacity: pressed || clearing ? 0.6 : 1 })}
+        // 44pt target from hitSlop, so the card keeps equal padding (decision 192).
+        hitSlop={textTapSlop("button")}
+        style={({ pressed }) => ({ alignItems: "center", justifyContent: "center", opacity: pressed || clearing ? 0.6 : 1 })}
       >
         <Text variant="button">Clear</Text>
       </Pressable>

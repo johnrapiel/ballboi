@@ -12,6 +12,7 @@ import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { photoUrl } from "@/lib/photos";
 import { visibleMilestones } from "@/lib/milestones";
+import { textTapSlop } from "@/lib/tapTarget";
 import { ADD_HOME_COURT, ADD_PLAYS, bottomRow, cardPrompts, cardSpoken, levelPill, playsPill, townLine } from "@/lib/playerCard";
 
 // The player card, design D "Portrait" (spec decision 139, John, Nov 8;
@@ -41,11 +42,11 @@ function Prompt({ label, hint, onPress, icon, small }: { label: string; hint: st
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={hint}
-      // Beside a pill the row stays pill height; the slop keeps the target 44pt.
-      hitSlop={small ? { top: 10, bottom: 10 } : undefined}
+      // Beside a pill the row stays pill height; the slop keeps the target 44pt
+      // without adding space in the card (decision 192).
+      hitSlop={small ? { top: 10, bottom: 10 } : textTapSlop("body")}
       style={({ pressed }) => ({
-        minHeight: small ? 26 : MIN_TAP,
-        minWidth: MIN_TAP,
+        minHeight: small ? 26 : undefined,
         flexDirection: "row",
         alignItems: "center",
         gap: spacing.space2,
@@ -118,8 +119,8 @@ export function PlayerCard({
         borderColor: c.hairline,
         overflow: "hidden",
         alignItems: "center",
-        // With no bottom row the card ends on its badges or town; keep the same air as above them.
-        paddingBottom: row ? spacing.space1 : spacing.space4,
+        // The card's padding, also under the bottom row (decision 192).
+        paddingBottom: spacing.space4,
       }}
     >
       <View accessible accessibilityLabel={cardSpoken({ ...card, milestones: badges })} style={{ alignItems: "center", width: "100%" }}>
@@ -160,7 +161,7 @@ export function PlayerCard({
       {badges.length ? <MilestoneButtons milestones={badges} /> : null}
 
       {row ? (
-        <View style={{ width: "100%", paddingHorizontal: 20, marginTop: spacing.space4 }}>
+        <View style={{ width: "100%", paddingHorizontal: spacing.space4, marginTop: spacing.space4 }}>
           <View
             style={{
               flexDirection: "row",
@@ -169,6 +170,8 @@ export function PlayerCard({
               // One item alone sits left as a footer, so it never looks stranded on the right.
               justifyContent: row.align === "split" && (row.left !== "prompt" || askCourt) ? "space-between" : "flex-start",
               columnGap: spacing.space3,
+              // As much air above the row's words as the card keeps below them.
+              paddingTop: spacing.space4,
               borderTopWidth: 1,
               borderTopColor: c.hairline,
             }}
@@ -178,7 +181,7 @@ export function PlayerCard({
               <View
                 accessibilityElementsHidden
                 importantForAccessibility="no-hide-descendants"
-                style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2, minHeight: MIN_TAP, flexShrink: 1 }}
+                style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2, flexShrink: 1 }}
               >
                 <Icon name="sportscourt" size={22} tintColor={c.ink} />
                 <Text style={{ flexShrink: 1 }}>{card.homeCourt}</Text>
@@ -192,9 +195,8 @@ export function PlayerCard({
                 accessibilityRole="button"
                 accessibilityLabel={card.you ? "Free times" : `${first}'s free times`}
                 accessibilityHint={card.you ? "Shows when you're usually free" : `Shows when ${first} is usually free`}
+                hitSlop={textTapSlop("body")}
                 style={({ pressed }) => ({
-                  minHeight: MIN_TAP,
-                  minWidth: MIN_TAP,
                   flexDirection: "row",
                   alignItems: "center",
                   gap: spacing.space2,

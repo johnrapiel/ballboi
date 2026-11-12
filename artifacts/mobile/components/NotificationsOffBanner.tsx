@@ -3,7 +3,7 @@ import { Linking, Pressable, View } from "react-native";
 
 import { Icon } from "@/components/Icon";
 import { Text } from "@/components/ui";
-import { MIN_TAP, radius, spacing } from "@/constants/tokens";
+import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useNotificationAccess } from "@/hooks/useNotificationAccess";
 import { showOffLine } from "@/lib/notificationAccess";
@@ -26,12 +26,11 @@ export function NotificationsOffBanner() {
       accessibilityLabel={`${NOTIFICATIONS_OFF_TEXT} Turn on in Settings`}
       accessibilityHint="Opens Ball Boi in iOS Settings"
       style={({ pressed }) => ({
-        minHeight: MIN_TAP,
         flexDirection: "row",
         alignItems: "center",
         gap: spacing.space3,
-        paddingHorizontal: spacing.space4,
-        paddingVertical: spacing.space3,
+        // Same inner padding as a card, equal on every side (decision 192).
+        padding: spacing.space4,
         backgroundColor: c.sand,
         borderRadius: radius.radiusMd,
         opacity: pressed ? 0.7 : 1,

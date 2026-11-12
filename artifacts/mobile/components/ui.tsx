@@ -39,6 +39,7 @@ import {
   type,
   type TypeStyle,
 } from "@/constants/tokens";
+import { textTapSlop } from "@/lib/tapTarget";
 
 type Tone = "ink" | "inkMuted" | "court" | "danger" | "onInk";
 
@@ -511,7 +512,8 @@ export interface TextButtonProps extends Omit<PressableProps, "children"> {
 /**
  * A quiet text-only button, like iOS's plain button: muted body text with a
  * 44pt target. For secondary ways out (Sign out) that shouldn't compete with
- * the primary button.
+ * the primary button. The target comes from hitSlop, not layout, so it adds no
+ * visible space around the words (decision 192).
  */
 export function TextButton({ label, accessibilityLabel, disabled, style, ...rest }: TextButtonProps) {
   return (
@@ -521,12 +523,9 @@ export function TextButton({ label, accessibilityLabel, disabled, style, ...rest
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: !!disabled }}
-      hitSlop={spacing.space1}
+      hitSlop={textTapSlop("body")}
       style={(state) => [
         {
-          minHeight: MIN_TAP,
-          minWidth: MIN_TAP,
-          paddingHorizontal: spacing.space3,
           alignSelf: "center",
           alignItems: "center",
           justifyContent: "center",

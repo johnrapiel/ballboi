@@ -6,8 +6,9 @@ import type { ScheduleMatch, ScheduleRound, ScheduleWeek } from "@workspace/api-
 
 import { Card, Chip, Text } from "@/components/ui";
 import { WinnerNames } from "@/components/WinnerNames";
-import { MIN_TAP, spacing } from "@/constants/tokens";
+import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { textTapSlop } from "@/lib/tapTarget";
 import { sideOf, winnerMark } from "@/lib/winnerMark";
 import { canEnterScore, correctionLine, dateRange, editedLine, isMine, isNotPlayed, LATE_ROUND_RESULT, opponentName, phaseLabel, resultLine, roundPlayByLine, shortDate, sideLabels } from "@/lib/leagueSchedule";
 
@@ -101,9 +102,9 @@ function MatchRow({
           accessibilityRole="button"
           accessibilityLabel="Enter score"
           accessibilityHint={`For your match against ${myPlayerId != null ? opponentName(m, myPlayerId) : ""}`}
+          // 44pt target from hitSlop, so the row keeps the card's padding (decision 192).
+          hitSlop={textTapSlop("button")}
           style={({ pressed }) => ({
-            minHeight: MIN_TAP,
-            minWidth: MIN_TAP,
             justifyContent: "center",
             alignItems: "flex-end",
             opacity: pressed ? 0.6 : 1,
