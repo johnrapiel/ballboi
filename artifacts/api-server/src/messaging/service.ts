@@ -249,6 +249,8 @@ export class MessagingService {
   private devAutoReply: boolean;
   readonly moderation?: MessagingServiceDeps["moderation"];
   private leaguePlayers?: MessagingServiceDeps["leaguePlayers"];
+  /** Channels this process has already made sure exist at the provider. */
+  private openChannels = new Set<string>();
 
   constructor(deps: MessagingServiceDeps) {
     this.repo = deps.repo;
@@ -259,6 +261,20 @@ export class MessagingService {
     this.devAutoReply = deps.devAutoReply ?? false;
     this.moderation = deps.moderation;
     this.leaguePlayers = deps.leaguePlayers;
+  }
+
+  /**
+   * Makes sure a chat's channel exists at the provider before reading or
+   * sending, once per channel while the API runs. A chat saved in the database
+   * can have no channel at the provider: one made while staging ran the
+   * in-memory provider has none on Stream, and a new Stream app starts empty
+   * (Nov 10, chat failed to open). Making it here creates the Stream users and
+   * the channel with its members, so those chats open and send.
+   */
+  private async openChannel(channelId: string, members: string[]): Promise<void> {
+    if (this.openChannels.has(channelId)) return;
+    await this.provider.ensureChannel(channelId, members);
+    this.openChannels.add(channelId);
   }
 
   // ─── Reading ──────────────────────────────────────────────────────────────
@@ -405,10 +421,8 @@ export class MessagingService {
     let { c } = found;
     if (c.userA === me && c.aUnread > 0) c = await this.repo.update(c.id, { aUnread: 0 });
     if (c.userB === me && c.bUnread > 0) c = await this.repo.update(c.id, { bUnread: 0 });
+    await this.openChannel(c.channelId, [c.userA, c.userB]);
     const messages = await this.provider.listMessages(c.channelId, { limit: THREAD_PAGE, before: opts.before });
-    // A chat with messages that come back empty lost its channel (the
-    // in-memory provider, restarted). Make it again so replies still send.
-    if (!messages.length && c.lastMessageAt && !opts.before) await this.provider.ensureChannel(c.channelId, [c.userA, c.userB]);
     // The latest page is also what the list preview is checked against.
     const known = opts.before ? undefined : new Map([[c.channelId, messages.slice(-PREVIEW_WINDOW)]]);
     const [conversation] = await this.views(me, [{ ...found, c }], known);
@@ -585,6 +599,7 @@ export class MessagingService {
     const already = checked ? null : await this.provider.getMessage(messageId);
     if (already) return { conversationId: c.id, message: this.messageView(already, me) };
 
+    await this.openChannel(c.channelId, [c.userA, c.userB]);
     const message = await this.provider.sendMessage({ channelId: c.channelId, messageId, senderId: me, text });
     const updated = await this.repo.recordMessage(c.id, { sender: me, text, at: message.createdAt });
     const recipientId = this.otherOf(updated, me);
@@ -719,8 +734,9 @@ export class MessagingService {
   /** A line from Ball Boi. Counts as unread for everyone; the open match sends its own push. */
   private async postSystem(group: GroupRecord, text: string): Promise<GroupRecord> {
     const id = `${group.channelId}-sys${this.now().getTime().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-    const message = await this.provider.sendMessage({ channelId: group.channelId, messageId: id, senderId: SYSTEM_SENDER, text, system: true });
     const members = await this.repo.groupMembers(group.id);
+    await this.openChannel(group.channelId, members.map((m) => m.userId));
+    const message = await this.provider.sendMessage({ channelId: group.channelId, messageId: id, senderId: SYSTEM_SENDER, text, system: true });
     return this.repo.recordGroupMessage(group.id, { sender: null, text, at: message.createdAt, recipients: members.map((m) => m.userId) });
   }
 
@@ -809,6 +825,7 @@ export class MessagingService {
     if (member.unread > 0 || member.attention > 0) await this.repo.markGroupRead(group.id, me);
     const blocked = await this.repo.blockedSetFor(me);
     const visible = (m: ProviderMessage) => !m.hidden && (m.system || !blocked.has(m.senderId));
+    await this.openChannel(group.channelId, members.map((m) => m.userId));
     const messages = await this.provider.listMessages(group.channelId, { limit: THREAD_PAGE, before: opts.before });
     const shown = messages.filter(visible);
     // Pins (league chats): the pinned posts you can see, oldest pin first.
@@ -858,6 +875,7 @@ export class MessagingService {
       : [];
     const pushTo = !league || admin ? recipients : recipients.filter((u) => mentions.includes(u));
 
+    await this.openChannel(group.channelId, members.map((m) => m.userId));
     const message = await this.provider.sendMessage({
       channelId: group.channelId,
       messageId,

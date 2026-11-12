@@ -54,3 +54,18 @@ Repository variable `STAGING_API_URL` (`https://ballboi-api-staging.jr-26c.worke
 ## First deploy
 
 On a brand-new database, run the workflow by hand once (Actions > Deploy staging API > Run workflow) with **create_schema** checked. That creates the tables, then later deploys only apply SQL migrations. Never check it on a database that has data.
+
+## Stream on staging
+
+Why chat broke on Nov 10: staging switched to Stream with chats already saved in the database from the in-memory provider. The new Stream app had none of those people or channels. Opening a chat asked Stream for a channel that didn't exist, Stream refused ("data.created_by_id must be provided"), and the app showed "Something went wrong" with "Player" as the title.
+
+Since the fix, the API makes the Stream users and the channel the first time a chat is opened or sent in after each start, for direct chats and group chats. Messages from before the switch stay in the database snapshot and don't move to Stream.
+
+Nothing has to be set in the Stream dashboard for chat to work. The API uses Stream's server-side access, which skips Stream's roles and permissions, and the app never talks to Stream. Things to check:
+
+- **Keys**: the app's dashboard page, Overview (or App Access Keys). `STREAM_API_KEY` and `STREAM_API_SECRET` must both come from the same app. Any region works.
+- **Leave as they are**: the `messaging` channel type and its permissions, and "Disable Auth Checks" (keep it off).
+- **Optional, for moderation flags**: Chat Messaging > Webhooks (Webhook & Event Configuration), webhook URL `https://<staging API host>/api/webhooks/stream`. Chat works without it.
+
+After a deploy on Stream, the API log says "Stream: keys work", or "Stream: the keys didn't work" with Stream's reason. A failed Stream call logs which call failed, with Stream's code and message.
+

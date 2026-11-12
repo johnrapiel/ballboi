@@ -60,6 +60,12 @@ export function getMessagingService(): MessagingService {
       leaguePlayers: (leagueId) => getLeagueChats().leaguePlayers(leagueId),
     });
     logger.info({ provider: provider.name, blockedTerms: filter.termCount }, "Messaging ready");
+    if (provider instanceof StreamMessagingProvider) {
+      void provider
+        .check()
+        .then(() => logger.info("Stream: keys work"))
+        .catch((err) => logger.error({ err }, "Stream: the keys didn't work. Check STREAM_API_KEY and STREAM_API_SECRET"));
+    }
   }
   return service;
 }
