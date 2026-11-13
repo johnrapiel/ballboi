@@ -3,7 +3,7 @@ import { useActionSheet } from "@/components/ActionSheet";
 import { Icon } from "@/components/Icon";
 import { areaLabel } from "@/lib/leagueArea";
 import React, { useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -20,6 +20,7 @@ import {
 } from "@workspace/api-client-react";
 
 import { LeagueChatButton } from "@/components/league/LeagueChatButton";
+import { MatchActions } from "@/components/MatchActions";
 import { MatchTimeLink } from "@/components/MatchTimeLink";
 import { ProblemCard } from "@/components/discover/States";
 import { OfflineNotice } from "@/components/OfflineNotice";
@@ -33,7 +34,7 @@ import { RoundCard, UpcomingWeekRow } from "@/components/league/RoundCard";
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
 import { StandingsTable } from "@/components/league/StandingsTable";
 import { BracketView, myPlayoffMatch, ROUND_SINGULAR } from "@/components/league/Bracket";
-import { Button, ButtonRow, Card, Text, TextLinkButton } from "@/components/ui";
+import { Button, Card, Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -61,6 +62,7 @@ import {
 } from "@/lib/leagueSchedule";
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { formatLabel, playersLabel, playTypeLabel } from "@/lib/leagues";
+import { MATCH_CARD_HINT } from "@/lib/matchActions";
 import { isPastDue, pastDueWhen } from "@/lib/matchTiming";
 import { openRecorder } from "@/lib/recording/start";
 
@@ -164,10 +166,29 @@ function YourWeek({
   const shownTime = timeOpen ? (pastDue && match.scheduledAt ? pastDueWhen(match.scheduledAt) : matchTime) : null;
   const canSetThisTime = timeOpen && canSetTime && scoreable;
 
+  // Tapping the card opens Match detail (finding 54, decision 199); the
+  // buttons inside stay their own VoiceOver elements and taps.
+  const openMatch = () => router.push(`/match/${match.matchId}`);
+
   return (
-    <Card style={{ gap: spacing.space3 }}>
+    <Pressable
+      accessible={false}
+      onPress={openMatch}
+      style={({ pressed }) => ({
+        backgroundColor: c.linen,
+        borderColor: c.hairline,
+        borderWidth: 1,
+        borderRadius: radius.radiusCard,
+        padding: spacing.space4,
+        gap: spacing.space3,
+        opacity: pressed ? 0.85 : 1,
+      })}
+    >
       <View
         accessible
+        accessibilityRole="button"
+        accessibilityHint={MATCH_CARD_HINT}
+        onAccessibilityTap={openMatch}
         accessibilityLabel={`Your match. ${label}. ${isDoubles ? versusSpoken(partner, others) : `You versus ${opponent}`}${
           opponentRating ? `, ${levelSpoken(opponentRating.rating, opponentRating.source)}` : ""
         }. ${when}${shownTime ? ` Match time, ${shownTime}.` : ""}`.replace(/ & /g, " and ")}
@@ -201,53 +222,46 @@ function YourWeek({
           // Sits right under the date line; its 44pt target is hitSlop (decision 192).
         />
       ) : null}
-      {/* John, Nov 8 (option A): Record with Ball Boi is the one primary
-          action any day of the match's week, with Enter score and Message
-          under it (spec: Ball Boi > Recording, "Every recording starts from
-          a match"). Doubles shows it dimmed with the reason as visible text. */}
-      {record === "record" ? (
-        <Button
-          label="Record with Ball Boi"
-          accessibilityHint={`Records your match against ${opponent}`}
-          onPress={() => openRecorder(router, { matchId: match.matchId, opponentName: opponent, leagueId })}
-        />
-      ) : record === "doubles" ? (
-        <DoublesRecordButton matchId={match.matchId} />
-      ) : null}
-      {/* Side by side at one height; ButtonRow stacks them when a label
-          wouldn't fit on one line (John, Nov 10). The visible word is just
-          "Message" so the pair fits; VoiceOver still names who (option A). */}
-      {scoreable || canMessage ? (
-        <ButtonRow>
-          {scoreable ? (
-            <Button
-              label="Enter score"
-              accessibilityHint={`For your match against ${opponent}`}
-              // Under Record it steps back to secondary; on its own it stays primary.
-              variant={record ? "secondary" : "primary"}
-              onPress={() => router.push(`/league/${leagueId}/score/${match.matchId}`)}
-            />
-          ) : null}
-          {canMessage ? (
-            <Button
-              label="Message"
-              accessibilityLabel={isDoubles ? "Message all four players" : `Message ${opponent}`}
-              accessibilityHint={isDoubles ? "Opens one group chat for the four of you" : "Opens a direct chat"}
-              variant="secondary"
-              loading={openChat.isPending}
-              onPress={message}
-            />
-          ) : null}
-        </ButtonRow>
-      ) : null}
-      {pastDue && recordable === "record" ? (
-        <TextLinkButton
-          label="Record with Ball Boi"
-          accessibilityHint={`Records your match against ${opponent}`}
-          onPress={() => openRecorder(router, { matchId: match.matchId, opponentName: opponent, leagueId })}
-        />
-      ) : null}
-    </Card>
+      {/* The same actions as Home and Match detail (finding 54, decision 199):
+          Record with Ball Boi (any day of the match's week, John, Nov 8,
+          option A), then Message and Enter score. Doubles shows Record
+          dimmed with the reason as visible text. Past due (finding 47),
+          Enter score leads and Record is a link. The visible word is just
+          "Message" so the pair fits; VoiceOver still names who. */}
+      <MatchActions
+        pastDue={pastDue}
+        record={
+          recordable === "record"
+            ? {
+                label: "Record with Ball Boi",
+                hint: `Records your match against ${opponent}`,
+                onPress: () => openRecorder(router, { matchId: match.matchId, opponentName: opponent, leagueId }),
+              }
+            : null
+        }
+        recordPlaceholder={record === "doubles" ? <DoublesRecordButton matchId={match.matchId} /> : null}
+        message={
+          canMessage
+            ? {
+                label: "Message",
+                accessibilityLabel: isDoubles ? "Message all four players" : `Message ${opponent}`,
+                hint: isDoubles ? "Opens one group chat for the four of you" : "Opens a direct chat",
+                loading: openChat.isPending,
+                onPress: message,
+              }
+            : null
+        }
+        enterScore={
+          scoreable
+            ? {
+                label: "Enter score",
+                hint: `For your match against ${opponent}`,
+                onPress: () => router.push(`/league/${leagueId}/score/${match.matchId}`),
+              }
+            : null
+        }
+      />
+    </Pressable>
   );
 }
 

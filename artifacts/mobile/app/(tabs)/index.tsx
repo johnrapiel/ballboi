@@ -20,9 +20,10 @@ import { useUpcomingMessage } from "@/hooks/useUpcomingMessage";
 import { upcomingHint, useOpenUpcoming, useUpcomingMatches } from "@/hooks/useUpcomingMatches";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { dateRange, LATE_NOTE, pairingTime, shortDate } from "@/lib/leagueSchedule";
-import { cardLead, heroIndex } from "@/lib/matchTiming";
+import { heroIndex } from "@/lib/matchTiming";
 import { openRecorder } from "@/lib/recording/start";
-import { cardWhen, isMatchDay, type UpcomingItem } from "@/lib/upcoming";
+import { cardWhen, type UpcomingItem } from "@/lib/upcoming";
+import { upcomingActions } from "@/lib/upcomingDetail";
 
 // Home answers one question: what's next for me (spec decision 137, John,
 // Nov 8; canvas W2_HomeUpcoming). The header is the roundel with the glass
@@ -30,14 +31,15 @@ import { cardWhen, isMatchDay, type UpcomingItem } from "@/lib/upcoming";
 // waiting on you (pairings to review, a bye), and every match still to play,
 // league, playoff and Discover, in date order under "Upcoming matches".
 //
-// The first match is the D2 card (NextMatchCard). On match day (a set time
-// today) singles leads with Record with Ball Boi, then Message and Details;
-// any other day it's Message and Details. Doubles shows Record dimmed with
-// the reason. Later matches are plain rows that open Match detail.
+// The first match is the D2 card (NextMatchCard), with the same actions as
+// Match detail and the league page (finding 54, decision 199, John, Nov 12):
+// Record with Ball Boi (singles), then Message and Enter score. There's no
+// Details button; tapping the card opens Match detail, like the rows under
+// it. Doubles shows the note on why Ball Boi can't record it yet.
 //
 // Past due (finding 47, John, Nov 12): an hour after the start with no score
 // it reads "Earlier today · 6:30 PM", Enter score and Message lead, and Record
-// with Ball Boi and Details are text links. A match still ahead today leads
+// with Ball Boi is a text link. A match still ahead today leads
 // over a past-due one. The next day the late-match and "Did it happen?" flows
 // take over.
 //
@@ -65,34 +67,21 @@ export default function HomeScreen() {
   const firstCard = (m: UpcomingItem) => {
     const opponent = m.opponentName ?? "your opponent";
     const when = cardWhen(m);
-    // Record leads only on match day, for a singles match that can be played.
-    const canRecord = isMatchDay(m) && m.matchId != null && !m.notStarted;
-    // An hour past the start with no score, Enter score leads and Record is a link (finding 47).
-    const lead = cardLead(m, { canRecord: canRecord && m.singles });
-    const pastDue = lead.pastDue && m.matchId != null && !m.notStarted;
-    const record: NextMatchAction | null =
-      lead.record
-        ? {
-            label: "Record with Ball Boi",
-            onPress: () => openRecorder(router, { matchId: m.matchId!, opponentName: opponent, leagueId: m.leagueId }),
-            hint: `Records your match against ${opponent}`,
-          }
-        : null;
+    // The same actions as Match detail and the league page (finding 54,
+    // decision 199): Record with Ball Boi, then Message and Enter score;
+    // past due, Enter score leads and Record is a link (finding 47).
+    const actions = upcomingActions(m, { matchTimeAllowed: false });
+    const record: NextMatchAction | null = actions.record
+      ? {
+          label: "Record with Ball Boi",
+          onPress: () => openRecorder(router, { matchId: m.matchId!, opponentName: opponent, leagueId: m.leagueId }),
+          hint: `Records your match against ${opponent}`,
+        }
+      : null;
     // D6: a doubles league match's Message opens one chat for all four.
     const message = upcomingMessage(m);
-    // An upcoming Discover match's card lives in the chat (decision 151: Match
-    // detail is for its result, from Profile's Results).
-    const details: NextMatchAction | null =
-      m.kind === "discover"
-        ? null
-        : {
-            label: "Details",
-            accessibilityLabel: "Details for this match",
-            hint: "Opens the match, where you can enter the score",
-            onPress: () => (m.matchId ? router.push(`/match/${m.matchId}`) : m.leagueId ? openLeague(m.leagueId) : undefined),
-          };
     // League and playoff scores go to the league's Enter score; a Discover match's to its own.
-    const enterScore: NextMatchAction | null = !pastDue
+    const enterScore: NextMatchAction | null = !actions.enterScore
       ? null
       : m.leagueId != null && m.kind !== "discover"
         ? {
@@ -122,10 +111,12 @@ export default function HomeScreen() {
         note={note}
         record={record}
         message={message}
-        details={details}
-        pastDue={pastDue}
         enterScore={enterScore}
-        footer={canRecord && !m.singles && m.kind !== "discover" && !pastDue ? <DoublesNote matchId={m.matchId!} /> : null}
+        pastDue={actions.pastDue}
+        // No Details button: the card itself opens the match, like the rows under it (finding 54).
+        onPress={() => openUpcoming(m)}
+        hint={m.kind === "discover" ? upcomingHint(m) : m.matchId ? undefined : "Opens the league"}
+        footer={actions.doublesNote ? <DoublesNote matchId={m.matchId!} /> : null}
       />
     );
   };

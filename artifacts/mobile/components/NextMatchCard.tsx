@@ -1,42 +1,36 @@
 import { andJoin, firstName, versusSpoken } from "@/lib/doubles";
 import React from "react";
-import { useWindowDimensions, View } from "react-native";
+import { Pressable, useWindowDimensions, View } from "react-native";
 
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 import { MatchTimeLink } from "@/components/MatchTimeLink";
-import { Button, ButtonRow, Pill, Text, TextLinkButton } from "@/components/ui";
+import { MatchActions, type MatchAction } from "@/components/MatchActions";
+import { Pill, Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { MATCH_CARD_HINT, matchCardSpoken } from "@/lib/matchActions";
 
 // Next match card D2 (approved design audit, Home, John, Nov 6): one plain
 // card with the standard light hairline border (Nov 7) with no inner boxes, all centred in one flow. The date, a big
 // serif time, both faces overlapped, "You vs. Mike", the court with a pin, the
 // league as an outline pill, then the buttons.
 //
-// Buttons (audit, Home and Home match day):
-// - Match day, singles: Record with Ball Boi on its own row, then Message and
-//   Details side by side.
-// - Any other match: Message (primary) and Details side by side.
-// Enter score lives on Details (Match detail) and the league, not on Home's card,
-// until the match is past due.
-// - Past due (finding 47: an hour after the start, no score, still that day):
-//   Enter score (primary) and Message (secondary) side by side, then Record
-//   with Ball Boi and Details as text links (decision 189), in case they're
-//   still playing.
-// Match detail shows this same card for a match not played yet (finding 9),
-// with Enter score in the Details slot. Match time is link text right under
-// the date line, not a button (Wave 2 finding 25, John, Nov 12).
+// Buttons (Wave 2 finding 54, decision 199, John, Nov 12: "It should be
+// constant"): the same actions everywhere this card appears, drawn by
+// MatchActions. Record with Ball Boi (when it can be recorded), then Message
+// and Enter score. Past due (finding 47: an hour after the start, no score),
+// Enter score and Message lead and Record with Ball Boi is a text link.
+// There's no Details button: on Home the whole card is tappable and opens
+// Match detail (VoiceOver: one button that reads the match, hint "Opens match
+// details"); the buttons inside stay their own elements, and tapping one
+// doesn't also open the card. On Match detail the card isn't tappable.
+// Match time is link text right under the date line, not a button (Wave 2
+// finding 25, John, Nov 12).
 //
 // The audit overrides anything built that doesn't match it (John, Nov 7).
 
-export interface NextMatchAction {
-  label: string;
-  onPress: () => void;
-  /** Spoken by VoiceOver in place of the label, e.g. "Message Mike Okafor". */
-  accessibilityLabel?: string;
-  hint?: string;
-}
+export type NextMatchAction = MatchAction;
 
 export function NextMatchCard({
   dateLabel,
@@ -52,11 +46,12 @@ export function NextMatchCard({
   note,
   record,
   message,
-  details,
+  enterScore,
+  onPress,
+  hint,
   timeLink,
   footer,
   pastDue = false,
-  enterScore,
 }: {
   /** "Today", "Saturday, Oct 17", or "No time set yet". */
   dateLabel: string;
@@ -81,16 +76,18 @@ export function NextMatchCard({
   /** Match day, singles: Record with Ball Boi, the one primary button. */
   record?: NextMatchAction | null;
   message?: NextMatchAction | null;
-  /** Opens Match detail. Left off for a Discover match, whose Message opens the chat its card lives in. */
-  details?: NextMatchAction | null;
+  /** Enter score: beside Message, or leading it once past due. */
+  enterScore?: NextMatchAction | null;
+  /** Tapping the card (Home): opens Match detail. Left off on Match detail itself. */
+  onPress?: (() => void) | null;
+  /** VoiceOver hint for the tappable card; "Opens match details" by default. */
+  hint?: string;
   /** Match detail: "Set a match time" or "Change time", link text under the date line. */
   timeLink?: { hasTime: boolean; onPress: () => void } | null;
   /** Under the buttons, e.g. the doubles Ball Boi note. */
   footer?: React.ReactNode;
-  /** An hour past the start with no score (finding 47): Enter score leads, Record and Details become links. */
+  /** An hour past the start with no score (finding 47): Enter score leads, Record becomes a link. */
   pastDue?: boolean;
-  /** Past due only: Enter score, the primary button. */
-  enterScore?: NextMatchAction | null;
 }) {
   const c = useColors();
   const { fontScale } = useWindowDimensions();
@@ -102,12 +99,26 @@ export function NextMatchCard({
     .filter(Boolean)
     .join(". ");
   const summary = `${whenSummary}. ${restSummary}`;
-  // Message is primary unless Record leads on match day.
-  const messageVariant = record ? "secondary" : "primary";
+  // The tappable card reads as one button: "Today, 6:30 PM, You vs. Elena Ortiz, Memorial Park, Beacon, Test League 1".
+  const tappable = !!onPress && !timeLink;
+  const cardSpoken = matchCardSpoken({
+    dateLabel,
+    time,
+    versus: doubles ? `You and ${partnerName} vs. ${andJoin(opponentNames!)}` : `You vs. ${opponentName}`,
+    location,
+    league,
+    note,
+  });
 
   return (
-    <View
-      style={{
+    <Pressable
+      // VoiceOver doesn't see this outer press (the info block below is the
+      // button), so the buttons inside stay their own elements. A tap on a
+      // button is caught by that button and doesn't open the card.
+      accessible={false}
+      disabled={!tappable}
+      onPress={tappable ? onPress! : undefined}
+      style={({ pressed }) => ({
         backgroundColor: c.linen,
         borderRadius: radius.radiusCard,
         // The hero card keeps more padding (design system), equal on every side (decision 192).
@@ -116,10 +127,18 @@ export function NextMatchCard({
         // One rule for every card (John, Nov 7): the light hairline border, no shadow.
         borderWidth: 1,
         borderColor: c.hairline,
-      }}
+        opacity: tappable && pressed ? 0.85 : 1,
+      })}
     >
       {/* With the time link, VoiceOver reads the date, then the link, then the rest. */}
-      <View accessible={!timeLink} accessibilityLabel={summary} style={{ alignItems: "center", width: "100%" }}>
+      <View
+        accessible={!timeLink}
+        accessibilityRole={tappable ? "button" : undefined}
+        accessibilityLabel={tappable ? cardSpoken : summary}
+        accessibilityHint={tappable ? (hint ?? MATCH_CARD_HINT) : undefined}
+        onAccessibilityTap={tappable ? onPress! : undefined}
+        style={{ alignItems: "center", width: "100%" }}
+      >
         <View accessible={!!timeLink} accessibilityLabel={whenSummary} style={{ alignItems: "center", width: "100%" }}>
           <Text variant="bodyStrong" tone="inkMuted" style={{ fontSize: 15, lineHeight: 20, textAlign: "center" }}>
             {dateLabel}
@@ -167,60 +186,10 @@ export function NextMatchCard({
         </View>
       </View>
 
-      {pastDue ? (
-        <View style={{ width: "100%", marginTop: 20, gap: spacing.space2 }}>
-          <ButtonRow>
-            {enterScore ? (
-              <Button
-                label={enterScore.label}
-                accessibilityLabel={enterScore.accessibilityLabel}
-                accessibilityHint={enterScore.hint}
-                onPress={enterScore.onPress}
-              />
-            ) : null}
-            {message ? (
-              <Button
-                label={message.label}
-                accessibilityLabel={message.accessibilityLabel}
-                accessibilityHint={message.hint}
-                variant={enterScore ? "secondary" : "primary"}
-                onPress={message.onPress}
-              />
-            ) : null}
-          </ButtonRow>
-          {record ? (
-            <TextLinkButton label={record.label} accessibilityLabel={record.accessibilityLabel} accessibilityHint={record.hint} onPress={record.onPress} />
-          ) : null}
-          {details ? (
-            <TextLinkButton label={details.label} accessibilityLabel={details.accessibilityLabel} accessibilityHint={details.hint} onPress={details.onPress} />
-          ) : null}
-        </View>
-      ) : (
-        <View style={{ width: "100%", marginTop: 20, gap: spacing.space2 }}>
-          {record ? <Button label={record.label} accessibilityLabel={record.accessibilityLabel} accessibilityHint={record.hint} onPress={record.onPress} /> : null}
-          <ButtonRow>
-            {message ? (
-              <Button
-                label={message.label}
-                accessibilityLabel={message.accessibilityLabel}
-                accessibilityHint={message.hint}
-                variant={messageVariant}
-                onPress={message.onPress}
-              />
-            ) : null}
-            {details ? (
-              <Button
-                label={details.label}
-                accessibilityLabel={details.accessibilityLabel}
-                accessibilityHint={details.hint}
-                variant={message || record ? "secondary" : "primary"}
-                onPress={details.onPress}
-              />
-            ) : null}
-          </ButtonRow>
-        </View>
-      )}
+      <View style={{ width: "100%", marginTop: 20 }}>
+        <MatchActions record={record} message={message} enterScore={enterScore} pastDue={pastDue} />
+      </View>
       {footer ? <View style={{ width: "100%", marginTop: spacing.space3 }}>{footer}</View> : null}
-    </View>
+    </Pressable>
   );
 }

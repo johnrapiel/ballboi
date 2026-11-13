@@ -63,7 +63,8 @@ import { winnerMark } from "@/lib/winnerMark";
 // the note on why Ball Boi can't record it. A Discover or Quick match gets
 // Record on match day and Message. Played matches are unchanged.
 // An hour past the start with no score (finding 47), Enter score leads beside
-// Message and Record with Ball Boi drops to a text link.
+// Message and Record with Ball Boi drops to a text link. The buttons are the
+// same MatchActions as Home and the league page (finding 54, decision 199).
 
 const BALL = {
   day: require("@/assets/images/tabs/tab-ballboi-on.png"),
@@ -304,10 +305,12 @@ export default function MatchDetailScreen() {
               : null
           }
           message={upcomingMessage(item)}
-          // Past due (finding 47): Enter score leads beside Message, Record is a link.
+          // The same actions as Home and the league page (finding 54, decision 199):
+          // Message and Enter score side by side; past due, Enter score leads and
+          // Record is a link (finding 47). The card isn't tappable here.
           pastDue={actions.pastDue}
           enterScore={
-            actions.pastDue && actions.enterScore
+            actions.enterScore
               ? {
                   label: "Enter score",
                   hint: `For your match against ${cardOpponent}`,
@@ -315,15 +318,6 @@ export default function MatchDetailScreen() {
                     leagueIdForActions != null
                       ? router.push({ pathname: "/league/[leagueId]/score/[matchId]", params: { leagueId: String(leagueIdForActions), matchId: String(d.matchId) } })
                       : router.push({ pathname: "/record/score/[matchId]", params: { matchId: String(d.matchId), opponent: cardOpponent } }),
-                }
-              : null
-          }
-          details={
-            !actions.pastDue && actions.enterScore && leagueIdForActions != null
-              ? {
-                  label: "Enter score",
-                  hint: `For your match against ${cardOpponent}`,
-                  onPress: () => router.push({ pathname: "/league/[leagueId]/score/[matchId]", params: { leagueId: String(leagueIdForActions), matchId: String(d.matchId) } }),
                 }
               : null
           }
