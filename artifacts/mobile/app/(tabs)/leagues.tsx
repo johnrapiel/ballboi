@@ -6,7 +6,6 @@ import { areaLabel } from "@/lib/leagueArea";
 import { textTapSlop } from "@/lib/tapTarget";
 import React from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   getGetLeagueStandingsQueryOptions,
@@ -30,6 +29,7 @@ import { Button, Card, Chip, Pill, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { formatLabel, isPastLeague, leagueCardText, myStanding, ordinal, pastLabel, type MyStanding } from "@/lib/leagues";
 
 // Leagues tab (spec: Leagues; approved canvas: Leagues, John, Nov 5). Notes
@@ -271,7 +271,7 @@ function InviteCodeLink({ onPress }: { onPress: () => void }) {
 export default function LeaguesScreen() {
   const c = useColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset({ tab: true });
   const { user } = useUser();
 
   const leaguesQ = useGetLeagues(user?.id ? { clerkUserId: user.id } : undefined);
@@ -328,10 +328,11 @@ export default function LeaguesScreen() {
         <ScrollView
           contentContainerStyle={{
             paddingHorizontal: spacing.space4,
-            paddingBottom: insets.bottom + 120,
+            paddingBottom: bottom.paddingBottom,
             gap: spacing.space6,
             flexGrow: 1,
           }}
+          scrollIndicatorInsets={bottom.scrollIndicatorInsets}
           refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
         >
           <OfflineNotice pull={pull} />

@@ -19,7 +19,6 @@
 import { Stack, useRouter } from "expo-router";
 import React from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useGetMyCareer } from "@workspace/api-client-react";
 
@@ -36,13 +35,14 @@ import { Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { careerCells, careerSpoken, headToHeadRow, seasonRecord } from "@/lib/career";
 import { earnedLine, visibleMilestones, milestoneBadgeLabel, MILESTONE_TITLES } from "@/lib/milestones";
 
 export default function CareerScreen() {
   const c = useColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const header = useEditHeader("");
   const q = useGetMyCareer();
   const pull = usePullToRefresh(() => q.refetch());
@@ -58,9 +58,10 @@ export default function CareerScreen() {
         style={{ flex: 1, backgroundColor: c.paper }}
         contentContainerStyle={{
           padding: spacing.space4,
-          paddingBottom: insets.bottom + spacing.space8,
+          paddingBottom: bottom.paddingBottom,
           gap: spacing.space6,
         }}
+        scrollIndicatorInsets={bottom.scrollIndicatorInsets}
         refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
       >
         <Text variant="headingL" accessibilityRole="header">

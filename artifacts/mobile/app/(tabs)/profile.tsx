@@ -1,7 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useGetMyPlayerCard, useGetMyPlayerMatches } from "@workspace/api-client-react";
 
@@ -20,6 +19,7 @@ import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { upcomingHint, useOpenUpcoming, useUpcomingMatches } from "@/hooks/useUpcomingMatches";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { recordedLine, recordedThisSeason, tabFromParam, type MatchTab } from "@/lib/playerCard";
 import { myResultRows } from "@/lib/resultRow";
 import { useServerRecordings } from "@/lib/recording/api";
@@ -43,7 +43,7 @@ import { useServerRecordings } from "@/lib/recording/api";
 
 export default function ProfileScreen() {
   const c = useColors();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset({ tab: true });
   const router = useRouter();
   const params = useLocalSearchParams<{ tab?: string; at?: string }>();
   const cardQ = useGetMyPlayerCard();
@@ -99,7 +99,8 @@ export default function ProfileScreen() {
       <ScrollView
         ref={scroll}
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space2, paddingBottom: insets.bottom + 96, gap: spacing.space6 }}
+        contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space2, paddingBottom: bottom.paddingBottom, gap: spacing.space6 }}
+        scrollIndicatorInsets={bottom.scrollIndicatorInsets}
         refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
       >
         <OfflineNotice pull={pull} />

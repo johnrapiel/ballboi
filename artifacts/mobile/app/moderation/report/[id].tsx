@@ -1,13 +1,13 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useActionSheet } from "@/components/ActionSheet";
 import { Button, Card, Chip, Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useIsAdmin, useModerationActions, useReport, type Report } from "@/hooks/useModeration";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { spokenTime } from "@/lib/messages";
 import { ago, reasonLabel, sourceLabel } from "@/lib/moderation";
 
@@ -25,7 +25,7 @@ function statusLabel(status: Report["status"]) {
 export default function ReportScreen() {
   const c = useColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const { id: raw } = useLocalSearchParams<{ id: string }>();
   const id = Number(raw);
   const { isAdmin } = useIsAdmin();
@@ -151,7 +151,8 @@ export default function ReportScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
-      contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space6 }}
+      contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space6 }}
+      scrollIndicatorInsets={bottom.scrollIndicatorInsets}
     >
       {sheet.element}
       {header}

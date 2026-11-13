@@ -12,6 +12,7 @@ import { Button, Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { useServerRecordings, useTodaysMatches } from "@/lib/recording/api";
 import { useQueue, useQueueLoaded } from "@/lib/recording/queue";
 import { recordedThisSeason } from "@/lib/playerCard";
@@ -46,11 +47,14 @@ export default function BallBoiScreen() {
   const lost = (r: (typeof onServer)[number]) => queueLoaded && r.recordedByYou && r.stage === "uploading";
   const pull = usePullToRefresh(() => [today.refetch(), server.refetch()]);
   const serverFailed = server.isError && !server.data;
+  // Your recordings scrolls clear of the tab bar (finding 39, decision 194).
+  const bottom = useScreenBottomInset({ tab: true });
 
   return (
     <TabScreen title="Ball Boi">
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingBottom: spacing.space12, gap: spacing.space6 }}
+        contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space6 }}
+        scrollIndicatorInsets={bottom.scrollIndicatorInsets}
         refreshControl={
           <RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />
         }

@@ -5,7 +5,6 @@ import { areaLabel } from "@/lib/leagueArea";
 import React, { useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   useGetLeague,
@@ -38,6 +37,7 @@ import { Button, ButtonRow, Card, Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { RatingBadge } from "@/components/RatingBadge";
 import { DoublesRecordButton } from "@/components/record/DoublesMatchCard";
 import { levelSpoken } from "@/lib/onboarding";
@@ -239,7 +239,7 @@ function YourWeek({
 
 export default function LeagueScreen() {
   const c = useColors();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const { leagueId: raw, joined } = useLocalSearchParams<{ leagueId: string; joined?: string }>();
   const leagueId = Number(raw);
   // Opened straight from the join sheet (finding 33): "You're in" at the top.
@@ -362,7 +362,8 @@ export default function LeagueScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
-      contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
+      contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space4 }}
+      scrollIndicatorInsets={bottom.scrollIndicatorInsets}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
       {sheet.element}
