@@ -12,7 +12,8 @@ import { codeFromInput } from "@/lib/leagueInvite";
 // Leagues: "Got an invite code?" opens this bottom sheet). The sheet rule:
 // brush title, no Cancel, drag down to close, asks before discarding a code.
 // The code opens the same join screen an invite link does (C1), so typed
-// codes and links behave the same way. Pasting the copied link works too.
+// codes and links behave the same way. Pasting the copied link works too
+// (#221): `codeFromInput` takes the code out of a ballboi.tennis/join link.
 
 export default function JoinWithCodeSheet() {
   const c = useColors();
@@ -28,7 +29,7 @@ export default function JoinWithCodeSheet() {
 
   return (
     <SheetBody title="Invite code" close={sheet.close}>
-      <Text tone="inkMuted">Enter the code your league admin sent, or just open their link.</Text>
+      <Text tone="inkMuted">Enter the code or paste the link your league admin sent.</Text>
 
       <View
         style={{
@@ -45,7 +46,7 @@ export default function JoinWithCodeSheet() {
           value={code}
           onChangeText={setCode}
           accessibilityLabel="Invite code"
-          placeholder="BEACON35"
+          placeholder="Code or link"
           placeholderTextColor={c.inkMuted}
           autoCapitalize="characters"
           autoCorrect={false}
@@ -53,16 +54,21 @@ export default function JoinWithCodeSheet() {
           autoFocus
           returnKeyType="go"
           onSubmitEditing={lookUp}
+          // Empty, the field shows a plain placeholder in regular ink-muted
+          // text, so it can't pass for a code someone already typed (Wave 2
+          // finding 48). The spaced-out code look is for what you type.
           style={[
-            type.bodyStrong,
-            {
-              minHeight: MIN_TAP,
-              fontSize: 22,
-              lineHeight: 28,
-              letterSpacing: 5,
-              fontVariant: ["lining-nums", "tabular-nums"],
-              color: c.ink,
-            },
+            code === "" ? type.body : type.bodyStrong,
+            code === ""
+              ? { minHeight: MIN_TAP, color: c.ink }
+              : {
+                  minHeight: MIN_TAP,
+                  fontSize: 22,
+                  lineHeight: 28,
+                  letterSpacing: 5,
+                  fontVariant: ["lining-nums", "tabular-nums"],
+                  color: c.ink,
+                },
           ]}
         />
       </View>

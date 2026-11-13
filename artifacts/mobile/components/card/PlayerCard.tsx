@@ -54,7 +54,7 @@ function Prompt({ label, hint, onPress, icon, small }: { label: string; hint: st
         opacity: pressed ? 0.6 : 1,
       })}
     >
-      {icon ? <Icon name="mappin.and.ellipse" size={22} tintColor={c.court} /> : null}
+      {icon ? <Icon name="mappin.and.ellipse" size={22} tintColor={c.ink} /> : null}
       {/* The words take the same press; the Pressable around them is the one VoiceOver button. */}
       <TextLink onPress={onPress} accessible={false} variant={small ? "small" : "body"} style={{ flexShrink: 1 }}>
         {label}

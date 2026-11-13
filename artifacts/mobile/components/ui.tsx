@@ -92,19 +92,33 @@ export function Text({ variant = "body", tone = "ink", style, ...rest }: TextPro
 
 export interface TextLinkProps extends Omit<TextProps, "tone"> {
   onPress: () => void;
+  /**
+   * `link` (default): navigation and settings (See all, See match, Invite a
+   * friend, Change in Settings): ink, underlined.
+   * `action`: a link that changes something on a match (Change time, Set a
+   * match time, Match didn't finish?, Enter score): `court` green, underlined
+   * (decision 200, John, Nov 12, Wave 2 finding 56).
+   */
+  tone?: "link" | "action";
+}
+
+/** The text color token for a TextLink tone: one place decides it. */
+export function textLinkColor(tone: "link" | "action" = "link"): "ink" | "court" {
+  return tone === "action" ? "court" : "ink";
 }
 
 /**
- * A link inside a sentence. Always underlined: `court` is only 2:1 against
- * ink text, so color alone can't mark it (WCAG 1.4.1). Nest it in a Text.
+ * A link inside a sentence. Always underlined, in both tones: `court` is only
+ * 2:1 against ink text, and an ink link is the same color as the words around
+ * it, so color alone can't mark it (WCAG 1.4.1). Nest it in a Text.
  */
-export function TextLink({ style, ...rest }: TextLinkProps) {
+export function TextLink({ style, tone = "link", ...rest }: TextLinkProps) {
   return (
     <Text
       accessibilityRole="link"
       suppressHighlighting={false}
       {...rest}
-      tone="court"
+      tone={textLinkColor(tone)}
       style={[{ textDecorationLine: "underline" }, style]}
     />
   );
@@ -121,11 +135,13 @@ export function TextLinkButton({
   onPress,
   accessibilityLabel,
   accessibilityHint,
+  tone,
 }: {
   label: string;
   onPress: () => void;
   accessibilityLabel?: string;
   accessibilityHint?: string;
+  tone?: TextLinkProps["tone"];
 }) {
   return (
     <Pressable
@@ -143,7 +159,7 @@ export function TextLinkButton({
         opacity: pressed ? 0.6 : 1,
       })}
     >
-      <TextLink variant="bodyStrong" onPress={onPress} accessible={false} style={{ textAlign: "center" }}>
+      <TextLink variant="bodyStrong" tone={tone} onPress={onPress} accessible={false} style={{ textAlign: "center" }}>
         {label}
       </TextLink>
     </Pressable>
@@ -423,10 +439,11 @@ export interface FieldProps extends React.ComponentProps<typeof TextInput> {
   hint?: string;
   error?: boolean;
   /**
-   * "label" (11px caps, the default), "bodyStrong" for sentence case labels
-   * inside a form card (New league, decision 182), or "section" for a sentence
-   * case heading in ink-muted that matches the section labels around it (Post
-   * an open match, finding 44).
+   * "section" (the default): a sentence case heading in ink-muted, the one
+   * style for a heading over a field or control (decision 199, Wave 2 finding
+   * 52). "bodyStrong" for sentence case labels inside a form card (New league,
+   * decision 182). "label" (11px caps) is for eyebrows, table headers and
+   * badges only; don't use it over a field.
    */
   labelVariant?: "label" | "bodyStrong" | "section";
 }
@@ -454,7 +471,7 @@ const styles = StyleSheet.create({
 });
 
 /** Labeled text input: linen well, hairline-strong border (3:1), 48pt tall. */
-export function Field({ label, hint, error = false, labelVariant = "label", style, ...rest }: FieldProps) {
+export function Field({ label, hint, error = false, labelVariant = "section", style, ...rest }: FieldProps) {
   const c = useColors();
   const body = useTypeStyle("body");
   return (

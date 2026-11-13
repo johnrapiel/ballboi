@@ -23,6 +23,7 @@ export function DangerLink({
   busy = false,
   disabled = false,
   accessibilityHint,
+  inline = false,
 }: {
   label: string;
   icon: IconName;
@@ -30,6 +31,8 @@ export function DangerLink({
   busy?: boolean;
   disabled?: boolean;
   accessibilityHint?: string;
+  /** Beside other controls (Remove photo under Change photo): no top gap, left-aligned. */
+  inline?: boolean;
 }) {
   const c = useColors();
   const off = busy || disabled;
@@ -45,12 +48,12 @@ export function DangerLink({
       style={({ pressed }) => ({
         minHeight: MIN_TAP,
         minWidth: MIN_TAP,
-        alignSelf: "center",
+        alignSelf: inline ? "flex-start" : "center",
         flexDirection: "row",
         alignItems: "center",
         gap: spacing.space2,
         paddingHorizontal: spacing.space2,
-        marginTop: spacing.space6,
+        marginTop: inline ? 0 : spacing.space6,
         opacity: disabled ? 0.5 : pressed ? 0.6 : 1,
       })}
     >

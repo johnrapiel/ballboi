@@ -30,9 +30,9 @@ const PAIRS = [
   ["ink-muted", "linen", TEXT, "meta text on cards"],
   ["ink-muted", "sand", TEXT, "meta text in wells"],
   ["on-ink", "ink", TEXT, "primary button label"],
-  ["court", "paper", TEXT, "links, wins and live on the page"],
-  ["court", "linen", TEXT, "links, wins and live on cards"],
-  ["court", "sand", TEXT, "court text in wells"],
+  ["court", "paper", TEXT, "match action links (TextLink tone action), wins and live on the page"],
+  ["court", "linen", TEXT, "match action links (TextLink tone action), wins and live on cards and sheets"],
+  ["court", "sand", TEXT, "court text and match action links in wells"],
   ["danger", "paper", TEXT, "error text on the page"],
   ["danger", "paper", NON_TEXT, "door icon on Leave league (decision 184)"],
   ["danger", "linen", TEXT, "error text on cards"],
@@ -76,7 +76,7 @@ const PAIRS = [
 // them. Each must keep its cue, written in docs/design-system/README.md.
 // [color a, color b, phrase the README must contain, why]
 const CUES = [
-  ["court", "ink", "Underlined (`TextLink`)", "links inside ink text"],
+  ["court", "ink", "Underlined (`TextLink`)", "match action links (green) inside ink text"],
   ["court", "danger", "The word or letter", "wins vs errors (a red-green pair): W and L, or Won and a cross"],
 ];
 

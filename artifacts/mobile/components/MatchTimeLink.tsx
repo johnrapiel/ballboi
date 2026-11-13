@@ -10,7 +10,8 @@ import { textTapSlop } from "@/lib/tapTarget";
 // Your match card, so it sits in one place everywhere. "Set a match time"
 // when none is set, "Change time" once one is. hitSlop makes it a 44pt
 // target without adding space around the words (decision 192), and
-// VoiceOver reads it as one link with what it does.
+// VoiceOver reads it as one link with what it does. It changes the match, so
+// it's the green `action` link (decision 200, finding 56).
 
 export function MatchTimeLink({
   hasTime,
@@ -43,7 +44,7 @@ export function MatchTimeLink({
       ]}
     >
       {/* The words take the same press; the Pressable is the one VoiceOver link. */}
-      <TextLink onPress={onPress} accessible={false} style={{ textAlign: align === "center" ? "center" : "left" }}>
+      <TextLink tone="action" onPress={onPress} accessible={false} style={{ textAlign: align === "center" ? "center" : "left" }}>
         {matchTimeLinkLabel(hasTime)}
       </TextLink>
     </Pressable>

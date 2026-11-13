@@ -19,8 +19,10 @@ import { recordedThisSeason } from "@/lib/playerCard";
 import { openRecorder } from "@/lib/recording/start";
 
 // Ball Boi tab (spec: Navigation, Ball Boi > Recording).
-// "Record a match" lists your unplayed matches this week, with a match set for
-// today first, then Quick match. Every recording starts from a match.
+// "Record a match" starts with the Quick match card, then lists your unplayed
+// matches this week, with a match set for today first (Wave 2 finding 49:
+// Quick match stays at the top however many matches there are). Every
+// recording starts from a match.
 //
 // From Profile's "Ball Boi this season" See all (decision 138), the tab opens
 // with `from` and `to` (YYYY-MM-DD): Your recordings shows only this
@@ -65,6 +67,17 @@ export default function BallBoiScreen() {
             Record a match
           </Text>
 
+          {/* Quick match comes first, so a long list of matches can't push it down (Wave 2 finding 49). */}
+          <Card style={{ gap: spacing.space3 }}>
+            <View accessible style={{ gap: spacing.space1 }}>
+              <Text variant="bodyStrong">Quick match</Text>
+              <Text variant="small" tone="inkMuted">
+                A casual hit, or a match outside your leagues. Play anyone, even if they're not on Ball Boi yet.
+              </Text>
+            </View>
+            <Button variant="secondary" label="Quick match" onPress={() => router.push("/record/quick")} />
+          </Card>
+
           {today.isLoading ? (
             <ActivityIndicator color={c.ink} accessibilityLabel="Loading your matches" />
           ) : today.isError && !today.data ? (
@@ -90,15 +103,6 @@ export default function BallBoiScreen() {
             )
           )}
 
-          <Card style={{ gap: spacing.space3 }}>
-            <View accessible style={{ gap: spacing.space1 }}>
-              <Text variant="bodyStrong">Quick match</Text>
-              <Text variant="small" tone="inkMuted">
-                A casual hit, or a match outside your leagues. Play anyone, even if they're not on Ball Boi yet.
-              </Text>
-            </View>
-            <Button variant="secondary" label="Quick match" onPress={() => router.push("/record/quick")} />
-          </Card>
         </View>
 
         {season || queued.length > 0 || onServer.length > 0 || serverFailed ? (

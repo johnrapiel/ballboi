@@ -4,7 +4,7 @@ import { Pressable, View } from "react-native";
 
 import type { ScheduleMatch, ScheduleRound, ScheduleWeek } from "@workspace/api-client-react";
 
-import { Card, Chip, Text } from "@/components/ui";
+import { Card, Chip, Text, textLinkColor } from "@/components/ui";
 import { WinnerNames } from "@/components/WinnerNames";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -110,7 +110,8 @@ function MatchRow({
             opacity: pressed ? 0.6 : 1,
           })}
         >
-          <Text variant="button" style={{ textDecorationLine: "underline" }}>
+          {/* Enters a match's score: the green action link (decision 200). */}
+          <Text variant="button" tone={textLinkColor("action")} style={{ textDecorationLine: "underline" }}>
             Enter score
           </Text>
         </Pressable>

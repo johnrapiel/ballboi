@@ -4,7 +4,7 @@
 import { Stack } from "expo-router";
 import React from "react";
 
-import { grabberBarOptions, sheetOptions } from "@/components/Sheet";
+import { fullSheetOptions, grabberBarOptions, sheetOptions } from "@/components/Sheet";
 
 type Header = Record<string, unknown>;
 
@@ -20,6 +20,8 @@ export function discoverScreens(linen: string, pushed: Header, paper: string) {
     <Stack.Screen key="league" name="discover/league/[leagueId]" options={{ ...pushed, title: "" }} />,
     <Stack.Screen key="request" name="discover/request/[leagueId]" options={sheetOptions(linen)} />,
     <Stack.Screen key="courts" name="courts/index" options={{ ...pushed, title: "Home court" }} />,
+    // The Court sheet draws its own grabber and title (finding 51), so no header.
+    <Stack.Screen key="court-pick" name="courts/pick" options={{ ...fullSheetOptions(linen), headerShown: false }} />,
     <Stack.Screen key="court-new" name="courts/new" options={sheetOptions(linen)} />,
     <Stack.Screen key="plan" name="discover/plan/[userId]" options={sheetOptions(linen)} />,
     <Stack.Screen key="match-new" name="discover/match/new" options={{ ...pushed, ...grabberBarOptions(paper), presentation: "modal", title: "Post an open match" }} />,

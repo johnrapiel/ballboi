@@ -73,7 +73,7 @@ export default function WhenIPlayScreen() {
           <Text tone="inkMuted">Pick one or both. It shows on your player card.</Text>
         </View>
         <View style={{ gap: spacing.space2 }}>
-          <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
+          <Text variant="section" tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
             I play
           </Text>
           <ChipRow label="I play">

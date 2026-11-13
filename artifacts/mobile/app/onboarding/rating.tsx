@@ -2,8 +2,8 @@
 // Pick the description that sounds most like you. It sets the player's
 // self-rated level for matching, on the NTRP scale (Wave 1 review S9: the UI
 // calls it "self-rated level"). Only the player changes it; results don't move
-// it. "Link UTR instead" is shown but disabled until the UTR Engage integration
-// lands.
+// it. "Link UTR instead" is hidden until the UTR Engage integration lands
+// (Wave 2 finding 53, canvas A13): flip SHOW_LINK_UTR to bring it back.
 //
 // Also Profile > Edit profile > Self-rated level (mode="edit"): prefilled, and
 // Save posts the same self-rated level. A Verified (UTR) level can't be changed
@@ -24,6 +24,12 @@ import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useStableGetToken } from "@/hooks/useStableGetToken";
 import { QUIZ_LEVELS, fetchProfile, formatRating, saveSelfRating, type FormMode } from "@/lib/onboarding";
+
+/**
+ * The disabled "Link UTR instead" button and its "Coming soon" line stay out
+ * of onboarding and Edit profile > Level until UTR linking works (finding 53).
+ */
+const SHOW_LINK_UTR = false;
 
 export default function RatingStep({ mode = "onboarding" }: { mode?: FormMode }) {
   const editing = mode === "edit";
@@ -116,17 +122,19 @@ export default function RatingStep({ mode = "onboarding" }: { mode?: FormMode })
         ))}
       </View>
 
-      <View style={{ gap: spacing.space2 }}>
-        <Button
-          label="Link UTR instead"
-          variant="secondary"
-          disabled
-          accessibilityLabel="Link UTR instead, coming soon"
-        />
-        <Text variant="small" tone="inkMuted">
-          Coming soon. Linking UTR will set your level and show a Verified badge.
-        </Text>
-      </View>
+      {SHOW_LINK_UTR ? (
+        <View style={{ gap: spacing.space2 }}>
+          <Button
+            label="Link UTR instead"
+            variant="secondary"
+            disabled
+            accessibilityLabel="Link UTR instead, coming soon"
+          />
+          <Text variant="small" tone="inkMuted">
+            Coming soon. Linking UTR will set your level and show a Verified badge.
+          </Text>
+        </View>
+      ) : null}
 
       <StepError message={error} />
     </OnboardingStep>
