@@ -2,7 +2,6 @@ import { useAuth } from "@clerk/expo";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 import { AccessibilityInfo, ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -41,6 +40,7 @@ import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { shortDate, weeklyMatchTime } from "@/lib/leagueSchedule";
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { leagueLevelLabel } from "@/lib/onboarding";
@@ -77,7 +77,7 @@ function roleLabel(role: string | null | undefined): string | null {
 
 export default function ManageLeagueScreen() {
   const c = useColors();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const queryClient = useQueryClient();
   const { userId } = useAuth();
   const { leagueId: raw } = useLocalSearchParams<{ leagueId: string }>();
@@ -385,7 +385,8 @@ export default function ManageLeagueScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
-      contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space2 }}
+      contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space2 }}
+      scrollIndicatorInsets={bottom.scrollIndicatorInsets}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
       <View style={{ gap: spacing.space1, marginBottom: spacing.space2 }}>

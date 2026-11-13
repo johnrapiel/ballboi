@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardScreen, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { stepLabel, type Step } from "@/lib/onboarding";
 
 /** No step count in edit mode: out of layout and out of VoiceOver. */
@@ -40,13 +41,16 @@ export function OnboardingStep({
 }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
+  // With a footer the list stops at its top edge; without one iOS adds the
+  // home indicator (automatic insets). Either way, one gap (decision 194).
+  const bottom = useScreenBottomInset({ barBelow: true });
   return (
     <KeyboardScreen>
       <ScrollView
         style={{ flex: 1, backgroundColor: c.paper }}
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ padding: spacing.space4, paddingBottom: spacing.space8, gap: spacing.space6 }}
+        contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space6 }}
       >
         <View style={{ gap: spacing.space2 }}>
           <Text variant="label" tone="inkMuted" style={step ? undefined : HIDDEN} accessibilityElementsHidden={!step}>

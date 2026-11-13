@@ -25,6 +25,7 @@ import { Button, Card, Text, TextButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { dateRange, pairingTime, shortDate, sideLabels } from "@/lib/leagueSchedule";
 import { swapCandidates } from "@/lib/swapCandidates";
 
@@ -64,6 +65,8 @@ function everyone(round: ScheduleRound): Person[] {
 export default function RoundReviewScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
+  // Send Round N sits below the list; the last pairing keeps a full gap above it (decision 194).
+  const bottom = useScreenBottomInset({ barBelow: true });
   const queryClient = useQueryClient();
   const { leagueId: rawLeague, roundId: rawRound } = useLocalSearchParams<{ leagueId: string; roundId: string }>();
   const leagueId = Number(rawLeague);
@@ -261,7 +264,8 @@ export default function RoundReviewScreen() {
       />
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: spacing.space4, paddingBottom: spacing.space8, gap: spacing.space2 }}
+        contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space2 }}
+        scrollIndicatorInsets={bottom.scrollIndicatorInsets}
         refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
       >
         <View style={{ gap: spacing.space1, marginBottom: spacing.space2 }}>

@@ -6,7 +6,6 @@
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback } from "react";
 import { Pressable, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useGetMyPlayerCard } from "@workspace/api-client-react";
 
@@ -17,13 +16,14 @@ import { Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useProfile } from "@/hooks/useProfile";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { photoUrl } from "@/lib/photos";
 import { levelRow, playsPill } from "@/lib/playerCard";
 
 export default function EditProfileScreen() {
   const c = useColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const header = useEditHeader("");
   const { profile } = useProfile();
   const cardQ = useGetMyPlayerCard();
@@ -44,7 +44,8 @@ export default function EditProfileScreen() {
       <Stack.Screen options={header} />
       <ScrollView
         style={{ flex: 1, backgroundColor: c.paper }}
-        contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: 20 }}
+        contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: 20 }}
+        scrollIndicatorInsets={bottom.scrollIndicatorInsets}
       >
         <Text variant="headingL" accessibilityRole="header">
           Edit profile

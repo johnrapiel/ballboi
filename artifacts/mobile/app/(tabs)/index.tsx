@@ -1,7 +1,6 @@
 import { useRouter } from "expo-router";
 import React from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
 import { MatchCard } from "@/components/MatchCard";
@@ -15,6 +14,7 @@ import { UpcomingRows } from "@/components/UpcomingRows";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useProfile } from "@/hooks/useProfile";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { useUpcomingMessage } from "@/hooks/useUpcomingMessage";
 import { upcomingHint, useOpenUpcoming, useUpcomingMatches } from "@/hooks/useUpcomingMatches";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -40,7 +40,7 @@ import { cardWhen, isMatchDay, type UpcomingItem } from "@/lib/upcoming";
 
 export default function HomeScreen() {
   const c = useColors();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset({ tab: true });
   const router = useRouter();
   const { items, week, isLoading, isError, refetch } = useUpcomingMatches();
   const pull = usePullToRefresh(refetch);
@@ -120,7 +120,8 @@ export default function HomeScreen() {
         </View>
       ) : nothing ? (
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom }}
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: bottom.paddingBottom }}
+          scrollIndicatorInsets={bottom.scrollIndicatorInsets}
           refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
         >
           <View style={{ padding: spacing.space4, gap: spacing.space3 }}>
@@ -139,7 +140,8 @@ export default function HomeScreen() {
         </ScrollView>
       ) : (
         <ScrollView
-          contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space3 }}
+          contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space3 }}
+          scrollIndicatorInsets={bottom.scrollIndicatorInsets}
           refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
         >
           {isError ? (

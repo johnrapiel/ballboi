@@ -19,12 +19,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { apiErrorMessage, apiFetch, isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { liveAction, STOP_CONFIRM_BODY, STOP_CONFIRM_TITLE, type LiveCommand, type LiveProps } from "@/lib/liveActivity/props";
 import { liveClock, liveClockSpoken } from "@/lib/liveActivity/clock";
@@ -41,7 +41,7 @@ const REFRESH_MS = 2_000;
 export default function LiveMatchScreen() {
   const c = useColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const qc = useQueryClient();
   const { getToken } = useAuth();
   const params = useLocalSearchParams<{ matchId: string; action?: string }>();
@@ -171,7 +171,8 @@ export default function LiveMatchScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
-      contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
+      contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space4 }}
+      scrollIndicatorInsets={bottom.scrollIndicatorInsets}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
       <View style={{ gap: spacing.space1 }}>

@@ -37,6 +37,7 @@ import { Toggle } from "@/components/Toggle";
 import { Button, Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { confirmSignOut } from "@/lib/confirmSignOut";
 import { consentKey, saveTrainingEnabled, useRecordingConsent, type RecordingConsent } from "@/lib/recording/api";
@@ -77,6 +78,7 @@ function SettingRow({
 
 export default function SettingsScreen() {
   const c = useColors();
+  const bottom = useScreenBottomInset();
   const router = useRouter();
   const { getToken, signOut } = useAuth();
   const queryClient = useQueryClient();
@@ -120,7 +122,8 @@ export default function SettingsScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
-      contentContainerStyle={{ padding: spacing.space4, paddingBottom: spacing.space12, gap: spacing.space4 }}
+      contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space4 }}
+      scrollIndicatorInsets={bottom.scrollIndicatorInsets}
     >
       <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ paddingHorizontal: spacing.space1 }}>
         Ball Boi

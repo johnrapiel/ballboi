@@ -6,7 +6,6 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import { ActivityIndicator, ScrollView } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useGetMyCareer } from "@workspace/api-client-react";
 
@@ -16,12 +15,13 @@ import { ResultRow } from "@/components/ResultRow";
 import { Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { careerResultRow, seasonRecord, seasonResults } from "@/lib/career";
 
 export default function CareerSeasonScreen() {
   const c = useColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const header = useEditHeader("");
   const { key } = useLocalSearchParams<{ key: string }>();
   const q = useGetMyCareer();
@@ -34,7 +34,8 @@ export default function CareerSeasonScreen() {
       <Stack.Screen options={header} />
       <ScrollView
         style={{ flex: 1, backgroundColor: c.paper }}
-        contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
+        contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space4 }}
+        scrollIndicatorInsets={bottom.scrollIndicatorInsets}
       >
         {q.isLoading ? (
           <ActivityIndicator color={c.ink} accessibilityLabel="Loading this season" />

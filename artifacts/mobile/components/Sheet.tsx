@@ -19,6 +19,7 @@ import { Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useDiscardGuard } from "@/hooks/useDiscardGuard";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { keyboardCover } from "@/lib/keyboardCover";
 
 /** Stack options for a sheet route that hugs its content. */
@@ -159,6 +160,9 @@ export function SheetBody({
 }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
+  // The last content keeps one full gap above the pinned button (Create
+  // league), or above the home indicator when there's no footer (decision 194).
+  const bottom = useScreenBottomInset({ barBelow: !!footer });
   const { height } = useWindowDimensions();
   const own = useSheetClose(close ? false : dirty);
   const onEscape = close ?? own.close;
@@ -190,7 +194,7 @@ export function SheetBody({
     {
       paddingTop: spacing.space6,
       paddingHorizontal: spacing.space4,
-      paddingBottom: footer ? spacing.space4 : insets.bottom + spacing.space4,
+      paddingBottom: bottom.paddingBottom,
       gap: spacing.space4,
     },
     contentStyle,
