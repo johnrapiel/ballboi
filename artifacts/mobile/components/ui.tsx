@@ -97,7 +97,7 @@ export interface TextLinkProps extends Omit<TextProps, "tone"> {
    * friend, Change in Settings): ink, underlined.
    * `action`: a link that changes something on a match (Change time, Set a
    * match time, Match didn't finish?, Enter score): `court` green, underlined
-   * (decision 200, John, Nov 12, Wave 2 finding 56).
+   * (decision 201, John, Nov 12, Wave 2 finding 56).
    */
   tone?: "link" | "action";
 }
@@ -440,7 +440,7 @@ export interface FieldProps extends React.ComponentProps<typeof TextInput> {
   error?: boolean;
   /**
    * "section" (the default): a sentence case heading in ink-muted, the one
-   * style for a heading over a field or control (decision 199, Wave 2 finding
+   * style for a heading over a field or control (decision 200, Wave 2 finding
    * 52). "bodyStrong" for sentence case labels inside a form card (New league,
    * decision 182). "label" (11px caps) is for eyebrows, table headers and
    * badges only; don't use it over a field.

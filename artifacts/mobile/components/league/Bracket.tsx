@@ -83,7 +83,7 @@ function SlotButton({ label, hint, onPress }: { label: string; hint: string; onP
       accessibilityHint={hint}
       style={({ pressed }) => ({ minHeight: MIN_TAP, justifyContent: "center", opacity: pressed ? 0.6 : 1 })}
     >
-      {/* Enter score and Enter result change the match: the green action link (decision 200). */}
+      {/* Enter score and Enter result change the match: the green action link (decision 201). */}
       <Text variant="button" tone={textLinkColor("action")} style={{ textDecorationLine: "underline" }}>
         {label}
       </Text>

@@ -60,7 +60,7 @@ Never put `court` and `danger` side by side as the only difference between two t
 
 ### Links
 
-Two kinds of text link, one look each (decision 200, John, Nov 12, Wave 2 finding 56). `TextLink` has a `tone` for each, so no screen picks a link color itself:
+Two kinds of text link, one look each (decision 201, John, Nov 12, Wave 2 finding 56). `TextLink` has a `tone` for each, so no screen picks a link color itself:
 
 - **Navigation and settings** (the default, `tone="link"`): `ink`, underlined. See all, See match, Change in Settings, the Discover area link, Invite a friend, Post an open match (as a link), a player's name on a league line, Add home court, Unblock, links in messages.
 - **Actions on a match** (`tone="action"`): `court` green, underlined. Links that change something on a match: Set a match time and Change time (`MatchTimeLink`), Match didn't finish?, Enter score and Enter result on a round or bracket. `court` clears 4.5:1 on `paper`, `linen` and `sand` in Day and Night (`scripts/check-contrast.mjs`).
@@ -78,7 +78,7 @@ When iOS Increase Contrast is on, `ink-muted`, `hairline` and `hairline-strong` 
 - **Text:** DM Sans 400/600. Body, buttons, labels.
 - **Body is 17px**, the iOS body size. Small is 15px, buttons 16px.
 - **Scores always use** `font-variant-numeric: lining-nums tabular-nums` so sets line up.
-- **Section labels** over a list or a group (Next match, Past leagues, Your rank) are `section`: 13px DM Sans 600, sentence case, `ink-muted`. They replace the uppercase eyebrows on the approved screens. So does every heading over a field or control (decision 199, Wave 2 finding 52): a text field's label (Name, Email, Code, ZIP code, Miles, Their name, Area, Address; `Field` uses `section` by default), and the headings over chips, toggles and pickers (Discover filters' Distance, Level and Plays; Photo; Birthday; I play).
+- **Section labels** over a list or a group (Next match, Past leagues, Your rank) are `section`: 13px DM Sans 600, sentence case, `ink-muted`. They replace the uppercase eyebrows on the approved screens. So does every heading over a field or control (decision 200, Wave 2 finding 52): a text field's label (Name, Email, Code, ZIP code, Miles, Their name, Area, Address; `Field` uses `section` by default), and the headings over chips, toggles and pickers (Discover filters' Distance, Level and Plays; Photo; Birthday; I play).
 - **Labels** are 11px uppercase with 0.16em tracking: the heritage tag on a racquet throat. 11px is the iOS floor, so they're for the rare eyebrow, table header and badge only, never over a field or control.
 - **Pills and chips.** Plain pills (level, hand, format, status words like Active and Done) are `pill`: 13px DM Sans 500, sentence case, outline only in `hairline-strong`, never filled. A level is the plain number, "3.5", with no Self-rated label until a verified source exists. Only You, Live and Rec stay filled, in the uppercase 12px `chip` style.
 - **Segmented controls** use the iOS native size: a `sand` track with 2px padding and a 9px corner, 32pt segments in `segment` (13px DM Sans 600), the selected one on `linen` with a soft shadow. Each segment keeps a 44pt hit area, so the 44pt touch rule still holds (John, Nov 6).

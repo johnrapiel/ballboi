@@ -110,7 +110,7 @@ function MatchRow({
             opacity: pressed ? 0.6 : 1,
           })}
         >
-          {/* Enters a match's score: the green action link (decision 200). */}
+          {/* Enters a match's score: the green action link (decision 201). */}
           <Text variant="button" tone={textLinkColor("action")} style={{ textDecorationLine: "underline" }}>
             Enter score
           </Text>
