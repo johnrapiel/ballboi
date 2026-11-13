@@ -34,6 +34,7 @@ import {
 } from "@workspace/api-client-react";
 
 import { useActionSheet, type SheetRow } from "@/components/ActionSheet";
+import { ProblemCard } from "@/components/discover/States";
 import { InviteCard } from "@/components/league/InviteCard";
 import { OfflineNotice } from "@/components/OfflineNotice";
 import { ListRow, SectionLabel } from "@/components/league/ListRow";
@@ -383,6 +384,23 @@ export default function ManageLeagueScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: c.paper, alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator color={c.ink} accessibilityLabel="Loading" />
+      </View>
+    );
+  }
+
+  // Nothing loaded (offline at open): the full error, not "Only admins" (decision 195).
+  if (!membershipQ.data && (membershipQ.isError || leagueQ.isError)) {
+    return (
+      <View style={{ flex: 1, backgroundColor: c.paper, padding: spacing.space4 }}>
+        <ProblemCard
+          title="Can't load this league"
+          body="Check your connection and try again."
+          onRetry={() => {
+            void leagueQ.refetch();
+            void membershipQ.refetch();
+          }}
+          retrying={leagueQ.isRefetching || membershipQ.isRefetching}
+        />
       </View>
     );
   }
