@@ -9,7 +9,9 @@ import { getGetLeagueQueryKey, useGetLeague, useGetMyMatch, type MatchDetail } f
 
 import { Avatar } from "@/components/Avatar";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
+import { ProblemCard } from "@/components/discover/States";
 import { NextMatchCard } from "@/components/NextMatchCard";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { DoublesNote } from "@/components/record/DoublesMatchCard";
 import { Button, Card, Text } from "@/components/ui";
 import { MarkedName, WinnerNames } from "@/components/WinnerNames";
@@ -19,6 +21,7 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useProfile } from "@/hooks/useProfile";
 import { useUpcomingMatches } from "@/hooks/useUpcomingMatches";
 import { useUpcomingMessage } from "@/hooks/useUpcomingMessage";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { correctionLine, LATE_NOTE, LATE_ROUND_RESULT, lateDateLine } from "@/lib/leagueSchedule";
 import { durationLabel, durationSpoken, matchSourceLine, scoreFootnote, setRows } from "@/lib/myMatches";
 import { isDoubleDefault, isRetiredScore, WALKOVER_SCORE } from "@/lib/tennisScore";
@@ -137,6 +140,7 @@ function EditPencil({ onPress }: { onPress: () => void }) {
 export default function MatchDetailScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
   const { matchId: raw } = useLocalSearchParams<{ matchId: string }>();
@@ -182,19 +186,24 @@ export default function MatchDetailScreen() {
     const status = (q.error as { status?: number } | null)?.status;
     return (
       <View style={{ flex: 1, backgroundColor: c.paper, padding: spacing.space4, paddingBottom: insets.bottom + spacing.space4 }}>
-        <Card style={{ gap: spacing.space3 }}>
-          <Text variant="bodyStrong" accessibilityRole="header">
-            Couldn't load this match
-          </Text>
-          <Text variant="small" tone="inkMuted">
-            {status === 404 || status === 403 ? "It may have been removed, or it isn't one of your matches." : "Check your connection and try again."}
-          </Text>
-          {status === 404 || status === 403 ? (
+        {status === 404 || status === 403 ? (
+          <Card style={{ gap: spacing.space3 }}>
+            <Text variant="bodyStrong" accessibilityRole="header">
+              Couldn't load this match
+            </Text>
+            <Text variant="small" tone="inkMuted">
+              It may have been removed, or it isn't one of your matches.
+            </Text>
             <Button label="Go back" variant="secondary" onPress={() => router.back()} />
-          ) : (
-            <Button label="Try again" variant="secondary" loading={q.isRefetching} onPress={() => void refetch()} />
-          )}
-        </Card>
+          </Card>
+        ) : (
+          <ProblemCard
+            title="Can't load this match"
+            body="Check your connection and try again."
+            onRetry={() => void refetch()}
+            retrying={q.isRefetching}
+          />
+        )}
       </View>
     );
   }
@@ -259,7 +268,8 @@ export default function MatchDetailScreen() {
     return (
       <ScrollView
         style={{ flex: 1, backgroundColor: c.paper }}
-        contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
+        contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space4 }}
+        scrollIndicatorInsets={bottom.scrollIndicatorInsets}
         refreshControl={
           <RefreshControl
             refreshing={pullUpcoming.refreshing}
@@ -269,6 +279,7 @@ export default function MatchDetailScreen() {
         }
       >
         <View accessible accessibilityRole="header" accessibilityLabel={`Match against ${cardOpponent}`} style={{ position: "absolute", width: 1, height: 1 }} />
+        <OfflineNotice pull={pullUpcoming} />
         <NextMatchCard
           dateLabel={cardWhenLabel.dateLabel}
           time={cardWhenLabel.time}
@@ -322,11 +333,13 @@ export default function MatchDetailScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
-      contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
+      contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space4 }}
+      scrollIndicatorInsets={bottom.scrollIndicatorInsets}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
       {/* The screen's name for VoiceOver; the nav bar title stays empty, as designed. */}
       <View accessible accessibilityRole="header" accessibilityLabel={`Match against ${them}`} style={{ position: "absolute", width: 1, height: 1 }} />
+      <OfflineNotice pull={pull} />
 
       <Card
         style={{

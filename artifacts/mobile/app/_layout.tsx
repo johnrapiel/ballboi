@@ -39,6 +39,7 @@ import { useColors } from "@/hooks/useColors";
 import { useGate } from "@/hooks/useGate";
 import { checkForAccountBlock, onAccountBlocked } from "@/lib/accountBlocked";
 import { gateRedirect, type PendingLink } from "@/lib/gate";
+import { isConnectionError } from "@/lib/pullRefresh";
 import { savePendingJoinCode } from "@/lib/leagueInvite";
 import { savePendingInvite } from "@/lib/recording/pendingInvite";
 import { clearUploadQueue } from "@/lib/recording/uploader";
@@ -55,6 +56,14 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient({
   queryCache: new QueryCache({ onError: checkForAccountBlock }),
   mutationCache: new MutationCache({ onError: checkForAccountBlock }),
+  defaultOptions: {
+    queries: {
+      // Offline, retrying only keeps the spinner going (about 7 seconds) before
+      // the same answer. Fail at once so the screen can say you're offline
+      // (finding 41, decision 195). Other failures still retry, as before.
+      retry: (failureCount, error) => !isConnectionError(error) && failureCount < 3,
+    },
+  },
 });
 
 // Coming back to the app counts as focus, so stale data (the account status

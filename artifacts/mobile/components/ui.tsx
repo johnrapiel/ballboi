@@ -29,6 +29,7 @@ import Svg, { Path } from "react-native-svg";
 import { useAccessibilitySettings } from "@/hooks/useAccessibilitySettings";
 import { BUTTON_PAD_X, buttonHeight, shouldStackButtons } from "@/lib/buttonSize";
 import { useColors, useScheme } from "@/hooks/useColors";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import {
   MIN_TAP,
   displayFaces,
@@ -421,8 +422,13 @@ export interface FieldProps extends React.ComponentProps<typeof TextInput> {
   /** Helper or error text under the field. */
   hint?: string;
   error?: boolean;
-  /** "label" (11px caps, the default) or "bodyStrong" for sentence case labels inside a form card (New league, decision 182). */
-  labelVariant?: "label" | "bodyStrong";
+  /**
+   * "label" (11px caps, the default), "bodyStrong" for sentence case labels
+   * inside a form card (New league, decision 182), or "section" for a sentence
+   * case heading in ink-muted that matches the section labels around it (Post
+   * an open match, finding 44).
+   */
+  labelVariant?: "label" | "bodyStrong" | "section";
 }
 
 /** Check: the cue for wins and confirmations. Errors use a hollow cross. */
@@ -453,7 +459,12 @@ export function Field({ label, hint, error = false, labelVariant = "label", styl
   const body = useTypeStyle("body");
   return (
     <View style={{ gap: spacing.space2 }}>
-      <Text variant={labelVariant} importantForAccessibility="no" accessibilityElementsHidden>
+      <Text
+        variant={labelVariant}
+        tone={labelVariant === "section" ? "inkMuted" : "ink"}
+        importantForAccessibility="no"
+        accessibilityElementsHidden
+      >
         {label}
       </Text>
       <TextInput
@@ -523,16 +534,18 @@ export interface ScrollScreenProps extends Omit<ScrollViewProps, "style" | "cont
 export function ScrollScreen({ style, children, ...rest }: ScrollScreenProps) {
   const c = useColors();
   const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
+      scrollIndicatorInsets={bottom.scrollIndicatorInsets}
       {...rest}
       style={{ flex: 1, backgroundColor: c.paper }}
       contentContainerStyle={[
         {
           flexGrow: 1,
           paddingTop: insets.top + spacing.space4,
-          paddingBottom: insets.bottom + spacing.space4,
+          paddingBottom: bottom.paddingBottom,
           paddingHorizontal: spacing.space4,
         },
         style,

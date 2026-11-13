@@ -3,6 +3,9 @@
 // time window, Singles or Doubles (1 to 3 spots, shown as Need N), level
 // range (a guide: anyone can still join), court (optional, from the
 // directory) and an optional note. A time that has passed says so and stays.
+// Every section is a sentence case heading (section type, ink-muted) over its
+// control, with the same gap between sections (finding 44). The From and To
+// pills are iOS's compact time picker, which draws its own time text.
 
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Stack, useRouter } from "expo-router";
@@ -20,6 +23,7 @@ import { useDiscardGuard } from "@/hooks/useDiscardGuard";
 import { courtPick, usePickedCourt } from "@/hooks/useCourts";
 import { useDiscoverMe } from "@/hooks/useDiscover";
 import { usePostOpenMatch } from "@/hooks/useDiscoverOpenMatches";
+import { usePinnedBarHeight, useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { defaultPlanStart, levelRangeText, windowEnd, type LevelRange } from "@/lib/discover";
 
@@ -34,6 +38,9 @@ export default function PostOpenMatchScreen() {
   const scheme = useScheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // The last content sits a full gap above the pinned button (decision 194).
+  const pinned = usePinnedBarHeight();
+  const bottom = useScreenBottomInset({ pinnedHeight: pinned.height });
   const me = useDiscoverMe();
   const court = usePickedCourt();
   const post = usePostOpenMatch();
@@ -107,7 +114,8 @@ export default function PostOpenMatchScreen() {
         }}
       />
       <ScrollView
-        contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + 120, gap: spacing.space6 }}
+        contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space6 }}
+        scrollIndicatorInsets={bottom.scrollIndicatorInsets}
         keyboardShouldPersistTaps="handled"
       >
         <View style={{ gap: spacing.space3 }}>
@@ -152,7 +160,7 @@ export default function PostOpenMatchScreen() {
         </View>
 
         <View style={{ gap: spacing.space2 }}>
-          <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
+          <Text variant="section" tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
             Format
           </Text>
           <ChipRow label="Format">
@@ -181,7 +189,7 @@ export default function PostOpenMatchScreen() {
         </View>
 
         <View style={{ gap: spacing.space2 }}>
-          <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
+          <Text variant="section" tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
             Level range
           </Text>
           <ChipRow label="Level range">
@@ -192,21 +200,29 @@ export default function PostOpenMatchScreen() {
           <Text variant="small" tone="inkMuted">{`${levelRangeText(me.data?.rating ?? null, level)} A guide: anyone can still join.`}</Text>
         </View>
 
-        <SettingsSection>
-          <SettingsRow
-            title="Court (optional)"
-            value={court ? court.name : "Not set"}
-            onPress={() => {
-              touch();
-              router.push({ pathname: "/courts", params: { mode: "match" } });
-            }}
-            accessibilityHint="Pick from the court directory, or leave it not set"
-            last
-          />
-        </SettingsSection>
+        {/* Heading + control, like every other section here (finding 44): the
+            row shows only the court, so it doesn't read as part of Level range. */}
+        <View style={{ gap: spacing.space2 }}>
+          <Text variant="section" tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
+            Court (optional)
+          </Text>
+          <SettingsSection>
+            <SettingsRow
+              title={court ? court.name : "Not set"}
+              onPress={() => {
+                touch();
+                router.push({ pathname: "/courts", params: { mode: "match" } });
+              }}
+              accessibilityLabel={`Court, ${court ? court.name : "Not set"}`}
+              accessibilityHint="Pick from the court directory, or leave it not set"
+              last
+            />
+          </SettingsSection>
+        </View>
 
         <Field
           label="Note (optional)"
+          labelVariant="section"
           value={note}
           onChangeText={(t) => (setNote(t.slice(0, 200)), touch())}
           multiline
@@ -216,6 +232,7 @@ export default function PostOpenMatchScreen() {
         />
       </ScrollView>
       <View
+        onLayout={pinned.onLayout}
         style={{
           position: "absolute",
           left: 0,

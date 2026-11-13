@@ -6,7 +6,6 @@ import { areaLabel } from "@/lib/leagueArea";
 import { textTapSlop } from "@/lib/tapTarget";
 import React from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   getGetLeagueStandingsQueryOptions,
@@ -21,13 +20,16 @@ import {
 } from "@workspace/api-client-react";
 
 import { IconButton } from "@/components/Choice";
+import { ProblemCard } from "@/components/discover/States";
 import { EmptyState } from "@/components/EmptyState";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { discoverState } from "@/hooks/useDiscoverFilters";
 import { TabScreen } from "@/components/TabHeader";
 import { Button, Card, Chip, Pill, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { formatLabel, isPastLeague, leagueCardText, myStanding, ordinal, pastLabel, type MyStanding } from "@/lib/leagues";
 
 // Leagues tab (spec: Leagues; approved canvas: Leagues, John, Nov 5). Notes
@@ -269,7 +271,7 @@ function InviteCodeLink({ onPress }: { onPress: () => void }) {
 export default function LeaguesScreen() {
   const c = useColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset({ tab: true });
   const { user } = useUser();
 
   const leaguesQ = useGetLeagues(user?.id ? { clerkUserId: user.id } : undefined);
@@ -307,6 +309,8 @@ export default function LeaguesScreen() {
     ...standingsQs.map((q) => q.refetch()),
   ]);
 
+  const leaguesFailed = leaguesQ.isError && !leaguesQ.data;
+
   const startLeague = () => router.push("/league/new");
   // Discover's Open leagues tab (Wave 2, Session F).
   const findOpenLeague = () => {
@@ -324,19 +328,22 @@ export default function LeaguesScreen() {
         <ScrollView
           contentContainerStyle={{
             paddingHorizontal: spacing.space4,
-            paddingBottom: insets.bottom + 120,
+            paddingBottom: bottom.paddingBottom,
             gap: spacing.space6,
             flexGrow: 1,
           }}
+          scrollIndicatorInsets={bottom.scrollIndicatorInsets}
           refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
         >
-          {leaguesQ.isError ? (
-            <Card style={{ gap: spacing.space2 }}>
-              <Text variant="bodyStrong">Couldn't load your leagues</Text>
-              <Text variant="small" tone="inkMuted">
-                Pull down to try again.
-              </Text>
-            </Card>
+          <OfflineNotice pull={pull} />
+          {/* Nothing to show yet: the full error. With leagues on screen, the notice above says so (decision 195). */}
+          {leaguesFailed ? (
+            <ProblemCard
+              title="Can't load your leagues"
+              body="Check your connection and try again."
+              onRetry={() => void leaguesQ.refetch()}
+              retrying={leaguesQ.isRefetching}
+            />
           ) : null}
 
           {notices.map((n) => (
@@ -348,7 +355,7 @@ export default function LeaguesScreen() {
             />
           ))}
 
-          {!leaguesQ.isError && leagues.length === 0 && requests.length === 0 ? (
+          {!leaguesFailed && leagues.length === 0 && requests.length === 0 ? (
             <View style={{ minHeight: 240, gap: spacing.space4 }}>
               <EmptyState roundel title="No leagues yet" message="Start one for your group, or find an Open league near you and ask for a spot." />
               <Button label="Start a league" onPress={startLeague} />

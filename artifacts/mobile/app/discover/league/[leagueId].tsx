@@ -22,6 +22,7 @@ import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useAskToJoin, useDiscoverLeague, useWithdraw } from "@/hooks/useDiscoverLeagues";
+import { usePinnedBarHeight, useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { firstName, leagueStanding, seasonLine, spotsLine, type DiscoverLeague } from "@/lib/discover";
 
@@ -29,6 +30,9 @@ export default function DiscoverLeagueScreen() {
   const c = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // The last content sits a full gap above the pinned button (decision 194).
+  const pinned = usePinnedBarHeight();
+  const bottom = useScreenBottomInset({ pinnedHeight: pinned.height });
   const params = useLocalSearchParams<{ leagueId: string }>();
   const leagueId = Number(params.leagueId);
   const q = useDiscoverLeague(leagueId);
@@ -134,7 +138,7 @@ export default function DiscoverLeagueScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: c.paper }}>
       <Stack.Screen options={{ title: "" }} />
-      <ScrollView contentContainerStyle={{ padding: spacing.space4, paddingBottom: 140 + insets.bottom, gap: spacing.space4 }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space4 }} scrollIndicatorInsets={bottom.scrollIndicatorInsets}>
         <View style={{ gap: spacing.space1 }}>
           <Text variant="headingL" accessibilityRole="header">
             {l.name}
@@ -151,6 +155,7 @@ export default function DiscoverLeagueScreen() {
         </Card>
       </ScrollView>
       <View
+        onLayout={pinned.onLayout}
         style={{
           position: "absolute",
           left: 0,

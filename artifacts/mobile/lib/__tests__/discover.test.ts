@@ -6,6 +6,8 @@ import {
   filteredEmptyBody,
   filtersButtonLabel,
   areaLine,
+  MAX_RADIUS,
+  RADIUS_STEPS,
   clampRadius,
   countLine,
   filtersSpoken,
@@ -21,6 +23,7 @@ import {
   playersPath,
   playsFromPicks,
   radiusChipSpoken,
+  widenStep,
   rowDetail,
 } from "../discover";
 
@@ -38,18 +41,33 @@ describe("Discover header and chips", () => {
     expect(radiusChipSpoken(5, null, false)).toBe("5 miles");
   });
 
-  it("keeps a custom distance to whole miles from 1 to 30", () => {
+  it("keeps a custom distance to whole miles from 1 to 50 (decision 196)", () => {
     expect(clampRadius(0)).toBe(1);
-    expect(clampRadius(42)).toBe(30);
+    expect(clampRadius(42)).toBe(42);
+    expect(clampRadius(50)).toBe(50);
+    expect(clampRadius(75)).toBe(50);
+    expect(MAX_RADIUS).toBe(50);
+    expect(RADIUS_STEPS).toEqual([5, 10, 15, 30, 50]);
+    expect(isCustomRadius(50)).toBe(false);
+    expect(isCustomRadius(42)).toBe(true);
     expect(clampRadius(12.4)).toBe(12);
     expect(isCustomRadius(12)).toBe(true);
     expect(isCustomRadius(15)).toBe(false);
   });
 
+  it("widens the empty state one chip at a time, up through 50", () => {
+    const counts = [5, 10, 15, 30, 50].map((radius) => ({ radius, count: radius >= 50 ? 2 : 0 }));
+    expect(widenStep(10, counts)).toBe(50);
+    expect(widenStep(10, [])).toBe(15);
+    expect(widenStep(30, [])).toBe(50);
+    expect(widenStep(42, [])).toBe(50);
+    expect(widenStep(50, counts)).toBeNull();
+  });
+
   it("asks for players with the filters", () => {
     expect(playersPath(10, DEFAULT_FILTERS)).toBe("/api/discover/players?radius=10&levels=mine&plays=either");
     expect(playersPath(99, { levels: [], plays: "doubles", free: true })).toBe(
-      "/api/discover/players?radius=30&levels=&plays=doubles&free=1",
+      "/api/discover/players?radius=50&levels=&plays=doubles&free=1",
     );
     expect(playersPath(10, { levels: [3, 3.5], plays: "either", free: false })).toBe(
       "/api/discover/players?radius=10&levels=3.0,3.5&plays=either",

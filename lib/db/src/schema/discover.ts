@@ -17,7 +17,7 @@ export const discoverProfilesTable = pgTable(
     hidden: boolean("hidden").notNull().default(false),
     /** singles | doubles | both. Null until the player says. */
     plays: text("plays"),
-    /** Last distance picked, 1 to 30 miles. One distance for all three tabs. */
+    /** Last distance picked, 1 to 50 miles. One distance for all three tabs. */
     radiusMiles: integer("radius_miles").notNull().default(10),
     /** The ZIP this point came from, to notice when the home area changes. */
     areaZip: text("area_zip"),
