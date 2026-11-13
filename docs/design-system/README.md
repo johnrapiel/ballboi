@@ -153,6 +153,7 @@ Copy buttons confirm by turning into a check for about 2 seconds, with no separa
 One rule for every bottom sheet (John, Nov 6), like the approved Enter score sheet:
 
 - The sheet hugs its content and grows with larger text. It only scrolls when the content is taller than the screen.
+- It has one position, its content's height: no taller position to drag to. The primary action sits one `space-4` gap above the home indicator; iOS adds the home indicator strip below a hugging sheet's content, so the content never pads for it again (Wave 2 finding 46).
 - No Cancel button. Drag down to close. If you changed something, closing asks before it discards your changes ("Discard changes?" with Keep editing and a red Discard). The VoiceOver escape gesture (two-finger Z) closes it the same way.
 - A left-aligned `heading-m` title (Cormorant at 50% ink) sits under the grabber, read by VoiceOver as the header.
 - The primary action is the last thing in the sheet, full width.

@@ -4,18 +4,27 @@
 // reads the whole card, with its answers as actions (brief item 37); the
 // same answers are buttons on screen. Status lines ("Sam undid…",
 // "You two remember this differently…") are centered system lines.
+//
+// Can't make it (canceling an added match, or saying no to "Add this
+// match?") is a brush X in the card's top-right corner, not a red button
+// (John, Nov 12, Wave 2 finding 46; decision 184). Because an X alone could
+// read as dismissing the card, it always confirms with a native alert that
+// says what happens (decision 193). See match is an underlined link.
 
 import { useRouter } from "expo-router";
 import { Icon } from "@/components/Icon";
 import React from "react";
-import { AccessibilityInfo, Alert, View } from "react-native";
+import { AccessibilityInfo, Alert, Pressable, View } from "react-native";
 
-import { Button, Card, Text, TextButton } from "@/components/ui";
+import { Button, Card, Text, TextButton, TextLink } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePlanAction, useShiftPlan } from "@/hooks/useDiscoverMatchPlans";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
-import { actionLabel, eventCopy, planWhen, type MatchPlan, type PlanAction, type PlanEvent } from "@/lib/discover";
+import { actionLabel, cardActions, eventCopy, planWhen, type MatchPlan, type PlanAction, type PlanEvent } from "@/lib/discover";
+import { tapSlop, textTapSlop } from "@/lib/tapTarget";
+
+const X_SIZE = 20;
 
 export interface MatchCardItem {
   plan: MatchPlan;
@@ -41,16 +50,22 @@ export function useMatchCardActions(otherName: string) {
         .catch((e: unknown) =>
           Alert.alert("Couldn't do that", isOfflineError(e) ? OFFLINE_MESSAGE : e instanceof Error ? e.message : "Try again."),
         );
-    const day = new Date(plan.startsAt).toLocaleDateString("en-US", { weekday: "long" });
+    const when = planWhen(plan.startsAt);
+    // Can't make it is a small X, so the alert says what it does (finding 46).
     if (action === "cancel")
       return Alert.alert(
-        `Cancel ${day}'s match?`,
-        `It comes off both your schedules and ${them} gets a message. Canceling before the match never counts as a no-show.`,
+        "Can't make it?",
+        `This takes ${when} off your and ${them}'s schedules. ${them} gets a message. Canceling before the match never counts as a no-show.`,
         [
           { text: "Keep match", style: "cancel" },
-          { text: "Cancel match", style: "destructive", onPress: go },
+          { text: "Can't make it", style: "destructive", onPress: go },
         ],
       );
+    if (action === "decline")
+      return Alert.alert("Can't make it?", `${them} sees you can't make ${when}. It doesn't go on either schedule.`, [
+        { text: "Go back", style: "cancel" },
+        { text: "Can't make it", style: "destructive", onPress: go },
+      ]);
     if (action === "no_show")
       return Alert.alert(
         `${them} didn't show?`,
@@ -148,7 +163,12 @@ export function MatchCard({
     );
   }
 
-  const [primary, ...rest] = event.actions;
+  // Can't make it is the X in the corner; the other answers stay buttons.
+  const { cantMakeIt: cant, buttons } = cardActions(event.actions);
+  const [primary, ...rest] = buttons;
+  const openMatch = () => {
+    if (plan.matchId) router.push({ pathname: "/match/[matchId]", params: { matchId: String(plan.matchId) } });
+  };
   return (
     <View style={{ paddingHorizontal: spacing.space4, paddingVertical: spacing.space2, alignItems: mineSide ? "flex-end" : "flex-start" }}>
       <Card
@@ -159,8 +179,7 @@ export function MatchCard({
           ...(showMatchLink ? [{ name: "see", label: "See match" }] : []),
         ]}
         onAccessibilityAction={(e) => {
-          if (e.nativeEvent.actionName === "see" && plan.matchId)
-            router.push({ pathname: "/match/[matchId]", params: { matchId: String(plan.matchId) } });
+          if (e.nativeEvent.actionName === "see") openMatch();
           else onAction(plan, e.nativeEvent.actionName as PlanAction);
         }}
         style={{ width: "88%", maxWidth: 420, gap: spacing.space2, borderRadius: radius.radiusCard }}
@@ -170,6 +189,21 @@ export function MatchCard({
           <Text variant="bodyStrong" style={{ flex: 1 }}>
             {copy.title}
           </Text>
+          {cant ? (
+            <Pressable
+              onPress={() => onAction(plan, cant)}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel="Can't make it"
+              accessibilityHint={cant === "cancel" ? "Takes this match off both schedules" : `Tells ${them} you can't make this time`}
+              accessibilityState={{ disabled: !!busy }}
+              // A 20pt brush X with a 44pt target from hitSlop (decision 192).
+              hitSlop={tapSlop(X_SIZE, X_SIZE)}
+              style={({ pressed }) => ({ alignSelf: "flex-start", opacity: busy ? 0.5 : pressed ? 0.6 : 1 })}
+            >
+              <Icon name="xmark" size={X_SIZE} tintColor={c.inkMuted} />
+            </Pressable>
+          ) : null}
         </View>
         {copy.body ? (
           <Text variant="small" tone="inkMuted">
@@ -180,7 +214,7 @@ export function MatchCard({
           <View style={{ gap: spacing.space2, marginTop: spacing.space1 }}>
             <Button
               label={actionLabel(primary, them)}
-              variant={primary === "cancel" ? "destructiveOutline" : "primary"}
+              variant="primary"
               loading={busy}
               onPress={() => onAction(plan, primary)}
             />
@@ -188,7 +222,7 @@ export function MatchCard({
               <Button
                 key={a}
                 label={actionLabel(a, them)}
-                variant={a === "cancel" || a === "no_show" || a === "admit" ? "destructiveOutline" : "secondary"}
+                variant={a === "no_show" || a === "admit" ? "destructiveOutline" : "secondary"}
                 disabled={busy}
                 onPress={() => onAction(plan, a)}
               />
@@ -196,11 +230,18 @@ export function MatchCard({
           </View>
         ) : null}
         {showMatchLink ? (
-          <TextButton
-            label="See match"
-            onPress={() => router.push({ pathname: "/match/[matchId]", params: { matchId: String(plan.matchId) } })}
-            style={{ alignSelf: "flex-start", paddingHorizontal: 0 }}
-          />
+          // A real link: underlined TextLink, 44pt from hitSlop (decision 192).
+          <Pressable
+            onPress={openMatch}
+            accessibilityRole="link"
+            accessibilityLabel="See match"
+            hitSlop={textTapSlop("body")}
+            style={({ pressed }) => ({ alignSelf: "flex-start", opacity: pressed ? 0.6 : 1 })}
+          >
+            <TextLink onPress={openMatch} accessible={false}>
+              See match
+            </TextLink>
+          </Pressable>
         ) : null}
         {devTools && (event.type === "added" || event.type === "day_before") && new Date(plan.startsAt) > new Date() ? (
           <TextButton

@@ -1,7 +1,9 @@
 // The one bottom sheet (design system README, Bottom sheets; John, Nov 6,
 // finding 9). Every sheet:
 // - hugs its content and grows with larger text, scrolling only when it's
-//   taller than the screen (the route uses `sheetOptions` from here). The
+//   taller than the screen (the route uses `sheetOptions` from here). It has
+//   one position, its content's height, with the primary action one gap above
+//   the home indicator: no taller position over blank space. The
 //   one exception is New league, a full-height page sheet (`fullSheetOptions`),
 // - shows the grabber bar at the top (decision 181). Hugging sheets get the
 //   system one; full-height page sheets and the other swipe-down modals get
@@ -19,7 +21,6 @@ import { Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useDiscardGuard } from "@/hooks/useDiscardGuard";
-import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { keyboardCover } from "@/lib/keyboardCover";
 
 /** Stack options for a sheet route that hugs its content. */
@@ -27,7 +28,10 @@ export function sheetOptions(linen: string) {
   return {
     headerShown: false,
     presentation: "formSheet" as const,
+    // One position, the content's height (finding 46). Scrolling inside a
+    // sheet that outgrew the screen never stretches it to another one.
     sheetAllowedDetents: "fitToContents" as const,
+    sheetExpandsWhenScrolledToEdge: false,
     sheetGrabberVisible: true,
     sheetCornerRadius: radius.radiusLg,
     contentStyle: { backgroundColor: linen },
@@ -160,9 +164,6 @@ export function SheetBody({
 }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
-  // The last content keeps one full gap above the pinned button (Create
-  // league), or above the home indicator when there's no footer (decision 194).
-  const bottom = useScreenBottomInset({ barBelow: !!footer });
   const { height } = useWindowDimensions();
   const own = useSheetClose(close ? false : dirty);
   const onEscape = close ?? own.close;
@@ -175,7 +176,15 @@ export function SheetBody({
   // large text) does it switch to a ScrollView with a fixed height. Once a
   // sheet scrolls it keeps scrolling until it closes, so it never flips back
   // and forth while someone types.
-  const maxHeight = height - insets.top - spacing.space6;
+  //
+  // iOS sizes a hugging sheet as "content height + the home indicator area":
+  // a custom detent is measured from the bottom safe area, and the system
+  // adds that strip below it in the sheet's own background (Wave 2 finding
+  // 46). So a hugging sheet never pads for the home indicator itself; doing
+  // so left a second, empty home-indicator gap under Send. `homeIndicator`
+  // is the safe area only a full-height page sheet has to clear itself.
+  const homeIndicator = fill ? insets.bottom : 0;
+  const maxHeight = height - insets.top - insets.bottom - spacing.space6;
   const [contentH, setContentH] = useState(0);
   const [footerH, setFooterH] = useState(0);
   const [tall, setTall] = useState(false);
@@ -194,7 +203,7 @@ export function SheetBody({
     {
       paddingTop: spacing.space6,
       paddingHorizontal: spacing.space4,
-      paddingBottom: bottom.paddingBottom,
+      paddingBottom: footer ? spacing.space4 : homeIndicator + spacing.space4,
       gap: spacing.space4,
     },
     contentStyle,
@@ -247,7 +256,7 @@ export function SheetBody({
             paddingHorizontal: spacing.space4,
             paddingTop: spacing.space3,
             // Over the keyboard there's no home indicator to clear.
-            paddingBottom: (keyboardH > 0 ? 0 : insets.bottom) + spacing.space3,
+            paddingBottom: (keyboardH > 0 ? 0 : homeIndicator) + spacing.space3,
             borderTopWidth: 1,
             borderTopColor: c.hairline,
             backgroundColor: c.linen,

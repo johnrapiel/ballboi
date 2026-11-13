@@ -537,6 +537,16 @@ export function actionLabel(a: PlanAction, them: string): string {
   }
 }
 
+/**
+ * Splits a card's answers for the screen (Wave 2 finding 46): Can't make it
+ * (cancel or decline) is the X in the card's corner, and the rest stay
+ * buttons, the first one primary.
+ */
+export function cardActions(actions: readonly PlanAction[]): { cantMakeIt: PlanAction | null; buttons: PlanAction[] } {
+  const isCant = (a: PlanAction) => a === "cancel" || a === "decline";
+  return { cantMakeIt: actions.find(isCant) ?? null, buttons: actions.filter((a) => !isCant(a)) };
+}
+
 /** A new card starts tomorrow at 6 PM, the most common time to play after work. */
 export function defaultPlanStart(now: Date): Date {
   const d = new Date(now);

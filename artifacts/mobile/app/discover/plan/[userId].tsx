@@ -1,7 +1,9 @@
 // Add a match card (F2; brief item 27): day, time, court and Singles or
 // Practice hit, then Send. It shows in the chat as "Add this match?" for the
 // other player. A time that has passed says so and stays on the form. A
-// bottom sheet by the sheet rule.
+// bottom sheet by the sheet rule: one position, its content's height, with
+// Send one gap above the home indicator (finding 46). Each section has the
+// same sentence case heading (section type, ink-muted) as Post an open match.
 
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -70,10 +72,15 @@ export default function AddMatchCardSheet() {
     <SheetBody title="Add a match" close={sheet.close}>
       <Text tone="inkMuted">{`${them} gets "Add this match?" in your chat. Once they're in, it goes on both your schedules.`}</Text>
       <View style={{ gap: spacing.space2 }}>
-        <Text variant="bodyStrong">Day and time</Text>
-        {/* The pills sit on their own line under the label and wrap at large
-            text sizes. Each gets a 44pt row so a pill never sits on the label
-            while iOS sizes it. */}
+        <Text variant="section" tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
+          Day and time
+        </Text>
+        {/* The pills sit on their own line under the heading and wrap at large
+            text sizes. Each gets a 44pt row so a pill never sits on the heading
+            while iOS sizes it. They're iOS's compact date and time pickers,
+            which draw their own text: the time pill reads "6:00 PM" from the
+            system and can't be set to "6 PM" (decision 180). VoiceOver hears
+            "6 PM" from the label below, and the chat card says "6 PM". */}
         <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: spacing.space3, rowGap: spacing.space2 }}>
           <View style={{ minHeight: 44, justifyContent: "center" }}>
             <DateTimePicker
