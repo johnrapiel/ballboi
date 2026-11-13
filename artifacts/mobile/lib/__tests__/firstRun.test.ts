@@ -53,3 +53,14 @@ describe("micState", async () => {
     expect(micState(null)).toBe("ok");
   });
 });
+
+describe("audio copy (T2, T6)", () => {
+  it("says audio is held during the beta, and deleted after analysis after launch", async () => {
+    const { audioCopy } = await import("@/lib/recording/firstRun");
+    expect(audioCopy(true).carousel).toContain("During the beta, we keep it for up to 30 days");
+    expect(audioCopy(true).carousel).toContain("until Ball Boi launches");
+    expect(audioCopy(true).cameraAccess).not.toMatch(/deleted after analysis/);
+    expect(audioCopy(false).carousel).toContain("deleted after your match is analyzed");
+    expect(audioCopy(false).cameraAccess).toContain("deleted after analysis");
+  });
+});

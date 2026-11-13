@@ -107,7 +107,7 @@ import { countdownClock, START_DELAYS, type StartDelayMinutes } from "@/lib/reco
 import { deleteRecording, freeDiskBytes, keepRecording } from "@/lib/recording/files";
 import { formatElapsed, spokenDuration } from "@/lib/recording/format";
 import { LOW_BATTERY_START_MESSAGE } from "@/lib/recording/limits";
-import { firstRunPages, type FirstRunPage } from "@/lib/recording/firstRun";
+import { audioCopy, firstRunPages, type FirstRunPage } from "@/lib/recording/firstRun";
 import { MIC_DENIED_BODY, MIC_DENIED_TITLE, micState } from "@/lib/recording/permissions";
 import { loadHideSetup } from "@/lib/recording/prefs";
 import {
@@ -753,8 +753,7 @@ export default function RecordScreen() {
           Camera access
         </Text>
         <Text tone="inkMuted">
-          Ball Boi films your match with the back camera to track your shots. The microphone listens for the ball being
-          hit. Video is never played back, and audio is deleted after analysis.
+          {`Ball Boi films your match with the back camera to track your shots. The microphone listens for the ball being hit. ${audioCopy(!!consent.data?.release?.required).cameraAccess}`}
         </Text>
         {camPerm.canAskAgain ? (
           <Button

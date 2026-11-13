@@ -46,6 +46,7 @@ import {
   SETUP_CHECKLIST,
   TRAINING_COPY,
   type FirstRunPage,
+  audioCopy,
 } from "@/lib/recording/firstRun";
 import { loadHideSetup, setHideSetup } from "@/lib/recording/prefs";
 
@@ -71,7 +72,7 @@ function Point({ symbol, title, body }: { symbol: IconName; title: string; body:
   );
 }
 
-function RecordsPage() {
+function RecordsPage({ beta }: { beta: boolean }) {
   return (
     <View style={{ gap: spacing.space4 }}>
       <Point
@@ -82,7 +83,7 @@ function RecordsPage() {
       <Point
         symbol="waveform"
         title="Audio is for analysis only"
-        body="The microphone listens for the sound of the ball being hit. Audio is never played back and is deleted after your match is analyzed."
+        body={audioCopy(beta).carousel}
       />
       <Point
         symbol="eye.slash"
@@ -375,7 +376,7 @@ export function FirstRunCarousel({
             <Text variant="headingL">{title}</Text>
           </View>
 
-          {page === "records" ? <RecordsPage /> : null}
+          {page === "records" ? <RecordsPage beta={!!release?.required} /> : null}
           {page === "choices" ? (
             <ChoicesPage
               training={training}
