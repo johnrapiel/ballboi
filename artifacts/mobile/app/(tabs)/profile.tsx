@@ -9,16 +9,17 @@ import { EmptyTab, MatchTabs } from "@/components/card/MatchTabs";
 import { PlayerCard } from "@/components/card/PlayerCard";
 import { SeasonRow } from "@/components/card/SeasonRow";
 import { CornerButton } from "@/components/CornerButton";
+import { ProblemCard } from "@/components/discover/States";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { ResultRow } from "@/components/ResultRow";
 import { SectionHead } from "@/components/SectionHead";
 import { TabScreen } from "@/components/TabHeader";
-import { Button, Card, Text } from "@/components/ui";
+import { Card, Text } from "@/components/ui";
 import { UpcomingRows } from "@/components/UpcomingRows";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { upcomingHint, useOpenUpcoming, useUpcomingMatches } from "@/hooks/useUpcomingMatches";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
-import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { recordedLine, recordedThisSeason, tabFromParam, type MatchTab } from "@/lib/playerCard";
 import { myResultRows } from "@/lib/resultRow";
 import { useServerRecordings } from "@/lib/recording/api";
@@ -101,15 +102,16 @@ export default function ProfileScreen() {
         contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space2, paddingBottom: insets.bottom + 96, gap: spacing.space6 }}
         refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
       >
+        <OfflineNotice pull={pull} />
         {cardQ.isLoading ? (
           <View accessible accessibilityLabel="Loading your player card" style={{ height: 320, borderRadius: radius.radiusCard, backgroundColor: c.sand }} />
         ) : !card ? (
-          <Card style={{ gap: spacing.space3 }}>
-            <Text variant="bodyStrong" accessibilityRole="alert">
-              {isOfflineError(cardQ.error) ? OFFLINE_MESSAGE : "Couldn't load your player card"}
-            </Text>
-            <Button label="Try again" variant="secondary" loading={cardQ.isRefetching} onPress={() => void cardQ.refetch()} />
-          </Card>
+          <ProblemCard
+            title="Can't load your player card"
+            body="Check your connection and try again."
+            onRetry={() => void cardQ.refetch()}
+            retrying={cardQ.isRefetching}
+          />
         ) : (
           <>
             <PlayerCard
@@ -146,7 +148,12 @@ export default function ProfileScreen() {
             upcoming.isLoading ? (
               <ActivityIndicator color={c.ink} accessibilityLabel="Loading your matches" style={{ marginTop: spacing.space4 }} />
             ) : upcoming.isError && !upcoming.week ? (
-              <LoadError title="Couldn't load your matches" />
+              <ProblemCard
+                title="Can't load your matches"
+                body="Check your connection and try again."
+                onRetry={() => void upcoming.refetch()}
+                retrying={upcoming.isRefetching}
+              />
             ) : upcoming.items.length === 0 ? (
               <EmptyTab title="No upcoming matches" message="Your next league match or a match you set up in Discover shows up here." />
             ) : (
@@ -155,7 +162,12 @@ export default function ProfileScreen() {
           ) : resultsQ.isLoading ? (
             <ActivityIndicator color={c.ink} accessibilityLabel="Loading your results" style={{ marginTop: spacing.space4 }} />
           ) : resultsQ.isError && !resultsQ.data ? (
-            <LoadError title={isOfflineError(resultsQ.error) ? OFFLINE_MESSAGE : "Couldn't load your results"} />
+            <ProblemCard
+              title="Can't load your results"
+              body="Check your connection and try again."
+              onRetry={() => void resultsQ.refetch()}
+              retrying={resultsQ.isRefetching}
+            />
           ) : results.length === 0 ? (
             <EmptyTab title="No results yet" message="Once you or your opponent enters a score, the result shows up here." />
           ) : (
@@ -169,19 +181,5 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
     </TabScreen>
-  );
-}
-
-/** A list that didn't load. Pull to refresh tries again. */
-function LoadError({ title }: { title: string }) {
-  return (
-    <Card style={{ gap: spacing.space2 }}>
-      <Text variant="bodyStrong" accessibilityRole="alert">
-        {title}
-      </Text>
-      <Text variant="small" tone="inkMuted">
-        Pull down to try again.
-      </Text>
-    </Card>
   );
 }

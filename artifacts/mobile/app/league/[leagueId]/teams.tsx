@@ -16,6 +16,8 @@ import {
 
 import { Icon } from "@/components/Icon";
 import { ListRow, SectionLabel } from "@/components/league/ListRow";
+import { ProblemCard } from "@/components/discover/States";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { Button, Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -160,12 +162,15 @@ export default function TeamsScreen() {
           </Text>
         </View>
 
-        {q.isError || !data ? (
-          <Card style={{ gap: spacing.space3 }}>
-            <Text variant="bodyStrong">Couldn't load teams</Text>
-            <Text tone="inkMuted">Check your connection and try again.</Text>
-            <Button label="Try again" variant="secondary" onPress={() => void q.refetch()} />
-          </Card>
+        <OfflineNotice pull={pull} />
+        {/* Teams stay on screen when a refresh fails; the notice above says so (decision 195). */}
+        {!data ? (
+          <ProblemCard
+            title="Can't load teams"
+            body="Check your connection and try again."
+            onRetry={() => void q.refetch()}
+            retrying={q.isRefetching}
+          />
         ) : (
           <>
             <SectionLabel>{`Without a partner (${data.unpaired.length})`}</SectionLabel>

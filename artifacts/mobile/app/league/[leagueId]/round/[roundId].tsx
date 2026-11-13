@@ -20,7 +20,9 @@ import {
 } from "@workspace/api-client-react";
 
 import { useActionSheet, type SheetPage, type SheetPerson, type SheetRow } from "@/components/ActionSheet";
+import { ProblemCard } from "@/components/discover/States";
 import { ListRow } from "@/components/league/ListRow";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { Button, Card, Text, TextButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -224,11 +226,12 @@ export default function RoundReviewScreen() {
   if (!round && (scheduleQ.isError || !scheduleQ.data)) {
     return (
       <View style={{ flex: 1, backgroundColor: c.paper, padding: spacing.space4 }}>
-        <Card style={{ gap: spacing.space3 }}>
-          <Text variant="bodyStrong">Couldn't load</Text>
-          <Text tone="inkMuted">Check your connection and try again.</Text>
-          <Button label="Retry" variant="secondary" loading={scheduleQ.isRefetching} onPress={() => void scheduleQ.refetch()} />
-        </Card>
+        <ProblemCard
+          title="Can't load these pairings"
+          body="Check your connection and try again."
+          onRetry={() => void scheduleQ.refetch()}
+          retrying={scheduleQ.isRefetching}
+        />
       </View>
     );
   }
@@ -274,6 +277,7 @@ export default function RoundReviewScreen() {
             }`}
           </Text>
         </View>
+        <OfflineNotice pull={pull} style={{ marginBottom: spacing.space2 }} />
 
         <Heading>{`Matches (${round.matches.length})`}</Heading>
         <Card style={{ padding: 0, overflow: "hidden" }}>

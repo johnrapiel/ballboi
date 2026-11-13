@@ -22,6 +22,8 @@ import {
 
 import { LeagueChatButton } from "@/components/league/LeagueChatButton";
 import { MatchTimeLink } from "@/components/MatchTimeLink";
+import { ProblemCard } from "@/components/discover/States";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { TeamUpRequestCards } from "@/components/league/PartnerCard";
 import { PairingsLine, PartnerLine } from "@/components/league/LeagueLines";
 import { JoinedNote } from "@/components/league/JoinedNote";
@@ -364,13 +366,15 @@ export default function LeagueScreen() {
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
       {sheet.element}
-      {leagueQ.isError || !league ? (
-        <Card style={{ gap: spacing.space2 }}>
-          <Text variant="bodyStrong">Couldn't load this league</Text>
-          <Text variant="small" tone="inkMuted">
-            Pull down to try again.
-          </Text>
-        </Card>
+      <OfflineNotice pull={pull} />
+      {/* The league stays on screen when a refresh fails; the notice above says so (decision 195). */}
+      {!league ? (
+        <ProblemCard
+          title="Can't load this league"
+          body="Check your connection and try again."
+          onRetry={() => void leagueQ.refetch()}
+          retrying={leagueQ.isRefetching}
+        />
       ) : (
         <>
           {justJoined ? <JoinedNote leagueName={league.name ?? null} /> : null}

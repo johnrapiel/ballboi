@@ -21,6 +21,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -142,11 +143,10 @@ export default function LiveMatchScreen() {
 
   // A failed refresh keeps what's on screen and says so below; only a first load that fails shows this.
   if (!q.data) {
-    const offline = isOfflineError(q.error);
     return (
       <Message
         title="Can't load the match"
-        body={offline ? OFFLINE_MESSAGE : q.error instanceof Error ? q.error.message : "Something went wrong."}
+        body={isOfflineError(q.error) ? OFFLINE_MESSAGE : "Check your connection and try again."}
         actionLabel="Try again"
         busy={q.isFetching}
         onAction={() => void q.refetch()}
@@ -180,6 +180,7 @@ export default function LiveMatchScreen() {
         </Text>
         <Text variant="bodyStrong">{props.players}</Text>
       </View>
+      <OfflineNotice pull={pull} />
 
       <Card style={{ gap: spacing.space2 }}>
         <View
@@ -207,7 +208,8 @@ export default function LiveMatchScreen() {
         </Card>
       ) : null}
 
-      {q.isError ? (
+      {/* The screen refreshes itself every few seconds; after a pull, the notice at the top says it instead. */}
+      {q.isError && !pull.notice ? (
         <Text tone="inkMuted" accessibilityLiveRegion="polite">
           Couldn't refresh. Still trying.
         </Text>
