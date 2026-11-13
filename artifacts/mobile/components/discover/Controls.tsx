@@ -11,7 +11,7 @@ import { Pressable, View, useWindowDimensions, type StyleProp, type ViewStyle } 
 import { Text } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
-import { RADIUS_STEPS, areaLine, countFor, isCustomRadius, radiusChipSpoken, type DiscoverArea, type DiscoverTab } from "@/lib/discover";
+import { MAX_RADIUS, MIN_RADIUS, RADIUS_STEPS, areaLine, countFor, isCustomRadius, radiusChipSpoken, type DiscoverArea, type DiscoverTab } from "@/lib/discover";
 import { textTapSlop } from "@/lib/tapTarget";
 
 /** Text sizes at which rows of controls stack instead of sitting side by side. */
@@ -190,7 +190,7 @@ export function AreaRow({ area, onPress }: { area: DiscoverArea | null; onPress:
 }
 
 /**
- * 5 / 10 / 15 / 30 mi and Custom, each with its count ("10 mi · 14"), read
+ * 5 / 10 / 15 / 30 / 50 mi and Custom, each with its count ("10 mi · 14"), read
  * as "10 miles, 14 players, selected" (review finding 5). One distance for
  * all three tabs.
  */
@@ -232,7 +232,7 @@ export function DistanceChips({
         selected={custom}
         onPress={onCustom}
         accessibilityLabel={custom ? `Custom distance, ${radiusChipSpoken(selected, customCount, false, noun)}` : "Custom distance"}
-        accessibilityHint="Pick any distance from 1 to 30 miles"
+        accessibilityHint={`Pick any distance from ${MIN_RADIUS} to ${MAX_RADIUS} miles`}
       />
     </ChipRow>
   );

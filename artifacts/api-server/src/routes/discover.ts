@@ -2,7 +2,7 @@ import { Router, type IRouter, type NextFunction, type Request, type Response } 
 import { getAuth } from "@clerk/express";
 import { freeSummary, hoursFree, parseFreeTimes } from "@workspace/free-times";
 import { parseSlots, timesOf } from "../lib/discoverAvailability.js";
-import { ZIP_NOT_FOUND, areaForZip, distanceLabel, milesBetween, parseRadius } from "../lib/discoverArea.js";
+import { ZIP_NOT_FOUND, areaForZip, distanceLabel, milesBetween, MAX_RADIUS, parseRadius } from "../lib/discoverArea.js";
 import { formatLabel, leagueState, levelText, nearbyLeagues, outsideLevel, parsePlay, partnersLabel, typeLabel } from "../lib/discoverLeagues.js";
 import { shortDate } from "../lib/leagueCalendar.js";
 import { isOneOf, nearbyPlayers, parseDiscoverSettings, parseFilters, PLAYS } from "../lib/discoverPlayers.js";
@@ -151,8 +151,10 @@ export function createDiscoverRouter(repo: DiscoverRepo = new DrizzleDiscoverRep
         res.json({ players: [], counts: [], radius: filters.radius, total: 0, needsArea: true });
         return;
       }
-      // Fetch for the widest chip so every count is right in one read.
-      const widest = Math.max(30, filters.radius);
+      // Fetch for the widest chip (50 mi) so every count is right in one read.
+      // The box is indexed (idx_discover_profiles_area) and the list is still
+      // capped at MAX_ROWS.
+      const widest = Math.max(MAX_RADIUS, filters.radius);
       const candidates = await repo.near(me.clerkUserId, me.area.point, widest);
       const reliability = await repo.reliability(candidates.map((c) => c.clerkUserId));
       const result = nearbyPlayers(
@@ -215,7 +217,7 @@ export function createDiscoverRouter(repo: DiscoverRepo = new DrizzleDiscoverRep
         res.json({ leagues: [], counts: [], radius, total: 0, needsArea: true });
         return;
       }
-      const candidates = await repo.openLeagues(me.clerkUserId, me.area.point, Math.max(30, radius));
+      const candidates = await repo.openLeagues(me.clerkUserId, me.area.point, Math.max(MAX_RADIUS, radius));
       const play = parsePlay((req.query as Record<string, unknown>).play);
       const { leagues, counts } = nearbyLeagues(me.area.point, me.rating, candidates, radius, play);
       res.json({ leagues, counts, radius, total: leagues.length, needsArea: false });

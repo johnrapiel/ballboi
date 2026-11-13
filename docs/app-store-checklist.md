@@ -147,7 +147,7 @@ Ball Boi Pro is parked as of Nov 7 (spec decision 82): no subscription, paywall 
 | Charts have text alternatives | 1.1.1, 1.3.1 | ❌ | One-line text summary for VoiceOver plus an accessible data table on every trend chart |
 | Player card reads as one element | 1.3.1, 4.1.2 | ❌ | e.g. "Alex Kim, 3.5 Verified, 14 and 6, 22 aces this season" |
 | Tab bar labels and badge counts | 1.4.1, 4.1.2 | ✅ | Icon + text label on all five tabs (Home, Leagues, Ball Boi, Discover, Profile). Messages button in the top corner is 44pt and VoiceOver reads its unread count ("Messages, 3 unread"). PR #13 |
-| Radius and level range controls | 2.5.8, 1.4.4 | ❌ | 44×44pt targets, Dynamic Type safe, step count announced |
+| Radius and level range controls | 2.5.8, 1.4.4 | ❌ | 44×44pt targets, Dynamic Type safe, step count announced. Distance chips 5, 10, 15, 30, 50 and Custom 1 to 50 (decision 196); the chip row wraps at large text sizes |
 | New messages announced to screen readers | 4.1.3 | ❌ | Live region on web; `AccessibilityInfo.announceForAccessibility` on iOS |
 | Message bubbles read sender, text, time in one swipe | 1.3.1, 4.1.2 | ❌ | Group each bubble as one accessible element |
 | Swipe-to-reply/delete has a non-gesture alternative | 2.5.7 | ❌ | Long-press menu + VoiceOver custom actions |

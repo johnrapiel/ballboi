@@ -1,7 +1,7 @@
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { getAuth } from "@clerk/express";
 import { DrizzleDiscoverRepo, type DiscoverRepo } from "../lib/discoverRepo.js";
-import { distanceLabel, milesBetween, parseRadius } from "../lib/discoverArea.js";
+import { MAX_RADIUS, distanceLabel, milesBetween, parseRadius } from "../lib/discoverArea.js";
 import { logger } from "../lib/logger.js";
 import { getMessagingService } from "../messaging/index.js";
 import type { GroupSync } from "../messaging/service.js";
@@ -146,7 +146,7 @@ export function createOpenMatchesRouter(
         res.json({ matches: [], counts: [], radius, total: 0, needsArea: true, matchAlerts: mine?.matchAlerts ?? false, notices });
         return;
       }
-      const rows = await repo.near(me, mine.area.point, Math.max(30, radius), clock());
+      const rows = await repo.near(me, mine.area.point, Math.max(MAX_RADIUS, radius), clock());
       const { matches, counts } = nearbyOpenMatches(me, mine.area.point, rows, radius);
       res.json({ matches, counts, radius, total: matches.length, needsArea: false, matchAlerts: mine.matchAlerts ?? false, notices });
     } catch (err) {

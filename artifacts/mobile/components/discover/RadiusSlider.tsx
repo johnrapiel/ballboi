@@ -8,7 +8,7 @@ import { MAX_RADIUS, MIN_RADIUS, clampRadius } from "@/lib/discover";
 const THUMB = 28;
 
 /**
- * Distance from 1 to 30 miles. Drag the thumb or tap the track. VoiceOver
+ * Distance from 1 to 50 miles. Drag the thumb or tap the track. VoiceOver
  * adjusts it a mile at a time (swipe up or down), and the typed field beside
  * it is the non-drag way (WCAG 2.5.7). Built in JS: Session F adds nothing
  * native.

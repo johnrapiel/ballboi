@@ -53,13 +53,13 @@ export function boundingBox(center: Point, miles: number) {
   };
 }
 
-/** The distance chips (spec: 5 / 10 / 15 / 30, 10 by default, 30 at most), plus Custom from 1 to 30. */
-export const RADIUS_STEPS = [5, 10, 15, 30] as const;
+/** The distance chips (spec: 5 / 10 / 15 / 30 / 50, 10 by default, 50 at most; decision 196), plus Custom from 1 to 50. */
+export const RADIUS_STEPS = [5, 10, 15, 30, 50] as const;
 export const DEFAULT_RADIUS = 10;
 export const MIN_RADIUS = 1;
-export const MAX_RADIUS = 30;
+export const MAX_RADIUS = 50;
 
-/** A whole number of miles from 1 to 30, or the default for anything else. */
+/** A whole number of miles from 1 to 50, or the default for anything else. */
 export function parseRadius(raw: unknown, fallback: number = DEFAULT_RADIUS): number {
   const n = typeof raw === "string" && raw.trim() !== "" ? Number(raw) : typeof raw === "number" ? raw : NaN;
   if (!Number.isFinite(n)) return fallback;

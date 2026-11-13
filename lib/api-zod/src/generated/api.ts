@@ -380,7 +380,7 @@ export const ActOnMatchPlanResponse = zod.object({
 /**
  * @summary Open matches near you, soonest first, with a count per distance chip
  */
-export const listOpenMatchesQueryRadiusMax = 30;
+export const listOpenMatchesQueryRadiusMax = 50;
 
 export const ListOpenMatchesQueryParams = zod.object({
   radius: zod.coerce
@@ -603,7 +603,7 @@ export const SetDiscoverAreaResponse = zod.object({
       zod.literal(null),
     ])
     .nullable(),
-  radius: zod.number().describe("Last distance picked, 1 to 30 miles"),
+  radius: zod.number().describe("Last distance picked, 1 to 50 miles"),
   rating: zod.number().nullable(),
   slots: zod
     .array(zod.number())
@@ -753,7 +753,7 @@ export const SaveDiscoverAvailabilityResponse = zod.object({
       zod.literal(null),
     ])
     .nullable(),
-  radius: zod.number().describe("Last distance picked, 1 to 30 miles"),
+  radius: zod.number().describe("Last distance picked, 1 to 50 miles"),
   rating: zod.number().nullable(),
   slots: zod
     .array(zod.number())
@@ -800,7 +800,7 @@ export const SaveDiscoverAvailabilityResponse = zod.object({
 /**
  * @summary Open leagues near you, nearest first, with a count for each distance chip
  */
-export const listDiscoverLeaguesQueryRadiusMax = 30;
+export const listDiscoverLeaguesQueryRadiusMax = 50;
 
 export const ListDiscoverLeaguesQueryParams = zod.object({
   radius: zod.coerce
@@ -926,7 +926,7 @@ export const GetDiscoverMeResponse = zod.object({
       zod.literal(null),
     ])
     .nullable(),
-  radius: zod.number().describe("Last distance picked, 1 to 30 miles"),
+  radius: zod.number().describe("Last distance picked, 1 to 50 miles"),
   rating: zod.number().nullable(),
   slots: zod
     .array(zod.number())
@@ -974,7 +974,7 @@ export const GetDiscoverMeResponse = zod.object({
  * Never you, hidden players, anyone blocked either way, or banned and suspended accounts. Distances are approximate whole miles between home ZIP centers. The app saves a distance you pick with PUT /discover/settings.
  * @summary Players near you, nearest first, with a count for each distance chip
  */
-export const listDiscoverPlayersQueryRadiusMax = 30;
+export const listDiscoverPlayersQueryRadiusMax = 50;
 
 export const ListDiscoverPlayersQueryParams = zod.object({
   radius: zod.coerce
@@ -982,7 +982,7 @@ export const ListDiscoverPlayersQueryParams = zod.object({
     .min(1)
     .max(listDiscoverPlayersQueryRadiusMax)
     .optional()
-    .describe("Miles, 1 to 30. Defaults to your last distance."),
+    .describe("Miles, 1 to 50. Defaults to your last distance."),
   level: zod
     .enum(["close", "wider", "any"])
     .optional()
@@ -1109,7 +1109,7 @@ export const ReportDiscoverPlayerBody = zod.object({
 /**
  * @summary Show me in Discover, what you play, and your last distance
  */
-export const saveDiscoverSettingsBodyRadiusMax = 30;
+export const saveDiscoverSettingsBodyRadiusMax = 50;
 
 export const SaveDiscoverSettingsBody = zod.object({
   hidden: zod.boolean().optional(),
@@ -1156,7 +1156,7 @@ export const SaveDiscoverSettingsResponse = zod.object({
       zod.literal(null),
     ])
     .nullable(),
-  radius: zod.number().describe("Last distance picked, 1 to 30 miles"),
+  radius: zod.number().describe("Last distance picked, 1 to 50 miles"),
   rating: zod.number().nullable(),
   slots: zod
     .array(zod.number())

@@ -19,6 +19,7 @@ const fishkill = areaForZip("12524")!;
 const beacon = areaForZip("12508")!;
 const poughkeepsie = areaForZip("12601")!;
 const albany = areaForZip("12207")!;
+const whitePlains = areaForZip("10601")!; // about 40 miles: in at 50, out at 30
 
 describe("home area", () => {
   it("places a real ZIP at its center with its town, rounded", () => {
@@ -41,10 +42,11 @@ describe("home area", () => {
     expect(approxMiles(14.49)).toBe(14);
   });
 
-  it("keeps a distance between 1 and 30 miles", () => {
+  it("keeps a distance between 1 and 50 miles (decision 196)", () => {
     expect(parseRadius("15")).toBe(15);
     expect(parseRadius("0")).toBe(1);
-    expect(parseRadius("100")).toBe(30);
+    expect(parseRadius("50")).toBe(50);
+    expect(parseRadius("100")).toBe(50);
     expect(parseRadius("12.4")).toBe(12);
     expect(parseRadius("nope", 5)).toBe(5);
     expect(parseRadius(undefined)).toBe(10);
@@ -174,15 +176,25 @@ describe("Players near you", () => {
     expect(result.players.every((p) => Number(p.distance.replace(/\D/g, "")) <= 10)).toBe(true);
     expect(result.players.map((p) => p.name)).not.toContain("Albany Al");
     const counts = Object.fromEntries(result.counts.map((c) => [c.radius, c.count]));
+    expect(counts[50]).toBeGreaterThanOrEqual(counts[30]);
     expect(counts[30]).toBeGreaterThanOrEqual(counts[15]);
     expect(counts[15]).toBeGreaterThanOrEqual(counts[10]);
     expect(counts[10]).toBeGreaterThanOrEqual(counts[5]);
     expect(counts[30]).toBe(3);
+    expect(counts[50]).toBe(3);
+  });
+
+  it("reaches players who travel up to 50 miles, and no farther", () => {
+    const people = [candidate(1, "White Plains Wren", whitePlains), candidate(2, "Albany Al", albany)];
+    expect(nearbyPlayers(me, people, parseFilters({ radius: "30" }, 10), none).players).toHaveLength(0);
+    const at50 = nearbyPlayers(me, people, parseFilters({ radius: "50" }, 10), none);
+    expect(at50.players.map((p) => p.name)).toEqual(["White Plains Wren"]);
+    expect(Object.fromEntries(at50.counts.map((c) => [c.radius, c.count]))).toMatchObject({ 30: 0, 50: 1 });
   });
 
   it("adds a count for a custom distance", () => {
     const result = nearbyPlayers(me, [candidate(1, "A", fishkill)], parseFilters({ radius: "12" }, 10), none);
-    expect(result.counts.map((c) => c.radius)).toEqual([5, 10, 12, 15, 30]);
+    expect(result.counts.map((c) => c.radius)).toEqual([5, 10, 12, 15, 30, 50]);
   });
 
   it("puts the nearest first, then the closest level", () => {
@@ -270,10 +282,14 @@ describe("Discover routes", () => {
   it("lists players with a count per chip, and saves a distance only when asked", async () => {
     const res = await app().get("/api/discover/players?radius=15").expect(200);
     expect(res.body.players[0]).toMatchObject({ name: "Sam Whitfield", reliability: "Played 3 · 0 no-shows" });
-    expect(res.body.counts.map((c: { radius: number }) => c.radius)).toEqual([5, 10, 15, 30]);
+    expect(res.body.counts.map((c: { radius: number }) => c.radius)).toEqual([5, 10, 15, 30, 50]);
     expect(repo.mes.get("me")!.radius).toBe(10);
     await app().put("/api/discover/settings").send({ radius: 15 }).expect(200);
     expect(repo.mes.get("me")!.radius).toBe(15);
+    await app().put("/api/discover/settings").send({ radius: 50 }).expect(200);
+    expect(repo.mes.get("me")!.radius).toBe(50);
+    const bad = await app().put("/api/discover/settings").send({ radius: "far" }).expect(400);
+    expect(bad.body.error).toBe("Pick a distance from 1 to 50 miles.");
   });
 
   it("asks for an area first when you have none", async () => {
