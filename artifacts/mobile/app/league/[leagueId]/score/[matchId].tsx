@@ -35,7 +35,7 @@ import { scoreNote } from "@/lib/playoffView";
 import { flipScore, isRetiredScore } from "@/lib/tennisScore";
 
 // Enter score (spec: Leagues > Scores and standings; approved canvas: Enter
-// score, a bottom sheet with no Cancel: drag down to close, and it asks before
+// score, a bottom sheet: Close (X) or drag down to close, and it asks before
 // discarding typed scores). Either player enters it, from their own side.
 // Only real tennis scores save (C10): the third set opens only at one set all,
 // and a set typed 6-6 asks for its tiebreak (finding 5). "Opponent retired" saves

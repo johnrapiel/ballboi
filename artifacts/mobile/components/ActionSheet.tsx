@@ -5,15 +5,20 @@
 // Every menu:
 // - slides up from the bottom and hugs its content, scrolling only when it's
 //   taller than the screen (very large text, a long player list),
-// - shows the grabber (decision 181). Swipe down or tap the dimmed backdrop
-//   to close it. No Cancel row. The VoiceOver escape gesture closes it too,
+// - shows the grabber (decision 181) and, under it at the top left, the
+//   Close button: a brush X in the 44pt corner circle, on the title's row
+//   (Wave 2 finding 50, decision 198). Swipe down, a tap on the dimmed
+//   backdrop and the VoiceOver escape gesture close it too. No Cancel row.
+//   A menu loses nothing by closing, so it never asks first,
 // - has an optional header: a title, a short message, and the people it's
 //   about with their photo or initials (a match shows both players),
 // - lists its actions as rows at least 52pt tall, each with a brush icon,
 // - shows destructive rows in `danger`. They close the sheet and then ask
 //   with a native alert before anything happens,
 // - can push a second step in the same sheet (Swap Maya Chen with: a player
-//   list), with Back at the top left.
+//   list). On that step Back takes the X's place at the top left, the way a
+//   pushed page in any iOS sheet swaps Close for Back; swipe down still
+//   closes the whole sheet.
 //
 // Reduce Motion: the sheet fades in and out instead of sliding.
 //
@@ -39,10 +44,11 @@ import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Avatar } from "@/components/Avatar";
+import { CornerButton } from "@/components/CornerButton";
 import { Icon, type IconName } from "@/components/Icon";
-import { Grabber } from "@/components/Sheet";
+import { Grabber, SheetClose } from "@/components/Sheet";
 import { Text } from "@/components/ui";
-import { MIN_TAP, radius, spacing } from "@/constants/tokens";
+import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 
 /** Someone the menu is about, shown with their photo or initials. */
@@ -324,8 +330,11 @@ function ActionSheet({
                 paddingBottom: insets.bottom + spacing.space3,
               }}
             >
-              {canGoBack ? <BackRow onPress={onBack} /> : null}
-              <Header page={page} headerRef={headerRef} />
+              <Header
+                page={page}
+                headerRef={headerRef}
+                corner={canGoBack ? <CornerButton symbol="arrow.left" label="Back" onPress={onBack} /> : <SheetClose onPress={onClose} />}
+              />
               <View>
                 {page.rows.length === 0 && page.empty ? (
                   <Text
@@ -350,58 +359,64 @@ function ActionSheet({
   );
 }
 
-function BackRow({ onPress }: { onPress: () => void }) {
-  const c = useColors();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel="Back"
-      hitSlop={spacing.space1}
-      style={({ pressed }) => ({
-        alignSelf: "flex-start",
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.space1,
-        minHeight: MIN_TAP,
-        minWidth: MIN_TAP,
-        marginTop: spacing.space1,
-        paddingHorizontal: spacing.space3,
-        opacity: pressed ? 0.6 : 1,
-      })}
-    >
-      <Icon name="arrow.left" size={20} tintColor={c.ink} />
-      <Text variant="bodyStrong">Back</Text>
-    </Pressable>
-  );
-}
-
-function Header({ page, headerRef }: { page: SheetPage; headerRef: React.RefObject<React.ComponentRef<typeof View> | null> }) {
+function Header({
+  page,
+  headerRef,
+  corner,
+}: {
+  page: SheetPage;
+  headerRef: React.RefObject<React.ComponentRef<typeof View> | null>;
+  /** Close (X) on the first step, Back on a pushed one: top left, on the title's row. */
+  corner: React.ReactNode;
+}) {
   const people = page.people ?? [];
-  if (!page.title && !page.message && people.length === 0) {
-    return <View ref={headerRef} style={{ height: spacing.space3 }} />;
-  }
+  const extra = people.length > 0 || !!page.message;
   const spoken = [page.title, people.map((p) => p.name).join(" vs. "), page.message].filter(Boolean).join(". ");
+  // VoiceOver moves to the header on each step: the title (read with the
+  // people and message), or the people and message when there's no title.
   return (
     <View
-      ref={headerRef}
-      accessible
-      accessibilityRole="header"
-      accessibilityLabel={spoken}
       style={{
         paddingHorizontal: spacing.space4,
-        paddingTop: spacing.space4,
+        paddingTop: spacing.space3,
         paddingBottom: spacing.space3,
         gap: spacing.space2,
       }}
     >
-      {page.title ? <Text variant={page.titleHasName ? "title" : "headingM"}>{page.title}</Text> : null}
-      {people.length > 0 ? <People people={people} /> : null}
-      {page.message ? (
-        <Text variant="small" tone="inkMuted">
-          {page.message}
-        </Text>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: spacing.space3,
+        }}
+      >
+        {corner}
+        {page.title ? (
+          <View ref={headerRef} accessible accessibilityRole="header" accessibilityLabel={spoken} style={{ flex: 1 }}>
+            <Text variant={page.titleHasName ? "title" : "headingM"}>{page.title}</Text>
+          </View>
+        ) : null}
+      </View>
+      {extra ? (
+        <View
+          ref={page.title ? undefined : headerRef}
+          accessible={!page.title}
+          accessibilityRole={page.title ? undefined : "header"}
+          accessibilityLabel={page.title ? undefined : spoken}
+          // Already read as part of the title.
+          accessibilityElementsHidden={!!page.title}
+          importantForAccessibility={page.title ? "no-hide-descendants" : "auto"}
+          style={{ gap: spacing.space2 }}
+        >
+          {people.length > 0 ? <People people={people} /> : null}
+          {page.message ? (
+            <Text variant="small" tone="inkMuted">
+              {page.message}
+            </Text>
+          ) : null}
+        </View>
       ) : null}
+      {!page.title && !extra ? <View ref={headerRef} /> : null}
     </View>
   );
 }

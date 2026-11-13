@@ -1,5 +1,5 @@
 // "Something not working?" (spec decision 86, B3). A bottom sheet, by the
-// sheet rule: brush title, no Cancel, drag down to close, asks before
+// sheet rule: brush title, Close (X) or drag down to close, asks before
 // discarding. Pick a likely problem or "Something else" (which needs a
 // description), add an optional note, Send. The app version, iPhone and iOS
 // version go with it, and the match when it was opened from one. Saved on the

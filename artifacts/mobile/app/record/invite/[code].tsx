@@ -9,14 +9,19 @@
 // against someone the recorder found in player search but has never played.
 // Opened from the push. Yes adds it like an invite; Not me keeps them off it,
 // for good; no answer leaves it unlinked.
+//
+// Close (X) at the top left on every state, as well as swipe down (Wave 2
+// finding 50, decision 198). Nothing is lost by closing: the match stays
+// unlinked until it's answered, so it closes at once.
 
 import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Alert, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, View, type ViewProps } from "react-native";
 
 import { TRAINING_COPY } from "@/components/record/ConsentScreen";
+import { SheetCloseBar } from "@/components/Sheet";
 import { Button, Card, Screen, Text, TextButton } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { Toggle } from "@/components/Toggle";
@@ -32,6 +37,17 @@ import {
 } from "@/lib/recording/api";
 import { sayNotMe } from "@/lib/notifications";
 import { savePendingInvite } from "@/lib/recording/pendingInvite";
+
+/** The sheet: Close (X) at the top left, then the state's content. */
+function Sheet({ onClose, style, children }: ViewProps & { onClose: () => void }) {
+  const c = useColors();
+  return (
+    <View style={{ flex: 1, backgroundColor: c.paper }} onAccessibilityEscape={onClose}>
+      <SheetCloseBar onPress={onClose} />
+      <Screen style={[{ paddingTop: spacing.space4 }, style]}>{children}</Screen>
+    </View>
+  );
+}
 
 function longDate(iso: string): string {
   const d = new Date(iso);
@@ -66,58 +82,57 @@ export default function MatchInviteScreen() {
 
   const close = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)/ballboi"));
 
-  if (!isLoaded) return <Screen />;
+  if (!isLoaded) return <Sheet onClose={close} />;
   if (held) {
     return (
-      <Screen style={{ justifyContent: "center", alignItems: "center" }}>
+      <Sheet onClose={close} style={{ justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator color={c.ink} accessibilityLabel="Loading" />
-      </Screen>
+      </Sheet>
     );
   }
 
   if (!isSignedIn) {
     return (
-      <Screen style={{ justifyContent: "center", gap: spacing.space4 }}>
+      <Sheet onClose={close} style={{ justifyContent: "center", gap: spacing.space4 }}>
         <Text variant="title" accessibilityRole="header">
           A match is waiting for you
         </Text>
         <Text tone="inkMuted">Sign in to Ball Boi to add it to your matches. This link opens again once you're in.</Text>
         <Button label="Sign in" onPress={() => router.replace("/(auth)/welcome")} />
-      </Screen>
+      </Sheet>
     );
   }
 
   if (invite.isLoading || (consent.isLoading && !consent.data)) {
     return (
-      <Screen style={{ justifyContent: "center", alignItems: "center" }}>
+      <Sheet onClose={close} style={{ justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator color={c.ink} accessibilityLabel="Loading" />
-      </Screen>
+      </Sheet>
     );
   }
 
   if (invite.isError && !(invite.error instanceof InviteError && invite.error.status === 404)) {
     const offline = isOfflineError(invite.error);
     return (
-      <Screen style={{ justifyContent: "center", gap: spacing.space4 }}>
+      <Sheet onClose={close} style={{ justifyContent: "center", gap: spacing.space4 }}>
         <Text variant="title" accessibilityRole="header">
           {offline ? "You're offline" : "Couldn't load this match"}
         </Text>
         <Text tone="inkMuted">Check your connection and try again.</Text>
         <Button label="Try again" loading={invite.isRefetching} onPress={() => invite.refetch()} />
-        <Button variant="secondary" label="Close" onPress={close} />
-      </Screen>
+      </Sheet>
     );
   }
 
   if (invite.isError || !invite.data) {
     return (
-      <Screen style={{ justifyContent: "center", gap: spacing.space4 }}>
+      <Sheet onClose={close} style={{ justifyContent: "center", gap: spacing.space4 }}>
         <Text variant="title" accessibilityRole="header">
           This link doesn't work
         </Text>
         <Text tone="inkMuted">{invite.error instanceof Error ? invite.error.message : "Ask the player who sent it for a new one."}</Text>
         <Button variant="secondary" label="Close" onPress={close} />
-      </Screen>
+      </Sheet>
     );
   }
 
@@ -126,7 +141,7 @@ export default function MatchInviteScreen() {
 
   if (joined || inv.claimedByYou) {
     return (
-      <Screen style={{ justifyContent: "center", gap: spacing.space4 }}>
+      <Sheet onClose={close} style={{ justifyContent: "center", gap: spacing.space4 }}>
         <Text variant="title" accessibilityRole="header">
           Added to your matches
         </Text>
@@ -134,25 +149,25 @@ export default function MatchInviteScreen() {
           Your match with {inv.recorderName} on {when} is yours too. Its stats show up once Ball Boi finishes the analysis.
         </Text>
         <Button label="Done" onPress={close} />
-      </Screen>
+      </Sheet>
     );
   }
 
   if (notMe || inv.wasThatYou === "not_me") {
     return (
-      <Screen style={{ justifyContent: "center", gap: spacing.space4 }}>
+      <Sheet onClose={close} style={{ justifyContent: "center", gap: spacing.space4 }}>
         <Text variant="title" accessibilityRole="header">
           Not you
         </Text>
         <Text tone="inkMuted">You said this wasn't you, so the match with {inv.recorderName} isn't on your profile.</Text>
         <Button label="Done" onPress={close} />
-      </Screen>
+      </Sheet>
     );
   }
 
   if (inv.isYourInvite || inv.claimed) {
     return (
-      <Screen style={{ justifyContent: "center", gap: spacing.space4 }}>
+      <Sheet onClose={close} style={{ justifyContent: "center", gap: spacing.space4 }}>
         <Text variant="title" accessibilityRole="header">
           {inv.isYourInvite ? "This is your invite" : "Already added"}
         </Text>
@@ -162,7 +177,7 @@ export default function MatchInviteScreen() {
             : "Someone already joined this match with this link. Ask the player who sent it if that wasn't you."}
         </Text>
         <Button variant="secondary" label="Close" onPress={close} />
-      </Screen>
+      </Sheet>
     );
   }
 
@@ -206,7 +221,7 @@ export default function MatchInviteScreen() {
   const asking = inv.wasThatYou === "pending";
 
   return (
-    <Screen style={{ gap: spacing.space6 }}>
+    <Sheet onClose={close} style={{ gap: spacing.space6 }}>
       <View style={{ gap: spacing.space2 }}>
         {asking ? (
           <>
@@ -262,6 +277,6 @@ export default function MatchInviteScreen() {
           <Button variant="secondary" label="Not now" onPress={close} disabled={saving} />
         </>
       )}
-    </Screen>
+    </Sheet>
   );
 }

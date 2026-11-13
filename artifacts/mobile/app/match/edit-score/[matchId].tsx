@@ -4,7 +4,7 @@
 // stands, from your side, the latest edit stands and the other player sees
 // "Score edited by {name}". These matches have no league, so saving never
 // touches standings. As many sets as were played, like the Quick match score
-// prompt. A bottom sheet: drag down to close (asks first if you changed it).
+// prompt. A bottom sheet: Close (X) or drag down to close (asks first if you changed it).
 // League matches keep the league's Enter score with ?edit=1.
 
 import { useQueryClient } from "@tanstack/react-query";
