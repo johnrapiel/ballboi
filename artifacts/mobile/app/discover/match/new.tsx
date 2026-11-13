@@ -3,6 +3,9 @@
 // time window, Singles or Doubles (1 to 3 spots, shown as Need N), level
 // range (a guide: anyone can still join), court (optional, from the
 // directory) and an optional note. A time that has passed says so and stays.
+// Every section is a sentence case heading (section type, ink-muted) over its
+// control, with the same gap between sections (finding 44). The From and To
+// pills are iOS's compact time picker, which draws its own time text.
 
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Stack, useRouter } from "expo-router";
@@ -157,7 +160,7 @@ export default function PostOpenMatchScreen() {
         </View>
 
         <View style={{ gap: spacing.space2 }}>
-          <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
+          <Text variant="section" tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
             Format
           </Text>
           <ChipRow label="Format">
@@ -186,7 +189,7 @@ export default function PostOpenMatchScreen() {
         </View>
 
         <View style={{ gap: spacing.space2 }}>
-          <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
+          <Text variant="section" tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
             Level range
           </Text>
           <ChipRow label="Level range">
@@ -197,21 +200,29 @@ export default function PostOpenMatchScreen() {
           <Text variant="small" tone="inkMuted">{`${levelRangeText(me.data?.rating ?? null, level)} A guide: anyone can still join.`}</Text>
         </View>
 
-        <SettingsSection>
-          <SettingsRow
-            title="Court (optional)"
-            value={court ? court.name : "Not set"}
-            onPress={() => {
-              touch();
-              router.push({ pathname: "/courts", params: { mode: "match" } });
-            }}
-            accessibilityHint="Pick from the court directory, or leave it not set"
-            last
-          />
-        </SettingsSection>
+        {/* Heading + control, like every other section here (finding 44): the
+            row shows only the court, so it doesn't read as part of Level range. */}
+        <View style={{ gap: spacing.space2 }}>
+          <Text variant="section" tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
+            Court (optional)
+          </Text>
+          <SettingsSection>
+            <SettingsRow
+              title={court ? court.name : "Not set"}
+              onPress={() => {
+                touch();
+                router.push({ pathname: "/courts", params: { mode: "match" } });
+              }}
+              accessibilityLabel={`Court, ${court ? court.name : "Not set"}`}
+              accessibilityHint="Pick from the court directory, or leave it not set"
+              last
+            />
+          </SettingsSection>
+        </View>
 
         <Field
           label="Note (optional)"
+          labelVariant="section"
           value={note}
           onChangeText={(t) => (setNote(t.slice(0, 200)), touch())}
           multiline
