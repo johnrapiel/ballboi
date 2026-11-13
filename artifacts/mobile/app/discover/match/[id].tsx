@@ -18,6 +18,7 @@ import { Button, Card, Pill, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { OpenMatchError, useOpenMatch, useOpenMatchAction } from "@/hooks/useDiscoverOpenMatches";
+import { usePinnedBarHeight, useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { firstName, needLabel, waitingLine, whosInLine } from "@/lib/discover";
 
@@ -25,6 +26,9 @@ export default function OpenMatchScreen() {
   const c = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // The last content sits a full gap above the pinned button (decision 194).
+  const pinned = usePinnedBarHeight();
+  const bottom = useScreenBottomInset({ pinnedHeight: pinned.height });
   const params = useLocalSearchParams<{ id: string }>();
   const id = Number(params.id);
   const q = useOpenMatch(id);
@@ -140,7 +144,7 @@ export default function OpenMatchScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: c.paper }}>
       <Stack.Screen options={{ title: "" }} />
-      <ScrollView contentContainerStyle={{ padding: spacing.space4, paddingBottom: 140 + insets.bottom, gap: spacing.space4 }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space4 }} scrollIndicatorInsets={bottom.scrollIndicatorInsets}>
         <View style={{ gap: spacing.space2 }}>
           <Text variant="headingL" accessibilityRole="header">
             {day}
@@ -235,6 +239,7 @@ export default function OpenMatchScreen() {
         </View>
       </ScrollView>
       <View
+        onLayout={pinned.onLayout}
         style={{
           position: "absolute",
           left: 0,

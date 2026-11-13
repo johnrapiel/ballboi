@@ -19,6 +19,7 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useProfile } from "@/hooks/useProfile";
 import { useUpcomingMatches } from "@/hooks/useUpcomingMatches";
 import { useUpcomingMessage } from "@/hooks/useUpcomingMessage";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { correctionLine, LATE_NOTE, LATE_ROUND_RESULT, lateDateLine } from "@/lib/leagueSchedule";
 import { durationLabel, durationSpoken, matchSourceLine, scoreFootnote, setRows } from "@/lib/myMatches";
 import { isDoubleDefault, isRetiredScore, WALKOVER_SCORE } from "@/lib/tennisScore";
@@ -137,6 +138,7 @@ function EditPencil({ onPress }: { onPress: () => void }) {
 export default function MatchDetailScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
   const { matchId: raw } = useLocalSearchParams<{ matchId: string }>();
@@ -259,7 +261,8 @@ export default function MatchDetailScreen() {
     return (
       <ScrollView
         style={{ flex: 1, backgroundColor: c.paper }}
-        contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
+        contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space4 }}
+        scrollIndicatorInsets={bottom.scrollIndicatorInsets}
         refreshControl={
           <RefreshControl
             refreshing={pullUpcoming.refreshing}
@@ -322,7 +325,8 @@ export default function MatchDetailScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
-      contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
+      contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space4 }}
+      scrollIndicatorInsets={bottom.scrollIndicatorInsets}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
       {/* The screen's name for VoiceOver; the nav bar title stays empty, as designed. */}

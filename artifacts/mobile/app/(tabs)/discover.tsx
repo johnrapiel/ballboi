@@ -8,7 +8,6 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect } from "react";
 import { RefreshControl, ScrollView, Share, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { IconButton } from "@/components/Choice";
 import { AreaRow, DiscoverTabs, FiltersButton, LinkButton } from "@/components/discover/Controls";
@@ -26,6 +25,7 @@ import { discoverState, useDiscoverState } from "@/hooks/useDiscoverFilters";
 import { useDiscoverLeagues } from "@/hooks/useDiscoverLeagues";
 import { useOpenMatches } from "@/hooks/useDiscoverOpenMatches";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { isOfflineError } from "@/lib/api";
 import {
   RADIUS_STEPS,
@@ -44,7 +44,7 @@ import { SegmentedTabs } from "@/components/league/SegmentedTabs";
 export default function DiscoverScreen() {
   const c = useColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset({ tab: true });
   const { tab, radius, filters } = useDiscoverState();
   const me = useDiscoverMe();
 
@@ -90,9 +90,10 @@ export default function DiscoverScreen() {
         contentContainerStyle={{
           paddingTop: spacing.space2,
           paddingHorizontal: spacing.space4,
-          paddingBottom: insets.bottom + 96,
+          paddingBottom: bottom.paddingBottom,
           gap: spacing.space3,
         }}
+        scrollIndicatorInsets={bottom.scrollIndicatorInsets}
         refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
       >
         <AreaRow area={area} onPress={changeArea} />

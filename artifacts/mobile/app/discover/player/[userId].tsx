@@ -37,6 +37,7 @@ import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useReportBlock } from "@/hooks/useReportBlock";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { usePinnedBarHeight, useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { isOfflineError } from "@/lib/api";
 import { headToHeadLine, otherUpcomingItem, resultMeta, resultSideNames, THEIR_TABS, type MatchTab } from "@/lib/playerCard";
 import { winnerMark } from "@/lib/winnerMark";
@@ -47,6 +48,9 @@ export default function PlayerCardScreen() {
   const c = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // The last content sits a full gap above the pinned button (decision 194).
+  const pinned = usePinnedBarHeight();
+  const bottom = useScreenBottomInset({ pinnedHeight: pinned.height });
   const params = useLocalSearchParams<{ userId: string }>();
   const userId = Number(params.userId);
   const valid = Number.isInteger(userId) && userId > 0;
@@ -110,7 +114,8 @@ export default function PlayerCardScreen() {
       ) : (
         <>
           <ScrollView
-            contentContainerStyle={{ padding: spacing.space4, paddingBottom: 120 + insets.bottom, gap: spacing.space6 }}
+            contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space6 }}
+            scrollIndicatorInsets={bottom.scrollIndicatorInsets}
             refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
           >
             <PlayerCard card={p} onFreeTimes={() => router.push({ pathname: "/free-times", params: { userId: String(p.userId) } })} />
@@ -118,6 +123,7 @@ export default function PlayerCardScreen() {
             <TheirMatches name={p.name} q={matchesQ} tab={tab} onTab={setTab} />
           </ScrollView>
           <View
+            onLayout={pinned.onLayout}
             style={{
               position: "absolute",
               left: 0,

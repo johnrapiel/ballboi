@@ -1,7 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useGetLeague, useGetLeagueBracket, useGetLeagueSchedule } from "@workspace/api-client-react";
 
@@ -13,6 +12,7 @@ import { WinnerNames } from "@/components/WinnerNames";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { correctionLine, dateRange, resultLine } from "@/lib/leagueSchedule";
 import { sideOf, winnerMark } from "@/lib/winnerMark";
 
@@ -25,7 +25,7 @@ import { sideOf, winnerMark } from "@/lib/winnerMark";
 
 export default function CorrectScoresScreen() {
   const c = useColors();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const { leagueId: raw } = useLocalSearchParams<{ leagueId: string }>();
   const leagueId = Number(raw);
   const leagueQ = useGetLeague(leagueId);
@@ -46,7 +46,8 @@ export default function CorrectScoresScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
-      contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space2 }}
+      contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space2 }}
+      scrollIndicatorInsets={bottom.scrollIndicatorInsets}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
       <View style={{ gap: spacing.space1, marginBottom: spacing.space2 }}>

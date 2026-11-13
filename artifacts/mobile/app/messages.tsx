@@ -1,7 +1,6 @@
 import { Stack, useRouter } from "expo-router";
 import React, { useState } from "react";
 import { ActivityIndicator, Alert, FlatList, RefreshControl, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HeaderIconButton } from "@/components/Choice";
 import { EmptyState } from "@/components/EmptyState";
@@ -12,6 +11,7 @@ import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useConversations, useMessagesActions, type Conversation, type GroupConversation } from "@/hooks/useMessages";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 
 // Messages (spec: Messaging and moderation; approved canvas: Messages, opened
 // from the Messages button in the top corner of every tab). A brush title and
@@ -28,7 +28,7 @@ const lastAt = (i: Item) => i.item.lastMessage?.at ?? "";
 export default function MessagesScreen() {
   const c = useColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const query = useConversations();
   const pull = usePullToRefresh(() => query.refetch());
   const actions = useMessagesActions();
@@ -96,7 +96,8 @@ export default function MessagesScreen() {
             )
           }
           refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + spacing.space6 }}
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: bottom.paddingBottom }}
+          scrollIndicatorInsets={bottom.scrollIndicatorInsets}
           ListHeaderComponent={header}
           ListEmptyComponent={
             <View style={{ flex: 1, minHeight: 360 }}>

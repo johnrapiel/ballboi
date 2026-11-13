@@ -8,7 +8,6 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Icon } from "@/components/Icon";
 import React, { useState } from "react";
 import { AccessibilityInfo, Alert, Pressable, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ProblemCard } from "@/components/discover/States";
 import { SearchField } from "@/components/players/SearchField";
@@ -16,13 +15,14 @@ import { Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { courtPick, useCourts, usePickedCourt, useSetHomeCourt } from "@/hooks/useCourts";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { courtLine, courtSpoken, type CourtCard } from "@/lib/discover";
 
 export default function CourtsScreen() {
   const c = useColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const params = useLocalSearchParams<{ mode?: string }>();
   const mode = params.mode === "match" ? "match" : "home";
   const [query, setQuery] = useState("");
@@ -54,7 +54,8 @@ export default function CourtsScreen() {
       <Stack.Screen options={{ title: mode === "home" ? "Home court" : "Court" }} />
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space3 }}
+        contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space3 }}
+        scrollIndicatorInsets={bottom.scrollIndicatorInsets}
       >
         <SearchField
           value={query}

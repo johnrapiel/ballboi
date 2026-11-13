@@ -20,6 +20,7 @@ import { Button, Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { teamName, teamSpoken, unpairedLabel } from "@/lib/doubles";
 import { refreshLeague } from "@/lib/leagueRefresh";
 
@@ -84,6 +85,9 @@ export default function TeamsScreen() {
   const split = useSplitLeagueTeam();
   const [picked, setPicked] = useState<number[]>([]);
   const data = q.data;
+  // Team up sits below the list when it shows; either way the last team keeps a full gap (decision 194).
+  const showTeamUp = !!data && data.unpaired.length >= 2;
+  const bottom = useScreenBottomInset({ barBelow: showTeamUp });
 
   const settle = async (view: LeagueTeams, said: string) => {
     queryClient.setQueryData(getGetLeagueTeamsQueryKey(leagueId), view);
@@ -146,7 +150,8 @@ export default function TeamsScreen() {
     <View style={{ flex: 1, backgroundColor: c.paper }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: spacing.space4, paddingBottom: spacing.space8, gap: spacing.space2 }}
+        contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space2 }}
+        scrollIndicatorInsets={bottom.scrollIndicatorInsets}
         refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
       >
         <View style={{ gap: spacing.space1, marginBottom: spacing.space2 }}>
@@ -214,7 +219,7 @@ export default function TeamsScreen() {
       </ScrollView>
 
       {/* The primary action in the same place as every screen: pinned at the bottom. */}
-      {data && data.unpaired.length >= 2 ? (
+      {showTeamUp ? (
         <View style={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space3, borderTopWidth: 1, borderTopColor: c.hairline, backgroundColor: c.paper, gap: spacing.space2 }}>
           <Text variant="small" tone="inkMuted" accessibilityLiveRegion="polite">
             {picked.length === 2 ? `${names(picked).join(" and ")} picked.` : picked.length === 1 ? `${names(picked)[0]} picked. Pick one more.` : "Pick two players to team up."}

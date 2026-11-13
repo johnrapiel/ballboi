@@ -2,7 +2,6 @@ import { Stack, useRouter } from "expo-router";
 import { Icon } from "@/components/Icon";
 import React, { useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
 import { Segmented } from "@/components/moderation/Segmented";
@@ -10,6 +9,7 @@ import { Button, ButtonRow, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import {
   useDeviceBans,
   useIsAdmin,
@@ -49,7 +49,7 @@ const headerOptions = (c: ReturnType<typeof useColors>) =>
 export default function ModerationScreen() {
   const c = useColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const { isAdmin, isPending: checkingAdmin } = useIsAdmin();
   const [box, setBox] = useState<Box>("reports");
   const reports = useOpenReports(isAdmin);
@@ -149,7 +149,8 @@ export default function ModerationScreen() {
           data={(active.data ?? []) as (Report | AgentDecision | Appeal | DeviceBan)[]}
           keyExtractor={(item) => String(item.id)}
           refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
-          contentContainerStyle={{ flexGrow: 1, gap: spacing.space3, paddingHorizontal: spacing.space4, paddingBottom: insets.bottom + spacing.space6 }}
+          contentContainerStyle={{ flexGrow: 1, gap: spacing.space3, paddingHorizontal: spacing.space4, paddingBottom: bottom.paddingBottom }}
+          scrollIndicatorInsets={bottom.scrollIndicatorInsets}
           renderItem={({ item }) =>
             box === "reports" ? (
               <ReportRow report={item as Report} onPress={() => router.push({ pathname: "/moderation/report/[id]", params: { id: String(item.id) } })} />
