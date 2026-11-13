@@ -22,7 +22,7 @@ import { useColors } from "@/hooks/useColors";
 import { OpenMatchError, useOpenMatch, useOpenMatchAction } from "@/hooks/useDiscoverOpenMatches";
 import { usePinnedBarHeight, useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
-import { firstName, needLabel, waitingLine, whosInLine } from "@/lib/discover";
+import { firstName, openMatchFormatLine, waitingLine, whenSpoken, whosInLine } from "@/lib/discover";
 
 export default function OpenMatchScreen() {
   const c = useColors();
@@ -126,8 +126,6 @@ export default function OpenMatchScreen() {
   }
 
   const full = m.status === "full";
-  const need = m.format === "doubles" && !full && m.spotsLeft > 0 ? m.spotsLeft : null;
-  const [day, window] = m.when.split(" · ");
 
   // Decision 184: leaving or canceling is quiet red text at the end of the
   // content, not a pinned button. Still confirmed by the alert (decision 193).
@@ -153,16 +151,17 @@ export default function OpenMatchScreen() {
       <Stack.Screen options={{ title: "" }} />
       <ScrollView contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space4 }} scrollIndicatorInsets={bottom.scrollIndicatorInsets}>
         <View style={{ gap: spacing.space2 }}>
-          <Text variant="headingL" accessibilityRole="header">
-            {day}
+          {/* Walkthrough 57: the time sits with the date, left-aligned, so it
+              never strands on its own at large text sizes. */}
+          <Text variant="headingL" accessibilityRole="header" accessibilityLabel={whenSpoken(m.when)}>
+            {m.when}
           </Text>
-          <Text variant="bodyStrong">{`${window} · ${m.format === "doubles" ? "Doubles" : "Singles"}`}</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.space2 }}>
-            {m.role === "poster" ? <Pill label="Your post" /> : null}
-            {m.role === "in" ? <Pill label="You're in" /> : null}
-            {need ? <Pill label={needLabel(need)} /> : null}
-            {full ? <Pill label="Full" /> : null}
-          </View>
+          <Text variant="bodyStrong">{openMatchFormatLine(m)}</Text>
+          {m.role === "poster" || m.role === "in" ? (
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.space2 }}>
+              <Pill label={m.role === "poster" ? "Your post" : "You're in"} />
+            </View>
+          ) : null}
         </View>
 
         {filled ? (
