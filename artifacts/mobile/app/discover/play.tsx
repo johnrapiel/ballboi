@@ -15,6 +15,7 @@ import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useDiscardGuard } from "@/hooks/useDiscardGuard";
 import { useDiscoverMe, useSaveDiscoverSettings } from "@/hooks/useDiscover";
+import { usePinnedBarHeight, useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { picksFromPlays, playsFromPicks } from "@/lib/discover";
 
@@ -22,6 +23,9 @@ export default function WhenIPlayScreen() {
   const c = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // The last content sits a full gap above the pinned button (decision 194).
+  const pinned = usePinnedBarHeight();
+  const bottom = useScreenBottomInset({ pinnedHeight: pinned.height });
   const me = useDiscoverMe();
   const save = useSaveDiscoverSettings();
 
@@ -61,7 +65,7 @@ export default function WhenIPlayScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.paper }}>
-      <ScrollView contentContainerStyle={{ padding: spacing.space4, paddingBottom: 120 + insets.bottom, gap: spacing.space6 }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space6 }} scrollIndicatorInsets={bottom.scrollIndicatorInsets}>
         <View style={{ gap: spacing.space2 }}>
           <Text variant="headingL" accessibilityRole="header">
             Plays
@@ -79,6 +83,7 @@ export default function WhenIPlayScreen() {
         </View>
       </ScrollView>
       <View
+        onLayout={pinned.onLayout}
         style={{
           position: "absolute",
           left: 0,

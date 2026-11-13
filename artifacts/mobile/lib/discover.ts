@@ -99,15 +99,15 @@ export function levelsText(pick: LevelPick, mine: number | null): string {
   return `Showing ${list}${yours}.`;
 }
 
-/** The distance chips (spec: 5 / 10 / 15 / 30, 10 by default, 30 at most), plus Custom. */
-export const RADIUS_STEPS = [5, 10, 15, 30] as const;
+/** The distance chips (spec: 5 / 10 / 15 / 30 / 50, 10 by default, 50 at most; decision 196), plus Custom. */
+export const RADIUS_STEPS = [5, 10, 15, 30, 50] as const;
 export const DEFAULT_RADIUS = 10;
 export const MIN_RADIUS = 1;
-export const MAX_RADIUS = 30;
+export const MAX_RADIUS = 50;
 
 export const isCustomRadius = (r: number) => !(RADIUS_STEPS as readonly number[]).includes(r);
 
-/** A typed or dragged distance, kept to whole miles from 1 to 30. */
+/** A typed or dragged distance, kept to whole miles from 1 to 50. */
 export function clampRadius(n: number): number {
   if (!Number.isFinite(n)) return DEFAULT_RADIUS;
   return Math.min(MAX_RADIUS, Math.max(MIN_RADIUS, Math.round(n)));
@@ -130,6 +130,15 @@ export function areaLine(area: DiscoverArea | null): string {
 
 export function countFor(counts: { radius: number; count: number }[], radius: number): number | null {
   return counts.find((c) => c.radius === radius)?.count ?? null;
+}
+
+/**
+ * The empty state's "Widen to N mi" step (#260): the next chip out that has
+ * someone, else the next chip out. Nothing past 50 mi, so no Widen at 50.
+ */
+export function widenStep(radius: number, counts: { radius: number; count: number }[]): number | null {
+  const wider = RADIUS_STEPS.filter((r) => r > radius);
+  return wider.find((r) => (countFor(counts, r) ?? 0) > 0) ?? wider[0] ?? null;
 }
 
 /** "14 players within 10 mi". */

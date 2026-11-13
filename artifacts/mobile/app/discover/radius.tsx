@@ -1,4 +1,4 @@
-// Custom distance (canvas W2_DiscoverRadius; brief: 1 to 30 miles). A slider,
+// Custom distance (canvas W2_DiscoverRadius; brief: 1 to 50 miles, decision 196). A slider,
 // with a typed value as the non-drag alternative, and a live count. One
 // distance for Players, Open leagues and Open matches. A bottom sheet by the
 // sheet rule.

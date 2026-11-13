@@ -31,6 +31,7 @@ import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useDiscardGuard } from "@/hooks/useDiscardGuard";
 import { useDiscoverMe, useSaveAvailability } from "@/hooks/useDiscover";
+import { usePinnedBarHeight, useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import {
   DAY_NAMES,
@@ -53,6 +54,9 @@ export default function AvailabilityScreen() {
   const c = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // The last content sits a full gap above the pinned button (decision 194).
+  const pinned = usePinnedBarHeight();
+  const bottom = useScreenBottomInset({ pinnedHeight: pinned.height });
   const me = useDiscoverMe();
   const save = useSaveAvailability();
 
@@ -168,7 +172,8 @@ export default function AvailabilityScreen() {
       {sheet.element}
       <KeyboardAwareScrollViewCompat
         bottomOffset={spacing.space6}
-        contentContainerStyle={{ padding: spacing.space4, paddingBottom: 120 + insets.bottom, gap: spacing.space4 }}
+        contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space4 }}
+        scrollIndicatorInsets={bottom.scrollIndicatorInsets}
       >
         <View style={{ gap: spacing.space2 }}>
           <Text variant="headingL" accessibilityRole="header">
@@ -199,6 +204,7 @@ export default function AvailabilityScreen() {
       </KeyboardAwareScrollViewCompat>
 
       <View
+        onLayout={pinned.onLayout}
         style={{
           position: "absolute",
           left: 0,

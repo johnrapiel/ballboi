@@ -1,7 +1,7 @@
 // Players near you (spec: Discover; F1, F8, F14). Pure rules, so they're easy
 // to test: who shows up, in what order, and how many show at each distance.
 //
-// - Always local: nobody farther than the distance picked (30 miles at most),
+// - Always local: nobody farther than the distance picked (50 miles at most),
 //   measured between home ZIP centers.
 // - Approximate distance only: "~4 mi", never a spot.
 // - Nearest first (whole miles), then the closest level.
@@ -243,7 +243,7 @@ export function parseDiscoverSettings(body: unknown): DiscoverSettingsInput | { 
     out.matchAlerts = b.matchAlerts;
   }
   if (b.radius !== undefined) {
-    if (typeof b.radius !== "number" || !Number.isFinite(b.radius)) return { error: "Pick a distance from 1 to 30 miles." };
+    if (typeof b.radius !== "number" || !Number.isFinite(b.radius)) return { error: "Pick a distance from 1 to 50 miles." };
     out.radius = parseRadius(b.radius);
   }
   return out;

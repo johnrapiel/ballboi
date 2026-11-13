@@ -1,17 +1,19 @@
 import { Stack, useRouter } from "expo-router";
 import React, { useState } from "react";
 import { ActivityIndicator, Alert, FlatList, RefreshControl, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HeaderIconButton } from "@/components/Choice";
 import { EmptyState } from "@/components/EmptyState";
+import { ProblemCard } from "@/components/discover/States";
 import { ConversationRow, GroupRow } from "@/components/messages/ConversationRow";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { ModerationRow } from "@/components/moderation/ModerationRow";
 import { Button, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useConversations, useMessagesActions, type Conversation, type GroupConversation } from "@/hooks/useMessages";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 
 // Messages (spec: Messaging and moderation; approved canvas: Messages, opened
 // from the Messages button in the top corner of every tab). A brush title and
@@ -28,7 +30,7 @@ const lastAt = (i: Item) => i.item.lastMessage?.at ?? "";
 export default function MessagesScreen() {
   const c = useColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const query = useConversations();
   const pull = usePullToRefresh(() => query.refetch());
   const actions = useMessagesActions();
@@ -56,6 +58,7 @@ export default function MessagesScreen() {
       <Text variant="headingM" accessibilityRole="header" style={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space2, paddingBottom: spacing.space3 }}>
         Messages
       </Text>
+      <OfflineNotice pull={pull} style={{ marginHorizontal: spacing.space4, marginBottom: spacing.space3 }} />
       <ModerationRow />
     </View>
   );
@@ -77,11 +80,13 @@ export default function MessagesScreen() {
       ) : query.isError && !query.data ? (
         <>
           {header}
-          <View style={{ padding: spacing.space6, gap: spacing.space4, alignItems: "center" }}>
-            <Text tone="inkMuted" style={{ textAlign: "center" }} accessibilityLiveRegion="polite">
-              Messages didn't load. {query.error.message}
-            </Text>
-            <Button label="Try again" variant="secondary" onPress={() => query.refetch()} />
+          <View style={{ paddingHorizontal: spacing.space4 }}>
+            <ProblemCard
+              title="Can't load messages"
+              body="Check your connection and try again."
+              onRetry={() => void query.refetch()}
+              retrying={query.isRefetching}
+            />
           </View>
         </>
       ) : (
@@ -96,7 +101,8 @@ export default function MessagesScreen() {
             )
           }
           refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + spacing.space6 }}
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: bottom.paddingBottom }}
+          scrollIndicatorInsets={bottom.scrollIndicatorInsets}
           ListHeaderComponent={header}
           ListEmptyComponent={
             <View style={{ flex: 1, minHeight: 360 }}>

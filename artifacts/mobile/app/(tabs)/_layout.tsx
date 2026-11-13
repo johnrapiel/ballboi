@@ -87,7 +87,9 @@ function NativeTabLayout() {
       {TABS.map((t) => {
         const icons = night ? t.night : t.day;
         return (
-          <NativeTabs.Trigger key={t.name} name={t.name}>
+          // Insets are ours, not iOS's: every tab pads its own top and
+          // clears the tab bar with useScreenBottomInset (decision 194).
+          <NativeTabs.Trigger key={t.name} name={t.name} disableAutomaticContentInsets>
             <NativeTabs.Trigger.Icon src={{ default: icons.off, selected: icons.on }} renderingMode="original" />
             <NativeTabs.Trigger.Label>{t.label}</NativeTabs.Trigger.Label>
           </NativeTabs.Trigger>

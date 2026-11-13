@@ -36,6 +36,7 @@ const at = (h: number) => new Date(T0.getTime() + h * H);
 const wappingers = areaForZip("12590")!;
 const beacon = areaForZip("12508")!;
 const albany = areaForZip("12207")!;
+const whitePlains = areaForZip("10601")!; // about 40 miles away
 
 function row(extra: Partial<OpenMatchRow> = {}): OpenMatchRow {
   return {
@@ -102,6 +103,16 @@ describe("the list", () => {
     const { matches, counts } = nearbyOpenMatches("b", wappingers.point, [row({ id: 2, startsAt: at(60) }), row({ id: 1 }), row({ id: 3, point: albany.point })], 10);
     expect(matches.map((m) => m.id)).toEqual([1, 2]);
     expect(counts.find((c) => c.radius === 30)!.count).toBe(2);
+    expect(counts.find((c) => c.radius === 50)!.count).toBe(2);
+  });
+
+  it("reaches posts up to 50 miles away (decision 196)", () => {
+    const far = [row({ id: 1, point: whitePlains.point })];
+    expect(nearbyOpenMatches("b", wappingers.point, far, 30).matches).toHaveLength(0);
+    const at50 = nearbyOpenMatches("b", wappingers.point, far, 50);
+    expect(at50.matches.map((m) => m.id)).toEqual([1]);
+    expect(at50.counts.find((c) => c.radius === 30)!.count).toBe(0);
+    expect(at50.counts.find((c) => c.radius === 50)!.count).toBe(1);
   });
 });
 
@@ -132,7 +143,10 @@ class MemoryOpenMatches implements OpenMatchRepo {
     return this.blocks.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
   }
   // Mirrors the SQL in DrizzleOpenMatchRepo.near: blocks with the poster or anyone in, and sanctioned posters.
-  async near(viewer: string) {
+  /** The distance the route last read, in miles. */
+  nearMiles: number | null = null;
+  async near(viewer: string, _point: unknown, miles: number) {
+    this.nearMiles = miles;
     return this.rows.filter(
       (r) => r.status === "open" && !this.sanctioned.has(r.posterClerkUserId) && ![r.posterClerkUserId, ...r.joined].some((x) => this.blockedWith(viewer, x)),
     );
@@ -254,6 +268,8 @@ describe("open match routes", () => {
     expect(push).toHaveBeenCalledWith(["d"], "New open match near you", expect.stringMatching(/^Doubles, need 2/), "/discover");
     const list = await as("b").get("/api/open-matches").expect(200);
     expect(list.body.matches[0].tags).toEqual(["need"]);
+    // Reads out to the widest chip so the 50 mi count is right.
+    expect(repo.nearMiles).toBe(50);
   });
 
   it("lists your open matches with their start time, for Home's date order", async () => {

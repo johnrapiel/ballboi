@@ -23,6 +23,7 @@ import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useGate } from "@/hooks/useGate";
 import { useProfile } from "@/hooks/useProfile";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { cleanCode, savePendingJoinCode } from "@/lib/leagueInvite";
 import { askForNotifications } from "@/lib/notifications";
 import { refreshLeague } from "@/lib/leagueRefresh";
@@ -145,7 +146,7 @@ function WhosIn({ members }: { members: LeagueInviteMember[] }) {
 /** Centered at default sizes; scrolls at the largest text sizes. */
 function Page({ children }: { children: React.ReactNode }) {
   const c = useColors();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
@@ -158,9 +159,10 @@ function Page({ children }: { children: React.ReactNode }) {
         justifyContent: "center",
         paddingHorizontal: spacing.space6,
         paddingTop: spacing.space8,
-        paddingBottom: insets.bottom + spacing.space6,
+        paddingBottom: bottom.paddingBottom,
         gap: spacing.space6,
       }}
+      scrollIndicatorInsets={bottom.scrollIndicatorInsets}
     >
       {children}
     </ScrollView>
@@ -194,6 +196,8 @@ function JoinedActions({ leagueId, onOpen }: { leagueId: number; onOpen: () => v
 export default function JoinLeagueScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
+  // The invite's one button sits below the details; they keep a full gap above it (decision 194).
+  const bottom = useScreenBottomInset({ barBelow: true });
   const router = useRouter();
   const queryClient = useQueryClient();
   const { isLoaded, isSignedIn } = useAuth();
@@ -398,7 +402,8 @@ export default function JoinLeagueScreen() {
     <View style={{ flex: 1, backgroundColor: c.paper }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space3, paddingBottom: spacing.space6, gap: spacing.space4 }}
+        contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space3, paddingBottom: bottom.paddingBottom, gap: spacing.space4 }}
+        scrollIndicatorInsets={bottom.scrollIndicatorInsets}
       >
         <TextButton label="Cancel" onPress={close} style={{ alignSelf: "flex-start", paddingHorizontal: 0 }} />
 

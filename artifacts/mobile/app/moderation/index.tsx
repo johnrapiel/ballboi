@@ -2,14 +2,16 @@ import { Stack, useRouter } from "expo-router";
 import { Icon } from "@/components/Icon";
 import React, { useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
+import { ProblemCard } from "@/components/discover/States";
 import { Segmented } from "@/components/moderation/Segmented";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { Button, ButtonRow, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import {
   useDeviceBans,
   useIsAdmin,
@@ -49,7 +51,7 @@ const headerOptions = (c: ReturnType<typeof useColors>) =>
 export default function ModerationScreen() {
   const c = useColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const { isAdmin, isPending: checkingAdmin } = useIsAdmin();
   const [box, setBox] = useState<Box>("reports");
   const reports = useOpenReports(isAdmin);
@@ -137,19 +139,24 @@ export default function ModerationScreen() {
 
       {active.isPending ? (
         <ActivityIndicator style={{ marginTop: spacing.space12 }} color={c.ink} accessibilityLabel="Loading" />
-      ) : active.isError ? (
-        <View style={{ padding: spacing.space6, gap: spacing.space4, alignItems: "center" }}>
-          <Text tone="inkMuted" style={{ textAlign: "center" }}>
-            {active.error.message}
-          </Text>
-          <Button label="Try again" variant="secondary" onPress={() => void active.refetch()} />
+      ) : active.isError && !active.data ? (
+        <View style={{ padding: spacing.space4 }}>
+          <ProblemCard
+            title="Can't load this list"
+            body="Check your connection and try again."
+            onRetry={() => void active.refetch()}
+            retrying={active.isRefetching}
+          />
         </View>
       ) : (
         <FlatList<Report | AgentDecision | Appeal | DeviceBan>
           data={(active.data ?? []) as (Report | AgentDecision | Appeal | DeviceBan)[]}
           keyExtractor={(item) => String(item.id)}
           refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
-          contentContainerStyle={{ flexGrow: 1, gap: spacing.space3, paddingHorizontal: spacing.space4, paddingBottom: insets.bottom + spacing.space6 }}
+          // Only when it shows: an empty header would still add a gap at the top.
+          ListHeaderComponent={pull.notice ? <OfflineNotice pull={pull} /> : undefined}
+          contentContainerStyle={{ flexGrow: 1, gap: spacing.space3, paddingHorizontal: spacing.space4, paddingBottom: bottom.paddingBottom }}
+          scrollIndicatorInsets={bottom.scrollIndicatorInsets}
           renderItem={({ item }) =>
             box === "reports" ? (
               <ReportRow report={item as Report} onPress={() => router.push({ pathname: "/moderation/report/[id]", params: { id: String(item.id) } })} />

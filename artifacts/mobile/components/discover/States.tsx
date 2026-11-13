@@ -67,7 +67,7 @@ export function NoteCard({ symbol, title, body, action }: { symbol: IconName; ti
   );
 }
 
-/** "Can't load players right now" with Try again. Says it out loud for VoiceOver. */
+/** "Can't load players" with Try again: the full error when there's nothing to show (decision 195). Says it out loud for VoiceOver. */
 export function ProblemCard({ title, body, onRetry, retrying }: { title: string; body: string; onRetry: () => void; retrying?: boolean }) {
   const c = useColors();
   useEffect(() => {
