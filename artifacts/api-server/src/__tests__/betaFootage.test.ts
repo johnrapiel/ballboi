@@ -23,7 +23,7 @@ vi.mock("@clerk/express", () => ({
   },
 }));
 vi.mock("../lib/logger", () => ({ logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() } }));
-vi.mock("@workspace/db", () => ({ db: {}, ballBoiSessionsTable: {}, recordingConsentTable: {} }));
+vi.mock("@workspace/db", () => ({ db: {}, ballBoiSessionsTable: {}, matchesTable: {}, recordingConsentTable: {} }));
 vi.mock("../lib/objectStorage", () => {
   class ObjectNotFoundError extends Error {}
   return { ObjectNotFoundError, ObjectStorageService: class {} };
@@ -49,7 +49,15 @@ describe("pickBetaFootage", () => {
   it("includes a held recording whose recorder agreed to the release", () => {
     const plan = pickBetaFootage([row({ sessionId: 1, matchId: 10 })]);
     expect(plan.eligible).toEqual([
-      { matchId: 10, sessionId: 1, recordedAt: at("2026-11-08T18:00:00Z"), objectPath: "/objects/training/session-1.mp4" },
+      {
+        matchId: 10,
+        sessionId: 1,
+        recordedAt: at("2026-11-08T18:00:00Z"),
+        objectPath: "/objects/training/session-1.mp4",
+        testSet: false,
+        audioPaths: [],
+        audioHeldAt: null,
+      },
     ]);
     expect(plan.withdrawnMatchIds).toEqual([]);
   });
@@ -108,8 +116,10 @@ describe("pickBetaFootage", () => {
 describe("GET /api/admin/beta-footage", () => {
   let rows: BetaFootageRow[];
   let missing: Set<string>;
+  let flags: [number, boolean][];
 
   beforeEach(() => {
+    flags = [];
     mockUserId = "user_admin";
     mockEmail = ADMIN_EMAIL;
     process.env.ADMIN_EMAIL = ADMIN_EMAIL;
@@ -126,6 +136,7 @@ describe("GET /api/admin/beta-footage", () => {
     const { createLabelingRouter } = await import("../routes/labeling");
     const { ObjectNotFoundError } = await import("../lib/objectStorage");
     const a = express();
+    a.use(express.json());
     a.use(
       "/api",
       createLabelingRouter({
@@ -135,6 +146,10 @@ describe("GET /api/admin/beta-footage", () => {
           return `https://r2.example/${path.slice("/objects/".length)}?ttl=${ttl}`;
         },
         now: () => at("2026-11-09T01:00:00Z"),
+        setTestSet: async (matchId, on) => {
+          flags.push([matchId, on]);
+          return matchId !== 404;
+        },
       }),
     );
     return supertest(a);
@@ -163,6 +178,9 @@ describe("GET /api/admin/beta-footage", () => {
           recordedAt: "2026-11-08T18:00:00.000Z",
           url: "https://r2.example/training/session-1.mp4?ttl=7200",
           expiresAt: "2026-11-09T03:00:00.000Z",
+          testSet: false,
+          audioUrls: [],
+          audioDaysLeft: null,
         },
       ],
       withdrawnMatchIds: [12],
@@ -176,5 +194,40 @@ describe("GET /api/admin/beta-footage", () => {
     expect(res.status).toBe(200);
     expect(res.body.matches).toEqual([]);
     expect(res.body.missingCount).toBe(1);
+  });
+
+  it("shows days left in the audio window, and gives audio links only for test-set matches", async () => {
+    const audio = { audioHeldAt: "2026-11-01T01:00:00Z", segmentPaths: ["/objects/uploads/raw-2b"] };
+    rows = [
+      row({ sessionId: 1, matchId: 10, metadata: held(1, audio), videoObjectPath: "/objects/uploads/raw-1" }),
+      row({ sessionId: 2, matchId: 11, metadata: held(2, audio), videoObjectPath: "/objects/uploads/raw-2", testSetAt: at("2026-11-05T00:00:00Z") }),
+    ];
+    const res = await (await app()).get("/api/admin/beta-footage");
+    const [unflagged, test] = res.body.matches;
+    expect(unflagged).toMatchObject({ matchId: 10, testSet: false, audioUrls: [], audioDaysLeft: 22 });
+    expect(test).toMatchObject({ matchId: 11, testSet: true, audioDaysLeft: null });
+    expect(test.audioUrls).toEqual([
+      "https://r2.example/uploads/raw-2?ttl=7200",
+      "https://r2.example/uploads/raw-2b?ttl=7200",
+    ]);
+  });
+
+  it("lets the admin flag and unflag a match as test set", async () => {
+    const r = await app();
+    expect((await r.put("/api/admin/beta-footage/11/test-set").send({ testSet: true })).body).toEqual({ matchId: 11, testSet: true });
+    expect((await r.put("/api/admin/beta-footage/11/test-set").send({ testSet: false })).status).toBe(200);
+    expect(flags).toEqual([
+      [11, true],
+      [11, false],
+    ]);
+    expect((await r.put("/api/admin/beta-footage/404/test-set").send({ testSet: true })).status).toBe(404);
+    expect((await r.put("/api/admin/beta-footage/11/test-set").send({ testSet: "yes" })).status).toBe(400);
+  });
+
+  it("only the admin can flag the test set", async () => {
+    mockEmail = "player@example.com";
+    const res = await (await app()).put("/api/admin/beta-footage/11/test-set").send({ testSet: true });
+    expect(res.status).toBe(403);
+    expect(flags).toEqual([]);
   });
 });

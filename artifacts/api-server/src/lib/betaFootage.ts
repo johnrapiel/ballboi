@@ -30,6 +30,10 @@ export interface BetaFootageRow {
   metadata: unknown;
   /** The release version the recorder agreed to; null if never (or no consent row). */
   releaseVersion: number | null;
+  /** The raw upload, which has the audio, while it's held (T6). */
+  videoObjectPath?: string | null;
+  /** When John flagged the match as test set (T2), or null. */
+  testSetAt?: Date | null;
 }
 
 export interface EligibleFootage {
@@ -37,6 +41,12 @@ export interface EligibleFootage {
   sessionId: number;
   recordedAt: Date;
   objectPath: string;
+  /** John flagged it for the test set: its audio is kept until launch. */
+  testSet: boolean;
+  /** The held audio (the raw upload and its pieces, in order), or none once deleted. */
+  audioPaths: string[];
+  /** When the 30-day audio pick window started, or null when no audio is held. */
+  audioHeldAt: string | null;
 }
 
 export interface BetaFootagePlan {
@@ -61,11 +71,17 @@ export function pickBetaFootage(rows: BetaFootageRow[]): BetaFootagePlan {
     const path = m.trainingVideoPath;
     if (typeof path !== "string" || !path.startsWith(TRAINING_PREFIX)) continue;
     if (row.releaseVersion == null || row.releaseVersion < 1) continue;
+    const audioHeldAt = typeof m.audioHeldAt === "string" ? m.audioHeldAt : null;
+    const pieces = Array.isArray(m.segmentPaths) ? m.segmentPaths.filter((p): p is string => typeof p === "string") : [];
+    const audioPaths = audioHeldAt && row.videoObjectPath ? [row.videoObjectPath, ...pieces] : [];
     const candidate: EligibleFootage = {
       matchId: row.matchId,
       sessionId: row.sessionId,
       recordedAt: row.recordingStartedAt,
       objectPath: path,
+      testSet: !!row.testSetAt,
+      audioPaths,
+      audioHeldAt: audioPaths.length > 0 ? audioHeldAt : null,
     };
     const current = byMatch.get(row.matchId);
     if (
