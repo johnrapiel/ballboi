@@ -8,7 +8,6 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect } from "react";
 import { RefreshControl, ScrollView, Share, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { IconButton } from "@/components/Choice";
 import { AreaRow, DiscoverTabs, FiltersButton, LinkButton } from "@/components/discover/Controls";
@@ -17,6 +16,7 @@ import { MatchAlertsCard } from "@/components/discover/MatchAlerts";
 import { OpenMatchCard } from "@/components/discover/OpenMatchCard";
 import { PlayerRow } from "@/components/discover/PlayerRow";
 import { EmptyBlock, NoteCard, ProblemCard, SkeletonRows } from "@/components/discover/States";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { TabScreen } from "@/components/TabHeader";
 import { Button, Card, Text, TextLinkButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
@@ -26,6 +26,7 @@ import { discoverState, useDiscoverState } from "@/hooks/useDiscoverFilters";
 import { useDiscoverLeagues } from "@/hooks/useDiscoverLeagues";
 import { useOpenMatches } from "@/hooks/useDiscoverOpenMatches";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { isOfflineError } from "@/lib/api";
 import {
   activeFilters,
@@ -44,7 +45,7 @@ import { SegmentedTabs } from "@/components/league/SegmentedTabs";
 export default function DiscoverScreen() {
   const c = useColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset({ tab: true });
   const { tab, radius, filters } = useDiscoverState();
   const me = useDiscoverMe();
 
@@ -90,17 +91,20 @@ export default function DiscoverScreen() {
         contentContainerStyle={{
           paddingTop: spacing.space2,
           paddingHorizontal: spacing.space4,
-          paddingBottom: insets.bottom + 96,
+          paddingBottom: bottom.paddingBottom,
           gap: spacing.space3,
         }}
+        scrollIndicatorInsets={bottom.scrollIndicatorInsets}
         refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
       >
+        <OfflineNotice pull={pull} />
         <AreaRow area={area} onPress={changeArea} />
         <DiscoverTabs value={tab} onChange={(t: DiscoverTab) => discoverState.setTab(t)} />
 
         {me.isError && !me.data ? (
           <ProblemCard
-            title="Can't load Discover right now"
+            // Named for the tab you're on: offline at launch, Players says "Can't load players" (spec step 5.7).
+            title={tab === "players" ? "Can't load players" : tab === "leagues" ? "Can't load Open leagues" : "Can't load open matches"}
             body="Check your connection and try again."
             onRetry={() => void me.refetch()}
             retrying={me.isRefetching}
@@ -190,7 +194,7 @@ function PlayersTab() {
         <SkeletonRows />
       ) : players.isError && !data ? (
         <ProblemCard
-          title="Can't load players right now"
+          title="Can't load players"
           body={
             isOfflineError(players.error)
               ? "You're offline. Check your connection and try again. Your filters and distance stay as they are."
@@ -297,7 +301,7 @@ function LeaguesTab() {
         <SkeletonRows rows={3} />
       ) : q.isError && !data ? (
         <ProblemCard
-          title="Can't load Open leagues right now"
+          title="Can't load Open leagues"
           body={
             isOfflineError(q.error)
               ? "You're offline. Check your connection and try again."
@@ -385,7 +389,7 @@ function MatchesTab() {
         <SkeletonRows rows={3} />
       ) : q.isError && !data ? (
         <ProblemCard
-          title="Can't load open matches right now"
+          title="Can't load open matches"
           body={
             isOfflineError(q.error)
               ? "You're offline. Check your connection and try again."

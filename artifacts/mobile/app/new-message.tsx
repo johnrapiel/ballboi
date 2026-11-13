@@ -1,7 +1,6 @@
 import { Stack, useRouter } from "expo-router";
 import React, { useState } from "react";
 import { ActivityIndicator, Pressable, SectionList, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Avatar } from "@/components/Avatar";
 import { EmptyState } from "@/components/EmptyState";
@@ -11,6 +10,7 @@ import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useMessagesActions } from "@/hooks/useMessages";
 import { usePlayerSearch } from "@/hooks/usePlayerSearch";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { canMessage, newMessageSections, noResultsMessage, personKey, type PlayerSearchResult } from "@/lib/playerSearch";
 
@@ -55,7 +55,7 @@ function PlayerRow({ player, busy, onPress }: { player: PlayerSearchResult; busy
 export default function NewMessageScreen() {
   const c = useColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const actions = useMessagesActions();
   const [query, setQuery] = useState("");
   const search = usePlayerSearch(query);
@@ -141,7 +141,8 @@ export default function NewMessageScreen() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           stickySectionHeadersEnabled={false}
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + spacing.space6 }}
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: bottom.paddingBottom }}
+          scrollIndicatorInsets={bottom.scrollIndicatorInsets}
           renderSectionHeader={({ section }) => (
             <Text
               variant="label"

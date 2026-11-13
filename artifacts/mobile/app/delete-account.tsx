@@ -16,12 +16,12 @@ import { useAuth } from "@clerk/expo";
 import { useQuery } from "@tanstack/react-query";
 import React, { useState } from "react";
 import { Alert, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { RadioCard } from "@/components/RadioCard";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { apiErrorMessage } from "@/lib/api";
 import {
   deleteMyAccount,
@@ -136,7 +136,7 @@ function PickAdmin({
 
 export default function DeleteAccountScreen() {
   const c = useColors();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const { getToken, signOut } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -202,9 +202,10 @@ export default function DeleteAccountScreen() {
       style={{ flex: 1, backgroundColor: c.paper }}
       contentContainerStyle={{
         padding: spacing.space4,
-        paddingBottom: insets.bottom + spacing.space8,
+        paddingBottom: bottom.paddingBottom,
         gap: spacing.space6,
       }}
+      scrollIndicatorInsets={bottom.scrollIndicatorInsets}
     >
       {league ? (
         <PickAdmin

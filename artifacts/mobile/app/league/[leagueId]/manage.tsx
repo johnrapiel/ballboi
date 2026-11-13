@@ -2,7 +2,6 @@ import { useAuth } from "@clerk/expo";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 import { AccessibilityInfo, ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -34,13 +33,16 @@ import {
 } from "@workspace/api-client-react";
 
 import { useActionSheet, type SheetRow } from "@/components/ActionSheet";
+import { ProblemCard } from "@/components/discover/States";
 import { InviteCard } from "@/components/league/InviteCard";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { ListRow, SectionLabel } from "@/components/league/ListRow";
 import { TestingTools } from "@/components/league/TestingTools";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { shortDate, weeklyMatchTime } from "@/lib/leagueSchedule";
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { leagueLevelLabel } from "@/lib/onboarding";
@@ -77,7 +79,7 @@ function roleLabel(role: string | null | undefined): string | null {
 
 export default function ManageLeagueScreen() {
   const c = useColors();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const queryClient = useQueryClient();
   const { userId } = useAuth();
   const { leagueId: raw } = useLocalSearchParams<{ leagueId: string }>();
@@ -141,7 +143,22 @@ export default function ManageLeagueScreen() {
       ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
       refreshLeague(queryClient, leagueId),
     ]);
-  const pull = usePullToRefresh(refreshAll);
+  // The refetches join the ones refreshAll starts, so the pull can tell when
+  // one failed with Manage's lists still on screen (decision 195).
+  const pull = usePullToRefresh(() => {
+    const join = { cancelRefetch: false };
+    return [
+      refreshAll(),
+      leagueQ.refetch(join),
+      membershipQ.refetch(join),
+      scheduleQ.refetch(join),
+      rosterQ.refetch(join),
+      adminsQ.refetch(join),
+      requestsQ.refetch(join),
+      invitesQ.refetch(join),
+      ...(fixedPartners ? [teamsQ.refetch(join)] : []),
+    ];
+  });
 
   // C19: a decline that didn't go through says so, and the request stays.
   const declineRequest = (r: JoinRequest) =>
@@ -371,6 +388,23 @@ export default function ManageLeagueScreen() {
     );
   }
 
+  // Nothing loaded (offline at open): the full error, not "Only admins" (decision 195).
+  if (!membershipQ.data && (membershipQ.isError || leagueQ.isError)) {
+    return (
+      <View style={{ flex: 1, backgroundColor: c.paper, padding: spacing.space4 }}>
+        <ProblemCard
+          title="Can't load this league"
+          body="Check your connection and try again."
+          onRetry={() => {
+            void leagueQ.refetch();
+            void membershipQ.refetch();
+          }}
+          retrying={leagueQ.isRefetching || membershipQ.isRefetching}
+        />
+      </View>
+    );
+  }
+
   if (!membershipQ.data?.isAdmin) {
     return (
       <View style={{ flex: 1, backgroundColor: c.paper, padding: spacing.space4 }}>
@@ -385,7 +419,8 @@ export default function ManageLeagueScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
-      contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space2 }}
+      contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space2 }}
+      scrollIndicatorInsets={bottom.scrollIndicatorInsets}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
       <View style={{ gap: spacing.space1, marginBottom: spacing.space2 }}>
@@ -395,6 +430,7 @@ export default function ManageLeagueScreen() {
         </Text>
         {league?.name ? <Text tone="inkMuted">{league.name}</Text> : null}
       </View>
+      <OfflineNotice pull={pull} style={{ marginBottom: spacing.space2 }} />
 
       {/* Finding 29: the invite lives here, at the top, not on League detail. */}
       {!ended && !seasonOver ? (
