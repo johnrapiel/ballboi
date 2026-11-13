@@ -10,7 +10,7 @@ import { matchTimeLinkLabel, matchTimeLinkSpoken } from "@/lib/matchTimeLink";
 // when none is set, "Change time" once one is. hitSlop makes it a 44pt
 // target without adding space around the words (decision 192), and
 // VoiceOver reads it as one link with what it does. Drawn by InlineLink,
-// the same link as "Match didn't finish?" on Enter score (finding 55).
+// the same green `action` link as "Match didn't finish?" (decision 201).
 
 export function MatchTimeLink({
   hasTime,

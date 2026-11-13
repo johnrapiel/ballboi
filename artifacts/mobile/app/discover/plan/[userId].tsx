@@ -116,7 +116,8 @@ export default function AddMatchCardSheet() {
           value={court ? court.name : "Not set"}
           onPress={() => {
             setTouched(true);
-            router.push({ pathname: "/courts", params: { mode: "match" } });
+            // A one-on-one chat: "Decide the court in your chat" (finding 51).
+            router.push({ pathname: "/courts/pick", params: { chat: "dm" } });
           }}
           accessibilityHint="Pick from the court directory, or leave it not set"
           last

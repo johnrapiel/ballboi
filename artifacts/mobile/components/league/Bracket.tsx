@@ -4,7 +4,7 @@ import { Pressable, View } from "react-native";
 import type { BracketRound, BracketSeed, BracketSlot, LeagueBracket } from "@workspace/api-client-react";
 
 import { BrushRing } from "@/components/BrushRing";
-import { Card, Text } from "@/components/ui";
+import { Card, Text, textLinkColor } from "@/components/ui";
 import { MarkedName } from "@/components/WinnerNames";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -83,7 +83,8 @@ function SlotButton({ label, hint, onPress }: { label: string; hint: string; onP
       accessibilityHint={hint}
       style={({ pressed }) => ({ minHeight: MIN_TAP, justifyContent: "center", opacity: pressed ? 0.6 : 1 })}
     >
-      <Text variant="button" style={{ textDecorationLine: "underline" }}>
+      {/* Enter score and Enter result change the match: the green action link (decision 201). */}
+      <Text variant="button" tone={textLinkColor("action")} style={{ textDecorationLine: "underline" }}>
         {label}
       </Text>
     </Pressable>

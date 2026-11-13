@@ -106,7 +106,7 @@ export default function FiltersSheet() {
       }
     >
       <View style={{ gap: spacing.space2 }}>
-        <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
+        <Text variant="section" tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
           {zip ? `Distance from ${zip}` : "Distance"}
         </Text>
         <DistanceChips radius={draftRadius} counts={counts} noun={many} onPick={setDraftRadius} onCustom={custom} />
@@ -120,7 +120,7 @@ export default function FiltersSheet() {
       {tab === "players" ? (
         <>
           <View style={{ gap: spacing.space2 }}>
-            <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
+            <Text variant="section" tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
               Level
             </Text>
             <ChipRow label="Level">
@@ -140,7 +140,7 @@ export default function FiltersSheet() {
           </View>
 
           <View style={{ gap: spacing.space2 }}>
-            <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
+            <Text variant="section" tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
               Plays
             </Text>
             <ChipRow label="Plays">

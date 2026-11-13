@@ -6,12 +6,13 @@
 
 import { useAuth, useUser } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
-import * as ImagePicker from "expo-image-picker";
+import type * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View } from "react-native";
+import { Alert, View } from "react-native";
 
 import { Avatar } from "@/components/Avatar";
+import { DangerLink } from "@/components/DangerLink";
 import { OnboardingStep, StepError } from "@/components/OnboardingStep";
 import { EditLoading } from "@/components/profile/EditLoading";
 import { Button, Field, Text, TextButton } from "@/components/ui";
@@ -20,6 +21,7 @@ import { useStableGetToken } from "@/hooks/useStableGetToken";
 import { NAME_MAX, fetchProfile, saveNameAndPhoto, uploadPhoto, type FormMode } from "@/lib/onboarding";
 import { photoUrl } from "@/lib/photos";
 import { confirmSignOut } from "@/lib/confirmSignOut";
+import { pickProfilePhoto } from "@/lib/pickPhoto";
 
 type Photo =
   | { kind: "none" }
@@ -75,19 +77,29 @@ export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
 
   async function pickPhoto() {
     setError(null);
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-      // iPhone camera photos are HEIC. Ask iOS for a JPEG copy, which every
-      // part of the app and the API reads (finding #23).
-      preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
-    });
-    if (!result.canceled && result.assets[0]) {
+    const asset = await pickProfilePhoto();
+    if (asset) {
       photoTouched.current = true;
-      setPhoto({ kind: "picked", asset: result.assets[0] });
+      setPhoto({ kind: "picked", asset });
     }
+  }
+
+  // Remove photo is a quiet danger action, confirmed (decisions 184, 189, 193).
+  // It takes effect on Continue or Save, like every change here.
+  function removePhoto() {
+    Alert.alert("Remove photo?", "Your initials show instead.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: () => {
+          photoTouched.current = true;
+          // Clears "Your photo didn't upload": Continue now uses initials.
+          setError(null);
+          setPhoto({ kind: "none" });
+        },
+      },
+    ]);
   }
 
   async function next() {
@@ -156,7 +168,7 @@ export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
       />
 
       <View style={{ gap: spacing.space3 }}>
-        <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
+        <Text variant="section" tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
           Photo
         </Text>
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space4, flexWrap: "wrap" }}>
@@ -168,16 +180,7 @@ export default function NameStep({ mode = "onboarding" }: { mode?: FormMode }) {
               onPress={pickPhoto}
             />
             {photo.kind !== "none" ? (
-              <Button
-                label="Remove photo"
-                variant="secondary"
-                onPress={() => {
-                  photoTouched.current = true;
-                  // Clears "Your photo didn't upload": Continue now uses initials.
-                  setError(null);
-                  setPhoto({ kind: "none" });
-                }}
-              />
+              <DangerLink label="Remove photo" icon="trash" inline onPress={removePhoto} accessibilityHint="Asks first. Your initials show instead." />
             ) : null}
           </View>
         </View>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  courtNotSetLine,
   DEFAULT_FILTERS,
   activeFilters,
   filteredEmptyBody,
@@ -265,5 +266,15 @@ describe("match card answers (finding 46)", () => {
     expect(cardActions(["undo"])).toEqual({ cantMakeIt: null, buttons: ["undo"] });
     expect(cardActions(["score", "no_show", "not_played"])).toEqual({ cantMakeIt: null, buttons: ["score", "no_show", "not_played"] });
     expect(cardActions([])).toEqual({ cantMakeIt: null, buttons: [] });
+  });
+});
+
+describe("courtNotSetLine", () => {
+  it("says your chat in a one-on-one chat", () => {
+    expect(courtNotSetLine("dm")).toBe("Decide the court in your chat");
+  });
+  it("keeps the group chat everywhere else", () => {
+    expect(courtNotSetLine(undefined)).toBe("Decide the court in the group chat");
+    expect(courtNotSetLine("group")).toBe("Decide the court in the group chat");
   });
 });

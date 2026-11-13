@@ -173,7 +173,7 @@ function BirthdayField({ value, onPress }: { value: Date | null; onPress: () => 
   const c = useColors();
   return (
     <View style={{ gap: spacing.space2 }}>
-      <Text variant="label" importantForAccessibility="no" accessibilityElementsHidden>
+      <Text variant="section" tone="inkMuted" importantForAccessibility="no" accessibilityElementsHidden>
         Birthday
       </Text>
       <Pressable

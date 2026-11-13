@@ -631,3 +631,12 @@ export function waitingLine(left: number): string {
 export function windowEnd(start: Date, hours: number): Date {
   return new Date(start.getTime() + hours * 3_600_000);
 }
+
+/**
+ * The line under "Court not set" in the Court sheet (Wave 2 finding 51): a
+ * one-on-one chat's Add a match (`chat` "dm") says "your chat"; open matches,
+ * leagues, doubles and group chats keep "the group chat".
+ */
+export function courtNotSetLine(chat: string | undefined): string {
+  return chat === "dm" ? "Decide the court in your chat" : "Decide the court in the group chat";
+}

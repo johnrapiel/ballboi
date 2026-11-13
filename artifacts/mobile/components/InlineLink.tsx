@@ -5,8 +5,8 @@ import { TextLink } from "@/components/ui";
 import { textTapSlop } from "@/lib/tapTarget";
 
 // Link text on its own, like "Change time" on Match detail (Wave 2 finding
-// 25) and "Match didn't finish?" on Enter score (finding 55): court green and
-// underlined (TextLink), with hitSlop for a 44pt target so it adds no space
+// 25) and "Match didn't finish?" on Enter score (finding 55): the green
+// `action` TextLink (decision 201: links that change a match), with hitSlop for a 44pt target so it adds no space
 // around the words (decision 192). VoiceOver reads it as one link.
 
 export function InlineLink({
@@ -47,7 +47,7 @@ export function InlineLink({
       ]}
     >
       {/* The words take the same press; the Pressable is the one VoiceOver link. */}
-      <TextLink onPress={disabled ? () => undefined : onPress} accessible={false} style={{ textAlign: align === "center" ? "center" : "left" }}>
+      <TextLink tone="action" onPress={disabled ? () => undefined : onPress} accessible={false} style={{ textAlign: align === "center" ? "center" : "left" }}>
         {label}
       </TextLink>
     </Pressable>

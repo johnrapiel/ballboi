@@ -361,7 +361,7 @@ export default function ConversationScreen() {
               hitSlop={spacing.space1}
               style={({ pressed }) => ({ minHeight: MIN_TAP, minWidth: MIN_TAP, justifyContent: "center", opacity: pressed || unblocking ? 0.6 : 1 })}
             >
-              <Text tone="court" style={{ textDecorationLine: "underline" }}>
+              <Text style={{ textDecorationLine: "underline" }}>
                 Unblock
               </Text>
             </Pressable>

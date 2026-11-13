@@ -1,15 +1,24 @@
 // The court directory (F4; brief items 23 to 26). A searchable list, nearest
 // first ("Beacon Courts · ~3 mi"), with "Add a court" when one is missing.
 // No map. Opens from Settings › Discover › Home court (mode "home": picking
-// saves it) and from the court field in Post an open match (mode "match":
-// picking hands it back, and "Court not set" is allowed).
+// saves it) as a pushed screen, and as the Court sheet (`courts/pick`) from
+// the court field in Post an open match and a chat's Add a match (mode
+// "match": picking hands it back, and "Court not set" is allowed).
+//
+// The Court sheet (Wave 2 finding 51, canvas E4) follows the sheet rule: the
+// grabber, then the left-aligned Cormorant title at 50% ink, not the native
+// bar's centred DM Sans. "Court not set" says where the court gets decided:
+// "your chat" in a one-on-one chat, "the group chat" everywhere else (open
+// matches, leagues, doubles).
 
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { CornerButton } from "@/components/CornerButton";
 import { Icon } from "@/components/Icon";
 import React, { useState } from "react";
 import { AccessibilityInfo, Alert, Pressable, ScrollView, View } from "react-native";
 
 import { ProblemCard } from "@/components/discover/States";
+import { Grabber } from "@/components/Sheet";
 import { SearchField } from "@/components/players/SearchField";
 import { Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
@@ -17,14 +26,22 @@ import { useColors } from "@/hooks/useColors";
 import { courtPick, useCourts, usePickedCourt, useSetHomeCourt } from "@/hooks/useCourts";
 import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
-import { courtLine, courtSpoken, type CourtCard } from "@/lib/discover";
+import { courtLine, courtNotSetLine, courtSpoken, type CourtCard } from "@/lib/discover";
 
 export default function CourtsScreen() {
+  const params = useLocalSearchParams<{ mode?: string }>();
+  return <CourtsList mode={params.mode === "match" ? "match" : "home"} />;
+}
+
+/**
+ * The court list. `sheet`: it's the Court sheet, so it draws its own grabber,
+ * Close and title instead of the native bar. `chat`: "dm" when it was opened
+ * from a one-on-one chat's Add a match.
+ */
+export function CourtsList({ mode, sheet = false, chat }: { mode: "home" | "match"; sheet?: boolean; chat?: string }) {
   const c = useColors();
   const router = useRouter();
   const bottom = useScreenBottomInset();
-  const params = useLocalSearchParams<{ mode?: string }>();
-  const mode = params.mode === "match" ? "match" : "home";
   const [query, setQuery] = useState("");
   const list = useCourts(query);
   const setHome = useSetHomeCourt();
@@ -50,8 +67,30 @@ export default function CourtsScreen() {
   const typed = query.trim().length > 0;
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.paper }}>
-      <Stack.Screen options={{ title: mode === "home" ? "Home court" : "Court" }} />
+    <View style={{ flex: 1, backgroundColor: sheet ? c.linen : c.paper }}>
+      {sheet ? (
+        <>
+          <Grabber />
+          {/* The sheet's title row: Close at the top left (decision 198), the title beside it. */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: spacing.space3,
+              minHeight: MIN_TAP,
+              paddingHorizontal: spacing.space4,
+              paddingTop: spacing.space4,
+            }}
+          >
+            <CornerButton symbol="xmark" label="Close" onPress={() => router.back()} />
+            <Text variant="headingM" accessibilityRole="header" style={{ flex: 1 }}>
+              Court
+            </Text>
+          </View>
+        </>
+      ) : (
+        <Stack.Screen options={{ title: mode === "home" ? "Home court" : "Court" }} />
+      )}
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space3 }}
@@ -83,7 +122,7 @@ export default function CourtsScreen() {
             {mode === "match" ? (
               <Row
                 title="Court not set"
-                subtitle="Decide the court in the group chat"
+                subtitle={courtNotSetLine(chat)}
                 selected={picked === null}
                 onPress={() => void pick(null)}
               />

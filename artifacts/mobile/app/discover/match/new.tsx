@@ -211,7 +211,7 @@ export default function PostOpenMatchScreen() {
               title={court ? court.name : "Not set"}
               onPress={() => {
                 touch();
-                router.push({ pathname: "/courts", params: { mode: "match" } });
+                router.push("/courts/pick");
               }}
               accessibilityLabel={`Court, ${court ? court.name : "Not set"}`}
               accessibilityHint="Pick from the court directory, or leave it not set"
