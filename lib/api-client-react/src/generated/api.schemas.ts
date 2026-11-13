@@ -302,7 +302,7 @@ export interface DiscoverMe {
   hidden: boolean;
   /** @nullable */
   plays: DiscoverMePlays;
-  /** Last distance picked, 1 to 30 miles */
+  /** Last distance picked, 1 to 50 miles */
   radius: number;
   /** @nullable */
   rating: number | null;
@@ -462,7 +462,7 @@ export interface DiscoverSettingsInput {
   plays?: DiscoverSettingsInputPlays;
   /**
    * @minimum 1
-   * @maximum 30
+   * @maximum 50
    */
   radius?: number;
   matchAlerts?: boolean;
@@ -4613,7 +4613,7 @@ export type ListCourtsParams = {
 export type ListOpenMatchesParams = {
   /**
    * @minimum 1
-   * @maximum 30
+   * @maximum 50
    */
   radius?: number;
 };
@@ -4628,7 +4628,7 @@ export type LookupAreaParams = {
 export type ListDiscoverLeaguesParams = {
   /**
    * @minimum 1
-   * @maximum 30
+   * @maximum 50
    */
   radius?: number;
   /**
@@ -4647,9 +4647,9 @@ export const ListDiscoverLeaguesPlay = {
 
 export type ListDiscoverPlayersParams = {
   /**
-   * Miles, 1 to 30. Defaults to your last distance.
+   * Miles, 1 to 50. Defaults to your last distance.
    * @minimum 1
-   * @maximum 30
+   * @maximum 50
    */
   radius?: number;
   /**

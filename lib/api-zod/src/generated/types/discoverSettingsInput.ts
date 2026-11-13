@@ -13,7 +13,7 @@ export interface DiscoverSettingsInput {
   plays?: DiscoverSettingsInputPlays;
   /**
    * @minimum 1
-   * @maximum 30
+   * @maximum 50
    */
   radius?: number;
   matchAlerts?: boolean;

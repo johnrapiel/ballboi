@@ -10,9 +10,9 @@ import type { ListDiscoverPlayersPlays } from "./listDiscoverPlayersPlays";
 
 export type ListDiscoverPlayersParams = {
   /**
-   * Miles, 1 to 30. Defaults to your last distance.
+   * Miles, 1 to 50. Defaults to your last distance.
    * @minimum 1
-   * @maximum 30
+   * @maximum 50
    */
   radius?: number;
   /**

@@ -29,7 +29,6 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { isOfflineError } from "@/lib/api";
 import {
-  RADIUS_STEPS,
   activeFilters,
   clearedFilters,
   countFor,
@@ -37,6 +36,7 @@ import {
   filteredEmptyBody,
   filtersButtonLabel,
   inviteMessage,
+  widenStep,
   type DiscoverTab,
   type PlayFilter,
 } from "@/lib/discover";
@@ -142,7 +142,7 @@ function PlayersTab() {
   const postMatch = () => router.push("/discover/match/new");
   const setTimes = () => router.push("/availability");
 
-  const widenTo = RADIUS_STEPS.find((r) => r > radius && (countFor(counts, r) ?? 0) > 0) ?? RADIUS_STEPS.find((r) => r > radius);
+  const widenTo = widenStep(radius, counts);
 
   async function invite() {
     try {
@@ -274,7 +274,7 @@ function LeaguesTab() {
     discoverState.setRadius(r);
     saveRadius.mutate(r);
   };
-  const widenTo = RADIUS_STEPS.find((r) => r > radius && (countFor(counts, r) ?? 0) > 0) ?? RADIUS_STEPS.find((r) => r > radius);
+  const widenTo = widenStep(radius, counts);
   const loading = !data && (q.isLoading || me.isLoading);
 
   return (
@@ -354,7 +354,7 @@ function MatchesTab() {
     discoverState.setRadius(r);
     saveRadius.mutate(r);
   };
-  const widenTo = RADIUS_STEPS.find((r) => r > radius && (countFor(counts, r) ?? 0) > 0) ?? RADIUS_STEPS.find((r) => r > radius);
+  const widenTo = widenStep(radius, counts);
   const loading = !data && (q.isLoading || me.isLoading);
   const post = () => router.push("/discover/match/new");
 

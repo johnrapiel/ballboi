@@ -278,7 +278,7 @@ paths:
         schema:
           type: integer
           minimum: 1
-          maximum: 30
+          maximum: 50
       responses:
         '200':
           description: OK
@@ -461,7 +461,7 @@ paths:
         schema:
           type: integer
           minimum: 1
-          maximum: 30
+          maximum: 50
       - name: play
         in: query
         required: false
@@ -537,11 +537,11 @@ paths:
       - name: radius
         in: query
         required: false
-        description: Miles, 1 to 30. Defaults to your last distance.
+        description: Miles, 1 to 50. Defaults to your last distance.
         schema:
           type: integer
           minimum: 1
-          maximum: 30
+          maximum: 50
       - name: level
         in: query
         required: false
@@ -8287,7 +8287,7 @@ components:
           enum: [singles, doubles, both, null]
         radius:
           type: integer
-          description: Last distance picked, 1 to 30 miles
+          description: Last distance picked, 1 to 50 miles
         rating:
           type: [number, 'null']
         slots:
@@ -8435,7 +8435,7 @@ components:
         radius:
           type: integer
           minimum: 1
-          maximum: 30
+          maximum: 50
         matchAlerts:
           type: boolean
     HomeCourt:
