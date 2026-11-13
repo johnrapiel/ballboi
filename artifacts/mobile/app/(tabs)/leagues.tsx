@@ -20,7 +20,9 @@ import {
 } from "@workspace/api-client-react";
 
 import { IconButton } from "@/components/Choice";
+import { ProblemCard } from "@/components/discover/States";
 import { EmptyState } from "@/components/EmptyState";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { discoverState } from "@/hooks/useDiscoverFilters";
 import { TabScreen } from "@/components/TabHeader";
 import { Button, Card, Chip, Pill, Text } from "@/components/ui";
@@ -307,6 +309,8 @@ export default function LeaguesScreen() {
     ...standingsQs.map((q) => q.refetch()),
   ]);
 
+  const leaguesFailed = leaguesQ.isError && !leaguesQ.data;
+
   const startLeague = () => router.push("/league/new");
   // Discover's Open leagues tab (Wave 2, Session F).
   const findOpenLeague = () => {
@@ -331,13 +335,15 @@ export default function LeaguesScreen() {
           scrollIndicatorInsets={bottom.scrollIndicatorInsets}
           refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
         >
-          {leaguesQ.isError ? (
-            <Card style={{ gap: spacing.space2 }}>
-              <Text variant="bodyStrong">Couldn't load your leagues</Text>
-              <Text variant="small" tone="inkMuted">
-                Pull down to try again.
-              </Text>
-            </Card>
+          <OfflineNotice pull={pull} />
+          {/* Nothing to show yet: the full error. With leagues on screen, the notice above says so (decision 195). */}
+          {leaguesFailed ? (
+            <ProblemCard
+              title="Can't load your leagues"
+              body="Check your connection and try again."
+              onRetry={() => void leaguesQ.refetch()}
+              retrying={leaguesQ.isRefetching}
+            />
           ) : null}
 
           {notices.map((n) => (
@@ -349,7 +355,7 @@ export default function LeaguesScreen() {
             />
           ))}
 
-          {!leaguesQ.isError && leagues.length === 0 && requests.length === 0 ? (
+          {!leaguesFailed && leagues.length === 0 && requests.length === 0 ? (
             <View style={{ minHeight: 240, gap: spacing.space4 }}>
               <EmptyState roundel title="No leagues yet" message="Start one for your group, or find an Open league near you and ask for a spot." />
               <Button label="Start a league" onPress={startLeague} />

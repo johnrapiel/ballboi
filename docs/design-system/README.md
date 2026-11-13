@@ -198,6 +198,20 @@ Inside the app it's decorative: the screen's title or text carries the meaning, 
 
 The app icon (`assets/Logos/ball-boi-app-icon.png`) is the symbol: the hand-painted ball in `ink` on a white tile, to match the ivory Day palette (John, Nov 6). It stays white in iOS Dark Mode too, with no dark variant (John, Nov 7). No wordmark in the icon; iOS prints the name beneath it.
 
+## Loading and error states
+
+What a screen shows when its data is loading, can't load, or can't refresh (decision 195, John, Nov 12, Wave 2 finding 41):
+
+- **Loading, nothing yet:** sand skeleton rows that hold still (Discover) or a single ink spinner. No shimmer, so there's nothing for Reduce Motion to stop.
+- **Can't load, nothing to show:** the screen's full error card: a sand circle with the brush wifi-off icon, "Can't load [thing]" (Can't load players, Can't load your leagues, Can't load this match), one line ("Check your connection and try again.") and a secondary Try again button. VoiceOver hears the title and line once. Never raw error text. In the app: `ProblemCard` in `components/discover/States.tsx`.
+- **A refresh failed, but there's something on screen:** keep it, and add a quiet notice at the top of the content: a sand panel (`radius-md`), `space-4` on every side (decision 192), a 20pt brush icon in `ink`, and `small` text in `ink`.
+  - Offline: `wifi.slash` and "You're offline. Showing what was here earlier."
+  - Any other failure (a server error): `exclamationmark.circle` and "Couldn't refresh. Showing what was here earlier." with Try again as an underlined text link (its 44pt target is hitSlop).
+  - An icon and words, never color alone. VoiceOver hears it once when it appears.
+  - It goes away by itself once a refresh works: another pull, Try again, coming back to the app (turning off Airplane Mode in Control Center does this), or a quiet check every 15 seconds while it shows.
+  - In the app: every screen with pull to refresh gets `notice` from `usePullToRefresh` and adds `<OfflineNotice pull={pull} />` at the top of its content. The hook decides; the screen adds one line. A pull's work returns its `query.refetch()` results so the hook can tell a failure with data on screen from one with nothing to show.
+- Offline requests fail at once instead of retrying, so the spinner stops and the notice shows without a wait. Other failures still retry three times.
+
 ## Applying it to the app
 
 1. Load the two Google families in `components/bundle.css`.

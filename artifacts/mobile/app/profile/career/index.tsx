@@ -23,18 +23,19 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from "
 import { useGetMyCareer } from "@workspace/api-client-react";
 
 import { EmptyTab } from "@/components/card/MatchTabs";
+import { ProblemCard } from "@/components/discover/States";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { useOpenMilestone } from "@/components/card/MilestoneButtons";
 import { Icon } from "@/components/Icon";
 import { MilestoneBadge } from "@/components/MilestoneBadge";
 import { StatGrid } from "@/components/card/StatGrid";
 import { useEditHeader } from "@/components/profile/editHeader";
 import { SettingsRow, SettingsSection } from "@/components/SettingsList";
-import { Button, Card, Text } from "@/components/ui";
+import { Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
-import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { careerCells, careerSpoken, headToHeadRow, seasonRecord } from "@/lib/career";
 import { earnedLine, visibleMilestones, milestoneBadgeLabel, MILESTONE_TITLES } from "@/lib/milestones";
 
@@ -66,16 +67,17 @@ export default function CareerScreen() {
         <Text variant="headingL" accessibilityRole="header">
           Career
         </Text>
+        <OfflineNotice pull={pull} />
 
         {q.isLoading ? (
           <ActivityIndicator color={c.ink} accessibilityLabel="Loading your career" />
         ) : !career ? (
-          <Card style={{ gap: spacing.space3 }}>
-            <Text variant="bodyStrong" accessibilityRole="alert">
-              {isOfflineError(q.error) ? OFFLINE_MESSAGE : "Couldn't load your career"}
-            </Text>
-            <Button label="Try again" variant="secondary" loading={q.isRefetching} onPress={() => void q.refetch()} />
-          </Card>
+          <ProblemCard
+            title="Can't load your career"
+            body="Check your connection and try again."
+            onRetry={() => void q.refetch()}
+            retrying={q.isRefetching}
+          />
         ) : career.played === 0 && !career.results.length && !milestones.length ? (
           <EmptyTab
             title="No results yet"

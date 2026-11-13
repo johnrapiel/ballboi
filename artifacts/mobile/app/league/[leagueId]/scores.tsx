@@ -6,7 +6,9 @@ import { useGetLeague, useGetLeagueBracket, useGetLeagueSchedule } from "@worksp
 
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
 
+import { ProblemCard } from "@/components/discover/States";
 import { ListRow, SectionLabel } from "@/components/league/ListRow";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { Card, Text } from "@/components/ui";
 import { WinnerNames } from "@/components/WinnerNames";
 import { spacing } from "@/constants/tokens";
@@ -31,7 +33,7 @@ export default function CorrectScoresScreen() {
   const leagueQ = useGetLeague(leagueId);
   const ended = !!leagueQ.data?.endedAt || leagueQ.data?.status === "completed";
   const scheduleQ = useGetLeagueSchedule(leagueId);
-  const pull = usePullToRefresh(() => scheduleQ.refetch());
+  const pull = usePullToRefresh(() => [leagueQ.refetch(), scheduleQ.refetch(), bracketQ.refetch()]);
   const bracketQ = useGetLeagueBracket(leagueId);
   const playoffRounds = (bracketQ.data?.rounds ?? [])
     .map((r) => ({ round: r.round, played: r.slots.filter((s) => s.status === "completed" && !!s.score && s.matchId != null) }))
@@ -57,6 +59,7 @@ export default function CorrectScoresScreen() {
         {leagueQ.data?.name ? <Text tone="inkMuted">{leagueQ.data.name}</Text> : null}
         <Text tone="inkMuted">Pick a played match to fix its score. Standings update, and both players see that you corrected it.</Text>
       </View>
+      <OfflineNotice pull={pull} style={{ marginBottom: spacing.space2 }} />
 
       {ended ? (
         <Card style={{ gap: spacing.space2 }}>
@@ -64,13 +67,13 @@ export default function CorrectScoresScreen() {
         </Card>
       ) : scheduleQ.isLoading ? (
         <ActivityIndicator color={c.ink} accessibilityLabel="Loading matches" style={{ marginTop: spacing.space6 }} />
-      ) : scheduleQ.isError ? (
-        <Card style={{ gap: spacing.space2 }}>
-          <Text variant="bodyStrong">Couldn't load the matches</Text>
-          <Text variant="small" tone="inkMuted">
-            Pull down to try again.
-          </Text>
-        </Card>
+      ) : scheduleQ.isError && !scheduleQ.data ? (
+        <ProblemCard
+          title="Can't load the matches"
+          body="Check your connection and try again."
+          onRetry={() => void scheduleQ.refetch()}
+          retrying={scheduleQ.isRefetching}
+        />
       ) : rounds.length === 0 && playoffRounds.length === 0 ? (
         <Card style={{ gap: spacing.space2 }}>
           <Text variant="bodyStrong">No scores yet</Text>

@@ -6,10 +6,11 @@ import { EmptyState } from "@/components/EmptyState";
 import { MatchCard } from "@/components/MatchCard";
 import { NextMatchCard, type NextMatchAction } from "@/components/NextMatchCard";
 import { NotificationsOffBanner } from "@/components/NotificationsOffBanner";
+import { ProblemCard } from "@/components/discover/States";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { DoublesNote } from "@/components/record/DoublesMatchCard";
 import { SectionHead } from "@/components/SectionHead";
 import { TabScreen } from "@/components/TabHeader";
-import { Card, Text } from "@/components/ui";
 import { UpcomingRows } from "@/components/UpcomingRows";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
@@ -42,7 +43,7 @@ export default function HomeScreen() {
   const c = useColors();
   const bottom = useScreenBottomInset({ tab: true });
   const router = useRouter();
-  const { items, week, isLoading, isError, refetch } = useUpcomingMatches();
+  const { items, week, isLoading, isError, isRefetching, refetch } = useUpcomingMatches();
   const pull = usePullToRefresh(refetch);
   const openUpcoming = useOpenUpcoming();
   const { profile } = useProfile();
@@ -125,6 +126,7 @@ export default function HomeScreen() {
           refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
         >
           <View style={{ padding: spacing.space4, gap: spacing.space3 }}>
+            <OfflineNotice pull={pull} />
             {/* Notifications off: one line to iOS Settings (decision 125). */}
             <NotificationsOffBanner />
           </View>
@@ -144,13 +146,15 @@ export default function HomeScreen() {
           scrollIndicatorInsets={bottom.scrollIndicatorInsets}
           refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
         >
-          {isError ? (
-            <Card style={{ gap: spacing.space2 }}>
-              <Text variant="bodyStrong">Couldn't load your matches</Text>
-              <Text variant="small" tone="inkMuted">
-                Pull down to try again.
-              </Text>
-            </Card>
+          <OfflineNotice pull={pull} />
+          {/* Nothing to show yet: the full error. With matches on screen, the notice above says they may be old (decision 195). */}
+          {isError && !week ? (
+            <ProblemCard
+              title="Can't load your matches"
+              body="Check your connection and try again."
+              onRetry={() => void refetch()}
+              retrying={isRefetching}
+            />
           ) : null}
 
           {/* Notifications off: one line to iOS Settings (decision 125). */}

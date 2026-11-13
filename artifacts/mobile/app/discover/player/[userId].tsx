@@ -29,6 +29,7 @@ import { PlayerCard } from "@/components/card/PlayerCard";
 import { SeasonRow } from "@/components/card/SeasonRow";
 import { HeaderIconButton } from "@/components/Choice";
 import { ProblemCard } from "@/components/discover/States";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { Icon } from "@/components/Icon";
 import { Button, Card, Text } from "@/components/ui";
 import { UpcomingRows } from "@/components/UpcomingRows";
@@ -104,7 +105,7 @@ export default function PlayerCardScreen() {
             </Card>
           ) : (
             <ProblemCard
-              title="Can't load this player right now"
+              title="Can't load this player"
               body={isOfflineError(cardQ.error) ? "You're offline. Check your connection and try again." : "Check your connection and try again."}
               onRetry={() => void cardQ.refetch()}
               retrying={cardQ.isRefetching}
@@ -118,6 +119,7 @@ export default function PlayerCardScreen() {
             scrollIndicatorInsets={bottom.scrollIndicatorInsets}
             refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
           >
+            <OfflineNotice pull={pull} />
             <PlayerCard card={p} onFreeTimes={() => router.push({ pathname: "/free-times", params: { userId: String(p.userId) } })} />
             <SeasonRow season={p.season} />
             <TheirMatches name={p.name} q={matchesQ} tab={tab} onTab={setTab} />
@@ -178,10 +180,12 @@ function TheirMatches({
           Loading matches…
         </Text>
       ) : q.isError && !data ? (
-        <Card style={{ gap: spacing.space3 }}>
-          <Text variant="bodyStrong">Couldn't load {first}'s matches</Text>
-          <Button label="Try again" variant="secondary" loading={q.isRefetching} onPress={() => void q.refetch()} />
-        </Card>
+        <ProblemCard
+          title={`Can't load ${first}'s matches`}
+          body="Check your connection and try again."
+          onRetry={() => void q.refetch()}
+          retrying={q.isRefetching}
+        />
       ) : tab === "upcoming" ? (
         upcoming.length === 0 ? (
           <EmptyTab title="No upcoming matches" message={`When ${first} has a match coming up, it shows up here.`} />

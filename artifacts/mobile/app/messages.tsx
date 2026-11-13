@@ -4,7 +4,9 @@ import { ActivityIndicator, Alert, FlatList, RefreshControl, View } from "react-
 
 import { HeaderIconButton } from "@/components/Choice";
 import { EmptyState } from "@/components/EmptyState";
+import { ProblemCard } from "@/components/discover/States";
 import { ConversationRow, GroupRow } from "@/components/messages/ConversationRow";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { ModerationRow } from "@/components/moderation/ModerationRow";
 import { Button, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
@@ -56,6 +58,7 @@ export default function MessagesScreen() {
       <Text variant="headingM" accessibilityRole="header" style={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space2, paddingBottom: spacing.space3 }}>
         Messages
       </Text>
+      <OfflineNotice pull={pull} style={{ marginHorizontal: spacing.space4, marginBottom: spacing.space3 }} />
       <ModerationRow />
     </View>
   );
@@ -77,11 +80,13 @@ export default function MessagesScreen() {
       ) : query.isError && !query.data ? (
         <>
           {header}
-          <View style={{ padding: spacing.space6, gap: spacing.space4, alignItems: "center" }}>
-            <Text tone="inkMuted" style={{ textAlign: "center" }} accessibilityLiveRegion="polite">
-              Messages didn't load. {query.error.message}
-            </Text>
-            <Button label="Try again" variant="secondary" onPress={() => query.refetch()} />
+          <View style={{ paddingHorizontal: spacing.space4 }}>
+            <ProblemCard
+              title="Can't load messages"
+              body="Check your connection and try again."
+              onRetry={() => void query.refetch()}
+              retrying={query.isRefetching}
+            />
           </View>
         </>
       ) : (

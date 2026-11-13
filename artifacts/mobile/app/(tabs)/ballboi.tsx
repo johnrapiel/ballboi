@@ -2,6 +2,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from "react-native";
 
+import { ProblemCard } from "@/components/discover/States";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { DoublesMatchCard } from "@/components/record/DoublesMatchCard";
 import { LocalProcessingCard, ServerProcessingCard } from "@/components/record/ProcessingCard";
 import { TodaysMatchCard } from "@/components/record/TodaysMatchCard";
@@ -11,7 +13,6 @@ import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
-import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { useServerRecordings, useTodaysMatches } from "@/lib/recording/api";
 import { useQueue, useQueueLoaded } from "@/lib/recording/queue";
 import { recordedThisSeason } from "@/lib/playerCard";
@@ -45,6 +46,7 @@ export default function BallBoiScreen() {
   // can't upload any more, as after a reinstall (D18).
   const lost = (r: (typeof onServer)[number]) => queueLoaded && r.recordedByYou && r.stage === "uploading";
   const pull = usePullToRefresh(() => [today.refetch(), server.refetch()]);
+  const serverFailed = server.isError && !server.data;
   // Your recordings scrolls clear of the tab bar (finding 39, decision 194).
   const bottom = useScreenBottomInset({ tab: true });
 
@@ -57,6 +59,7 @@ export default function BallBoiScreen() {
           <RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />
         }
       >
+        <OfflineNotice pull={pull} />
         <View style={{ gap: spacing.space3 }}>
           <Text variant="section" tone="inkMuted" accessibilityRole="header">
             Record a match
@@ -64,13 +67,13 @@ export default function BallBoiScreen() {
 
           {today.isLoading ? (
             <ActivityIndicator color={c.ink} accessibilityLabel="Loading your matches" />
-          ) : today.isError ? (
-            <Card style={{ gap: spacing.space3 }}>
-              <Text accessibilityRole="alert">
-                {isOfflineError(today.error) ? OFFLINE_MESSAGE : "Couldn't load your matches."}
-              </Text>
-              <Button variant="secondary" label="Try again" onPress={() => today.refetch()} />
-            </Card>
+          ) : today.isError && !today.data ? (
+            <ProblemCard
+              title="Can't load your matches"
+              body="Check your connection and try again."
+              onRetry={() => void today.refetch()}
+              retrying={today.isRefetching}
+            />
           ) : matches.length === 0 ? (
             <Text tone="inkMuted">No matches to record this week.</Text>
           ) : (
@@ -98,7 +101,7 @@ export default function BallBoiScreen() {
           </Card>
         </View>
 
-        {season || queued.length > 0 || onServer.length > 0 || server.isError ? (
+        {season || queued.length > 0 || onServer.length > 0 || serverFailed ? (
           <View style={{ gap: spacing.space3 }}>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.space3 }}>
               <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ flexShrink: 1 }}>
@@ -115,25 +118,20 @@ export default function BallBoiScreen() {
                 </Pressable>
               ) : null}
             </View>
-            {season && !server.isError && shownQueued.length === 0 && onServer.length === 0 ? (
+            {season && !serverFailed && shownQueued.length === 0 && onServer.length === 0 ? (
               <Text tone="inkMuted">No recordings this season yet.</Text>
             ) : null}
             {[...shownQueued].reverse().map((r) => (
               <LocalProcessingCard key={r.id} rec={r} />
             ))}
-            {server.isError ? (
-              // D32: never fail quietly.
-              <Card style={{ gap: spacing.space3 }}>
-                <Text accessibilityRole="alert">
-                  {isOfflineError(server.error) ? OFFLINE_MESSAGE : "Couldn't load your recordings."}
-                </Text>
-                <Button
-                  variant="secondary"
-                  label="Try again"
-                  loading={server.isRefetching}
-                  onPress={() => server.refetch()}
-                />
-              </Card>
+            {serverFailed ? (
+              // D32: never fail quietly. With recordings on screen, the notice at the top says so instead (decision 195).
+              <ProblemCard
+                title="Can't load your recordings"
+                body="Check your connection and try again."
+                onRetry={() => void server.refetch()}
+                retrying={server.isRefetching}
+              />
             ) : (
               onServer.map((r) => <ServerProcessingCard key={r.sessionId} rec={r} lost={lost(r)} />)
             )}
