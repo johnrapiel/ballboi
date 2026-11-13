@@ -278,3 +278,18 @@ describe("courtNotSetLine", () => {
     expect(courtNotSetLine("group")).toBe("Decide the court in the group chat");
   });
 });
+
+import { openMatchFormatLine, whenSpoken } from "../discover";
+
+describe("open match header (walkthrough 57)", () => {
+  it("reads the date and time as one phrase", () => {
+    expect(whenSpoken("Fri, Nov 13 · 6 to 8 PM")).toBe("Friday, November 13, 6 to 8 PM");
+    expect(whenSpoken("Sat, May 2 · 11 AM to 1 PM")).toBe("Saturday, May 2, 11 AM to 1 PM");
+  });
+  it("puts the format with what's left", () => {
+    expect(openMatchFormatLine({ format: "singles", status: "open", spotsLeft: 1 })).toBe("Singles · 1 spot left");
+    expect(openMatchFormatLine({ format: "doubles", status: "open", spotsLeft: 3 })).toBe("Doubles · Need 3");
+    expect(openMatchFormatLine({ format: "doubles", status: "full", spotsLeft: 0 })).toBe("Doubles · Full");
+    expect(openMatchFormatLine({ format: "singles", status: "open", spotsLeft: 0 })).toBe("Singles · Full");
+  });
+});

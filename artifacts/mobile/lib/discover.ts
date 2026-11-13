@@ -617,6 +617,34 @@ export const openMatchesPath = (radius: number) => `/api/open-matches?radius=${c
 /** "Need 2", the doubles tag (F6). */
 export const needLabel = (n: number) => `Need ${n}`;
 
+/** The detail screen's second line (walkthrough 57): "Singles · 1 spot left", "Doubles · Need 3", or "Singles · Full". */
+export function openMatchFormatLine(m: Pick<OpenMatchDetail, "format" | "status" | "spotsLeft">): string {
+  const format = m.format === "doubles" ? "Doubles" : "Singles";
+  const status =
+    m.status === "full" || m.spotsLeft <= 0
+      ? "Full"
+      : m.format === "doubles"
+        ? needLabel(m.spotsLeft)
+        : `${m.spotsLeft} ${m.spotsLeft === 1 ? "spot" : "spots"} left`;
+  return `${format} · ${status}`;
+}
+
+const DAY_WORDS: Record<string, string> = {
+  Sun: "Sunday", Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday",
+};
+const MONTH_WORDS: Record<string, string> = {
+  Jan: "January", Feb: "February", Mar: "March", Apr: "April", May: "May", Jun: "June",
+  Jul: "July", Aug: "August", Sep: "September", Oct: "October", Nov: "November", Dec: "December",
+};
+
+/** VoiceOver for "Fri, Nov 13 · 6 to 8 PM": "Friday, November 13, 6 to 8 PM". */
+export function whenSpoken(when: string): string {
+  return when
+    .replace(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\b/, (d) => DAY_WORDS[d] ?? d)
+    .replace(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b/, (mo) => MONTH_WORDS[mo] ?? mo)
+    .replace(" · ", ", ");
+}
+
 /** "Who's in · 3 of 4". */
 export function whosInLine(m: Pick<OpenMatchDetail, "total" | "spotsLeft">): string {
   return `Who's in · ${m.total - m.spotsLeft} of ${m.total}`;
