@@ -1,8 +1,9 @@
 // One open match (canvas W2_OpenMatchDetail, W2_OpenMatchJoined,
 // W2_OpenMatchMine, W2_OpenMatchTaken, W2_CancelPost; brief items 40 to 44).
 // When and what, the level range (a guide), court, note, and who's in with
-// the open spots. One action at the bottom: I'm in, Drop out, Cancel match
-// (your post), or Open group chat once it's full.
+// the open spots. One pinned action at the bottom: I'm in, or Open group
+// chat once it's full. Cancel match (your post) and Drop out (you're in) are
+// quiet red text at the end of the content instead (decision 184).
 
 import { Icon, type IconName } from "@/components/Icon";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
@@ -11,6 +12,7 @@ import { AccessibilityInfo, Alert, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Avatar } from "@/components/Avatar";
+import { DangerLink } from "@/components/DangerLink";
 import { DetailRow } from "@/components/discover/DetailRow";
 import { ProblemCard } from "@/components/discover/States";
 import { RatingBadge } from "@/components/RatingBadge";
@@ -127,15 +129,20 @@ export default function OpenMatchScreen() {
   const need = m.format === "doubles" && !full && m.spotsLeft > 0 ? m.spotsLeft : null;
   const [day, window] = m.when.split(" · ");
 
+  // Decision 184: leaving or canceling is quiet red text at the end of the
+  // content, not a pinned button. Still confirmed by the alert (decision 193).
+  const quiet =
+    filled || (full && m.role !== "none") ? null : m.role === "poster" ? (
+      <DangerLink label="Cancel match" icon="xmark.circle" busy={act.isPending} onPress={cancelPost} />
+    ) : m.role === "in" ? (
+      <DangerLink label="Drop out" icon="door.leave" busy={act.isPending} disabled={m.started} onPress={dropOut} />
+    ) : null;
+
   const footer = filled ? (
     <Button label="See open matches" variant="secondary" onPress={() => router.back()} />
   ) : full && m.role !== "none" ? (
     <Button label="Open group chat" onPress={openChat} />
-  ) : m.role === "poster" ? (
-    <Button label="Cancel match" variant="destructiveOutline" loading={act.isPending} onPress={cancelPost} />
-  ) : m.role === "in" ? (
-    <Button label="Drop out" variant="destructiveOutline" loading={act.isPending} onPress={dropOut} disabled={m.started} />
-  ) : full || m.started ? (
+  ) : m.role === "poster" || m.role === "in" ? null : full || m.started ? (
     <Button label="See open matches" variant="secondary" onPress={() => router.back()} />
   ) : (
     <Button label="I'm in" loading={act.isPending} onPress={() => void join()} />
@@ -237,30 +244,33 @@ export default function OpenMatchScreen() {
             ))}
           </Card>
         </View>
+        {quiet}
       </ScrollView>
-      <View
-        onLayout={pinned.onLayout}
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          paddingHorizontal: spacing.space4,
-          paddingTop: spacing.space3,
-          paddingBottom: insets.bottom + spacing.space3,
-          borderTopWidth: 1,
-          borderTopColor: c.hairline,
-          backgroundColor: c.paper,
-          gap: spacing.space2,
-        }}
-      >
-        {footer}
-        {m.role === "none" && !full && !filled ? (
-          <Text variant="small" tone="inkMuted" style={{ textAlign: "center" }}>
-            {`First come, first served. The last spot opens a group chat for all ${m.total}.`}
-          </Text>
-        ) : null}
-      </View>
+      {footer ? (
+        <View
+          onLayout={pinned.onLayout}
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            paddingHorizontal: spacing.space4,
+            paddingTop: spacing.space3,
+            paddingBottom: insets.bottom + spacing.space3,
+            borderTopWidth: 1,
+            borderTopColor: c.hairline,
+            backgroundColor: c.paper,
+            gap: spacing.space2,
+          }}
+        >
+          {footer}
+          {m.role === "none" && !full && !filled ? (
+            <Text variant="small" tone="inkMuted" style={{ textAlign: "center" }}>
+              {`First come, first served. The last spot opens a group chat for all ${m.total}.`}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }

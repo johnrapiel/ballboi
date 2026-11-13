@@ -8,8 +8,9 @@ import React from "react";
 import { AccessibilityInfo, Alert, Pressable, View } from "react-native";
 
 import { Avatar } from "@/components/Avatar";
+import { DangerLink } from "@/components/DangerLink";
 import { SheetBody } from "@/components/Sheet";
-import { Button, Card, Text } from "@/components/ui";
+import { Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useOpenMatch, useOpenMatchAction } from "@/hooks/useDiscoverOpenMatches";
@@ -137,10 +138,11 @@ export default function PlayersSheet() {
               <Text variant="small" tone="inkMuted">
                 Remove someone and their spot opens back up in Discover.
               </Text>
-              <Button label="Cancel this match" variant="destructiveOutline" onPress={cancel} loading={act.isPending} />
+              {/* Decision 184: quiet red text, still confirmed by the alert. */}
+              <DangerLink label="Cancel match" icon="xmark.circle" onPress={cancel} busy={act.isPending} />
             </>
           ) : m.role === "in" ? (
-            <Button label="Drop out" variant="destructiveOutline" onPress={drop} loading={act.isPending} disabled={m.started} />
+            <DangerLink label="Drop out" icon="door.leave" onPress={drop} busy={act.isPending} disabled={m.started} />
           ) : null}
         </>
       ) : (
