@@ -5,7 +5,7 @@ import { useWindowDimensions, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 import { MatchTimeLink } from "@/components/MatchTimeLink";
-import { Button, ButtonRow, Pill, Text } from "@/components/ui";
+import { Button, ButtonRow, Pill, Text, TextLinkButton } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 
@@ -18,7 +18,12 @@ import { useColors } from "@/hooks/useColors";
 // - Match day, singles: Record with Ball Boi on its own row, then Message and
 //   Details side by side.
 // - Any other match: Message (primary) and Details side by side.
-// Enter score lives on Details (Match detail) and the league, not on Home's card.
+// Enter score lives on Details (Match detail) and the league, not on Home's card,
+// until the match is past due.
+// - Past due (finding 47: an hour after the start, no score, still that day):
+//   Enter score (primary) and Message (secondary) side by side, then Record
+//   with Ball Boi and Details as text links (decision 189), in case they're
+//   still playing.
 // Match detail shows this same card for a match not played yet (finding 9),
 // with Enter score in the Details slot. Match time is link text right under
 // the date line, not a button (Wave 2 finding 25, John, Nov 12).
@@ -50,6 +55,8 @@ export function NextMatchCard({
   details,
   timeLink,
   footer,
+  pastDue = false,
+  enterScore,
 }: {
   /** "Today", "Saturday, Oct 17", or "No time set yet". */
   dateLabel: string;
@@ -80,6 +87,10 @@ export function NextMatchCard({
   timeLink?: { hasTime: boolean; onPress: () => void } | null;
   /** Under the buttons, e.g. the doubles Ball Boi note. */
   footer?: React.ReactNode;
+  /** An hour past the start with no score (finding 47): Enter score leads, Record and Details become links. */
+  pastDue?: boolean;
+  /** Past due only: Enter score, the primary button. */
+  enterScore?: NextMatchAction | null;
 }) {
   const c = useColors();
   const { fontScale } = useWindowDimensions();
@@ -156,29 +167,59 @@ export function NextMatchCard({
         </View>
       </View>
 
-      <View style={{ width: "100%", marginTop: 20, gap: spacing.space2 }}>
-        {record ? <Button label={record.label} accessibilityLabel={record.accessibilityLabel} accessibilityHint={record.hint} onPress={record.onPress} /> : null}
-        <ButtonRow>
-          {message ? (
-            <Button
-              label={message.label}
-              accessibilityLabel={message.accessibilityLabel}
-              accessibilityHint={message.hint}
-              variant={messageVariant}
-              onPress={message.onPress}
-            />
+      {pastDue ? (
+        <View style={{ width: "100%", marginTop: 20, gap: spacing.space2 }}>
+          <ButtonRow>
+            {enterScore ? (
+              <Button
+                label={enterScore.label}
+                accessibilityLabel={enterScore.accessibilityLabel}
+                accessibilityHint={enterScore.hint}
+                onPress={enterScore.onPress}
+              />
+            ) : null}
+            {message ? (
+              <Button
+                label={message.label}
+                accessibilityLabel={message.accessibilityLabel}
+                accessibilityHint={message.hint}
+                variant={enterScore ? "secondary" : "primary"}
+                onPress={message.onPress}
+              />
+            ) : null}
+          </ButtonRow>
+          {record ? (
+            <TextLinkButton label={record.label} accessibilityLabel={record.accessibilityLabel} accessibilityHint={record.hint} onPress={record.onPress} />
           ) : null}
           {details ? (
-            <Button
-              label={details.label}
-              accessibilityLabel={details.accessibilityLabel}
-              accessibilityHint={details.hint}
-              variant={message || record ? "secondary" : "primary"}
-              onPress={details.onPress}
-            />
+            <TextLinkButton label={details.label} accessibilityLabel={details.accessibilityLabel} accessibilityHint={details.hint} onPress={details.onPress} />
           ) : null}
-        </ButtonRow>
-      </View>
+        </View>
+      ) : (
+        <View style={{ width: "100%", marginTop: 20, gap: spacing.space2 }}>
+          {record ? <Button label={record.label} accessibilityLabel={record.accessibilityLabel} accessibilityHint={record.hint} onPress={record.onPress} /> : null}
+          <ButtonRow>
+            {message ? (
+              <Button
+                label={message.label}
+                accessibilityLabel={message.accessibilityLabel}
+                accessibilityHint={message.hint}
+                variant={messageVariant}
+                onPress={message.onPress}
+              />
+            ) : null}
+            {details ? (
+              <Button
+                label={details.label}
+                accessibilityLabel={details.accessibilityLabel}
+                accessibilityHint={details.hint}
+                variant={message || record ? "secondary" : "primary"}
+                onPress={details.onPress}
+              />
+            ) : null}
+          </ButtonRow>
+        </View>
+      )}
       {footer ? <View style={{ width: "100%", marginTop: spacing.space3 }}>{footer}</View> : null}
     </View>
   );

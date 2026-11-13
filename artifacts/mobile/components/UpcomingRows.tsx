@@ -9,7 +9,8 @@ import { rowSpoken, rowSub, rowWhen, type UpcomingItem } from "@/lib/upcoming";
 
 // Upcoming match rows (canvas W2_HomeUpcoming, W2_ProfileCard): the date and
 // time over who it's against and where it comes from, with a chevron. The
-// whole row is one VoiceOver button.
+// whole row is one VoiceOver button. A late match shows "Late" with an
+// hourglass beside its date (canvas B3, walkthrough 11.4).
 
 export function UpcomingRows({
   items,
@@ -43,9 +44,18 @@ export function UpcomingRows({
         const body = (
           <>
             <View style={{ flex: 1, gap: 2 }}>
-              <Text variant="bodyStrong" style={{ fontVariant: ["lining-nums", "tabular-nums"] }}>
-                {rowWhen(m)}
-              </Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: spacing.space2 }}>
+                <Text variant="bodyStrong" style={{ fontVariant: ["lining-nums", "tabular-nums"] }}>
+                  {rowWhen(m)}
+                </Text>
+                {/* A late match (decision 152) says so in a word with an icon, not color alone (canvas B3, finding 47). */}
+                {m.grace ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space1 }}>
+                    <Icon name="hourglass" size={16} tintColor={c.ink} />
+                    <Text variant="bodyStrong">Late</Text>
+                  </View>
+                ) : null}
+              </View>
               <Text variant="small" tone="inkMuted">
                 {rowSub(m)}
               </Text>

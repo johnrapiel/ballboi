@@ -62,6 +62,8 @@ import { winnerMark } from "@/lib/winnerMark";
 // "Change time" is link text under the date line (Wave 2 finding 25). A doubles match keeps
 // the note on why Ball Boi can't record it. A Discover or Quick match gets
 // Record on match day and Message. Played matches are unchanged.
+// An hour past the start with no score (finding 47), Enter score leads beside
+// Message and Record with Ball Boi drops to a text link.
 
 const BALL = {
   day: require("@/assets/images/tabs/tab-ballboi-on.png"),
@@ -302,8 +304,22 @@ export default function MatchDetailScreen() {
               : null
           }
           message={upcomingMessage(item)}
+          // Past due (finding 47): Enter score leads beside Message, Record is a link.
+          pastDue={actions.pastDue}
+          enterScore={
+            actions.pastDue && actions.enterScore
+              ? {
+                  label: "Enter score",
+                  hint: `For your match against ${cardOpponent}`,
+                  onPress: () =>
+                    leagueIdForActions != null
+                      ? router.push({ pathname: "/league/[leagueId]/score/[matchId]", params: { leagueId: String(leagueIdForActions), matchId: String(d.matchId) } })
+                      : router.push({ pathname: "/record/score/[matchId]", params: { matchId: String(d.matchId), opponent: cardOpponent } }),
+                }
+              : null
+          }
           details={
-            actions.enterScore && leagueIdForActions != null
+            !actions.pastDue && actions.enterScore && leagueIdForActions != null
               ? {
                   label: "Enter score",
                   hint: `For your match against ${cardOpponent}`,

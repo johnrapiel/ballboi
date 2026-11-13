@@ -20,6 +20,7 @@ import { useUpcomingMessage } from "@/hooks/useUpcomingMessage";
 import { upcomingHint, useOpenUpcoming, useUpcomingMatches } from "@/hooks/useUpcomingMatches";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { dateRange, LATE_NOTE, pairingTime, shortDate } from "@/lib/leagueSchedule";
+import { cardLead, heroIndex } from "@/lib/matchTiming";
 import { openRecorder } from "@/lib/recording/start";
 import { cardWhen, isMatchDay, type UpcomingItem } from "@/lib/upcoming";
 
@@ -33,6 +34,12 @@ import { cardWhen, isMatchDay, type UpcomingItem } from "@/lib/upcoming";
 // today) singles leads with Record with Ball Boi, then Message and Details;
 // any other day it's Message and Details. Doubles shows Record dimmed with
 // the reason. Later matches are plain rows that open Match detail.
+//
+// Past due (finding 47, John, Nov 12): an hour after the start with no score
+// it reads "Earlier today · 6:30 PM", Enter score and Message lead, and Record
+// with Ball Boi and Details are text links. A match still ahead today leads
+// over a past-due one. The next day the late-match and "Did it happen?" flows
+// take over.
 //
 // Season stats, standings and results don't live here any more: standings
 // are on the league page and results on Profile. See all opens Profile's
@@ -60,8 +67,11 @@ export default function HomeScreen() {
     const when = cardWhen(m);
     // Record leads only on match day, for a singles match that can be played.
     const canRecord = isMatchDay(m) && m.matchId != null && !m.notStarted;
+    // An hour past the start with no score, Enter score leads and Record is a link (finding 47).
+    const lead = cardLead(m, { canRecord: canRecord && m.singles });
+    const pastDue = lead.pastDue && m.matchId != null && !m.notStarted;
     const record: NextMatchAction | null =
-      canRecord && m.singles
+      lead.record
         ? {
             label: "Record with Ball Boi",
             onPress: () => openRecorder(router, { matchId: m.matchId!, opponentName: opponent, leagueId: m.leagueId }),
@@ -81,6 +91,20 @@ export default function HomeScreen() {
             hint: "Opens the match, where you can enter the score",
             onPress: () => (m.matchId ? router.push(`/match/${m.matchId}`) : m.leagueId ? openLeague(m.leagueId) : undefined),
           };
+    // League and playoff scores go to the league's Enter score; a Discover match's to its own.
+    const enterScore: NextMatchAction | null = !pastDue
+      ? null
+      : m.leagueId != null && m.kind !== "discover"
+        ? {
+            label: "Enter score",
+            hint: `For your match against ${opponent}`,
+            onPress: () => router.push({ pathname: "/league/[leagueId]/score/[matchId]", params: { leagueId: String(m.leagueId), matchId: String(m.matchId) } }),
+          }
+        : {
+            label: "Enter score",
+            hint: `For your match against ${opponent}`,
+            onPress: () => router.push({ pathname: "/record/score/[matchId]", params: { matchId: String(m.matchId), opponent } }),
+          };
     const note = m.grace ? LATE_NOTE : null;
     return (
       <NextMatchCard
@@ -99,7 +123,9 @@ export default function HomeScreen() {
         record={record}
         message={message}
         details={details}
-        footer={canRecord && !m.singles && m.kind !== "discover" ? <DoublesNote matchId={m.matchId!} /> : null}
+        pastDue={pastDue}
+        enterScore={enterScore}
+        footer={canRecord && !m.singles && m.kind !== "discover" && !pastDue ? <DoublesNote matchId={m.matchId!} /> : null}
       />
     );
   };
@@ -108,9 +134,11 @@ export default function HomeScreen() {
   const drafts = week?.drafts ?? [];
   const byes = (week?.thisWeek ?? []).filter((i) => i.bye);
   const waiting = drafts.length + byes.length;
-  // An open match has no one face to show, so it's always a row.
-  const first = items[0] && items[0].kind !== "open" ? items[0] : null;
-  const rest = first ? items.slice(1) : items;
+  // An open match has no one face to show, so it's always a row. A match still
+  // ahead today leads over a past-due one (finding 47); the rest stay in date order.
+  const firstAt = items[0] && items[0].kind !== "open" ? heroIndex(items, new Date(), (m) => m.kind !== "open") : -1;
+  const first = firstAt >= 0 ? items[firstAt] : null;
+  const rest = first ? items.filter((_, n) => n !== firstAt) : items;
   const nothing = !isLoading && !!week && items.length === 0 && waiting === 0;
 
   return (

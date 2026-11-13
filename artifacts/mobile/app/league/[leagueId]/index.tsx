@@ -33,7 +33,7 @@ import { RoundCard, UpcomingWeekRow } from "@/components/league/RoundCard";
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
 import { StandingsTable } from "@/components/league/StandingsTable";
 import { BracketView, myPlayoffMatch, ROUND_SINGULAR } from "@/components/league/Bracket";
-import { Button, ButtonRow, Card, Text } from "@/components/ui";
+import { Button, ButtonRow, Card, Text, TextLinkButton } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -61,6 +61,7 @@ import {
 } from "@/lib/leagueSchedule";
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { formatLabel, playersLabel, playTypeLabel } from "@/lib/leagues";
+import { isPastDue, pastDueWhen } from "@/lib/matchTiming";
 import { openRecorder } from "@/lib/recording/start";
 
 // League (spec: Leagues; approved canvas: League detail · Standings). One
@@ -124,7 +125,12 @@ function YourWeek({
   const opponentRating = isDoubles ? null : match.player1Id === myPlayerId ? match.player2Rating : match.player1Rating;
   const canMessage = isDoubles || (match.player1Id === myPlayerId ? match.player2HasAccount : match.player1HasAccount);
   const scoreable = canEnterScore(round, match, ended);
-  const record = recordAction(round, match, ended, doubles);
+  const recordable = recordAction(round, match, ended, doubles);
+  // Finding 47: an hour past the set start with no score, Enter score leads and
+  // Record with Ball Boi is a text link (in case they're still playing). Doubles
+  // has nothing to record yet, so its dimmed Record steps away.
+  const pastDue = scoreable && isPastDue({ scheduledAt: match.scheduledAt, score: match.score, timeZone });
+  const record = pastDue ? null : recordable;
   // C7: a direct chat with your opponent.
   const message = () => {
     if (!isDoubles) {
@@ -154,7 +160,8 @@ function YourWeek({
   // "Set a match time" or "Change time" is link text right below it, as on
   // Match detail. No Match time row under the buttons.
   const timeOpen = !played && !match.voided && round.phase !== "closed" && !ended;
-  const shownTime = timeOpen ? matchTime : null;
+  // Past due, the time reads "Earlier today · 6:30 PM" (finding 47).
+  const shownTime = timeOpen ? (pastDue && match.scheduledAt ? pastDueWhen(match.scheduledAt) : matchTime) : null;
   const canSetThisTime = timeOpen && canSetTime && scoreable;
 
   return (
@@ -232,6 +239,13 @@ function YourWeek({
             />
           ) : null}
         </ButtonRow>
+      ) : null}
+      {pastDue && recordable === "record" ? (
+        <TextLinkButton
+          label="Record with Ball Boi"
+          accessibilityHint={`Records your match against ${opponent}`}
+          onPress={() => openRecorder(router, { matchId: match.matchId, opponentName: opponent, leagueId })}
+        />
       ) : null}
     </Card>
   );

@@ -1,6 +1,7 @@
 import type { MatchDetail } from "@workspace/api-client-react";
 
 import { deadlineDate, lateTime } from "./leagueSchedule";
+import { cardLead } from "./matchTiming";
 import { isMatchDay, type UpcomingItem } from "./upcoming";
 
 // Match detail for a match not played yet (Wave 2 finding 9, John, Nov 11):
@@ -48,12 +49,18 @@ export function upcomingFromDetail(
     openMatchId: null,
     openStatus: null,
     sortAt: scheduledAt ?? "",
+    timeZone: d.timeZone ?? null,
   };
 }
 
 export interface UpcomingActions {
   /** Record with Ball Boi, singles only. */
   record: boolean;
+  /**
+   * An hour past the start with no score (finding 47): Enter score leads and
+   * Record with Ball Boi is a text link under it.
+   */
+  pastDue: boolean;
   /** Doubles: the note on why Ball Boi can't record it yet. */
   doublesNote: boolean;
   /** League and playoff matches: the league's Enter score. */
@@ -67,18 +74,28 @@ export interface UpcomingActions {
  * matches follow the league page: Record any day the match can be played,
  * then Enter score, and Match time where the league lets players set it.
  * A Discover or Quick match follows Home: Record on match day; its score is
- * entered from its chat card or the recording.
+ * entered from its chat card or the recording, and from the card once it's
+ * past due. Past due, Enter score leads and Record is a link; doubles has no
+ * Record to link to, so its note steps away too.
  */
-export function upcomingActions(m: Pick<UpcomingItem, "kind" | "matchId" | "notStarted" | "singles" | "scheduledAt">, opts: { matchTimeAllowed: boolean; now?: Date }): UpcomingActions {
+export function upcomingActions(
+  m: Pick<UpcomingItem, "kind" | "matchId" | "notStarted" | "singles" | "scheduledAt"> & { timeZone?: string | null },
+  opts: { matchTimeAllowed: boolean; now?: Date },
+): UpcomingActions {
   const playable = m.matchId != null && !m.notStarted;
   if (m.kind === "league" || m.kind === "playoff") {
+    const lead = cardLead(m, { canRecord: playable && m.singles, now: opts.now });
+    const pastDue = playable && lead.pastDue;
     return {
-      record: playable && m.singles,
-      doublesNote: playable && !m.singles,
+      record: lead.record != null,
+      pastDue,
+      doublesNote: playable && !m.singles && !pastDue,
       enterScore: playable,
       matchTime: m.kind === "league" && playable && opts.matchTimeAllowed,
     };
   }
   const today = playable && isMatchDay(m, opts.now);
-  return { record: today && m.singles, doublesNote: false, enterScore: false, matchTime: false };
+  const lead = cardLead(m, { canRecord: today && m.singles, now: opts.now });
+  const pastDue = playable && lead.pastDue;
+  return { record: lead.record != null, pastDue, doublesNote: false, enterScore: pastDue, matchTime: false };
 }
