@@ -7,7 +7,7 @@
 // scores, the third set only at one set all, a 6-6 set asks for its
 // tiebreak), and it mentions the 24-hour edit (finding 7; decision 151). Saving
 // refreshes the league's standings, round and Home. A bottom sheet: no
-// Cancel or Not now, drag down to close (asks first if scores were typed).
+// Not now; Close (X) or drag down to close (asks first if scores were typed).
 // Once saved, the score-entered moment plays (spec: Milestone moments): the
 // score settles in and This season's record ticks to its new value.
 //

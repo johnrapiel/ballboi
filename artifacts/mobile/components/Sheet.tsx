@@ -8,17 +8,22 @@
 // - shows the grabber bar at the top (decision 181). Hugging sheets get the
 //   system one; full-height page sheets and the other swipe-down modals get
 //   `Grabber`, drawn to match it,
-// - has no Cancel: drag down to close, and if something changed it asks
-//   before discarding it. The VoiceOver escape gesture closes it the same way,
-// - has a left-aligned brush title under the grabber, read as the header,
+// - has a Close button: a brush X in the 44pt glass corner circle at the top
+//   left, on the same row as the title (Wave 2 finding 50, decision 198).
+//   Drag down still closes it too, and so does the VoiceOver escape gesture.
+//   All three go the same way: if something would be lost, it asks
+//   "Discard changes?" first; if not, it closes at once. This replaced the
+//   old "no Cancel" rule (#214),
+// - has a left-aligned title beside the X, read as the header,
 // - ends on its primary action.
 
 import React, { useEffect, useState } from "react";
 import { Keyboard, ScrollView, View, useWindowDimensions, type StyleProp, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { CornerButton } from "@/components/CornerButton";
 import { Text } from "@/components/ui";
-import { radius, spacing } from "@/constants/tokens";
+import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useDiscardGuard } from "@/hooks/useDiscardGuard";
 import { keyboardCover } from "@/lib/keyboardCover";
@@ -42,7 +47,7 @@ export function sheetOptions(linen: string) {
  * Stack options for a full-height form (New league), used with `SheetBody fill`:
  * the standard iOS page sheet, the same presentation as Mail's New Message.
  * It slides up to just under the status bar, the screen behind shows above
- * it, and it closes with a drag down.
+ * it, and it closes with its Close (X) or a drag down.
  *
  * Not a formSheet: react-native-screens lays a formSheet's content out in an
  * absolutely positioned box with no bottom edge, and on iOS 26 wraps it in a
@@ -67,7 +72,8 @@ export function fullSheetOptions(linen: string) {
 // It's `hairline-strong` (3:1 or better on paper and linen, Day and Night,
 // and stronger with Increase Contrast), a little firmer than the system gray
 // so it clears the non-text contrast bar. VoiceOver skips it: every one of
-// these screens has a button that closes it, and swipe down isn't the only way.
+// these screens has the Close button (`SheetClose`), so swipe down isn't the
+// only way.
 const GRABBER = { width: 36, height: 5, top: 5 } as const;
 
 /** The grabber bar itself, centred in a strip at the top of the sheet. */
@@ -89,6 +95,38 @@ export function Grabber() {
           backgroundColor: c.hairlineStrong,
         }}
       />
+    </View>
+  );
+}
+
+/**
+ * The sheet's Close button (Wave 2 finding 50, decision 198): a brush X in the
+ * 44pt corner circle (the same glass as the tab corners), at the top left of
+ * every sheet, on the title's row. It's the non-gesture way to do what swipe
+ * down does, so pass the same guarded close: it asks "Discard changes?" when
+ * something would be lost. Sheets with a native navigation bar (Quick match,
+ * Post an open match) use `HeaderIconButton` with "xmark" in `headerLeft`
+ * instead, where iOS draws the glass.
+ */
+export function SheetClose({ onPress, hint }: { onPress: () => void; hint?: string }) {
+  return <CornerButton symbol="xmark" label="Close" hint={hint} onPress={onPress} />;
+}
+
+/**
+ * The Close button on its own row at the top of a swipe-down modal whose title
+ * sits lower down (Join league's invite card, a recorded match's invite).
+ * Below the grabber strip, with the screen's side margin.
+ */
+export function SheetCloseBar({ onPress }: { onPress: () => void }) {
+  return (
+    <View
+      style={{
+        paddingHorizontal: spacing.space4,
+        paddingTop: spacing.space3,
+        alignItems: "flex-start",
+      }}
+    >
+      <SheetClose onPress={onPress} />
     </View>
   );
 }
@@ -146,8 +184,14 @@ export function SheetBody({
   contentStyle,
   scrollRef,
   titleAction,
+  closeButton = true,
 }: {
   title: string;
+  /**
+   * Show the Close (X). Only the notifications pre-prompt turns it off: App
+   * Review wants a screen before a permission prompt to lead only to it.
+   */
+  closeButton?: boolean;
   /** A small icon button at the right end of the title line, like Free times' pencil. */
   titleAction?: React.ReactNode;
   /** Something was typed or picked: closing asks first. Ignored when `close` is passed. */
@@ -166,6 +210,7 @@ export function SheetBody({
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const own = useSheetClose(close ? false : dirty);
+  // Close (X), drag down and the VoiceOver escape all end up here.
   const onEscape = close ?? own.close;
 
   // Hugging sheets (Wave 1 Fix 1b): the native `fitToContents` sheet sizes
@@ -201,27 +246,27 @@ export function SheetBody({
 
   const padding: StyleProp<ViewStyle> = [
     {
-      paddingTop: spacing.space6,
+      // The title row is the 44pt Close circle tall, so a little less above it
+      // keeps the title where it was under the grabber.
+      paddingTop: spacing.space4,
       paddingHorizontal: spacing.space4,
       paddingBottom: footer ? spacing.space4 : homeIndicator + spacing.space4,
       gap: spacing.space4,
     },
     contentStyle,
   ];
+  // Close (X) at the top left, the title beside it, and the optional title
+  // action at the right end. It closes the way drag down does: through the
+  // guard, so it asks before discarding anything.
   const content = (
     <>
-      {titleAction ? (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3 }}>
-          <Text variant="headingM" accessibilityRole="header" style={{ flex: 1 }}>
-            {title}
-          </Text>
-          {titleAction}
-        </View>
-      ) : (
-        <Text variant="headingM" accessibilityRole="header">
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3, minHeight: MIN_TAP }}>
+        {closeButton ? <SheetClose onPress={onEscape} /> : null}
+        <Text variant="headingM" accessibilityRole="header" style={{ flex: 1 }}>
           {title}
         </Text>
-      )}
+        {titleAction}
+      </View>
       {children}
     </>
   );

@@ -10,7 +10,7 @@ import { codeFromInput } from "@/lib/leagueInvite";
 
 // Join with an invite code (spec: Leagues, joining with a code; approved
 // Leagues: "Got an invite code?" opens this bottom sheet). The sheet rule:
-// brush title, no Cancel, drag down to close, asks before discarding a code.
+// brush title, Close (X) or drag down to close, asks before discarding a code.
 // The code opens the same join screen an invite link does (C1), so typed
 // codes and links behave the same way. Pasting the copied link works too.
 

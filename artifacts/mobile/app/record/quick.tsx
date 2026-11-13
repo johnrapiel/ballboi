@@ -8,19 +8,28 @@
 // again (D32). Finding #15 (John, Nov 6): "Someone not on Ball Boi" comes
 // first, then a search bar, then the player list. Search finds any visible
 // player (the shared player search), never a blocked one.
+//
+// Wave 2 finding 50 (John, Nov 12, decision 198): Close (X) at the top left,
+// beside the title, as well as swipe down. Once you've picked anything, or a
+// match has been made for the invite step, the X, swipe down and the
+// VoiceOver escape all ask "Discard this match?" first; nothing is deleted by
+// a swipe without it. Nothing here is ever recorded: the camera
+// (record/[matchId]) takes the match over before recording starts, and has
+// its own close.
 
 import { useAuth } from "@clerk/expo";
-import { useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { Icon } from "@/components/Icon";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Share, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ChoiceGroup } from "@/components/Choice";
+import { ChoiceGroup, HeaderIconButton } from "@/components/Choice";
 import { SearchField } from "@/components/players/SearchField";
 import { Button, Card, Field, KeyboardScreen, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { useDiscardGuard } from "@/hooks/useDiscardGuard";
 import { usePlayerSearch } from "@/hooks/usePlayerSearch";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import {
@@ -111,6 +120,22 @@ export default function QuickMatchScreen() {
 
   const ready = format === "singles" && (pick === "new" ? name.trim().length > 0 : pick != null);
 
+  // Something would be lost by closing: a pick, a typed name, or the match
+  // already made for the invite step. Then Close, swipe down and the escape
+  // gesture ask first. Before that, closing is instant.
+  const dirty = pick != null || name.trim().length > 0 || created != null;
+  const guard = useDiscardGuard(dirty, {
+    title: "Discard this match?",
+    message: created ? "It hasn't been recorded yet, so it will be removed." : "Nothing has been recorded yet.",
+  });
+  const closeButton = (
+    <Stack.Screen
+      options={{
+        headerLeft: () => <HeaderIconButton symbol="xmark" label="Close" onPress={guard.close} />,
+      }}
+    />
+  );
+
   async function start() {
     if (!ready || pick == null) return;
     setSaving(true);
@@ -132,7 +157,8 @@ export default function QuickMatchScreen() {
   function openCamera(m: QuickMatchCreated) {
     // The camera takes it from here; closing the camera unrecorded removes it there.
     pending.current = null;
-    router.replace({ pathname: "/record/[matchId]", params: { matchId: String(m.matchId), opponent: m.opponentName } });
+    // The guard turns off first, so opening the camera doesn't ask "Discard this match?".
+    guard.finish(() => router.replace({ pathname: "/record/[matchId]", params: { matchId: String(m.matchId), opponent: m.opponentName } }));
   }
 
   async function shareInvite(m: QuickMatchCreated) {
@@ -151,7 +177,11 @@ export default function QuickMatchScreen() {
   // then record. The main button is always the next step (D27).
   if (created?.invite) {
     return (
-      <View style={{ flex: 1, backgroundColor: c.paper, padding: spacing.space4, paddingBottom: insets.bottom + spacing.space4, gap: spacing.space4 }}>
+      <View
+        onAccessibilityEscape={guard.close}
+        style={{ flex: 1, backgroundColor: c.paper, padding: spacing.space4, paddingBottom: insets.bottom + spacing.space4, gap: spacing.space4 }}
+      >
+        {closeButton}
         <Text variant="title" accessibilityRole="header">
           Invite {created.opponentName}
         </Text>
@@ -176,7 +206,8 @@ export default function QuickMatchScreen() {
   }
 
   return (
-    <KeyboardScreen>
+    <KeyboardScreen onAccessibilityEscape={guard.close}>
+      {closeButton}
       <ScrollView
         style={{ flex: 1, backgroundColor: c.paper }}
         contentContainerStyle={{ padding: spacing.space4, gap: spacing.space6 }}

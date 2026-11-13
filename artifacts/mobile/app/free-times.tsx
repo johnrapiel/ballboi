@@ -6,7 +6,7 @@
 // the brush pencil on the title line opens the editor (When you can play);
 // with `userId` it's another player's (Discover's card), read only, and with
 // none added it says so: "Ross hasn't added free times yet." (finding 13).
-// Sheet rules: left-aligned 50% serif title, drag down to close.
+// Sheet rules: left-aligned 50% serif title, Close (X) or drag down to close.
 
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";

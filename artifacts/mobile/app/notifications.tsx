@@ -2,8 +2,10 @@
 // once per phone, as a sheet, at the first of: joining a league, a match being
 // added in chat, posting or joining an open match, or turning on open match
 // alerts. Continue shows the iOS prompt. Apple asks that a screen before a
-// permission prompt only leads to it, so there's no "Not now" button: drag
-// down closes it like any sheet, and Ball Boi doesn't ask again either way.
+// permission prompt only leads to it, so there's no "Not now" button, and
+// it's the one sheet without the Close (X) (`closeButton={false}`; decision
+// 198 exception, App Review guideline 5.1.1): drag down closes it like any
+// sheet, and Ball Boi doesn't ask again either way.
 // Until then, notifications arrive quietly in Notification Center.
 
 import { useAuth } from "@clerk/expo";
@@ -50,7 +52,7 @@ export default function NotificationsReason() {
   }
 
   return (
-    <SheetBody title="Turn on notifications" close={close}>
+    <SheetBody title="Turn on notifications" close={close} closeButton={false}>
       <View style={{ gap: spacing.space2 }}>
         <Text>{leadFor(trigger)}</Text>
         <Text tone="inkMuted">{REASON_BODY}</Text>

@@ -18,7 +18,8 @@ import {
 
 import { Avatar } from "@/components/Avatar";
 import { RatingBadge } from "@/components/RatingBadge";
-import { Button, Card, Text, TextButton } from "@/components/ui";
+import { SheetCloseBar } from "@/components/Sheet";
+import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useGate } from "@/hooks/useGate";
@@ -48,8 +49,8 @@ import { photoUrl } from "@/lib/photos";
 // title, Where, Players and Starts as a list, then Who's in (finding 34):
 // everyone in the league, organizer first, up to 8 and "and N more". Players
 // hidden from Discover still show; anyone with a block with you doesn't.
-// The one button is pinned at the bottom. Cancel at the top left, like any
-// iOS modal.
+// The one button is pinned at the bottom. Close (X) at the top left, like
+// every sheet (Wave 2 finding 50, decision 198), as well as swipe down.
 
 /** Who's in shows this many members, then "and N more". */
 const WHOS_IN_LIMIT = 8;
@@ -143,29 +144,32 @@ function WhosIn({ members }: { members: LeagueInviteMember[] }) {
   );
 }
 
-/** Centered at default sizes; scrolls at the largest text sizes. */
-function Page({ children }: { children: React.ReactNode }) {
+/** Centered at default sizes; scrolls at the largest text sizes. Close (X) at the top left. */
+function Page({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   const c = useColors();
   const bottom = useScreenBottomInset();
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: c.paper }}
-      // The sheet's header is transparent (it only draws the grabber), so
-      // don't let iOS add its own top inset: that pushed results to the bottom.
-      contentInsetAdjustmentBehavior="never"
-      automaticallyAdjustContentInsets={false}
-      contentContainerStyle={{
-        flexGrow: 1,
-        justifyContent: "center",
-        paddingHorizontal: spacing.space6,
-        paddingTop: spacing.space8,
-        paddingBottom: bottom.paddingBottom,
-        gap: spacing.space6,
-      }}
-      scrollIndicatorInsets={bottom.scrollIndicatorInsets}
-    >
-      {children}
-    </ScrollView>
+    <View style={{ flex: 1, backgroundColor: c.paper }} onAccessibilityEscape={onClose}>
+      <SheetCloseBar onPress={onClose} />
+      <ScrollView
+        style={{ flex: 1, backgroundColor: c.paper }}
+        // The sheet's header is transparent (it only draws the grabber), so
+        // don't let iOS add its own top inset: that pushed results to the bottom.
+        contentInsetAdjustmentBehavior="never"
+        automaticallyAdjustContentInsets={false}
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: "center",
+          paddingHorizontal: spacing.space6,
+          paddingTop: spacing.space4,
+          paddingBottom: bottom.paddingBottom,
+          gap: spacing.space6,
+        }}
+        scrollIndicatorInsets={bottom.scrollIndicatorInsets}
+      >
+        {children}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -291,10 +295,10 @@ export default function JoinLeagueScreen() {
     }
   }
 
-  if (!isLoaded) return <Page>{null}</Page>;
+  if (!isLoaded) return <Page onClose={close}>{null}</Page>;
   if (held) {
     return (
-      <Page>
+      <Page onClose={close}>
         <ActivityIndicator color={c.ink} accessibilityLabel="Loading" />
       </Page>
     );
@@ -303,7 +307,7 @@ export default function JoinLeagueScreen() {
   // ── Signed out ────────────────────────────────────────────────────────────
   if (!isSignedIn) {
     return (
-      <Page>
+      <Page onClose={close}>
         <View style={{ gap: spacing.space2 }}>
           <Text variant="title" accessibilityRole="header">
             You're invited to a league
@@ -318,7 +322,7 @@ export default function JoinLeagueScreen() {
   // ── Loading and problems ──────────────────────────────────────────────────
   if (code && inviteQ.isLoading) {
     return (
-      <Page>
+      <Page onClose={close}>
         <ActivityIndicator color={c.ink} accessibilityLabel="Loading invite" />
       </Page>
     );
@@ -327,7 +331,7 @@ export default function JoinLeagueScreen() {
     const ended = status === 410;
     const missing = status === 404 || !code;
     return (
-      <Page>
+      <Page onClose={close}>
         <View style={{ gap: spacing.space2 }}>
           <Text variant="title" accessibilityRole="header">
             {leagueEnded ? "This league has ended" : ended ? "This invite has ended" : missing ? "That code didn't work" : "Couldn't load this invite"}
@@ -345,8 +349,8 @@ export default function JoinLeagueScreen() {
           </Text>
         </View>
         <View style={{ gap: spacing.space3 }}>
-          {!ended && !missing ? <Button label="Try again" onPress={() => void inviteQ.refetch()} /> : null}
-          <Button label="Close" variant={!ended && !missing ? "secondary" : "primary"} onPress={close} />
+          {/* Try again when it might work; otherwise Close is the one way on. */}
+          {!ended && !missing ? <Button label="Try again" onPress={() => void inviteQ.refetch()} /> : <Button label="Close" onPress={close} />}
         </View>
       </Page>
     );
@@ -372,7 +376,7 @@ export default function JoinLeagueScreen() {
     };
     const title = state.kind === "joined" ? "You're in" : state.kind === "requested" ? "Request sent" : "You're on the waitlist";
     return (
-      <Page>
+      <Page onClose={close}>
         <View accessible style={{ gap: spacing.space2 }}>
           <Text variant="title" accessibilityRole="header">
             {title}
@@ -399,14 +403,13 @@ export default function JoinLeagueScreen() {
         ? "This league isn't taking players this season. Join the waitlist to get a spot when next season opens."
         : null;
   return (
-    <View style={{ flex: 1, backgroundColor: c.paper }}>
+    <View style={{ flex: 1, backgroundColor: c.paper }} onAccessibilityEscape={close}>
+      <SheetCloseBar onPress={close} />
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: spacing.space4, paddingTop: spacing.space3, paddingBottom: bottom.paddingBottom, gap: spacing.space4 }}
         scrollIndicatorInsets={bottom.scrollIndicatorInsets}
       >
-        <TextButton label="Cancel" onPress={close} style={{ alignSelf: "flex-start", paddingHorizontal: 0 }} />
-
         <Card style={{ alignItems: "center", gap: spacing.space2, paddingVertical: spacing.space6 }}>
           <Text variant="small" tone="inkMuted">
             You're invited to
