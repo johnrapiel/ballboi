@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { gateFor, gateRedirect, inviteFromPath, type GateInput } from "@/lib/gate";
+import { AUTH_FIRST_SCREEN, GATE_HOME, emailBack, gateFor, gateRedirect, inviteFromPath, type GateInput } from "@/lib/gate";
 
 const base: GateInput = { signedIn: true, hasUser: true, account: "ok", aged: true, onboarded: true };
 
@@ -78,8 +78,33 @@ describe("gateRedirect", () => {
     expect(gateRedirect("signedOut", ["record", "invite", "[code]"], "/record/invite/X")).toBeNull();
     expect(gateRedirect("signedOut", ["(auth)", "email"], "/email")).toBeNull();
     expect(gateRedirect("signedOut", ["eighteen-plus"], "/eighteen-plus")).toBeNull();
-    expect(gateRedirect("signedOut", ["(tabs)"], "/")).toEqual({ to: "/(auth)/welcome", keep: null });
-    expect(gateRedirect("signedOut", ["delete-account"], "/delete-account")).toEqual({ to: "/(auth)/welcome", keep: null });
+    expect(gateRedirect("signedOut", ["(tabs)"], "/")).toEqual({ to: "/(auth)/welcome", keep: null, reset: true });
+  });
+
+  // Wave 2 finding 59: Delete account and Sign out land on Welcome with the
+  // sign-in options, with nothing left to go back to.
+  it("sends a signed-out person on any other screen to Welcome and clears the screens behind", () => {
+    for (const [segments, path] of [
+      [["delete-account"], "/delete-account"],
+      [["settings"], "/settings"],
+      [["(tabs)", "profile"], "/profile"],
+      [["league", "[leagueId]"], "/league/5"],
+      [["onboarding"], "/onboarding"],
+      [["account-blocked"], "/account-blocked"],
+    ] as const) {
+      expect(gateRedirect("signedOut", [...segments], path)).toEqual({ to: "/(auth)/welcome", keep: null, reset: true });
+    }
+  });
+
+  it("makes Welcome the first sign-in screen, never the email step", () => {
+    expect(GATE_HOME.signedOut).toBe(`/(auth)/${AUTH_FIRST_SCREEN}`);
+    expect(AUTH_FIRST_SCREEN).toBe("welcome");
+  });
+
+  it("only clears the screens for signed-out people", () => {
+    expect(gateRedirect("ageCheck", ["(tabs)"], "/")?.reset).toBeUndefined();
+    expect(gateRedirect("blocked", ["(tabs)"], "/")?.reset).toBeUndefined();
+    expect(gateRedirect("app", ["(auth)", "welcome"], "/welcome")?.reset).toBeUndefined();
   });
 
   it("moves people in the app off sign-in, the age check and the blocked screen", () => {
@@ -93,5 +118,12 @@ describe("gateRedirect", () => {
   it("never redirects while checking or from Not Found", () => {
     expect(gateRedirect("checking", ["(tabs)"], "/")).toBeNull();
     expect(gateRedirect("ageCheck", ["+not-found"], "/nope")).toBeNull();
+  });
+});
+
+describe("emailBack", () => {
+  it("goes from the code step to the email step, and from the email step to Welcome", () => {
+    expect(emailBack("code")).toBe("emailStep");
+    expect(emailBack("email")).toBe("welcome");
   });
 });

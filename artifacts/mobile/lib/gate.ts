@@ -71,7 +71,28 @@ export type GateRedirect = {
   to: (typeof GATE_HOME)[keyof typeof GATE_HOME];
   /** Keep this invite and open it after onboarding. */
   keep: PendingLink | null;
+  /**
+   * Clear every screen first, so Welcome is the only one left and there's
+   * nothing to go back to (sign-out, Delete account; Wave 2 finding 59).
+   */
+  reset?: true;
 };
+
+/**
+ * The sign-in stack's first screen (app/(auth)/_layout.tsx). Expo Router
+ * orders a folder's screens by name length when none is set, which put
+ * "email" first: a signed-out person could land on the email step with
+ * nothing under it (Wave 2 finding 59).
+ */
+export const AUTH_FIRST_SCREEN = "welcome" as const;
+
+/**
+ * Back on the email sign-in screen: from the code step to the email step,
+ * from the email step to Welcome. Never out of sign-in.
+ */
+export function emailBack(step: "email" | "code"): "emailStep" | "welcome" {
+  return step === "code" ? "emailStep" : "welcome";
+}
 
 /**
  * Where to send the person from the current route, or null when they can stay.
@@ -88,7 +109,7 @@ export function gateRedirect(gate: Gate, segments: string[], pathname: string): 
       // The age check signs an under-18 out on its way to the 18+ screen, so
       // it's allowed here and sends anyone else back to Welcome itself.
       if (first === "(auth)" || first === "eighteen-plus" || first === "age-check" || isInvite(segments)) return null;
-      return { to: GATE_HOME.signedOut, keep: null };
+      return { to: GATE_HOME.signedOut, keep: null, reset: true };
     case "blocked":
       if (first === "account-blocked" || first === "delete-account") return null;
       return { to: GATE_HOME.blocked, keep: null };

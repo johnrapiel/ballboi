@@ -16,10 +16,11 @@
 import { useSignIn, useSignUp } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Pressable, View } from "react-native";
+import { AccessibilityInfo, View } from "react-native";
 
+import { CornerButton } from "@/components/CornerButton";
 import { Button, Field, KeyboardScreen, ScrollScreen, Text, TextLink } from "@/components/ui";
-import { MIN_TAP, spacing } from "@/constants/tokens";
+import { spacing } from "@/constants/tokens";
 import { clerkErrorCode, friendlyAuthError, unfinishedAuthDetail, unfinishedAuthMessage } from "@/lib/authErrors";
 import {
   NO_ATTEMPTS,
@@ -32,6 +33,7 @@ import {
   sendCodeSecondsLeft,
   shouldSteer,
 } from "@/lib/emailCodeAttempts";
+import { emailBack } from "@/lib/gate";
 
 const CODE_LENGTH = 6;
 
@@ -130,6 +132,16 @@ export default function EmailScreen() {
     router.dismissTo("/(auth)/welcome");
   }
 
+  /**
+   * Back: the code step goes to the email step, the email step to Welcome.
+   * dismissTo opens Welcome even if it isn't under this screen, so Back never
+   * leaves someone stuck here.
+   */
+  function back() {
+    if (emailBack(step) === "emailStep") backToEmail();
+    else router.dismissTo("/(auth)/welcome");
+  }
+
   /** Back from the code step to the email step, with no leftover code error. */
   function backToEmail() {
     clearError();
@@ -221,15 +233,17 @@ export default function EmailScreen() {
   return (
     <KeyboardScreen>
       <ScrollScreen style={{ gap: spacing.space6 }}>
-        <Pressable
-          onPress={() => (step === "code" ? backToEmail() : router.back())}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          hitSlop={8}
-          style={{ minHeight: MIN_TAP, minWidth: MIN_TAP, justifyContent: "center", alignSelf: "flex-start" }}
-        >
-          <Text>Back</Text>
-        </Pressable>
+        {/* Back in the top-left corner circle (decision 198), always there:
+            the code step goes back to the email step, the email step to
+            Welcome. Swipe back returns to Welcome too (finding 59). */}
+        <View style={{ alignSelf: "flex-start" }}>
+          <CornerButton
+            symbol="arrow.left"
+            label="Back"
+            hint={step === "code" ? "Goes back to the email step" : "Goes back to the sign-in options"}
+            onPress={back}
+          />
+        </View>
 
         {step === "email" ? (
           <>
