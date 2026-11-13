@@ -148,6 +148,9 @@ function useGateRedirect() {
     if (!redirect || !navReady) return;
     if (redirect.keep) keepPendingLink(redirect.keep);
     try {
+      // Signed out (Sign out, Delete account, an expired session): clear the
+      // screens first, so Welcome is the only one left (finding 59).
+      if (redirect.reset && router.canDismiss()) router.dismissAll();
       router.replace(redirect.to as Href);
     } catch {
       // Tried again on the next route change.

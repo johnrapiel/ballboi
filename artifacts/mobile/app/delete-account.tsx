@@ -164,9 +164,11 @@ export default function DeleteAccountScreen() {
       }
       // Nothing from this account stays on the phone or uploads later.
       await clearUploadQueue().catch(() => undefined);
-      // The server already deleted the sign-in; clear the local session too.
-      // The root gate then shows Welcome and clears the cached data.
-      await signOut().catch(() => undefined);
+      // The server already deleted the sign-in; clear the local session too
+      // (tried twice: a dropped connection mustn't leave it signed in). The
+      // root gate then clears every screen and opens Welcome, with nothing to
+      // go back to, and clears the cached data (finding 59).
+      await signOut().catch(() => signOut().catch(() => undefined));
     } catch {
       setError("We couldn't reach Ball Boi. Check your connection and try again.");
     } finally {

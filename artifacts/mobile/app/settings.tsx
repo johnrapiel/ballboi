@@ -93,8 +93,9 @@ export default function SettingsScreen() {
 
   async function signOutHere() {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (!(await confirmSignOut(signOut, { always: true }))) return;
-    router.replace("/(auth)/welcome");
+    // Signed out, the root gate (app/_layout.tsx) clears the screens and
+    // opens Welcome, the same as Delete account (finding 59).
+    await confirmSignOut(signOut, { always: true });
   }
 
   async function changeTraining(on: boolean) {
