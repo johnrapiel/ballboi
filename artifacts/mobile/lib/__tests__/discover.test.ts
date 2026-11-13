@@ -234,3 +234,18 @@ describe("filter-aware empty state (decision 190)", () => {
     expect(filtersButtonLabel({ ...DEFAULT_FILTERS, free: true }, 5)).toMatch(/^Filters, 1 on: distance 5 miles/);
   });
 });
+
+import { cardActions } from "../discover";
+
+describe("match card answers (finding 46)", () => {
+  it("puts Can't make it in the corner and keeps the rest as buttons", () => {
+    expect(cardActions(["cancel"])).toEqual({ cantMakeIt: "cancel", buttons: [] });
+    expect(cardActions(["still_on", "cancel"])).toEqual({ cantMakeIt: "cancel", buttons: ["still_on"] });
+    expect(cardActions(["accept", "decline"])).toEqual({ cantMakeIt: "decline", buttons: ["accept"] });
+  });
+  it("leaves cards without Can't make it alone", () => {
+    expect(cardActions(["undo"])).toEqual({ cantMakeIt: null, buttons: ["undo"] });
+    expect(cardActions(["score", "no_show", "not_played"])).toEqual({ cantMakeIt: null, buttons: ["score", "no_show", "not_played"] });
+    expect(cardActions([])).toEqual({ cantMakeIt: null, buttons: [] });
+  });
+});
