@@ -101,16 +101,16 @@ describe("upcomingActions", () => {
   const base = { kind: "league" as const, matchId: 55, notStarted: false, singles: true, scheduledAt: null };
 
   it("singles league match: Record, Enter score and Match time where allowed", () => {
-    expect(upcomingActions(base, { matchTimeAllowed: true, now })).toEqual({ record: true, doublesNote: false, enterScore: true, matchTime: true });
+    expect(upcomingActions(base, { matchTimeAllowed: true, now })).toEqual({ record: true, pastDue: false, doublesNote: false, enterScore: true, matchTime: true });
     expect(upcomingActions(base, { matchTimeAllowed: false, now }).matchTime).toBe(false);
   });
 
   it("doubles: no Record, the note instead", () => {
-    expect(upcomingActions({ ...base, singles: false }, { matchTimeAllowed: true, now })).toEqual({ record: false, doublesNote: true, enterScore: true, matchTime: true });
+    expect(upcomingActions({ ...base, singles: false }, { matchTimeAllowed: true, now })).toEqual({ record: false, pastDue: false, doublesNote: true, enterScore: true, matchTime: true });
   });
 
   it("a round that hasn't started has no actions", () => {
-    expect(upcomingActions({ ...base, notStarted: true }, { matchTimeAllowed: true, now })).toEqual({ record: false, doublesNote: false, enterScore: false, matchTime: false });
+    expect(upcomingActions({ ...base, notStarted: true }, { matchTimeAllowed: true, now })).toEqual({ record: false, pastDue: false, doublesNote: false, enterScore: false, matchTime: false });
   });
 
   it("playoff: no Match time", () => {
@@ -119,7 +119,7 @@ describe("upcomingActions", () => {
 
   it("Discover: Record on match day only, no league actions", () => {
     const discover = { ...base, kind: "discover" as const };
-    expect(upcomingActions({ ...discover, scheduledAt: local(12, 18) }, { matchTimeAllowed: true, now })).toEqual({ record: true, doublesNote: false, enterScore: false, matchTime: false });
+    expect(upcomingActions({ ...discover, scheduledAt: local(12, 18) }, { matchTimeAllowed: true, now })).toEqual({ record: true, pastDue: false, doublesNote: false, enterScore: false, matchTime: false });
     expect(upcomingActions({ ...discover, scheduledAt: local(14, 18) }, { matchTimeAllowed: true, now }).record).toBe(false);
   });
 });

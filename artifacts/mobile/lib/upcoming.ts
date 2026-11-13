@@ -2,6 +2,7 @@ import type { LeagueWeek, LeagueWeekItem, LeagueWeekPlayoff } from "@workspace/a
 import { versusLine, versusSpoken } from "./doubles";
 
 import { deadlineDate, isToday, lateTime } from "./leagueSchedule";
+import { isPastDue, pastDueSpoken, pastDueWhen } from "./matchTiming";
 import { clockTime } from "./timeFormat";
 
 // Upcoming matches (spec decision 137, John, Nov 8): one list of every match
@@ -72,6 +73,8 @@ export interface UpcomingItem {
   openStatus: string | null;
   /** The sort key: the set time, else the end of the play-by day. */
   sortAt: string;
+  /** League and playoff matches: the league's time zone, for "Earlier today" (finding 47). Null uses the phone's. */
+  timeZone?: string | null;
 }
 
 const endOfDay = (date: string) => `${date}T23:59:59`;
@@ -146,6 +149,7 @@ export function upcomingList(input: {
         grace: late,
         notStarted: i.phase === "upcoming",
         sortAt: sortKey(scheduledAt, playByDate),
+        timeZone: i.timeZone ?? null,
       };
     });
   const playoffs: UpcomingItem[] = (input.week?.playoffs ?? [])
@@ -165,6 +169,7 @@ export function upcomingList(input: {
       location: p.location,
       singles: p.singles,
       sortAt: sortKey(p.scheduledAt, p.playBy),
+      timeZone: p.timeZone ?? null,
     }));
   const plans: UpcomingItem[] = (input.plans ?? [])
     .filter((p) => !p.score && isoOk(p.startsAt))
@@ -207,10 +212,12 @@ const clock = clockTime;
 const clockSpoken = clockTime;
 
 /**
- * A row's top line: "Sat, Nov 14 · 9 AM", "Today · 6:30 PM", or
+ * A row's top line: "Sat, Nov 14 · 9 AM", "Today · 6:30 PM", "Earlier today ·
+ * 6:30 PM" an hour after the start with no score (finding 47), or
  * "Play by Sun, Nov 15" when no time is set.
  */
-export function rowWhen(m: Pick<UpcomingItem, "scheduledAt" | "playBy" | "starts">, now: Date = new Date()): string {
+export function rowWhen(m: Pick<UpcomingItem, "scheduledAt" | "playBy" | "starts"> & { timeZone?: string | null }, now: Date = new Date()): string {
+  if (m.scheduledAt && isPastDue(m, now)) return pastDueWhen(m.scheduledAt);
   if (m.scheduledAt) {
     const d = new Date(m.scheduledAt);
     return `${isToday(m.scheduledAt, now) ? "Today" : dayShort(d)} · ${clock(d)}`;
@@ -232,13 +239,15 @@ export function rowSub(
 /** The row as VoiceOver reads it, with words in place of dots and short days. */
 export function rowSpoken(
   m: Pick<UpcomingItem, "kind" | "scheduledAt" | "playBy" | "starts" | "opponentName" | "context" | "singles" | "openStatus" | "location"> &
-    Partial<Pick<UpcomingItem, "partnerName" | "opponentNames">> & { grace?: boolean },
+    Partial<Pick<UpcomingItem, "partnerName" | "opponentNames">> & { grace?: boolean; timeZone?: string | null },
   now: Date = new Date(),
 ): string {
   let when: string;
-  if (m.scheduledAt) {
+  if (m.scheduledAt && isPastDue(m, now)) {
+    when = pastDueSpoken(m.scheduledAt);
+  } else if (m.scheduledAt) {
     const d = new Date(m.scheduledAt);
-    when = `${isToday(m.scheduledAt, now) ? "Today" : dayLong(d)}, ${clockSpoken(d)}`;
+    when = `${m.grace ? "Late match, " : ""}${isToday(m.scheduledAt, now) ? "Today" : dayLong(d)}, ${clockSpoken(d)}`;
   } else if (m.starts) {
     when = `No time set yet, round starts ${m.starts}`;
   } else {
@@ -266,7 +275,12 @@ export function isMatchDay(m: Pick<UpcomingItem, "scheduledAt">, now: Date = new
  * The D2 card's date line and big serif line. A late match with no time
  * ahead reads "Late match" over "Play by Fri, Nov 13" (decision 152).
  */
-export function cardWhen(m: Pick<UpcomingItem, "scheduledAt" | "playBy" | "starts"> & { grace?: boolean }, now: Date = new Date()): { dateLabel: string; time: string } {
+export function cardWhen(
+  m: Pick<UpcomingItem, "scheduledAt" | "playBy" | "starts"> & { grace?: boolean; timeZone?: string | null },
+  now: Date = new Date(),
+): { dateLabel: string; time: string } {
+  // An hour past the start with no score (finding 47).
+  if (m.scheduledAt && isPastDue(m, now)) return { dateLabel: "Earlier today", time: clock(new Date(m.scheduledAt)) };
   if (m.scheduledAt) {
     const d = new Date(m.scheduledAt);
     return {
