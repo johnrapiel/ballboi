@@ -5,7 +5,6 @@ import { areaLabel } from "@/lib/leagueArea";
 import React, { useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   useGetLeague,
@@ -22,6 +21,8 @@ import {
 
 import { LeagueChatButton } from "@/components/league/LeagueChatButton";
 import { MatchTimeLink } from "@/components/MatchTimeLink";
+import { ProblemCard } from "@/components/discover/States";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { TeamUpRequestCards } from "@/components/league/PartnerCard";
 import { PairingsLine, PartnerLine } from "@/components/league/LeagueLines";
 import { JoinedNote } from "@/components/league/JoinedNote";
@@ -36,6 +37,7 @@ import { Button, ButtonRow, Card, Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { RatingBadge } from "@/components/RatingBadge";
 import { DoublesRecordButton } from "@/components/record/DoublesMatchCard";
 import { levelSpoken } from "@/lib/onboarding";
@@ -237,7 +239,7 @@ function YourWeek({
 
 export default function LeagueScreen() {
   const c = useColors();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const { leagueId: raw, joined } = useLocalSearchParams<{ leagueId: string; joined?: string }>();
   const leagueId = Number(raw);
   // Opened straight from the join sheet (finding 33): "You're in" at the top.
@@ -360,17 +362,20 @@ export default function LeagueScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.paper }}
-      contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space4 }}
+      contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space4 }}
+      scrollIndicatorInsets={bottom.scrollIndicatorInsets}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
       {sheet.element}
-      {leagueQ.isError || !league ? (
-        <Card style={{ gap: spacing.space2 }}>
-          <Text variant="bodyStrong">Couldn't load this league</Text>
-          <Text variant="small" tone="inkMuted">
-            Pull down to try again.
-          </Text>
-        </Card>
+      <OfflineNotice pull={pull} />
+      {/* The league stays on screen when a refresh fails; the notice above says so (decision 195). */}
+      {!league ? (
+        <ProblemCard
+          title="Can't load this league"
+          body="Check your connection and try again."
+          onRetry={() => void leagueQ.refetch()}
+          retrying={leagueQ.isRefetching}
+        />
       ) : (
         <>
           {justJoined ? <JoinedNote leagueName={league.name ?? null} /> : null}

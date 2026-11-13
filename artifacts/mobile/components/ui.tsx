@@ -29,6 +29,7 @@ import Svg, { Path } from "react-native-svg";
 import { useAccessibilitySettings } from "@/hooks/useAccessibilitySettings";
 import { BUTTON_PAD_X, buttonHeight, shouldStackButtons } from "@/lib/buttonSize";
 import { useColors, useScheme } from "@/hooks/useColors";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import {
   MIN_TAP,
   displayFaces,
@@ -533,16 +534,18 @@ export interface ScrollScreenProps extends Omit<ScrollViewProps, "style" | "cont
 export function ScrollScreen({ style, children, ...rest }: ScrollScreenProps) {
   const c = useColors();
   const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
+      scrollIndicatorInsets={bottom.scrollIndicatorInsets}
       {...rest}
       style={{ flex: 1, backgroundColor: c.paper }}
       contentContainerStyle={[
         {
           flexGrow: 1,
           paddingTop: insets.top + spacing.space4,
-          paddingBottom: insets.bottom + spacing.space4,
+          paddingBottom: bottom.paddingBottom,
           paddingHorizontal: spacing.space4,
         },
         style,

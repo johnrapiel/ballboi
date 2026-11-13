@@ -23,6 +23,7 @@ import { useDiscardGuard } from "@/hooks/useDiscardGuard";
 import { courtPick, usePickedCourt } from "@/hooks/useCourts";
 import { useDiscoverMe } from "@/hooks/useDiscover";
 import { usePostOpenMatch } from "@/hooks/useDiscoverOpenMatches";
+import { usePinnedBarHeight, useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { defaultPlanStart, levelRangeText, windowEnd, type LevelRange } from "@/lib/discover";
 
@@ -37,6 +38,9 @@ export default function PostOpenMatchScreen() {
   const scheme = useScheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // The last content sits a full gap above the pinned button (decision 194).
+  const pinned = usePinnedBarHeight();
+  const bottom = useScreenBottomInset({ pinnedHeight: pinned.height });
   const me = useDiscoverMe();
   const court = usePickedCourt();
   const post = usePostOpenMatch();
@@ -110,7 +114,8 @@ export default function PostOpenMatchScreen() {
         }}
       />
       <ScrollView
-        contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + 120, gap: spacing.space6 }}
+        contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space6 }}
+        scrollIndicatorInsets={bottom.scrollIndicatorInsets}
         keyboardShouldPersistTaps="handled"
       >
         <View style={{ gap: spacing.space3 }}>
@@ -227,6 +232,7 @@ export default function PostOpenMatchScreen() {
         />
       </ScrollView>
       <View
+        onLayout={pinned.onLayout}
         style={{
           position: "absolute",
           left: 0,

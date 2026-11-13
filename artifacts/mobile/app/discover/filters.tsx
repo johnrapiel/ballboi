@@ -5,7 +5,7 @@
 //
 // Distance lives here, never on the Discover tabs (John, Nov 7: "That should
 // only live within filters"). Every tab's Filters starts with "Distance from
-// [ZIP]": 5 / 10 / 15 / 30 mi and Custom, each with its count for that tab.
+// [ZIP]": 5 / 10 / 15 / 30 / 50 mi and Custom, each with its count for that tab.
 // One distance for Players, Open leagues and Open matches.
 // Players also gets Level (every level from 2.5 to 5.0, pick any number,
 // yours selected by default; John, Nov 7), Plays and "Free when I'm free".

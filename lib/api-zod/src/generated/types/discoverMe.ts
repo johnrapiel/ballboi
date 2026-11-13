@@ -17,7 +17,7 @@ export interface DiscoverMe {
   hidden: boolean;
   /** @nullable */
   plays: DiscoverMePlays;
-  /** Last distance picked, 1 to 30 miles */
+  /** Last distance picked, 1 to 50 miles */
   radius: number;
   /** @nullable */
   rating: number | null;

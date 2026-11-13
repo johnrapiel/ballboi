@@ -1,7 +1,6 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import { Pressable, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useGetLeague, useGetLeagueInvites } from "@workspace/api-client-react";
 
@@ -9,6 +8,7 @@ import { InviteCard } from "@/components/league/InviteCard";
 import { Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
+import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 
 // Invite players (spec: Onboarding > Run a league "then a share link";
 // approved canvas: Admin · Invite players). Shown right after starting a
@@ -17,7 +17,7 @@ import { useColors } from "@/hooks/useColors";
 export default function InvitePlayersScreen() {
   const c = useColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const bottom = useScreenBottomInset();
   const { leagueId: raw } = useLocalSearchParams<{ leagueId: string }>();
   const leagueId = Number(raw);
 
@@ -48,7 +48,8 @@ export default function InvitePlayersScreen() {
       />
       <ScrollView
         style={{ flex: 1, backgroundColor: c.paper }}
-        contentContainerStyle={{ padding: spacing.space4, paddingBottom: insets.bottom + spacing.space8, gap: spacing.space6 }}
+        contentContainerStyle={{ padding: spacing.space4, paddingBottom: bottom.paddingBottom, gap: spacing.space6 }}
+        scrollIndicatorInsets={bottom.scrollIndicatorInsets}
       >
         <View style={{ gap: spacing.space1 }}>
           <Text variant="headingM" accessibilityRole="header">

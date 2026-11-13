@@ -73,6 +73,7 @@ describe("Open league rules", () => {
     const { leagues, counts } = nearbyLeagues(wappingers.point, 3.5, [league(1), league(2, { point: albany.point })], 10);
     expect(leagues.map((l) => l.leagueId)).toEqual([1]);
     expect(counts.find((c) => c.radius === 30)!.count).toBe(1);
+    expect(counts.find((c) => c.radius === 50)!.count).toBe(1);
   });
 });
 
