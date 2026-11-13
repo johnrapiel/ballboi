@@ -15,6 +15,21 @@ Ball Boi is a tennis app with heritage manners. Think Wilson's navy restraint, w
 - **Serif for the page and the moment, sans for the work.** Page and sheet titles are Cormorant Garamond in ink at 50%, quiet like a watermark (John, Nov 7; replaces the Nanum Brush Script titles). Cormorant at full ink carries scores, ranks, records, section headings and card titles. DM Sans carries everything you tap or read in a list. The roundel keeps its own brush lettering.
 - **Generous, never crowded.** Default to `space-6` between cards and `space-12` above heroes.
 
+## Wave 2 rules in one place
+
+Each rule is John's, from the Wave 2 walkthrough (Nov 11 to 12). The detail lives in the section named.
+
+- **Grabber on every swipe-down sheet**, page sheets included (decision 181; Bottom sheets).
+- **Close (X) at the top left of every sheet,** beside the title; closing asks before discarding anything (decision 198; Bottom sheets).
+- **Menus and pickers open in a bottom sheet;** native alerts only for destructive confirms and errors (decision 193; Menus and pickers).
+- **Empty states:** the roundel at 50%, at most one primary and one secondary button, and a filter-caused empty list says so with Clear filters first (decisions 188 to 190; Buttons and icons).
+- **Card padding** is one token, equal on every side; touch targets grow with hitSlop (decision 192; Shape and space).
+- **One bottom inset:** every screen scrolls a full gap clear of the tab bar, pinned buttons and the home indicator (decision 194; Shape and space).
+- **Offline notice:** a failed refresh keeps the screen with a quiet notice; the full error only when there's nothing to show (decision 195; Loading and error states).
+- **Section headings** over a field or control are sentence case (`section`); uppercase labels are for eyebrows, table headers and badges only (decision 200; Type).
+- **Two link tones:** green for links that change a match, ink and underlined for everything else (decision 201; Links).
+- **Quiet danger text:** Leave league, Cancel match and Drop out are red text with a brush icon at the bottom of the content, confirmed, never a filled or outlined button (decision 184; Principles).
+
 ## Voice
 
 Plain, confident, warm. Short sentences. Tennis words used correctly. No jokes in instructions.
@@ -80,7 +95,7 @@ When iOS Increase Contrast is on, `ink-muted`, `hairline` and `hairline-strong` 
 - **Scores always use** `font-variant-numeric: lining-nums tabular-nums` so sets line up.
 - **Section labels** over a list or a group (Next match, Past leagues, Your rank) are `section`: 13px DM Sans 600, sentence case, `ink-muted`. They replace the uppercase eyebrows on the approved screens. So does every heading over a field or control (decision 200, Wave 2 finding 52): a text field's label (Name, Email, Code, ZIP code, Miles, Their name, Area, Address; `Field` uses `section` by default), and the headings over chips, toggles and pickers (Discover filters' Distance, Level and Plays; Photo; Birthday; I play).
 - **Labels** are 11px uppercase with 0.16em tracking: the heritage tag on a racquet throat. 11px is the iOS floor, so they're for the rare eyebrow, table header and badge only, never over a field or control.
-- **Pills and chips.** Plain pills (level, hand, format, status words like Active and Done) are `pill`: 13px DM Sans 500, sentence case, outline only in `hairline-strong`, never filled. A level is the plain number, "3.5", with no Self-rated label until a verified source exists. Only You, Live and Rec stay filled, in the uppercase 12px `chip` style.
+- **Pills and chips.** Plain pills (level, hand, format, status words like Active and Done) are `pill`: 13px DM Sans 500, sentence case, outline only in `hairline-strong`, never filled. The level pill on a player card reads "Level 3.5" (decision 140), with no Self-rated label until a verified source exists; Edit profile's Level row keeps "Self-rated". Only You, Live and Rec stay filled, in the uppercase 12px `chip` style.
 - **Segmented controls** use the iOS native size: a `sand` track with 2px padding and a 9px corner, 32pt segments in `segment` (13px DM Sans 600), the selected one on `linen` with a soft shadow. Each segment keeps a 44pt hit area, so the 44pt touch rule still holds (John, Nov 6).
 - The roundel itself is never retyped in the brush font. Its lettering is hand-painted and lives only in the image.
 
