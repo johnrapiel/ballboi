@@ -1,7 +1,7 @@
 // A milestone's sheet (John, Nov 10: "What do these icons mean?"), from a
 // badge on any player card or a row on Career. The full title as the sheet
 // title, the badge, the date it was earned, and one plain line on how it's
-// earned. Read only. Sheet rules: hugs its content, no Cancel, drag down to
+// earned. Read only. Sheet rules: hugs its content, Close (X) or drag down to
 // close.
 
 import { useLocalSearchParams } from "expo-router";

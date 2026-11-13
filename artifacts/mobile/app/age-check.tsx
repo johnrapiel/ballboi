@@ -29,6 +29,7 @@ import { ActivityIndicator, Modal, Platform, Pressable, View } from "react-nativ
 import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { SheetClose } from "@/components/Sheet";
 import { Button, ScrollScreen, Screen, Text, TextButton } from "@/components/ui";
 import { MIN_TAP, radius, spacing } from "@/constants/tokens";
 import { useColors, useScheme } from "@/hooks/useColors";
@@ -198,7 +199,11 @@ function BirthdayField({ value, onPress }: { value: Date | null; onPress: () => 
   );
 }
 
-/** Bottom sheet with the native wheels picker, Cancel and Done. */
+/**
+ * Bottom sheet with the native wheels picker: Close (X) at the top left beside
+ * the title (Wave 2 finding 50, decision 198), Done at the right. Nothing is
+ * kept until Done, so Close never asks.
+ */
 function BirthdaySheet({
   visible,
   initial,
@@ -234,7 +239,7 @@ function BirthdaySheet({
       onRequestClose={onCancel}
     >
       <View style={{ flex: 1, justifyContent: "flex-end" }}>
-        {/* Tapping outside the sheet cancels, like a native sheet. Cancel covers VoiceOver. */}
+        {/* Tapping outside the sheet closes it, like a native sheet. Close (X) covers VoiceOver. */}
         <Pressable
           style={{ flex: 1, backgroundColor: "rgba(0, 0, 0, 0.35)" }}
           onPress={onCancel}
@@ -243,6 +248,7 @@ function BirthdaySheet({
         />
         <View
           accessibilityViewIsModal
+          onAccessibilityEscape={onCancel}
           style={{
             backgroundColor: c.linen,
             borderTopLeftRadius: radius.radiusLg,
@@ -256,14 +262,15 @@ function BirthdaySheet({
             style={{
               flexDirection: "row",
               alignItems: "center",
-              justifyContent: "space-between",
-              paddingHorizontal: spacing.space2,
+              paddingLeft: spacing.space4,
+              paddingRight: spacing.space2,
+              paddingVertical: spacing.space2,
               borderBottomWidth: 1,
               borderBottomColor: c.hairline,
             }}
           >
-            <SheetAction label="Cancel" onPress={onCancel} />
-            <Text variant="bodyStrong" accessibilityRole="header" style={{ flexShrink: 1, textAlign: "center" }}>
+            <SheetClose onPress={onCancel} />
+            <Text variant="headingM" accessibilityRole="header" style={{ flex: 1, marginLeft: spacing.space3 }}>
               Birthday
             </Text>
             <SheetAction

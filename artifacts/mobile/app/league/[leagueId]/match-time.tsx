@@ -20,7 +20,7 @@ import { zoneSuffix } from "@/lib/leagueSchedule";
 // Manage > Match time (PR 4). An admin sets one weekly match day and time for
 // a club league, or turns it off so players pick. Pairings still in review
 // pick it up; rounds already out keep the times they have. A bottom sheet:
-// no Cancel, drag down to close, and it asks before discarding a change.
+// Close (X) or drag down to close, and it asks before discarding a change.
 
 export default function LeagueMatchTimeScreen() {
   const queryClient = useQueryClient();

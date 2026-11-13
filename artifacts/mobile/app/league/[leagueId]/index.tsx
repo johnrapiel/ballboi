@@ -3,7 +3,7 @@ import { useActionSheet } from "@/components/ActionSheet";
 import { Icon } from "@/components/Icon";
 import { areaLabel } from "@/lib/leagueArea";
 import React, { useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -20,6 +20,7 @@ import {
 } from "@workspace/api-client-react";
 
 import { LeagueChatButton } from "@/components/league/LeagueChatButton";
+import { MatchActions } from "@/components/MatchActions";
 import { MatchTimeLink } from "@/components/MatchTimeLink";
 import { ProblemCard } from "@/components/discover/States";
 import { OfflineNotice } from "@/components/OfflineNotice";
@@ -33,7 +34,7 @@ import { RoundCard, UpcomingWeekRow } from "@/components/league/RoundCard";
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
 import { StandingsTable } from "@/components/league/StandingsTable";
 import { BracketView, myPlayoffMatch, ROUND_SINGULAR } from "@/components/league/Bracket";
-import { Button, ButtonRow, Card, Text } from "@/components/ui";
+import { Button, Card, Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -61,6 +62,8 @@ import {
 } from "@/lib/leagueSchedule";
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { formatLabel, playersLabel, playTypeLabel } from "@/lib/leagues";
+import { MATCH_CARD_HINT } from "@/lib/matchActions";
+import { isPastDue, pastDueWhen } from "@/lib/matchTiming";
 import { openRecorder } from "@/lib/recording/start";
 
 // League (spec: Leagues; approved canvas: League detail · Standings). One
@@ -124,7 +127,12 @@ function YourWeek({
   const opponentRating = isDoubles ? null : match.player1Id === myPlayerId ? match.player2Rating : match.player1Rating;
   const canMessage = isDoubles || (match.player1Id === myPlayerId ? match.player2HasAccount : match.player1HasAccount);
   const scoreable = canEnterScore(round, match, ended);
-  const record = recordAction(round, match, ended, doubles);
+  const recordable = recordAction(round, match, ended, doubles);
+  // Finding 47: an hour past the set start with no score, Enter score leads and
+  // Record with Ball Boi is a text link (in case they're still playing). Doubles
+  // has nothing to record yet, so its dimmed Record steps away.
+  const pastDue = scoreable && isPastDue({ scheduledAt: match.scheduledAt, score: match.score, timeZone });
+  const record = pastDue ? null : recordable;
   // C7: a direct chat with your opponent.
   const message = () => {
     if (!isDoubles) {
@@ -154,13 +162,33 @@ function YourWeek({
   // "Set a match time" or "Change time" is link text right below it, as on
   // Match detail. No Match time row under the buttons.
   const timeOpen = !played && !match.voided && round.phase !== "closed" && !ended;
-  const shownTime = timeOpen ? matchTime : null;
+  // Past due, the time reads "Earlier today · 6:30 PM" (finding 47).
+  const shownTime = timeOpen ? (pastDue && match.scheduledAt ? pastDueWhen(match.scheduledAt) : matchTime) : null;
   const canSetThisTime = timeOpen && canSetTime && scoreable;
 
+  // Tapping the card opens Match detail (finding 54, decision 199); the
+  // buttons inside stay their own VoiceOver elements and taps.
+  const openMatch = () => router.push(`/match/${match.matchId}`);
+
   return (
-    <Card style={{ gap: spacing.space3 }}>
+    <Pressable
+      accessible={false}
+      onPress={openMatch}
+      style={({ pressed }) => ({
+        backgroundColor: c.linen,
+        borderColor: c.hairline,
+        borderWidth: 1,
+        borderRadius: radius.radiusCard,
+        padding: spacing.space4,
+        gap: spacing.space3,
+        opacity: pressed ? 0.85 : 1,
+      })}
+    >
       <View
         accessible
+        accessibilityRole="button"
+        accessibilityHint={MATCH_CARD_HINT}
+        onAccessibilityTap={openMatch}
         accessibilityLabel={`Your match. ${label}. ${isDoubles ? versusSpoken(partner, others) : `You versus ${opponent}`}${
           opponentRating ? `, ${levelSpoken(opponentRating.rating, opponentRating.source)}` : ""
         }. ${when}${shownTime ? ` Match time, ${shownTime}.` : ""}`.replace(/ & /g, " and ")}
@@ -194,46 +222,46 @@ function YourWeek({
           // Sits right under the date line; its 44pt target is hitSlop (decision 192).
         />
       ) : null}
-      {/* John, Nov 8 (option A): Record with Ball Boi is the one primary
-          action any day of the match's week, with Enter score and Message
-          under it (spec: Ball Boi > Recording, "Every recording starts from
-          a match"). Doubles shows it dimmed with the reason as visible text. */}
-      {record === "record" ? (
-        <Button
-          label="Record with Ball Boi"
-          accessibilityHint={`Records your match against ${opponent}`}
-          onPress={() => openRecorder(router, { matchId: match.matchId, opponentName: opponent, leagueId })}
-        />
-      ) : record === "doubles" ? (
-        <DoublesRecordButton matchId={match.matchId} />
-      ) : null}
-      {/* Side by side at one height; ButtonRow stacks them when a label
-          wouldn't fit on one line (John, Nov 10). The visible word is just
-          "Message" so the pair fits; VoiceOver still names who (option A). */}
-      {scoreable || canMessage ? (
-        <ButtonRow>
-          {scoreable ? (
-            <Button
-              label="Enter score"
-              accessibilityHint={`For your match against ${opponent}`}
-              // Under Record it steps back to secondary; on its own it stays primary.
-              variant={record ? "secondary" : "primary"}
-              onPress={() => router.push(`/league/${leagueId}/score/${match.matchId}`)}
-            />
-          ) : null}
-          {canMessage ? (
-            <Button
-              label="Message"
-              accessibilityLabel={isDoubles ? "Message all four players" : `Message ${opponent}`}
-              accessibilityHint={isDoubles ? "Opens one group chat for the four of you" : "Opens a direct chat"}
-              variant="secondary"
-              loading={openChat.isPending}
-              onPress={message}
-            />
-          ) : null}
-        </ButtonRow>
-      ) : null}
-    </Card>
+      {/* The same actions as Home and Match detail (finding 54, decision 199):
+          Record with Ball Boi (any day of the match's week, John, Nov 8,
+          option A), then Message and Enter score. Doubles shows Record
+          dimmed with the reason as visible text. Past due (finding 47),
+          Enter score leads and Record is a link. The visible word is just
+          "Message" so the pair fits; VoiceOver still names who. */}
+      <MatchActions
+        pastDue={pastDue}
+        record={
+          recordable === "record"
+            ? {
+                label: "Record with Ball Boi",
+                hint: `Records your match against ${opponent}`,
+                onPress: () => openRecorder(router, { matchId: match.matchId, opponentName: opponent, leagueId }),
+              }
+            : null
+        }
+        recordPlaceholder={record === "doubles" ? <DoublesRecordButton matchId={match.matchId} /> : null}
+        message={
+          canMessage
+            ? {
+                label: "Message",
+                accessibilityLabel: isDoubles ? "Message all four players" : `Message ${opponent}`,
+                hint: isDoubles ? "Opens one group chat for the four of you" : "Opens a direct chat",
+                loading: openChat.isPending,
+                onPress: message,
+              }
+            : null
+        }
+        enterScore={
+          scoreable
+            ? {
+                label: "Enter score",
+                hint: `For your match against ${opponent}`,
+                onPress: () => router.push(`/league/${leagueId}/score/${match.matchId}`),
+              }
+            : null
+        }
+      />
+    </Pressable>
   );
 }
 

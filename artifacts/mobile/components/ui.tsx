@@ -615,10 +615,11 @@ export function TextButton({ label, accessibilityLabel, disabled, style, ...rest
  * Wrap a Screen that has text fields. Lifts the content above the keyboard and
  * paints the space it adds in `paper`, so no white strip shows above the keys.
  */
-export function KeyboardScreen({ children }: { children: React.ReactNode }) {
+export function KeyboardScreen({ children, onAccessibilityEscape }: { children: React.ReactNode; onAccessibilityEscape?: () => void }) {
   const c = useColors();
   return (
     <KeyboardAvoidingView
+      onAccessibilityEscape={onAccessibilityEscape}
       style={{ flex: 1, backgroundColor: c.paper }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >

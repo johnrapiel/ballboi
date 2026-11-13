@@ -30,8 +30,9 @@ import { areaLabel, createLeagueBlocker, prefillArea, type AreaCheck } from "@/l
 
 // Start a league (spec: Leagues > Setup and Onboarding > Run a league;
 // approved canvas: Admin · Create league, a full-height sheet with a serif
-// title and Create league pinned at the bottom; no Cancel, per the sheet rule:
-// drag down to close, and it asks before discarding). It's the standard iOS
+// title and Create league pinned at the bottom; Close (X) at the top left or
+// drag down to close, and it asks before discarding: the sheet rule, decision
+// 198, which replaced the old no-Cancel rule from #214). It's the standard iOS
 // page sheet (`fullSheetOptions` in app/_layout.tsx), not a formSheet, which
 // drew this form blank on iOS 26. Anyone can start one and becomes its admin.
 // Singles or doubles (doubles flow review D1, D8, John, Nov 9): doubles picks

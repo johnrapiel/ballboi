@@ -163,23 +163,25 @@ One rule for every bottom sheet (John, Nov 6), like the approved Enter score she
 
 - The sheet hugs its content and grows with larger text. It only scrolls when the content is taller than the screen.
 - It has one position, its content's height: no taller position to drag to. The primary action sits one `space-4` gap above the home indicator; iOS adds the home indicator strip below a hugging sheet's content, so the content never pads for it again (Wave 2 finding 46).
-- No Cancel button. Drag down to close. If you changed something, closing asks before it discards your changes ("Discard changes?" with Keep editing and a red Discard). The VoiceOver escape gesture (two-finger Z) closes it the same way.
-- A left-aligned `heading-m` title (Cormorant at 50% ink) sits under the grabber, read by VoiceOver as the header.
+- **A Close button at the top left** (decision 198, John, Nov 12, Wave 2 finding 50; replaces the old "no Cancel" rule, #214). A brush X (`xmark`) in the 44pt corner circle, the same Liquid Glass as the tab corners (sand circle with a hairline where glass isn't available), on the same row as the title, under the grabber. VoiceOver reads it as "Close". It's the non-gesture way to do what swipe down does, so both still work. A sheet with a native navigation bar (Quick match, Post an open match) has it in the bar's left slot instead.
+- Closing goes one way, whether it's the X, a drag down or the VoiceOver escape gesture (two-finger Z): if something would be lost (a form with changes, a Quick match not yet recorded), it asks first ("Discard changes?" with Keep editing and a red Discard); if nothing would be lost, it closes at once. Nothing recorded is ever discarded silently.
+- The one exception: the notifications pre-prompt has no X, because App Review wants a screen before a permission prompt to lead only to it. Drag down still closes it.
+- A left-aligned `heading-m` title (Cormorant at 50% ink) sits beside the X, read by VoiceOver as the header.
 - The primary action is the last thing in the sheet, full width.
 - Sheets sit on `linen` with the `radius-lg` corner and the system grabber.
-- **Every sheet you can swipe down shows the grabber bar at the top**, full-height page sheets and swipe-down modals included, so people know they can swipe it away (decision 181, John, Nov 11). iOS draws it on the hugging sheets. Page sheets (New league, Join league, Quick match, Post an open match, a recorded match's invite) get `Grabber` from `components/Sheet.tsx`, drawn to match: 36 by 5pt, fully round, 5pt from the top, centred, in `hairline-strong` (3:1 or better on `paper` and `linen` in Day and Night, `-hc` with Increase Contrast). It's decorative, so VoiceOver skips it; each of these screens also has a button that closes it. A modal that can't be swiped down (Invite players after creating a league, the recording camera) has no grabber.
+- **Every sheet you can swipe down shows the grabber bar at the top**, full-height page sheets and swipe-down modals included, so people know they can swipe it away (decision 181, John, Nov 11). iOS draws it on the hugging sheets. Page sheets (New league, Join league, Quick match, Post an open match, a recorded match's invite) get `Grabber` from `components/Sheet.tsx`, drawn to match: 36 by 5pt, fully round, 5pt from the top, centred, in `hairline-strong` (3:1 or better on `paper` and `linen` in Day and Night, `-hc` with Increase Contrast). It's decorative, so VoiceOver skips it; each of these screens has the Close (X). A modal that can't be swiped down (Invite players after creating a league, the recording camera) has no grabber; Invite players still has the X at the top left, and the camera keeps its own close in its controls.
 
-In the app, `components/Sheet.tsx` (`SheetBody`) does all of this; sheet routes use the `sheet` options in `app/_layout.tsx`.
+In the app, `components/Sheet.tsx` (`SheetBody`) does all of this, the X included (`SheetClose`; `SheetCloseBar` for a modal whose title sits lower, like Join league's invite card); sheet routes use the `sheet` options in `app/_layout.tsx`.
 
 ### Menus and pickers
 
 Menus and pickers open in a bottom sheet, never the native action sheet (decision 193, John, Nov 12). Native alerts are only for confirming destructive actions (delete, remove, leave, ban, discard) and for errors.
 
-- Same sheet rules as above: `linen`, `radius-lg` top corners, the grabber, hugs its content and scrolls only when it's taller than the screen. Swipe down or tap the dimmed backdrop to close; no Cancel row. The VoiceOver escape gesture closes it (or goes back a step).
+- Same sheet rules as above: `linen`, `radius-lg` top corners, the grabber, hugs its content and scrolls only when it's taller than the screen. The Close (X) at the top left beside the title (decision 198); swipe down or a tap on the dimmed backdrop closes it too, and there's no Cancel row. A menu loses nothing by closing, so it never asks. The VoiceOver escape gesture closes it (or goes back a step).
 - Optional header: a `heading-m` title (or `title` at full ink when it holds a name), the people it's about with their photo or initials (a match shows both players, "vs." between), and a short muted message.
 - Rows are at least 52pt tall: a brush icon (or a player's photo), the label in DM Sans 600, an optional muted second line. A row that opens a second step ends in a chevron.
 - Destructive rows are `danger` text and icon, and confirm with a native alert after the sheet closes.
-- A second step (Swap Maya Chen with: a player list) opens inside the same sheet, with Back at the top left.
+- A second step (Swap Maya Chen with: a player list) opens inside the same sheet, with Back in the X's place at the top left, the way a pushed page in an iOS sheet swaps Close for Back.
 - Reduce Motion: it fades instead of sliding.
 
 In the app, `components/ActionSheet.tsx` (`useActionSheet`) does all of this.

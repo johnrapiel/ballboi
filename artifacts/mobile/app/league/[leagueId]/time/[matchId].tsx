@@ -24,7 +24,7 @@ import { todaysMatchesKey } from "@/lib/recording/api";
 // a date and time for their match inside its week; both see it, and either can
 // change it. A time never gates recording: it only puts the match first on
 // Home and the Ball Boi tab that day. Native iOS date and time picker in a
-// bottom sheet (the sheet rule: no Cancel, drag down to close). Days already
+// bottom sheet (the sheet rule: Close (X) or drag down to close). Days already
 // past in the round are greyed out and can't be picked (finding 10).
 
 export default function MatchTimeScreen() {

@@ -22,7 +22,7 @@ import { apiErrorMessage, apiFetch } from "@/lib/api";
 // required "Tell us what happened" field, and the others have no note. Tick
 // "Also block [name]" to block them too: no messages either way, and they're
 // out of Discover, search and pairing. A bottom sheet, by the sheet rule:
-// brush title, no Cancel, drag down to close, asks before discarding.
+// brush title, Close (X) or drag down to close, asks before discarding.
 //
 // The route's playerId is a league player id, or "u<userId>" for a Discover
 // player who has no league player record yet.

@@ -151,6 +151,7 @@ Ball Boi Pro is parked as of Nov 7 (spec decision 82): no subscription, paywall 
 | New messages announced to screen readers | 4.1.3 | ❌ | Live region on web; `AccessibilityInfo.announceForAccessibility` on iOS |
 | Message bubbles read sender, text, time in one swipe | 1.3.1, 4.1.2 | ❌ | Group each bubble as one accessible element |
 | Swipe-to-reply/delete has a non-gesture alternative | 2.5.7 | ❌ | Long-press menu + VoiceOver custom actions |
+| Swipe down to close a sheet has a non-gesture alternative | 2.5.7 | 🟡 | Every sheet has a Close (X) at the top left beside its title (decision 198, Wave 2 finding 50): hugging sheets, page sheets, menu sheets and modal flows. X, swipe down and the VoiceOver escape gesture all ask "Discard changes?" before anything would be lost. Built (PR `claude/wave2-sheet-close`); to be checked on a phone. The notifications pre-prompt is the one sheet without it (App Review 5.1.1) |
 | Failed sends identified in text, not just a red icon | 3.3.1, 1.4.1 | ❌ | "Not sent. Tap to retry" |
 | Bubble contrast (both sides, both themes) | 1.4.3 | ❌ | Check sent bubble text against 4.5:1 once bubble colors are chosen from the refreshed palette |
 | Voice cues have a text alternative | 1.1.1, 1.3.3 | ❌ | Every cue's caption comes from the voice coach manifest (`lib/coachLines.ts`). Captions never show on the mounted phone (its screen faces the fence; John, Nov 8, replaces decision 131's setup captions); they show on the Live Activity, partner phone and Apple Watch, during setup and recording; haptics on the mounted phone |

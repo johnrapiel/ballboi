@@ -22,6 +22,7 @@ import {
 
 import { ScoreGrid, ScoreResult } from "@/components/league/ScoreGrid";
 import { ScoreEnteredMoment, type Record as SeasonRecord } from "@/components/ScoreEnteredMoment";
+import { InlineLink } from "@/components/InlineLink";
 import { SheetBody, useSheetClose } from "@/components/Sheet";
 import { Button, Card, Text, TextButton } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
@@ -31,17 +32,19 @@ import { andJoin, firstName as firstNameOf, isDoublesMatch, opponentNames, partn
 import { refreshLeague } from "@/lib/leagueRefresh";
 import { ROUND_SINGULAR } from "@/components/league/Bracket";
 import { emptySet, hasScoreChange, NO_CHANGES, readScore, setRowsToShow, setsFromScore, type SetEntry } from "@/lib/scoreEntry";
-import { scoreNote } from "@/lib/playoffView";
+import { editWindowLine, scoreNote } from "@/lib/playoffView";
 import { flipScore, isRetiredScore } from "@/lib/tennisScore";
 
 // Enter score (spec: Leagues > Scores and standings; approved canvas: Enter
-// score, a bottom sheet with no Cancel: drag down to close, and it asks before
+// score, a bottom sheet: Close (X) or drag down to close, and it asks before
 // discarding typed scores). Either player enters it, from their own side.
 // Only real tennis scores save (C10): the third set opens only at one set all,
 // and a set typed 6-6 asks for its tiebreak (finding 5). "Opponent retired" saves
 // the sets so far as your win, shown as RET (Q6). Either player can edit the
 // score for 24 hours after it's entered, with no countdown or Undo banner
-// (finding 7, Nov 6); after that only the admin can correct it.
+// (finding 7, Nov 6); after that only the admin can correct it. A visible
+// line under the helper text says so (finding 55, canvas C2), and "Match
+// didn't finish?" is a court-green link like "Change time" (InlineLink).
 //
 // With ?edit=1 it's that 24-hour edit, opened from the pencil on Match
 // detail: the boxes start with the score as it stands, from your side, and
@@ -433,6 +436,13 @@ export default function EnterScoreScreen() {
 
           <ScoreResult draft={draft} winner={winnerLine} prompt={prompt} error={serverError} />
 
+          {/* Finding 55 (canvas C2): the 24-hour edit is visible, not VoiceOver only. */}
+          {!asAdmin && !editing && !correcting && !settling ? (
+            <Text variant="small" tone="inkMuted">
+              {editWindowLine({ doubles, playoffRound: playoffSlot?.round ?? null })}
+            </Text>
+          ) : null}
+
           {doubles && !settling && !retired ? (
             <TextButton
               label="Team a player short?"
@@ -459,10 +469,11 @@ export default function EnterScoreScreen() {
               />
             </View>
           ) : (
-            <TextButton
+            // A real link in court green, like "Change time" on Match detail (finding 55).
+            <InlineLink
               label="Match didn't finish?"
-              accessibilityHint="For when your opponent couldn't continue"
-              style={{ alignSelf: "flex-start", paddingHorizontal: 0 }}
+              accessibilityHint={doubles ? "For when the other team couldn't continue" : "For when your opponent couldn't continue"}
+              align="left"
               onPress={matchDidntFinish}
             />
           )}

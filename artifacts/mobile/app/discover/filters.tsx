@@ -1,6 +1,6 @@
 // Filters (canvas W2_DiscoverFilters, W2_DiscoverFiltersDistance,
 // W2_DiscoverFiltersNoTimes; F3, F8, F11). A bottom sheet by the sheet rule:
-// left-aligned brush title, no Cancel, drag down to close, and "Discard
+// left-aligned brush title, Close (X) or drag down to close, and "Discard
 // changes?" when something changed.
 //
 // Distance lives here, never on the Discover tabs (John, Nov 7: "That should

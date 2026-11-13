@@ -23,6 +23,17 @@ export function scoreNote(input: { correcting: boolean; settling: boolean; editi
   return { text: "Either player can edit it for 24 hours after you save.", hint: "Either player can edit it for 24 hours" };
 }
 
+/**
+ * The visible line under Enter score's helper text (Wave 2 finding 55, canvas
+ * note C2): who can edit the score and for how long, so it isn't VoiceOver
+ * only. A playoff match also locks once the next round is played.
+ */
+export function editWindowLine(input: { doubles: boolean; playoffRound?: Round | null }): string {
+  const who = input.doubles ? "Any of the four" : "Either of you";
+  const tail = input.playoffRound && input.playoffRound !== "final" ? ", until the next round is played" : "";
+  return `${who} can edit it for 24 hours${tail}.`;
+}
+
 /** A stored score (player 1's side) from the winner's side, or "by W/O" (C18, Q5). */
 export function slotWinningScore(slot: Pick<BracketSlot, "score" | "winnerId" | "player1">): string | null {
   if (!slot.score || slot.winnerId == null) return null;
