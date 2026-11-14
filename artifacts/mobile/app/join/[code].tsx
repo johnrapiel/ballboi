@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { PartnerCard } from "@/components/league/PartnerCard";
 import { useGetMyPartner } from "@workspace/api-client-react";
 import React, { useEffect, useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, ScrollView, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -19,7 +19,7 @@ import {
 import { Avatar } from "@/components/Avatar";
 import { RatingBadge } from "@/components/RatingBadge";
 import { SheetCloseBar } from "@/components/Sheet";
-import { Button, Card, Text } from "@/components/ui";
+import { Button, Card, Text, TextLink } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useGate } from "@/hooks/useGate";
@@ -31,6 +31,7 @@ import { refreshLeague } from "@/lib/leagueRefresh";
 import { shortDate } from "@/lib/leagueSchedule";
 import { levelSpoken } from "@/lib/onboarding";
 import { photoUrl } from "@/lib/photos";
+import { showMoreLabel, whosInShown } from "@/lib/whosIn";
 
 // Join a league (decision C1, Oct 31 review). Opened by an invite link
 // (https://ballboi.tennis/join/CODE or ballboi://join/CODE) and by a code
@@ -47,13 +48,11 @@ import { photoUrl } from "@/lib/photos";
 // Request sent, waitlist, Already in and the problem states stay here, centered.
 // Approved canvas: Join league invite. The invite as a card with a brush
 // title, Where, Players and Starts as a list, then Who's in (finding 34):
-// everyone in the league, organizer first, up to 8 and "and N more". Players
+// everyone in the league, organizer first, up to 8, then a "Show N more" link
+// that expands the list in place to everyone (finding 60). Players
 // hidden from Discover still show; anyone with a block with you doesn't.
 // The one button is pinned at the bottom. Close (X) at the top left, like
 // every sheet (Wave 2 finding 50, decision 198), as well as swipe down.
-
-/** Who's in shows this many members, then "and N more". */
-const WHOS_IN_LIMIT = 8;
 
 /** A label and value row in the invite's list. */
 function DetailRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
@@ -115,10 +114,17 @@ function MemberRow({ member, last }: { member: LeagueInviteMember; last: boolean
   );
 }
 
-/** Who's in (finding 34): every member, up to 8, then "and N more". */
+/**
+ * Who's in (finding 34): every member, up to 8, then "Show N more" (finding
+ * 60, John, Nov 13), an ink link (decision 201) that expands the list in
+ * place to everyone. The invite already has the whole list, so no request;
+ * the link goes away once tapped, with no "Show less" and no animation.
+ */
 function WhosIn({ members }: { members: LeagueInviteMember[] }) {
-  const shown = members.slice(0, WHOS_IN_LIMIT);
-  const more = members.length - shown.length;
+  const [expanded, setExpanded] = useState(false);
+  const { shown, more } = whosInShown(members, expanded);
+  const moreLabel = showMoreLabel(more);
+  const expand = () => setExpanded(true);
   return (
     <View style={{ gap: spacing.space2 }}>
       <Text variant="section" tone="inkMuted" accessibilityRole="header" style={{ paddingHorizontal: spacing.space1 }}>
@@ -134,9 +140,23 @@ function WhosIn({ members }: { members: LeagueInviteMember[] }) {
             <MemberRow key={m.playerId} member={m} last={i === shown.length - 1 && more === 0} />
           ))}
           {more > 0 ? (
-            <View style={{ minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.space4, paddingVertical: spacing.space2 }}>
-              <Text tone="inkMuted">{`and ${more} more`}</Text>
-            </View>
+            <Pressable
+              onPress={expand}
+              accessibilityRole="button"
+              accessibilityLabel={moreLabel.spoken}
+              style={({ pressed }) => ({
+                minHeight: 44,
+                justifyContent: "center",
+                paddingHorizontal: spacing.space4,
+                paddingVertical: spacing.space2,
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              {/* The words take the same press; the row is the one VoiceOver control. */}
+              <TextLink onPress={expand} accessible={false}>
+                {moreLabel.label}
+              </TextLink>
+            </Pressable>
           ) : null}
         </Card>
       )}
