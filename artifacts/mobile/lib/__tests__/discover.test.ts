@@ -171,7 +171,7 @@ describe("court directory", () => {
   });
 });
 
-import { actionLabel, defaultPlanStart, eventCopy, planDetail, type MatchPlan, type PlanEvent } from "../discover";
+import { actionLabel, defaultPlanStart, eventCopy, planDetails, type MatchPlan, type PlanEvent } from "../discover";
 
 describe("match cards in chat", () => {
   const plan: MatchPlan = {
@@ -196,7 +196,10 @@ describe("match cards in chat", () => {
 
   it("asks the other player and tells the sender they're waiting", () => {
     expect(eventCopy(ev({ state: "waiting" }), plan, "Sam Whitfield").title).toBe("Add this match?");
-    expect(eventCopy(ev({ state: "waiting", by: "me" }), plan, "Sam Whitfield").body).toMatch(/Waiting for Sam\.$/);
+    expect(eventCopy(ev({ state: "waiting", by: "me" }), plan, "Sam Whitfield")).toMatchObject({
+      title: "You sent a match",
+      body: "Waiting for Sam.",
+    });
     expect(eventCopy(ev({ state: "replaced" }), plan, "Sam").title).toBe("Replaced by a newer time");
   });
 
@@ -210,7 +213,10 @@ describe("match cards in chat", () => {
     expect(actionLabel("accept", "Sam")).toBe("I'm in");
     expect(actionLabel("decline", "Sam")).toBe("Can't make it");
     expect(actionLabel("dispute", "Sam")).toBe("That's not right");
-    expect(planDetail({ courtName: null, kind: "practice" })).toBe("Court not set · Practice hit");
+    expect(planDetails({ startsAt: plan.startsAt, courtName: null, kind: "practice" })).toMatchObject({
+      court: "Court not set",
+      kind: "Practice hit",
+    });
   });
 
   it("starts a new card tomorrow at 6 PM", () => {
@@ -258,14 +264,14 @@ import { cardActions } from "../discover";
 
 describe("match card answers (finding 46)", () => {
   it("puts Can't make it in the corner and keeps the rest as buttons", () => {
-    expect(cardActions(["cancel"])).toEqual({ cantMakeIt: "cancel", buttons: [] });
-    expect(cardActions(["still_on", "cancel"])).toEqual({ cantMakeIt: "cancel", buttons: ["still_on"] });
-    expect(cardActions(["accept", "decline"])).toEqual({ cantMakeIt: "decline", buttons: ["accept"] });
+    expect(cardActions(["cancel"])).toEqual({ cantMakeIt: "cancel", undo: false, buttons: [] });
+    expect(cardActions(["still_on", "cancel"])).toEqual({ cantMakeIt: "cancel", undo: false, buttons: ["still_on"] });
+    expect(cardActions(["accept", "decline"])).toEqual({ cantMakeIt: "decline", undo: false, buttons: ["accept"] });
   });
   it("leaves cards without Can't make it alone", () => {
-    expect(cardActions(["undo"])).toEqual({ cantMakeIt: null, buttons: ["undo"] });
-    expect(cardActions(["score", "no_show", "not_played"])).toEqual({ cantMakeIt: null, buttons: ["score", "no_show", "not_played"] });
-    expect(cardActions([])).toEqual({ cantMakeIt: null, buttons: [] });
+    expect(cardActions(["undo"])).toEqual({ cantMakeIt: null, undo: true, buttons: [] });
+    expect(cardActions(["score", "no_show", "not_played"])).toEqual({ cantMakeIt: null, undo: false, buttons: ["score", "no_show", "not_played"] });
+    expect(cardActions([])).toEqual({ cantMakeIt: null, undo: false, buttons: [] });
   });
 });
 
@@ -291,5 +297,61 @@ describe("open match header (walkthrough 57)", () => {
     expect(openMatchFormatLine({ format: "doubles", status: "open", spotsLeft: 3 })).toBe("Doubles · Need 3");
     expect(openMatchFormatLine({ format: "doubles", status: "full", spotsLeft: 0 })).toBe("Doubles · Full");
     expect(openMatchFormatLine({ format: "singles", status: "open", spotsLeft: 0 })).toBe("Singles · Full");
+  });
+});
+
+import { ADDED_NOTE, planDay, planDetailsSpoken, planTime, planWhen } from "../discover";
+
+describe("chat match cards scan in blocks (finding 61)", () => {
+  const plan: MatchPlan = {
+    id: 2,
+    startsAt: new Date(2026, 10, 16, 19, 0).toISOString(),
+    timeZone: "America/New_York",
+    courtName: null,
+    kind: "singles",
+    matchId: 9,
+    score: null,
+    mine: true,
+    events: [],
+  };
+  const ev = (e: Partial<PlanEvent>): PlanEvent => ({ key: "k", type: "added", at: plan.startsAt, by: "them", actions: [], ...e });
+
+  it("splits the details into day, time, court and kind", () => {
+    expect(planDetails(plan)).toEqual({ day: "Mon, Nov 16", time: "7 PM", court: "Court not set", kind: "Singles" });
+    expect(planDetails({ ...plan, courtName: "Fishkill Rec Park", kind: "practice" })).toMatchObject({
+      court: "Fishkill Rec Park",
+      kind: "Practice hit",
+    });
+    expect(planWhen(plan.startsAt)).toBe(`${planDay(plan.startsAt)} at ${planTime(plan.startsAt)}`);
+    expect(planDetailsSpoken(planDetails(plan))).toBe("Mon, Nov 16 at 7 PM. Court not set. Singles");
+  });
+
+  it("keeps Match added short, with no undo sentence", () => {
+    const withUndo = eventCopy(ev({ actions: ["undo"] }), plan, "Sam");
+    expect(withUndo.title).toBe("Match added");
+    expect(withUndo.body).toBe(ADDED_NOTE);
+    expect(ADDED_NOTE).toBe("On both your schedules.");
+    expect(withUndo.details?.court).toBe("Court not set");
+    expect(eventCopy(ev({ actions: [] }), plan, "Sam").body).toBe(ADDED_NOTE);
+  });
+
+  it("gives every match state the same details, none run on", () => {
+    for (const state of ["waiting", "declined", "undone", "added", "replaced"]) {
+      for (const by of ["me", "them"] as const) {
+        const copy = eventCopy(ev({ type: "proposed", state, by }), plan, "Sam");
+        expect(copy.details).toEqual(planDetails(plan));
+        expect(copy.body ?? "").not.toContain(" · ");
+      }
+    }
+    expect(eventCopy(ev({ type: "proposed", state: "declined", by: "me" }), plan, "Sam").title).toBe("You sent a match");
+    expect(eventCopy(ev({ type: "proposed", state: "waiting", by: "them" }), plan, "Sam").body).toBe("It goes on both your schedules.");
+    expect(eventCopy(ev({ type: "day_before", themIn: true }), plan, "Sam").body).toBe(
+      "Sam is in\nNo answer means you're still on. We'll remind you 2 hours before.",
+    );
+    expect(eventCopy(ev({ type: "did_it_happen" }), plan, "Sam").details?.day).toBe("Mon, Nov 16");
+  });
+
+  it("leaves status lines as they were", () => {
+    expect(eventCopy(ev({ type: "undone", by: "me" }), plan, "Sam")).toMatchObject({ status: true, body: "It's off both your schedules." });
   });
 });
