@@ -56,7 +56,7 @@ function PlayerLine({ p, look, me }: { p: BracketSeed | null; look: NameStyle; m
 }
 
 /** The slot's winner mark: who's marked, the score line, and what VoiceOver reads. */
-function slotMark(slot: BracketSlot, round: BracketRound, ended: boolean) {
+export function slotMark(slot: BracketSlot, round: BracketRound, ended: boolean) {
   const result = slotResult(slot, round, ended);
   const side = slot.status === "completed" ? sideOf(slot.winnerId, slot.player1?.playerId, slot.player2?.playerId) : null;
   return winnerMark({

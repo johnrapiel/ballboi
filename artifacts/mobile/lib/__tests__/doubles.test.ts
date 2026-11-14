@@ -176,6 +176,6 @@ describe("finding 31: the partner line and the Manage gear", () => {
   });
   it("labels the gear, with pairings to review", () => {
     expect(manageLeagueLabel(false)).toBe("Manage league");
-    expect(manageLeagueLabel(true)).toBe("Manage league, pairings to review");
+    expect(manageLeagueLabel(true)).toBe("Manage league, pairings need review");
   });
 });

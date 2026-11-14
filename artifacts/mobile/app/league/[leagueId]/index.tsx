@@ -1,269 +1,57 @@
-import { router, useLocalSearchParams } from "expo-router";
-import { useActionSheet } from "@/components/ActionSheet";
-import { Icon } from "@/components/Icon";
-import { areaLabel } from "@/lib/leagueArea";
-import React, { useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useState } from "react";
+import { AccessibilityInfo, ActivityIndicator, Alert, RefreshControl, ScrollView, View } from "react-native";
 
 import {
   useGetLeague,
   useGetLeagueBracket,
   useGetLeagueMembership,
-  useLeaveLeague,
   useGetLeagueSchedule,
   useGetLeagueStandings,
-  useOpenDoublesMatchChat,
+  useGetMyPartner,
+  useLeaveLeague,
   useSettlePlayoffMatch,
   type BracketSlot,
-  type ScheduleMatch,
 } from "@workspace/api-client-react";
 
-import { LeagueChatButton } from "@/components/league/LeagueChatButton";
-import { MatchActions } from "@/components/MatchActions";
-import { MatchTimeLink } from "@/components/MatchTimeLink";
-import { ProblemCard } from "@/components/discover/States";
-import { OfflineNotice } from "@/components/OfflineNotice";
-import { TeamUpRequestCards } from "@/components/league/PartnerCard";
-import { PairingsLine, PartnerLine } from "@/components/league/LeagueLines";
-import { JoinedNote } from "@/components/league/JoinedNote";
+import { useActionSheet } from "@/components/ActionSheet";
 import { CornerButton } from "@/components/CornerButton";
-import { LeaveAction } from "@/components/LeaveAction";
-import { andJoin, isDoublesMatch, manageLeagueLabel, opponentNames, partnerName, versusLine, versusSpoken } from "@/lib/doubles";
-import { RoundCard, UpcomingWeekRow } from "@/components/league/RoundCard";
+import { ProblemCard } from "@/components/discover/States";
+import { JoinedNote } from "@/components/league/JoinedNote";
+import { LeagueChatButton } from "@/components/league/LeagueChatButton";
+import { LeagueMatchesTab } from "@/components/league/LeagueMatchesTab";
+import { LeagueOverviewTab } from "@/components/league/LeagueOverviewTab";
+import { LeagueStandingsTab } from "@/components/league/LeagueStandingsTab";
 import { SegmentedTabs } from "@/components/league/SegmentedTabs";
-import { StandingsTable } from "@/components/league/StandingsTable";
-import { BracketView, myPlayoffMatch, ROUND_SINGULAR } from "@/components/league/Bracket";
-import { Button, Card, Text } from "@/components/ui";
+import { OfflineNotice } from "@/components/OfflineNotice";
+import { Text } from "@/components/ui";
 import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
-import { RatingBadge } from "@/components/RatingBadge";
-import { DoublesRecordButton } from "@/components/record/DoublesMatchCard";
-import { levelSpoken } from "@/lib/onboarding";
-import {
-  canEnterScore,
-  correctionLine,
-  editedLine,
-  dateRange,
-  deadlineDate,
-  matchWhen,
-  myWeek,
-  opponentName,
-  playoffLine,
-  recordAction,
-  resultLine,
-  LATE_NOTE,
-  lateTime,
-  playByLine,
-  shortDate,
-  weeklyMatchTime,
-} from "@/lib/leagueSchedule";
+import { manageLeagueLabel, partnerLine } from "@/lib/doubles";
 import { refreshLeague } from "@/lib/leagueRefresh";
-import { formatLabel, playersLabel, playTypeLabel } from "@/lib/leagues";
-import { MATCH_CARD_HINT } from "@/lib/matchActions";
-import { isPastDue, pastDueWhen } from "@/lib/matchTiming";
-import { openRecorder } from "@/lib/recording/start";
+import { aboutRows, LEAGUE_TABS, standingsSummary, type LeagueTab } from "@/lib/leaguePage";
+import { playoffLine } from "@/lib/leagueSchedule";
 
-// League (spec: Leagues; approved canvas: League detail · Standings). One
-// main card, your match (finding 31, decision 185, John, Nov 12). Top to
-// bottom:
-// - The name and info lines, with the chat corner button and, for admins, a
-//   gear corner button just left of it that opens Manage league. The gear
-//   has an ink dot while a round's pairings wait for review.
-// - Fixed-partner doubles: your partner as one line, or "No partner yet ·
-//   Team up" (opens the Team up sheet).
-// - Admins, when pairings wait: "Round N pairings are ready." and Review.
-// - A team-up request to you, as a card only while it waits.
-// - Your match this week, then Standings, Matches and Playoffs.
-// - Leave league, quiet text at the bottom (decision 184).
-
-type Tab = "standings" | "rounds" | "playoffs";
-
-function YourWeek({
-  leagueId,
-  week,
-  myPlayerId,
-  timeZone,
-  canSetTime,
-  ended,
-  doubles,
-}: {
-  leagueId: number;
-  week: NonNullable<ReturnType<typeof myWeek>>;
-  myPlayerId: number;
-  timeZone: string | null;
-  canSetTime: boolean;
-  ended: boolean;
-  /** A doubles league's match: Record shows dimmed with the reason. */
-  doubles: boolean;
-}) {
-  // C6: hooks before any early return, so a bye week turning into a match
-  // doesn't change the hook order.
-  const c = useColors();
-  const openChat = useOpenDoublesMatchChat();
-  const { round, match, bye } = week;
-  const label = `Round ${round.roundNumber} · ${dateRange(round.startDate, round.deadline)}`;
-
-  if (bye) {
-    return (
-      <Card accessible accessibilityLabel={`${label}. You have a bye this week.`} style={{ gap: spacing.space1 }}>
-        <Text variant="section" tone="inkMuted">
-          {label}
-        </Text>
-        <Text variant="title">You have a bye this week.</Text>
-      </Card>
-    );
-  }
-  if (!match) return null;
-
-  // Doubles (D6, D8): "You and Sam vs. Jo and Lee", and Message opens one chat for all four.
-  const isDoubles = isDoublesMatch(match);
-  const partner = isDoubles ? partnerName(match, myPlayerId) : null;
-  const others = isDoubles ? opponentNames(match, myPlayerId) : [];
-  const opponent = opponentName(match, myPlayerId);
-  const opponentId = match.player1Id === myPlayerId ? match.player2Id : match.player1Id;
-  const opponentRating = isDoubles ? null : match.player1Id === myPlayerId ? match.player2Rating : match.player1Rating;
-  const canMessage = isDoubles || (match.player1Id === myPlayerId ? match.player2HasAccount : match.player1HasAccount);
-  const scoreable = canEnterScore(round, match, ended);
-  const recordable = recordAction(round, match, ended, doubles);
-  // Finding 47: an hour past the set start with no score, Enter score leads and
-  // Record with Ball Boi is a text link (in case they're still playing). Doubles
-  // has nothing to record yet, so its dimmed Record steps away.
-  const pastDue = scoreable && isPastDue({ scheduledAt: match.scheduledAt, score: match.score, timeZone });
-  const record = pastDue ? null : recordable;
-  // C7: a direct chat with your opponent.
-  const message = () => {
-    if (!isDoubles) {
-      router.push({ pathname: "/conversation/[id]", params: { id: "new", playerId: String(opponentId), name: opponent } });
-      return;
-    }
-    openChat
-      .mutateAsync({ leagueId, matchId: match.matchId })
-      .then(({ groupId }) => router.push({ pathname: "/conversation/group/[id]", params: { id: String(groupId) } }))
-      .catch((e) => Alert.alert("Couldn't open the chat", (e as { data?: { error?: string } | null }).data?.error ?? "Try again in a moment."));
-  };
-  const played = match.status === "completed" && !!match.score;
-  const corrected = correctionLine(match) ?? editedLine(match);
-  // Older matches only: before the 24-hour edit, an undo left who cleared it.
-  const clearedNote = !played && match.scoreClearedBy ? `Score cleared by ${match.scoreClearedBy}. ` : "";
-  const when = played
-    ? [resultLine(match, round, ended), corrected].filter(Boolean).join(". ")
-    : clearedNote +
-      (round.phase === "upcoming"
-      ? `Starts ${shortDate(round.startDate)}. Play by ${deadlineDate(round.deadline, timeZone)}.`
-      : round.phase === "grace"
-        ? `${playByLine(round.graceEnd, timeZone)}. ${LATE_NOTE}`
-        : `Play by ${deadlineDate(round.deadline, timeZone)}.`);
-  // A late match keeps its saved time only while that's still ahead (decision 152).
-  const matchTime = matchWhen(round.phase === "grace" ? lateTime(match.scheduledAt) : match.scheduledAt);
-  // Wave 2 finding 25 (John, Nov 12): the time sits under the date line, and
-  // "Set a match time" or "Change time" is link text right below it, as on
-  // Match detail. No Match time row under the buttons.
-  const timeOpen = !played && !match.voided && round.phase !== "closed" && !ended;
-  // Past due, the time reads "Earlier today · 6:30 PM" (finding 47).
-  const shownTime = timeOpen ? (pastDue && match.scheduledAt ? pastDueWhen(match.scheduledAt) : matchTime) : null;
-  const canSetThisTime = timeOpen && canSetTime && scoreable;
-
-  // Tapping the card opens Match detail (finding 54, decision 199); the
-  // buttons inside stay their own VoiceOver elements and taps.
-  const openMatch = () => router.push(`/match/${match.matchId}`);
-
-  return (
-    <Pressable
-      accessible={false}
-      onPress={openMatch}
-      style={({ pressed }) => ({
-        backgroundColor: c.linen,
-        borderColor: c.hairline,
-        borderWidth: 1,
-        borderRadius: radius.radiusCard,
-        padding: spacing.space4,
-        gap: spacing.space3,
-        opacity: pressed ? 0.85 : 1,
-      })}
-    >
-      <View
-        accessible
-        accessibilityRole="button"
-        accessibilityHint={MATCH_CARD_HINT}
-        onAccessibilityTap={openMatch}
-        accessibilityLabel={`Your match. ${label}. ${isDoubles ? versusSpoken(partner, others) : `You versus ${opponent}`}${
-          opponentRating ? `, ${levelSpoken(opponentRating.rating, opponentRating.source)}` : ""
-        }. ${when}${shownTime ? ` Match time, ${shownTime}.` : ""}`.replace(/ & /g, " and ")}
-        style={{ gap: spacing.space1 }}
-      >
-        <Text variant="section" tone="inkMuted">
-          {label}
-        </Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.space2 }}>
-          <Text variant="title">{isDoubles ? versusLine(partner, others) : `You vs. ${opponent}`}</Text>
-          {opponentRating ? <RatingBadge rating={opponentRating.rating} source={opponentRating.source} /> : null}
-        </View>
-        <Text variant="small" tone="inkMuted">
-          {when}
-        </Text>
-        {shownTime ? (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.space2 }}>
-            <Icon name="calendar" size={16} tintColor={c.inkMuted} />
-            <Text variant="small" tone="inkMuted" style={{ flexShrink: 1 }}>
-              {shownTime}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-      {canSetThisTime ? (
-        <MatchTimeLink
-          align="left"
-          hasTime={!!matchTime}
-          opponent={isDoubles ? andJoin(others) : opponent}
-          onPress={() => router.push(`/league/${leagueId}/time/${match.matchId}`)}
-          // Sits right under the date line; its 44pt target is hitSlop (decision 192).
-        />
-      ) : null}
-      {/* The same actions as Home and Match detail (finding 54, decision 199):
-          Record with Ball Boi (any day of the match's week, John, Nov 8,
-          option A), then Message and Enter score. Doubles shows Record
-          dimmed with the reason as visible text. Past due (finding 47),
-          Enter score leads and Record is a link. The visible word is just
-          "Message" so the pair fits; VoiceOver still names who. */}
-      <MatchActions
-        pastDue={pastDue}
-        record={
-          recordable === "record"
-            ? {
-                label: "Record with Ball Boi",
-                hint: `Records your match against ${opponent}`,
-                onPress: () => openRecorder(router, { matchId: match.matchId, opponentName: opponent, leagueId }),
-              }
-            : null
-        }
-        recordPlaceholder={record === "doubles" ? <DoublesRecordButton matchId={match.matchId} /> : null}
-        message={
-          canMessage
-            ? {
-                label: "Message",
-                accessibilityLabel: isDoubles ? "Message all four players" : `Message ${opponent}`,
-                hint: isDoubles ? "Opens one group chat for the four of you" : "Opens a direct chat",
-                loading: openChat.isPending,
-                onPress: message,
-              }
-            : null
-        }
-        enterScore={
-          scoreable
-            ? {
-                label: "Enter score",
-                hint: `For your match against ${opponent}`,
-                onPress: () => router.push(`/league/${leagueId}/score/${match.matchId}`),
-              }
-            : null
-        }
-      />
-    </Pressable>
-  );
-}
+// League (spec: Leagues; Wave 3 decision 210, John's L1 to L10, Nov 14;
+// design: "League page: three layouts", row B revised). Above the tabs, on
+// every tab: Back (the native header), the league name in Cormorant at 50%
+// ink, and the corner buttons: the league chat and, for admins, the gear
+// (Manage league) with a dot while pairings need review (L7). Then three
+// tabs, Matches, Standings and Overview; Matches opens first, every time.
+// - Matches: your match, partner or bye on top, then this round and earlier
+//   rounds; the bracket during playoffs (LeagueMatchesTab).
+// - Standings: your summary, the table, the tiebreak line (LeagueStandingsTab).
+// - Overview: About this league, then Leave league (LeagueOverviewTab).
+// The tabs look the same for admins and players, except Invite players before
+// the start (L3). Every admin tool is behind the gear. Home's "Round N
+// pairings are ready to review" card is how admins hear about pairings first
+// (decision 137, L10), so the page has no pairings line.
+// All three tabs load with the page, so switching is instant, and one pull to
+// refresh on any tab refreshes the page (L8). Switching doesn't animate, so
+// there's nothing for Reduce Motion to stop.
 
 export default function LeagueScreen() {
   const c = useColors();
@@ -272,7 +60,8 @@ export default function LeagueScreen() {
   const leagueId = Number(raw);
   // Opened straight from the join sheet (finding 33): "You're in" at the top.
   const justJoined = joined === "1";
-  const [tab, setTab] = useState<Tab>("standings");
+  // L8: the page always opens on Matches.
+  const [tab, setTab] = useState<LeagueTab>("matches");
   const queryClient = useQueryClient();
   const sheet = useActionSheet();
   const leave = useLeaveLeague();
@@ -283,21 +72,22 @@ export default function LeagueScreen() {
   const standingsQ = useGetLeagueStandings(leagueId);
   const scheduleQ = useGetLeagueSchedule(leagueId);
   const bracketQ = useGetLeagueBracket(leagueId);
+  const partnerQ = useGetMyPartner(leagueId);
 
-  const league = leagueQ.data;
-  const myPlayerId = membershipQ.data?.playerId ?? null;
-  const schedule = scheduleQ.data;
-  const standings = standingsQ.data ?? [];
-  const week = myWeek(schedule, myPlayerId);
-  const bracket = bracketQ.data ?? null;
-  const playoff = myPlayoffMatch(bracket, myPlayerId);
-  const rounds = (schedule?.rounds ?? []).filter((r) => r.phase !== "draft").slice().reverse();
+  const pull = usePullToRefresh(() => [
+    leagueQ.refetch(),
+    membershipQ.refetch(),
+    standingsQ.refetch(),
+    scheduleQ.refetch(),
+    bracketQ.refetch(),
+    partnerQ.refetch(),
+  ]);
+  // L8: offline, actions that need the server (Accept, Decline, Team up, Leave) are off.
+  const offline = pull.notice === "offline";
 
-  const pull = usePullToRefresh(() => [leagueQ.refetch(), membershipQ.refetch(), standingsQ.refetch(), scheduleQ.refetch(), bracketQ.refetch()]);
-
-  const enterScore = (m: ScheduleMatch) => router.push(`/league/${leagueId}/score/${m.matchId}`);
-
-  if (leagueQ.isLoading) {
+  // All three tabs load with the page (L8): one spinner, then everything.
+  const loading = [leagueQ, membershipQ, standingsQ, scheduleQ, bracketQ, partnerQ].some((q) => q.isLoading);
+  if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: c.paper, alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator color={c.ink} accessibilityLabel="Loading league" />
@@ -305,24 +95,37 @@ export default function LeagueScreen() {
     );
   }
 
-  const meta = league
-    ? [formatLabel(league.format), playTypeLabel(league.leagueType), areaLabel(league.area), league.location].filter(Boolean).join(" · ")
-    : "";
-  const season =
-    league?.startDate && league.endDate ? `Season ${dateRange(league.startDate, league.endDate)}` : null;
+  const league = leagueQ.data;
+  const membership = membershipQ.data;
+  const myPlayerId = membership?.playerId ?? null;
+  const schedule = scheduleQ.data;
+  const standings = standingsQ.data ?? [];
+  const bracket = bracketQ.data ?? null;
+  const partner = partnerQ.data;
 
   const draft = schedule?.rounds.find((r) => r.phase === "draft");
   // An admin ended it (decision 31), or the season finished. Scores are final (Q9).
   const ended = !!league?.endedAt || league?.status === "completed";
   const started = !!league?.startDate && !!schedule && schedule.today >= league.startDate;
-  const isAdmin = !!membershipQ.data?.isAdmin;
-  // A round's pairings wait for an admin's review: the gear's dot and the Review line.
+  const isAdmin = !!membership?.isAdmin;
+  // A round's pairings wait for an admin's review: the gear's dot and its label (L7).
   const pairingsWaiting = !!draft && isAdmin && !ended;
-  // Decision 79: doubles leagues have no playoffs for now, so no Playoffs tab.
   const doubles = league?.leagueType === "doubles";
-  const playoffsNote = league ? playoffLine(league.playoffSize, league.playerCount) : null;
+  const fixedPartners = doubles && league?.partnerMode === "fixed";
+  // Decision 79: doubles leagues have no playoffs for now, so no playoff line under their standings.
+  const playoffsNote = league && !doubles ? playoffLine(league.playoffSize, league.playerCount) : null;
+  const summary = standingsSummary({
+    standings,
+    myPlayerId,
+    fixedPartners,
+    partnerName: partner?.partner?.name ?? null,
+    noPartner: !!partner && !ended && partnerLine(partner)?.kind === "none",
+    started,
+  });
+
   // Dropouts (decision 27): played matches stay, the rest are cancelled.
   // Q4: an admin who leaves stops playing but still manages the league.
+  // L5: "Leave [league]?", Leave in red, Cancel.
   function confirmLeave() {
     if (!league) return;
     const matchesNote = started
@@ -333,32 +136,25 @@ export default function LeagueScreen() {
       : started
         ? `${matchesNote} To come back, you'll need the admin to approve you.`
         : "You can rejoin with the invite code until the season starts.";
-    Alert.alert(
-      `Leave ${league.name}?`,
-      message,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Leave league",
-          style: "destructive",
-          onPress: () =>
-            leave
-              .mutateAsync({ leagueId })
-              .then(async (out) => {
-                await refreshLeague(queryClient, leagueId);
-                AccessibilityInfo.announceForAccessibility(`You left ${league.name}`);
-                // An admin stays on the league to keep managing it.
-                if (!(out.stillAdmin ?? isAdmin)) router.back();
-              })
-              .catch((e) =>
-                Alert.alert(
-                  "Couldn't leave the league",
-                  (e as { data?: { error?: string } | null }).data?.error ?? "Try again in a moment.",
-                ),
-              ),
-        },
-      ],
-    );
+    Alert.alert(`Leave ${league.name}?`, message, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Leave",
+        style: "destructive",
+        onPress: () =>
+          leave
+            .mutateAsync({ leagueId })
+            .then(async (out) => {
+              await refreshLeague(queryClient, leagueId);
+              AccessibilityInfo.announceForAccessibility(`You left ${league.name}`);
+              // An admin stays on the league to keep managing it.
+              if (!(out.stillAdmin ?? isAdmin)) router.back();
+            })
+            .catch((e) =>
+              Alert.alert("Couldn't leave the league", (e as { data?: { error?: string } | null }).data?.error ?? "Try again in a moment."),
+            ),
+      },
+    ]);
   }
 
   // Q5b: after a playoff round's play-by date, the admin enters the result.
@@ -372,9 +168,7 @@ export default function LeagueScreen() {
           await refreshLeague(queryClient, leagueId);
           AccessibilityInfo.announceForAccessibility(`${winner.playerName} moves on by walkover`);
         })
-        .catch((e) =>
-          Alert.alert("Couldn't enter the result", (e as { data?: { error?: string } | null }).data?.error ?? "Try again in a moment."),
-        );
+        .catch((e) => Alert.alert("Couldn't enter the result", (e as { data?: { error?: string } | null }).data?.error ?? "Try again in a moment."));
     // A menu, so a bottom sheet (decision 193).
     sheet.show({
       people: [{ name: slot.player1.playerName }, { name: slot.player2.playerName }],
@@ -395,8 +189,8 @@ export default function LeagueScreen() {
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.ink} />}
     >
       {sheet.element}
+      {/* The league stays on screen when a refresh fails; the notice says so (decision 195). */}
       <OfflineNotice pull={pull} />
-      {/* The league stays on screen when a refresh fails; the notice above says so (decision 195). */}
       {!league ? (
         <ProblemCard
           title="Can't load this league"
@@ -407,228 +201,69 @@ export default function LeagueScreen() {
       ) : (
         <>
           {justJoined ? <JoinedNote leagueName={league.name ?? null} /> : null}
-          <View style={{ gap: spacing.space1 }}>
-            {/* Chat in the top-right corner (decision 145): the league's chat, also in Messages. */}
-            <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.space3 }}>
-              <Text variant="headingM" accessibilityRole="header" style={{ flexShrink: 1 }}>
-                {league.name}
-              </Text>
-              <View style={{ flexDirection: "row", gap: spacing.space2 }}>
-                {/* Decision 185: Manage league is the gear, just left of the chat, for admins. */}
-                {isAdmin ? (
-                  <CornerButton
-                    symbol="gearshape"
-                    label={manageLeagueLabel(pairingsWaiting)}
-                    hint="Opens the admin tools for this league"
-                    onPress={() => router.push(`/league/${leagueId}/manage`)}
-                  >
-                    {pairingsWaiting ? (
-                      // The label says it too, so the dot is never the only signal.
-                      <View
-                        importantForAccessibility="no-hide-descendants"
-                        accessibilityElementsHidden
-                        pointerEvents="none"
-                        style={{ position: "absolute", top: 4, right: 4, width: 10, height: 10, borderRadius: radius.radiusPill, backgroundColor: c.ink }}
-                      />
-                    ) : null}
-                  </CornerButton>
-                ) : null}
-                <LeagueChatButton leagueId={leagueId} />
-              </View>
-            </View>
-            {meta ? (
-              <Text variant="small" tone="inkMuted">
-                {meta}
-              </Text>
-            ) : null}
-            <Text variant="small" tone="inkMuted">
-              {[playersLabel(league.playerCount), season].filter(Boolean).join(" · ")}
+
+          {/* The name, with chat in the top-right corner (decision 145) and, for admins, the gear just left of it. */}
+          <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.space3 }}>
+            <Text variant="headingL" accessibilityRole="header" style={{ flexShrink: 1 }}>
+              {league.name}
             </Text>
-            {weeklyMatchTime(league.matchDay, league.matchTime, league.timeZone) ? (
-              <Text variant="small" tone="inkMuted">
-                {`Matches ${weeklyMatchTime(league.matchDay, league.matchTime, league.timeZone)}`}
-              </Text>
-            ) : null}
-            {/* A late joiner starts at zero wins and enters the next round (C3). */}
-            {membershipQ.data?.joinedWeek && membershipQ.data.seasonWeeks && league.status !== "completed" ? (
-              <Text variant="small" tone="inkMuted">
-                {`You joined in week ${membershipQ.data.joinedWeek} of ${membershipQ.data.seasonWeeks}.`}
-              </Text>
-            ) : null}
-            {/* Decision 185: your partner is a line here, not a card. Fixed partners only. */}
-            {!ended ? <PartnerLine leagueId={leagueId} /> : null}
-            {/* Decision 185: pairings to review is one line with a Review link. */}
-            {draft && pairingsWaiting ? (
-              <PairingsLine roundNumber={draft.roundNumber} onReview={() => router.push(`/league/${leagueId}/round/${draft.roundId}`)} />
-            ) : null}
+            <View style={{ flexDirection: "row", gap: spacing.space2 }}>
+              {isAdmin ? (
+                <CornerButton
+                  symbol="gearshape"
+                  label={manageLeagueLabel(pairingsWaiting)}
+                  hint="Opens the admin tools for this league"
+                  onPress={() => router.push(`/league/${leagueId}/manage`)}
+                >
+                  {pairingsWaiting ? (
+                    // The label says it too, so the dot is never the only signal.
+                    <View
+                      importantForAccessibility="no-hide-descendants"
+                      accessibilityElementsHidden
+                      pointerEvents="none"
+                      style={{ position: "absolute", top: 4, right: 4, width: 10, height: 10, borderRadius: radius.radiusPill, backgroundColor: c.ink }}
+                    />
+                  ) : null}
+                </CornerButton>
+              ) : null}
+              <LeagueChatButton leagueId={leagueId} />
+            </View>
           </View>
 
-          {/* A team-up request to you is a card only while it waits (decision 185). */}
-          {!ended ? <TeamUpRequestCards leagueId={leagueId} /> : null}
+          <SegmentedTabs label="League sections" value={tab} onChange={setTab} tabs={LEAGUE_TABS} />
 
-          {ended ? (
-            // Decision 31: an admin ended the league, or the season finished. Standings are final.
-            <Card accessible style={{ flexDirection: "row", alignItems: "center", gap: spacing.space3 }}>
-              <Icon name="flag.checkered" size={20} tintColor={c.ink} />
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text variant="bodyStrong">This league has ended</Text>
-                <Text variant="small" tone="inkMuted">
-                  {league.endedAt
-                    ? `Standings are final as of ${new Date(league.endedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}. Everything played stays.`
-                    : "Standings are final. Everything played stays."}
-                </Text>
-              </View>
-            </Card>
-          ) : playoff ? (
-            <Card style={{ gap: spacing.space3 }}>
-              <View
-                accessible
-                accessibilityLabel={`Your ${ROUND_SINGULAR[playoff.slot.round].toLowerCase()}. You versus ${playoff.opponent?.playerName ?? "to be decided"}.`}
-                style={{ gap: spacing.space1 }}
-              >
-                <Text variant="section" tone="inkMuted">
-                  {`Playoffs · ${ROUND_SINGULAR[playoff.slot.round]}`}
-                </Text>
-                <Text variant="title">{`You vs. ${playoff.opponent?.playerName ?? "to be decided"}`}</Text>
-                {playoff.playBy ? (
-                  <Text variant="small" tone="inkMuted">
-                    {playoff.pastPlayBy
-                      ? `The play-by date was ${deadlineDate(playoff.playBy, schedule?.timeZone)}. Your league admin can enter the result.`
-                      : `Play by ${deadlineDate(playoff.playBy, schedule?.timeZone)}.`}
-                  </Text>
-                ) : null}
-              </View>
-              {!playoff.pastPlayBy ? (
-                <Button
-                  label="Enter score"
-                  accessibilityHint={`For your ${ROUND_SINGULAR[playoff.slot.round].toLowerCase()}`}
-                  onPress={() => router.push(`/league/${leagueId}/score/${playoff.slot.matchId}`)}
-                />
-              ) : null}
-            </Card>
-          ) : week && myPlayerId != null ? (
-            <YourWeek
-              leagueId={leagueId}
-              week={week}
-              myPlayerId={myPlayerId}
-              timeZone={schedule?.timeZone ?? null}
-              canSetTime={league?.matchDay == null || !!schedule?.isAdmin}
-              ended={ended}
-              doubles={league?.leagueType === "doubles"}
-            />
-          ) : null}
-
-          {/* D8: doubles pairs no one until 4 players are in, and says so instead of an empty week. */}
-          {doubles && !ended && league.playerCount < 4 ? (
-            <Card accessible style={{ flexDirection: "row", gap: spacing.space3, alignItems: "flex-start" }}>
-              <Icon name="person.2" size={20} tintColor={c.ink} style={{ marginTop: 2 }} />
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text variant="bodyStrong">{`Doubles needs at least 4 players`}</Text>
-                <Text variant="small" tone="inkMuted">
-                  {`${playersLabel(league.playerCount)} so far. Pairings start once 4 have joined.${isAdmin ? " Share the invite code in Manage league." : ""}`}
-                </Text>
-              </View>
-            </Card>
-          ) : null}
-
-          <SegmentedTabs
-            label="League sections"
-            value={tab}
-            onChange={setTab}
-            tabs={[
-              { value: "standings", label: "Standings" },
-              { value: "rounds", label: "Matches" },
-              ...(doubles ? [] : [{ value: "playoffs" as const, label: "Playoffs" }]),
-            ]}
-          />
-
-          {tab === "standings" ? (
-            <View style={{ gap: spacing.space2 }}>
-              {standingsQ.isLoading ? (
-                <ActivityIndicator color={c.ink} accessibilityLabel="Loading standings" />
-              ) : standings.length === 0 ? (
-                <Card>
-                  <Text tone="inkMuted">Standings show up here after the first scores are in.</Text>
-                </Card>
-              ) : (
-                <StandingsTable standings={standings} myPlayerId={myPlayerId} />
-              )}
-              <Text variant="small" tone="inkMuted">
-                {`${standings.some((r) => r.teamId != null) ? "Teams ranked" : "Ranked"} by wins, then head to head.${playoffsNote && !doubles ? ` ${playoffsNote}` : ""}`}
-              </Text>
-            </View>
-          ) : null}
-
-          {tab === "rounds" ? (
-            <View style={{ gap: spacing.space3 }}>
-              {scheduleQ.isLoading ? (
-                <ActivityIndicator color={c.ink} accessibilityLabel="Loading matches" />
-              ) : rounds.length === 0 && (schedule?.upcoming.length ?? 0) === 0 ? (
-                <Card>
-                  <Text tone="inkMuted">
-                    {league.startDate
-                      ? `Pairings go out each week starting ${shortDate(league.startDate)}.`
-                      : "Matches show up here once pairings go out."}
-                  </Text>
-                </Card>
-              ) : (
-                <>
-                  {rounds.map((r) => (
-                    <RoundCard key={r.roundId} leagueId={leagueId} round={r} myPlayerId={myPlayerId} onEnterScore={enterScore} ended={ended} timeZone={schedule?.timeZone} />
-                  ))}
-                  {schedule && schedule.upcoming.length > 0 ? (
-                    <View style={{ gap: spacing.space2 }}>
-                      <Text variant="section" tone="inkMuted" accessibilityRole="header">
-                        Later this season
-                      </Text>
-                      <Card style={{ padding: 0, overflow: "hidden" }}>
-                        {schedule.upcoming.map((w, i) => (
-                          <UpcomingWeekRow key={w.roundNumber} week={w} last={i === schedule.upcoming.length - 1} />
-                        ))}
-                      </Card>
-                    </View>
-                  ) : null}
-                </>
-              )}
-            </View>
-          ) : null}
-
-          {tab === "playoffs" && !doubles && bracket ? (
-            <BracketView
-              bracket={bracket}
-              myPlayerId={myPlayerId}
-              onEnterScore={(id) => router.push(`/league/${leagueId}/score/${id}`)}
-              onSettle={settlePlayoff}
-              isAdmin={isAdmin}
-              ended={ended}
-              timeZone={schedule?.timeZone}
-            />
-          ) : null}
-
-          {tab === "playoffs" && !doubles && !bracket ? (
-            <Card style={{ gap: spacing.space2 }}>
-              {league.playoffSize && league.playerCount < 4 ? (
-                // C21: a bracket needs at least 4 players.
-                <Text tone="inkMuted">Not enough players for playoffs this season.</Text>
-              ) : league.playoffSize ? (
-                <>
-                  <Text variant="bodyStrong">{(playoffsNote ?? "").replace(/\.$/, "")}</Text>
-                  <Text tone="inkMuted">
-                    {league.endDate
-                      ? `Seeds are set from the standings the day after the regular season ends ${shortDate(league.endDate)}. Ties on wins go to head-to-head, then sets, then games.`
-                      : "Seeds are set from the standings after the regular season."}
-                  </Text>
-                </>
-              ) : (
-                <Text tone="inkMuted">This league doesn't have playoffs this season.</Text>
-              )}
-            </Card>
-          ) : null}
-
-          {membershipQ.data?.isPlaying && !ended ? (
-            // Decision 184: a quiet red text action with a door icon, still confirmed.
-            <LeaveAction label="Leave league" busy={leave.isPending} onPress={confirmLeave} />
-          ) : null}
+          <View style={{ paddingTop: spacing.space2 }}>
+            {/* L8: the full error with Try again only when a tab has nothing to show. */}
+            {tab === "matches" && scheduleQ.isError && !schedule ? (
+              <ProblemCard title="Can't load matches" body="Check your connection and try again." onRetry={pull.retry} retrying={pull.retrying} />
+            ) : tab === "standings" && standingsQ.isError && !standingsQ.data ? (
+              <ProblemCard title="Can't load standings" body="Check your connection and try again." onRetry={pull.retry} retrying={pull.retrying} />
+            ) : tab === "matches" ? (
+              <LeagueMatchesTab
+                league={league}
+                leagueId={leagueId}
+                schedule={schedule}
+                bracket={bracket}
+                partner={partner}
+                myPlayerId={myPlayerId}
+                isAdmin={isAdmin}
+                started={started}
+                ended={ended}
+                offline={offline}
+                onSettle={settlePlayoff}
+              />
+            ) : tab === "standings" ? (
+              <LeagueStandingsTab standings={standings} summary={summary} myPlayerId={myPlayerId} started={started} playoffsNote={playoffsNote} />
+            ) : (
+              <LeagueOverviewTab
+                rows={aboutRows(league, schedule?.today ?? null)}
+                canLeave={!!membership?.isPlaying && !ended}
+                leaving={leave.isPending}
+                offline={offline}
+                onLeave={confirmLeave}
+              />
+            )}
+          </View>
         </>
       )}
     </ScrollView>
