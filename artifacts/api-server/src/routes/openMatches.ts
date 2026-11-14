@@ -160,8 +160,18 @@ export function createOpenMatchesRouter(
     const me = getAuth(req).userId!;
     try {
       const rows = (await repo.mine(me, clock())).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+      // Who else is in, for Home's match card (Wave 2 finding 63): "vs. Kristina",
+      // or the other players' photos in doubles. Anyone with a block either way is left out.
+      const everyone = [...new Set(rows.flatMap((m) => [m.posterClerkUserId, ...m.joined]))].filter((id) => id !== me);
+      const [people, hidden] = everyone.length ? await Promise.all([repo.people(everyone), repo.blockedAmong(me, everyone)]) : [new Map(), new Set<string>()];
       res.json({
         matches: rows.map((m) => ({
+          // The match made when it filled: Record with Ball Boi and Enter score use it.
+          matchId: m.matchId,
+          timeZone: m.timeZone,
+          others: [m.posterClerkUserId, ...m.joined]
+            .filter((id) => id !== me && !hidden.has(id))
+            .map((id) => ({ name: people.get(id)?.name ?? "Player", avatarUrl: people.get(id)?.avatarUrl ?? null })),
           id: m.id,
           when: windowLabel(m.startsAt, m.endsAt, m.timeZone),
           // For sorting with your other upcoming matches on Home (decision 137).

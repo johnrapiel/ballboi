@@ -19,3 +19,11 @@ export function spokenDuration(totalSeconds: number): string {
   if (sec || parts.length === 0) parts.push(`${sec} ${sec === 1 ? "second" : "seconds"}`);
   return parts.join(" ");
 }
+
+/** The match's label: its league, "Open match", "Discover" or "Quick match" (one name per thing, finding 64). */
+export function matchSourceLabel(m: { leagueName: string | null; source?: "league" | "open" | "discover" | "quick" }): string {
+  if (m.leagueName) return m.leagueName;
+  if (m.source === "open") return "Open match";
+  if (m.source === "discover") return "Discover";
+  return "Quick match";
+}

@@ -1,5 +1,5 @@
 import type { LeagueWeek, LeagueWeekItem, LeagueWeekPlayoff } from "@workspace/api-client-react";
-import { versusLine, versusSpoken } from "./doubles";
+import { andJoin, firstName, versusLine, versusSpoken } from "./doubles";
 
 import { deadlineDate, isToday, lateTime } from "./leagueSchedule";
 import { isPastDue, pastDueSpoken, pastDueWhen } from "./matchTiming";
@@ -33,6 +33,12 @@ export interface OpenInput {
   courtName: string | null;
   status: string;
   spotsLeft: number;
+  /** The match made when it filled; older servers don't send it. */
+  matchId?: number | null;
+  /** The post's time zone. */
+  timeZone?: string | null;
+  /** Everyone else holding a spot, poster included (finding 63). Older servers don't send it. */
+  others?: { name: string; avatarUrl: string | null }[] | null;
 }
 
 export type UpcomingKind = "league" | "playoff" | "discover" | "open";
@@ -46,7 +52,7 @@ export interface UpcomingItem {
   playBy: string | null;
   /** For a league round that hasn't started: "Mon, Nov 9". */
   starts: string | null;
-  /** Null for an open match, which has no single opponent. */
+  /** Null for an open match unless it's a full singles one (finding 63). */
   opponentName: string | null;
   /** League matches: the opponent's player id, for Message. */
   opponentPlayerId: number | null;
@@ -71,6 +77,8 @@ export interface UpcomingItem {
   openMatchId: number | null;
   /** "2 spots left", "Full": open matches only. */
   openStatus: string | null;
+  /** Open matches: everyone else holding a spot, for the match card's faces (finding 63). */
+  openPlayers?: { name: string; photo: string | null }[];
   /** The sort key: the set time, else the end of the play-by day. */
   sortAt: string;
   /** League and playoff matches: the league's time zone, for "Earlier today" (finding 47). Null uses the phone's. */
@@ -189,19 +197,31 @@ export function upcomingList(input: {
     }));
   const open: UpcomingItem[] = (input.open ?? [])
     .filter((o) => o.status !== "canceled" && o.status !== "cancelled")
-    .map((o) => ({
-      ...base,
-      key: `open-${o.id}`,
-      kind: "open",
-      scheduledAt: isoOk(o.startsAt) ? o.startsAt : null,
-      opponentName: null,
-      context: "Open match",
-      location: o.courtName,
-      singles: o.format !== "doubles",
-      openMatchId: o.id,
-      openStatus: o.status === "full" ? "Full" : `${o.spotsLeft} ${o.spotsLeft === 1 ? "spot" : "spots"} left`,
-      sortAt: sortKey(o.startsAt ?? null, null),
-    }));
+    .map((o) => {
+      const players = (o.others ?? []).map((p) => ({ name: p.name, photo: p.avatarUrl ?? null }));
+      const singles = o.format !== "doubles";
+      const full = o.status === "full";
+      // A full singles open match has one face to show: "vs. Kristina" (finding 63).
+      const them = singles && full && players.length === 1 ? players[0] : null;
+      return {
+        ...base,
+        key: `open-${o.id}`,
+        kind: "open" as const,
+        scheduledAt: isoOk(o.startsAt) ? o.startsAt : null,
+        opponentName: them?.name ?? null,
+        opponentPhoto: them?.photo ?? null,
+        // Record with Ball Boi and Enter score use the match made when it filled.
+        matchId: full ? (o.matchId ?? null) : null,
+        openPlayers: players,
+        timeZone: o.timeZone ?? null,
+        context: "Open match",
+        location: o.courtName,
+        singles,
+        openMatchId: o.id,
+        openStatus: full ? "Full" : `${o.spotsLeft} ${o.spotsLeft === 1 ? "spot" : "spots"} left`,
+        sortAt: sortKey(o.startsAt ?? null, null),
+      };
+    });
   return [...weekly, ...playoffs, ...plans, ...open].sort((a, b) => a.sortAt.localeCompare(b.sortAt) || a.key.localeCompare(b.key));
 }
 
@@ -290,4 +310,60 @@ export function cardWhen(
   }
   if (m.grace && m.playBy) return { dateLabel: "Late match", time: `Play by ${m.playBy}` };
   return { dateLabel: m.starts ? `Starts ${m.starts}` : "No time set yet", time: m.playBy ? `By ${m.playBy}` : "Time to be set" };
+}
+
+/**
+ * Who's on Home's match card for an open match (finding 63, John, Nov 14).
+ * Full singles: null, so the card reads "You vs. Kristina" like any other
+ * match. Full doubles: the other players' faces together, "Doubles · You,
+ * Theo, Mia and Sam". Not full yet: the spots left, "Singles · 1 spot left",
+ * with whoever is in so far.
+ */
+export function openLead(
+  m: Pick<UpcomingItem, "kind" | "singles" | "openStatus" | "opponentName" | "openPlayers">,
+): { line: string; spoken: string; faces: { name: string; photo: string | null }[] } | null {
+  if (m.kind !== "open") return null;
+  const faces = m.openPlayers ?? [];
+  const full = m.openStatus === "Full";
+  if (full && m.singles && m.opponentName) return null;
+  const format = m.singles ? "Singles" : "Doubles";
+  const names = faces.map((f) => firstName(f.name));
+  const parts = full ? [format, names.length ? `You, ${andJoin(names)}` : null] : [format, m.openStatus];
+  const line = parts.filter(Boolean).join(" · ");
+  return { line, spoken: line.replace(/ · /g, ", "), faces };
+}
+
+/**
+ * A Ball Boi tab match as an upcoming row (finding 64): "Thu, Nov 19 · 6 PM"
+ * over "vs. Elena Ortiz · Tuesday Flex", the same row as Home's.
+ */
+export function upcomingFromRecordable(
+  m: { id: number; scheduledAt: string | null; location: string | null; leagueId: number | null; opponentName: string; format: "singles" | "doubles"; playBy?: string | null; timeZone?: string | null },
+  context: string,
+): UpcomingItem {
+  const scheduledAt = isoOk(m.scheduledAt) ? m.scheduledAt : null;
+  return {
+    key: `rec-${m.id}`,
+    kind: m.leagueId != null ? "league" : "discover",
+    scheduledAt,
+    playBy: m.playBy ? deadlineDate(m.playBy, m.timeZone) : null,
+    starts: null,
+    opponentName: m.opponentName,
+    opponentPlayerId: null,
+    partnerName: null,
+    opponentNames: [],
+    opponentPhoto: null,
+    otherUserId: null,
+    leagueId: m.leagueId,
+    context,
+    matchId: m.id,
+    location: m.location,
+    singles: m.format !== "doubles",
+    grace: false,
+    notStarted: false,
+    openMatchId: null,
+    openStatus: null,
+    sortAt: sortKey(scheduledAt, m.playBy ?? null),
+    timeZone: m.timeZone ?? null,
+  };
 }

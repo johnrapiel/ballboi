@@ -24,6 +24,22 @@ export interface MatchRow {
   playoffBracketId?: number | null;
   score?: string | null;
   voidedAt?: Date | null;
+  /** "discover" or "discover_open_match" for matches made in Discover. */
+  generatedFrom?: string | null;
+}
+
+/**
+ * Where a match came from, for its label on the Ball Boi tab (Wave 2 finding
+ * 64: one name per thing). An open match reads "Open match" there, as on
+ * Home; only a real Quick match reads "Quick match".
+ */
+export type RecordableSource = "league" | "open" | "discover" | "quick";
+
+export function recordableSource(m: Pick<MatchRow, "leagueId" | "generatedFrom">): RecordableSource {
+  if (m.leagueId != null) return "league";
+  if (m.generatedFrom === "discover_open_match") return "open";
+  if (m.generatedFrom === "discover") return "discover";
+  return "quick";
 }
 
 export interface RecordableMatch {
@@ -32,6 +48,8 @@ export interface RecordableMatch {
   location: string | null;
   leagueId: number | null;
   leagueName: string | null;
+  /** League, open match, Discover or Quick match. */
+  source: RecordableSource;
   format: "singles" | "doubles";
   /** The other side: "Alex Kim", or "Alex Kim and Sam Lee" in doubles. */
   opponentName: string;
@@ -135,6 +153,7 @@ export function toRecordableMatch(
     location: m.location,
     leagueId: m.leagueId,
     leagueName: m.leagueId != null ? (leagueNames[m.leagueId] ?? null) : null,
+    source: recordableSource(m),
     format: doubles ? "doubles" : "singles",
     opponentName: theirSide.map(name).join(" and "),
     partnerName: doubles && partner != null ? name(partner) : null,

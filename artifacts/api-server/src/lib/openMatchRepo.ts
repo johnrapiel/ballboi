@@ -26,8 +26,8 @@ export interface OpenMatchRepo {
   join(id: number, clerkUserId: string, now: Date): Promise<JoinResult>;
   leave(id: number, clerkUserId: string, how: "dropped" | "removed", now: Date): Promise<boolean>;
   cancel(id: number, now: Date): Promise<void>;
-  /** Matches you posted or hold a spot in, still to play. */
-  mine(clerkUserId: string, now: Date): Promise<OpenMatchRow[]>;
+  /** Matches you posted or hold a spot in, still to play, with the match made when each filled. */
+  mine(clerkUserId: string, now: Date): Promise<(OpenMatchRow & { matchId: number | null })[]>;
   /** "This match filled up" notices for players a poster removed; read once. */
   takeNotices(clerkUserId: string): Promise<OpenMatchRow[]>;
   /** Name, level and photo ("/objects/...") for each account. */
@@ -232,7 +232,8 @@ export class DrizzleOpenMatchRepo implements OpenMatchRepo {
           SELECT 1 FROM open_match_players p WHERE p.open_match_id = ${openMatchesTable.id} AND p.clerk_user_id = ${clerkUserId} AND p.status = 'in'))`,
       ),
     );
-    return hydrate(flat(rows));
+    const matchIds = new Map(rows.map((r) => [r.m.id, r.m.matchId]));
+    return (await hydrate(flat(rows))).map((r) => ({ ...r, matchId: matchIds.get(r.id) ?? null }));
   }
 
   async takeNotices(clerkUserId: string) {
