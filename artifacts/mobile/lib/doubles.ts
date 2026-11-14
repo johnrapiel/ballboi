@@ -157,9 +157,9 @@ export function partnerLine(v: {
   return { kind: "none", lead: "No partner yet" };
 }
 
-/** The admin gear's VoiceOver label, which says when pairings wait for review. */
+/** The admin gear's VoiceOver label, which says when pairings wait for review, so the dot is never the only signal (L7). */
 export function manageLeagueLabel(pairingsToReview: boolean): string {
-  return pairingsToReview ? "Manage league, pairings to review" : "Manage league";
+  return pairingsToReview ? "Manage league, pairings need review" : "Manage league";
 }
 
 /** What a doubles score entry sends instead of sets (John, Nov 9). */

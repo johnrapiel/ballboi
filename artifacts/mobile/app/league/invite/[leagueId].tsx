@@ -19,12 +19,16 @@ import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
 // 198); it replaced the Done at the top right. It goes to the Leagues tab.
 // Swipe down stays off on this screen, as before this change; the X and the
 // VoiceOver escape gesture are the ways out.
+//
+// Opened from a league page before its start (Invite players, L3, Nov 14),
+// with from=league: Close goes back to that league instead of to Leagues.
 
 export default function InvitePlayersScreen() {
   const c = useColors();
   const router = useRouter();
   const bottom = useScreenBottomInset();
-  const { leagueId: raw } = useLocalSearchParams<{ leagueId: string }>();
+  const { leagueId: raw, from } = useLocalSearchParams<{ leagueId: string; from?: string }>();
+  const fromLeague = from === "league";
   const leagueId = Number(raw);
 
   const leagueQ = useGetLeague(leagueId);
@@ -32,13 +36,13 @@ export default function InvitePlayersScreen() {
   const invite = invitesQ.data?.find((i) => i.isActive);
   const name = leagueQ.data?.name ?? "your league";
 
-  const done = () => router.dismissTo("/(tabs)/leagues");
+  const done = () => (fromLeague ? router.back() : router.dismissTo("/(tabs)/leagues"));
 
   return (
     <>
       <Stack.Screen
         options={{
-          headerLeft: () => <HeaderIconButton symbol="xmark" label="Close" hint="Goes to Leagues" onPress={done} />,
+          headerLeft: () => <HeaderIconButton symbol="xmark" label="Close" hint={fromLeague ? "Goes back to the league" : "Goes to Leagues"} onPress={done} />,
         }}
       />
       <ScrollView

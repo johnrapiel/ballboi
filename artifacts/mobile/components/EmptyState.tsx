@@ -25,15 +25,22 @@ export type EmptyStateProps = (
 ) & {
   title: string;
   message: string;
+  /** The ways forward under the line (decision 189: at most one primary and one secondary Button). */
+  children?: React.ReactNode;
 };
 
-/** Centered icon, title, and one line about what shows up here. */
-export function EmptyState({ symbol, roundel, title, message }: EmptyStateProps) {
+/**
+ * Centered icon, title, and one line about what shows up here. With
+ * children (its buttons), the words read as one VoiceOver element and each
+ * button stays its own.
+ */
+export function EmptyState({ symbol, roundel, title, message, children }: EmptyStateProps) {
   const c = useColors();
+  const spoken = `${title}. ${message}`;
   return (
     <View
-      accessible
-      accessibilityLabel={`${title}. ${message}`}
+      accessible={!children}
+      accessibilityLabel={children ? undefined : spoken}
       style={{
         flex: 1,
         alignItems: "center",
@@ -50,12 +57,15 @@ export function EmptyState({ symbol, roundel, title, message }: EmptyStateProps)
       ) : (
         <Icon name={symbol} size={40} tintColor={c.inkMuted} style={{ marginBottom: spacing.space2 }} />
       )}
-      <Text variant="title" style={{ textAlign: "center" }}>
-        {title}
-      </Text>
-      <Text tone="inkMuted" style={{ textAlign: "center" }}>
-        {message}
-      </Text>
+      <View accessible={!!children} accessibilityLabel={children ? spoken : undefined} style={{ gap: spacing.space2, alignSelf: "stretch" }}>
+        <Text variant="title" style={{ textAlign: "center" }}>
+          {title}
+        </Text>
+        <Text tone="inkMuted" style={{ textAlign: "center" }}>
+          {message}
+        </Text>
+      </View>
+      {children ? <View style={{ alignSelf: "stretch", gap: spacing.space2, marginTop: spacing.space4 }}>{children}</View> : null}
     </View>
   );
 }

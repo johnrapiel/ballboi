@@ -25,10 +25,12 @@ import { refreshLeague } from "@/lib/leagueRefresh";
 
 // Teaming up in a fixed-partner doubles league (doubles flow review D2, D4,
 // D9, John, Nov 9; league page layout, finding 31, decision 185, Nov 12).
-// - On the league page your partner is one line under the name (PartnerLine),
-//   and "Team up" opens the Team up sheet, which holds PartnerOptions.
+// - On the league page's Matches tab, no partner yet is "No partner yet ·
+//   Team up" in the top spot (L1, Nov 14), and Team up opens the Team up
+//   sheet, which holds PartnerOptions.
 // - After joining, PartnerOptions sits in a "Next, team up" card (PartnerCard).
-// - A request to you is its own card (TeamUpRequestCards) only while it waits,
+// - A request to you is its own card (TeamUpRequestCards) only while it waits
+//   (on the league page, "Team-up request from [name]" in the top spot),
 //   with Accept and Decline and the time left. One card per request, newest first.
 // PartnerOptions, by state:
 // - No partner yet, before the first round: "Team up with someone" (a
@@ -99,8 +101,22 @@ function StateLine({ icon, title, body }: { icon: "person.2" | "hourglass" | "in
   );
 }
 
-/** Team-up requests to you, one card each, newest first. Nothing when none wait. */
-export function TeamUpRequestCards({ leagueId }: { leagueId: number }) {
+/**
+ * Team-up requests to you, one card each, newest first. Nothing when none wait.
+ * The league page's Matches tab titles each "Team-up request from [name]" and
+ * turns Accept and Decline off while offline (L1, L8); after joining it reads
+ * "[name] wants to team up", as before.
+ */
+export function TeamUpRequestCards({
+  leagueId,
+  title,
+  disabled = false,
+}: {
+  leagueId: number;
+  title?: (name: string) => string;
+  /** Offline: Accept and Decline need the server, so they're off. */
+  disabled?: boolean;
+}) {
   const q = useGetMyPartner(leagueId);
   const act = usePartnerActions(leagueId);
   const v = q.data;
@@ -111,20 +127,20 @@ export function TeamUpRequestCards({ leagueId }: { leagueId: number }) {
         <Card key={r.requestId} style={{ gap: spacing.space4 }}>
           <View
             accessible
-            accessibilityLabel={teamUpRequestLabel(r.from.name, r.expiresAt)}
+            accessibilityLabel={title ? `${title(r.from.name)}. ${expiresLine(r.expiresAt, new Date(), "long")}` : teamUpRequestLabel(r.from.name, r.expiresAt)}
             style={{ flexDirection: "row", gap: spacing.space3, alignItems: "center" }}
           >
             <Avatar name={r.from.name} uri={r.from.photoUrl} size={44} />
             <View style={{ flex: 1, gap: 2 }}>
-              <Text variant="bodyStrong">{`${r.from.name} wants to team up`}</Text>
+              <Text variant="bodyStrong">{title ? title(r.from.name) : `${r.from.name} wants to team up`}</Text>
               <Text variant="small" tone="inkMuted">
                 {expiresLine(r.expiresAt)}
               </Text>
             </View>
           </View>
           <ButtonRow>
-            <Button label="Accept" onPress={() => void act.accept(r.requestId, r.from.name)} disabled={act.busy} accessibilityHint={`Team up with ${r.from.name} for the season`} />
-            <Button label="Decline" variant="secondary" onPress={() => act.decline(r.requestId, r.from.name)} disabled={act.busy} />
+            <Button label="Accept" onPress={() => void act.accept(r.requestId, r.from.name)} disabled={act.busy || disabled} accessibilityHint={`Team up with ${r.from.name} for the season`} />
+            <Button label="Decline" variant="secondary" onPress={() => act.decline(r.requestId, r.from.name)} disabled={act.busy || disabled} />
           </ButtonRow>
         </Card>
       ))}
