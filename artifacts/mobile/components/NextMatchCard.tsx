@@ -52,6 +52,7 @@ export function NextMatchCard({
   timeLink,
   footer,
   pastDue = false,
+  who,
 }: {
   /** "Today", "Saturday, Oct 17", or "No time set yet". */
   dateLabel: string;
@@ -88,6 +89,12 @@ export function NextMatchCard({
   footer?: React.ReactNode;
   /** An hour past the start with no score (finding 47): Enter score leads, Record becomes a link. */
   pastDue?: boolean;
+  /**
+   * An open match (finding 63): the line under the faces in place of "You
+   * vs. ...", as shown and as VoiceOver reads it, and the other players'
+   * faces after yours ("Doubles · You, Theo, Mia and Sam", "Singles · 1 spot left").
+   */
+  who?: { line: string; spoken: string; faces: { name: string; photo: string | null }[] } | null;
 }) {
   const c = useColors();
   const { fontScale } = useWindowDimensions();
@@ -95,7 +102,7 @@ export function NextMatchCard({
   const stacked = fontScale >= 1.3;
   const doubles = !!partnerName && !!opponentNames?.length;
   const whenSummary = [dateLabel, time].join(". ");
-  const restSummary = [doubles ? versusSpoken(partnerName, opponentNames!) : `You versus ${opponentName}`, location, league, note]
+  const restSummary = [who ? who.spoken : doubles ? versusSpoken(partnerName, opponentNames!) : `You versus ${opponentName}`, location, league, note]
     .filter(Boolean)
     .join(". ");
   const summary = `${whenSummary}. ${restSummary}`;
@@ -104,7 +111,7 @@ export function NextMatchCard({
   const cardSpoken = matchCardSpoken({
     dateLabel,
     time,
-    versus: doubles ? `You and ${partnerName} vs. ${andJoin(opponentNames!)}` : `You vs. ${opponentName}`,
+    versus: who ? who.spoken : doubles ? `You and ${partnerName} vs. ${andJoin(opponentNames!)}` : `You vs. ${opponentName}`,
     location,
     league,
     note,
@@ -151,16 +158,20 @@ export function NextMatchCard({
           <MatchTimeLink hasTime={timeLink.hasTime} opponent={opponentName} onPress={timeLink.onPress} style={{ marginTop: spacing.space2, marginBottom: spacing.space4 }} />
         ) : null}
         <View accessible={!!timeLink} accessibilityLabel={restSummary} style={{ alignItems: "center", width: "100%" }}>
-          <View style={{ flexDirection: "row" }}>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center" }}>
             <View style={{ borderRadius: radius.radiusPill, borderWidth: 2, borderColor: c.linen }}>
               <Avatar name={myName} uri={myPhoto} size={face} />
             </View>
-            <View style={{ marginLeft: -10, borderRadius: radius.radiusPill, borderWidth: 2, borderColor: c.linen }}>
-              <Avatar name={opponentName} uri={opponentPhoto} size={face} />
-            </View>
+            {(who ? who.faces : [{ name: opponentName, photo: opponentPhoto ?? null }]).map((f, n) => (
+              <View key={`${f.name}-${n}`} style={{ marginLeft: -10, borderRadius: radius.radiusPill, borderWidth: 2, borderColor: c.linen }}>
+                <Avatar name={f.name} uri={f.photo} size={face} />
+              </View>
+            ))}
           </View>
           <Text variant="bodyStrong" style={{ marginTop: 10, marginBottom: spacing.space1, textAlign: "center" }}>
-            {doubles ? (
+            {who ? (
+              who.line
+            ) : doubles ? (
               <>
                 {`You and ${firstName(partnerName)} `}
                 <Text tone="inkMuted">vs.</Text> {andJoin(opponentNames!.map(firstName))}

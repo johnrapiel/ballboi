@@ -279,6 +279,25 @@ describe("open match routes", () => {
     expect(mine.body.matches[0].startsAt).toBe(at(48).toISOString());
   });
 
+  it("lists who else is in and the match it made, for Home's match card (finding 63)", async () => {
+    await post();
+    await as("b").post("/api/open-matches/1/join").expect(200);
+    const half = await as("b").get("/api/open-matches/mine").expect(200);
+    expect(half.body.matches[0]).toMatchObject({ matchId: null, spotsLeft: 1, others: [{ name: "Dana Lindqvist", avatarUrl: "/objects/uploads/a" }] });
+    await as("c").post("/api/open-matches/1/join").expect(200);
+    const full = await as("b").get("/api/open-matches/mine").expect(200);
+    expect(full.body.matches[0].matchId).toBe(99);
+    // Never you; Mia has no photo.
+    expect(full.body.matches[0].others).toEqual([
+      { name: "Dana Lindqvist", avatarUrl: "/objects/uploads/a" },
+      { name: "Mia Kowalski", avatarUrl: null },
+    ]);
+    // A block either way leaves them off your card.
+    repo.blocks.push(["b", "c"]);
+    const blocked = await as("b").get("/api/open-matches/mine").expect(200);
+    expect(blocked.body.matches[0].others.map((o: { name: string }) => o.name)).toEqual(["Dana Lindqvist"]);
+  });
+
   it("fills on the last spot, opens the group chat in Messages, and turns away a late join", async () => {
     await post();
     await as("b").post("/api/open-matches/1/join").expect(200);

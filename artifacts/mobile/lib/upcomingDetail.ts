@@ -75,7 +75,7 @@ export interface UpcomingActions {
  * then Enter score, and Match time where the league lets players set it.
  * A Discover or Quick match follows Home: Record on match day; its score is
  * entered from its chat card or the recording, and from the card once it's
- * past due. Past due, Enter score leads and Record is a link; doubles has no
+ * past due. An open match follows Discover once it's full (finding 63). Past due, Enter score leads and Record is a link; doubles has no
  * Record to link to, so its note steps away too.
  */
 export function upcomingActions(
@@ -97,5 +97,7 @@ export function upcomingActions(
   const today = playable && isMatchDay(m, opts.now);
   const lead = cardLead(m, { canRecord: today && m.singles, now: opts.now });
   const pastDue = playable && lead.pastDue;
-  return { record: lead.record != null, pastDue, doublesNote: false, enterScore: pastDue, matchTime: false };
+  // A full doubles open match on its day shows the same note as a doubles league match (finding 63).
+  const doublesNote = m.kind === "open" && today && !m.singles && !pastDue;
+  return { record: lead.record != null, pastDue, doublesNote, enterScore: pastDue, matchTime: false };
 }

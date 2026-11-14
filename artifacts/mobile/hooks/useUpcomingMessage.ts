@@ -21,6 +21,16 @@ export function useUpcomingMessage() {
   const message = useCallback(
     (m: UpcomingItem): NextMatchAction | null => {
       const opponent = m.opponentName ?? "your opponent";
+      // An open match's group chat opens once it's full (F15, finding 63).
+      if (m.kind === "open") {
+        if (m.openMatchId == null || m.openStatus !== "Full") return null;
+        return {
+          label: "Message",
+          accessibilityLabel: m.singles && m.opponentName ? `Message ${opponent}` : "Message everyone in this match",
+          hint: "Opens the group chat",
+          onPress: () => router.push({ pathname: "/discover/match/chat/[id]", params: { id: String(m.openMatchId) } }),
+        };
+      }
       const doublesChat = m.kind === "league" && !!m.partnerName && m.leagueId != null && m.matchId != null;
       if (doublesChat) {
         return {

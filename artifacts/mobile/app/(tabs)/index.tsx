@@ -20,9 +20,9 @@ import { useUpcomingMessage } from "@/hooks/useUpcomingMessage";
 import { upcomingHint, useOpenUpcoming, useUpcomingMatches } from "@/hooks/useUpcomingMatches";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { dateRange, LATE_NOTE, pairingTime, shortDate } from "@/lib/leagueSchedule";
-import { heroIndex } from "@/lib/matchTiming";
+import { canLeadHome, heroIndex } from "@/lib/matchTiming";
 import { openRecorder } from "@/lib/recording/start";
-import { cardWhen, type UpcomingItem } from "@/lib/upcoming";
+import { cardWhen, openLead, type UpcomingItem } from "@/lib/upcoming";
 import { upcomingActions } from "@/lib/upcomingDetail";
 
 // Home answers one question: what's next for me (spec decision 137, John,
@@ -36,6 +36,12 @@ import { upcomingActions } from "@/lib/upcomingDetail";
 // Record with Ball Boi (singles), then Message and Enter score. There's no
 // Details button; tapping the card opens Match detail, like the rows under
 // it. Doubles shows the note on why Ball Boi can't record it yet.
+//
+// An open match on its day leads with the same card (finding 63, John,
+// Nov 14): "You vs. Kristina" when it's a full singles match, the other
+// players' faces in doubles, or the spots left while it fills ("Singles · 1
+// spot left", no Record). Message opens its group chat once it's full, and
+// the card opens the open match. An open match on another day stays a row.
 //
 // Past due (finding 47, John, Nov 12): an hour after the start with no score
 // it reads "Earlier today · 6:30 PM", Enter score and Message lead, and Record
@@ -113,9 +119,15 @@ export default function HomeScreen() {
         message={message}
         enterScore={enterScore}
         pastDue={actions.pastDue}
+        who={openLead(m)}
         // No Details button: the card itself opens the match, like the rows under it (finding 54).
-        onPress={() => openUpcoming(m)}
-        hint={m.kind === "discover" ? upcomingHint(m) : m.matchId ? undefined : "Opens the league"}
+        // An open match's card opens the open match itself, full or not (finding 63).
+        onPress={() =>
+          m.kind === "open" && m.openMatchId != null
+            ? router.push({ pathname: "/discover/match/[id]", params: { id: String(m.openMatchId) } })
+            : openUpcoming(m)
+        }
+        hint={m.kind === "discover" ? upcomingHint(m) : m.matchId || m.kind === "open" ? undefined : "Opens the league"}
         footer={actions.doublesNote ? <DoublesNote matchId={m.matchId!} /> : null}
       />
     );
@@ -125,9 +137,10 @@ export default function HomeScreen() {
   const drafts = week?.drafts ?? [];
   const byes = (week?.thisWeek ?? []).filter((i) => i.bye);
   const waiting = drafts.length + byes.length;
-  // An open match has no one face to show, so it's always a row. A match still
-  // ahead today leads over a past-due one (finding 47); the rest stay in date order.
-  const firstAt = items[0] && items[0].kind !== "open" ? heroIndex(items, new Date(), (m) => m.kind !== "open") : -1;
+  // Any match can lead, an open match only on its day (finding 63). A match
+  // still ahead today leads over a past-due one (finding 47); the rest stay in date order.
+  const now = new Date();
+  const firstAt = heroIndex(items, now, (m) => canLeadHome(m, now));
   const first = firstAt >= 0 ? items[firstAt] : null;
   const rest = first ? items.filter((_, n) => n !== firstAt) : items;
   const nothing = !isLoading && !!week && items.length === 0 && waiting === 0;

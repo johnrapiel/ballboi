@@ -8,6 +8,7 @@ import {
   parseWhen,
   recordingStage,
   toRecordableMatch,
+  recordableSource,
   type MatchRow,
 } from "../lib/recordableMatches";
 
@@ -165,5 +166,15 @@ describe("isRecordableNow", () => {
     const b = { ...toRecordableMatch(lm({ id: 2, scheduledAt: "2026-11-06T23:00:00.000Z" }), [10], names, leagues)! };
     const t = { ...toRecordableMatch(lm({ id: 3, scheduledAt: "2026-11-04T23:00:00.000Z" }), [10], names, leagues)! };
     expect([a, b, t].sort(recordListOrder(c.from, c.to)).map((m) => m.id)).toEqual([3, 2, 1]);
+  });
+});
+
+describe("recordableSource (finding 64: one name per thing)", () => {
+  it("names an open match an open match, and only a real Quick match a Quick match", () => {
+    expect(recordableSource({ leagueId: 3, generatedFrom: "manual" })).toBe("league");
+    expect(recordableSource({ leagueId: null, generatedFrom: "discover_open_match" })).toBe("open");
+    expect(recordableSource({ leagueId: null, generatedFrom: "discover" })).toBe("discover");
+    expect(recordableSource({ leagueId: null, generatedFrom: "quick_match" })).toBe("quick");
+    expect(recordableSource({ leagueId: null })).toBe("quick");
   });
 });

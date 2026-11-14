@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { apiErrorMessage, apiFetch } from "@/lib/api";
 import { clockTime } from "../timeFormat";
+export { matchSourceLabel } from "./format";
 
 export interface RecordableMatch {
   id: number;
@@ -13,6 +14,11 @@ export interface RecordableMatch {
   location: string | null;
   leagueId: number | null;
   leagueName: string | null;
+  /**
+   * Where it came from (finding 64): "Open match" on the Ball Boi tab as on
+   * Home; only a real Quick match reads "Quick match". Older servers don't send it.
+   */
+  source?: "league" | "open" | "discover" | "quick";
   format: "singles" | "doubles";
   opponentName: string;
   partnerName: string | null;

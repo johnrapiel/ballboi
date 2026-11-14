@@ -102,3 +102,46 @@ export function cardLead(m: TimedMatch, opts: { canRecord: boolean; now?: Date }
   const pastDue = isPastDue(m, opts.now);
   return { pastDue, record: opts.canRecord ? (pastDue ? "link" : "button") : null };
 }
+
+/** True when the match's set start falls on today, in its league's zone (or the phone's). */
+export function isMatchToday(m: Pick<TimedMatch, "scheduledAt" | "timeZone">, now: Date = new Date()): boolean {
+  if (!m.scheduledAt) return false;
+  const at = new Date(m.scheduledAt);
+  if (Number.isNaN(at.getTime())) return false;
+  const zone = matchZone(m.timeZone);
+  return dayIn(at, zone) === dayIn(now, zone);
+}
+
+/**
+ * Which matches may lead Home with the match card (Wave 2 finding 63, John,
+ * Nov 14): every match, and an open match on its day. An open match on
+ * another day stays a row, so it never takes the card from a league or
+ * Discover match. Pass it to heroIndex, whose order rules still apply.
+ */
+export function canLeadHome(m: TimedMatch & { kind: string }, now: Date = new Date()): boolean {
+  return m.kind !== "open" || isMatchToday(m, now);
+}
+
+/** A match on the Ball Boi tab: a set time, or a league round's play-by day (YYYY-MM-DD, league zone). */
+export interface RecordTabMatch extends TimedMatch {
+  playBy?: string | null;
+}
+
+/**
+ * Match day on the Ball Boi tab (Wave 2 finding 64, John, Nov 14): a set
+ * time today, past due included (decision 197), or, with no time set, the
+ * last day to play it. Only then does it get the full card with Record with
+ * Ball Boi; every other match this week is a row under "Coming up".
+ */
+export function isRecordDay(m: RecordTabMatch, now: Date = new Date()): boolean {
+  if (m.scheduledAt && !Number.isNaN(new Date(m.scheduledAt).getTime())) return isMatchToday(m, now);
+  return !!m.playBy && m.playBy === dayIn(now, matchZone(m.timeZone));
+}
+
+/** The Ball Boi tab's two lists, each in the order given: full cards today, rows under "Coming up". */
+export function splitRecordDay<T extends RecordTabMatch>(matches: T[], now: Date = new Date()): { today: T[]; later: T[] } {
+  const today: T[] = [];
+  const later: T[] = [];
+  for (const m of matches) (isRecordDay(m, now) ? today : later).push(m);
+  return { today, later };
+}

@@ -8,21 +8,30 @@ import { DoublesMatchCard } from "@/components/record/DoublesMatchCard";
 import { LocalProcessingCard, ServerProcessingCard } from "@/components/record/ProcessingCard";
 import { TodaysMatchCard } from "@/components/record/TodaysMatchCard";
 import { TabScreen } from "@/components/TabHeader";
+import { UpcomingRows } from "@/components/UpcomingRows";
 import { Button, Card, Text } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenBottomInset } from "@/hooks/useScreenBottomInset";
-import { useServerRecordings, useTodaysMatches } from "@/lib/recording/api";
+import { MATCH_CARD_HINT } from "@/lib/matchActions";
+import { splitRecordDay } from "@/lib/matchTiming";
+import { matchSourceLabel, useServerRecordings, useTodaysMatches } from "@/lib/recording/api";
 import { useQueue, useQueueLoaded } from "@/lib/recording/queue";
 import { recordedThisSeason } from "@/lib/playerCard";
 import { openRecorder } from "@/lib/recording/start";
+import { upcomingFromRecordable } from "@/lib/upcoming";
 
 // Ball Boi tab (spec: Navigation, Ball Boi > Recording).
 // "Record a match" starts with the Quick match card, then lists your unplayed
-// matches this week, with a match set for today first (Wave 2 finding 49:
-// Quick match stays at the top however many matches there are). Every
-// recording starts from a match.
+// matches this week (Wave 2 finding 49: Quick match stays at the top however
+// many matches there are). Every recording starts from a match.
+//
+// Record only on match day (finding 64, John, Nov 14): today's matches,
+// past-due ones included (decision 197), get the full card with Record with
+// Ball Boi. Later matches this week are rows under "Coming up", like Home's
+// upcoming rows, and open Match detail; on match day each becomes a full card.
+// A league match with no time set is a full card on its play-by day.
 //
 // From Profile's "Ball Boi this season" See all (decision 138), the tab opens
 // with `from` and `to` (YYYY-MM-DD): Your recordings shows only this
@@ -36,6 +45,8 @@ export default function BallBoiScreen() {
   // A Quick match already recorded on this phone isn't one to record any more (D6, Q18).
   const recordedHere = new Set(queued.map((r) => r.matchId));
   const matches = (today.data ?? []).filter((m) => m.leagueId != null || !recordedHere.has(m.id));
+  const { today: todays, later } = splitRecordDay(matches);
+  const comingUp = later.map((m) => upcomingFromRecordable(m, matchSourceLabel(m)));
   const server = useServerRecordings();
   const params = useLocalSearchParams<{ from?: string; to?: string }>();
   const season = params.from && params.to ? { from: params.from, to: params.to } : null;
@@ -90,7 +101,7 @@ export default function BallBoiScreen() {
           ) : matches.length === 0 ? (
             <Text tone="inkMuted">No matches to record this week.</Text>
           ) : (
-            matches.map((m) =>
+            todays.map((m) =>
               m.format === "doubles" ? (
                 <DoublesMatchCard key={m.id} match={m} />
               ) : (
@@ -102,8 +113,17 @@ export default function BallBoiScreen() {
               ),
             )
           )}
-
         </View>
+
+        {/* Later this week: rows, no buttons. Nobody records before match day (finding 64). */}
+        {!today.isLoading && comingUp.length > 0 ? (
+          <View style={{ gap: spacing.space3 }}>
+            <Text variant="section" tone="inkMuted" accessibilityRole="header">
+              Coming up
+            </Text>
+            <UpcomingRows items={comingUp} onOpen={(m) => router.push(`/match/${m.matchId}`)} hint={() => MATCH_CARD_HINT} />
+          </View>
+        ) : null}
 
         {season || queued.length > 0 || onServer.length > 0 || serverFailed ? (
           <View style={{ gap: spacing.space3 }}>

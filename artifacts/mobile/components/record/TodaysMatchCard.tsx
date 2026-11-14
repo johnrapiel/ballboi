@@ -4,15 +4,15 @@ import { View } from "react-native";
 import { Button, Card, Text } from "@/components/ui";
 import { spacing } from "@/constants/tokens";
 import { deadlineDate } from "@/lib/leagueSchedule";
-import { matchTime, type RecordableMatch } from "@/lib/recording/api";
+import { matchSourceLabel, matchTime, type RecordableMatch } from "@/lib/recording/api";
 
 /**
- * "Tuesday Flex · 6:00 PM · Memorial Park" (whichever parts exist). A league
+ * "Tuesday Flex · 6:00 PM · Memorial Park", or "Open match · 6 PM" (whichever parts exist). A league
  * match with no time yet says when to play by: "Tuesday Flex · Play by Sun, Nov 8".
  */
 export function matchMeta(m: RecordableMatch): string {
   const when = matchTime(m.scheduledAt) ?? (m.playBy ? `Play by ${deadlineDate(m.playBy, m.timeZone)}` : null);
-  return [m.leagueName ?? "Quick match", when, m.location].filter(Boolean).join(" · ");
+  return [matchSourceLabel(m), when, m.location].filter(Boolean).join(" · ");
 }
 
 /**
