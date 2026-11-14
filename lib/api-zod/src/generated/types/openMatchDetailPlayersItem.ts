@@ -8,7 +8,10 @@
 
 export type OpenMatchDetailPlayersItem = {
   userId: number;
+  /** Their name, or "You" for you. */
   name: string;
+  /** Their real name, yours included, for the initials avatar when there's no photo. */
+  fullName: string;
   /** @nullable */
   rating: number | null;
   poster: boolean;

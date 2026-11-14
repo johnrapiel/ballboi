@@ -631,6 +631,8 @@ export interface OpenMatchPlayer {
   rating: number | null;
   poster: boolean;
   me: boolean;
+  /** Their real name, yours included ("name" reads "You"), for initials when there's no photo; older servers don't send it. */
+  fullName?: string;
   /** Their photo ("/objects/..."); older servers don't send it. */
   avatarUrl?: string | null;
 }

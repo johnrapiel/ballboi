@@ -8987,6 +8987,10 @@ components:
                 type: integer
               name:
                 type: string
+                description: Their name, or "You" for you.
+              fullName:
+                type: string
+                description: Their real name, yours included, for the initials avatar when there's no photo.
               rating:
                 type: [number, 'null']
               poster:
@@ -8996,7 +9000,7 @@ components:
               avatarUrl:
                 type: [string, 'null']
                 description: Their photo ("/objects/..."). Players with a block either way are left out.
-            required: [userId, name, rating, poster, me]
+            required: [userId, name, fullName, rating, poster, me]
         role:
           type: string
           enum: [poster, in, none]

@@ -98,6 +98,8 @@ export function createOpenMatchesRouter(
     const person = (id: string, poster: boolean) => ({
       userId: people.get(id)?.userId ?? 0,
       name: id === me ? "You" : (people.get(id)?.name ?? "Player"),
+      // Their real name, yours included, so your own avatar shows your initials, not "Y" (Wave 2 finding 62).
+      fullName: people.get(id)?.name ?? "Player",
       rating: people.get(id)?.rating ?? null,
       poster,
       me: id === me,
