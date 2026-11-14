@@ -2,6 +2,9 @@
 // brief items 42 to 44). Everyone sees who's in. The poster can Remove a
 // player (their spot reopens; they only hear "This match filled up") or
 // cancel the match. A joiner can drop out. A bottom sheet by the sheet rule.
+// Every other player's row has Report (Wave 2 finding 62), so a player who
+// hasn't sent a message can still be reported; the poster also sees Remove.
+// Your own row reads "You" with your photo, or your real initials.
 
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
@@ -10,10 +13,11 @@ import { AccessibilityInfo, Alert, Pressable, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { DangerLink } from "@/components/DangerLink";
 import { SheetBody } from "@/components/Sheet";
-import { Card, Text } from "@/components/ui";
+import { Card, Text, TextLink } from "@/components/ui";
 import { MIN_TAP, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { useOpenMatch, useOpenMatchAction } from "@/hooks/useDiscoverOpenMatches";
+import { useReportBlock } from "@/hooks/useReportBlock";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
 import { firstName } from "@/lib/discover";
 
@@ -24,6 +28,7 @@ export default function PlayersSheet() {
   const id = Number(params.id);
   const q = useOpenMatch(id);
   const act = useOpenMatchAction(id);
+  const report = useReportBlock();
   const m = q.data;
   const fail = (e: unknown) =>
     Alert.alert("Couldn't do that", isOfflineError(e) ? OFFLINE_MESSAGE : e instanceof Error ? e.message : "Try again.");
@@ -91,44 +96,67 @@ export default function PlayersSheet() {
               <View
                 key={`${p.userId}-${i}`}
                 style={{
+                  // The links wrap under the name when they don't fit beside it (largest Dynamic Type).
                   flexDirection: "row",
+                  flexWrap: "wrap",
                   alignItems: "center",
-                  gap: spacing.space3,
+                  columnGap: spacing.space3,
                   padding: spacing.space3,
                   minHeight: 56,
                   borderBottomWidth: i === m.players.length - 1 ? 0 : 1,
                   borderBottomColor: c.hairline,
                 }}
               >
-                <Avatar name={p.name} uri={p.avatarUrl} size={36} />
                 <View
-                  style={{ flex: 1 }}
-                  accessible
-                  accessibilityLabel={[p.name, p.poster ? "posted this" : null].filter(Boolean).join(", ")}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: spacing.space3,
+                    flexGrow: 1,
+                    flexShrink: 1,
+                    flexBasis: 160,
+                  }}
                 >
-                  <Text variant="bodyStrong">{p.name}</Text>
-                  {p.poster ? (
-                    <Text variant="small" tone="inkMuted">
-                      Posted this
-                    </Text>
-                  ) : null}
-                </View>
-                {m.role === "poster" && !p.poster ? (
-                  <Pressable
-                    onPress={() => remove(p.userId, p.name)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Remove ${p.name}`}
-                    style={({ pressed }) => ({
-                      minHeight: MIN_TAP,
-                      minWidth: MIN_TAP,
-                      justifyContent: "center",
-                      opacity: pressed ? 0.6 : 1,
-                    })}
+                  {/* Your row reads "You" but shows your photo, or your real initials (finding 62). */}
+                  <Avatar name={p.fullName ?? p.name} uri={p.avatarUrl} size={36} />
+                  <View
+                    style={{ flex: 1 }}
+                    accessible
+                    accessibilityLabel={[p.name, p.poster ? "posted this" : null].filter(Boolean).join(", ")}
                   >
-                    <Text tone="danger" style={{ textDecorationLine: "underline" }}>
-                      Remove
-                    </Text>
-                  </Pressable>
+                    <Text variant="bodyStrong">{p.name}</Text>
+                    {p.poster ? (
+                      <Text variant="small" tone="inkMuted">
+                        Posted this
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+                {!p.me && p.userId > 0 ? (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: spacing.space4,
+                      marginLeft: "auto",
+                    }}
+                  >
+                    {/* Decision 201: a quiet ink link; reporting doesn't change the match. */}
+                    <RowLink
+                      label="Report"
+                      accessibilityLabel={`Report ${p.name}`}
+                      onPress={() =>
+                        report.open({
+                          id: null,
+                          userId: p.userId,
+                          name: p.name,
+                        })
+                      }
+                    />
+                    {m.role === "poster" ? (
+                      <RowLink label="Remove" danger accessibilityLabel={`Remove ${p.name}`} onPress={() => remove(p.userId, p.name)} />
+                    ) : null}
+                  </View>
                 ) : null}
               </View>
             ))}
@@ -149,5 +177,43 @@ export default function PlayersSheet() {
         <Text tone="inkMuted">{q.isError ? "Can't load the players. Drag down and try again." : "Loading players…"}</Text>
       )}
     </SheetBody>
+  );
+}
+
+/** A text link at the end of a player row, padded to a 44pt target (decision 192). */
+function RowLink({
+  label,
+  accessibilityLabel,
+  onPress,
+  danger = false,
+}: {
+  label: string;
+  accessibilityLabel: string;
+  onPress: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={({ pressed }) => ({
+        minHeight: MIN_TAP,
+        minWidth: MIN_TAP,
+        alignItems: "center",
+        justifyContent: "center",
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      {danger ? (
+        <Text tone="danger" style={{ textDecorationLine: "underline" }}>
+          {label}
+        </Text>
+      ) : (
+        <TextLink onPress={onPress} accessible={false}>
+          {label}
+        </TextLink>
+      )}
+    </Pressable>
   );
 }

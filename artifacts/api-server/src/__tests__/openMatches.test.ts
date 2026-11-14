@@ -407,6 +407,20 @@ describe("open match routes", () => {
       expect(push).toHaveBeenCalledWith(["c"], "New open match near you", expect.any(String), "/discover");
     });
 
+    it("reads \"You\" on your own row but sends your real name and photo for the avatar (finding 62)", async () => {
+      await post();
+      await as("b").post("/api/open-matches/1/join");
+      await as("c").post("/api/open-matches/1/join");
+      const asB = await as("b").get("/api/open-matches/1").expect(200);
+      const mine = asB.body.players.find((p: { me: boolean }) => p.me);
+      expect(mine).toMatchObject({ name: "You", fullName: "Theo Brandt", avatarUrl: "/objects/uploads/b", userId: 2 });
+      // Mia has no photo: her own row still gets her real name, so the avatar shows MK, not Y.
+      const asC = await as("c").get("/api/open-matches/1").expect(200);
+      expect(asC.body.players.find((p: { me: boolean }) => p.me)).toMatchObject({ name: "You", fullName: "Mia Kowalski", avatarUrl: null });
+      // Everyone else's name and full name match.
+      for (const p of asB.body.players.filter((x: { me: boolean }) => !x.me)) expect(p.fullName).toBe(p.name);
+    });
+
     it("leaves blocked players out of each other's Players and group chat after both joined", async () => {
       await post();
       await as("b").post("/api/open-matches/1/join");

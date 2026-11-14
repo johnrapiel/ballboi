@@ -487,7 +487,12 @@ export const GetOpenMatchResponse = zod.object({
   players: zod.array(
     zod.object({
       userId: zod.number(),
-      name: zod.string(),
+      name: zod.string().describe('Their name, or \"You\" for you.'),
+      fullName: zod
+        .string()
+        .describe(
+          "Their real name, yours included, for the initials avatar when there's no photo.",
+        ),
       rating: zod.number().nullable(),
       poster: zod.boolean(),
       me: zod.boolean(),
@@ -541,7 +546,12 @@ export const ActOnOpenMatchResponse = zod.object({
   players: zod.array(
     zod.object({
       userId: zod.number(),
-      name: zod.string(),
+      name: zod.string().describe('Their name, or \"You\" for you.'),
+      fullName: zod
+        .string()
+        .describe(
+          "Their real name, yours included, for the initials avatar when there's no photo.",
+        ),
       rating: zod.number().nullable(),
       poster: zod.boolean(),
       me: zod.boolean(),
