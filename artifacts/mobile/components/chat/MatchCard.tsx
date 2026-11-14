@@ -10,9 +10,17 @@
 // (John, Nov 12, Wave 2 finding 46; decision 184). Because an X alone could
 // read as dismissing the card, it always confirms with a native alert that
 // says what happens (decision 193). See match is an underlined link.
+//
+// Every match card blocks out its details the same way (John, Nov 13, Wave 2
+// finding 61; decision 199, the same match card everywhere): the day with the
+// time at the right of the same line (it wraps under the day at the largest
+// text sizes), then the court, then Singles or Practice hit, then a short
+// muted note. Undo is a quiet green link at the bottom right (decision 201),
+// not a button.
 
 import { useRouter } from "expo-router";
 import { Icon } from "@/components/Icon";
+import { InlineLink } from "@/components/InlineLink";
 import React from "react";
 import { AccessibilityInfo, Alert, Pressable, View } from "react-native";
 
@@ -21,7 +29,17 @@ import { radius, spacing } from "@/constants/tokens";
 import { useColors } from "@/hooks/useColors";
 import { usePlanAction, useShiftPlan } from "@/hooks/useDiscoverMatchPlans";
 import { isOfflineError, OFFLINE_MESSAGE } from "@/lib/api";
-import { actionLabel, cardActions, eventCopy, planWhen, type MatchPlan, type PlanAction, type PlanEvent } from "@/lib/discover";
+import {
+  actionLabel,
+  cardActions,
+  eventCopy,
+  planDetailsSpoken,
+  planWhen,
+  type MatchPlan,
+  type PlanAction,
+  type PlanDetails,
+  type PlanEvent,
+} from "@/lib/discover";
 import { tapSlop, textTapSlop } from "@/lib/tapTarget";
 
 const X_SIZE = 20;
@@ -140,7 +158,9 @@ export function MatchCard({
   const copy = eventCopy(event, plan, otherName);
   const them = otherName.split(" ")[0] || otherName;
   const mineSide = event.by === "me" && event.type === "proposed";
-  const spoken = [copy.title, copy.body?.replace(/\n/g, ". ")].filter(Boolean).join(". ");
+  const spoken = [copy.title, copy.details ? planDetailsSpoken(copy.details) : null, copy.body?.replace(/\n/g, ". ")]
+    .filter(Boolean)
+    .join(". ");
   const showMatchLink = event.type === "added" && plan.matchId != null && !event.actions.includes("undo");
 
   if (copy.status) {
@@ -164,7 +184,7 @@ export function MatchCard({
   }
 
   // Can't make it is the X in the corner; the other answers stay buttons.
-  const { cantMakeIt: cant, buttons } = cardActions(event.actions);
+  const { cantMakeIt: cant, undo, buttons } = cardActions(event.actions);
   const [primary, ...rest] = buttons;
   const openMatch = () => {
     if (plan.matchId) router.push({ pathname: "/match/[matchId]", params: { matchId: String(plan.matchId) } });
@@ -205,6 +225,7 @@ export function MatchCard({
             </Pressable>
           ) : null}
         </View>
+        {copy.details ? <Details d={copy.details} /> : null}
         {copy.body ? (
           <Text variant="small" tone="inkMuted">
             {copy.body}
@@ -243,6 +264,18 @@ export function MatchCard({
             </TextLink>
           </Pressable>
         ) : null}
+        {undo ? (
+          // A quiet green link at the bottom right (finding 61), 44pt from hitSlop (decision 192).
+          <InlineLink
+            label="Undo"
+            accessibilityLabel="Undo this match"
+            accessibilityHint="Takes it off both your schedules"
+            align="left"
+            disabled={busy}
+            onPress={() => onAction(plan, "undo")}
+            style={{ alignSelf: "flex-end" }}
+          />
+        ) : null}
         {devTools && (event.type === "added" || event.type === "day_before") && new Date(plan.startsAt) > new Date() ? (
           <TextButton
             label="Dev: move 1 day closer"
@@ -253,6 +286,25 @@ export function MatchCard({
           />
         ) : null}
       </Card>
+    </View>
+  );
+}
+
+/**
+ * The day with the time on the right of the same line, then the court, then
+ * the kind, each on its own line (finding 61). At the largest text sizes the
+ * time wraps under the day, left-aligned. The card reads these aloud as part
+ * of its one VoiceOver element.
+ */
+function Details({ d }: { d: PlanDetails }) {
+  return (
+    <View style={{ gap: 2 }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", columnGap: spacing.space4 }}>
+        <Text style={{ flexShrink: 1 }}>{d.day}</Text>
+        <Text>{d.time}</Text>
+      </View>
+      <Text>{d.court}</Text>
+      <Text>{d.kind}</Text>
     </View>
   );
 }

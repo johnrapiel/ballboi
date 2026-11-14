@@ -428,10 +428,12 @@ export interface MatchPlan {
 
 /** "Thu, Nov 12 at 6 PM", in this phone's time zone. */
 export function planWhen(iso: string): string {
-  const d = new Date(iso);
-  const day = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-  const time = clockTime(d);
-  return `${day} at ${time}`;
+  return `${planDay(iso)} at ${planTime(iso)}`;
+}
+
+/** "Thu, Nov 12", in this phone's time zone. */
+export function planDay(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
 /** "6 PM" or "6:30 PM". */
@@ -441,23 +443,52 @@ export function planTime(iso: string): string {
 
 export const kindLabel = (k: MatchPlan["kind"]) => (k === "practice" ? "Practice hit" : "Singles");
 
-/** "Fishkill Rec Park · Singles", or "Court not set · Singles". */
-export function planDetail(p: Pick<MatchPlan, "courtName" | "kind">): string {
-  return `${p.courtName ?? "Court not set"} · ${kindLabel(p.kind)}`;
+/**
+ * A chat match card's details, one per line (Wave 2 finding 61; decision 199,
+ * the same match card everywhere): the day with the time beside it, then the
+ * court ("Court not set" when none), then Singles or Practice hit.
+ */
+export interface PlanDetails {
+  day: string;
+  time: string;
+  court: string;
+  kind: string;
+}
+
+export function planDetails(p: Pick<MatchPlan, "startsAt" | "courtName" | "kind">): PlanDetails {
+  return { day: planDay(p.startsAt), time: planTime(p.startsAt), court: p.courtName ?? "Court not set", kind: kindLabel(p.kind) };
+}
+
+/** VoiceOver for the details: "Mon, Nov 16 at 7 PM. Court not set. Singles". */
+export function planDetailsSpoken(d: PlanDetails): string {
+  return `${d.day} at ${d.time}. ${d.court}. ${d.kind}`;
+}
+
+/** The note under "Match added" (finding 61): short, and no undo sentence; Undo is the link beside it. */
+export const ADDED_NOTE = "On both your schedules.";
+
+export interface EventCopy {
+  title: string;
+  /** The match's day, time, court and kind, each on its own line. */
+  details?: PlanDetails;
+  /** A short muted line under the details, or the whole text of a status line. */
+  body: string | null;
+  status?: boolean;
 }
 
 /** The words on each chat card for this viewer (canvas W2_Chat*). */
-export function eventCopy(e: PlanEvent, p: MatchPlan, other: string): { title: string; body: string | null; status?: boolean } {
+export function eventCopy(e: PlanEvent, p: MatchPlan, other: string): EventCopy {
   const when = planWhen(p.startsAt);
   const them = other.split(" ")[0] || other;
+  const details = planDetails(p);
   switch (e.type) {
     case "proposed":
-      if (e.state === "replaced") return { title: "Replaced by a newer time", body: `${when} · ${planDetail(p)}` };
+      if (e.state === "replaced") return { title: "Replaced by a newer time", details, body: null };
       if (e.state === "declined" || e.state === "undone" || e.state === "added")
-        return { title: e.by === "me" ? "You sent a match" : `${them} sent a match`, body: `${when} · ${planDetail(p)}` };
+        return { title: e.by === "me" ? "You sent a match" : `${them} sent a match`, details, body: null };
       return e.by === "me"
-        ? { title: when, body: `${planDetail(p)}. Waiting for ${them}.` }
-        : { title: "Add this match?", body: `${when} · ${planDetail(p)}. It goes on both your schedules.` };
+        ? { title: "You sent a match", details, body: `Waiting for ${them}.` }
+        : { title: "Add this match?", details, body: "It goes on both your schedules." };
     case "declined":
       return {
         title: e.by === "me" ? "You can't make it" : `${them} can't make it`,
@@ -465,16 +496,20 @@ export function eventCopy(e: PlanEvent, p: MatchPlan, other: string): { title: s
         status: true,
       };
     case "added":
-      return {
-        title: "Match added",
-        body: `${when} · ${planDetail(p)}. It's on both your schedules.${e.actions.includes("undo") ? " Either of you can undo it for a few minutes." : ""}`,
-      };
+      return { title: "Match added", details, body: ADDED_NOTE };
     case "undone":
       return { title: `${e.by === "me" ? "You" : them} undid ${when}`, body: "It's off both your schedules.", status: true };
     case "day_before":
       return {
         title: `Still on for tomorrow at ${planTime(p.startsAt)}?`,
-        body: `${when} · ${p.courtName ?? "Court not set"} · with ${them}${e.themIn ? `\n${them} is in` : ""}${e.meIn ? "\nYou're in" : ""}\nNo answer means you're still on. We'll remind you 2 hours before.`,
+        details,
+        body: [
+          e.themIn ? `${them} is in` : null,
+          e.meIn ? "You're in" : null,
+          "No answer means you're still on. We'll remind you 2 hours before.",
+        ]
+          .filter(Boolean)
+          .join("\n"),
       };
     case "canceled":
       return {
@@ -483,7 +518,7 @@ export function eventCopy(e: PlanEvent, p: MatchPlan, other: string): { title: s
         status: true,
       };
     case "did_it_happen":
-      return { title: `Did your match with ${them} happen?`, body: `${when} · ${p.courtName ?? "Court not set"}` };
+      return { title: `Did your match with ${them} happen?`, details, body: null };
     case "not_played":
       return {
         title: `${e.by === "me" ? "You" : them} said you didn't play`,
@@ -495,10 +530,12 @@ export function eventCopy(e: PlanEvent, p: MatchPlan, other: string): { title: s
       return e.about === "me"
         ? {
             title: `${them} says you didn't show`,
-            body: `${when} · ${p.courtName ?? "Court not set"}.${e.actions.length ? ` If that's not right, tell us by ${by}. Otherwise a no-show goes on your player card.` : ""}`,
+            details,
+            body: e.actions.length ? `If that's not right, tell us by ${by}. Otherwise a no-show goes on your player card.` : null,
           }
         : {
             title: `You said ${them} didn't show`,
+            details,
             body: `We asked ${them}. If they don't say otherwise by ${by}, a no-show goes on their player card.`,
           };
     }
@@ -539,12 +576,21 @@ export function actionLabel(a: PlanAction, them: string): string {
 
 /**
  * Splits a card's answers for the screen (Wave 2 finding 46): Can't make it
- * (cancel or decline) is the X in the card's corner, and the rest stay
- * buttons, the first one primary.
+ * (cancel or decline) is the X in the card's corner, Undo is a link at the
+ * bottom right (finding 61), and the rest stay buttons, the first one primary.
  */
-export function cardActions(actions: readonly PlanAction[]): { cantMakeIt: PlanAction | null; buttons: PlanAction[] } {
+export function cardActions(actions: readonly PlanAction[]): {
+  cantMakeIt: PlanAction | null;
+  undo: boolean;
+  buttons: PlanAction[];
+} {
   const isCant = (a: PlanAction) => a === "cancel" || a === "decline";
-  return { cantMakeIt: actions.find(isCant) ?? null, buttons: actions.filter((a) => !isCant(a)) };
+  return {
+    cantMakeIt: actions.find(isCant) ?? null,
+    // Undo is a quiet green link at the card's bottom right, not a button (finding 61).
+    undo: actions.includes("undo"),
+    buttons: actions.filter((a) => !isCant(a) && a !== "undo"),
+  };
 }
 
 /** A new card starts tomorrow at 6 PM, the most common time to play after work. */
